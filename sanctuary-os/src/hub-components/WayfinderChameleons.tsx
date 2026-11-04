@@ -15,6 +15,7 @@ import {
   SidePanelTitleInput,
 } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { openSanctuaryContextMenu } from "../ContextMenu";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useTheme, DEFAULT_CORE_THEMES } from "../ThemeContext";
@@ -735,6 +736,21 @@ export function WayfinderChameleons({
                 title={displayName}
                 subtitle={displaySub}
                 onClick={() => openFile(file)}
+                onContextMenu={(e) => {
+                  openSanctuaryContextMenu(e, [
+                    {
+                      label: t("open_editor", "Open in Editor"),
+                      icon: t("icon_code", "code"),
+                      onClick: () => openFile(file),
+                    },
+                    {
+                      divider: true,
+                      label: t("copy_title", "Copy Title"),
+                      icon: t("icon_content_copy", "content_copy"),
+                      onClick: () => navigator.clipboard?.writeText(displayName || ""),
+                    },
+                  ]);
+                }}
                 className={
                   isUnsaved ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)]" : ""
                 }
@@ -807,6 +823,21 @@ export function WayfinderChameleons({
               title={file.displayName || file.name.replace(/\.json$/i, "")}
               subtitle={t("ide_unsaved_files", "Unsaved Changes")}
               onClick={() => openFile(file)}
+              onContextMenu={(e) => {
+                openSanctuaryContextMenu(e, [
+                  {
+                    label: t("open_editor", "Open in Editor"),
+                    icon: t("icon_code", "code"),
+                    onClick: () => openFile(file),
+                  },
+                  {
+                    divider: true,
+                    label: t("copy_title", "Copy Title"),
+                    icon: t("icon_content_copy", "content_copy"),
+                    onClick: () => navigator.clipboard?.writeText(file.displayName || file.name || ""),
+                  },
+                ]);
+              }}
               className="border-[color-mix(in_srgb,var(--warning)_40%,transparent)]"
               imageOverlay={
                 <div className="absolute top-2.5 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
@@ -1078,6 +1109,21 @@ export function WayfinderChameleons({
                   title={t("title_area_card_title_subtitles", "Title & Subtitles")}
                   subtitle={`${t("lbl_by", "by")} ${t("sanctuary_foundry", "Sanctuary Foundry")}`}
                   onClick={openTitleAreaIde}
+                  onContextMenu={(e) => {
+                    openSanctuaryContextMenu(e, [
+                      {
+                        label: t("open_editor", "Open in Editor"),
+                        icon: t("icon_code", "code"),
+                        onClick: openTitleAreaIde,
+                      },
+                      {
+                        divider: true,
+                        label: t("copy_title", "Copy Title"),
+                        icon: t("icon_content_copy", "content_copy"),
+                        onClick: () => navigator.clipboard?.writeText("core-title-area.json"),
+                      },
+                    ]);
+                  }}
                   imageOverlay={
                     <div className="absolute top-2.5 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
                       {hasTitleDraft ? (
@@ -1131,6 +1177,21 @@ export function WayfinderChameleons({
                   title={t("title_area_logo_group", "Logo & Brand Header")}
                   subtitle={`${t("lbl_by", "by")} ${t("sanctuary_foundry", "Sanctuary Foundry")}`}
                   onClick={() => setIsLogoPanelOpen(true)}
+                  onContextMenu={(e) => {
+                    openSanctuaryContextMenu(e, [
+                      {
+                        label: t("edit", "Edit"),
+                        icon: t("icon_edit", "edit"),
+                        onClick: () => setIsLogoPanelOpen(true),
+                      },
+                      {
+                        divider: true,
+                        label: t("copy_title", "Copy Title"),
+                        icon: t("icon_content_copy", "content_copy"),
+                        onClick: () => navigator.clipboard?.writeText(t("title_area_logo_group", "Logo & Brand Header")),
+                      },
+                    ]);
+                  }}
                   imageOverlay={
                     <div className="absolute top-2.5 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
                       <div className={VAULT_CHIP_CLASS}>

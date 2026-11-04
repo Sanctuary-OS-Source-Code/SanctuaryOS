@@ -193,7 +193,7 @@ export function FilterPopover({
       : "glass-surface";
   const hoverBg =
     effectiveVariant === "inline"
-      ? "hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"
+      ? "hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]"
       : "";
   const borderClass =
     effectiveVariant === "inline"
@@ -201,7 +201,9 @@ export function FilterPopover({
       : "border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] opacity-75 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]";
 
   const activeStateClass =
-    "sa-glass-active !text-[var(--text)] !opacity-100";
+    effectiveVariant === "inline"
+      ? "bg-[color-mix(in_srgb,var(--text)_8%,transparent)] !text-[var(--accent)] !opacity-100 border-none"
+      : "sa-glass-active !text-[var(--text)] !opacity-100";
 
   const showLabelText = Boolean(label && !iconOnly);
 

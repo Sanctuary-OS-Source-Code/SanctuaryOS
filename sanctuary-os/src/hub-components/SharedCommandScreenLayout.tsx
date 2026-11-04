@@ -86,13 +86,13 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
     return (
       <div className="relative group flex items-center w-full">
         {canScrollLeft && (
-          <div className="absolute left-1.5 inset-y-0 z-20 flex items-center pointer-events-none">
+          <div className="absolute -left-2.5 inset-y-0 z-20 flex items-center pointer-events-none">
             <button
               type="button"
               onClick={() => scrollBy(-300)}
-              className="pointer-events-auto w-8 h-8 p-0 flex items-center justify-center glass-panel sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-xl shadow-xl text-[var(--text)] opacity-85 hover:opacity-100 transition-all cursor-pointer"
+              className="pointer-events-auto w-7 h-11 p-0 flex items-center justify-center glass-panel sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_18%,transparent)] rounded-xl shadow-xl text-[var(--text)] opacity-85 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 hover:!opacity-100 transition-all duration-200 cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[18px] leading-none flex items-center justify-center">
+              <span className="material-symbols-outlined !text-[17px] leading-none flex items-center justify-center">
                 {t("icon_chevron_left", "chevron_left")}
               </span>
             </button>
@@ -105,13 +105,13 @@ export function StatTileCarousel({ children, innerClassName = "px-1" }: any) {
           {children}
         </div>
         {canScrollRight && (
-          <div className="absolute right-1.5 inset-y-0 z-20 flex items-center pointer-events-none">
+          <div className="absolute -right-2.5 inset-y-0 z-20 flex items-center pointer-events-none">
             <button
               type="button"
               onClick={() => scrollBy(300)}
-              className="pointer-events-auto w-8 h-8 p-0 flex items-center justify-center glass-panel sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_20%,transparent)] rounded-xl shadow-xl text-[var(--text)] opacity-85 hover:opacity-100 transition-all cursor-pointer"
+              className="pointer-events-auto w-7 h-11 p-0 flex items-center justify-center glass-panel sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_18%,transparent)] rounded-xl shadow-xl text-[var(--text)] opacity-85 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 hover:!opacity-100 transition-all duration-200 cursor-pointer"
             >
-              <span className="material-symbols-outlined !text-[18px] leading-none flex items-center justify-center">
+              <span className="material-symbols-outlined !text-[17px] leading-none flex items-center justify-center">
                 {t("icon_chevron_right", "chevron_right")}
               </span>
             </button>
@@ -155,48 +155,51 @@ export function CommandScreenLayout({ children }: any) {
 
 export function CommandScreenSectionHeading({ 
   title, subtitle, icon, actions, rightContent, rightSlot, onBack, breadcrumb,
-  className = "", shape = "circle", 
+  className = "", shape = "circle", hideLine = false,
   colorClass = "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]", 
   iconColorClass = "text-[var(--accent)]" 
 }: any) {
-  const shapeClass = shape === "square" ? "rounded-lg" : "rounded-xl";
+  const shapeClass = "rounded-lg";
   const resolvedRight = actions || rightContent || rightSlot;
   
   return (
-    <div className={`flex items-center justify-between w-full relative z-10 min-w-0 gap-4 ${className}`}>
-      <div className="glass-panel rounded-2xl px-3.5 py-2 md:px-4 md:py-2.5 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 max-w-full">
-        {icon && (
-          <div className={`w-8 h-8 md:w-9 md:h-9 ${shapeClass} flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] relative group`}>
-            <span className={`material-symbols-outlined !text-[17px] md:!text-[19px] relative z-10 ${iconColorClass}`}>{icon}</span>
-          </div>
-        )}
-        <div className="flex flex-col gap-0.5 items-start justify-center text-left min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <h2 
-                onClick={onBack}
-                className={`text-sm sm:text-base font-black text-[var(--text)] capitalize tracking-tight leading-tight m-0 truncate min-w-0 ${onBack ? 'cursor-pointer hover:text-[var(--accent)] transition-colors' : ''}`}
-            >
-              {title}
-            </h2>
-            {breadcrumb && (
-              <div className="flex items-center gap-1.5 shrink-0 min-w-0">
-                <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] leading-tight truncate">
-                  {breadcrumb}
-                </span>
-              </div>
+    <div className={`flex items-center justify-start w-full relative z-10 min-w-0 gap-4 ${className}`}>
+      <div className="glass-panel rounded-xl flex items-stretch shrink-0 min-w-0 max-w-full overflow-hidden">
+        <div className="p-2 pr-3.5 md:p-2.5 md:pr-4 flex items-center gap-3 md:gap-3.5 min-w-0">
+          {icon && (
+            <div className={`w-8 h-8 md:w-9 md:h-9 ${shapeClass} flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] relative group`}>
+              <span className={`material-symbols-outlined !text-[17px] md:!text-[19px] relative z-10 ${iconColorClass}`}>{icon}</span>
+            </div>
+          )}
+          <div className="flex flex-col gap-0.5 items-start justify-center text-left min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 
+                  onClick={onBack}
+                  className={`text-sm sm:text-base font-black text-[var(--text)] capitalize tracking-tight leading-tight m-0 truncate min-w-0 ${onBack ? 'cursor-pointer hover:text-[var(--accent)] transition-colors' : ''}`}
+              >
+                {title}
+              </h2>
+              {breadcrumb && (
+                <div className="flex items-center gap-1.5 shrink-0 min-w-0">
+                  <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] leading-tight truncate">
+                    {breadcrumb}
+                  </span>
+                </div>
+              )}
+            </div>
+            {subtitle && (
+              <p className="font-medium tracking-wide text-[10px] opacity-80 m-0 text-[var(--subtext)] leading-snug break-words max-w-full">
+                {subtitle}
+              </p>
             )}
           </div>
-          {subtitle && (
-            <p className="font-medium tracking-wide text-[10px] opacity-80 m-0 text-[var(--subtext)] leading-snug break-words max-w-full">
-              {subtitle}
-            </p>
-          )}
         </div>
+        {resolvedRight && (
+          <div className="flex items-stretch self-stretch shrink-0 border-l border-[color-mix(in_srgb,var(--text)_8%,transparent)] divide-x divide-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+            {resolvedRight}
+          </div>
+        )}
       </div>
-      <div className="h-px flex-1 min-w-[16px] bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_20%,transparent)] via-[color-mix(in_srgb,var(--text)_8%,transparent)] to-transparent" />
-      {resolvedRight && (
-        <div className="flex items-center gap-2.5 shrink-0 relative z-10">{resolvedRight}</div>
-      )}
     </div>
   );
 }
@@ -235,12 +238,12 @@ export function CommandScreenMain({ children }: any) {
     );
 }
 
-export function CommandScreenSidebar({ title, icon, shape = "square", children }: any) {
-    const shapeClass = shape === "square" ? "rounded-lg" : "rounded-xl";
+export function CommandScreenSidebar({ title, icon, children }: any) {
+    const shapeClass = "rounded-lg";
     return (
         <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-4">
             <div className="flex items-center justify-between w-full relative z-10 min-w-0 gap-4">
-                <div className="glass-panel rounded-2xl px-3.5 py-2 md:px-4 md:py-2.5 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 max-w-full">
+                <div className="glass-panel rounded-xl p-2 pr-3.5 md:p-2.5 md:pr-4 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 max-w-full">
                     {icon && (
                         <div className={`w-8 h-8 md:w-9 md:h-9 ${shapeClass} flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] relative group`}>
                             <span className="material-symbols-outlined !text-[17px] md:!text-[19px] relative z-10 theme-text-accent">{icon}</span>
@@ -250,7 +253,7 @@ export function CommandScreenSidebar({ title, icon, shape = "square", children }
                         {title}
                     </h2>
                 </div>
-                <div className="h-px flex-1 min-w-[16px] bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_20%,transparent)] via-[color-mix(in_srgb,var(--text)_8%,transparent)] to-transparent" />
+                <div className="flex-1 min-w-[8px]" />
             </div>
             <div className="flex flex-col gap-4">
                 {children}
@@ -327,13 +330,20 @@ export function CommandScreenMetricTile({ icon, value, label, valueColorClass = 
     );
 }
 
-export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColorClass = "bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]", textColorClass = "text-[var(--accent)]", hoverTextColorClass = "text-[var(--accent)]", iconShadowClass = "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]", iconBorderHoverClass = "", isAlert = false }: any) {
+export function CommandScreenQuickLink({ icon, title, subtitle, onClick, dotColorClass = "bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.8)]", textColorClass = "text-[var(--accent)]", hoverTextColorClass = "text-[var(--accent)]", iconShadowClass = "drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]", iconBorderHoverClass = "", iconColorClass = "", isActive = false, isAlert = false }: any) {
+    const resolvedIconColor = isAlert
+        ? 'text-[var(--danger)]'
+        : iconColorClass
+            ? iconColorClass
+            : isActive
+                ? 'text-[var(--success)]'
+                : 'text-[var(--text)] group-hover:text-[var(--accent)]';
     return (
-        <button onClick={onClick} className="w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative min-h-24 h-auto cursor-pointer">
+        <button onClick={onClick} className={`w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative min-h-24 h-auto cursor-pointer ${isActive ? 'sa-card-selected' : ''}`}>
             <div className="absolute inset-0 rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none overflow-hidden bg-radial-[at_0%_0%] from-white/15 to-transparent" />
 
             <div className="flex items-center gap-4 h-full relative z-10">
-                <div className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-105 ${isAlert ? 'text-[var(--danger)]' : 'text-[var(--text)] group-hover:text-[var(--accent)]'}`}>
+                <div className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-105 ${resolvedIconColor}`}>
                     <span className={`material-symbols-outlined !text-[25px] opacity-85 group-hover:opacity-100 transition-all duration-300 ${isAlert ? 'animate-pulse' : ''}`}>{icon}</span>
                 </div>
                 <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">

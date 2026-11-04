@@ -276,6 +276,36 @@ pub fn get_file_label(schema: &Option<GameSchema>, ext: &str) -> String {
     "UNKNOWN".to_string()
 }
 
+pub fn is_script_extension(schema: &Option<GameSchema>, ext: &str) -> bool {
+    let ext_clean = ext.trim_start_matches('.').to_lowercase();
+    if let Some(s) = schema {
+        if let Some(scripts) = &s.extensions.script_extensions {
+            if !scripts.is_empty() {
+                return scripts
+                    .iter()
+                    .any(|se| se.trim_start_matches('.').eq_ignore_ascii_case(&ext_clean));
+            }
+        }
+        if let Some(label) = s
+            .extensions
+            .labels
+            .get(&ext_clean)
+            .or_else(|| s.extensions.labels.get(&format!(".{}", ext_clean)))
+        {
+            if label.to_uppercase().contains("SCRIPT")
+                || label.to_uppercase().contains("SMAPI")
+                || label.to_uppercase().contains("PLUGIN")
+            {
+                return true;
+            }
+        }
+    }
+    matches!(
+        ext_clean.as_str(),
+        "ts4script" | "dll" | "asi" | "lua" | "reds" | "csx"
+    )
+}
+
 pub fn get_install_routes(schema: &Option<GameSchema>) -> Vec<crate::schema::SchemaInstallRoute> {
     if let Some(s) = schema {
         if let Some(routes) = &s.install_routes {

@@ -459,7 +459,7 @@ export default function MasonEditorPanel({
         headerActions={
           <>
             {hasVisualStudio && (
-              <PanelHeaderGroup className="mr-1">
+              <PanelHeaderGroup>
                 <PanelHeaderButton
                   icon={t("icon_auto_awesome", "auto_awesome")}
                   tooltip={t("lex_studio_visual", "Visual Studio")}

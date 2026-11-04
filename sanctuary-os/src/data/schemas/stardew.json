@@ -1,60 +1,166 @@
 {
-  "schema_version": 1,
+  "id": "stardew",
   "game_id": "stardew-valley",
+  "steam_app_id": "413150",
   "display_name": "Stardew Valley",
+  "default_lexicon": "en-default",
+  "schema_version": 2,
+  "min_scout_submissions": 3,
   "executable_names": [
+    "StardewModdingAPI.exe",
     "Stardew Valley.exe",
-    "StardewModdingAPI.exe"
-  ],
-  "mod_categories": [
-    {
-      "id": "Unknown",
-      "lexicon_key": "class_dd_unknown",
-      "icon_key": "ui_icon_unknown"
-    },
-    {
-      "id": "Core",
-      "lexicon_key": "class_dd_core",
-      "icon_key": "ui_icon_core"
-    },
-    {
-      "id": "Script",
-      "lexicon_key": "class_dd_script",
-      "icon_key": "ui_icon_scroll"
-    }
+    "StardewModdingAPI",
+    "StardewValley",
+    "Stardew Valley.app"
   ],
   "paths": {
-    "default_mod_dir_windows": "Steam/steamapps/common/Stardew Valley/Mods",
-    "default_mod_dir_mac": "Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/Mods",
-    "manifest_file": "manifest.json"
+    "executable_subdir": "",
+    "default_mod_dir_windows": "C:/Program Files (x86)/Steam/steamapps/common/Stardew Valley/Mods",
+    "default_mod_dir_mac": "~/Library/Application Support/Steam/steamapps/common/Stardew Valley/Contents/MacOS/Mods",
+    "default_mod_dir_linux": "~/.steam/steam/steamapps/common/Stardew Valley/Mods",
+    "user_data_dir_windows": "%APPDATA%/StardewValley",
+    "user_data_dir_mac": "~/.config/StardewValley",
+    "user_data_dir_linux": "~/.config/StardewValley",
+    "manifest_file": "manifest.json",
+    "auto_scan_paths_windows": [
+      "C:/Program Files (x86)/Steam/steamapps/common/Stardew Valley",
+      "D:/Program Files (x86)/Steam/steamapps/common/Stardew Valley",
+      "C:/GOG Games/Stardew Valley"
+    ],
+    "auto_scan_paths_mac": [
+      "~/Library/Application Support/Steam/steamapps/common/Stardew Valley",
+      "/Applications/Stardew Valley.app"
+    ],
+    "auto_scan_paths_linux": [
+      "~/.steam/steam/steamapps/common/Stardew Valley",
+      "~/.local/share/Steam/steamapps/common/Stardew Valley",
+      "~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Stardew Valley",
+      "/run/media/mmcblk0p1/steamapps/common/Stardew Valley",
+      "/run/media/deck/steamapps/common/Stardew Valley"
+    ]
   },
   "extensions": {
     "supported": [
       ".dll",
       ".json",
-      ".xnb",
       ".png",
-      ".zip"
+      ".tmx",
+      ".tbin",
+      ".xnb",
+      ".ogg",
+      ".zip",
+      ".rar",
+      ".7z"
     ],
     "vault_visible": [
+      ".dll",
+      ".json",
+      ".png",
+      ".tmx",
+      ".tbin",
+      ".xnb",
+      ".ogg"
+    ],
+    "script_extensions": [
       ".dll"
     ],
-
+    "config_extensions": [
+      ".json"
+    ],
+    "ignore_unidentified": [
+      ".md",
+      ".txt"
+    ],
+    "cache_files": [],
     "labels": {
-      ".dll": "DLL",
-      ".json": "JSON",
-      ".xnb": "XNB",
+      ".dll": "SMAPI C#",
+      ".json": "CONTENT JSON",
+      ".xnb": "XNB ASSET",
+      ".tmx": "MAP TMX",
+      ".tbin": "MAP TBIN",
       ".png": "IMAGE",
-      ".zip": "ARCHIVE"
-    },
-    "cache_files": []
+      ".zip": "ARCHIVE",
+      ".rar": "ARCHIVE",
+      ".7z": "ARCHIVE"
+    }
   },
-
   "constraints": {
-    "max_folder_depth": 10,
-    "requires_script_unzipping": true
+    "max_folder_depth": 8,
+    "requires_script_unzipping": false,
+    "mods_dir_is_shared_with_vanilla": false,
+    "preserve_archive_folder_structure": true,
+    "wrap_loose_files_in_folders": true
   },
-
+  "version_extraction": {
+    "method": "pe_header",
+    "relative_path": "Stardew Valley.exe",
+    "line_prefix": ""
+  },
+  "dlc_folder_prefixes": [],
+  "dlc_subdirs": [],
+  "dlc_file_extensions": [],
+  "launch_args_dlc_mask_template": "",
+  "manifest_content": "",
+  "load_order": {
+    "strategy": "folder_priority",
+    "direction": "higher_wins",
+    "manifest_file": "",
+    "prefix_format": "{index:03}_",
+    "line_template": "{file}",
+    "priority_tiers": [
+      {
+        "id": "default",
+        "label": "Standard (Mods/)",
+        "priority": 500,
+        "folder": ""
+      }
+    ]
+  },
+  "install_routes": [],
+  "lab_verification": {
+    "require_for_mason_publish": true,
+    "require_for_scout_approval": true,
+    "required_active_seconds": 90,
+    "max_idle_seconds": 25,
+    "require_focus": true,
+    "require_save_checkpoint": false,
+    "seed_sandbox_from_latest_save": true,
+    "enable_hotkey_pause_detection": false,
+    "save_extensions": [
+      "_STARDEWVALLEYSAVETMP",
+      ".xml"
+    ],
+    "world_load_signature": {
+      "stabilize_boot_seconds": 6,
+      "min_disk_read_mb": 25,
+      "min_ram_step_percent": 15,
+      "warm_cache_ram_step_percent": 25,
+      "scratch_activity_subdirs": [
+        "Saves"
+      ]
+    }
+  },
+  "exception_logs": [
+    {
+      "exact": "SMAPI-latest.txt"
+    },
+    {
+      "exact": "SMAPI-crash.txt"
+    }
+  ],
+  "exception_rules": [
+    {
+      "id": "smapi_mod_crash",
+      "title": "SMAPI Unhandled Mod Exception or Missing Dependency",
+      "pattern": "[ERROR] | Failed loading type | skipped because it requires mods which aren't installed",
+      "file_hint": "SMAPI-latest.txt",
+      "severity": "critical",
+      "diagnosis": "A SMAPI mod failed to load due to a missing required mod ID in manifest.json or an outdated C# .dll.",
+      "resolution": "Install the required dependency mod or update the mod for your current SMAPI / Stardew Valley version.",
+      "ignore_in_lab": false,
+      "enabled": true
+    }
+  ],
   "time_capsule": {
     "world_state_targets": [
       {
@@ -67,8 +173,74 @@
         "name": "Mods",
         "path": "Mods"
       }
+    ],
+    "save_airgap_targets": [
+      "Saves"
     ]
   },
-  "exception_logs": [],
-  "version_extraction": null
+  "mod_categories": [
+    {
+      "id": "Core",
+      "label": "SMAPI Framework / Content Patcher",
+      "icon": "memory",
+      "lexicon_key": "class_dd_core",
+      "icon_key": "ui_icon_core"
+    },
+    {
+      "id": "Script",
+      "label": "SMAPI C# Mod (.dll)",
+      "icon": "terminal",
+      "lexicon_key": "class_dd_script",
+      "icon_key": "ui_icon_script"
+    },
+    {
+      "id": "Expansion",
+      "label": "Expansions, NPCs & Locations",
+      "icon": "map",
+      "lexicon_key": "class_dd_expansion",
+      "icon_key": "ui_icon_expansion"
+    },
+    {
+      "id": "Crops",
+      "label": "Crops, Artisan Goods & Recipes",
+      "icon": "eco",
+      "lexicon_key": "class_dd_crops",
+      "icon_key": "ui_icon_crops"
+    },
+    {
+      "id": "Aesthetics",
+      "label": "Recolors, Buildings & Portraits",
+      "icon": "palette",
+      "lexicon_key": "class_dd_aesthetics",
+      "icon_key": "ui_icon_aesthetics"
+    },
+    {
+      "id": "Characters",
+      "label": "Fashion Sense & Farmer Sprites",
+      "icon": "checkroom",
+      "lexicon_key": "class_dd_characters",
+      "icon_key": "ui_icon_characters"
+    },
+    {
+      "id": "Gameplay",
+      "label": "Automation & Quality of Life",
+      "icon": "sports_esports",
+      "lexicon_key": "class_dd_gameplay",
+      "icon_key": "ui_icon_gameplay"
+    },
+    {
+      "id": "UI",
+      "label": "UI Info & Menus",
+      "icon": "dashboard_customize",
+      "lexicon_key": "class_dd_ui",
+      "icon_key": "ui_icon_ui"
+    },
+    {
+      "id": "Unknown",
+      "label": "Unclassified",
+      "icon": "help_outline",
+      "lexicon_key": "class_dd_unknown",
+      "icon_key": "ui_icon_unknown"
+    }
+  ]
 }

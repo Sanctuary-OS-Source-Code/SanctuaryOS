@@ -6,6 +6,8 @@ import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSideP
 import { stripMarkdown } from "../../shared";
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
+import { openModDossier } from "../../shared";
 
 const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
@@ -245,6 +247,27 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
                     title={bug.title || t("stat_bugs", "Bug Report")} 
                     icon={t("icon_bug_report", "bug_report")} 
                     onClick={() => onOpenBugReport && onOpenBugReport(bug.id)}
+                    onContextMenu={(e) => {
+                      const menuItems: SanctuaryContextMenuItem[] = [
+                        {
+                          label: t("view_details", "View Details"),
+                          icon: t("icon_bug_report", "bug_report"),
+                          onClick: () => onOpenBugReport && onOpenBugReport(bug.id),
+                        },
+                        {
+                          label: t("stat_bugs", "Bug Reports"),
+                          icon: t("icon_open_in_new", "open_in_new"),
+                          onClick: () => onNavigate("bug_reports"),
+                        },
+                        {
+                          label: t("copy", "Copy"),
+                          icon: t("icon_content_copy", "content_copy"),
+                          dividerBefore: true,
+                          onClick: () => navigator.clipboard?.writeText(stripMarkdown(bug.description || bug.content || bug.title || "")),
+                        },
+                      ];
+                      openSanctuaryContextMenu(e, menuItems);
+                    }}
                     className="w-full"
                     imageOverlay={
                       <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
@@ -288,6 +311,27 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
                     title={art.name || art.title} 
                     icon={t("icon_deployed_code", "deployed_code")} 
                     onClick={() => onOpenMetadataEditor && onOpenMetadataEditor(art.id)}
+                    onContextMenu={(e) => {
+                      const menuItems: SanctuaryContextMenuItem[] = [
+                        {
+                          label: t("edit", "Edit"),
+                          icon: t("icon_edit", "edit"),
+                          onClick: () => onOpenMetadataEditor && onOpenMetadataEditor(art.id),
+                        },
+                        {
+                          label: t("btn_inspect", "Inspect {Mod}"),
+                          icon: t("icon_open_in_new", "open_in_new"),
+                          onClick: () => openModDossier({ ...art, isNexusView: true }),
+                        },
+                        {
+                          label: t("copy", "Copy"),
+                          icon: t("icon_content_copy", "content_copy"),
+                          dividerBefore: true,
+                          onClick: () => navigator.clipboard?.writeText(String(art.name || art.title || "")),
+                        },
+                      ];
+                      openSanctuaryContextMenu(e, menuItems);
+                    }}
                     className="w-full"
                     imageOverlay={
                       <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
@@ -331,6 +375,22 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
                     title={rep.profiles?.display_name || rep.profiles?.username || t("role_citizen", "{Citizen}")} 
                     icon={t("icon_forum", "forum")} 
                     onClick={onOpenRecentReplies}
+                    onContextMenu={(e) => {
+                      const menuItems: SanctuaryContextMenuItem[] = [
+                        {
+                          label: t("ui.replies", "Replies"),
+                          icon: t("icon_forum", "forum"),
+                          onClick: () => onOpenRecentReplies && onOpenRecentReplies(),
+                        },
+                        {
+                          label: t("copy", "Copy"),
+                          icon: t("icon_content_copy", "content_copy"),
+                          dividerBefore: true,
+                          onClick: () => navigator.clipboard?.writeText(stripMarkdown(rep.content || "")),
+                        },
+                      ];
+                      openSanctuaryContextMenu(e, menuItems);
+                    }}
                     className="w-full"
                     imageOverlay={
                       <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">

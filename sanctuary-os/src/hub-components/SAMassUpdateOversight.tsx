@@ -9,6 +9,7 @@ import {
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard, StatBox } from "../components/universal/UniversalLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { openSanctuaryContextMenu } from "../ContextMenu";
 import { DynamicArtifactPreviewBanner } from "../chameleon-components/ThemeCard";
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -191,6 +192,21 @@ export function MassUpdateOversight() {
       <UniversalCard
         key={m.id}
         onClick={onCardClick}
+        onContextMenu={(e) => {
+          openSanctuaryContextMenu(e, [
+            {
+              label: isSelected ? t("deselect", "Deselect") : t("select", "Select"),
+              icon: isSelected ? t("icon_check_box_outline_blank", "check_box_outline_blank") : t("icon_check_box", "check_box"),
+              onClick: onCardClick,
+            },
+            {
+              divider: true,
+              label: t("copy_title", "Copy Title"),
+              icon: t("icon_content_copy", "content_copy"),
+              onClick: () => navigator.clipboard?.writeText(m.name || ""),
+            },
+          ]);
+        }}
         layout="vertical"
         isActive={isSelected}
         icon={isSelected ? t("icon_check", "check") : t("icon_extension", "extension")}
@@ -281,6 +297,15 @@ export function MassUpdateOversight() {
     <UniversalCard
       key={log.id}
       layout="vertical"
+      onContextMenu={(e) => {
+        openSanctuaryContextMenu(e, [
+          {
+            label: t("copy_title", "Copy Title"),
+            icon: t("icon_content_copy", "content_copy"),
+            onClick: () => navigator.clipboard?.writeText(log.action || ""),
+          },
+        ]);
+      }}
       icon={t("icon_history", "history")}
       title={log.action}
       subtitle={log.target_name || t("batch_operation", "Batch Operation")}
@@ -348,7 +373,7 @@ export function MassUpdateOversight() {
           id: "toggleSelected",
           icon: "checklist",
           label: showOnlySelected ? t("artifacts_selected", "{Mods} Selected") : t("mass_update_apply", "Selected Only"),
-          activeClassName: showOnlySelected ? "bg-[var(--accent)] text-black" : "",
+          activeClassName: showOnlySelected ? "!text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_16%,transparent)] bg-[color-mix(in_srgb,var(--text)_6%,transparent)]" : "",
           onClick: () => setShowOnlySelected(!showOnlySelected)
         },
         {
@@ -361,7 +386,7 @@ export function MassUpdateOversight() {
           id: "applyMassUpdate",
           icon: "tune",
           label: `${t("mass_update_apply", "Mass Update")} (${selectedIds.size})`,
-          activeClassName: "bg-[var(--accent)] text-black",
+          activeClassName: "!text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_16%,transparent)] bg-[color-mix(in_srgb,var(--text)_6%,transparent)]",
           onClick: () => setIsActionPanelOpen(true)
         }] : [])
       ] : undefined}

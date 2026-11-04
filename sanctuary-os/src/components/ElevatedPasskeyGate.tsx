@@ -45,6 +45,7 @@ export function ElevatedPasskeyGate({
   const [mfaEnrollTab, setMfaEnrollTab] = useState<"passkey" | "totp">("passkey");
   const [selectedPasskeyId, setSelectedPasskeyId] = useState<string>("");
   const [passkeyName, setPasskeyName] = useState("");
+  const [enrollPasswordInput, setEnrollPasswordInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -202,12 +203,23 @@ export function ElevatedPasskeyGate({
 
   const handleRegisterNow = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!enrollPasswordInput.trim()) {
+      setErrorMsg(
+        t(
+          "auth_current_password_required_err",
+          "Please enter your current password to authorize this security change."
+        )
+      );
+      return;
+    }
     setBusy(true);
     setErrorMsg("");
     const defaultLabel =
       passkeyName.trim() || t("auth_passkey_badge_fido", "FIDO2 Passkey");
 
-    const { error } = await registerFidoPasskey(defaultLabel);
+    const { error } = await registerFidoPasskey(defaultLabel, {
+      currentPassword: enrollPasswordInput,
+    });
     if (error) {
       setErrorMsg(formatPasskeyError(error.message));
       setBusy(false);
@@ -218,6 +230,7 @@ export function ElevatedPasskeyGate({
       .getState()
       .pushStatus(t("auth_passkey_enrolled_toast", "FIDO2 Passkey registered and verified!"), "success");
     setPasskeyName("");
+    setEnrollPasswordInput("");
     await refreshState();
     setBusy(false);
   };
@@ -236,6 +249,15 @@ export function ElevatedPasskeyGate({
   };
 
   const startTotpEnrollment = async () => {
+    if (hasPendingMfaChallenge) {
+      setEnrollError(
+        t(
+          "auth_passkey_stepup_required_desc",
+          "Your account already has an active FIDO2 Passkey. To prevent unauthorized credential enrollment from stolen sessions or passwords, you must authenticate with an existing Passkey on this device before adding or modifying security factors."
+        )
+      );
+      return;
+    }
     setEnrollingTotp(true);
     setEnrollError("");
     try {
@@ -485,16 +507,21 @@ export function ElevatedPasskeyGate({
                 className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col"
               >
                 <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                      {t("icon_passkey", "passkey")}
-                    </span>
-                    <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)]">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined !text-[15px]">
+                        {t("icon_passkey", "passkey")}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
                       {t("auth_passkey_register_section_title", "Register FIDO2 Passkey (Recommended)")}
                     </span>
                   </div>
-                  <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)]">
-                    {t("auth_passkey_badge_fido", "FIDO2 PASSKEY")}
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_verified_user", "verified_user")}
+                    </span>
+                    <span>{t("auth_passkey_badge_fido", "FIDO2 Passkey")}</span>
                   </span>
                 </div>
 
@@ -522,6 +549,29 @@ export function ElevatedPasskeyGate({
                     />
                   </div>
 
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                      {t("auth_current_password_label", "Current Password (Required)")}
+                    </label>
+                    <input
+                      type="password"
+                      value={enrollPasswordInput}
+                      onChange={(e) => setEnrollPasswordInput(e.target.value)}
+                      placeholder={t(
+                        "auth_current_password_ph",
+                        "Enter your current password to verify..."
+                      )}
+                      autoComplete="current-password"
+                      className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+                    />
+                    <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80 px-1">
+                      {t(
+                        "auth_passkey_enroll_password_desc",
+                        "Confirm your current account password to authorize registering this FIDO2 Passkey. This prevents stolen session tokens from enrolling unauthorized credentials."
+                      )}
+                    </span>
+                  </div>
+
                   {errorMsg && (
                     <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
                       <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
@@ -533,7 +583,7 @@ export function ElevatedPasskeyGate({
 
                   <ActionButton
                     type="submit"
-                    disabled={busy}
+                    disabled={busy || !enrollPasswordInput.trim()}
                     variant="glass"
                     icon={t("icon_passkey", "passkey")}
                     label={
@@ -603,16 +653,21 @@ export function ElevatedPasskeyGate({
           ) : (
             <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col">
               <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                    {t("icon_qr_code_scanner", "qr_code_scanner")}
-                  </span>
-                  <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)]">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined !text-[15px]">
+                      {t("icon_qr_code_scanner", "qr_code_scanner")}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
                     {t("auth_totp_section_title", "Authenticator App (TOTP Backup)")}
                   </span>
                 </div>
-                <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--text)_22%,transparent)] text-[var(--subtext)]">
-                  {t("auth_passkey_badge_totp", "AUTHENTICATOR APP")}
+                <span className={VAULT_CHIP_CLASS}>
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                    {t("icon_qr_code_scanner", "qr_code_scanner")}
+                  </span>
+                  <span>{t("auth_passkey_badge_totp", "Authenticator App")}</span>
                 </span>
               </div>
 
@@ -739,24 +794,31 @@ export function ElevatedPasskeyGate({
           {activeTabFactors.length > 0 && (
             <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col">
               <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                    {mfaEnrollTab === "passkey"
-                      ? t("icon_passkey", "passkey")
-                      : t("icon_qr_code_scanner", "qr_code_scanner")}
-                  </span>
-                  <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)]">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined !text-[15px]">
+                      {mfaEnrollTab === "passkey"
+                        ? t("icon_passkey", "passkey")
+                        : t("icon_qr_code_scanner", "qr_code_scanner")}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
                     {mfaEnrollTab === "passkey"
                       ? t("auth_passkey_badge_fido", "FIDO2 Passkey")
                       : t("passkey_tile_totp_title", "Authenticator App")}
                   </span>
                 </div>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[var(--subtext)]">
-                  {activeTabFactors.length}
+                <span className={VAULT_CHIP_CLASS}>
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                    {mfaEnrollTab === "passkey"
+                      ? t("icon_passkey", "passkey")
+                      : t("icon_qr_code_scanner", "qr_code_scanner")}
+                  </span>
+                  <span>{activeTabFactors.length}</span>
                 </span>
               </div>
 
-              <div className="divide-y divide-[color-mix(in_srgb,var(--text)_6%,transparent)]">
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {activeTabFactors.map((f: any) => {
                   const isPasskey = f.factor_type === "webauthn";
                   const isLastRequiredPasskey = isPasskey && passkeys.length <= 1;
@@ -769,68 +831,102 @@ export function ElevatedPasskeyGate({
                   );
 
                   return (
-                    <div key={f.id} className="flex flex-col">
-                      <div className="px-4 py-3.5 flex flex-wrap items-center justify-between gap-3 hover:bg-[color-mix(in_srgb,var(--text)_3%,transparent)] transition-colors">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div
-                            className={`w-9 h-9 rounded-xl border bg-transparent flex items-center justify-center shrink-0 ${
-                              isPasskey
-                                ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
-                                : "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
-                            }`}
-                          >
-                            <span className="material-symbols-outlined !text-[18px]">
-                              {isPasskey
-                                ? t("icon_passkey", "passkey")
-                                : t("icon_qr_code_scanner", "qr_code_scanner")}
-                            </span>
-                          </div>
-
-                          <div className="flex flex-col gap-0.5 min-w-0">
-                            <span className="text-xs md:text-sm font-black text-[var(--text)] truncate">
-                              {displayLabel}
-                            </span>
-                            <span className="text-[11px] font-mono text-[var(--subtext)] opacity-80">
-                              {`${t("auth_2fa_enrolled_prefix", "Enrolled: ")}${new Date(f.created_at).toLocaleDateString()}`}
-                            </span>
-                          </div>
+                    <div
+                      key={f.id}
+                      className={`glass-panel rounded-2xl p-3.5 flex flex-col justify-between gap-3 border transition-all ${
+                        isPendingRemoval
+                          ? "sm:col-span-2 border-[color-mix(in_srgb,var(--accent)_38%,transparent)]"
+                          : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                          <span className="material-symbols-outlined !text-[19px]">
+                            {isPasskey
+                              ? t("icon_passkey", "passkey")
+                              : t("icon_qr_code_scanner", "qr_code_scanner")}
+                          </span>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
-                          <ActionButton
-                            onClick={() => {
-                              if (isLastRequiredPasskey) {
-                                useStore.getState().pushStatus(
-                                  t(
-                                    "auth_passkey_last_required_err",
-                                    "Elevated roles must keep at least one active FIDO2 Passkey. Register a backup Passkey before removing this one."
-                                  ),
-                                  "error"
-                                );
-                                return;
-                              }
-                              setPendingUnenrollFactorId(isPendingRemoval ? null : f.id);
-                              setCurrentPasswordInput("");
-                            }}
-                            disabled={isLastRequiredPasskey}
-                            variant="glass"
-                            icon={isLastRequiredPasskey ? t("icon_lock", "lock") : t("icon_delete", "delete")}
-                            label={
+                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                          <span className="text-xs md:text-sm font-black text-[var(--text)] truncate leading-snug">
+                            {displayLabel}
+                          </span>
+                          <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80 truncate">
+                            {`${t("auth_2fa_enrolled_prefix", "Enrolled: ")}${new Date(f.created_at).toLocaleDateString()}`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 mt-auto">
+                        <span className={`${VAULT_CHIP_CLASS} !px-2 !py-0.5`}>
+                          <span
+                            className={`material-symbols-outlined !text-[12px] ${
                               isLastRequiredPasskey
+                                ? "text-[var(--accent)]"
+                                : "text-[var(--success)]"
+                            }`}
+                          >
+                            {isLastRequiredPasskey
+                              ? t("icon_verified_user", "verified_user")
+                              : t("icon_check_circle", "check_circle")}
+                          </span>
+                          <span>
+                            {isLastRequiredPasskey
+                              ? t("passkey_min_one_required_badge", "Required for Role")
+                              : t("active", "Active")}
+                          </span>
+                        </span>
+
+                        <ActionButton
+                          onClick={() => {
+                            if (hasPendingMfaChallenge) {
+                              useStore.getState().pushStatus(
+                                t(
+                                  "auth_passkey_stepup_required_desc",
+                                  "Your account already has an active FIDO2 Passkey. To prevent unauthorized credential enrollment from stolen sessions or passwords, you must authenticate with an existing Passkey on this device before adding or modifying security factors."
+                                ),
+                                "error"
+                              );
+                              return;
+                            }
+                            if (isLastRequiredPasskey) {
+                              useStore.getState().pushStatus(
+                                t(
+                                  "auth_passkey_last_required_err",
+                                  "Elevated roles must keep at least one active FIDO2 Passkey. Register a backup Passkey before removing this one."
+                                ),
+                                "error"
+                              );
+                              return;
+                            }
+                            setPendingUnenrollFactorId(isPendingRemoval ? null : f.id);
+                            setCurrentPasswordInput("");
+                          }}
+                          disabled={isLastRequiredPasskey || hasPendingMfaChallenge}
+                          variant="glass"
+                          icon={
+                            isLastRequiredPasskey || hasPendingMfaChallenge
+                              ? t("icon_lock", "lock")
+                              : t("icon_delete", "delete")
+                          }
+                          label={
+                            hasPendingMfaChallenge
+                              ? t("auth_passkey_stepup_locked_badge", "Step-Up Locked")
+                              : isLastRequiredPasskey
                                 ? t("passkey_min_one_required_badge", "Required for Role")
                                 : isPasskey
                                   ? t("btn_remove_passkey", "Remove Passkey")
                                   : t("btn_disable_2fa", "Disable 2FA")
-                            }
-                            className="!px-3.5 !py-2"
-                          />
-                        </div>
+                          }
+                          className="!px-3 !py-1.5 !text-[10px]"
+                        />
                       </div>
 
                       {isPendingRemoval && (
                         <form
                           onSubmit={confirmUnenrollFactor}
-                          className="px-4 py-3.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-[color-mix(in_srgb,var(--bg)_35%,transparent)] flex flex-col gap-3 animate-in fade-in duration-200"
+                          className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-3 animate-in fade-in duration-200"
                         >
                           <div className="flex flex-col gap-0.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">

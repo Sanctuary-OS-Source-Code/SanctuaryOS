@@ -6,6 +6,7 @@ import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
 import { CustomDropdown, EmptyState } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid } from "../components/layouts/ElevatedHubLayout";
 import SASupportSettings from "./SASupportSettings";
 
@@ -387,6 +388,22 @@ export default function ArchitectSupportTickets({
       <UniversalCard
         key={ticket.id}
         onClick={() => setSelectedTicket(ticket)}
+        onContextMenu={(e) => {
+          const menuItems: SanctuaryContextMenuItem[] = [
+            {
+              label: t("view_ticket", "View Ticket"),
+              icon: t("icon_support_agent", "support_agent"),
+              onClick: () => setSelectedTicket(ticket),
+            },
+            {
+              label: t("copy", "Copy"),
+              icon: t("icon_content_copy", "content_copy"),
+              dividerBefore: true,
+              onClick: () => navigator.clipboard?.writeText(String(ticket.description || ticket.title || "")),
+            },
+          ];
+          openSanctuaryContextMenu(e, menuItems);
+        }}
         layout="vertical"
         isGhosted={isResolved || isRejected}
         icon={t("icon_support_agent", "support_agent")}

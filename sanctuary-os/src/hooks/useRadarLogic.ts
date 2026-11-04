@@ -878,7 +878,9 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               ?.toLowerCase() || "";
             if (
               rawFName &&
-              (rawFName.endsWith(".package") || rawFName.endsWith(".ts4script"))
+              /\.(package|ts4script|world|dll|asi|rpf|cak|pac|esp|esm|esl|bsa|ba2|archive|pak|lua|xl|reds|tweak|jar|litemod|xnb|tmx|tbin|csx)$/i.test(
+                rawFName,
+              )
             ) {
               const prev = byFileName.get(rawFName);
               if (!prev) {

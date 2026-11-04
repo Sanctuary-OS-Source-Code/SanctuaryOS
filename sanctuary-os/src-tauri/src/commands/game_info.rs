@@ -609,6 +609,10 @@ pub fn save_file_with_history(
 ) -> Result<String, String> {
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    if !crate::utils::is_safe_user_file_path(std::path::Path::new(&path)) {
+        return Err("Blocked: Refusing to write to protected system path.".into());
+    }
+
     let prior_disk_content = std::fs::read_to_string(&path).ok();
     mark_workbench_save(&path);
     std::fs::write(&path, &content).map_err(|e| format!("Failed to save file: {}", e))?;
@@ -674,6 +678,9 @@ pub fn save_file_with_history(
 
 #[tauri::command]
 pub fn save_file_silently(path: String, content: String) -> Result<String, String> {
+    if !crate::utils::is_safe_user_file_path(std::path::Path::new(&path)) {
+        return Err("Blocked: Refusing to write to protected system path.".into());
+    }
     mark_workbench_save(&path);
     std::fs::write(&path, &content).map_err(|e| format!("Failed to save file: {}", e))?;
     Ok("Saved successfully".into())

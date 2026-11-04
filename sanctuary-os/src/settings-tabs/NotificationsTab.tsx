@@ -133,6 +133,7 @@ export default function NotificationsTab() {
     const currentScope = getNotificationScopePreference();
     const spokeKey = currentScope === 'global' ? undefined : currentScope;
     setSelectedScope(currentScope);
+    setModAlertsBpScopeState(getModAlertsBlueprintScope());
     setCrossWorkspaceEnabledState(getCrossWorkspaceNotificationsEnabled());
     setAllowedCrossSpokesState(
       getAllowedCrossWorkspaceSpokes(availableSpokes.map((s) => s.schema_id))
@@ -804,16 +805,16 @@ export default function NotificationsTab() {
                 value={modAlertsBpScope}
                 options={[
                   {
-                    value: 'ACTIVE',
+                    id: 'ACTIVE',
                     label: t('staging_desktop_bp_active_badge', 'Active {Blueprint}'),
                   },
                   {
-                    value: 'ALL_VAULT',
+                    id: 'ALL_VAULT',
                     label: t('filter_all_vault_scope', 'All {Vault}'),
                   },
                   ...(Array.isArray(playSets)
                     ? playSets.map((ps: any) => ({
-                        value: String(ps?.name || 'Blueprint'),
+                        id: String(ps?.name || 'Blueprint'),
                         label: `${t('term_blueprint', '{Blueprint}')}: ${String(ps?.name || 'Blueprint')}`,
                       }))
                     : []),

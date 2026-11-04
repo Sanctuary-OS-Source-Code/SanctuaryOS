@@ -146,7 +146,7 @@ function extractPanelHeaderActionItems(
           onClick: props.onClick,
           disabled: Boolean(props.disabled),
           variant: resolvedVariant,
-          isActive: Boolean(props.isActive),
+          isActive: Boolean(props.isActive || props.active),
           className: props.className || "",
           overflow: isOverflow,
         },
@@ -292,7 +292,7 @@ function SidePanelHeaderActionBar({
       : null;
 
   const renderMenuTriggerButton = (refObj: React.RefObject<HTMLDivElement | null>) => (
-    <div ref={refObj} className="flex items-center shrink-0">
+    <div ref={refObj} className="flex items-center h-full shrink-0">
       <PanelHeaderGroup>
         <PanelHeaderButton
           icon={t("icon_more_vert", "more_vert")}
@@ -309,29 +309,33 @@ function SidePanelHeaderActionBar({
 
   return (
     <div
-      className={`flex items-center z-50 glass-surface rounded-2xl p-1 gap-1 shrink-0 ${className}`}
+      className={`flex items-center z-50 glass-surface rounded-2xl h-11 shrink-0 overflow-hidden ${className}`}
     >
       {headerActions &&
         (collapseOnMobile ? (
           <>
-            <div className="flex md:hidden items-center">
+            <div className="flex md:hidden items-center h-full">
               {renderMenuTriggerButton(mobileTriggerRef)}
             </div>
-            <div className="hidden md:flex items-center gap-1">
+            <div className="hidden md:flex items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_8%,transparent)]">
               {headerActions}
               {hasDesktopOverflow && renderMenuTriggerButton(desktopTriggerRef)}
             </div>
           </>
         ) : (
-          headerActions
+          <div className="flex items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+            {headerActions}
+          </div>
         ))}
 
-      {headerActions && showCloseButton && (
-        <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-1" />
-      )}
-
       {showCloseButton && (
-        <PanelHeaderGroup className={headerActions ? "ml-1" : ""}>
+        <PanelHeaderGroup
+          className={
+            headerActions
+              ? "border-l border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
+              : ""
+          }
+        >
           <PanelHeaderButton
             icon={t("icon_close", "close")}
             tooltip={t("btn_close", "Close") || "Close"}
@@ -507,6 +511,7 @@ export function SidePanel({
 }) {
   const theme = useTheme();
   const depth = React.useContext(PanelDepthContext);
+  const parentPanelZ = React.useContext(PanelParentZContext);
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
   const [panelWidth, setPanelWidth] = useState<number>(defaultWidth || 800);
@@ -572,16 +577,19 @@ export function SidePanel({
   const parsedPanelZ = parseInt(panelZ.replace(/\D/g, "")) || 40001;
   const finalBackdropZ =
     depth > 0
-      ? Math.max(calculatedBackdropZ, parsedBackdropZ)
+      ? Math.max(calculatedBackdropZ, parsedBackdropZ, parentPanelZ + 10)
       : parsedBackdropZ;
   const finalPanelZ =
-    depth > 0 ? Math.max(calculatedPanelZ, parsedPanelZ) : parsedPanelZ;
+    depth > 0
+      ? Math.max(calculatedPanelZ, parsedPanelZ, finalBackdropZ + 1)
+      : parsedPanelZ;
 
   const isPanelClosed = !isOpen || isAnimatingOut;
 
   const panelContent = (
     <PanelDepthContext.Provider value={depth + 1}>
-      <SidePanelContext.Provider value={true}>
+      <PanelParentZContext.Provider value={finalPanelZ}>
+        <SidePanelContext.Provider value={true}>
         <div
           className={`sa-side-panel-wrapper ${!isPanelClosed ? "sa-panel-open" : ""}`}
           data-depth={depth}
@@ -758,7 +766,8 @@ export function SidePanel({
             )}
           </div>
         </div>
-      </SidePanelContext.Provider>
+        </SidePanelContext.Provider>
+      </PanelParentZContext.Provider>
     </PanelDepthContext.Provider>
   );
 
@@ -766,6 +775,7 @@ export function SidePanel({
   return createPortal(panelContent, portalRoot);
 }
 export const PanelDepthContext = React.createContext(0);
+export const PanelParentZContext = React.createContext(0);
 export function PanelHeaderGroup({
   children,
   className = "",
@@ -773,7 +783,7 @@ export function PanelHeaderGroup({
 }: any) {
   if (overflow) return null;
   return (
-    <div className={`flex items-center gap-1 shrink-0 ${className}`}>
+    <div className={`sa-panel-header-group flex items-stretch self-stretch h-full divide-x divide-[color-mix(in_srgb,var(--text)_8%,transparent)] shrink-0 ${className}`}>
       {children}
     </div>
   );
@@ -803,7 +813,7 @@ export function ViewHeader({
     shape === "square" ? "rounded-lg" : "rounded-xl";
   return (
     <header className="flex flex-col md:flex-row w-full justify-between items-stretch md:items-center mb-6 md:mb-8 shrink-0 gap-3 md:gap-5">
-      <div className="glass-panel rounded-2xl px-3.5 py-2.5 md:px-4 md:py-3 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 w-fit max-w-full relative group/header">
+      <div className="glass-panel rounded-2xl p-2.5 pr-4 md:p-3 md:pr-5 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 w-fit max-w-full relative group/header">
         {icon && (typeof icon !== "string" || icon.trim().length > 0) && (
           <div
             className={`w-9 h-9 md:w-11 md:h-11 ${shapeClass} flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] relative group [&_.material-symbols-outlined]:!text-[18px] md:[&_.material-symbols-outlined]:!text-[22px]`}
@@ -1080,26 +1090,8 @@ export function EmptyState({
 
   return (
     <div
-      className={`glass-panel sa-empty-state-card rounded-3xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-center flex flex-col items-center justify-center ${minHeightClass} col-span-full w-full relative overflow-hidden ${sanitizedClassName}`}
+      className={`glass-panel sa-empty-state-card rounded-3xl text-center flex flex-col items-center justify-center ${minHeightClass} col-span-full w-full relative overflow-hidden ${sanitizedClassName}`}
     >
-      {/* 3D Liquid Glass Meniscus Rim Overlay */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 rounded-[inherit] z-20"
-        style={{
-          boxShadow: "var(--glass-inset-highlight)",
-        }}
-      />
-
-      {/* Ambient Top Radial Accent Wash */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-80"
-        style={{
-          background: `radial-gradient(ellipse at 50% 0%, color-mix(in srgb, ${semanticColorVar} 12%, transparent) 0%, transparent 68%)`,
-        }}
-      />
-
       {/* Centerpiece Showcase Deck */}
       <div
         className={`flex-1 flex flex-col items-center justify-center w-full ${
@@ -1249,7 +1241,8 @@ export function DashboardStatTile({
   const isStatusBlue =
     colorClass?.includes("blue") ||
     colorClass?.includes("cyan") ||
-    colorClass?.includes("info");
+    colorClass?.includes("info") ||
+    colorClass?.includes("accent");
 
   let textColor = "text-[var(--text)]";
   if (isStatusRed) {
@@ -1261,9 +1254,12 @@ export function DashboardStatTile({
   } else if (isStatusBlue) {
     textColor = "text-[var(--accent)]";
   } else if (colorClass) {
-    textColor =
-      colorClass.split(" ").find((c: string) => c.startsWith("text-")) ||
-      textColor;
+    const matchedText = colorClass
+      .split(" ")
+      .find((c: string) => c.startsWith("text-") || c.startsWith("!text-"));
+    if (matchedText) {
+      textColor = matchedText.replace(/^!/, "");
+    }
   }
 
   const hasPulse =
@@ -1389,7 +1385,9 @@ export function DashboardStatTile({
                   ? "text-[var(--text)] opacity-100"
                   : isSpecial || isModal
                     ? "text-[var(--text)] opacity-75 group-hover:opacity-100"
-                    : "text-[var(--text)]"
+                    : textColor !== "text-[var(--text)]"
+                      ? textColor
+                      : "text-[var(--text)]"
             }`}
           >
             {typeof displayValue === "string" ? normalizeAllCapsForThemeCase(displayValue) : displayValue}

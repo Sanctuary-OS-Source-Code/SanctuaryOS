@@ -2028,7 +2028,49 @@ fn get_windows_focus_and_idle(target_pid: Option<u32>) -> (bool, u32) {
 
 #[cfg(not(target_os = "windows"))]
 fn get_windows_focus_and_idle(target_pid: Option<u32>) -> (bool, u32) {
-    (target_pid.is_some(), 0)
+    let Some(pid) = target_pid else {
+        return (false, 0);
+    };
+    #[cfg(target_os = "linux")]
+    {
+        // Verify process is alive in /proc/<pid> and not stopped (T) or zombie (Z)
+        let stat_path = format!("/proc/{}/stat", pid);
+        if let Ok(stat) = std::fs::read_to_string(&stat_path) {
+            if let Some(rparen) = stat.rfind(')') {
+                let after = stat[rparen + 1..].trim();
+                let state_char = after.chars().next().unwrap_or('S');
+                let alive_and_running = !matches!(state_char, 'T' | 't' | 'Z' | 'X');
+                return (alive_and_running, 0);
+            }
+        }
+        return (std::path::Path::new(&format!("/proc/{}", pid)).exists(), 0);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        // Query macOS HIDIdleTime (nanoseconds) via ioreg if available
+        let mut idle_secs = 0u32;
+        if let Ok(out) = std::process::Command::new("ioreg")
+            .args(["-c", "IOHIDSystem", "-d", "4"])
+            .output()
+        {
+            let text = String::from_utf8_lossy(&out.stdout);
+            for line in text.lines() {
+                if line.contains("\"HIDIdleTime\"") {
+                    if let Some(eq) = line.find('=') {
+                        if let Ok(ns) = line[eq + 1..].trim().parse::<u64>() {
+                            idle_secs = (ns / 1_000_000_000) as u32;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return (pid > 0, idle_secs);
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    {
+        (pid > 0, 0)
+    }
 }
 
 fn persist_certificate_to_vault(vault_path: &str, cert: &LabVerificationCertificate) {
@@ -2142,16 +2184,18 @@ fn build_session_status(s: &ActiveLabSession) -> LabVerificationStatus {
 
 fn normalize_mod_lookup_key(s: &str) -> String {
     let trimmed = s.trim();
-    let without_ext = trimmed
-        .strip_suffix(".package")
-        .or_else(|| trimmed.strip_suffix(".PACKAGE"))
-        .or_else(|| trimmed.strip_suffix(".ts4script"))
-        .or_else(|| trimmed.strip_suffix(".TS4SCRIPT"))
-        .or_else(|| trimmed.strip_suffix(".world"))
-        .or_else(|| trimmed.strip_suffix(".WORLD"))
-        .or_else(|| trimmed.strip_suffix(".zip"))
-        .or_else(|| trimmed.strip_suffix(".ZIP"))
-        .unwrap_or(trimmed);
+    let without_ext = if let Some((stem, ext)) = trimmed.rsplit_once('.') {
+        let ext_lower = ext.to_lowercase();
+        if crate::utils::is_mod_binary_extension(&ext_lower)
+            || matches!(ext_lower.as_str(), "zip" | "7z" | "rar" | "cfg" | "ini" | "json" | "toml")
+        {
+            stem
+        } else {
+            trimmed
+        }
+    } else {
+        trimmed
+    };
     without_ext
         .chars()
         .filter(|c| c.is_ascii_alphanumeric())
@@ -2639,7 +2683,7 @@ pub fn deploy_single_mod_to_live_sync(
 
     if linked_names.is_empty() {
         return Err(format!(
-            "No supported mod files (.package / .ts4script / .world) found to symlink for '{}'.",
+            "No supported mod files found to symlink for '{}'.",
             mod_path_or_name
         ));
     }

@@ -8,7 +8,7 @@ import {
   InlineFilterGroup,
   EmptyState,
   ActionPill,
-  VAULT_CHIP_CLASS,
+  HoverTooltip,
 } from "../shared";
 
 interface Asset {
@@ -16,6 +16,43 @@ interface Asset {
   name: string;
   type: string;
 }
+
+const formatCleanAssetName = (rawName: string): string => {
+  if (!rawName) return "";
+  let cleaned = String(rawName)
+    .split(/[\\/]/)
+    .pop() || "";
+  cleaned = cleaned
+    .replace(/\.(package|ts4script|zip|rar|7z|json|dll|asi|lua|reds|csx)$/i, "")
+    .replace(/_/g, " ")
+    .replace(/^['`’]+(?=[A-Za-z])/, (m) => (cleaned.toUpperCase().startsWith("'OFFEE") ? "C" : ""))
+    .replace(/\]\s*(?=[A-Za-z0-9])/g, "] ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return cleaned
+    .split(" ")
+    .map((word) => {
+      if (!word) return word;
+      if (/^\[.*\]$/.test(word)) {
+        const inner = word.slice(1, -1);
+        if (inner.length <= 4) return `[${inner.toUpperCase()}]`;
+        return `[${inner.charAt(0).toUpperCase()}${inner.slice(1).toLowerCase()}]`;
+      }
+      if (/^\(.*\)$/.test(word)) {
+        return word.toUpperCase();
+      }
+      if (/^(v\d+(\.\d+)*|hq|cc|cas|ui|dlc|max\d+)$/i.test(word)) {
+        return word.toUpperCase();
+      }
+      const letters = word.replace(/[^A-Za-z]/g, "");
+      if (letters.length > 2 && letters === letters.toUpperCase()) {
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      }
+      return word;
+    })
+    .join(" ");
+};
 
 interface LinkAssetSidePanelProps {
   isOpen: boolean;
@@ -61,15 +98,27 @@ export function LinkAssetSidePanel({
       const combinedAssets: Asset[] = [];
       if (modsData)
         combinedAssets.push(
-          ...modsData.map((m) => ({ id: m.id, name: m.name, type: "mod" }))
+          ...modsData.map((m) => ({
+            id: m.id,
+            name: formatCleanAssetName(m.name) || m.name,
+            type: "mod",
+          }))
         );
       if (blueprintsData)
         combinedAssets.push(
-          ...blueprintsData.map((b) => ({ id: b.id, name: b.name, type: "blueprint" }))
+          ...blueprintsData.map((b) => ({
+            id: b.id,
+            name: formatCleanAssetName(b.name) || b.name,
+            type: "blueprint",
+          }))
         );
       if (marketAssetsData)
         combinedAssets.push(
-          ...marketAssetsData.map((a) => ({ id: a.id, name: a.name, type: a.asset_type }))
+          ...marketAssetsData.map((a) => ({
+            id: a.id,
+            name: formatCleanAssetName(a.name) || a.name,
+            type: a.asset_type,
+          }))
         );
 
       setAssets(combinedAssets.sort((a, b) => a.name.localeCompare(b.name)));
@@ -101,7 +150,7 @@ export function LinkAssetSidePanel({
       subtitle={t("cc_search", "Select an artifact, blueprint, theme, or lexicon to attach")}
       icon={t("icon_link", "link")}
       iconColorClass="text-[var(--accent)]"
-      widthClass="w-[90vw] md:w-[680px]"
+      widthClass="w-[92vw] md:w-[760px]"
       backdropZ={backdropZ}
       panelZ={panelZ}
     >
@@ -154,58 +203,97 @@ export function LinkAssetSidePanel({
               }}
             />
 
-            <div className="flex flex-col gap-2">
-              {filteredAssets.length === 0 && (
-                <EmptyState
-                  icon={t("ui_icon_image_not_supported", "image_not_supported")}
-                  title={t("no_assets", "No Assets Found")}
-                  className="col-span-full py-12"
-                />
-              )}
-              {filteredAssets.slice(0, 100).map((asset) => {
-                const assetIcon =
-                  asset.type === "mod"
-                    ? t("icon_extension", "extension")
-                    : asset.type === "blueprint"
-                      ? t("icon_architecture", "architecture")
-                      : asset.type === "lexicon"
-                        ? t("icon_translate", "translate")
-                        : t("icon_palette", "palette");
-                return (
-                  <button
-                    key={`${asset.type}-${asset.id}`}
-                    type="button"
-                    onClick={() => handleLink(asset)}
-                    className="text-left px-4 py-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:theme-border-accent transition-all flex items-center justify-between gap-3 group"
-                  >
-                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                      <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined !text-[18px]">
-                          {assetIcon}
+            {filteredAssets.length === 0 ? (
+              <EmptyState
+                icon={t("ui_icon_image_not_supported", "image_not_supported")}
+                title={t("no_assets", "No Assets Found")}
+                className="col-span-full py-12"
+              />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-[540px] overflow-y-auto custom-scrollbar pr-1">
+                {filteredAssets.slice(0, 100).map((asset) => {
+                  const assetIcon =
+                    asset.type === "mod"
+                      ? t("icon_deployed_code", "deployed_code")
+                      : asset.type === "blueprint"
+                        ? t("icon_map", "map")
+                        : asset.type === "lexicon"
+                          ? t("icon_translate", "translate")
+                          : asset.type === "workbench_template"
+                            ? t("icon_draw", "draw")
+                            : t("icon_palette", "palette");
+
+                  const iconColorClass =
+                    asset.type === "mod"
+                      ? "text-teal-400"
+                      : asset.type === "blueprint"
+                        ? "text-blue-400"
+                        : asset.type === "lexicon"
+                          ? "text-indigo-400"
+                          : asset.type === "workbench_template"
+                            ? "text-pink-400"
+                            : "text-purple-400";
+
+                  const assetTypeLabel =
+                    asset.type === "mod"
+                      ? t("term_mod", "{Mod}")
+                      : asset.type === "blueprint"
+                        ? t("term_blueprint", "{Blueprint}")
+                        : asset.type === "lexicon"
+                          ? t("lexicon", "Lexicon")
+                          : asset.type === "workbench_template"
+                            ? t("workbench_template", "Template")
+                            : t("chameleon", "Chameleon");
+
+                  return (
+                    <button
+                      key={`${asset.type}-${asset.id}`}
+                      type="button"
+                      onClick={() => handleLink(asset)}
+                      className="relative text-left p-3.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] transition-all duration-300 flex items-center justify-between gap-3 group cursor-pointer"
+                    >
+                      <HoverTooltip
+                        title={asset.name}
+                        subtitle={assetTypeLabel}
+                        icon={assetIcon}
+                        delay={120}
+                      />
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-10 h-10 rounded-xl glass-panel border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
+                          <span className={`material-symbols-outlined !text-[19px] ${iconColorClass}`}>
+                            {assetIcon}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                          <span className="text-xs font-black text-[var(--text)] tracking-tight truncate group-hover:text-[var(--accent)] transition-colors">
+                            {asset.name}
+                          </span>
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-80 flex items-center gap-1 truncate">
+                            <span className={`material-symbols-outlined !text-[11px] ${iconColorClass}`}>
+                              {assetIcon}
+                            </span>
+                            <span className="truncate">{assetTypeLabel}</span>
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-8 h-8 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center shrink-0 text-[var(--subtext)] group-hover:text-[var(--accent)] transition-all">
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {t("icon_add_link", "add_link")}
                         </span>
                       </div>
-                      <span className="text-sm font-black text-[var(--text)] capitalize tracking-tight truncate group-hover:theme-text-accent transition-colors">
-                        {asset.name}
-                      </span>
-                    </div>
-                    <span className={VAULT_CHIP_CLASS}>
-                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                        {assetIcon}
-                      </span>
-                      {asset.type}
-                    </span>
-                  </button>
-                );
-              })}
-              {filteredAssets.length > 100 && (
-                <div className="text-center text-[var(--subtext)] text-xs py-3 opacity-60 font-black capitalize tracking-widest">
-                  {t(
-                    "search_to_see_more_results",
-                    `+ ${filteredAssets.length - 100} MORE ASSETS`
-                  )}
-                </div>
-              )}
-            </div>
+                    </button>
+                  );
+                })}
+                {filteredAssets.length > 100 && (
+                  <div className="col-span-full text-center text-[var(--subtext)] text-xs py-3 opacity-60 font-black capitalize tracking-widest">
+                    {t(
+                      "search_to_see_more_results",
+                      `+ ${filteredAssets.length - 100} MORE ASSETS`
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </UniversalGroup>
       </div>

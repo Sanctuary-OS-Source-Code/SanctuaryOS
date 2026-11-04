@@ -134,9 +134,19 @@ const Vault = React.memo(function Vault(props: any) {
     const handleOpenContextMenu = (e: any) => {
       setVaultContextMenu({ mod: e.detail.mod, x: e.detail.x, y: e.detail.y });
     };
+    const handleOpenVersionPool = () => {
+      setIsVersionPoolOpen(true);
+    };
+    const handleVaultNavigate = (e: any) => {
+      if (e?.detail?.equipFilter && typeof setEquipFilter === "function") {
+        setEquipFilter(e.detail.equipFilter);
+      }
+    };
 
     window.addEventListener('openLocalFolderEditor', handleOpenEditor);
     window.addEventListener('openVaultContextMenu', handleOpenContextMenu);
+    window.addEventListener('sanctuary-open-version-pool', handleOpenVersionPool);
+    window.addEventListener('sanctuary-vault-navigate', handleVaultNavigate);
 
     const closeContextMenu = () => setVaultContextMenu(null);
     window.addEventListener('click', closeContextMenu);
@@ -144,9 +154,11 @@ const Vault = React.memo(function Vault(props: any) {
     return () => {
       window.removeEventListener('openLocalFolderEditor', handleOpenEditor);
       window.removeEventListener('openVaultContextMenu', handleOpenContextMenu);
+      window.removeEventListener('sanctuary-open-version-pool', handleOpenVersionPool);
+      window.removeEventListener('sanctuary-vault-navigate', handleVaultNavigate);
       window.removeEventListener('click', closeContextMenu);
     };
-  }, []);
+  }, [setEquipFilter]);
   const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
   const [renameFolderInput, setRenameFolderInput] = React.useState("");
   const itemsPerPage = 50;

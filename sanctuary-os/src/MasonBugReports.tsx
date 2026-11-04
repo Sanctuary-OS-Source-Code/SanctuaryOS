@@ -6,6 +6,7 @@ import { useLexicon } from "./LexiconContext";
 import TicketDossierSidePanel from './side-panels/TicketDossierSidePanel';
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 
 const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
@@ -246,6 +247,35 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                         setActiveTab(st === 'open' || st === 'new' ? 'open' : st === 'investigating' || st === 'pending' || st === 'escalated' ? 'pending' : 'closed');
                     }
                     setSelectedTicket(ticket);
+                }}
+                onContextMenu={(e) => {
+                    const menuItems: SanctuaryContextMenuItem[] = [
+                        {
+                            label: t("view_ticket", "View Ticket"),
+                            icon: t("icon_bug_report", "bug_report"),
+                            onClick: () => {
+                                if (activeTab === "LANDING") {
+                                    const st = ticket.status?.toLowerCase() || 'open';
+                                    setActiveTab(st === 'open' || st === 'new' ? 'open' : st === 'investigating' || st === 'pending' || st === 'escalated' ? 'pending' : 'closed');
+                                }
+                                setSelectedTicket(ticket);
+                            },
+                        },
+                    ];
+                    if (ticket.target_mod_id && onEditMetadata) {
+                        menuItems.push({
+                            label: t("ui_edit_metadata", "Edit Metadata"),
+                            icon: t("icon_edit", "edit"),
+                            onClick: () => onEditMetadata(ticket.target_mod_id),
+                        });
+                    }
+                    menuItems.push({
+                        label: t("copy", "Copy"),
+                        icon: t("icon_content_copy", "content_copy"),
+                        dividerBefore: true,
+                        onClick: () => navigator.clipboard?.writeText(String(ticket.description || ticket.title || "")),
+                    });
+                    openSanctuaryContextMenu(e, menuItems);
                 }}
                 layout="vertical"
                 isGhosted={isResolved || isRejected}

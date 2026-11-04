@@ -376,11 +376,11 @@ export default function SupportHub() {
               const netUpdates = storeState.networkUpdates;
               const totalUpdates = (netUpdates?.broken?.length || 0) + (netUpdates?.obsolete?.length || 0) + (netUpdates?.updated?.length || 0);
 
-              const diagnostics = `\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nUser Agent: ${navigator.userAgent}\nMods Path: ${scrubLogUserData(storeState.modsPath)}\nActive Blueprint: ${activeSet?.name || "None"}\nActive Mods: ${activeSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toLocaleString()}\nDiagnostic Bundle Version: 1.0.0\n`;
+              const diagnostics = `\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nMods Path: ${scrubLogUserData(storeState.modsPath)}\nActive Blueprint: ${activeSet?.name || "None"}\nActive Mods: ${activeSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toLocaleString()}\nDiagnostic Bundle Version: 1.0.0\n`;
               finalLogs += `\n--- TELEMETRY: ${source.label} (OS) ---\n` + scrubLogUserData(sysInfo) + diagnostics + "\n";
 
               if (activeSet) {
-                const bpPayload = JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2);
+                const bpPayload = scrubLogUserData(JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2));
                 finalLogs += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
               }
 
@@ -389,8 +389,10 @@ export default function SupportHub() {
               }).join('\n');
               finalLogs += `\n--- TELEMETRY: System Log History ---\n${systemLogHistory || "No system logs available."}\n`;
             } else {
-              const docDirMatch = modsPath.match(/(.*)[\\/]+mods[\\/]*$/i);
-              const docDir = docDirMatch ? docDirMatch[1] : modsPath;
+              const docDirMatch = modsPath.match(/(.*)[\\/]+(?:mods|data|_mods)[\\/]*$/i);
+              const docDir = docDirMatch
+                ? docDirMatch[1]
+                : modsPath.replace(/[\\/]+[^\\/]+[\\/]*$/, "") || modsPath;
               let searchPath = source.search_path.replace('%MODS_DIR%', modsPath).replace('%DOC_DIR%', docDir);
               let fullPath = searchPath;
               if (!fullPath.endsWith('\\') && !fullPath.endsWith('/')) fullPath += '/';
@@ -442,18 +444,22 @@ export default function SupportHub() {
       }
 
       const scrubbedFinalLogs = finalLogs ? scrubLogUserData(finalLogs) : null;
+      const scrubbedCustomFields: Record<string, string> = {};
+      for (const [k, v] of Object.entries(customFieldsData || {})) {
+        scrubbedCustomFields[k] = scrubLogUserData(String(v || ""));
+      }
 
       const { error } = await supabase.from('sanctuary_tickets').insert([{
         author_id: user.id,
         ticket_type: activeTab,
-        title: title || (activeCategory?.category_name || "Support Ticket"),
+        title: scrubLogUserData(title) || (activeCategory?.category_name || "Support Ticket"),
         description: scrubLogUserData(description || "No description provided."),
         status: "open",
         metadata: {
           target_mod_id: activeCategory?.requires_target_mod ? (targetModId || null) : null,
           target_user_id: activeCategory?.requires_target_user ? (targetUserId || null) : null,
           logs: scrubbedFinalLogs,
-          custom_fields: customFieldsData,
+          custom_fields: scrubbedCustomFields,
           ...(matchedSupporterPass ? {
             expedited_support: true,
             supporter_tier: matchedSupporterPass.tier_name,

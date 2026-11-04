@@ -258,6 +258,29 @@ export default function ClientTab({ config, updateConfig }: any) {
           )}
 
           <UniversalCard
+            title={t("cmd_palette_controls_title", "Hotkeys & Controller Mapping")}
+            subtitle={t(
+              "cmd_palette_controls_sub",
+              "Customize Keyboard Shortcuts & Gamepad / Steam Deck Input Bindings"
+            )}
+            icon={t("icon_sports_esports", "sports_esports")}
+            onClick={() => {
+              window.dispatchEvent(
+                new CustomEvent("sanctuary-open-command-palette", {
+                  detail: { openControls: true },
+                })
+              );
+            }}
+            actions={
+              <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all shadow-inner backdrop-blur-md">
+                <span className="material-symbols-outlined !text-[20px]">
+                  {t("icon_keyboard_command_key", "keyboard_command_key")}
+                </span>
+              </div>
+            }
+          />
+
+          <UniversalCard
             title={t("btn_reset_all_local", "Reset All Local Overrides")}
             subtitle={t("reset_all_local_desc", "Permanently clear all locally saved metadata overrides for all {mods}.")}
             icon={t("icon_delete_forever", "delete_forever")}

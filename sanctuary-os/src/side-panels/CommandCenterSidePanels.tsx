@@ -327,7 +327,7 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
             ) : cleanInstalledVer ? (
               <span>v{cleanInstalledVer}</span>
             ) : (
-              <span>{t("category_update", "Update")}</span>
+              <span>{t("btn_update", "Update")}</span>
             )}
           </span>
         </div>
@@ -367,7 +367,7 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
             </span>
             <HoverTooltip
               className="z-[100] !right-0 !translate-x-0 !left-auto"
-              title={t("category_update", "Update")}
+              title={t("btn_update", "Update")}
               icon={t("icon_update", "update")}
               variant="accent"
             />

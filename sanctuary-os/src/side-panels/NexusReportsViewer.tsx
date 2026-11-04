@@ -1,5 +1,6 @@
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelHeroCard } from '../components/layouts/ElevatedHubLayout';
 import { UniversalCard } from '../components/universal/UniversalCard';
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from '../ContextMenu';
 import { useState, useEffect } from "react";
 import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
@@ -498,6 +499,29 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
       <UniversalCard
         key={report.id}
         onClick={() => setSelectedReport(report)}
+        onContextMenu={(e) => {
+          const menuItems: SanctuaryContextMenuItem[] = [
+            {
+              label: t("btn_inspect", "Inspect"),
+              icon: t("icon_flag", "flag"),
+              onClick: () => setSelectedReport(report),
+            },
+          ];
+          if (canOpenAsset) {
+            menuItems.push({
+              label: t("open", "Open"),
+              icon: t("icon_open_in_new", "open_in_new"),
+              onClick: () => openAssetInspector(report),
+            });
+          }
+          menuItems.push({
+            label: t("copy", "Copy"),
+            icon: t("icon_content_copy", "content_copy"),
+            dividerBefore: true,
+            onClick: () => navigator.clipboard?.writeText(String(report.clean_summary || report.description || report.title || "")),
+          });
+          openSanctuaryContextMenu(e, menuItems);
+        }}
         layout="vertical"
         icon={isPending ? t("icon_flag", "flag") : t("icon_done_all", "done_all")}
         title={report.title}

@@ -88,7 +88,7 @@ export function UniversalCard({
       break;
     case "vertical-compact":
       layoutClasses = "flex-col";
-      imageContainerClasses = "w-full h-24";
+      imageContainerClasses = "w-full h-28";
       contentClasses = `flex-col p-4`;
       break;
     case "stat":
@@ -346,7 +346,7 @@ export function UniversalCard({
                   <div
                     className="w-full h-full relative overflow-hidden select-none"
                     style={{
-                      background: `radial-gradient(circle at 82% 20%, color-mix(in srgb, ${headerAccentVar} 18%, transparent) 0%, transparent 62%), var(--glass-card-banner-bg)`,
+                      background: "var(--glass-card-banner-bg, transparent)",
                     }}
                   >
                     <span
@@ -358,14 +358,14 @@ export function UniversalCard({
 
                     <div
                       className={`absolute inset-x-3 ${
-                        isCompactBanner ? "top-10 bottom-2" : "top-12 bottom-2.5"
-                      } flex gap-2 pointer-events-none z-10`}
+                        isCompactBanner ? "top-12 h-11" : "top-[52px] h-14"
+                      } flex items-stretch gap-2 pointer-events-none z-10`}
                     >
-                      {/* Left Icon Tile */}
+                      {/* Left Icon Tile (1:1 Square) */}
                       <div
                         className={`${
-                          isCompactBanner ? "w-12" : "w-14"
-                        } h-full rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
+                          isCompactBanner ? "w-11 h-11 rounded-lg" : "w-14 h-14 rounded-xl"
+                        } glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.08))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.035))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
                       >
                         <span
                           className={`material-symbols-outlined ${
@@ -380,7 +380,7 @@ export function UniversalCard({
                       {/* Right Mini-Header Console */}
                       <div className="flex-1 h-full flex flex-col justify-between gap-1 min-w-0">
                         <div className="flex items-stretch gap-1 flex-1 min-h-0">
-                          <div className="flex-1 px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 min-w-0">
+                          <div className="flex-1 px-2 rounded-lg glass-surface flex items-center gap-1.5 min-w-0">
                             <span
                               className="material-symbols-outlined !text-[10px] opacity-85 shrink-0"
                               style={{ color: headerAccentVar }}
@@ -392,7 +392,7 @@ export function UniversalCard({
                             </span>
                           </div>
                           {topRightLabel && (
-                            <div className="shrink-0 max-w-[38%] px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center min-w-0">
+                            <div className="shrink-0 max-w-[38%] px-2 rounded-lg glass-surface flex items-center justify-center min-w-0">
                               <span className="text-[7px] font-mono font-black uppercase tracking-wider text-[var(--subtext)] opacity-85 truncate">
                                 {topRightLabel}
                               </span>
@@ -400,7 +400,7 @@ export function UniversalCard({
                           )}
                         </div>
 
-                        <div className="flex-1 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 min-w-0">
+                        <div className="flex-1 px-2.5 rounded-lg glass-surface flex items-center gap-1.5 min-w-0">
                           <span
                             className="material-symbols-outlined !text-[10px] opacity-80 shrink-0"
                             style={{ color: headerAccentVar }}
@@ -438,7 +438,7 @@ export function UniversalCard({
           ? ({
               "--glass-outer-shadow": "0 0 #0000",
               "--glass-nested-shadow": "0 0 #0000",
-              boxShadow: "var(--glass-inset-highlight, inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.24), inset 1px 0 1px 0 rgba(255, 255, 255, 0.12))",
+              boxShadow: "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.12), inset 1px 0 0 0 rgba(255, 255, 255, 0.06))",
               ...style,
             } as React.CSSProperties)
           : style
@@ -449,15 +449,15 @@ export function UniversalCard({
         <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-black/20 group-hover/card:bg-transparent transition-colors duration-300 z-[15]" />
       )}
 
-      {/* 3D Liquid Glass Meniscus Rim Overlay so card banner images sit beneath the continuous curved glass lens */}
-      <div
-        className={`pointer-events-none absolute inset-0 rounded-[inherit] z-20 ${
-          isGhosted ? "opacity-50 group-hover/card:opacity-100 transition-opacity duration-300" : ""
-        }`}
-        style={{
-          boxShadow: "var(--glass-inset-highlight)",
-        }}
-      />
+      {/* Only render inner rim overlay when an opaque card banner <img> covers the top of the card */}
+      {!isGhosted && Boolean(image && !imageError) && (
+        <div
+          className="pointer-events-none absolute inset-0 rounded-[inherit] z-20"
+          style={{
+            boxShadow: "var(--glass-inset-highlight)",
+          }}
+        />
+      )}
 
       {/* Floating or Inline Actions */}
       {actions && layout !== 'horizontal' && layout !== 'compact' && (
@@ -506,16 +506,16 @@ export function UniversalCard({
             )}
           </div>
 
-          {/* Badges / Extras inline (especially useful for horizontal/compact) */}
+          {/* Badges / Extras inline (anchored to bottom of body on vertical cards so rows align across 1-line vs 2-line titles) */}
           {badges && (
-            <div className={`flex flex-wrap items-center gap-2 ${layout === 'vertical-compact' ? 'pt-2' : 'mt-2'}`}>
+            <div className={`flex flex-wrap items-center gap-2 ${layout === 'vertical' || layout === 'vertical-compact' ? 'mt-auto pt-3' : 'mt-2'}`}>
               {badges}
             </div>
           )}
 
           {/* Children (Custom Body content) */}
           {children && (
-            <div className="mt-auto pt-3 w-full flex flex-col">
+            <div className={`${badges && (layout === 'vertical' || layout === 'vertical-compact') ? 'pt-2.5' : 'mt-auto pt-3'} w-full flex flex-col`}>
               {children}
             </div>
           )}

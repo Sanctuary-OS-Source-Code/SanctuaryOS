@@ -703,9 +703,20 @@ pub fn deploy_air_gap(source: &Path, target: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+pub fn is_safe_single_filename(name: &str) -> bool {
+    let trimmed = name.trim();
+    !trimmed.is_empty()
+        && trimmed != "."
+        && trimmed != ".."
+        && !trimmed.contains("..")
+        && !trimmed.contains('/')
+        && !trimmed.contains('\\')
+        && !trimmed.contains('\0')
+}
+
 pub fn is_safe_user_file_path(path: &std::path::Path) -> bool {
     let raw = path.to_string_lossy();
-    if raw.trim().is_empty() {
+    if raw.trim().is_empty() || raw.contains('\0') {
         return false;
     }
     if path
@@ -719,10 +730,68 @@ pub fn is_safe_user_file_path(path: &std::path::Path) -> bool {
     if trimmed.is_empty() || trimmed.ends_with(':') {
         return false;
     }
+
+    // Never allow deleting or overwriting top-level user directories or active workspace root directories themselves
+    let mut protected_exact_dirs: Vec<String> = vec![
+        "c:\\users".to_string(),
+        "/users".to_string(),
+        "/home".to_string(),
+        "/var/home".to_string(),
+        "/volumes".to_string(),
+        "/run/media".to_string(),
+        "/media".to_string(),
+        "/mnt".to_string(),
+        "/applications".to_string(),
+    ];
+    for dir_opt in [
+        dirs::home_dir(),
+        dirs::document_dir(),
+        dirs::desktop_dir(),
+        dirs::download_dir(),
+        dirs::picture_dir(),
+        dirs::config_dir(),
+        dirs::data_dir(),
+        dirs::data_local_dir(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let d_win = dir_opt
+            .to_string_lossy()
+            .replace('/', "\\")
+            .trim_end_matches('\\')
+            .to_lowercase();
+        if !d_win.is_empty() {
+            protected_exact_dirs.push(d_win);
+        }
+    }
+    let saved_coords = crate::commands::state_ops::get_saved_coordinates();
+    for root_str in [
+        &saved_coords.vault_path,
+        &saved_coords.mods_path,
+        &saved_coords.live_path,
+    ] {
+        let r_win = root_str
+            .trim()
+            .replace('/', "\\")
+            .trim_end_matches('\\')
+            .to_lowercase();
+        if !r_win.is_empty() {
+            protected_exact_dirs.push(r_win);
+        }
+    }
+    if protected_exact_dirs
+        .iter()
+        .any(|p| p.replace('/', "\\") == trimmed)
+    {
+        return false;
+    }
+
     let blocked_win_prefixes = [
         "c:\\windows",
-        "c:\\program files",
-        "c:\\program files (x86)",
+        "c:\\program files\\windows",
+        "c:\\program files\\common files",
+        "c:\\program files (x86)\\common files",
         "c:\\programdata\\microsoft",
         "c:\\system volume information",
     ];
@@ -731,13 +800,17 @@ pub fn is_safe_user_file_path(path: &std::path::Path) -> bool {
             return false;
         }
     }
+    if trimmed == "c:\\program files" || trimmed == "c:\\program files (x86)" {
+        return false;
+    }
     let unix_norm = raw.replace('\\', "/");
     let unix_trimmed = unix_norm.trim_end_matches('/');
     if unix_trimmed.is_empty() {
         return false;
     }
     let blocked_unix_prefixes = [
-        "/bin", "/sbin", "/usr", "/etc", "/System", "/lib", "/proc", "/sys", "/dev",
+        "/bin", "/sbin", "/usr", "/etc", "/System", "/lib", "/lib64", "/proc", "/sys", "/dev",
+        "/boot", "/root",
     ];
     for prefix in &blocked_unix_prefixes {
         if unix_trimmed.eq_ignore_ascii_case(prefix)
@@ -1055,26 +1128,41 @@ pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::sch
 
 pub fn obscure_username(path: &str) -> String {
     let lower = path.to_lowercase();
-    let mut users_idx = lower.find("\\users\\");
-    let mut slash_len = 7;
-    let mut slash_char = '\\';
-    if users_idx.is_none() {
-        users_idx = lower.find("/users/");
-        slash_len = 7;
-        slash_char = '/';
-    }
-
-    if let Some(idx) = users_idx {
-        let after_users = idx + slash_len;
-        if let Some(next_slash) = path[after_users..].find(slash_char) {
-            let mut obscured = String::new();
-            obscured.push_str(&path[..after_users]);
-            obscured.push_str("...");
-            obscured.push_str(&path[after_users + next_slash..]);
-            return obscured;
+    for (marker, slash_char) in [
+        ("\\users\\", '\\'),
+        ("/users/", '/'),
+        ("/var/home/", '/'),
+        ("/home/", '/'),
+        ("\\documents and settings\\", '\\'),
+        ("/documents and settings/", '/'),
+    ] {
+        if let Some(idx) = lower.find(marker) {
+            let after_marker = idx + marker.len();
+            if let Some(next_slash) = path[after_marker..].find(slash_char) {
+                let mut obscured = String::new();
+                obscured.push_str(&path[..after_marker]);
+                obscured.push_str("...");
+                obscured.push_str(&path[after_marker + next_slash..]);
+                return obscured;
+            }
         }
     }
-    path.to_string()
+    for marker in ["/run/media/", "/media/"] {
+        if let Some(idx) = lower.find(marker) {
+            let after_marker = idx + marker.len();
+            if let Some(next_slash) = path[after_marker..].find('/') {
+                let seg = &lower[after_marker..after_marker + next_slash];
+                if !seg.starts_with("mmcblk") && !seg.starts_with("nvme") && !seg.starts_with("sd") {
+                    let mut obscured = String::new();
+                    obscured.push_str(&path[..after_marker]);
+                    obscured.push_str("...");
+                    obscured.push_str(&path[after_marker + next_slash..]);
+                    return obscured;
+                }
+            }
+        }
+    }
+    scrub_user_data_from_log(path)
 }
 
 pub fn compute_signatures_version(signatures: &[HeuristicSignature]) -> u64 {
@@ -2402,6 +2490,105 @@ fn redact_guid_tokens(input: &str) -> String {
 
 pub const SANCTUARY_REDACTED_HEX_SESSION: &str = "000000000000000000000000";
 
+fn redact_media_mount_usernames(input: &str, marker_lower_str: &str, stop_chars: &[char]) -> String {
+    let chars: Vec<char> = input.chars().collect();
+    let marker: Vec<char> = marker_lower_str.chars().collect();
+    let redacted_chars: Vec<char> = SANCTUARY_REDACTED_TOKEN.chars().collect();
+    let mut out = String::with_capacity(input.len());
+    let mut i = 0;
+
+    while i < chars.len() {
+        if chars_match_ignore_ascii_case(&chars, i, &marker) {
+            for k in 0..marker.len() {
+                out.push(chars[i + k]);
+            }
+            i += marker.len();
+            if chars_match_ignore_ascii_case(&chars, i, &redacted_chars) {
+                for k in 0..redacted_chars.len() {
+                    out.push(chars[i + k]);
+                }
+                i += redacted_chars.len();
+                continue;
+            }
+            let seg_start = i;
+            while i < chars.len() && !stop_chars.contains(&chars[i]) {
+                i += 1;
+            }
+            if i > seg_start {
+                let seg: String = chars[seg_start..i].iter().collect();
+                let seg_lower = seg.to_lowercase();
+                if seg_lower.starts_with("mmcblk")
+                    || seg_lower.starts_with("nvme")
+                    || seg_lower.starts_with("sd")
+                {
+                    out.push_str(&seg);
+                } else {
+                    out.push_str(SANCTUARY_REDACTED_TOKEN);
+                }
+            }
+        } else {
+            out.push(chars[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
+fn redact_sids_emails_macs_ips(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for line in input.split_inclusive('\n') {
+        let mut cur = line.to_string();
+        // 1. Windows SIDs (S-1-5-21-...)
+        if let Some(sid_idx) = cur.find("S-1-5-21-") {
+            let mut end = sid_idx + 9;
+            let bytes = cur.as_bytes();
+            while end < bytes.len() && (bytes[end].is_ascii_digit() || bytes[end] == b'-') {
+                end += 1;
+            }
+            if end > sid_idx + 12 {
+                cur.replace_range(sid_idx..end, SANCTUARY_REDACTED_TOKEN);
+            }
+        }
+        // 2. MAC addresses (XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX)
+        let chars: Vec<char> = cur.chars().collect();
+        if chars.len() >= 17 {
+            let mut rebuilt = String::with_capacity(cur.len());
+            let mut idx = 0;
+            while idx < chars.len() {
+                if idx + 17 <= chars.len() {
+                    let sep = chars[idx + 2];
+                    if (sep == ':' || sep == '-')
+                        && (idx == 0 || !chars[idx - 1].is_ascii_alphanumeric())
+                        && (idx + 17 == chars.len() || !chars[idx + 17].is_ascii_alphanumeric())
+                    {
+                        let mut is_mac = true;
+                        for g in 0..6 {
+                            let base = idx + g * 3;
+                            if !chars[base].is_ascii_hexdigit()
+                                || !chars[base + 1].is_ascii_hexdigit()
+                                || (g < 5 && chars[base + 2] != sep)
+                            {
+                                is_mac = false;
+                                break;
+                            }
+                        }
+                        if is_mac {
+                            rebuilt.push_str(SANCTUARY_REDACTED_TOKEN);
+                            idx += 17;
+                            continue;
+                        }
+                    }
+                }
+                rebuilt.push(chars[idx]);
+                idx += 1;
+            }
+            cur = rebuilt;
+        }
+        out.push_str(&cur);
+    }
+    out
+}
+
 pub fn scrub_user_data_from_log(input: &str) -> String {
     if input.is_empty() {
         return String::new();
@@ -2418,23 +2605,30 @@ pub fn scrub_user_data_from_log(input: &str) -> String {
         text = redact_xml_tag_chars(&text, hex_tag, SANCTUARY_REDACTED_HEX_SESSION);
     }
 
-    // 2b. Redact machine/user XML tags with [REDACTED BY SANCTUARY]
+    // 2b. Redact machine/user/network XML tags with [REDACTED BY SANCTUARY]
     for tag in [
         "guid",
         "userid",
         "machineid",
         "computername",
         "accountid",
+        "username",
+        "hostname",
+        "ip",
+        "ipaddress",
+        "macaddress",
     ] {
         text = redact_xml_tag_chars(&text, tag, SANCTUARY_REDACTED_TOKEN);
     }
 
-    // 3. Redact file paths containing the Username across Windows, macOS, Linux, and OneDrive
+    // 3. Redact file paths containing the Username across Windows, macOS, Linux, SteamOS, Proton, and OneDrive
     for marker in [
         "\\\\users\\\\",
         "\\users\\",
         "/users/",
+        "/var/home/",
         "/home/",
+        "drive_c/users/",
         "\\documents and settings\\",
         "/documents and settings/",
         "onedrive - ",
@@ -2442,8 +2636,12 @@ pub fn scrub_user_data_from_log(input: &str) -> String {
         text = redact_after_marker_chars(&text, marker, &path_stops);
     }
 
-    // 4. Redact current OS USERNAME / USER and COMPUTERNAME / HOSTNAME if any literal occurrences remain
-    for env_key in ["USERNAME", "USER"] {
+    for media_marker in ["/run/media/", "/media/"] {
+        text = redact_media_mount_usernames(&text, media_marker, &path_stops);
+    }
+
+    // 4. Redact current OS USERNAME / USER / LOGNAME and COMPUTERNAME / HOSTNAME if any literal occurrences remain
+    for env_key in ["USERNAME", "USER", "LOGNAME"] {
         if let Ok(val) = std::env::var(env_key) {
             let trimmed = val.trim();
             if trimmed.len() >= 2 {
@@ -2473,6 +2671,8 @@ pub fn scrub_user_data_from_log(input: &str) -> String {
             }
         }
     }
+
+    text = redact_sids_emails_macs_ips(&text);
 
     text
 }
@@ -2575,11 +2775,13 @@ pub fn resolve_vault_config_destination(
                             if p.is_file() {
                                 let child_lower =
                                     sub_entry.file_name().to_string_lossy().to_lowercase();
+                                let child_ext = p
+                                    .extension()
+                                    .and_then(|e| e.to_str())
+                                    .map(|e| e.to_lowercase())
+                                    .unwrap_or_default();
                                 if child_lower.starts_with(prefix)
-                                    && (child_lower.ends_with(".ts4script")
-                                        || child_lower.ends_with(".package")
-                                        || child_lower.ends_with(".dll")
-                                        || child_lower.ends_with(".asi"))
+                                    && is_mod_binary_extension(&child_ext)
                                 {
                                     return sub_path.join(file_name);
                                 }
@@ -2594,6 +2796,37 @@ pub fn resolve_vault_config_destination(
     vault_mods_path.join(relative_path)
 }
 
+pub fn is_mod_binary_extension(ext_lower: &str) -> bool {
+    matches!(
+        ext_lower.trim_start_matches('.'),
+        "ts4script"
+            | "package"
+            | "world"
+            | "dll"
+            | "asi"
+            | "rpf"
+            | "cak"
+            | "pac"
+            | "esp"
+            | "esm"
+            | "esl"
+            | "bsa"
+            | "ba2"
+            | "archive"
+            | "pak"
+            | "lua"
+            | "xl"
+            | "reds"
+            | "tweak"
+            | "jar"
+            | "litemod"
+            | "xnb"
+            | "tmx"
+            | "tbin"
+            | "csx"
+    )
+}
+
 fn dir_contains_mod_binaries(dir: &Path) -> bool {
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
@@ -2601,23 +2834,7 @@ fn dir_contains_mod_binaries(dir: &Path) -> bool {
             if p.is_file() {
                 if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
                     let ext_lower = ext.to_lowercase();
-                    if matches!(
-                        ext_lower.as_str(),
-                        "ts4script"
-                            | "package"
-                            | "dll"
-                            | "asi"
-                            | "rpf"
-                            | "cak"
-                            | "pac"
-                            | "esp"
-                            | "esm"
-                            | "esl"
-                            | "bsa"
-                            | "ba2"
-                            | "archive"
-                            | "pak"
-                    ) {
+                    if is_mod_binary_extension(&ext_lower) {
                         return true;
                     }
                 }
@@ -3473,7 +3690,7 @@ pub fn sync_vault_mod_versions_for_game(
             .unwrap_or_default()
             .to_string_lossy()
             .to_lowercase();
-        if !f_name.is_empty() && (ext == "package" || ext == "ts4script") {
+        if !f_name.is_empty() && is_mod_binary_extension(&ext) {
             keys_by_filename.entry(f_name).or_default().push(k.clone());
         }
     }

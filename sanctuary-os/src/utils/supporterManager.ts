@@ -1933,11 +1933,13 @@ export async function loadPartnerCommunitiesList(
     const { data: games } = await client
       .from("sanctuary_games")
       .select("id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor")
-      .eq("is_active", true)
       .order("name", { ascending: true });
     if (Array.isArray(games)) {
       for (const g of games) {
         seenNames.add((g.name || "").toLowerCase());
+        if (g.schema_id) seenNames.add(String(g.schema_id).toLowerCase());
+        if (g.id) seenNames.add(String(g.id).toLowerCase());
+        if (g.is_active === false) continue;
         const localOverride =
           getLocalPartnerDonationOverride(g.schema_id) ||
           getLocalPartnerDonationOverride(g.id);
@@ -1985,8 +1987,15 @@ export async function loadPartnerCommunitiesList(
 
   if (Array.isArray(wsList)) {
     for (const w of wsList) {
+      if (w?.is_active === false) continue;
       const wName = w.name || w.id || "Partner Workspace";
-      if (!seenNames.has(wName.toLowerCase())) {
+      const wSchemaKey = String(w.schema_id || "").toLowerCase();
+      const wIdKey = String(w.id || "").toLowerCase();
+      if (
+        !seenNames.has(wName.toLowerCase()) &&
+        (!wSchemaKey || !seenNames.has(wSchemaKey)) &&
+        (!wIdKey || !seenNames.has(wIdKey))
+      ) {
         seenNames.add(wName.toLowerCase());
         const localOverride =
           getLocalPartnerDonationOverride(w.schema_id) ||

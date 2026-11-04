@@ -158,7 +158,8 @@ pub fn write_os_log(
                 Ok(n) => n.as_secs().to_string(),
                 Err(_) => "vlocal".to_string(),
             };
-            let _ = writeln!(file, "[{}] [{}]: {}", timestamp, level, message);
+            let scrubbed_msg = crate::utils::scrub_user_data_from_log(&message);
+            let _ = writeln!(file, "[{}] [{}]: {}", timestamp, level, scrubbed_msg);
         }
     }
     Ok(())

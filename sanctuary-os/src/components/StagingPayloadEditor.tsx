@@ -2768,19 +2768,11 @@ export default function StagingPayloadEditor({
                           </div>
                         </div>
                         <div
-                          className={`w-11 h-6 rounded-full p-1 transition-colors shrink-0 border flex items-center ${
-                            stagingDraftAutoEquip
-                              ? "bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] border-[color-mix(in_srgb,var(--accent)_50%,transparent)] justify-end"
-                              : "bg-[color-mix(in_srgb,var(--text)_8%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] justify-start"
+                          className={`sa-glass-toggle shrink-0 ${
+                            stagingDraftAutoEquip ? "is-on" : ""
                           }`}
                         >
-                          <div
-                            className={`w-4 h-4 rounded-full transition-all shadow-sm ${
-                              stagingDraftAutoEquip
-                                ? "bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]"
-                                : "bg-[var(--subtext)] opacity-50"
-                            }`}
-                          />
+                          <div className="sa-glass-toggle-thumb" />
                         </div>
                       </div>
 

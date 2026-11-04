@@ -2528,11 +2528,17 @@ pub fn delete_mod(path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn read_blueprint(path: String) -> Result<String, String> {
+    if !crate::utils::is_safe_user_file_path(Path::new(&path)) {
+        return Err("Blocked: Refusing to read protected system path.".into());
+    }
     std::fs::read_to_string(path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn save_blueprint(path: String, content: String) -> Result<(), String> {
+    if !crate::utils::is_safe_user_file_path(Path::new(&path)) {
+        return Err("Blocked: Refusing to write to protected system path.".into());
+    }
     std::fs::write(path, content).map_err(|e| e.to_string())
 }
 

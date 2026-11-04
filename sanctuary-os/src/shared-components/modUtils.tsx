@@ -154,9 +154,45 @@ export const isSupportedExtension = (
     !schema.extensions.supported
   )
     return false;
-  return schema.extensions.supported.some((ext: string) =>
-    filename.toLowerCase().endsWith(ext.toLowerCase()),
-  );
+  return schema.extensions.supported.some((ext: string) => {
+    const clean = ext.startsWith(".") ? ext.toLowerCase() : `.${ext.toLowerCase()}`;
+    return filename.toLowerCase().endsWith(clean);
+  });
+};
+
+export const isScriptExtension = (filename: string, schema?: any): boolean => {
+  if (!filename) return false;
+  const low = filename.toLowerCase();
+  const scripts: string[] = Array.isArray(schema?.extensions?.script_extensions)
+    ? schema.extensions.script_extensions
+    : [];
+  if (scripts.length > 0) {
+    return scripts.some((ext: string) => {
+      const clean = ext.startsWith(".") ? ext.toLowerCase() : `.${ext.toLowerCase()}`;
+      return low.endsWith(clean);
+    });
+  }
+  return /\.(ts4script|dll|asi|lua|reds|csx)$/i.test(low);
+};
+
+export const isModBinaryExtension = (filename: string, schema?: any): boolean => {
+  if (!filename) return false;
+  const low = filename.toLowerCase();
+  if (
+    /\.(package|ts4script|world|dll|asi|rpf|cak|pac|esp|esm|esl|bsa|ba2|archive|pak|lua|xl|reds|tweak|jar|litemod|xnb|tmx|tbin|csx)$/i.test(
+      low,
+    )
+  ) {
+    return true;
+  }
+  if (schema?.extensions?.supported && Array.isArray(schema.extensions.supported)) {
+    const nonBinary = new Set([".zip", ".rar", ".7z", ".cfg", ".ini", ".txt", ".log", ".md", ".html", ".pdf"]);
+    return schema.extensions.supported.some((ext: string) => {
+      const clean = ext.startsWith(".") ? ext.toLowerCase() : `.${ext.toLowerCase()}`;
+      return !nonBinary.has(clean) && low.endsWith(clean);
+    });
+  }
+  return false;
 };
 export const DLC_MAP: Record<string, string> = {};
 export const loadDLCMap = async () => {

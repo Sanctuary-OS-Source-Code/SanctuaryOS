@@ -4,6 +4,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { openSanctuaryContextMenu } from "../ContextMenu";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard, SidePanelTitleInput, SidePanelPillToggle } from "../components/universal/UniversalLayout";
 
 const VAULT_CHIP_CLASS =
@@ -210,6 +211,21 @@ export default function KeepersHeuristicsOversight() {
         isGhosted={!isEnabled}
         statusColor={isEnabled ? "border-[color-mix(in_srgb,var(--danger)_40%,transparent)]" : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"}
         onClick={() => openEditEditor(s)}
+        onContextMenu={(e) => {
+          openSanctuaryContextMenu(e, [
+            {
+              label: t("edit", "Edit"),
+              icon: t("icon_edit", "edit"),
+              onClick: () => openEditEditor(s),
+            },
+            {
+              divider: true,
+              label: t("copy_title", "Copy Title"),
+              icon: t("icon_content_copy", "content_copy"),
+              onClick: () => navigator.clipboard?.writeText(s.signature || ""),
+            },
+          ]);
+        }}
         imageOverlay={
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
             <div className={VAULT_CHIP_CLASS}>

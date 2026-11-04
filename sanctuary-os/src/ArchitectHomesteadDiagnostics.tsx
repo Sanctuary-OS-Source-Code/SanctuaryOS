@@ -11,8 +11,10 @@ import {
   StatBox,
   SidePanelHeroCard,
   UniversalGroup,
-   fetchAllPaginated,
+  fetchAllPaginated,
+  openModDossier,
 } from "./shared";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 import {
   ElevatedHubLayout,
   HubOverviewLanding,
@@ -434,7 +436,9 @@ export function HomesteadDiagnostics({
         vaultPath: config.vault_path,
       });
 
-      const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
+      const dPath =
+        config.mods_path.replace(/[\\/]+(?:mods|_mods|data|paks|~mods|plugins|scripts)[\\/]*$/i, "") ||
+        config.mods_path;
       await invoke("airgap_saves", { docsPath: dPath, enable: true });
       await invoke("clear_old_logs", { docsPath: dPath });
 
@@ -506,7 +510,9 @@ export function HomesteadDiagnostics({
     setDiagSessionStatus(null);
     try {
       const config: any = await invoke("get_saved_coordinates");
-      const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
+      const dPath =
+        config.mods_path.replace(/[\\/]+(?:mods|_mods|data|paks|~mods|plugins|scripts)[\\/]*$/i, "") ||
+        config.mods_path;
       await invoke("stop_lab_verification_session");
       await invoke("airgap_saves", { docsPath: dPath, enable: false });
     } catch {}
@@ -595,7 +601,9 @@ export function HomesteadDiagnostics({
                             return nodePath;
                           if (
                             normalize(
-                              node.name.replace(/\.(package|ts4script|cfg|ini)$/i, "")
+                              node.name
+                                .replace(getExtensionRegex(activeGameSchema), "")
+                                .replace(/\.(package|ts4script|cfg|ini|json|toml|yaml)$/i, "")
                             ) === normalize(targetName)
                           )
                             return nodePath;
@@ -640,14 +648,16 @@ export function HomesteadDiagnostics({
                     modName
                       .split(/[\\/]/)
                       .pop()
-                      ?.replace(/\.(package|ts4script|cfg|ini)$/i, "") || ""
+                      ?.replace(getExtensionRegex(activeGameSchema), "")
+                      .replace(/\.(package|ts4script|cfg|ini|json|toml|yaml)$/i, "") || ""
                   );
                   return m.flavors.some((f: any) => {
                     const cleanF = normalize(
                       f.name
                         .split(/[\\/]/)
                         .pop()
-                        ?.replace(/\.(package|ts4script|cfg|ini)$/i, "") || ""
+                        ?.replace(getExtensionRegex(activeGameSchema), "")
+                        .replace(/\.(package|ts4script|cfg|ini|json|toml|yaml)$/i, "") || ""
                     );
                     return cleanF === targetBaseName;
                   });
@@ -789,6 +799,51 @@ export function HomesteadDiagnostics({
       <UniversalCard
         key={mod.id}
         onClick={() => setActiveReport(mod)}
+        onContextMenu={(e) => {
+          const menuItems: SanctuaryContextMenuItem[] = [
+            {
+              label: t("btn_view", "View"),
+              icon: t("icon_visibility", "visibility"),
+              onClick: () => setActiveReport(mod),
+            },
+            {
+              label: t("btn_inspect", "Inspect {Mod}"),
+              icon: t("icon_open_in_new", "open_in_new"),
+              onClick: () => openModDossier({ ...mod, isNexusView: true }),
+            },
+            {
+              label: t("verified", "Verified"),
+              icon: t("icon_verified", "verified"),
+              variant: "success",
+              dividerBefore: true,
+              onClick: async () => {
+                await supabase.from("mods").update({ status: "verified" }).eq("id", mod.id);
+                await supabase.from("homestead_lab_logs").update({ status: "verified" }).eq("mod_id", mod.id).eq("status", "pending");
+                setLabReports((prev) => prev.map((r) => (r.id === mod.id ? { ...r, status: "verified" } : r)));
+              },
+            },
+            {
+              label: t("status_corrupted", "Corrupted"),
+              icon: t("icon_warning", "warning"),
+              variant: "danger",
+              onClick: async () => {
+                await supabase.from("mods").update({ status: "broken" }).eq("id", mod.id);
+                await supabase.from("homestead_lab_logs").update({ status: "broken" }).eq("mod_id", mod.id).eq("status", "pending");
+                setLabReports((prev) => prev.map((r) => (r.id === mod.id ? { ...r, status: "broken" } : r)));
+              },
+            },
+            {
+              label: t("copy", "Copy"),
+              icon: t("icon_content_copy", "content_copy"),
+              dividerBefore: true,
+              onClick: () => navigator.clipboard?.writeText(getCleanModBaseName(mod)),
+            },
+          ];
+          openSanctuaryContextMenu(e, {
+            title: getCleanModBaseName(mod),
+            items: menuItems,
+          });
+        }}
         layout="vertical"
         icon={
           isBroken

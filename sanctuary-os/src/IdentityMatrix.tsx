@@ -21,6 +21,7 @@ import {
   VAULT_CHIP_CLASS,
 } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import { useStore } from "./store";
 import { logArchitectAction } from "./lib/audit";
@@ -1159,6 +1160,22 @@ export function IdentityMatrix({
       <UniversalCard
         key={`profile-${p.id}`}
         onClick={() => handleOpenProfile(p)}
+        onContextMenu={(e) => {
+          const menuItems: SanctuaryContextMenuItem[] = [
+            {
+              label: t("edit", "Edit"),
+              icon: t("icon_edit", "edit"),
+              onClick: () => handleOpenProfile(p),
+            },
+            {
+              label: t("copy", "Copy"),
+              icon: t("icon_content_copy", "content_copy"),
+              dividerBefore: true,
+              onClick: () => navigator.clipboard?.writeText(String(p.username || p.id || "")),
+            },
+          ];
+          openSanctuaryContextMenu(e, menuItems);
+        }}
         className={
           !isWayfinder &&
           !isKeepers &&
@@ -1285,6 +1302,22 @@ export function IdentityMatrix({
       <UniversalCard
         key={`mason-${m.id}`}
         onClick={() => handleOpenMason(m)}
+        onContextMenu={(e) => {
+          const menuItems: SanctuaryContextMenuItem[] = [
+            {
+              label: t("edit", "Edit"),
+              icon: t("icon_edit", "edit"),
+              onClick: () => handleOpenMason(m),
+            },
+            {
+              label: t("copy", "Copy"),
+              icon: t("icon_content_copy", "content_copy"),
+              dividerBefore: true,
+              onClick: () => navigator.clipboard?.writeText(String(m.name || m.id || "")),
+            },
+          ];
+          openSanctuaryContextMenu(e, menuItems);
+        }}
         layout="vertical"
         icon={
           m.is_verified
@@ -1463,6 +1496,31 @@ export function IdentityMatrix({
         key={`keeper-app-${app.id}`}
         layout="vertical"
         onClick={() => setSelectedKeeperApp(app)}
+        onContextMenu={(e) => {
+          const menuItems: SanctuaryContextMenuItem[] = [
+            {
+              label: t("view_details", "View Details"),
+              icon: t("icon_visibility", "visibility"),
+              onClick: () => setSelectedKeeperApp(app),
+            },
+          ];
+          if (!isResolved) {
+            menuItems.push({
+              label: t("approve", "Approve"),
+              icon: t("icon_check_circle", "check_circle"),
+              variant: "success",
+              dividerBefore: true,
+              onClick: () => handleApproveKeeperApp(app),
+            });
+          }
+          menuItems.push({
+            label: t("copy", "Copy"),
+            icon: t("icon_content_copy", "content_copy"),
+            dividerBefore: true,
+            onClick: () => navigator.clipboard?.writeText(String(meta.applicant_handle || app.title || "")),
+          });
+          openSanctuaryContextMenu(e, menuItems);
+        }}
         icon={t("icon_admin_panel_settings", "admin_panel_settings")}
         title={
           meta.applicant_handle ||

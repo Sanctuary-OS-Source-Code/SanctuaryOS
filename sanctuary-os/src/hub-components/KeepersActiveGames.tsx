@@ -12,6 +12,7 @@ import {
 import { useLexicon } from "../LexiconContext";
 import { logArchitectAction } from "../lib/audit";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { openSanctuaryContextMenu } from "../ContextMenu";
 import {
   UniversalGroup,
   UniversalInput,
@@ -730,6 +731,37 @@ export default function KeepersActiveGames({
           });
           setSidePanelMode("edit");
         }}
+        onContextMenu={(e) => {
+          openSanctuaryContextMenu(e, [
+            {
+              label: t("edit", "Edit"),
+              icon: t("icon_edit", "edit"),
+              onClick: () => {
+                setHandshakeStatus(null);
+                setFormData({
+                  id: game.id,
+                  name: game.name || "",
+                  schema_id: game.schema_id || "",
+                  supabase_url: game.supabase_url || "",
+                  supabase_anon_key: game.supabase_anon_key || "",
+                  supabase_service_key: game.supabase_service_key || "",
+                  icon: game.icon || "",
+                  is_active: game.is_active !== false,
+                  founder_identifier: "",
+                  donation_url: game.donation_url || "",
+                  payment_processor: (game.payment_processor || "STRIPE").toUpperCase(),
+                });
+                setSidePanelMode("edit");
+              },
+            },
+            {
+              divider: true,
+              label: t("copy_title", "Copy Title"),
+              icon: t("icon_content_copy", "content_copy"),
+              onClick: () => navigator.clipboard?.writeText(game.name || ""),
+            },
+          ]);
+        }}
         layout="vertical"
         isGhosted={!isActive}
         image={game.icon || undefined}
@@ -1295,6 +1327,21 @@ export default function KeepersActiveGames({
                     key={file.path}
                     layout="vertical"
                     onClick={() => openFile(file)}
+                    onContextMenu={(e) => {
+                      openSanctuaryContextMenu(e, [
+                        {
+                          label: t("open_editor", "Open in Editor"),
+                          icon: t("icon_code", "code"),
+                          onClick: () => openFile(file),
+                        },
+                        {
+                          divider: true,
+                          label: t("copy_title", "Copy Title"),
+                          icon: t("icon_content_copy", "content_copy"),
+                          onClick: () => navigator.clipboard?.writeText(file.displayTitle || file.name || ""),
+                        },
+                      ]);
+                    }}
                     icon={t("icon_data_object", "data_object")}
                     title={file.displayTitle || file.name.replace(/\.json$/i, "")}
                     subtitle={
@@ -1372,6 +1419,21 @@ export default function KeepersActiveGames({
                   key={app.id}
                   layout="vertical"
                   onClick={() => setSelectedPartnerApp(app)}
+                  onContextMenu={(e) => {
+                    openSanctuaryContextMenu(e, [
+                      {
+                        label: t("dossier_subtitle", "Ticket Dossier"),
+                        icon: t("icon_handshake", "handshake"),
+                        onClick: () => setSelectedPartnerApp(app),
+                      },
+                      {
+                        divider: true,
+                        label: t("copy_title", "Copy Title"),
+                        icon: t("icon_content_copy", "content_copy"),
+                        onClick: () => navigator.clipboard?.writeText(meta.game_title || app.title || ""),
+                      },
+                    ]);
+                  }}
                   icon={t("icon_handshake", "handshake")}
                   title={meta.game_title || app.title || "Partner Spoke Application"}
                   subtitle={
@@ -1547,6 +1609,21 @@ export default function KeepersActiveGames({
                       key={app.id}
                       layout="vertical"
                       onClick={() => setSelectedPartnerApp(app)}
+                      onContextMenu={(e) => {
+                        openSanctuaryContextMenu(e, [
+                          {
+                            label: t("dossier_subtitle", "Ticket Dossier"),
+                            icon: t("icon_handshake", "handshake"),
+                            onClick: () => setSelectedPartnerApp(app),
+                          },
+                          {
+                            divider: true,
+                            label: t("copy_title", "Copy Title"),
+                            icon: t("icon_content_copy", "content_copy"),
+                            onClick: () => navigator.clipboard?.writeText(meta.game_title || app.title || ""),
+                          },
+                        ]);
+                      }}
                       icon={t("icon_handshake", "handshake")}
                       title={meta.game_title || app.title || "Partner Spoke Application"}
                       subtitle={

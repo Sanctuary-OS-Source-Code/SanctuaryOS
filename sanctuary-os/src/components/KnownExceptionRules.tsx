@@ -13,12 +13,14 @@ import {
   EmptyState,
 } from "../shared";
 import { SidePanelHeroCard, SidePanelTitleInput } from "./layouts/ElevatedHubLayout";
+import { CommandScreenSectionHeading } from "../hub-components/SharedCommandScreenLayout";
 import { UniversalCard } from "./universal/UniversalCard";
 import {
   UniversalGroup,
   StatBox,
 } from "./universal/UniversalLayout";
 import { scrubLogUserData, formatHumanReadableLogText } from "../utils/logScrubber";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -471,22 +473,15 @@ export function KnownErrorDiagnosisBanner({
     <div className="flex flex-col gap-3 w-full" data-rules-v={rulesVersion}>
       {effectiveAllowEdit && (
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
-              {t("icon_psychology", "psychology")}
-            </span>
-            <div className="flex flex-col">
-              <span className="text-xs font-black tracking-wider uppercase text-[var(--text)]">
-                {t("exc_rules_section_title", "Community Known Error Diagnosis")}
-              </span>
-              <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80">
-                {t(
-                  "exc_rules_section_subtitle",
-                  "Matched against community-maintained exception log rules for this game"
-                )}
-              </span>
-            </div>
-          </div>
+          <CommandScreenSectionHeading
+            title={t("exc_rules_section_title", "Community Known Error Diagnosis")}
+            subtitle={t(
+              "exc_rules_section_subtitle",
+              "Matched against community-maintained exception log rules for this game"
+            )}
+            icon={t("icon_psychology", "psychology")}
+            className="!w-auto"
+          />
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
@@ -1270,17 +1265,15 @@ export function KnownErrorRulesManager({
   return (
     <div className="flex flex-col gap-5 w-full pb-16">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
-            {t("exc_rules_section_title", "Community Known Error Diagnosis")}
-          </span>
-          <span className="text-[11px] font-bold text-[var(--subtext)] opacity-80">
-            {t(
-              "exc_rules_section_subtitle",
-              "Matched against community-maintained exception log rules for this game"
-            )}
-          </span>
-        </div>
+        <CommandScreenSectionHeading
+          title={t("exc_rules_section_title", "Community Known Error Diagnosis")}
+          subtitle={t(
+            "exc_rules_section_subtitle",
+            "Matched against community-maintained exception log rules for this game"
+          )}
+          icon={t("icon_rule_settings", "rule_settings")}
+          className="!w-auto"
+        />
 
         {canEdit && !hideTopBarButton && (
           <div className="flex items-center gap-2 flex-wrap">
@@ -1357,6 +1350,95 @@ export function KnownErrorRulesManager({
                   setEditingRule(rule);
                   setDefaultAsGameBug(false);
                   setIsEditorOpen(true);
+                }}
+                onContextMenu={(e) => {
+                  const menuItems: SanctuaryContextMenuItem[] = [
+                    {
+                      id: "inspect_rule",
+                      label: canEdit
+                        ? t("exc_rules_btn_edit_rule", "Edit Rule")
+                        : t("view_details", "View Details"),
+                      icon: canEdit
+                        ? t("icon_edit", "edit")
+                        : t("icon_open_in_new", "open_in_new"),
+                      variant: "accent",
+                      onClick: () => {
+                        setEditingRule(rule);
+                        setDefaultAsGameBug(false);
+                        setIsEditorOpen(true);
+                      },
+                    },
+                    {
+                      id: "copy_pattern",
+                      label: t("exc_rules_header_pattern", "Matched Log Signature"),
+                      icon: t("icon_content_copy", "content_copy"),
+                      badge: t("ctx_copy", "Copy"),
+                      onClick: () => {
+                        navigator.clipboard?.writeText(rule.pattern || "");
+                        useStore
+                          .getState()
+                          .pushStatus(t("copied", "Copied"), "info");
+                      },
+                    },
+                  ];
+                  if (rule.resolution) {
+                    menuItems.push({
+                      id: "copy_resolution",
+                      label: t("exc_rules_recommended_fix", "Recommended Fix / Resolution"),
+                      icon: t("icon_lightbulb", "lightbulb"),
+                      badge: t("ctx_copy", "Copy"),
+                      onClick: () => {
+                        navigator.clipboard?.writeText(rule.resolution || "");
+                        useStore
+                          .getState()
+                          .pushStatus(t("copied", "Copied"), "info");
+                      },
+                    });
+                  }
+                  if (rule.raw_log) {
+                    menuItems.push({
+                      id: "copy_raw_log",
+                      label: t("lab_report_copy_btn", "Copy Log"),
+                      icon: t("icon_terminal", "terminal"),
+                      onClick: () => {
+                        navigator.clipboard?.writeText(
+                          formatHumanReadableLogText(rule.raw_log || "")
+                        );
+                        useStore
+                          .getState()
+                          .pushStatus(t("copied", "Copied"), "info");
+                      },
+                    });
+                  }
+                  if (canEdit) {
+                    menuItems.push({
+                      id: "delete_rule",
+                      label: t("exc_rules_btn_delete", "Delete Rule"),
+                      icon: t("icon_delete", "delete"),
+                      variant: "danger",
+                      dividerBefore: true,
+                      onClick: async () => {
+                        const current = getExceptionRules(activeGameSchema);
+                        const next = current.filter((r) => r.id !== rule.id);
+                        await saveExceptionRulesToSpoke(next, activeGameSchema);
+                        useStore
+                          .getState()
+                          .pushStatus(
+                            t("exc_rules_deleted_toast", "Known Error Rule removed."),
+                            "info"
+                          );
+                      },
+                    });
+                  }
+                  openSanctuaryContextMenu(e, {
+                    title: rule.title,
+                    subtitle: rule.file_hint || rule.pattern,
+                    statusLabel,
+                    statusColorClass: iconColorClass,
+                    icon: iconName,
+                    iconColorClass,
+                    items: menuItems,
+                  });
                 }}
                 layout="vertical"
                 icon={iconName}

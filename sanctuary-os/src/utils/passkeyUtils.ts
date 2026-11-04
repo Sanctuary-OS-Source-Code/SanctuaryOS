@@ -15,7 +15,7 @@ export interface MfaSecurityState {
 }
 
 export function isLocalhostBrowser(): boolean {
-  if (isDesktop() || typeof window === "undefined") return false;
+  if (!import.meta.env.DEV || isDesktop() || typeof window === "undefined") return false;
   const host = window.location.hostname.toLowerCase();
   return host === "localhost" || host === "127.0.0.1";
 }
@@ -340,6 +340,181 @@ async function fetchUserPasskeysViaRest(): Promise<any[]> {
 let cachedMfaState: MfaSecurityState | null = null;
 let cachedMfaUserId: string | null = null;
 
+// Zero-Trust Device-Bound Passkey Seal (12-hour TTL, never persisted in localStorage)
+const PASSKEY_SEAL_STORAGE_KEY = "sanctuary_passkey_seal_v2";
+const PASSKEY_SEAL_TTL_MS = 12 * 60 * 60 * 1000;
+const WEBAUTHN_IDB_NAME = "sanctuary_webauthn_keystore";
+const WEBAUTHN_IDB_STORE = "device_keys";
+const WEBAUTHN_IDB_KEY_ID = "passkey_seal_key_v2";
+
+let inMemoryVerifiedUserId: string | null = null;
+let inMemoryVerifiedAt = 0;
+let cachedDesktopHardwareId: string | null = null;
+let cachedWebCryptoSealKey: CryptoKey | null = null;
+
+function purgeLegacyPlaintextPasskeyFlags(): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem("sanctuary_passkey_verified");
+      localStorage.removeItem("sanctuary_passkey_verified_uid");
+    }
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem("sanctuary_passkey_verified");
+    }
+  } catch {}
+}
+
+purgeLegacyPlaintextPasskeyFlags();
+
+async function getOrCreateWebDeviceSealKey(): Promise<CryptoKey | null> {
+  if (cachedWebCryptoSealKey) return cachedWebCryptoSealKey;
+  if (typeof window === "undefined" || !window.crypto?.subtle || !window.indexedDB) {
+    return null;
+  }
+  return new Promise((resolve) => {
+    try {
+      const req = window.indexedDB.open(WEBAUTHN_IDB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(WEBAUTHN_IDB_STORE)) {
+          db.createObjectStore(WEBAUTHN_IDB_STORE);
+        }
+      };
+      req.onerror = () => resolve(null);
+      req.onsuccess = () => {
+        const db = req.result;
+        try {
+          const tx = db.transaction(WEBAUTHN_IDB_STORE, "readonly");
+          const store = tx.objectStore(WEBAUTHN_IDB_STORE);
+          const getReq = store.get(WEBAUTHN_IDB_KEY_ID);
+          getReq.onsuccess = async () => {
+            if (getReq.result instanceof CryptoKey) {
+              cachedWebCryptoSealKey = getReq.result;
+              db.close();
+              resolve(getReq.result);
+              return;
+            }
+            try {
+              // Generate a non-extractable HMAC-SHA256 hardware/browser-bound key
+              const newKey = await window.crypto.subtle.generateKey(
+                { name: "HMAC", hash: "SHA-256" },
+                false,
+                ["sign", "verify"]
+              );
+              const writeTx = db.transaction(WEBAUTHN_IDB_STORE, "readwrite");
+              writeTx.objectStore(WEBAUTHN_IDB_STORE).put(newKey, WEBAUTHN_IDB_KEY_ID);
+              writeTx.oncomplete = () => {
+                cachedWebCryptoSealKey = newKey;
+                db.close();
+                resolve(newKey);
+              };
+              writeTx.onerror = () => {
+                cachedWebCryptoSealKey = newKey;
+                db.close();
+                resolve(newKey);
+              };
+            } catch {
+              db.close();
+              resolve(null);
+            }
+          };
+          getReq.onerror = () => {
+            db.close();
+            resolve(null);
+          };
+        } catch {
+          db.close();
+          resolve(null);
+        }
+      };
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+async function computeDeviceBoundSealSignature(userId: string, issuedAt: number): Promise<string | null> {
+  try {
+    const message = `SanctuaryOS-PasskeySeal-v2:${userId}:${issuedAt}`;
+    const msgBytes = new TextEncoder().encode(message);
+
+    if (isDesktop()) {
+      if (!cachedDesktopHardwareId) {
+        cachedDesktopHardwareId = await invoke<string>("get_hardware_id");
+      }
+      if (!cachedDesktopHardwareId || cachedDesktopHardwareId === "unknown") return null;
+      const combined = new TextEncoder().encode(`${cachedDesktopHardwareId}:${message}`);
+      const digest = await crypto.subtle.digest("SHA-256", combined);
+      return bufferToBase64Url(digest);
+    }
+
+    const key = await getOrCreateWebDeviceSealKey();
+    if (!key) return null;
+    const sigBuffer = await crypto.subtle.sign("HMAC", key, msgBytes);
+    return bufferToBase64Url(sigBuffer);
+  } catch {
+    return null;
+  }
+}
+
+async function verifyAndHydrateDeviceBoundSeal(session?: any): Promise<boolean> {
+  purgeLegacyPlaintextPasskeyFlags();
+  const uid = session?.user?.id;
+  if (!uid) return false;
+
+  if (isLocalhostBrowser() && Boolean(session?.user?.id || session?.access_token)) {
+    inMemoryVerifiedUserId = uid;
+    inMemoryVerifiedAt = Date.now();
+    return true;
+  }
+
+  const now = Date.now();
+  if (
+    inMemoryVerifiedUserId === uid &&
+    inMemoryVerifiedAt > 0 &&
+    now - inMemoryVerifiedAt < PASSKEY_SEAL_TTL_MS
+  ) {
+    return true;
+  }
+
+  try {
+    if (typeof sessionStorage === "undefined") return false;
+    const rawSeal = sessionStorage.getItem(PASSKEY_SEAL_STORAGE_KEY);
+    if (!rawSeal) return false;
+
+    const parsed = JSON.parse(rawSeal);
+    if (
+      !parsed ||
+      typeof parsed.uid !== "string" ||
+      typeof parsed.iat !== "number" ||
+      typeof parsed.sig !== "string"
+    ) {
+      sessionStorage.removeItem(PASSKEY_SEAL_STORAGE_KEY);
+      return false;
+    }
+
+    if (parsed.uid !== uid || now - parsed.iat >= PASSKEY_SEAL_TTL_MS || parsed.iat > now + 60_000) {
+      sessionStorage.removeItem(PASSKEY_SEAL_STORAGE_KEY);
+      return false;
+    }
+
+    const expectedSig = await computeDeviceBoundSealSignature(parsed.uid, parsed.iat);
+    if (!expectedSig || expectedSig !== parsed.sig) {
+      // Seal came from a different machine/browser or was tampered with!
+      sessionStorage.removeItem(PASSKEY_SEAL_STORAGE_KEY);
+      inMemoryVerifiedUserId = null;
+      inMemoryVerifiedAt = 0;
+      return false;
+    }
+
+    inMemoryVerifiedUserId = uid;
+    inMemoryVerifiedAt = parsed.iat;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function getCachedMfaSecurityState(userId?: string | null): MfaSecurityState | null {
   if (!cachedMfaState) return null;
   if (userId && cachedMfaUserId && userId !== cachedMfaUserId) return null;
@@ -348,15 +523,26 @@ export function getCachedMfaSecurityState(userId?: string | null): MfaSecuritySt
 
 export function markPasskeySessionVerified(userId?: string | null): void {
   try {
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.setItem("sanctuary_passkey_verified", "true");
+    purgeLegacyPlaintextPasskeyFlags();
+    const resolvedUid = userId || cachedMfaUserId;
+    const issuedAt = Date.now();
+
+    if (resolvedUid) {
+      inMemoryVerifiedUserId = resolvedUid;
+      inMemoryVerifiedAt = issuedAt;
+
+      computeDeviceBoundSealSignature(resolvedUid, issuedAt)
+        .then((sig) => {
+          if (sig && typeof sessionStorage !== "undefined") {
+            sessionStorage.setItem(
+              PASSKEY_SEAL_STORAGE_KEY,
+              JSON.stringify({ uid: resolvedUid, iat: issuedAt, sig })
+            );
+          }
+        })
+        .catch(() => {});
     }
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem("sanctuary_passkey_verified", "true");
-      if (userId) {
-        localStorage.setItem("sanctuary_passkey_verified_uid", userId);
-      }
-    }
+
     if (cachedMfaState) {
       cachedMfaState = {
         ...cachedMfaState,
@@ -369,12 +555,11 @@ export function markPasskeySessionVerified(userId?: string | null): void {
 
 export function clearPasskeySessionVerified(): void {
   try {
+    purgeLegacyPlaintextPasskeyFlags();
+    inMemoryVerifiedUserId = null;
+    inMemoryVerifiedAt = 0;
     if (typeof sessionStorage !== "undefined") {
-      sessionStorage.removeItem("sanctuary_passkey_verified");
-    }
-    if (typeof localStorage !== "undefined") {
-      localStorage.removeItem("sanctuary_passkey_verified");
-      localStorage.removeItem("sanctuary_passkey_verified_uid");
+      sessionStorage.removeItem(PASSKEY_SEAL_STORAGE_KEY);
     }
     if (cachedMfaState) {
       cachedMfaState = {
@@ -387,32 +572,19 @@ export function clearPasskeySessionVerified(): void {
 
 export function isPasskeySessionVerified(session?: any): boolean {
   try {
+    purgeLegacyPlaintextPasskeyFlags();
     if (isLocalhostBrowser() && Boolean(session?.user?.id || session?.access_token)) {
       return true;
     }
-    if (typeof sessionStorage !== "undefined" && sessionStorage.getItem("sanctuary_passkey_verified") === "true") {
+    const uid = session?.user?.id || cachedMfaUserId;
+    if (!uid) return false;
+    const now = Date.now();
+    if (
+      inMemoryVerifiedUserId === uid &&
+      inMemoryVerifiedAt > 0 &&
+      now - inMemoryVerifiedAt < PASSKEY_SEAL_TTL_MS
+    ) {
       return true;
-    }
-    if (typeof localStorage !== "undefined" && localStorage.getItem("sanctuary_passkey_verified") === "true") {
-      const uid = session?.user?.id;
-      const storedUid = localStorage.getItem("sanctuary_passkey_verified_uid");
-      if (!uid || !storedUid || uid === storedUid) {
-        return true;
-      }
-    }
-    const token = session?.access_token;
-    if (typeof token === "string" && token.includes(".")) {
-      const payloadB64 = token.split(".")[1];
-      if (payloadB64) {
-        const json = JSON.parse(atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/")));
-        if (Array.isArray(json?.amr)) {
-          const hasPasskeyAmr = json.amr.some((entry: any) => {
-            const m = typeof entry === "string" ? entry : entry?.method;
-            return m === "passkey" || m === "webauthn";
-          });
-          if (hasPasskeyAmr) return true;
-        }
-      }
     }
   } catch {}
   return false;
@@ -475,7 +647,7 @@ export async function fetchMfaSecurityState(): Promise<MfaSecurityState> {
 
     const allVerifiedFactors = [...passkeys, ...totpFactors];
     const hasPasskey = passkeys.length > 0;
-    const passkeyVerified = isPasskeySessionVerified(activeSession);
+    const passkeyVerified = await verifyAndHydrateDeviceBoundSeal(activeSession);
     const rawCurrentLevel = (aalRes?.data?.currentLevel as "aal1" | "aal2" | null) ?? null;
     const rawNextLevel = (aalRes?.data?.nextLevel as "aal1" | "aal2" | null) ?? null;
 
@@ -556,7 +728,10 @@ export async function verifyPasswordWithoutSessionDowngrade(
  * Registers and verifies a new FIDO2 / WebAuthn Passkey via Supabase's `/auth/v1/passkeys` REST API.
  * Works natively on both Web (`https://sanctuaryos.net`) and Desktop (`Sanctuary OS` via Windows `webauthn.dll`).
  */
-export async function registerFidoPasskey(friendlyName: string): Promise<{
+export async function registerFidoPasskey(
+  friendlyName: string,
+  options?: { currentPassword?: string }
+): Promise<{
   data: any | null;
   error: Error | null;
 }> {
@@ -571,6 +746,61 @@ export async function registerFidoPasskey(friendlyName: string): Promise<{
     const headers = await getAuthHeaders(true);
     if (!headers) {
       return { data: null, error: new Error("No active session found.") };
+    }
+
+    // 0. Zero-Trust Step-Up & Anti-Cookie-Hijack Gate:
+    //    - If the account ALREADY has at least one registered Passkey, the caller MUST have
+    //      verified an existing Passkey on this physical device in the current session first.
+    //    - If the account has TOTP 2FA enabled, the session must be at AAL2.
+    //    - Enrolling the first Passkey (or when currentPassword is supplied) requires verifying
+    //      the account's current password so a stolen cookie/localStorage token cannot inject a rogue Passkey.
+    const currentSecurity = await fetchMfaSecurityState();
+    if (currentSecurity.hasPasskey && !currentSecurity.isPasskeyVerified) {
+      return {
+        data: null,
+        error: new Error(
+          "Security Lock: Your account already has an active FIDO2 Passkey. You must authenticate with your existing Passkey on this device before registering an additional Passkey."
+        ),
+      };
+    }
+
+    if (
+      currentSecurity.hasTotp &&
+      currentSecurity.currentLevel !== "aal2" &&
+      !currentSecurity.isPasskeyVerified
+    ) {
+      return {
+        data: null,
+        error: new Error(
+          "Security Lock: Two-Factor Authentication is active on this account. Complete 2FA verification before registering a new Passkey."
+        ),
+      };
+    }
+
+    const { data: preSessionData } = await supabaseAuth.auth.getSession();
+    const activeEmail = preSessionData?.session?.user?.email || "";
+    const providedPassword = options?.currentPassword?.trim() || "";
+
+    if (!isLocalhostBrowser() && (!currentSecurity.hasPasskey || providedPassword.length > 0)) {
+      if (!providedPassword) {
+        return {
+          data: null,
+          error: new Error(
+            "Current account password is required to authorize FIDO2 Passkey registration."
+          ),
+        };
+      }
+      if (activeEmail) {
+        const pwCheck = await verifyPasswordWithoutSessionDowngrade(activeEmail, providedPassword);
+        if (!pwCheck.verified) {
+          return {
+            data: null,
+            error: new Error(
+              "Current password verification failed. Please check your password and try again."
+            ),
+          };
+        }
+      }
     }
 
     // 1. Fetch passkey registration options from Supabase Auth
@@ -923,6 +1153,15 @@ export async function deleteSecurityFactor(factor: {
   source?: string;
 }): Promise<{ error: Error | null }> {
   try {
+    const currentSecurity = await fetchMfaSecurityState();
+    if (currentSecurity.hasPasskey && !currentSecurity.isPasskeyVerified) {
+      return {
+        error: new Error(
+          "Security Lock: You must authenticate with your existing FIDO2 Passkey on this device before removing a security factor."
+        ),
+      };
+    }
+
     if (factor.source === "passkey_api" || factor.factor_type === "webauthn") {
       const headers = await getAuthHeaders(true);
       if (headers) {

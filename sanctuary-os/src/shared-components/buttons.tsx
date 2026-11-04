@@ -153,57 +153,55 @@ export function PanelHeaderButton({
   icon,
   label,
   tooltip,
+  tooltipSubtitle,
   onClick,
   disabled = false,
   variant = "default",
   isDestructive = false,
   isAccent = false,
   isActive = false,
+  active = false,
   tooltipAlign = "center",
   tooltipVariant,
   className = "",
 }: any) {
   const resolvedVariant = isDestructive ? "danger" : isAccent ? "accent" : variant;
+  const resolvedActive = Boolean(isActive || active);
   let colorClass =
-    "border border-transparent text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
+    "text-[var(--text)] opacity-75 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]";
   let activeIconClass = "";
 
-  if (isActive) {
-    if (resolvedVariant === "accent") {
-      colorClass = "sa-glass-pill-active !text-[var(--text)] !opacity-100";
-      activeIconClass = "text-[var(--accent)]";
-    } else if (resolvedVariant === "default") {
-      colorClass = "sa-glass-pill-active !text-[var(--text)] !opacity-100";
+  if (resolvedActive) {
+    colorClass =
+      "!text-[var(--text)] !opacity-100 bg-[color-mix(in_srgb,var(--text)_6%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
+    if (resolvedVariant === "accent" || resolvedVariant === "default") {
       activeIconClass = "text-[var(--accent)]";
     } else if (resolvedVariant === "error" || resolvedVariant === "danger") {
-      colorClass = "sa-glass-pill-danger !text-[var(--text)] !opacity-100";
       activeIconClass = "text-[var(--danger)]";
     } else if (resolvedVariant === "success") {
-      colorClass = "sa-glass-pill-success !text-[var(--text)] !opacity-100";
       activeIconClass = "text-[var(--success)]";
     } else if (resolvedVariant === "warning") {
-      colorClass = "sa-glass-pill-warning !text-[var(--text)] !opacity-100";
       activeIconClass = "text-[var(--warning)]";
     }
   } else {
     if (resolvedVariant === "error" || resolvedVariant === "danger") {
       colorClass =
-        "border border-transparent text-[var(--danger)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
+        "text-[var(--danger)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]";
     } else if (resolvedVariant === "success") {
       colorClass =
-        "border border-transparent text-[var(--success)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
+        "text-[var(--success)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]";
     } else if (resolvedVariant === "warning") {
       colorClass =
-        "border border-transparent text-[var(--warning)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
+        "text-[var(--warning)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]";
     } else if (resolvedVariant === "accent") {
       colorClass =
-        "border border-transparent text-[var(--accent)] opacity-80 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]";
+        "text-[var(--accent)] opacity-85 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)]";
     }
   }
 
   if (disabled) {
     colorClass =
-      "border border-transparent text-[var(--text)] opacity-30 cursor-not-allowed";
+      "text-[var(--text)] opacity-30 cursor-not-allowed";
   }
 
   const tVariant =
@@ -211,12 +209,12 @@ export function PanelHeaderButton({
     (resolvedVariant === "default" || resolvedVariant === "accent" ? "info" : resolvedVariant);
 
   return (
-    <div className={`relative group/btn shrink-0 ${className}`}>
+    <div className={`relative group/btn self-stretch h-full flex items-stretch shrink-0 ${className}`}>
       <button
         onClick={(e) => {
           if (!disabled && onClick) onClick(e);
         }}
-        className={`flex items-center justify-center transition-all rounded-xl ${!disabled ? "active:scale-95" : ""} ${label ? "px-4 h-9 gap-2" : "w-9 h-9"} ${colorClass}`}
+        className={`flex items-center justify-center transition-colors rounded-none self-stretch h-full min-h-[40px] cursor-pointer ${label ? "px-3.5 gap-2" : "w-11"} ${colorClass}`}
       >
         <span
           className={`material-symbols-outlined ${label ? "!text-[15px] normal-case" : "!text-[18px]"} ${activeIconClass}`}
@@ -232,6 +230,7 @@ export function PanelHeaderButton({
       {tooltip && (
         <HoverTooltip
           title={tooltip}
+          subtitle={tooltipSubtitle}
           variant={disabled ? "error" : tVariant}
           align={tooltipAlign}
           vAlign="bottom"

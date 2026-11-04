@@ -27,8 +27,17 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
       if (activeWorkspaceId !== 'default_workspace' && (!workspaces || workspaces.length === 0)) return;
       if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
       setLoading(true);
-      const { data } = await supabase.from('mason_posts').select('*, masons(name, avatar_url, patreon_url, discord_url, website_url, profile_id), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)').order('created_at', { ascending: false }).limit(9);
-      if (data) setPosts(data);
+      const { data } = await supabase
+        .from('mason_posts')
+        .select('*, masons(name, avatar_url, patreon_url, discord_url, website_url, profile_id), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)')
+        .order('created_at', { ascending: false })
+        .limit(9);
+      if (data) {
+        const sorted = [...data].sort((a: any, b: any) => {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+        setPosts(sorted);
+      }
       setLoading(false);
     };
     fetchPosts();
@@ -80,6 +89,8 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
                 index={index} 
                 onPostClick={handlePostClick} 
                 onToggleLike={handleToggleLike} 
+                onOpenMasonProfile={onOpenMasonProfile}
+                hidePinBadge={true}
               />
             </div>
           );

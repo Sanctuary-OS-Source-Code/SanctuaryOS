@@ -8,6 +8,7 @@ import { SystemQueuesSidePanel } from './side-panels/SystemQueuesSidePanel';
 import { isDesktop } from "./utils/envUtils";
 import { isRootDomain } from "./utils/routingUtils";
 import { HoverTooltip } from "./shared-components/alerts";
+import { getCommandHotkeys } from "./side-panels/GlobalCommandPalette";
 
 export function TitleBar({
   subtitleIndex = 0,
@@ -40,6 +41,18 @@ export function TitleBar({
   const [hasDomSidePanel, setHasDomSidePanel] = React.useState(false);
   const [isHubLockdownActive, setIsHubLockdownActive] = React.useState(false);
   const [isMobileHiddenOnScroll, setIsMobileHiddenOnScroll] = React.useState(false);
+  const [cmdShortcutBadge, setCmdShortcutBadge] = React.useState(
+    () => getCommandHotkeys().togglePalette
+  );
+
+  React.useEffect(() => {
+    const handleHotkeysUpdated = (e: Event) => {
+      const next = (e as CustomEvent)?.detail?.togglePalette;
+      if (next) setCmdShortcutBadge(next);
+    };
+    window.addEventListener("sanctuary-hotkeys-updated", handleHotkeysUpdated);
+    return () => window.removeEventListener("sanctuary-hotkeys-updated", handleHotkeysUpdated);
+  }, []);
 
   React.useEffect(() => {
     const handleTourWorkspacePanel = (e: Event) => {
@@ -52,14 +65,19 @@ export function TitleBar({
   }, []);
 
   React.useEffect(() => {
-    import('./supabase').then(({ supabase }) => {
-      supabase
-        .from('sanctuary_games')
-        .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active')
-        .then(({ data }) => {
-          if (data) setGlobalGames(data);
-        });
-    });
+    const loadGames = () => {
+      import('./supabase').then(({ supabase }) => {
+        supabase
+          .from('sanctuary_games')
+          .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active')
+          .then(({ data }) => {
+            if (data) setGlobalGames(data.filter((g: any) => g.is_active !== false));
+          });
+      });
+    };
+    loadGames();
+    window.addEventListener('sanctuary-games-updated', loadGames);
+    return () => window.removeEventListener('sanctuary-games-updated', loadGames);
   }, []);
 
   // Automatically tuck the TitleBar capsule when any SidePanel drawer is open so it never gets sliced by a panel border
@@ -191,7 +209,7 @@ export function TitleBar({
         onClick={() => setIsWorkspacePanelOpen(true)}
         className="h-full px-3 md:px-3.5 flex items-center gap-2.5 cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--text)] group/launcher relative shrink-0"
       >
-        <div className="w-7 h-7 rounded-xl glass-panel border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_4px_12px_rgba(0,0,0,0.2)] flex items-center justify-center shrink-0 transition-transform duration-300 group-hover/launcher:scale-105 pointer-events-none">
+        <div className="w-7 h-7 rounded-lg border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-transform duration-300 group-hover/launcher:scale-105 pointer-events-none">
           {isOnLandingHub ? (
             <img
               src={osLogoUrl || "/icon.png"}
@@ -332,7 +350,7 @@ export function TitleBar({
           {t("icon_terminal", "terminal") || "terminal"}
         </span>
         <HoverTooltip
-          title={`${t("cmd_palette_title", "Command Palette")} (${t("cmd_palette_shortcut_badge", "Ctrl+K")})`}
+          title={`${t("cmd_palette_title", "Command Palette")} (${cmdShortcutBadge || t("cmd_palette_shortcut_badge", "Ctrl+K")})`}
         />
       </button>
 
@@ -397,14 +415,14 @@ export function TitleBar({
             onClick={async () => {
               await getCurrentWebviewWindow().minimize();
             }}
-            className="w-8 h-8 rounded-xl flex items-center justify-center bg-transparent border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all duration-200 outline-none group/btn cursor-pointer relative"
+            className="w-8 h-8 rounded-xl flex items-center justify-center bg-transparent border border-transparent transition-all duration-200 outline-none group/btn cursor-pointer relative"
           >
             <svg
               width="11"
               height="11"
               viewBox="0 0 10 10"
               fill="none"
-              className="text-[var(--subtext)] group-hover/btn:text-[var(--text)] transition-all group-active/btn:scale-90"
+              className="text-[var(--subtext)] group-hover/btn:text-[var(--accent)] transition-all group-active/btn:scale-90"
             >
               <path
                 d="M2 5H8"
@@ -424,7 +442,7 @@ export function TitleBar({
                 (window as any).__sanc_manual_max = false;
               }, 1000);
             }}
-            className="w-8 h-8 rounded-xl flex items-center justify-center bg-transparent border border-transparent hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all duration-200 outline-none group/btn cursor-pointer relative"
+            className="w-8 h-8 rounded-xl flex items-center justify-center bg-transparent border border-transparent transition-all duration-200 outline-none group/btn cursor-pointer relative"
           >
             <svg
               width="11"
@@ -450,7 +468,7 @@ export function TitleBar({
             onClick={async () => {
               await getCurrentWebviewWindow().close();
             }}
-            className="w-8 h-8 rounded-xl flex items-center justify-center bg-transparent border border-transparent hover:bg-[color-mix(in_srgb,var(--danger)_14%,transparent)] transition-all duration-200 outline-none group/btn cursor-pointer relative"
+            className="w-8 h-8 rounded-xl flex items-center justify-center bg-transparent border border-transparent transition-all duration-200 outline-none group/btn cursor-pointer relative"
           >
             <svg
               width="11"

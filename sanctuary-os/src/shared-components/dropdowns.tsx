@@ -9,7 +9,7 @@ export function CustomDropdown({
   value,
   selectedValues: selectedValuesProp,
   onChange,
-  options,
+  options: rawOptionsProp,
   allowCustom,
   searchable,
   searchPlaceholder,
@@ -17,6 +17,10 @@ export function CustomDropdown({
   allowMultiSelect,
   disableTint,
   placeholder,
+  displayLabel,
+  onSelectAll,
+  extraHeaderActions,
+  categoryTabs,
   className,
   buttonClassName,
   flat,
@@ -31,13 +35,27 @@ export function CustomDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const instanceId = React.useId();
   const [query, setQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("ALL");
   const btnRef = React.useRef<HTMLButtonElement>(null);
+  const popoverRef = React.useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState({
     top: 0,
     left: 0,
     width: 0,
     isRight: false,
   });
+
+  const options = React.useMemo(
+    () =>
+      Array.isArray(rawOptionsProp)
+        ? rawOptionsProp.map((o: any) =>
+            o && o.id === undefined && o.value !== undefined
+              ? { ...o, id: o.value }
+              : o
+          )
+        : [],
+    [rawOptionsProp]
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -68,7 +86,16 @@ export function CustomDropdown({
 
   React.useLayoutEffect(() => {
     if (!isOpen) return;
-    const updatePosition = () => {
+    const updatePosition = (e?: Event) => {
+      if (
+        e &&
+        e.type === "scroll" &&
+        popoverRef.current &&
+        e.target instanceof Node &&
+        popoverRef.current.contains(e.target)
+      ) {
+        return;
+      }
       if (btnRef.current) {
         const rect = btnRef.current.getBoundingClientRect();
         const shouldDropUp = rect.bottom + 260 > window.innerHeight && rect.top > 260;
@@ -99,6 +126,7 @@ export function CustomDropdown({
   }, [isOpen, iconOnlyTrigger, menuMinWidth]);
 
   const getSelectedLabel = () => {
+    if (displayLabel) return displayLabel;
     if (multiSelect) {
       if (selectedValues.length === 0) return placeholder || t("select", "Select...");
       const labels = selectedValues.map(
@@ -159,6 +187,28 @@ export function CustomDropdown({
 
   const showSearch = Boolean(searchable);
 
+  const filteredOptions = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (options || []).filter((opt: any) => {
+      if (
+        Array.isArray(categoryTabs) &&
+        categoryTabs.length > 0 &&
+        activeCategory !== "ALL" &&
+        opt.category !== activeCategory
+      ) {
+        return false;
+      }
+      if (!showSearch || !q) return true;
+      const searchTarget =
+        opt.searchText !== undefined
+          ? opt.searchText
+          : typeof opt.label === "string"
+            ? opt.label
+            : "";
+      return searchTarget.toLowerCase().includes(q);
+    });
+  }, [options, categoryTabs, activeCategory, showSearch, query]);
+
   const dropdownMenu = isOpen
     ? createPortal(
         <>
@@ -171,6 +221,7 @@ export function CustomDropdown({
             }}
           />
           <div
+            ref={popoverRef}
             onClick={(e) => e.stopPropagation()}
             className="!fixed pointer-events-auto glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-hidden flex flex-col text-[var(--text)]"
             style={{
@@ -226,11 +277,37 @@ export function CustomDropdown({
 
                 {multiSelect && options && options.length > 1 && (
                   <div className="flex items-center gap-1 shrink-0">
+                    {Array.isArray(extraHeaderActions) &&
+                      extraHeaderActions.map((act: any, idx: number) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            act.onClick?.();
+                          }}
+                          className="sa-dropdown-action-chip px-2 h-6 text-[9px] font-bold uppercase tracking-wider cursor-pointer"
+                        >
+                          {act.label}
+                        </button>
+                      ))}
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onChange(options.map((o: any) => String(o.id)));
+                        if (onSelectAll) {
+                          onSelectAll();
+                        } else if (
+                          Array.isArray(categoryTabs) &&
+                          categoryTabs.length > 0 &&
+                          activeCategory !== "ALL"
+                        ) {
+                          const catIds = filteredOptions.map((o: any) => String(o.id));
+                          const merged = Array.from(new Set([...selectedValues.map(String), ...catIds]));
+                          onChange(merged);
+                        } else {
+                          onChange(options.map((o: any) => String(o.id)));
+                        }
                       }}
                       className="sa-dropdown-action-chip px-2 h-6 text-[9px] font-bold uppercase tracking-wider cursor-pointer"
                     >
@@ -250,20 +327,30 @@ export function CustomDropdown({
                 )}
               </div>
             )}
-            <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar p-1.5 flex flex-col gap-1">
-              {(options || [])
-                .filter((opt: any) => {
-                  if (!showSearch || !query) return true;
-                  const searchTarget =
-                    opt.searchText !== undefined
-                      ? opt.searchText
-                      : typeof opt.label === "string"
-                        ? opt.label
-                        : "";
-                  return searchTarget
-                    .toLowerCase()
-                    .includes(query.toLowerCase());
-                })
+            {Array.isArray(categoryTabs) && categoryTabs.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1 px-2.5 py-1.5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] shrink-0 z-10">
+                {categoryTabs.map((cat: any) => {
+                  const active = activeCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveCategory(cat.id);
+                      }}
+                      className={`sa-dropdown-action-chip px-2 h-6 text-[9px] font-bold uppercase tracking-wider cursor-pointer ${
+                        active ? "!text-[var(--accent)] !border-[color-mix(in_srgb,var(--accent)_50%,transparent)]" : ""
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar p-1.5 flex flex-col gap-0.5">
+              {filteredOptions
                 .slice(0, 100)
                 .map((opt: any) => {
                   const isSelected = multiSelect
@@ -280,7 +367,7 @@ export function CustomDropdown({
                         e.stopPropagation();
                         handleSelect(opt.id);
                       }}
-                      className={`sa-dropdown-item w-full text-left px-2.5 py-2 text-xs tracking-wide flex items-center gap-2.5 group cursor-pointer ${
+                      className={`sa-dropdown-item w-full text-left px-3 py-2.5 text-xs tracking-wide flex items-center gap-2.5 group cursor-pointer shrink-0 ${
                         isSelected ? "is-selected font-bold" : "font-medium"
                       }`}
                     >
@@ -306,13 +393,18 @@ export function CustomDropdown({
                             opt.iconColorClass ||
                             (isSelected
                               ? "text-[var(--accent)]"
-                              : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--text)]")
+                              : "text-[var(--subtext)] opacity-80 group-hover:text-[var(--text)]")
                           }`}
                         >
                           {opt.icon}
                         </span>
                       )}
                       <span className="flex-1 min-w-0 truncate leading-snug">{opt.label}</span>
+                      {opt.badge && (
+                        <span className="font-mono text-[10px] text-[var(--subtext)] opacity-75 shrink-0">
+                          {opt.badge}
+                        </span>
+                      )}
                       {isSelected && !multiSelect && (
                         <span className="material-symbols-outlined !text-[15px] shrink-0 text-[var(--accent)]">
                           {t("icon_check", "check")}
@@ -323,17 +415,7 @@ export function CustomDropdown({
                 })}
               {searchable &&
                 query &&
-                (options || []).filter((opt: any) => {
-                  const searchTarget =
-                    opt.searchText !== undefined
-                      ? opt.searchText
-                      : typeof opt.label === "string"
-                        ? opt.label
-                        : "";
-                  return searchTarget
-                    .toLowerCase()
-                    .includes(query.toLowerCase());
-                }).length === 0 &&
+                filteredOptions.length === 0 &&
                 !allowCustom && (
                   <div className="p-4 text-center text-xs font-medium text-[var(--subtext)] opacity-70">
                     {t("shared_no_options", "No options found")}
@@ -353,8 +435,9 @@ export function CustomDropdown({
                     onClick={(e) => {
                       e.stopPropagation();
                       handleSelect(query);
+                      setQuery("");
                     }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-colors hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] flex items-center gap-2 cursor-pointer"
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-colors hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] flex items-center gap-2 cursor-pointer shrink-0"
                   >
                     <span className="material-symbols-outlined !text-[15px]">
                       {t("icon_add", "add")}
@@ -409,10 +492,12 @@ export function CustomDropdown({
                       }`
                     : `${
                         className?.includes("h-") ? "h-full px-4" : "h-11 px-4"
-                      } rounded-xl text-xs font-bold ${
-                        isOpen || isActive
-                          ? "glass-surface sa-glass-pill-active text-[var(--text)]"
-                          : "glass-surface sa-glass-pill-hover text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                      } rounded-xl text-xs font-bold glass-surface text-[var(--text)] border transition-all ${
+                        isActive
+                          ? "sa-glass-pill-active"
+                          : isOpen
+                            ? "!border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                            : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
                       }`
               }`
         } ${buttonClassName || ""}`}
@@ -511,313 +596,131 @@ export function CustomDropdown({
     </div>
   );
 }
+
+let cachedGameVersions: string[] | null = null;
+let gameVersionsPromise: Promise<string[]> | null = null;
+
+function loadCachedGameVersions(): Promise<string[]> {
+  if (cachedGameVersions) return Promise.resolve(cachedGameVersions);
+  if (gameVersionsPromise) return gameVersionsPromise;
+  if (
+    typeof navigator !== "undefined" &&
+    (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true")
+  ) {
+    return Promise.resolve([]);
+  }
+  gameVersionsPromise = (async () => {
+    try {
+      const { data } = await supabase
+        .from("game_versions")
+        .select("version")
+        .order("version", { ascending: false });
+      const list = Array.isArray(data)
+        ? data.map((d: any) => String(d.version || "").trim()).filter(Boolean)
+        : [];
+      cachedGameVersions = list;
+      return list;
+    } catch {
+      return [];
+    } finally {
+      gameVersionsPromise = null;
+    }
+  })();
+  return gameVersionsPromise;
+}
+
 export function GameVersionMultiSelect({
   selectedVersions,
   onChange,
   variant = "default",
-  dropUp = false,
 }: {
   selectedVersions: string[];
   onChange: (v: string[]) => void;
   variant?: "default" | "pill";
   dropUp?: boolean;
 }) {
-  selectedVersions = Array.isArray(selectedVersions)
+  const normalizedSelected = Array.isArray(selectedVersions)
     ? selectedVersions
     : typeof selectedVersions === "string"
-      ? (selectedVersions as string).split(",").map((s: string) => s.trim()).filter(Boolean)
+      ? (selectedVersions as string)
+          .split(",")
+          .map((s: string) => s.trim())
+          .filter(Boolean)
       : [];
   const { t } = useLexicon();
-  const [query, setQuery] = useState("");
-  const [versions, setVersions] = useState<any[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [rangeFrom, setRangeFrom] = useState("");
-  const [rangeTo, setRangeTo] = useState("");
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const [, forceUpdate] = useState({});
-
-  React.useLayoutEffect(() => {
-    if (!isOpen) return;
-    const updatePosition = () => forceUpdate({});
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-    return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-    };
-  }, [isOpen]);
+  const [versions, setVersions] = useState<string[]>(() => cachedGameVersions || []);
 
   useEffect(() => {
-    async function fetchVersions() {
-      if (
-        !navigator.onLine ||
-        localStorage.getItem("sanctuary_local_only") === "true"
-      )
-        return;
-      const { data } = await supabase
-        .from("game_versions")
-        .select("version")
-        .order("version", { ascending: false });
-      if (data) {
-        setVersions(data);
-      }
-    }
-    fetchVersions();
-  }, []);
-
-  const toggleVersion = (v: string) => {
-    if (selectedVersions.includes(v)) {
-      const newVersions = selectedVersions.filter((ver) => ver !== v);
-      onChange(newVersions);
-    } else {
-      const newVersions = [...selectedVersions.filter((ver) => ver !== "ALL"), v];
-      onChange(newVersions);
-    }
-  };
-
-  const applyRangeChange = (fromVal: string, toVal: string) => {
-    setRangeFrom(fromVal);
-    setRangeTo(toVal);
-    const f = fromVal.trim();
-    const to = toVal.trim();
-    if (!f || !to) return;
-    const withoutOldRanges = selectedVersions.filter(
-      (ver) => ver !== "ALL" && !ver.includes(" - ")
-    );
-    if (f === to) {
-      if (!withoutOldRanges.includes(f)) onChange([...withoutOldRanges, f]);
+    if (cachedGameVersions) {
+      setVersions(cachedGameVersions);
       return;
     }
-    const rangeTag = `${f} - ${to}`;
-    onChange([...withoutOldRanges, rangeTag]);
-  };
+    let mounted = true;
+    loadCachedGameVersions().then((list) => {
+      if (mounted) setVersions(list);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-  const latestPatch = versions[0]?.version;
+  const latestPatch = versions[0];
 
-  const filtered = versions
-    .filter((v) => v.version && v.version.toLowerCase().includes(query.toLowerCase()))
-    .slice(0, 40);
-  const rect = containerRef.current?.getBoundingClientRect();
-  const popWidth = rect ? Math.min(Math.max(rect.width, 420), window.innerWidth - 24) : 420;
-  const clampedLeft = rect
-    ? Math.max(12, Math.min(rect.left, window.innerWidth - popWidth - 12))
-    : 12;
-  const shouldDropUp =
-    dropUp || (rect ? window.innerHeight - rect.bottom < 360 && rect.top > 320 : false);
+  const versionOptions = React.useMemo(() => {
+    const set = new Set<string>(versions);
+    for (const sel of normalizedSelected) {
+      if (sel && sel !== "ALL") set.add(sel);
+    }
+    return Array.from(set).map((ver) => ({
+      id: ver,
+      label: ver,
+    }));
+  }, [versions, normalizedSelected]);
 
-  const summaryLabel =
-    selectedVersions.length === 0
-      ? t("shared_search_versions", "Select game versions...")
-      : selectedVersions.includes("ALL")
+  const displayLabel =
+    variant === "pill" && normalizedSelected.length > 0
+      ? `${t("versions", "Versions")} (${normalizedSelected.length})`
+      : normalizedSelected.includes("ALL")
         ? t("filter_all_versions", "All Versions")
-        : selectedVersions.join(", ");
+        : undefined;
 
   return (
-    <div
-      className={`relative ${variant === "pill" ? "h-full flex items-center" : "w-full"}`}
-      ref={containerRef}
-    >
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={
-          variant === "pill"
-            ? "flex items-center justify-between gap-2 bg-transparent text-[11px] font-bold text-[var(--text)] tracking-wider outline-none min-w-[160px] px-2 h-full cursor-pointer"
-            : `w-full h-11 px-4 rounded-xl glass-surface ${
-                isOpen ? "sa-glass-active" : ""
-              } text-xs font-bold text-[var(--text)] flex items-center justify-between gap-2 transition-all cursor-pointer`
-        }
-      >
-        <span
-          className={`flex-1 text-left truncate ${
-            selectedVersions.length === 0 ? "text-[var(--subtext)] opacity-60" : "text-[var(--text)]"
-          }`}
-        >
-          {variant === "pill" && selectedVersions.length > 0
-            ? `${t("versions", "Versions")} (${selectedVersions.length})`
-            : summaryLabel}
-        </span>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {selectedVersions.length > 0 && variant !== "pill" && (
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                setRangeFrom("");
-                setRangeTo("");
-                onChange([]);
-              }}
-              className="material-symbols-outlined !text-[15px] text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer"
-            >
-              {t("icon_close", "close")}
-            </span>
-          )}
-          <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)] opacity-60">
-            {isOpen ? t("icon_expand_less", "expand_less") : t("icon_expand_more", "expand_more")}
-          </span>
-        </div>
-      </button>
-
-      {isOpen &&
-        createPortal(
-          <>
-            <div
-              className="!fixed inset-0 pointer-events-auto"
-              style={{ zIndex: 100000000 }}
-              onClick={() => setIsOpen(false)}
-            />
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="!fixed pointer-events-auto glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl animate-in fade-in zoom-in-95 duration-150 flex flex-col text-[var(--text)] overflow-hidden"
-              style={{
-                zIndex: 100000001,
-                top: shouldDropUp ? "auto" : (rect ? rect.bottom + 6 : 0),
-                bottom: shouldDropUp ? (rect ? window.innerHeight - rect.top + 6 : 0) : "auto",
-                left: clampedLeft,
-                width: popWidth,
-                maxWidth: "calc(100vw - 24px)",
-                "--glass-x": `${Math.round(clampedLeft)}px`,
-                "--glass-y": `${Math.round(rect ? rect.bottom + 6 : 0)}px`,
-              } as React.CSSProperties}
-            >
-              {/* Search & Quick Actions Row */}
-              <div className="flex items-center justify-between gap-2 p-2 pb-1.5 shrink-0">
-                <div className="sa-dropdown-search flex items-center flex-1 min-w-0 px-3 h-8">
-                  <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] opacity-85 mr-2 shrink-0">
-                    {t("icon_search", "search")}
-                  </span>
-                  <input
-                    autoFocus
-                    placeholder={t("shared_search_versions", "Search game versions...")}
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    className="w-full bg-transparent border-none text-xs font-semibold focus:outline-none text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-55"
-                  />
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {latestPatch && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!selectedVersions.includes(latestPatch)) {
-                          onChange([...selectedVersions.filter((ver) => ver !== "ALL"), latestPatch]);
-                        }
-                      }}
-                      className="sa-dropdown-action-chip h-8 px-2.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer"
-                    >
-                      {t("ver_btn_latest", "Latest")}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => onChange(["ALL"])}
-                    className="sa-dropdown-action-chip h-8 px-2.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer"
-                  >
-                    {t("filter_all_versions", "All")}
-                  </button>
-                  {selectedVersions.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRangeFrom("");
-                        setRangeTo("");
-                        onChange([]);
-                      }}
-                      className="sa-dropdown-action-chip h-8 px-2.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer"
-                    >
-                      {t("clear", "Clear")}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Inline Patch Range Row (always visible above list, auto-applies) */}
-              {versions.length > 1 && (
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-2 py-1.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
-                  <CustomDropdown
-                    disableTint={true}
-                    className="h-9"
-                    buttonClassName="!h-9 !px-3 !text-xs !rounded-xl"
-                    placeholder={t("ver_range_from", "From Patch")}
-                    value={rangeFrom}
-                    onChange={(val: string[]) => applyRangeChange(val[0] || "", rangeTo || latestPatch || "")}
-                    options={[
-                      { id: "", label: t("ver_range_from", "From Patch") },
-                      ...versions.map((v) => ({ id: v.version, label: v.version })),
-                    ]}
-                  />
-                  <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)] opacity-60 px-0.5">
-                    {t("icon_arrow_forward", "arrow_forward")}
-                  </span>
-                  <CustomDropdown
-                    disableTint={true}
-                    className="h-9"
-                    buttonClassName="!h-9 !px-3 !text-xs !rounded-xl"
-                    placeholder={t("ver_range_to", "To Patch")}
-                    value={rangeTo}
-                    onChange={(val: string[]) => applyRangeChange(rangeFrom || versions[Math.min(5, versions.length - 1)]?.version || "", val[0] || "")}
-                    options={[
-                      { id: "", label: t("ver_range_to", "To Patch") },
-                      ...versions.map((v) => ({ id: v.version, label: v.version })),
-                    ]}
-                  />
-                </div>
-              )}
-
-              {/* Always-Visible Checkable Version List */}
-              <div className="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-1 p-2 pt-1">
-                {filtered.map((v) => {
-                  const isSelected = selectedVersions.includes(v.version);
-                  return (
-                    <button
-                      key={v.version}
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        toggleVersion(v.version);
-                      }}
-                      className={`sa-dropdown-item w-full text-left px-3 py-2 text-xs tracking-wide flex items-center gap-2.5 group cursor-pointer ${
-                        isSelected ? "is-selected font-bold" : "font-semibold"
-                      }`}
-                    >
-                      <div
-                        style={{ borderRadius: "5px" }}
-                        className={`w-4 h-4 border flex items-center justify-center transition-colors shrink-0 ${
-                          isSelected
-                            ? "bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_65%,transparent)] text-[var(--accent)]"
-                            : "bg-transparent border-[color-mix(in_srgb,var(--text)_22%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)]"
-                        }`}
-                      >
-                        {isSelected && (
-                          <span className="material-symbols-outlined !text-[12px] font-bold">
-                            {t("icon_check", "check")}
-                          </span>
-                        )}
-                      </div>
-                      <span className="flex-1 truncate">{v.version}</span>
-                    </button>
-                  );
-                })}
-                {query && !versions.some((v) => v.version === query) && (
-                  <button
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      toggleVersion(query);
-                      setQuery("");
-                    }}
-                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-semibold text-[var(--accent)] cursor-pointer transition-colors"
-                  >
-                    + {t("ql_add", "Add")} "{query}"
-                  </button>
-                )}
-              </div>
-            </div>
-          </>,
-          document.getElementById("sa-portals") || document.body
-        )}
-    </div>
+    <CustomDropdown
+      multiSelect={true}
+      searchable={true}
+      allowCustom={true}
+      disableTint={true}
+      variant={variant}
+      value={normalizedSelected}
+      displayLabel={displayLabel}
+      placeholder={t("shared_search_versions", "Select game versions...")}
+      searchPlaceholder={t("shared_search_versions", "Search game versions...")}
+      options={versionOptions}
+      onSelectAll={() => onChange(["ALL"])}
+      extraHeaderActions={
+        latestPatch
+          ? [
+              {
+                label: t("ver_btn_latest", "Latest"),
+                onClick: () => {
+                  if (!normalizedSelected.includes(latestPatch)) {
+                    onChange([
+                      ...normalizedSelected.filter((ver) => ver !== "ALL"),
+                      latestPatch,
+                    ]);
+                  }
+                },
+              },
+            ]
+          : undefined
+      }
+      onChange={(nextVals: string[]) => {
+        const cleaned = Array.isArray(nextVals)
+          ? nextVals.filter((ver) => ver !== "ALL")
+          : [];
+        onChange(cleaned);
+      }}
+    />
   );
 }
 export function CustomDatePicker({

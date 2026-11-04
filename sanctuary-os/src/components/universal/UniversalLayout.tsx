@@ -51,19 +51,24 @@ export function HubOverviewSection({
 }: HubOverviewSectionProps) {
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
-      <div className="flex items-center justify-between gap-4 w-full min-w-0">
-        <div className="glass-panel rounded-2xl px-3.5 py-2 md:px-4 md:py-2.5 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 max-w-full">
-          {icon && (
-            <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] flex items-center justify-center shrink-0">
-              <span className={`material-symbols-outlined !text-[17px] md:!text-[19px] opacity-90 ${iconColorClass}`}>{icon}</span>
+      <div className="flex items-center justify-start gap-4 w-full min-w-0">
+        <div className="glass-panel rounded-xl flex items-stretch shrink-0 min-w-0 max-w-full overflow-hidden">
+          <div className="p-2 pr-3.5 md:p-2.5 md:pr-4 flex items-center gap-3 md:gap-3.5 min-w-0">
+            {icon && (
+              <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] flex items-center justify-center shrink-0">
+                <span className={`material-symbols-outlined !text-[17px] md:!text-[19px] opacity-90 ${iconColorClass}`}>{icon}</span>
+              </div>
+            )}
+            <h2 className="text-sm sm:text-base font-black text-[var(--text)] capitalize tracking-tight leading-tight min-w-0 m-0 truncate">
+              {title}
+            </h2>
+          </div>
+          {headerAction && (
+            <div className="flex items-stretch self-stretch shrink-0 border-l border-[color-mix(in_srgb,var(--text)_8%,transparent)] divide-x divide-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+              {headerAction}
             </div>
           )}
-          <h2 className="text-sm sm:text-base font-black text-[var(--text)] capitalize tracking-tight leading-tight min-w-0 m-0 truncate">
-            {title}
-          </h2>
         </div>
-        <div className="h-px flex-1 min-w-[16px] bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_20%,transparent)] via-[color-mix(in_srgb,var(--text)_8%,transparent)] to-transparent" />
-        {headerAction && <div className="shrink-0">{headerAction}</div>}
       </div>
       {isEmpty ? (
         emptyState ? <>{emptyState}</> : <EmptyState icon={emptyIcon} title={emptyTitle} subtitle={emptySubtitle} className="py-8" />
@@ -447,8 +452,8 @@ export function UniversalGroup({
       className={`glass-panel ![background-image:none] rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col shrink-0 relative ${delayClass} ${className}`}
     >
       {heading && (
-        <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
+        <div className="px-4 min-h-[52px] border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-stretch justify-between gap-2">
+          <div className="py-3 flex items-center gap-2.5 min-w-0">
             {icon && (
               <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined !text-[15px]">
@@ -467,7 +472,11 @@ export function UniversalGroup({
               </span>
             )}
           </div>
-          {resolvedHeaderAction && <div className="ml-auto shrink-0">{resolvedHeaderAction}</div>}
+          {resolvedHeaderAction && (
+            <div className="ml-auto flex items-center self-stretch shrink-0 [&:has(.sa-panel-header-group)]:-mr-4 [&:has(.sa-panel-header-group)]:border-l [&:has(.sa-panel-header-group)]:border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+              {resolvedHeaderAction}
+            </div>
+          )}
         </div>
       )}
       <div className={`p-4 ${innerClassName}`}>{children}</div>

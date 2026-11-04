@@ -3,6 +3,7 @@ import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { formatDisplayName, HoverTooltip, openModDossier } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 
 export interface ConflictLoadOrderInfo {
   elevatedTierA?: string;
@@ -137,6 +138,10 @@ interface ConflictCardProps {
   loadOrderInfo?: ConflictLoadOrderInfo;
   onKeepA?: () => void;
   onKeepB?: () => void;
+  onOverrideA?: () => void;
+  onOverrideB?: () => void;
+  onRemoveA?: () => void;
+  onRemoveB?: () => void;
   onIgnore?: () => void;
   onClick?: () => void;
 }
@@ -178,6 +183,10 @@ function ConflictCardInner({
   loadOrderInfo,
   onKeepA,
   onKeepB,
+  onOverrideA,
+  onOverrideB,
+  onRemoveA,
+  onRemoveB,
   onClick,
   onIgnore,
 }: ConflictCardProps) {
@@ -302,6 +311,98 @@ function ConflictCardInner({
       layout="vertical"
       isActive={isSelected}
       onClick={onClick}
+      onContextMenu={(e) => {
+        const menuItems: SanctuaryContextMenuItem[] = [];
+        if (onClick) {
+          menuItems.push({
+            label: t("radar_inspect_btn", "Inspect & Resolve"),
+            icon: t("icon_troubleshoot", "troubleshoot"),
+            onClick: () => onClick(),
+          });
+        }
+        menuItems.push({
+          label: `${t("btn_inspect", "Inspect {Mod}")}: ${cleanA}`,
+          icon: t("icon_open_in_new", "open_in_new"),
+          dividerBefore: menuItems.length > 0,
+          onClick: () => openModDossier(vaultModA || conflict.modA),
+        });
+        menuItems.push({
+          label: `${t("btn_inspect", "Inspect {Mod}")}: ${cleanB}`,
+          icon: t("icon_open_in_new", "open_in_new"),
+          onClick: () => openModDossier(vaultModB || conflict.modB),
+        });
+        if (onOverrideA || onOverrideB) {
+          if (onOverrideA) {
+            menuItems.push({
+              label: `${t("lo_badge_wins_override", "Wins Override")}: ${cleanA}`,
+              icon: t("icon_verified", "verified"),
+              variant: "success",
+              dividerBefore: true,
+              onClick: () => onOverrideA(),
+            });
+          }
+          if (onOverrideB) {
+            menuItems.push({
+              label: `${t("lo_badge_wins_override", "Wins Override")}: ${cleanB}`,
+              icon: t("icon_verified", "verified"),
+              variant: "success",
+              dividerBefore: !onOverrideA,
+              onClick: () => onOverrideB(),
+            });
+          }
+        }
+        if (onKeepA || onKeepB) {
+          if (onKeepA) {
+            menuItems.push({
+              label: `${t("enemy_a", "{Mod} A")}: ${cleanA}`,
+              icon: isSelectedA
+                ? t("icon_check_circle", "check_circle")
+                : t("icon_radio_button_unchecked", "radio_button_unchecked"),
+              dividerBefore: true,
+              onClick: () => onKeepA(),
+            });
+          }
+          if (onKeepB) {
+            menuItems.push({
+              label: `${t("enemy_b", "{Mod} B")}: ${cleanB}`,
+              icon: isSelectedB
+                ? t("icon_check_circle", "check_circle")
+                : t("icon_radio_button_unchecked", "radio_button_unchecked"),
+              dividerBefore: !onKeepA,
+              onClick: () => onKeepB(),
+            });
+          }
+        }
+        if (onRemoveA || onRemoveB) {
+          if (onRemoveA) {
+            menuItems.push({
+              label: `${t("remove", "Remove")}: ${cleanA}`,
+              icon: t("icon_do_not_disturb_on", "do_not_disturb_on"),
+              variant: "danger",
+              dividerBefore: true,
+              onClick: () => onRemoveA(),
+            });
+          }
+          if (onRemoveB) {
+            menuItems.push({
+              label: `${t("remove", "Remove")}: ${cleanB}`,
+              icon: t("icon_do_not_disturb_on", "do_not_disturb_on"),
+              variant: "danger",
+              dividerBefore: !onRemoveA,
+              onClick: () => onRemoveB(),
+            });
+          }
+        }
+        if (onIgnore) {
+          menuItems.push({
+            label: t("ignore_tooltip", "Ignore this conflict"),
+            icon: t("icon_visibility_off", "visibility_off"),
+            dividerBefore: true,
+            onClick: () => onIgnore(),
+          });
+        }
+        openSanctuaryContextMenu(e, menuItems);
+      }}
       title={
         <div className="flex flex-col gap-1.5 w-full min-w-0">
           <div className="text-[14px] md:text-[15px] font-black text-[var(--text)] leading-snug line-clamp-2 break-words">

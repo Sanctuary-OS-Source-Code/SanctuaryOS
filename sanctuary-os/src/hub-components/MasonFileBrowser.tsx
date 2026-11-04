@@ -2,6 +2,7 @@ import { EmptyState } from "../shared";
 import { useState, useEffect } from "react";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
 import { hasIdeCachedDraft } from "../hooks/useMasonFiles";
 import {
   DynamicLexiconPreviewBanner,
@@ -197,6 +198,41 @@ export default function MasonFileBrowser({
             title={renamingFile === file.path ? undefined : displayName}
             subtitle={renamingFile === file.path ? undefined : displaySub}
             onClick={() => !renamingFile && openFile(file)}
+            onContextMenu={(e) => {
+              const menuItems: SanctuaryContextMenuItem[] = [
+                {
+                  label: t("edit", "Edit"),
+                  icon: t("icon_edit", "edit"),
+                  onClick: () => openFile(file),
+                },
+                {
+                  label: t("copy", "Copy"),
+                  icon: t("icon_content_copy", "content_copy"),
+                  onClick: () => navigator.clipboard?.writeText(String(displayName || file.name || "")),
+                },
+              ];
+              if (canMutateFile) {
+                menuItems.push({
+                  label: t("rename", "Rename"),
+                  icon: t("icon_drive_file_rename_outline", "drive_file_rename_outline"),
+                  dividerBefore: true,
+                  onClick: () => {
+                    setRenamingFile(file.path);
+                    const d = file.name.lastIndexOf(".");
+                    setRenameInput(d > 0 ? file.name.substring(0, d) : file.name);
+                    setRenameExt(d > 0 ? file.name.substring(d) : "");
+                  },
+                });
+                menuItems.push({
+                  label: t("delete", "Delete"),
+                  icon: t("icon_delete", "delete"),
+                  variant: "danger",
+                  dividerBefore: true,
+                  onClick: () => handleDeleteFile(file.path),
+                });
+              }
+              openSanctuaryContextMenu(e, menuItems);
+            }}
             className={
               isUnsaved ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)]" : ""
             }

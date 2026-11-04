@@ -110,6 +110,46 @@ export function SystemStatusBar({
     if (typeof status === "string") {
       const match = status.match(/^([a-z_0-9]+)\s+(.*)$/);
       if (match && match[1].includes("_")) return match[1];
+      const lower = status.toLowerCase();
+      if (lower.includes("lexicon") || lower.includes("language"))
+        return t("icon_translate", "translate") || "translate";
+      if (
+        lower.includes("preview") ||
+        lower.includes("chameleon") ||
+        lower.includes("theme")
+      )
+        return t("icon_palette", "palette") || "palette";
+      if (
+        lower.includes("blueprint") ||
+        lower.includes("playset") ||
+        lower.includes("play set")
+      )
+        return t("icon_map", "map") || "map";
+      if (
+        lower.includes("vault") ||
+        lower.includes("artifact") ||
+        lower.includes("mod")
+      )
+        return t("icon_inventory_2", "inventory_2") || "inventory_2";
+      if (
+        lower.includes("radar") ||
+        lower.includes("conflict") ||
+        lower.includes("scan")
+      )
+        return t("icon_radar", "radar") || "radar";
+      if (
+        lower.includes("quarantine") ||
+        lower.includes("shelter") ||
+        lower.includes("defcon") ||
+        lower.includes("lockdown")
+      )
+        return t("icon_shield_lock", "shield_lock") || "shield_lock";
+      if (
+        lower.includes("cached changes") ||
+        lower.includes("unsaved") ||
+        lower.includes("workbench")
+      )
+        return t("icon_save", "save") || "save";
     }
     return t("icon_terminal", "terminal") || "terminal";
   };
@@ -120,6 +160,7 @@ export function SystemStatusBar({
       : null;
 
   const isVisible =
+    !isLogExpanded &&
     !isSideBrowserOpen &&
     !isHubLockdownActive &&
     showToast &&

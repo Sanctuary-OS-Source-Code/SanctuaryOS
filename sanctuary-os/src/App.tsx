@@ -1057,6 +1057,7 @@ function App() {
   const [activeMasonPostId, setActiveMasonPostId] = useState<string | null>(
     null,
   );
+  const [isMasonProfilePanelOpen, setIsMasonProfilePanelOpen] = useState(false);
 
   const networkUpdates = useStore((state) => state.networkUpdates);
   const setNetworkUpdates = useStore((state) => state.setNetworkUpdates);
@@ -1455,6 +1456,7 @@ function App() {
   useEffect(() => {
     localStorage.setItem("sanctuary_anarchy", JSON.stringify(anarchyRules));
   }, [anarchyRules]);
+  const [masonProfileAboveDossier, setMasonProfileAboveDossier] = useState(true);
   const handleOpenMasonProfile = async (masonId: string, postId?: string) => {
     if (!masonId) {
       alert(t("alert_error_mason_profile_missing", "Error: {Mason} Profile ID is missing."));
@@ -1465,9 +1467,10 @@ function App() {
       useStore.getState().pushStatus(t("mason_profile_verified_only_desc", "Public {Mason} Profiles are exclusively available for Verified {Masons}."), "info");
       return;
     }
+    setMasonProfileAboveDossier(true);
     setActiveMasonProfileId(masonId);
     setActiveMasonPostId(postId || null);
-    setView("MasonProfile");
+    setIsMasonProfilePanelOpen(true);
   };
   const didInitDLC = useRef(false);
   useEffect(() => {
@@ -1778,10 +1781,8 @@ function App() {
       setTimeout(() => {
         if (fileEditNames.length === 1) {
           useStore.getState().setStatus(`${fileEditNames[0]} has cached changes from your last session.`);
-        } else if (fileEditNames.length <= 3) {
-          useStore.getState().setStatus(`${fileEditNames.join(", ")} have cached changes from your last session.`);
         } else {
-          useStore.getState().setStatus(`${fileEditNames.slice(0, 2).join(", ")} and ${fileEditNames.length - 2} other files have cached changes from your last session.`);
+          useStore.getState().setStatus(`${fileEditNames.join(", ")} have cached changes from your last session.`);
         }
       }, 8000);
     }
@@ -1790,10 +1791,8 @@ function App() {
       setTimeout(() => {
         if (postEditNames.length === 1) {
           useStore.getState().setStatus(`${postEditNames[0]} has cached changes from your last session.`);
-        } else if (postEditNames.length <= 3) {
-          useStore.getState().setStatus(`${postEditNames.join(", ")} have cached changes from your last session.`);
         } else {
-          useStore.getState().setStatus(`${postEditNames.slice(0, 2).join(", ")} and ${postEditNames.length - 2} other drafts have cached changes from your last session.`);
+          useStore.getState().setStatus(`${postEditNames.join(", ")} have cached changes from your last session.`);
         }
       }, 10000);
     }
@@ -3439,6 +3438,7 @@ function App() {
       setIsEditingMeta(false);
       setEditMode(false);
       setIsCorrectingMeta(false);
+      setMasonProfileAboveDossier(false);
       setActiveDossier(resolvedMod);
     };
 
@@ -3960,6 +3960,28 @@ function App() {
               )}
             </div>
           </main>
+          {isMasonProfilePanelOpen && activeMasonProfileId && (
+            <ErrorBoundary moduleName="Mason Profile SidePanel">
+              <MasonProfile
+                isSidePanel={true}
+                isOpen={isMasonProfilePanelOpen}
+                onClose={() => setIsMasonProfilePanelOpen(false)}
+                onOpenFullProfile={() => {
+                  setIsMasonProfilePanelOpen(false);
+                  setView("MasonProfile");
+                }}
+                backdropZ={masonProfileAboveDossier ? "z-[121000]" : "z-[118000]"}
+                panelZ={masonProfileAboveDossier ? "z-[121001]" : "z-[118001]"}
+                masonId={activeMasonProfileId}
+                initialPostId={activeMasonPostId}
+                onModClick={(mod: any) => {
+                  setMasonProfileAboveDossier(false);
+                  setActiveDossier(mod);
+                }}
+                syncBlueprintByCode={syncBlueprintByCode}
+              />
+            </ErrorBoundary>
+          )}
           {activeDossier && (
             <ErrorBoundary moduleName="ModDossier">
               <ModDossier
@@ -4175,6 +4197,7 @@ function App() {
             <MasonPostViewer
               post={globalViewingPost}
               onClose={() => setGlobalViewingPost(null)}
+              onOpenMasonProfile={handleOpenMasonProfile}
               userId={session?.user?.id}
             />
           )}
@@ -4207,6 +4230,16 @@ function App() {
             }}
             onOpenNotifications={() => {
               setIsNotificationSidebarOpen(true);
+            }}
+            onOpenMasonProfile={handleOpenMasonProfile}
+            onOpenDefcon={() => {
+              setShowDefconAlert(true);
+            }}
+            onTriggerShelter={(enable) => {
+              triggerShelter(enable);
+            }}
+            onOpenCitizenTickets={() => {
+              setIsCitizenTicketsOpen(true);
             }}
           />
           <DevBuildClearanceGate />

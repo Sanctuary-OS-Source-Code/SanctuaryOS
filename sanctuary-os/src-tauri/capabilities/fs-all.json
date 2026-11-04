@@ -3,7 +3,8 @@
   "identifier": "fs-all",
   "windows": [
     "main",
-    "lab-overlay"
+    "lab-overlay",
+    "lab-hud-overlay"
   ],
   "permissions": [
     {

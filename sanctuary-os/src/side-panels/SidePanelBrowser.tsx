@@ -1060,7 +1060,7 @@ export default function SidePanelBrowser() {
           {/* Row 1: Navigation Controls, Omnibox & Window Actions */}
           <div className="flex items-center gap-2.5 w-full">
             {/* Back / Forward / Refresh Cluster */}
-            <div className="glass-surface rounded-2xl p-1 flex items-center gap-0.5 shrink-0">
+            <div className="glass-surface rounded-2xl h-11 divide-x divide-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center shrink-0 overflow-hidden">
               <PanelHeaderButton
                 icon={t('icon_arrow_back', 'arrow_back')}
                 tooltip={t('nav_prev', 'Back')}
@@ -1169,7 +1169,7 @@ export default function SidePanelBrowser() {
             </div>
 
             {/* Right Action & Window Control Cluster (Matches SidePanel Header Standard) */}
-            <div className="glass-surface rounded-2xl p-1 flex items-center gap-1 shrink-0">
+            <div className="glass-surface rounded-2xl h-11 divide-x divide-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center shrink-0 overflow-hidden">
               <PanelHeaderGroup>
                 <PanelHeaderButton
                   icon={t('icon_open_in_new', 'open_in_new')}
@@ -1216,8 +1216,6 @@ export default function SidePanelBrowser() {
                   onClick={() => setIsBrowserFullscreen((prev) => !prev)}
                 />
               </PanelHeaderGroup>
-
-              <div className="w-px h-5 bg-[color-mix(in_srgb,var(--text)_15%,transparent)] mx-0.5" />
 
               <PanelHeaderGroup>
                 <PanelHeaderButton
@@ -1529,7 +1527,7 @@ export default function SidePanelBrowser() {
                     )}
                   </div>
 
-                  <div className="glass-surface rounded-xl p-0.5 shrink-0">
+                  <div className="glass-surface rounded-xl h-10 overflow-hidden shrink-0">
                     {drawerTab === 'bookmarks' ? (
                       <PanelHeaderButton
                         icon={

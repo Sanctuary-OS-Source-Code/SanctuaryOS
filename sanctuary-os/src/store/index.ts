@@ -4,6 +4,7 @@ import { supabase, hasActiveGameDatabase } from '../supabase';
 import { invoke } from '@tauri-apps/api/core';
 import { getSubdomain } from '../utils/routingUtils';
 import { resolvePresetForGameId, isSims4SchemaId } from '../utils/gameArchitecturePresets';
+import { scrubLogUserData } from '../utils/logScrubber';
 import {
   SanctuaryDateFormat,
   DATE_FORMAT_STORAGE_KEY,
@@ -486,13 +487,242 @@ if (typeof window !== 'undefined') {
 }
 
 const CACHED_GAME_DBS_KEY = 'sanctuary_cached_game_dbs_v1';
+const STATUS_LOG_STORAGE_KEY = 'sanctuary_os_status_log_v1';
+
+export interface StatusLogEntry {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info' | 'warning' | 'loading';
+  category?: 'vault' | 'blueprint' | 'nexus' | 'radar' | 'workbench' | 'security' | 'system';
+  timestamp: number;
+  repeatCount?: number;
+  workspaceId?: string;
+}
+
+const inferStatusLogType = (
+  message: string,
+  explicitType?: 'success' | 'error' | 'info' | 'warning' | 'loading'
+): StatusLogEntry['type'] => {
+  if (explicitType && explicitType !== 'info') return explicitType;
+  const lower = message.toLowerCase();
+  if (
+    lower.includes('error') ||
+    lower.includes('fail') ||
+    lower.includes('blocked') ||
+    lower.includes('revoked') ||
+    lower.includes('corrupt') ||
+    lower.includes('denied') ||
+    message.includes('❌') ||
+    lower.startsWith('error ') ||
+    lower.startsWith('bug_report ')
+  ) {
+    return 'error';
+  }
+  if (
+    lower.includes('warning') ||
+    lower.includes('conflict') ||
+    lower.includes('quarantine') ||
+    lower.includes('lockdown') ||
+    lower.includes('defcon') ||
+    lower.includes('missing') ||
+    lower.includes('unverified') ||
+    lower.includes('casualt') ||
+    message.includes('⚠️') ||
+    lower.startsWith('warning ') ||
+    lower.startsWith('priority_high ')
+  ) {
+    return 'warning';
+  }
+  if (
+    lower.includes('success') ||
+    lower.includes('done') ||
+    lower.includes('complete') ||
+    lower.includes('saved') ||
+    lower.includes('applied') ||
+    lower.includes('restored') ||
+    lower.includes('installed') ||
+    lower.includes('mounted') ||
+    lower.includes('deployed') ||
+    lower.includes('synced') ||
+    lower.includes('cleared') ||
+    lower.includes('verified') ||
+    lower.includes('imported') ||
+    lower.includes('exported') ||
+    lower.includes('copied') ||
+    message.includes('✅') ||
+    lower.includes('icon_check_circle') ||
+    lower.startsWith('check_circle ') ||
+    lower.startsWith('done ') ||
+    lower.startsWith('verified ')
+  ) {
+    return 'success';
+  }
+  return explicitType || 'info';
+};
+
+const inferStatusLogCategory = (
+  message: string
+): NonNullable<StatusLogEntry['category']> => {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes('preview') ||
+    lower.includes('chameleon') ||
+    lower.includes('theme') ||
+    lower.includes('lexicon') ||
+    lower.includes('nexus') ||
+    lower.includes('market') ||
+    lower.includes('collection')
+  ) {
+    return 'nexus';
+  }
+  if (
+    lower.includes('blueprint') ||
+    lower.includes('playset') ||
+    lower.includes('play set') ||
+    lower.includes('deploy') ||
+    lower.includes('active set')
+  ) {
+    return 'blueprint';
+  }
+  if (
+    lower.includes('radar') ||
+    lower.includes('conflict') ||
+    lower.includes('scan') ||
+    lower.includes('diagnostic')
+  ) {
+    return 'radar';
+  }
+  if (
+    lower.includes('quarantine') ||
+    lower.includes('shelter') ||
+    lower.includes('backup') ||
+    lower.includes('time capsule') ||
+    lower.includes('defcon') ||
+    lower.includes('lockdown') ||
+    lower.includes('security')
+  ) {
+    return 'security';
+  }
+  if (
+    lower.includes('cached changes') ||
+    lower.includes('unsaved') ||
+    lower.includes('workbench') ||
+    lower.includes('.cfg') ||
+    lower.includes('.ini') ||
+    lower.includes('.json') ||
+    lower.includes('.wayfinder') ||
+    lower.includes('.masonhub') ||
+    lower.includes('draft')
+  ) {
+    return 'workbench';
+  }
+  if (
+    lower.includes('vault') ||
+    lower.includes('artifact') ||
+    lower.includes('mod ') ||
+    lower.includes('mods') ||
+    lower.includes('package') ||
+    lower.includes('archive') ||
+    lower.includes('install') ||
+    lower.includes('library')
+  ) {
+    return 'vault';
+  }
+  return 'system';
+};
+
+const loadPersistedStatusLog = (): StatusLogEntry[] => {
+  try {
+    const raw = localStorage.getItem(STATUS_LOG_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item: any) => item && typeof item.message === 'string' && item.message.trim() !== '')
+      .slice(0, 80)
+      .map((item: any) => ({
+        id: String(item.id || Math.random().toString(36).slice(2, 11)),
+        message: String(item.message),
+        type: inferStatusLogType(String(item.message), item.type),
+        category: item.category || inferStatusLogCategory(String(item.message)),
+        timestamp: Number(item.timestamp) || Date.now(),
+        repeatCount: Number(item.repeatCount) > 1 ? Number(item.repeatCount) : 1,
+        workspaceId: item.workspaceId ? String(item.workspaceId) : undefined,
+      }));
+  } catch {
+    return [];
+  }
+};
+
+const buildUpdatedStatusLog = (
+  existingLog: StatusLogEntry[],
+  cleanMessage: string,
+  resolvedType: StatusLogEntry['type'],
+  workspaceId?: string | null
+): StatusLogEntry[] => {
+  const now = Date.now();
+  const normalized = cleanMessage.trim().toLowerCase();
+  if (
+    normalized === '' ||
+    normalized === 'standing by' ||
+    normalized === 'standing by...' ||
+    normalized === 'standby'
+  ) {
+    return existingLog;
+  }
+
+  if (
+    existingLog.length > 0 &&
+    existingLog[0].message.trim().toLowerCase() === normalized &&
+    now - existingLog[0].timestamp < 450
+  ) {
+    return existingLog;
+  }
+
+  const category = inferStatusLogCategory(cleanMessage);
+  const recentMatchIndex = existingLog
+    .slice(0, 6)
+    .findIndex((entry) => entry.message.trim().toLowerCase() === normalized);
+
+  let nextLog: StatusLogEntry[];
+  if (recentMatchIndex !== -1) {
+    const matched = existingLog[recentMatchIndex];
+    const updatedEntry: StatusLogEntry = {
+      ...matched,
+      message: cleanMessage,
+      type: resolvedType,
+      category,
+      timestamp: now,
+      repeatCount: (matched.repeatCount || 1) + 1,
+      workspaceId: workspaceId || matched.workspaceId,
+    };
+    nextLog = [
+      updatedEntry,
+      ...existingLog.filter((_, idx) => idx !== recentMatchIndex),
+    ].slice(0, 80);
+  } else {
+    const newEntry: StatusLogEntry = {
+      id: Math.random().toString(36).slice(2, 11),
+      message: cleanMessage,
+      type: resolvedType,
+      category,
+      timestamp: now,
+      repeatCount: 1,
+      workspaceId: workspaceId || undefined,
+    };
+    nextLog = [newEntry, ...existingLog].slice(0, 80);
+  }
+
+  debouncedLocalStorageSetJson(STATUS_LOG_STORAGE_KEY, nextLog, 250);
+  return nextLog;
+};
 
 const loadCachedGameDatabases = (): any[] => {
   try {
     const raw = localStorage.getItem(CACHED_GAME_DBS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.filter((g: any) => g && g.is_active !== false) : [];
   } catch {
     return [];
   }
@@ -524,8 +754,9 @@ interface GlobalState {
   setStatus: (status: string) => void;
   isAlertsOpen: boolean;
   setIsAlertsOpen: (isOpen: boolean) => void;
-  statusLog: { id: string, message: string, type: 'success' | 'error' | 'info' | 'warning' | 'loading', timestamp: number }[];
+  statusLog: StatusLogEntry[];
   pushStatus: (message: string, type?: 'success' | 'error' | 'info' | 'warning' | 'loading') => void;
+  removeStatusLogEntry: (id: string) => void;
   clearStatusLog: () => void;
   userRole: string;
   setUserRole: (role: string) => void;
@@ -715,7 +946,6 @@ export const useStore = create<GlobalState>((set) => ({
       nexusAvailableUpdates: [],
       nexusUpdateTabs: [],
       marketSearchQuery: '',
-      statusLog: [],
       status: 'STANDING BY',
       cloudIdeOpenFiles: [],
       cloudIdeActiveFileIndex: -1,
@@ -726,27 +956,28 @@ export const useStore = create<GlobalState>((set) => ({
   isAlertsOpen: false,
   setIsAlertsOpen: (isOpen) => set({ isAlertsOpen: isOpen }),
   status: 'STANDING BY',
-  setStatus: (status) => set((state) => {
+  setStatus: (rawStatus) => set((state) => {
     if ((window as any)._statusTimeout) clearTimeout((window as any)._statusTimeout);
 
-    if (!status || status.trim() === '') {
-      return { status: status || 'STANDING BY...' };
+    if (!rawStatus || rawStatus.trim() === '') {
+      return { status: rawStatus || 'STANDING BY...' };
     }
-
-    let type: 'info' | 'error' | 'success' | 'warning' = 'info';
-    if (status.toLowerCase().includes('error') || status.toLowerCase().includes('fail') || status.includes('❌')) type = 'error';
-    if (status.toLowerCase().includes('success') || status.toLowerCase().includes('done') || status.includes('✅') || status.includes('icon_check_circle')) type = 'success';
+    const status = scrubLogUserData(rawStatus);
+    const type = inferStatusLogType(status, 'info');
 
     const durationMs = type === 'error' ? 4500 : 2500;
     (window as any)._statusTimeout = setTimeout(() => {
       useStore.setState({ status: 'STANDING BY...' });
     }, durationMs);
 
-    if (state.statusLog.length > 0 && state.statusLog[0].message === status && (Date.now() - state.statusLog[0].timestamp) < 500) return { status };
-    
-    const newEntry = { id: Math.random().toString(36).substr(2, 9), message: status, type, timestamp: Date.now() };
+    const nextLog = buildUpdatedStatusLog(
+      state.statusLog,
+      status,
+      type,
+      state.activeWorkspaceId
+    );
 
-    return { status, statusLog: [newEntry, ...state.statusLog].slice(0, 50) };
+    return { status, statusLog: nextLog };
   }),
   architectActiveTab: "command_center",
   setArchitectActiveTab: (tab) => set({ architectActiveTab: tab }),
@@ -758,33 +989,41 @@ export const useStore = create<GlobalState>((set) => ({
   setKeepersActiveTab: (tab) => set({ keepersActiveTab: tab }),
   cwMainTab: "COMMAND",
   setCwMainTab: (tab) => set({ cwMainTab: tab }),
-  statusLog: [],
-  pushStatus: (message, type = 'info') => set((state) => {
+  statusLog: loadPersistedStatusLog(),
+  pushStatus: (rawMessage, type = 'info') => set((state) => {
     if ((window as any)._statusTimeout) clearTimeout((window as any)._statusTimeout);
 
-    if (!message || message.trim() === '') {
-      return { status: message || 'STANDING BY...' };
+    if (!rawMessage || rawMessage.trim() === '') {
+      return { status: rawMessage || 'STANDING BY...' };
     }
-
-    let finalType = type;
-    if (finalType === 'info') {
-      const lower = message.toLowerCase();
-      if (lower.includes('error') || lower.includes('fail') || lower.includes('blocked') || lower.includes('revoked') || lower.includes('missing')) finalType = 'error';
-      else if (lower.includes('success') || lower.includes('cleared') || lower.includes('done')) finalType = 'success';
-    }
+    const message = scrubLogUserData(rawMessage);
+    const finalType = inferStatusLogType(message, type);
 
     const durationMs = finalType === 'error' ? 4500 : 2500;
     (window as any)._statusTimeout = setTimeout(() => {
       useStore.setState({ status: 'STANDING BY...' });
     }, durationMs);
 
-    if (state.statusLog.length > 0 && state.statusLog[0].message === message && (Date.now() - state.statusLog[0].timestamp) < 500) return { status: message };
+    const nextLog = buildUpdatedStatusLog(
+      state.statusLog,
+      message,
+      finalType,
+      state.activeWorkspaceId
+    );
 
-    const newEntry = { id: Math.random().toString(36).substr(2, 9), message, type: finalType, timestamp: Date.now() };
-
-    return { status: message, statusLog: [newEntry, ...state.statusLog].slice(0, 50) };
+    return { status: message, statusLog: nextLog };
   }),
-  clearStatusLog: () => set({ statusLog: [] }),
+  removeStatusLogEntry: (id) => set((state) => {
+    const nextLog = state.statusLog.filter((entry) => entry.id !== id);
+    debouncedLocalStorageSetJson(STATUS_LOG_STORAGE_KEY, nextLog, 150);
+    return { statusLog: nextLog };
+  }),
+  clearStatusLog: () => {
+    try {
+      localStorage.removeItem(STATUS_LOG_STORAGE_KEY);
+    } catch {}
+    set({ statusLog: [] });
+  },
   userRole: 'citizen',
   setUserRole: (userRole) => set({ userRole }),
   osRole: 'citizen',
@@ -1166,8 +1405,9 @@ export const syncGameDatabases = async (preloadedLocalWorkspaces?: any[]) => {
         useStore.getState().pushStatus(`HUB DB ERROR: ${error.message}`, "error");
       }
 
-      if (games && games.length > 0) {
-        safeLocalStorageSetItem(CACHED_GAME_DBS_KEY, JSON.stringify(games));
+      if (Array.isArray(games)) {
+        const activeGames = games.filter((g: any) => g && g.is_active !== false);
+        safeLocalStorageSetItem(CACHED_GAME_DBS_KEY, JSON.stringify(activeGames));
         let localWorkspaces: any[] = Array.isArray(preloadedLocalWorkspaces) ? preloadedLocalWorkspaces : [];
         if (localWorkspaces.length === 0 && isDesktop()) {
           try {
@@ -1177,8 +1417,11 @@ export const syncGameDatabases = async (preloadedLocalWorkspaces?: any[]) => {
           } catch (e) {}
         }
 
-        const liveWorkspaces = mergeGamesWithLocalWorkspaces(games, localWorkspaces);
+        const liveWorkspaces = mergeGamesWithLocalWorkspaces(activeGames, localWorkspaces);
         useStore.setState({ workspaces: liveWorkspaces, isGameDatabasesSynced: true });
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('sanctuary-games-updated'));
+        }
       } else {
         useStore.setState({ isGameDatabasesSynced: true });
       }

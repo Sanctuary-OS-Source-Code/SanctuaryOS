@@ -6,6 +6,7 @@ import { supabase } from "../supabase";
 import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { openSanctuaryContextMenu } from "../ContextMenu";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 
 const VAULT_CHIP_CLASS =
@@ -181,6 +182,21 @@ export default function SASupportSettings({
         <UniversalCard
             key={cat.id || cat.category_code}
             onClick={() => openEditor(cat)}
+            onContextMenu={(e) => {
+                openSanctuaryContextMenu(e, [
+                    {
+                        label: t("edit", "Edit"),
+                        icon: t("icon_edit", "edit"),
+                        onClick: () => openEditor(cat),
+                    },
+                    {
+                        divider: true,
+                        label: t("copy_title", "Copy Title"),
+                        icon: t("icon_content_copy", "content_copy"),
+                        onClick: () => navigator.clipboard?.writeText(cat.category_name || ""),
+                    },
+                ]);
+            }}
             layout="vertical"
             isGhosted={!cat.is_active}
             icon={cat.is_active ? t("icon_category", "category") : t("icon_block", "block")}
@@ -263,6 +279,21 @@ export default function SASupportSettings({
         <UniversalCard
             key={source.id}
             onClick={() => openSourceEditor(source)}
+            onContextMenu={(e) => {
+                openSanctuaryContextMenu(e, [
+                    {
+                        label: t("edit", "Edit"),
+                        icon: t("icon_edit", "edit"),
+                        onClick: () => openSourceEditor(source),
+                    },
+                    {
+                        divider: true,
+                        label: t("copy_title", "Copy Title"),
+                        icon: t("icon_content_copy", "content_copy"),
+                        onClick: () => navigator.clipboard?.writeText(source.label || ""),
+                    },
+                ]);
+            }}
             layout="vertical"
             isGhosted={!source.is_active}
             icon={source.type === 'OS' ? t("icon_memory", "memory") : t("icon_description", "description")}

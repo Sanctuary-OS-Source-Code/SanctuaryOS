@@ -628,14 +628,41 @@ export default function CommandCenter({
       setIsAlertsOpen(true);
     };
 
+    const handleOpenCcPanel = (e: Event) => {
+      const panel = (e as CustomEvent)?.detail?.panel;
+      if (panel === "critical") {
+        if (isDesktop()) {
+          setAlertsPanelMode("critical");
+        } else {
+          setCompanionRadarInitialFilter("CRITICAL");
+          setIsCompanionRadarOpen(true);
+        }
+      } else if (panel === "alert") {
+        if (isDesktop()) {
+          setAlertsPanelMode("alert");
+        } else {
+          setCompanionRadarInitialFilter("ALERTS");
+          setIsCompanionRadarOpen(true);
+        }
+      } else if (panel === "audit_logs") {
+        setIsAuditLogsOpen(true);
+      } else if (panel === "support_perks") {
+        setIsSupportPanelOpen(true);
+      } else if (panel === "broadcasts") {
+        setIsAlertsOpen(true);
+      }
+    };
+
     window.addEventListener('open_urgent_broadcast', handleOpenUrgent);
     window.addEventListener('open_malware_alert', handleOpenMalware);
+    window.addEventListener('sanctuary-open-cc-panel', handleOpenCcPanel);
 
     return () => {
       window.removeEventListener('open_urgent_broadcast', handleOpenUrgent);
       window.removeEventListener('open_malware_alert', handleOpenMalware);
+      window.removeEventListener('sanctuary-open-cc-panel', handleOpenCcPanel);
     };
-  }, [urgentBroadcast]);
+  }, [urgentBroadcast, setIsAlertsOpen]);
 
   return (
     <div className="flex flex-col pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -659,6 +686,7 @@ export default function CommandCenter({
             <div key="perms" className="relative group/perms flex-1 flex min-w-0 w-full h-full">
               <HoverTooltip
                 variant="warning"
+                icon={t("icon_warning", "warning")}
                 title={t("perm_restricted", "Permissions Restricted")}
                 subtitle={t("perm_hover_desc", "Application lacks sufficient permissions to manage your {Vault}. Enable Windows Developer Mode or run as Administrator.") || t("perm_desc", "Sanctuary OS lacks sufficient clearance to manage your {Vault}.")}
                 className="group-hover/perms:flex z-[1000] w-full"
@@ -683,6 +711,7 @@ export default function CommandCenter({
             <div key="broadcast" className="relative group/broadcast flex-1 flex min-w-0 w-full h-full">
               <HoverTooltip
                 variant="danger"
+                icon={urgentBroadcast.icon || t("icon_campaign", "campaign")}
                 title={urgentBroadcast.title || t("tile_global_alert", "Global Alert")}
                 subtitle={stripMarkdown(broadcastMeta.cleanContent || urgentBroadcast.message || urgentBroadcast.content)}
                 className="group-hover/broadcast:flex z-[1000] w-full"
@@ -716,6 +745,7 @@ export default function CommandCenter({
             <div key="critical" className="relative group/critical flex-1 flex min-w-0 w-full h-full">
               <HoverTooltip
                 variant="danger"
+                icon={t("icon_gpp_bad", "gpp_bad")}
                 title={t("crit_fail", "critical failures") || "Critical Failures"}
                 subtitle={t("radar_fatal_desc", "These {mods} overwrite the same core game files and cannot be used together. One must be removed.") || "Severe conflict detected. Click to view full diagnostic sweep."}
                 className="group-hover/critical:flex z-[1000] w-full"
@@ -738,6 +768,7 @@ export default function CommandCenter({
             <div key="alerts" className="relative group/alerts flex-1 flex min-w-0 w-full h-full">
               <HoverTooltip
                 variant="warning"
+                icon={t("icon_warning_amber", "warning_amber")}
                 title={t("system_alerts_title", "System Alerts") || "System Alerts"}
                 subtitle={t("radar_tuning_desc", "These {mods} edit the same features. One {mod} will override the changes of the other based on load order.") || "Potential issues detected. Click to view full diagnostic sweep."}
                 className="group-hover/alerts:flex z-[1000] w-full"
@@ -760,6 +791,7 @@ export default function CommandCenter({
             <div key="updates" className="relative group/updates flex-1 flex min-w-0 w-full h-full">
               <HoverTooltip
                 variant="accent"
+                icon={t("icon_update", "update")}
                 title={t("updates_avail", "Updates Available") || "Updates Available"}
                 subtitle={t("updates_det", "{Mod} Updates Detected") || "Artifact Updates Detected"}
                 className="group-hover/updates:flex z-[1000] w-full"
@@ -863,7 +895,7 @@ export default function CommandCenter({
               icon={<span className="material-symbols-outlined ">{t("icon_account_balance", "account_balance")}</span>}
               number={activeGameSchema?.features?.has_cc === false ? "-" : vaultItemCount}
               label={t("vault_title", "Your {Vault}")}
-              colorClass="text-[var(--accent)]"
+              colorClass="text-[var(--text)]"
               onClick={() => { if (activeGameSchema?.features?.has_cc !== false) { if (setView) setView("vault"); if (setFilterStatus) setFilterStatus("ALL"); } }}
             />
           ) : activeCompanionSnapshot ? (
@@ -872,7 +904,7 @@ export default function CommandCenter({
               icon={<span className="material-symbols-outlined ">{t("icon_account_balance", "account_balance")}</span>}
               number={companionVaultCount}
               label={t("vault_title", "Your {Vault}")}
-              colorClass="text-[var(--accent)]"
+              colorClass="text-[var(--text)]"
               onClick={() => {
                 setCompanionRadarInitialFilter("ALL");
                 setIsCompanionRadarOpen(true);
@@ -893,7 +925,7 @@ export default function CommandCenter({
               icon={<span className="material-symbols-outlined ">{t("icon_map", "map")}</span>}
               number={activeGameSchema?.features?.has_cc === false ? "-" : (playSets?.length || 0)}
               label={t("playsets_title", "{Blueprints}")}
-              colorClass="text-[var(--accent)]"
+              colorClass="text-[var(--text)]"
               onClick={() => { if (activeGameSchema?.features?.has_cc !== false) setIsBlueprintSwapOpen(true); }}
             />
           ) : activeCompanionSnapshot ? (
@@ -902,7 +934,7 @@ export default function CommandCenter({
               icon={<span className="material-symbols-outlined ">{t("icon_map", "map")}</span>}
               number={activeCompanionSnapshot.blueprintsCount ?? activeCompanionSnapshot.desktopBlueprints?.length ?? 0}
               label={t("playsets_title", "{Blueprints}")}
-              colorClass="text-[var(--accent)]"
+              colorClass="text-[var(--text)]"
               onClick={() => {
                 setIsBlueprintSwapOpen(true);
               }}
@@ -912,6 +944,7 @@ export default function CommandCenter({
             {!session && (
               <HoverTooltip
                 variant="danger"
+                icon={t("icon_local_activity", "local_activity")}
                 title={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned", "Communications Restricted") : t("alert_guest_mode_uploads", "Guest Mode Active:\nUploads are disabled.")}
                 subtitle={localStorage.getItem("sanctuary_blacklisted") === "true" ? t("alert_comm_banned_desc", "Your account has been restricted from posting or submitting content.") : t("alert_guest_mode_desc", "Guest mode is active. Login or register to access full features.")}
                 className="group-hover/ticket:flex z-[1000] w-full"

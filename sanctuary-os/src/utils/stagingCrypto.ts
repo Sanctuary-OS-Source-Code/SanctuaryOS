@@ -1382,7 +1382,11 @@ export async function syncDesktopCompanionRadarSnapshot(
     }
     if (!mod.isVirtual && mod.name) {
       const lowName = String(mod.name).toLowerCase();
-      if (!lowName.endsWith(".package") && !lowName.endsWith(".ts4script")) continue;
+      const isModBinary =
+        /\.(package|ts4script|world|dll|asi|rpf|cak|pac|esp|esm|esl|bsa|ba2|archive|pak|lua|xl|reds|tweak|jar|litemod|xnb|tmx|tbin|csx)$/i.test(
+          lowName,
+        );
+      if (!isModBinary) continue;
     }
     const modNameUpper = String(mod.displayName || mod.meta_name || mod.name || mod.title || "")
       .toUpperCase()

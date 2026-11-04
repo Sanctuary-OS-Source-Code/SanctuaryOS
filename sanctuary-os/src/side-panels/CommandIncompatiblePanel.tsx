@@ -1199,8 +1199,8 @@ export function IncompatibleModCard({
                 className="z-[100] !right-0 !translate-x-0 !left-auto"
                 title={
                   cleanInstalledVer
-                    ? `${t("category_update", "Update")} (v${cleanInstalledVer} → v${cleanNewVer})`
-                    : `${t("category_update", "Update")} (v${cleanNewVer})`
+                    ? `${t("btn_update", "Update")} (v${cleanInstalledVer} → v${cleanNewVer})`
+                    : `${t("btn_update", "Update")} (v${cleanNewVer})`
                 }
                 icon={t("icon_update", "update")}
                 variant="accent"
@@ -1774,6 +1774,14 @@ export default function CommandIncompatiblePanel({
     [brokenMods]
   );
   const groupedBrokenMods = useMemo(() => groupBrokenMods(brokenMods), [brokenMods]);
+  const groupedRedMods = useMemo(
+    () => groupedBrokenMods.filter((m: any) => m._alert_type === "red"),
+    [groupedBrokenMods]
+  );
+  const groupedAmberMods = useMemo(
+    () => groupedBrokenMods.filter((m: any) => m._alert_type === "amber"),
+    [groupedBrokenMods]
+  );
 
   const corruptedCount = useMemo(
     () =>
@@ -1833,35 +1841,17 @@ export default function CommandIncompatiblePanel({
       headerActions={
         allow_write && (redMods.length > 0 || amberMods.length > 0) ? (
           <PanelHeaderGroup>
-            {redMods.length > 0 && (
-              <PanelHeaderButton
-                icon={t("icon_delete_sweep", "delete_sweep")}
-                tooltip={t("bp_purge_corrupted", "Remove {0} Corrupted").replace(
-                  "{0}",
-                  String(redMods.length)
-                )}
-                variant="danger"
-                onClick={() => {
-                  redMods.forEach((m: any) =>
-                    toggleInActiveSet && toggleInActiveSet(m._originalSetName || m.name, true, true)
-                  );
-                }}
-              />
-            )}
-            {amberMods.length > 0 && (
-              <PanelHeaderButton
-                icon={t("icon_delete_sweep", "delete_sweep")}
-                tooltip={t("bp_purge_unstable", "Remove {0} Unstable").replace(
-                  "{0}",
-                  String(amberMods.length)
-                )}
-                onClick={() => {
-                  amberMods.forEach((m: any) =>
-                    toggleInActiveSet && toggleInActiveSet(m._originalSetName || m.name, true, true)
-                  );
-                }}
-              />
-            )}
+            <PanelHeaderButton
+              icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+              tooltip={`${t("btn_remove", "{Remove}")} ${groupedRedMods.length + groupedAmberMods.length} ${t("term_mods", "{Mods}")}`}
+              tooltipSubtitle={`${t("bp_purge_unstable", "{Remove} {0} Unstable").replace(/^.*\{0\}\s*/, `${groupedAmberMods.length} `)}\n${t("bp_purge_corrupted", "{Remove} {0} Corrupted").replace(/^.*\{0\}\s*/, `${groupedRedMods.length} `)}`}
+              variant={groupedRedMods.length > 0 ? "danger" : "warning"}
+              onClick={() => {
+                brokenMods.forEach((m: any) =>
+                  toggleInActiveSet && toggleInActiveSet(m._originalSetName || m.name, true, true)
+                );
+              }}
+            />
           </PanelHeaderGroup>
         ) : undefined
       }
@@ -1965,6 +1955,47 @@ export default function CommandIncompatiblePanel({
           <UniversalGroup
             title={`${t("citizen_action_incompatible", "Incompatible")} (${filteredGroupedBrokenMods.length})`}
             icon={panelIcon}
+            headerAction={
+              allow_write && toggleInActiveSet ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    filteredGroupedBrokenMods.forEach((mod: any) => {
+                      const members: any[] =
+                        Array.isArray(mod._groupedMods) && mod._groupedMods.length > 0
+                          ? mod._groupedMods
+                          : [mod];
+                      members.forEach((m: any) => {
+                        toggleInActiveSet(m._originalSetName || m.name, true, true);
+                      });
+                    });
+                  }}
+                  className={`relative group/subaction w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] ${
+                    filteredGroupedBrokenMods.some((m: any) => m._alert_type === "red")
+                      ? "text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
+                      : "text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]"
+                  } flex items-center justify-center transition-all cursor-pointer shrink-0`}
+                >
+                  <span className="material-symbols-outlined !text-[15px]">
+                    {t("icon_remove_circle_outline", "remove_circle_outline")}
+                  </span>
+                  <HoverTooltip
+                    className="z-[100] !right-0 !translate-x-0 !left-auto"
+                    title={(filteredGroupedBrokenMods.some((m: any) => m._alert_type === "red")
+                      ? t("bp_purge_corrupted", "{Remove} {0} Corrupted")
+                      : t("bp_purge_unstable", "{Remove} {0} Unstable")
+                    ).replace("{0}", String(filteredGroupedBrokenMods.length))}
+                    icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+                    variant={
+                      filteredGroupedBrokenMods.some((m: any) => m._alert_type === "red")
+                        ? "danger"
+                        : "warning"
+                    }
+                  />
+                </button>
+              ) : undefined
+            }
           >
             {renderGroupedIncompatibleSections({
               groupedBrokenMods: filteredGroupedBrokenMods,

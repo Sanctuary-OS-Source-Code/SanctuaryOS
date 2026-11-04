@@ -18,6 +18,7 @@ import {
   StatTileCarousel,
 } from "./hub-components/SharedCommandScreenLayout";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { openSanctuaryContextMenu } from "./ContextMenu";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -463,6 +464,49 @@ export default function TimeCapsule({
         onClick={() => {
           setSelectedBackupForInspection(backupName);
           setIsSidePanelOpen(true);
+        }}
+        onContextMenu={(e) => {
+          openSanctuaryContextMenu(e, {
+            title: versionLabel,
+            subtitle: title,
+            statusLabel: isZeroDelta
+              ? t("tc_delta_filter_dedup", "Hardlinked")
+              : formatSizeMb(sizeMb),
+            statusColorClass: isEngine ? "text-[var(--danger)]" : "text-[var(--accent)]",
+            icon,
+            iconColorClass: isEngine ? "text-[var(--danger)]" : "text-[var(--accent)]",
+            items: [
+              {
+                id: "inspect",
+                label: t("tc_card_inspect_cta", "Inspect Snapshot"),
+                icon: t("icon_open_in_new", "open_in_new"),
+                onClick: () => {
+                  setSelectedBackupForInspection(backupName);
+                  setIsSidePanelOpen(true);
+                },
+              },
+              {
+                id: "restore",
+                label: t("btn_restore", "Restore"),
+                icon: t("icon_restore", "restore"),
+                variant: "success",
+                onClick: () => {
+                  useModalStore.getState().setRestoreType(isEngine ? "engine" : "world");
+                  if (restoreGameBackup) restoreGameBackup(backupName);
+                },
+              },
+              {
+                id: "delete",
+                label: t("btn_delete", "{Delete}"),
+                icon: t("icon_delete_forever", "delete_forever"),
+                variant: "danger",
+                dividerBefore: true,
+                onClick: () => {
+                  if (deleteBackup) deleteBackup(backupName);
+                },
+              },
+            ],
+          });
         }}
         className={themeHoverBorder}
         imageOverlay={

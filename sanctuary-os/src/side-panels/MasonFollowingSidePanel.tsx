@@ -84,7 +84,6 @@ export default function MasonFollowingSidePanel({
                 <div 
                   key={mason.id} 
                   onClick={() => {
-                    onClose();
                     onOpenMasonProfile(mason.id);
                   }}
                   className="flex items-center gap-3.5 px-4 py-3 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] cursor-pointer transition-all group"

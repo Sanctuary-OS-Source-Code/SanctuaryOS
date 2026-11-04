@@ -17,6 +17,7 @@ import {
   ActionPill,
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
 import {
   ElevatedHubLayout,
   HubOverviewLanding,
@@ -1052,6 +1053,22 @@ export function AuditLogViewer({
         icon={statusIcon}
         statusColor={statusBorderClass}
         onClick={() => setSelectedLog(log)}
+        onContextMenu={(e) => {
+          const menuItems: SanctuaryContextMenuItem[] = [
+            {
+              label: t("details", "Details"),
+              icon: t("icon_history", "history"),
+              onClick: () => setSelectedLog(log),
+            },
+            {
+              label: t("copy", "Copy"),
+              icon: t("icon_content_copy", "content_copy"),
+              dividerBefore: true,
+              onClick: () => navigator.clipboard?.writeText(String(cleanReason || log.action || "")),
+            },
+          ];
+          openSanctuaryContextMenu(e, menuItems);
+        }}
         imageOverlay={
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
             <div className={VAULT_CHIP_CLASS}>

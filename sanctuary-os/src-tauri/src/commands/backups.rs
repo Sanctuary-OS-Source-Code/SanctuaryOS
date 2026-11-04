@@ -293,6 +293,9 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
 #[tauri::command]
 pub async fn delete_backup(file_name: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        if !crate::utils::is_safe_single_filename(&file_name) {
+            return Err("Invalid backup name.".into());
+        }
         let config = get_saved_coordinates();
         if let Some(path) = find_backup(&config.vault_path, &file_name) {
             if path.is_dir() {
@@ -311,11 +314,17 @@ pub async fn delete_backup(file_name: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn rename_backup(old_name: String, new_name: String) -> Result<String, String> {
+    if !crate::utils::is_safe_single_filename(&old_name) {
+        return Err("Invalid source backup name.".into());
+    }
     let config = get_saved_coordinates();
     if let Some(old_path) = find_backup(&config.vault_path, &old_name) {
         let mut final_name = new_name.trim().to_string();
         if old_path.is_file() && !final_name.ends_with(".zst") {
             final_name = format!("{}.tar.zst", final_name);
+        }
+        if !crate::utils::is_safe_single_filename(&final_name) {
+            return Err("Invalid target backup name.".into());
         }
         let new_path = old_path.with_file_name(&final_name);
         std::fs::rename(old_path, new_path).map_err(|e| e.to_string())?;

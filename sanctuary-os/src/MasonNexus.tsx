@@ -17,6 +17,7 @@ import {
 } from "./shared";
 import pkg from "../package.json";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 import {
   DynamicThemePreviewBanner,
   DynamicLexiconPreviewBanner,
@@ -620,6 +621,31 @@ export function MasonNexus({
       <UniversalCard
         key={asset.id}
         onClick={() => handleEditAsset(asset, isBp)}
+        onContextMenu={(e) => {
+          const menuItems: SanctuaryContextMenuItem[] = [
+            {
+              label: isFlagged
+                ? t("flag_res_card_action", "Resolve & Resubmit")
+                : t("edit", "Edit"),
+              icon: t("icon_edit", "edit"),
+              onClick: () => handleEditAsset(asset, isBp),
+            },
+            {
+              label: t("copy", "Copy"),
+              icon: t("icon_content_copy", "content_copy"),
+              dividerBefore: true,
+              onClick: () => navigator.clipboard?.writeText(String(asset.name || "")),
+            },
+          ];
+          if (asset.code) {
+            menuItems.push({
+              label: `${t("copy", "Copy")} ${t("share_code", "Share Code")}`,
+              icon: t("icon_tag", "tag"),
+              onClick: () => navigator.clipboard?.writeText(String(asset.code)),
+            });
+          }
+          openSanctuaryContextMenu(e, menuItems);
+        }}
         layout="vertical"
         title={asset.name || (t("market_untitled", "Untitled") as string)}
         subtitle={`${t("by_prefix", "By")} ${authorName}`}

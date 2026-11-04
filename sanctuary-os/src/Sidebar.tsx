@@ -89,11 +89,16 @@ export function Sidebar({
   const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
 
   React.useEffect(() => {
-    import('./supabase').then(({ supabase }) => {
-      supabase.from('sanctuary_games').select('id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor').then(({ data }) => {
-        if (data) setGlobalGames(data);
+    const loadGames = () => {
+      import('./supabase').then(({ supabase }) => {
+        supabase.from('sanctuary_games').select('id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor').then(({ data }) => {
+          if (data) setGlobalGames(data.filter((g: any) => g.is_active !== false));
+        });
       });
-    });
+    };
+    loadGames();
+    window.addEventListener('sanctuary-games-updated', loadGames);
+    return () => window.removeEventListener('sanctuary-games-updated', loadGames);
   }, []);
 
   React.useEffect(() => {
@@ -172,7 +177,7 @@ export function Sidebar({
       <div className={`flex flex-col h-full w-full relative z-10`}>
         {/* Brand Header (Sculpted Liquid Glass Title / Subtitle Capsule) */}
         <div
-          className={`relative flex items-center cursor-pointer glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--sidebartext)_14%,rgba(255,255,255,0.18))] hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.28))] transition-all duration-300 z-[100] shrink-0 group/logo overflow-hidden mx-3.5 mt-3.5 mb-2 ${isSidebarCollapsed ? 'justify-center p-2 min-h-[52px]' : 'justify-between px-3 py-2.5 min-h-[62px]'}`}
+          className={`relative flex items-center cursor-pointer glass-surface rounded-xl border hover:border-[color-mix(in_srgb,var(--accent)_40%,var(--glass-border-top))] transition-all duration-300 z-[100] shrink-0 group/logo overflow-hidden mx-3.5 mt-3.5 mb-2 ${isSidebarCollapsed ? 'justify-center p-2 min-h-[52px]' : 'justify-between p-2.5 min-h-[56px]'}`}
           onClick={() => {
             if (isRootDomain() && (!isDesktop() || !isConfigured)) {
               setView("landing");
@@ -193,7 +198,7 @@ export function Sidebar({
 
           <div className={`flex items-center w-full relative z-10 transition-all duration-500 ${isSidebarCollapsed ? 'justify-center' : 'justify-between gap-2.5 min-w-0'}`}>
             {/* Sculpted Glass Icon Tile */}
-            <div className="w-9 h-9 rounded-xl glass-panel border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_4px_12px_rgba(0,0,0,0.2)] flex items-center justify-center shrink-0 transition-transform duration-300 group-hover/logo:scale-105">
+            <div className="w-9 h-9 rounded-lg border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-transform duration-300 group-hover/logo:scale-105">
               <img
                 src={osLogoUrl || "/icon.png"}
                 alt={t("sidebar_app_title", "Sanctuary OS") as string}
@@ -204,12 +209,12 @@ export function Sidebar({
             {!isSidebarCollapsed && (
               <div className="flex flex-col justify-center min-w-0 flex-1">
                 {/* Two-Tone Title */}
-                <h1 className="text-[16px] tracking-tight capitalize leading-tight group-hover/logo:opacity-100 transition-colors flex items-center gap-1 whitespace-nowrap">
+                <h1 className="text-[15.5px] tracking-tight capitalize leading-tight group-hover/logo:opacity-100 transition-colors flex items-center gap-1 whitespace-nowrap">
                   <span className="font-black text-[var(--sidebartext)]">{t("sidebar_app_title", "Sanctuary Os")?.split(' ')[0]}</span>
                   <span className="font-light text-[var(--sidebartext)] opacity-75">{t("sidebar_app_title", "Sanctuary Os")?.split(' ').slice(1).join(' ')}</span>
                 </h1>
                 {/* Subtitle */}
-                <span className="text-[7px] font-black tracking-[0.14em] text-[var(--accent)] opacity-85 capitalize leading-snug mt-0.5 break-words">
+                <span className="text-[7px] font-black tracking-[0.12em] text-[var(--accent)] opacity-85 capitalize leading-snug mt-0.5 truncate whitespace-nowrap">
                   {t(`sidebar_app_subtitle_${subtitleIndex}`, "No Black Boxes")}
                 </span>
               </div>
@@ -217,7 +222,7 @@ export function Sidebar({
 
             {/* Explicit Collapse Action Button */}
             {!isSidebarCollapsed && (
-              <div className="ml-auto self-center w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--sidebartext)_14%,transparent)] group-hover/logo:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center transition-all shrink-0 z-20">
+              <div className="ml-auto self-center w-8 h-8 rounded-lg border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] group-hover/logo:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-center transition-all shrink-0 z-20">
                 <span className="material-symbols-outlined !text-[16px] leading-none flex items-center justify-center text-[var(--sidebartext)] opacity-75 group-hover/logo:opacity-100 group-hover/logo:text-[var(--accent)] transition-all">
                   {t("icon_keyboard_double_arrow_left", "keyboard_double_arrow_left")}
                 </span>
@@ -717,7 +722,7 @@ export function Sidebar({
           style={{ top: hoveredTooltip.top, transform: 'translateY(-50%)' }}
         >
           <div
-            className="glass-panel portal-glass-fix flex flex-col items-start justify-center px-3.5 py-2 max-w-[320px] w-max border border-[rgba(var(--text-rgb,255,255,255),0.16)] !rounded-xl overflow-hidden animate-in fade-in slide-in-from-left-2 duration-150"
+            className="sa-tooltip-glass flex flex-col items-start justify-center px-3 py-1.5 max-w-[320px] w-max overflow-hidden animate-in fade-in slide-in-from-left-2 duration-150"
           >
             <div className="relative z-10 flex flex-col items-start gap-1 w-full">
               <div className="text-xs font-bold capitalize tracking-wide flex items-start text-left gap-2 whitespace-pre-line text-[var(--text)]">

@@ -74,19 +74,17 @@ export default function TicketsTab({
           )}
           icon={t('icon_receipt_long', 'receipt_long')}
           actions={
-            <div className="glass-panel rounded-2xl px-2 py-1.5 flex items-center gap-1.5 shrink-0">
-              <PanelHeaderGroup>
-                <PanelHeaderButton
-                  icon={t('icon_add_circle', 'add_circle')}
-                  tooltip={t(
-                    'landing_feedback_btn_open',
-                    'Transmit Platform Feedback'
-                  )}
-                  variant="accent"
-                  onClick={handleOpenCoreFeedback}
-                />
-              </PanelHeaderGroup>
-            </div>
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t('icon_add_circle', 'add_circle')}
+                tooltip={t(
+                  'landing_feedback_btn_open',
+                  'Transmit Platform Feedback'
+                )}
+                variant="accent"
+                onClick={handleOpenCoreFeedback}
+              />
+            </PanelHeaderGroup>
           }
         >
           <CitizenTickets
@@ -108,16 +106,14 @@ export default function TicketsTab({
           title={`${activeSpokeName} • ${t('support_tickets', 'Support Tickets')}`}
           icon={t('icon_local_activity', 'local_activity')}
           actions={
-            <div className="glass-panel rounded-2xl px-2 py-1.5 flex items-center gap-1.5 shrink-0">
-              <PanelHeaderGroup>
-                <PanelHeaderButton
-                  icon={t('icon_add_circle', 'add_circle')}
-                  tooltip={`${activeSpokeName} • ${t('ticket_new', 'New Ticket')}`}
-                  variant="accent"
-                  onClick={handleOpenSpokeTicket}
-                />
-              </PanelHeaderGroup>
-            </div>
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t('icon_add_circle', 'add_circle')}
+                tooltip={`${activeSpokeName} • ${t('ticket_new', 'New Ticket')}`}
+                variant="accent"
+                onClick={handleOpenSpokeTicket}
+              />
+            </PanelHeaderGroup>
           }
         >
           <CitizenTickets

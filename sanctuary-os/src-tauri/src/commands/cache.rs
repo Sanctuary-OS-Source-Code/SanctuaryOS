@@ -221,15 +221,36 @@ pub fn load_master_cache(vault_path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn purge_vault_artifacts(vault_path: String, filenames: Vec<String>) -> Result<String, String> {
+    if vault_path.trim().is_empty() {
+        return Err("Vault path not configured.".into());
+    }
     let mut deleted = 0;
+    let vault_root = std::path::PathBuf::from(&vault_path);
     let vault_mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
 
     for filename in filenames {
+        let trimmed_rel = filename.trim().trim_start_matches(&['/', '\\'][..]);
+        if trimmed_rel.is_empty() {
+            continue;
+        }
+        let rel_path = std::path::Path::new(trimmed_rel);
+        if !rel_path
+            .components()
+            .all(|c| matches!(c, std::path::Component::Normal(_)))
+        {
+            continue;
+        }
         let candidates = [
-            std::path::PathBuf::from(&vault_path).join(&filename),
-            vault_mods_lane.join(&filename),
+            vault_root.join(rel_path),
+            vault_mods_lane.join(rel_path),
         ];
         for path in candidates {
+            if path == vault_root
+                || path == vault_mods_lane
+                || !crate::utils::is_safe_user_file_path(&path)
+            {
+                continue;
+            }
             if path.exists() || std::fs::symlink_metadata(&path).is_ok() {
                 let mut deleted_names = Vec::new();
                 if path.is_dir() {

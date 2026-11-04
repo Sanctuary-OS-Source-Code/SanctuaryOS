@@ -205,36 +205,42 @@ export function DevBuildClearanceGate() {
 
   const finalizeLogin = async (user: any) => {
     try {
-      let rawHwid = "WEB_BROWSER_HWID";
+      let rawHwid = "";
       if (isDesktop()) {
         try {
           rawHwid = await invoke<string>("get_hardware_id");
         } catch {}
       }
-      const hwid = await hashString(rawHwid);
-      const fetchBanPromise = supabaseAuth
-        .from("hardware_bans")
-        .select("hwid_hash")
-        .eq("hwid_hash", hwid)
-        .limit(1);
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Timeout")), 3000),
-      );
-      const res = (await Promise.race([fetchBanPromise, timeoutPromise])) as any;
-
-      if (res.data && res.data.length > 0) {
-        await supabaseAuth
-          .from("profiles")
-          .update({ is_banned: true })
-          .eq("id", user.id);
-        localStorage.setItem("sanctuary_blacklisted", "true");
-        await supabase.auth.signOut();
-        throw new Error(
-          t(
-            "err_hwid_blacklisted",
-            "Hardware ban detected. Account has been permanently blacklisted.",
-          ),
+      if (
+        rawHwid &&
+        rawHwid !== "UNKNOWN_HWID" &&
+        rawHwid !== "WEB_BROWSER_HWID"
+      ) {
+        const hwid = await hashString(rawHwid);
+        const fetchBanPromise = supabaseAuth
+          .from("hardware_bans")
+          .select("hwid_hash")
+          .eq("hwid_hash", hwid)
+          .limit(1);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout")), 3000),
         );
+        const res = (await Promise.race([fetchBanPromise, timeoutPromise])) as any;
+
+        if (res.data && res.data.length > 0) {
+          await supabaseAuth
+            .from("profiles")
+            .update({ is_banned: true })
+            .eq("id", user.id);
+          localStorage.setItem("sanctuary_blacklisted", "true");
+          await supabase.auth.signOut();
+          throw new Error(
+            t(
+              "err_hwid_blacklisted",
+              "Hardware ban detected. Account has been permanently blacklisted.",
+            ),
+          );
+        }
       }
     } catch (e: any) {
       if (e.message?.includes("blacklisted")) throw e;
@@ -401,12 +407,13 @@ export function DevBuildClearanceGate() {
               syncDevSessionToVite(data.session).catch(() => {});
             }
           } else {
-            const mfaStatus =
-              await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-            if (
-              mfaStatus.data?.nextLevel === "aal2" &&
-              mfaStatus.data?.currentLevel === "aal1"
-            ) {
+            const mfaState = await fetchMfaSecurityState();
+            const needsTotpLoginChallenge =
+              !mfaState.hasPasskey &&
+              mfaState.hasTotp &&
+              mfaState.nextLevel === "aal2" &&
+              mfaState.currentLevel === "aal1";
+            if (needsTotpLoginChallenge) {
               if (await prepareMfaChallengeFromState()) {
                 setIsProcessing(false);
                 setAuthStatus(

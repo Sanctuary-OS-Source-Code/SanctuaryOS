@@ -4,11 +4,12 @@ import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { extractDispatchMetadata } from "./components/universal/DispatchPollAndMeta";
 import { formatSanctuaryDate } from "./utils/dateUtils";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
-export default function MasonPostCard({ post, index, onPostClick, onToggleLike, isFeatured, isCompact, layout, actions, hasUnsavedEdits }: any) {
+export default function MasonPostCard({ post, index, onPostClick, onToggleLike, onOpenMasonProfile, isFeatured, isCompact, layout, actions, hasUnsavedEdits, hidePinBadge, onContextMenu }: any) {
   const { t, td } = useLexicon();
 
   const parsePostContent = (p: any) => {
@@ -41,7 +42,8 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
   const formattedDate = formatSanctuaryDate(post.created_at, dateFormat);
   const hasUnsavedReply = !!masonCommentDrafts[post.id];
   const hasUnsaved = Boolean(hasUnsavedEdits || hasUnsavedReply);
-  const isPinned = post.is_pinned === true || post.is_pinned === 'true';
+  const rawIsPinned = post.is_pinned === true || post.is_pinned === 'true';
+  const isPinned = !hidePinBadge && rawIsPinned;
   const hasPoll = Boolean(post.poll_data?.question);
   const isAlert = Boolean(post.category?.toLowerCase().includes('alert'));
   const showImage = Boolean(showCommLinkImages !== false && imageUrl);
@@ -51,7 +53,7 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
     : (post.masons?.name || t("unknown_architect", "Unknown Architect"));
 
   const topOverlayMeta = (() => {
-    if (post.mason_id === 'system' && isPinned) {
+    if (post.mason_id === 'system' && rawIsPinned) {
       return {
         key: 'urgent',
         node: (
@@ -220,23 +222,29 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
   const footer = (
     <div className="flex items-center justify-between flex-wrap gap-y-3 w-full">
       <div className="flex items-center gap-4 text-[10px] font-mono font-bold text-[var(--subtext)] opacity-50 group-hover:opacity-100 transition-opacity">
-        <span className="relative group/tooltip flex items-center gap-1.5 hover:text-[var(--text)] cursor-pointer">
+        <span className="relative flex items-center gap-1.5 hover:text-[var(--text)] cursor-pointer">
           <span className="material-symbols-outlined !text-[16px]">{t("icon_visibility", "visibility")}</span> {(post.views?.[0]?.count || 0).toLocaleString()}
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl text-[10px] font-black capitalize tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
-            {t("ui.views", "Views")}
-          </div>
+          <HoverTooltip
+            title={t("ui.views", "Views")}
+            icon={t("icon_visibility", "visibility")}
+            delay={120}
+          />
         </span>
-        <span className="relative group/tooltip flex items-center gap-1.5 hover:text-[var(--text)] cursor-pointer" onClick={(e) => onToggleLike && onToggleLike(e, post)}>
+        <span className="relative flex items-center gap-1.5 hover:text-[var(--text)] cursor-pointer" onClick={(e) => onToggleLike && onToggleLike(e, post)}>
           <span className="material-symbols-outlined !text-[16px]">{t("icon_favorite", "favorite")}</span> {(post.likes?.[0]?.count || 0).toLocaleString()}
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl text-[10px] font-black capitalize tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
-            {t("ui_likes", "Likes")}
-          </div>
+          <HoverTooltip
+            title={t("ui_likes", "Likes")}
+            icon={t("icon_favorite", "favorite")}
+            delay={120}
+          />
         </span>
-        <span className="relative group/tooltip flex items-center gap-1.5 hover:text-[var(--text)] cursor-pointer">
+        <span className="relative flex items-center gap-1.5 hover:text-[var(--text)] cursor-pointer">
           <span className="material-symbols-outlined !text-[16px]">{t("icon_chat", "chat")}</span> {(post.comments?.[0]?.count || 0).toLocaleString()}
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2 bg-[var(--sidebar)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl text-[10px] font-black capitalize tracking-widest text-[var(--text)] whitespace-nowrap shadow-[0_10px_30px_rgba(0,0,0,0.5)] opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-300 pointer-events-none backdrop-blur-xl z-[100]">
-            {t("ui.replies", "Replies")}
-          </div>
+          <HoverTooltip
+            title={t("ui.replies", "Replies")}
+            icon={t("icon_chat", "chat")}
+            delay={120}
+          />
         </span>
       </div>
       <span className="text-[9px] font-bold text-[var(--subtext)] opacity-50 font-mono tracking-widest">{formattedDate}</span>
@@ -249,25 +257,98 @@ export default function MasonPostCard({ post, index, onPostClick, onToggleLike, 
     </div>
   );
 
+  const canOpenProfile = Boolean(onOpenMasonProfile && post.mason_id && post.mason_id !== 'system');
+
   return (
     <UniversalCard
       layout={layout || (isCompact ? "vertical-compact" : "vertical")}
       title={td ? td(post.title || "") : post.title}
-      subtitle={`${t("by_author", "By")} ${authorName}`}
+      subtitle={
+        canOpenProfile ? (
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenMasonProfile(post.mason_id);
+            }}
+            className="relative inline-flex items-center gap-1 hover:text-[var(--accent)] transition-colors cursor-pointer"
+          >
+            <span>{`${t("by_author", "By")} ${authorName}`}</span>
+            <HoverTooltip
+              title={t("btn_view_profile", "View Profile")}
+              subtitle={authorName}
+              icon={t("icon_person", "person")}
+              delay={120}
+            />
+          </span>
+        ) : (
+          `${t("by_author", "By")} ${authorName}`
+        )
+      }
       bannerTopLabel={`${t("by_author", "By")} ${authorName}`}
       bannerTopRightLabel={formattedDate}
       image={showImage ? imageUrl : undefined}
       icon={!showImage ? t("icon_cell_tower", "cell_tower") : undefined}
       statusColor={isAlert ? 'border-[color-mix(in_srgb,var(--danger)_30%,transparent)] shadow-[0_0_20px_rgba(239,68,68,0.1)]' : undefined}
-      badges={badgeNodes.length > 0 ? <div className="flex flex-wrap gap-1.5">{badgeNodes}</div> : undefined}
+      badges={badgeNodes.length > 0 ? <>{badgeNodes}</> : undefined}
       footer={footer}
       actions={actions}
       imageOverlay={imageOverlay}
       onClick={() => onPostClick(post)}
-      className={isFeatured ? 'lg:col-span-2' : ''}
+      onContextMenu={(e) => {
+        if (onContextMenu) {
+          onContextMenu(e, post);
+          return;
+        }
+        const resolvedTitle = String((td ? td(post.title || "") : post.title) || t("dispatch", "Dispatch"));
+        const items: SanctuaryContextMenuItem[] = [
+          {
+            id: "read",
+            label: t("btn_view", "View"),
+            icon: t("icon_open_in_new", "open_in_new"),
+            onClick: () => onPostClick && onPostClick(post),
+          },
+        ];
+        if (onToggleLike) {
+          items.push({
+            id: "like",
+            label: t("ui_likes", "Likes"),
+            icon: t("icon_favorite", "favorite"),
+            badge: String((post.likes?.[0]?.count || 0).toLocaleString()),
+            onClick: () => onToggleLike(e, post),
+          });
+        }
+        if (canOpenProfile) {
+          items.push({
+            id: "profile",
+            label: t("btn_view_profile", "View Profile"),
+            icon: t("icon_person", "person"),
+            onClick: () => onOpenMasonProfile(post.mason_id),
+          });
+        }
+        items.push({
+          id: "copy",
+          label: t("btn_copy", "Copy"),
+          icon: t("icon_content_copy", "content_copy"),
+          dividerBefore: true,
+          onClick: () => {
+            const plain = stripMarkdown(content || description || post.title || "");
+            navigator.clipboard.writeText(plain).catch(() => {});
+            useStore.getState().pushStatus(t("copied", "Copied"));
+          },
+        });
+        openSanctuaryContextMenu(e, {
+          title: resolvedTitle,
+          subtitle: `${t("by_author", "By")} ${authorName}`,
+          statusLabel: formattedDate,
+          icon: isAlert ? t("icon_warning", "warning") : t("icon_cell_tower", "cell_tower"),
+          iconColorClass: isAlert ? "text-[var(--danger)]" : "text-[var(--accent)]",
+          items,
+        });
+      }}
+      className={`h-full ${isFeatured ? 'lg:col-span-2' : ''}`}
       style={{ animationFillMode: "both", animationDelay: `${(index % 10) * 100}ms` }}
     >
-      <div className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2">
+      <div className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2 min-h-[2.5rem]">
         {renderTextWithIcons(td ? td(stripMarkdown(description || content)) : stripMarkdown(description || content))}
       </div>
     </UniversalCard>

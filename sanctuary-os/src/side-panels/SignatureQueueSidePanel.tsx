@@ -1757,19 +1757,10 @@ export function SignatureQueueSidePanel({
                   e.stopPropagation();
                   handleSetKeepInCloud(!keepInCloud);
                 }}
-                className={`w-11 h-6 rounded-full transition-colors relative shrink-0 cursor-pointer border ${
-                  shredAfterDeploy
-                    ? "bg-[color-mix(in_srgb,var(--danger)_35%,transparent)] border-[var(--danger)]"
-                    : "glass-surface border-[color-mix(in_srgb,var(--text)_18%,transparent)]"
-                }`}
+                className={`sa-glass-toggle shrink-0 ${shredAfterDeploy ? "is-on" : ""}`}
+                style={{ "--toggle-accent": "var(--danger)" } as React.CSSProperties}
               >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full transition-transform ${
-                    shredAfterDeploy
-                      ? "translate-x-5 bg-[var(--danger)]"
-                      : "translate-x-0 bg-[var(--subtext)]"
-                  }`}
-                />
+                <span className="sa-glass-toggle-thumb" />
               </button>
             </div>
 

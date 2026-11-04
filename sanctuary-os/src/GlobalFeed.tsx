@@ -399,6 +399,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                           onPostClick={handlePostClick}
                           onToggleLike={handleToggleLike}
                           onOpenMasonProfile={onOpenMasonProfile}
+                          hidePinBadge={true}
                         />
                       ))}
                     </div>
@@ -455,6 +456,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                       onToggleLike={handleToggleLike}
                       onOpenMasonProfile={onOpenMasonProfile}
                       isCompact={isCompact}
+                      hidePinBadge={true}
                     />
                   </div>
                 );

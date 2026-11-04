@@ -28,6 +28,7 @@ import {
   HubOverviewSection,
 } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { openSanctuaryContextMenu } from "../ContextMenu";
 import IconPicker from "../IconPicker";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
@@ -1649,7 +1650,32 @@ export default function KeepersWebDirectivesEditor({
       <UniversalCard
         key={`dir-${post.id}`}
         layout="vertical"
+        className="h-full"
         onClick={() => openEditor(post, 0, "directive")}
+        onContextMenu={(e) => {
+          openSanctuaryContextMenu(e, [
+            {
+              label: t("edit", "Edit"),
+              icon: t("icon_edit", "edit"),
+              onClick: () => openEditor(post, 0, "directive"),
+            },
+            ...(hasUnpublishedSync
+              ? [
+                  {
+                    label: t("btn_publish", "Publish"),
+                    icon: t("icon_publish", "publish"),
+                    onClick: () => handlePublishDirectiveCard(post, e),
+                  },
+                ]
+              : []),
+            {
+              divider: true,
+              label: t("copy_title", "Copy Title"),
+              icon: t("icon_content_copy", "content_copy"),
+              onClick: () => navigator.clipboard?.writeText(effectiveSchema.title || post.title || ""),
+            },
+          ]);
+        }}
         image={extractedImage || undefined}
         icon={t(iconMeta.key, iconMeta.fallback)}
         imageOverlay={
@@ -1757,7 +1783,7 @@ export default function KeepersWebDirectivesEditor({
           </div>
         }
       >
-        <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2">
+        <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2 min-h-[2.5rem]">
           {post.description || effectiveSchema.summary}
         </p>
       </UniversalCard>
@@ -1774,33 +1800,70 @@ export default function KeepersWebDirectivesEditor({
       : "";
     const showCommLinkImages = useStore.getState().showCommLinkImages;
     const extractedImage = showCommLinkImages !== false ? extractPostImage(post) : undefined;
+    const isLive = post.is_active !== false;
 
     return (
       <UniversalCard
         key={`news-${post.id}`}
         layout="vertical"
+        className="h-full"
         onClick={() => openEditor(post, 0, "news")}
+        onContextMenu={(e) => {
+          openSanctuaryContextMenu(e, [
+            {
+              label: t("edit", "Edit"),
+              icon: t("icon_edit", "edit"),
+              onClick: () => openEditor(post, 0, "news"),
+            },
+            {
+              divider: true,
+              label: t("copy_title", "Copy Title"),
+              icon: t("icon_content_copy", "content_copy"),
+              onClick: () => navigator.clipboard?.writeText(post.title || ""),
+            },
+          ]);
+        }}
         image={extractedImage || undefined}
         icon={t("icon_newspaper", "newspaper")}
+        bannerTopLabel={`${t("by_author", "By")} ${t("author_sanctuary_team", "Sanctuary Foundry")}`}
+        bannerTopRightLabel={dateStr}
         imageOverlay={
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
             <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t("icon_campaign", "campaign")}
+              <span
+                className={`material-symbols-outlined !text-[12px] ${
+                  isLive ? "text-[var(--success)]" : "text-[var(--subtext)]"
+                }`}
+              >
+                {isLive
+                  ? t("icon_cell_tower", "cell_tower")
+                  : t("icon_portable_wifi_off", "portable_wifi_off")}
               </span>
-              <span>{post.category || t("cat_announcement", "Announcement")}</span>
+              <span>
+                {isLive
+                  ? t("status_live", "Live")
+                  : t("status_not_live", "Not Live")}
+              </span>
             </span>
           </div>
         }
         title={post.title}
         subtitle={`${t("by_author", "BY")} ${t("author_sanctuary_team", "Sanctuary Foundry")}`}
         badges={
-          <span className={VAULT_CHIP_CLASS}>
-            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-              {t("icon_newspaper", "newspaper")}
+          <>
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_category", "category")}
+              </span>
+              <span>{post.category || t("cat_announcement", "Announcement")}</span>
             </span>
-            <span>{t("landing_news_short", "News")}</span>
-          </span>
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_public", "public")}
+              </span>
+              <span>{t("audience_global", "Global")}</span>
+            </span>
+          </>
         }
         footer={
           <div className="flex items-center justify-between gap-2 w-full">
@@ -1816,7 +1879,7 @@ export default function KeepersWebDirectivesEditor({
           </div>
         }
       >
-        <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2">
+        <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2 min-h-[2.5rem]">
           {post.description || cleanSnippet}
         </p>
       </UniversalCard>
@@ -1834,6 +1897,7 @@ export default function KeepersWebDirectivesEditor({
       <UniversalCard
         key={`legal-${def.id}`}
         layout="vertical"
+        className="h-full"
         onClick={() =>
           openEditor(
             doc || {
@@ -1846,6 +1910,31 @@ export default function KeepersWebDirectivesEditor({
             "legal"
           )
         }
+        onContextMenu={(e) => {
+          openSanctuaryContextMenu(e, [
+            {
+              label: t("edit", "Edit"),
+              icon: t("icon_edit", "edit"),
+              onClick: () =>
+                openEditor(
+                  doc || {
+                    id: `legal_${def.id}`,
+                    category: def.id,
+                    title: def.label,
+                    message: "",
+                  },
+                  0,
+                  "legal"
+                ),
+            },
+            {
+              divider: true,
+              label: t("copy_title", "Copy Title"),
+              icon: t("icon_content_copy", "content_copy"),
+              onClick: () => navigator.clipboard?.writeText(doc?.title || def.label || ""),
+            },
+          ]);
+        }}
         icon={def.icon}
         imageOverlay={
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
@@ -1887,7 +1976,7 @@ export default function KeepersWebDirectivesEditor({
           </div>
         }
       >
-        <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2">
+        <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-2 min-h-[2.5rem]">
           {def.desc}
         </p>
       </UniversalCard>
@@ -2082,14 +2171,13 @@ export default function KeepersWebDirectivesEditor({
             iconColorClass="text-[var(--accent)]"
             title={t("web_landing_sec_recent_edits", "Recent Edits")}
             headerAction={
-              <ActionButton
-                variant="glass"
-                icon={t("icon_folder_special", "folder_special")}
-                onClick={() => setActiveViewTab("directives")}
-                className="!px-3 !py-1.5 !text-[10px] !rounded-xl"
-              >
-                {t("web_landing_tab_directives", "Directives")}
-              </ActionButton>
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  icon={t("icon_arrow_forward", "arrow_forward")}
+                  tooltip={t("web_landing_tab_directives", "Directives")}
+                  onClick={() => setActiveViewTab("directives")}
+                />
+              </PanelHeaderGroup>
             }
             gridClassName="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
@@ -2105,14 +2193,13 @@ export default function KeepersWebDirectivesEditor({
             iconColorClass="text-[var(--accent)]"
             title={t("web_landing_sec_recent_added", "Recently Added")}
             headerAction={
-              <ActionButton
-                variant="glass"
-                icon={t("icon_newspaper", "newspaper")}
-                onClick={() => setActiveViewTab("news")}
-                className="!px-3 !py-1.5 !text-[10px] !rounded-xl"
-              >
-                {t("landing_news_short", "News")}
-              </ActionButton>
+              <PanelHeaderGroup>
+                <PanelHeaderButton
+                  icon={t("icon_arrow_forward", "arrow_forward")}
+                  tooltip={t("landing_news_short", "News")}
+                  onClick={() => setActiveViewTab("news")}
+                />
+              </PanelHeaderGroup>
             }
             gridClassName="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >

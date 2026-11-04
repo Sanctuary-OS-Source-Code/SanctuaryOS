@@ -42,22 +42,28 @@ export function scrubLogUserData(rawText?: string | null): string {
     `<$1>${REDACTED_HEX_SESSION_TOKEN}</$1>`
   );
 
-  // 2b. Scrub machine/user XML identifying tags (<guid>, <userid>, <machineid>, <computername>, <accountid>)
+  // 2b. Scrub machine/user XML identifying tags (<guid>, <userid>, <machineid>, <computername>, <accountid>, <username>, <hostname>, <ip>, <ipaddress>, <macaddress>)
   text = text.replace(
-    /<(guid|userid|machineid|computername|accountid)>([^<]*)<\/\1>/gi,
+    /<(guid|userid|machineid|computername|accountid|username|hostname|ip|ipaddress|macaddress)>([^<]*)<\/\1>/gi,
     `<$1>${REDACTED_TOKEN}</$1>`
   );
 
-  // 3. Scrub Windows, macOS, and Linux file paths containing the Username
-  // Matches C:\Users\<Username>\, C:\\Users\\<Username>\\, C:/Users/<Username>/, /Users/<Username>/, \Users\<Username>\
+  // 3. Scrub Windows, macOS, Linux, SteamOS, and Proton file paths containing the Username
+  // Matches C:\Users\<Username>\, C:\\Users\\<Username>\\, C:/Users/<Username>/, /Users/<Username>/, \Users\<Username>\, drive_c/users/<Username>/
   text = text.replace(
-    /((?:[A-Za-z]:)?(?:\\{1,2}|\/)Users(?:\\{1,2}|\/))(?!\[REDACTED BY SANCTUARY\])([^\\/\r\n"'<>|&]+)((?:\\{1,2}|\/)?)/gi,
+    /((?:[A-Za-z]:|drive_c)?(?:\\{1,2}|\/)Users(?:\\{1,2}|\/))(?!\[REDACTED BY SANCTUARY\])([^\\/\r\n"'<>|&]+)((?:\\{1,2}|\/)?)/gi,
     `$1${REDACTED_TOKEN}$3`
   );
 
-  // Matches Linux /home/<Username>/
+  // Matches Linux /home/<Username>/ and /var/home/<Username>/
   text = text.replace(
-    /((?:^|[\s"'=(])\/home\/)(?!\[REDACTED BY SANCTUARY\])([^\\/\r\n"'<>|&]+)(\/?)/gi,
+    /((?:^|[\s"'=(])(?:\/var)?\/home\/)(?!\[REDACTED BY SANCTUARY\])([^\\/\r\n"'<>|&]+)(\/?)/gi,
+    `$1${REDACTED_TOKEN}$3`
+  );
+
+  // Matches Linux /run/media/<Username>/ and /media/<Username>/ (preserving raw block devices like mmcblk0p1 or sdX)
+  text = text.replace(
+    /((?:^|[\s"'=(])(?:\/run)?\/media\/)(?!\[REDACTED BY SANCTUARY\]|mmcblk\d+|sd[a-z]\d*|nvme\d+)(?!\s)([^\\/\r\n"'<>|&]+)(\/)/gi,
     `$1${REDACTED_TOKEN}$3`
   );
 
@@ -73,9 +79,9 @@ export function scrubLogUserData(rawText?: string | null): string {
     `$1${REDACTED_TOKEN}`
   );
 
-  // 4. Scrub explicit user/machine key-value pairs in logs
+  // 4. Scrub explicit user/machine/network key-value pairs in logs
   text = text.replace(
-    /\b(User\s*Name|Username|Computer\s*Name|Machine\s*Name|Host\s*Name|Machine\s*Id|Hardware\s*Id|Device\s*Id|Account\s*Id|Steam\s*Id|EA\s*Id|Origin\s*Id|Session\s*Id)\s*([:=])\s*(?!\[REDACTED BY SANCTUARY\])([^\r\n,;<>]+)/gi,
+    /\b(User\s*Name|Username|Computer\s*Name|Machine\s*Name|Host\s*Name|Hostname|Machine\s*Id|Hardware\s*Id|HWID|Device\s*Id|Account\s*Id|Steam\s*Id|EA\s*Id|Origin\s*Id|Session\s*Id|Client\s*IP|Remote\s*IP|Public\s*IP|Local\s*IP|IP\s*Address|MAC\s*Address)\s*([:=])\s*(?!\[REDACTED BY SANCTUARY\])([^\r\n,;<>]+)/gi,
     `$1$2 ${REDACTED_TOKEN}`
   );
 
@@ -85,6 +91,30 @@ export function scrubLogUserData(rawText?: string | null): string {
   // 6. Scrub email addresses in logs
   text = text.replace(
     /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g,
+    REDACTED_TOKEN
+  );
+
+  // 7. Scrub MAC addresses (6 pairs of hex digits separated by colons or hyphens)
+  text = text.replace(
+    /\b(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}\b|\b(?:[0-9A-Fa-f]{2}-){5}[0-9A-Fa-f]{2}\b/g,
+    REDACTED_TOKEN
+  );
+
+  // 8. Scrub IPv4 addresses (valid 0-255 octets) when not part of a version/build string (e.g. v1.2.3.4 or GameVersion: 1.110.311.1020)
+  text = text.replace(
+    /(?<![vV]|[vV]ersion\s*[:=]?\s*|[bB]uild\s*[:=]?\s*|[pP]atch\s*[:=]?\s*|[.\d])\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?::\d{2,5})?\b(?![.\d])/g,
+    (match, offset, fullStr) => {
+      const prefix = String(fullStr).slice(Math.max(0, offset - 28), offset).toLowerCase();
+      if (/(?:version|ver|build|patch|release|client|game|mod|v)\s*[:=]?\s*$/i.test(prefix)) {
+        return match;
+      }
+      return REDACTED_TOKEN;
+    }
+  );
+
+  // 9. Scrub IPv6 addresses (standard 8-group or compressed :: notation with hex groups)
+  text = text.replace(
+    /\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b|\b(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}\b/g,
     REDACTED_TOKEN
   );
 

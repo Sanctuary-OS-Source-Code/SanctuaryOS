@@ -2083,21 +2083,30 @@ export function PostAttachmentsManager({
   };
 
   const resolveAssetIcon = (type: string) => {
-    if (type === "mod") return t("icon_inventory_2", "inventory_2");
-    if (type === "blueprint") return t("icon_architecture", "architecture");
+    if (type === "mod") return t("icon_deployed_code", "deployed_code");
+    if (type === "blueprint") return t("icon_map", "map");
     if (type === "theme" || type === "chameleon") return t("icon_palette", "palette");
     if (type === "lexicon") return t("icon_translate", "translate");
-    if (type === "workbench_template") return t("icon_description", "description");
+    if (type === "workbench_template") return t("icon_draw", "draw");
     if (type === "mason") return t("icon_engineering", "engineering");
     return t("icon_link", "link");
+  };
+
+  const resolveAssetColorClass = (type: string) => {
+    if (type === "mod") return "text-teal-400";
+    if (type === "blueprint") return "text-blue-400";
+    if (type === "theme" || type === "chameleon") return "text-purple-400";
+    if (type === "lexicon") return "text-indigo-400";
+    if (type === "workbench_template") return "text-pink-400";
+    return "text-[var(--accent)]";
   };
 
   const resolveAssetTypeLabel = (type: string) => {
     if (type === "mod") return t("term_mod", "{Mod}");
     if (type === "blueprint") return t("term_blueprint", "{Blueprint}");
-    if (type === "theme" || type === "chameleon") return t("chameleon", "Theme");
+    if (type === "theme" || type === "chameleon") return t("chameleon", "Chameleon");
     if (type === "lexicon") return t("lexicon", "Lexicon");
-    if (type === "workbench_template") return t("template", "Template");
+    if (type === "workbench_template") return t("workbench_template", "Template");
     if (type === "mason") return t("term_mason", "{Mason}");
     return type;
   };
@@ -2220,38 +2229,58 @@ export function PostAttachmentsManager({
 
         {/* 2. Linked Nexus Assets Grid (Shown When Assets Are Attached) */}
         {linkedAssets.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {linkedAssets.map((asset) => (
-              <div
-                key={`${asset.type}-${asset.id}`}
-                className="glass-surface rounded-xl p-2.5 flex items-center justify-between gap-2.5"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-lg glass-panel flex items-center justify-center text-[var(--accent)] shrink-0">
-                    <span className="material-symbols-outlined !text-[16px]">
-                      {resolveAssetIcon(asset.type)}
-                    </span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-bold text-[var(--text)] truncate">
-                      {asset.label}
-                    </span>
-                    <span className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)]">
-                      {resolveAssetTypeLabel(asset.type)}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveAsset(asset)}
-                  className="w-7 h-7 rounded-lg glass-panel hover:text-[var(--danger)] text-[var(--subtext)] flex items-center justify-center shrink-0 transition-all cursor-pointer"
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {linkedAssets.map((asset) => {
+              const assetIcon = resolveAssetIcon(asset.type);
+              const colorClass = resolveAssetColorClass(asset.type);
+              const typeLabel = resolveAssetTypeLabel(asset.type);
+              return (
+                <div
+                  key={`${asset.type}-${asset.id}`}
+                  className="relative glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-between gap-3 transition-all group"
                 >
-                  <span className="material-symbols-outlined !text-[14px]">
-                    {t("icon_close", "close")}
-                  </span>
-                </button>
-              </div>
-            ))}
+                  <HoverTooltip
+                    title={asset.label}
+                    subtitle={typeLabel}
+                    icon={assetIcon}
+                    delay={120}
+                  />
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-xl glass-panel border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0">
+                      <span className={`material-symbols-outlined !text-[19px] ${colorClass}`}>
+                        {assetIcon}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                      <span className="text-xs font-black tracking-tight text-[var(--text)] truncate group-hover:text-[var(--accent)] transition-colors">
+                        {asset.label}
+                      </span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-80 flex items-center gap-1 truncate">
+                        <span className={`material-symbols-outlined !text-[11px] ${colorClass}`}>
+                          {assetIcon}
+                        </span>
+                        <span className="truncate">{typeLabel}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAsset(asset)}
+                    className="relative w-8 h-8 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] hover:text-[var(--danger)] text-[var(--subtext)] flex items-center justify-center shrink-0 transition-all cursor-pointer"
+                  >
+                    <HoverTooltip
+                      title={t("remove", "Remove")}
+                      icon={t("icon_close", "close")}
+                      variant="danger"
+                      delay={120}
+                    />
+                    <span className="material-symbols-outlined !text-[15px]">
+                      {t("icon_close", "close")}
+                    </span>
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 

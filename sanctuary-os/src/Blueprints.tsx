@@ -44,6 +44,7 @@ import { UniversalCard } from "./components/universal/UniversalCard";
 import { DynamicBlueprintPreviewBanner } from "./chameleon-components/ThemeCard";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -380,6 +381,169 @@ export default function Blueprints({
         }
         title={titleNode}
         subtitle={isDeployed ? t("btn_deployed", "Deployed") : t("term_blueprint", "{Blueprint}")}
+        onContextMenu={(e) => {
+          const items: SanctuaryContextMenuItem[] = [
+            {
+              id: "equip",
+              label: isDeployed
+                ? t("btn_deployed", "Deployed")
+                : t("action_equip", "Equip {Blueprint}"),
+              icon: isDeployed
+                ? t("icon_verified_user", "verified_user")
+                : t("icon_play_circle", "play_circle"),
+              variant: isDeployed ? "success" : "accent",
+              onClick: () => equipPlaySet && equipPlaySet(set.name),
+            },
+            {
+              id: "inspect",
+              label: t("blueprint_inspector", "Blueprint Mods"),
+              icon: t("icon_extension", "extension"),
+              badge: String(linkedModsCount),
+              onClick: () =>
+                setSelectedUplinkBlueprint({
+                  name: set.name,
+                  code: "LOCAL BLUEPRINT",
+                  artifacts: set.mods,
+                }),
+            },
+            {
+              id: "architect",
+              label: hasAlerts
+                ? `${alertStatus.total} ${t("system_alerts_title", "Alerts")}`
+                : t("architect", "Blueprint Architect"),
+              icon: hasAlerts
+                ? alertStatus.tier4 > 0 || alertStatus.broken > 0
+                  ? t("icon_error", "error")
+                  : t("icon_warning", "warning")
+                : t("icon_tune", "tune"),
+              variant: hasAlerts
+                ? alertStatus.tier4 > 0 || alertStatus.broken > 0
+                  ? "danger"
+                  : "warning"
+                : "default",
+              onClick: () => {
+                if (setActivePlaySetIndex)
+                  setActivePlaySetIndex(playSets.findIndex((s: any) => s.name === set.name));
+                setIsArchitectOpen(true);
+              },
+            },
+            {
+              id: "pin",
+              label: isPinned
+                ? t("action_unpin", "Unpin {Blueprint}")
+                : t("action_pin", "Pin {Blueprint}"),
+              icon: isPinned ? t("icon_keep_off", "keep_off") : t("icon_keep", "keep"),
+              dividerBefore: true,
+              onClick: () => togglePin(set.name),
+            },
+            {
+              id: "rename",
+              label: t("edit", "Edit"),
+              icon: t("icon_edit", "edit"),
+              onClick: () => {
+                setNewSetName(set.name);
+                setEditingSetName(set.name);
+              },
+            },
+            {
+              id: "duplicate",
+              label: t("btn_snapshot", "Snapshot Active {Blueprint}"),
+              icon: t("icon_content_copy", "content_copy"),
+              onClick: () => {
+                let copyIndex = 1;
+                let newName = `${set.name} (Copy)`;
+                while (
+                  playSets.some(
+                    (s: any) => s.name.toLowerCase() === newName.toLowerCase()
+                  )
+                ) {
+                  newName = `${set.name} (Copy) (${copyIndex})`;
+                  copyIndex++;
+                }
+                const updatedSets = [
+                  ...playSets,
+                  {
+                    name: newName,
+                    mods: Array.isArray(set.mods) ? [...set.mods] : [],
+                    modHashes: set.modHashes ? { ...set.modHashes } : undefined,
+                    modMeta: set.modMeta ? { ...set.modMeta } : undefined,
+                    loadRules: Array.isArray(set.loadRules)
+                      ? set.loadRules.map((r: any) => ({ ...r }))
+                      : undefined,
+                    modTiers: set.modTiers ? { ...set.modTiers } : undefined,
+                    loadOrder: Array.isArray(set.loadOrder)
+                      ? [...set.loadOrder]
+                      : undefined,
+                  },
+                ];
+                setPlaySets(updatedSets);
+                window.dispatchEvent(new Event("storage"));
+              },
+            },
+            {
+              id: "uplink",
+              label: t("action_uplink", "Uplink"),
+              icon: t("icon_cloud", "cloud"),
+              dividerBefore: true,
+              onClick: () => handleOpenMatrix(set.name),
+            },
+            {
+              id: "export",
+              label: t("action_export", "Export"),
+              icon: t("icon_upload", "upload"),
+              onClick: () => exportPlaySet && exportPlaySet(set.name),
+            },
+            {
+              id: "clean",
+              label: t("action_clean_blueprint", "Clean {Blueprint}"),
+              icon: t("icon_cleaning_services", "cleaning_services"),
+              variant: hasGhosts ? "warning" : "default",
+              onClick: () => {
+                const missingStrings = getMissingStrings ? getMissingStrings(set.name) : [];
+                if (missingStrings.length > 0) {
+                  setGhostStrings(missingStrings);
+                  setGhostModalSet(set.name);
+                } else {
+                  setCleanConfirm(set.name);
+                  setTimeout(() => setCleanConfirm(null), 2000);
+                  window.dispatchEvent(
+                    new CustomEvent("push-status", {
+                      detail: {
+                        message: t(
+                          "status_blueprint_clean",
+                          "{Blueprint} is already fully sanitized."
+                        ),
+                        type: "success",
+                      },
+                    })
+                  );
+                }
+              },
+            },
+            {
+              id: "delete",
+              label: `${t("purge", "{Delete}")} ${t("term_blueprint", "{Blueprint}")}`,
+              icon: t("icon_delete_forever", "delete_forever"),
+              variant: "danger",
+              dividerBefore: true,
+              onClick: () => deletePlaySet && deletePlaySet(set.name),
+            },
+          ];
+
+          openSanctuaryContextMenu(e, {
+            title: set.name,
+            subtitle: `${linkedModsCount} ${t("artifacts_linked", "{Mods} Linked")}`,
+            statusLabel: isDeployed
+              ? t("status_active", "Active")
+              : t("status_standby", "Standby"),
+            statusColorClass: isDeployed ? "text-[var(--success)]" : "opacity-80",
+            icon: isDeployed
+              ? t("icon_verified_user", "verified_user")
+              : t("icon_map", "map"),
+            iconColorClass: isDeployed ? "text-[var(--success)]" : "text-[var(--accent)]",
+            items,
+          });
+        }}
         imageOverlay={
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
             <div className={VAULT_CHIP_CLASS}>
@@ -1127,6 +1291,59 @@ export default function Blueprints({
                       title={bp.name}
                       subtitle={bp.code}
                       onClick={() => setSelectedUplinkBlueprint(bp)}
+                      onContextMenu={(e) => {
+                        const bpModCount = bp.artifacts
+                          ? countBlueprintArtifacts(bp.artifacts, activeGameSchema)
+                          : 0;
+                        const items: SanctuaryContextMenuItem[] = [
+                          {
+                            id: "inspect",
+                            label: t("blueprint_inspector", "Blueprint Mods"),
+                            icon: t("icon_extension", "extension"),
+                            badge: bpModCount > 0 ? String(bpModCount) : undefined,
+                            onClick: () => setSelectedUplinkBlueprint(bp),
+                          },
+                        ];
+                        if (!inVault) {
+                          items.unshift({
+                            id: "sync",
+                            label: t("action_sync", "Sync {Blueprint}"),
+                            icon: t("icon_download", "download"),
+                            variant: "success",
+                            onClick: () => {
+                              if (setSyncCode) setSyncCode(bp.code);
+                              if (syncBlueprintByCode) {
+                                setIsSyncing(true);
+                                syncBlueprintByCode(bp.code).finally(() => setIsSyncing(false));
+                              }
+                            },
+                          });
+                        }
+                        items.push({
+                          id: "copy_code",
+                          label: `${t("btn_copy", "Copy")} ${bp.code}`,
+                          icon: t("icon_content_copy", "content_copy"),
+                          dividerBefore: true,
+                          onClick: () => {
+                            navigator.clipboard.writeText(bp.code).catch(() => {});
+                            setCopiedCode(bp.code);
+                            setTimeout(() => setCopiedCode(null), 2000);
+                          },
+                        });
+                        openSanctuaryContextMenu(e, {
+                          title: bp.name,
+                          subtitle: bp.code,
+                          statusLabel: inVault
+                            ? t("status_in_vault", "In {Vault}")
+                            : t("status_not_in_vault", "Not In {Vault}"),
+                          statusColorClass: inVault ? "text-[var(--success)]" : "text-[var(--accent)]",
+                          icon: inVault
+                            ? t("icon_cloud_done", "cloud_done")
+                            : t("icon_cloud_download", "cloud_download"),
+                          iconColorClass: inVault ? "text-[var(--success)]" : "text-[var(--accent)]",
+                          items,
+                        });
+                      }}
                       imageOverlay={
                         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
                           <div className={VAULT_CHIP_CLASS}>

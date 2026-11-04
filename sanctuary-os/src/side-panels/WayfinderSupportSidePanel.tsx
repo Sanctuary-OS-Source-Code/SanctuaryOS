@@ -6,6 +6,7 @@ import { useStore } from "../store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
+import { scrubLogUserData } from "../utils/logScrubber";
 
 export default function WayfinderSupportSidePanel({
  isOpen, onClose, preselectedType }: { isOpen: boolean; onClose: () => void; preselectedType?: string }) {
@@ -177,7 +178,7 @@ export default function WayfinderSupportSidePanel({
           );
       }
 
-      let finalLogs = logs;
+      let finalLogs = scrubLogUserData(logs);
 
       if (activeCategory?.telemetry_config?.sources) {
         const modsPath = useStore.getState().modsPath;
@@ -187,28 +188,30 @@ export default function WayfinderSupportSidePanel({
         for (const source of activeSources) {
           try {
             if (source.type === 'OS') {
-                const sysInfo = await invoke<string>("get_system_info");
+                const sysInfo = scrubLogUserData(await invoke<string>("get_system_info"));
                 const storeState = useStore.getState();
                 const activeSet = storeState.playSets[storeState.activePlaySetIndex];
 
                 const netUpdates = storeState.networkUpdates;
                 const totalUpdates = (netUpdates?.broken?.length || 0) + (netUpdates?.obsolete?.length || 0) + (netUpdates?.updated?.length || 0);
                 
-                const diagnostics = `\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nUser Agent: ${navigator.userAgent}\nMods Path: ${storeState.modsPath}\nActive Blueprint: ${activeSet?.name || "None"}\nActive Mods: ${activeSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toLocaleString()}\nDiagnostic Bundle Version: 1.0.0\n`;
+                const diagnostics = scrubLogUserData(`\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nMods Path: ${storeState.modsPath}\nActive Blueprint: ${activeSet?.name || "None"}\nActive Mods: ${activeSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toLocaleString()}\nDiagnostic Bundle Version: 1.0.0\n`);
                 finalLogs += `\n--- TELEMETRY: ${source.label} (OS) ---\n` + sysInfo + diagnostics + "\n";
 
                 if (activeSet) {
-                    const bpPayload = JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2);
+                    const bpPayload = scrubLogUserData(JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2));
                     finalLogs += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
                 }
 
                 const systemLogHistory = storeState.statusLog.map(entry => {
-                    return `[${new Date(entry.timestamp).toISOString()}] [${entry.type.toUpperCase()}] ${entry.message}`;
+                    return `[${new Date(entry.timestamp).toISOString()}] [${entry.type.toUpperCase()}] ${scrubLogUserData(entry.message)}`;
                 }).join('\n');
                 finalLogs += `\n--- TELEMETRY: System Log History ---\n${systemLogHistory || "No system logs available."}\n`;
             } else {
-                const docDirMatch = modsPath.match(/(.*)[\\/]+mods[\\/]*$/i);
-                const docDir = docDirMatch ? docDirMatch[1] : modsPath;
+                const docDirMatch = modsPath.match(/(.*)[\\/]+(?:mods|data|_mods)[\\/]*$/i);
+                const docDir = docDirMatch
+                  ? docDirMatch[1]
+                  : modsPath.replace(/[\\/]+[^\\/]+[\\/]*$/, "") || modsPath;
                 let searchPath = source.search_path.replace('%MODS_DIR%', modsPath).replace('%DOC_DIR%', docDir);
                 let fullPath = searchPath;
                 if (!fullPath.endsWith('\\') && !fullPath.endsWith('/')) fullPath += '/';
@@ -235,7 +238,7 @@ export default function WayfinderSupportSidePanel({
                            throw new Error(errStr);
                        }
                    }
-                   finalLogs += `\n--- TELEMETRY: ${source.label} ---\n` + text.substring(0, 10000) + "\n";
+                   finalLogs += `\n--- TELEMETRY: ${source.label} ---\n` + scrubLogUserData(text.substring(0, 10000)) + "\n";
                 }
             }
           } catch (e: any) {
@@ -257,21 +260,26 @@ export default function WayfinderSupportSidePanel({
       }
 
       if (activeSet && (activeCategory?.attach_blueprints) && !finalLogs.includes('--- TELEMETRY: Attached Blueprint ---')) {
-          const bpPayload = JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2);
+          const bpPayload = scrubLogUserData(JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2));
           finalLogs += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
+      }
+
+      const scrubbedCustomFields: Record<string, string> = {};
+      for (const [k, v] of Object.entries(customFieldsData || {})) {
+        scrubbedCustomFields[k] = scrubLogUserData(String(v || ""));
       }
 
       const { error } = await supabaseAuth.from('keeper_tickets').insert([{
         author_id: user.id,
         ticket_type: type,
-        title: title || (activeCategory?.category_name || "Support Ticket"),
-        description: description || "No description provided.",
+        title: scrubLogUserData(title) || (activeCategory?.category_name || "Support Ticket"),
+        description: scrubLogUserData(description) || "No description provided.",
         status: "open",
         metadata: {
           target_mod_id: activeCategory?.requires_target_mod ? (targetModId || null) : null,
           target_user_id: activeCategory?.requires_target_user ? (targetUserId || null) : null,
-          logs: finalLogs || null,
-          custom_fields: customFieldsData,
+          logs: scrubLogUserData(finalLogs) || null,
+          custom_fields: scrubbedCustomFields,
           ...(hasViolations && activeCategory?.requires_target_mod ? { restricted_violations: [...new Set(violations)] } : {})
         }
       }]);
@@ -315,7 +323,8 @@ export default function WayfinderSupportSidePanel({
             }
         }
 
-        setLogs(prev => prev + "\n--- Log Attachment ---\n" + text.substring(0, 10000));
+        const scrubbedText = scrubLogUserData(text.substring(0, 10000));
+        setLogs(prev => prev + "\n--- Log Attachment ---\n" + scrubbedText);
       }
     } catch (err: any) {
       console.error(err);

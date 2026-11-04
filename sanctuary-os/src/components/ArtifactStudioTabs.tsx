@@ -1073,6 +1073,11 @@ export function ArtifactWorkspace({
   const handleToggleDlc = async (dlcId: string) => {
     const isAdded = activeDlcIds.includes(dlcId);
     const nextDlc = isAdded ? activeDlcIds.filter((id) => id !== dlcId) : [...activeDlcIds, dlcId];
+    await handleSetDlcList(nextDlc);
+  };
+
+  const handleSetDlcList = async (nextDlc: string[]) => {
+    const prevDlc = activeDlcIds;
     onUpdateMod({ ...mod, requiredDLC: nextDlc });
     if (isCloudMod) {
       await supabase.rpc("secure_upsert_cloud_file", {
@@ -1088,7 +1093,7 @@ export function ArtifactWorkspace({
         mode === "registry" ? "Architect Console" : "Mason Workshop",
         false,
         {
-          requiredDLC: { from: activeDlcIds, to: nextDlc },
+          requiredDLC: { from: prevDlc, to: nextDlc },
         }
       );
     } else {
@@ -1499,6 +1504,13 @@ export function ArtifactWorkspace({
 
   const handleSaveVersionGameVersions = async (ver: any, newGameVers: string[]) => {
     const joined = newGameVers.join(", ");
+    setVersions((prev) =>
+      prev.map((v) =>
+        (ver.id && v.id === ver.id) || (ver.dna_hash && v.dna_hash === ver.dna_hash)
+          ? { ...v, game_version: joined }
+          : v
+      )
+    );
     if (isCloudMod && ver.dna_hash) {
       let verId = ver.id;
       if (!isUuid(verId)) {
@@ -1509,11 +1521,12 @@ export function ArtifactWorkspace({
           .maybeSingle();
         verId = existingVer?.id;
       }
+      const resolvedId = verId || crypto.randomUUID();
       const { error } = await supabase.rpc("secure_upsert_cloud_file", {
         p_token: getAuthToken(),
         p_target: "mod_versions",
         p_payload: {
-          id: verId || crypto.randomUUID(),
+          id: resolvedId,
           mod_id: mod.id,
           dna_hash: ver.dna_hash,
           version_label: ver.version_label || mod.latest_version || "1.0.0",
@@ -1523,6 +1536,11 @@ export function ArtifactWorkspace({
       if (error) {
         useStore.getState().pushStatus(error.message, "error");
         return;
+      }
+      if (!ver.id) {
+        setVersions((prev) =>
+          prev.map((v) => (v.dna_hash === ver.dna_hash ? { ...v, id: resolvedId, game_version: joined } : v))
+        );
       }
       await logArchitectAction(
         "Updated Mod Version Compatibility",
@@ -1536,10 +1554,8 @@ export function ArtifactWorkspace({
           version_label: { to: ver.version_label || mod.latest_version || "1.0.0" },
         }
       );
-      await loadModLinks();
     } else {
       const next = versions.map((v) => (v.dna_hash === ver.dna_hash ? { ...v, game_version: joined } : v));
-      setVersions(next);
       persistLocalSandboxConfig({ local_versions: next });
     }
   };
@@ -2036,6 +2052,7 @@ export function ArtifactWorkspace({
           dlcRegistry={dlcRegistry}
           activeDlcIds={activeDlcIds}
           onToggleDlc={handleToggleDlc}
+          onSetDlcList={handleSetDlcList}
           onClearAllDlc={() => {
             onUpdateMod({ ...mod, requiredDLC: [] });
             if (isCloudMod) {

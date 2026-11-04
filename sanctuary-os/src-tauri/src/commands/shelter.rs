@@ -348,6 +348,9 @@ pub fn get_quarantine_list() -> Vec<String> {
 #[tauri::command]
 pub async fn restore_quarantined_file(filename: String) -> String {
     tauri::async_runtime::spawn_blocking(move || {
+        if !crate::utils::is_safe_single_filename(&filename) {
+            return "Error: Invalid filename".into();
+        }
         let config = get_saved_coordinates();
         let q_dir = PathBuf::from(&config.vault_path).join("Quarantine");
         let sq_dir = PathBuf::from(&config.vault_path).join(".sanctuary_quarantine");

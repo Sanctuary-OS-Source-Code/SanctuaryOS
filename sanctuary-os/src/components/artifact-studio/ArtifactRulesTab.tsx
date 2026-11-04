@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useState, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useLexicon } from "../../LexiconContext";
@@ -21,6 +20,7 @@ export function ArtifactRulesTab({
   dlcRegistry,
   activeDlcIds,
   onToggleDlc,
+  onSetDlcList,
   onClearAllDlc,
   dependencies,
   allConflictAndDepCandidates,
@@ -52,6 +52,7 @@ export function ArtifactRulesTab({
   dlcRegistry: any[];
   activeDlcIds: string[];
   onToggleDlc: (dlcId: string) => Promise<void>;
+  onSetDlcList?: (dlcIds: string[]) => void;
   onClearAllDlc: () => void;
   dependencies: any[];
   allConflictAndDepCandidates: any[];
@@ -77,7 +78,6 @@ export function ArtifactRulesTab({
 }) {
   const { t } = useLexicon();
 
-  const [isDlcDropdownOpen, setIsDlcDropdownOpen] = useState<boolean>(false);
   const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
   const [showPushToken, setShowPushToken] = useState<boolean>(false);
   const [isPushingManifest, setIsPushingManifest] = useState<boolean>(false);
@@ -278,72 +278,53 @@ export function ArtifactRulesTab({
       setIsPushingManifest(false);
     }
   };
-  const [dlcFilterTab, setDlcFilterTab] = useState<string>("ALL");
-  const [dlcSearchQuery, setDlcSearchQuery] = useState<string>("");
   const [dlcAssignedFilter, setDlcAssignedFilter] = useState<string>("");
   const [depsSearchFilter, setDepsSearchFilter] = useState<string>("");
   const [conflictsSearchFilter, setConflictsSearchFilter] = useState<string>("");
-  const dlcBtnRef = useRef<HTMLButtonElement>(null);
-  const dlcInstanceId = React.useId();
-  const [dlcCoords, setDlcCoords] = useState({
-    top: 0,
-    left: 0,
-    width: 340,
-    isDropUp: false,
-  });
 
-  useEffect(() => {
-    if (!isDlcDropdownOpen) return;
-    window.dispatchEvent(new CustomEvent("sa-close-popovers", { detail: dlcInstanceId }));
-    const onOtherOpen = (e: any) => {
-      if (e.detail !== dlcInstanceId) setIsDlcDropdownOpen(false);
-    };
-    window.addEventListener("sa-close-popovers", onOtherOpen);
-    return () => window.removeEventListener("sa-close-popovers", onOtherOpen);
-  }, [isDlcDropdownOpen, dlcInstanceId]);
+  const dlcCategories = useMemo(
+    () => [
+      { id: "ALL", label: t("dlc_tab_all", "All Packs") },
+      { id: "Expansion Pack", label: t("tab_expansion", "Expansions") },
+      { id: "Game Pack", label: t("tab_game_pack", "Game Packs") },
+      { id: "Stuff Pack", label: t("tab_stuff_pack", "Stuff Packs") },
+      { id: "Kit", label: t("tab_kit", "Kits") },
+    ],
+    [t]
+  );
 
-  React.useLayoutEffect(() => {
-    if (!isDlcDropdownOpen) return;
-    const updatePosition = () => {
-      if (dlcBtnRef.current) {
-        const rect = dlcBtnRef.current.getBoundingClientRect();
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const shouldDropUp = spaceBelow < 360 && rect.top > 360;
-        const menuWidth = Math.min(Math.max(rect.width, 340), window.innerWidth - 24);
-        const clampedLeft = Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12));
-        setDlcCoords({
-          top: shouldDropUp ? rect.top - 6 : rect.bottom + 6,
-          left: clampedLeft,
-          width: menuWidth,
-          isDropUp: shouldDropUp,
-        });
-      }
-    };
-    updatePosition();
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-    return () => {
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-    };
-  }, [isDlcDropdownOpen]);
+  const dlcOptions = useMemo(
+    () =>
+      dlcRegistry.map((pack) => ({
+        id: pack.id,
+        label: pack.name || pack.id,
+        badge: pack.id,
+        category: pack.type,
+        searchText: `${pack.name || ""} ${pack.id || ""} ${pack.type || ""}`,
+      })),
+    [dlcRegistry]
+  );
 
-  const dlcCategories = [
-    { id: "ALL", label: t("dlc_tab_all", "All Packs") },
-    { id: "Expansion Pack", label: t("tab_expansion", "Expansions") },
-    { id: "Game Pack", label: t("tab_game_pack", "Game Packs") },
-    { id: "Stuff Pack", label: t("tab_stuff_pack", "Stuff Packs") },
-    { id: "Kit", label: t("tab_kit", "Kits") },
-  ];
-
-  const filteredDlcList = dlcRegistry
-    .filter((d) => dlcFilterTab === "ALL" || d.type === dlcFilterTab)
-    .filter(
-      (d) =>
-        !dlcSearchQuery ||
-        String(d.name || "").toLowerCase().includes(dlcSearchQuery.toLowerCase()) ||
-        String(d.id || "").toLowerCase().includes(dlcSearchQuery.toLowerCase())
-    );
+  const handleDlcSelectionChange = (nextIds: string[]) => {
+    const cleaned = Array.isArray(nextIds) ? nextIds.map(String) : [];
+    if (onSetDlcList) {
+      onSetDlcList(cleaned);
+      return;
+    }
+    if (cleaned.length === 0) {
+      onClearAllDlc();
+      return;
+    }
+    const added = cleaned.find((id) => !activeDlcIds.includes(id));
+    if (added) {
+      onToggleDlc(added);
+      return;
+    }
+    const removed = activeDlcIds.find((id) => !cleaned.includes(id));
+    if (removed) {
+      onToggleDlc(removed);
+    }
+  };
 
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-5 pb-8">
@@ -381,118 +362,22 @@ export function ArtifactRulesTab({
           </div>
 
           <div className="relative w-full">
-            <button
-              ref={dlcBtnRef}
-              type="button"
-              onClick={() => setIsDlcDropdownOpen(!isDlcDropdownOpen)}
-              className="w-full h-12 px-4 rounded-[var(--radius)] glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-between gap-2 text-xs font-bold text-[var(--text)] transition-all cursor-pointer"
-            >
-              <span className={activeDlcIds.length === 0 ? "text-[var(--subtext)]" : "text-[var(--text)]"}>
-                {activeDlcIds.length === 0
-                  ? t("studio_dlc_select_ph", "Select Required EA Packs...")
-                  : `${activeDlcIds.length} ${t("studio_dlc_selected_count", "Packs Selected")}`}
-              </span>
-              <span className="material-symbols-outlined !text-[18px] text-[var(--subtext)]">
-                {isDlcDropdownOpen ? "expand_less" : "expand_more"}
-              </span>
-            </button>
-
-            {isDlcDropdownOpen &&
-              createPortal(
-                <>
-                  <div
-                    className="!fixed inset-0 pointer-events-auto"
-                    style={{ zIndex: 100000000 }}
-                    onClick={() => setIsDlcDropdownOpen(false)}
-                  />
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    className="!fixed pointer-events-auto rounded-2xl glass-panel portal-glass-fix sa-dropdown-popover p-3 flex flex-col gap-2.5 text-[var(--text)] animate-in fade-in zoom-in-95 duration-150"
-                    style={{
-                      zIndex: 100000001,
-                      top: dlcCoords.isDropUp ? "auto" : dlcCoords.top,
-                      bottom: dlcCoords.isDropUp ? window.innerHeight - dlcCoords.top + 8 : "auto",
-                      left: dlcCoords.left,
-                      width: dlcCoords.width,
-                      maxWidth: "calc(100vw - 24px)",
-                    }}
-                  >
-                    <div className="flex items-center gap-2 px-3 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">
-                        {t("icon_search", "search")}
-                      </span>
-                      <input
-                        type="text"
-                        autoFocus
-                        value={dlcSearchQuery}
-                        onChange={(e) => setDlcSearchQuery(e.target.value)}
-                        placeholder={t("search_ph", "Search {mods}...")}
-                        className="bg-transparent border-none outline-none text-xs font-bold text-[var(--text)] w-full placeholder:text-[var(--subtext)]/60"
-                      />
-                      {dlcSearchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => setDlcSearchQuery("")}
-                          className="text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1">
-                      {dlcCategories.map((cat) => {
-                        const active = dlcFilterTab === cat.id;
-                        return (
-                          <button
-                            key={cat.id}
-                            type="button"
-                            onClick={() => setDlcFilterTab(cat.id)}
-                            className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                              active
-                                ? "glass-surface border border-[color-mix(in_srgb,var(--text)_20%,transparent)] text-[var(--text)]"
-                                : "text-[var(--subtext)] hover:text-[var(--text)] border border-transparent"
-                            }`}
-                          >
-                            {cat.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="max-h-56 overflow-y-auto custom-scrollbar flex flex-col gap-1 pr-1">
-                      {filteredDlcList.map((pack) => {
-                        const isChecked = activeDlcIds.includes(pack.id);
-                        return (
-                          <button
-                            key={pack.id}
-                            type="button"
-                            onClick={() => onToggleDlc(pack.id)}
-                            className={`w-full px-3 py-2 rounded-xl flex items-center justify-between gap-2 text-left text-xs font-bold transition-all cursor-pointer ${
-                              isChecked
-                                ? "glass-surface border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[var(--text)]"
-                                : "hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] border border-transparent"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <span
-                                className={`material-symbols-outlined !text-[16px] shrink-0 ${
-                                  isChecked ? "text-[var(--accent)]" : "text-[var(--subtext)] opacity-50"
-                                }`}
-                              >
-                                {isChecked ? "check_box" : "check_box_outline_blank"}
-                              </span>
-                              <span className="truncate">{pack.name || pack.id}</span>
-                            </div>
-                            <span className="font-mono text-[10px] text-[var(--subtext)] shrink-0">{pack.id}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </>,
-                document.getElementById("sa-portals") || document.body
-              )}
+            <CustomDropdown
+              multiSelect={true}
+              searchable={true}
+              disableTint={true}
+              value={activeDlcIds}
+              displayLabel={
+                activeDlcIds.length > 0
+                  ? `${activeDlcIds.length} ${t("studio_dlc_selected_count", "Packs Selected")}`
+                  : undefined
+              }
+              placeholder={t("studio_dlc_select_ph", "Select Required EA Packs...")}
+              searchPlaceholder={t("search_ph", "Search {mods}...")}
+              categoryTabs={dlcCategories}
+              options={dlcOptions}
+              onChange={handleDlcSelectionChange}
+            />
           </div>
 
           {activeDlcIds.length === 0 ? (

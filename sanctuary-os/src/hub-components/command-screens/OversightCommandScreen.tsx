@@ -5,6 +5,8 @@ import { useStore } from "../../store";
 import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, SystemBroadcastsGrid, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
+import { openModDossier } from "../../shared";
 
 const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
@@ -226,6 +228,22 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
                           title={item.ticket_type || t("support_tickets", "Support Tickets")} 
                           icon={t("icon_local_activity", "local_activity")} 
                           onClick={() => setTab("sanctuary_tickets")}
+                          onContextMenu={(e) => {
+                            const menuItems: SanctuaryContextMenuItem[] = [
+                              {
+                                label: t("support_tickets", "Support Tickets"),
+                                icon: t("icon_local_activity", "local_activity"),
+                                onClick: () => setTab("sanctuary_tickets"),
+                              },
+                              {
+                                label: t("copy", "Copy"),
+                                icon: t("icon_content_copy", "content_copy"),
+                                dividerBefore: true,
+                                onClick: () => navigator.clipboard?.writeText(String(item.metadata?.description || item.ticket_type || "")),
+                              },
+                            ];
+                            openSanctuaryContextMenu(e, menuItems);
+                          }}
                           className="w-full"
                           imageOverlay={
                               <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
@@ -269,6 +287,22 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
                           title={t("rating_malware", "Malware")} 
                           icon={t("icon_coronavirus", "coronavirus")} 
                           onClick={() => { setComplianceFilter('pending'); setTab("malware_oversight"); }}
+                          onContextMenu={(e) => {
+                            const menuItems: SanctuaryContextMenuItem[] = [
+                              {
+                                label: t("rating_malware", "Malware"),
+                                icon: t("icon_coronavirus", "coronavirus"),
+                                onClick: () => { setComplianceFilter('pending'); setTab("malware_oversight"); },
+                              },
+                              {
+                                label: t("copy", "Copy"),
+                                icon: t("icon_content_copy", "content_copy"),
+                                dividerBefore: true,
+                                onClick: () => navigator.clipboard?.writeText(String(item.reason || "")),
+                              },
+                            ];
+                            openSanctuaryContextMenu(e, menuItems);
+                          }}
                           className="w-full"
                           imageOverlay={
                               <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
@@ -312,6 +346,27 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
                           title={item.name || t("term_mod", "{Mod}")} 
                           icon={t("icon_policy", "policy")} 
                           onClick={() => setTab("compliance")}
+                          onContextMenu={(e) => {
+                            const menuItems: SanctuaryContextMenuItem[] = [
+                              {
+                                label: t("tab_compliance", "Compliance"),
+                                icon: t("icon_policy", "policy"),
+                                onClick: () => setTab("compliance"),
+                              },
+                              {
+                                label: t("btn_inspect", "Inspect {Mod}"),
+                                icon: t("icon_open_in_new", "open_in_new"),
+                                onClick: () => openModDossier({ ...item, isNexusView: true }),
+                              },
+                              {
+                                label: t("copy", "Copy"),
+                                icon: t("icon_content_copy", "content_copy"),
+                                dividerBefore: true,
+                                onClick: () => navigator.clipboard?.writeText(String(item.name || "")),
+                              },
+                            ];
+                            openSanctuaryContextMenu(e, menuItems);
+                          }}
                           className="w-full"
                           imageOverlay={
                               <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">

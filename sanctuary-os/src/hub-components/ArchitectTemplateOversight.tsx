@@ -4,6 +4,7 @@ import { useLexicon } from "../LexiconContext";
 import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderButton, StatBox } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelHeroCard, SidePanelTitleInput, UniversalGroup } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
 import { DynamicTemplatePreviewBanner } from "../chameleon-components/ThemeCard";
 import TemplatePreviewer from "../TemplatePreviewer";
 
@@ -180,6 +181,22 @@ export default function ArchitectTemplateOversight() {
             <UniversalCard
                 key={tf.id}
                 onClick={() => { setSelectedFileGroup(tf.file_name); setSelectedTemplateForPreview(null); }}
+                onContextMenu={(e) => {
+                    const menuItems: SanctuaryContextMenuItem[] = [
+                        {
+                            label: t("btn_view", "View"),
+                            icon: t("icon_description", "description"),
+                            onClick: () => { setSelectedFileGroup(tf.file_name); setSelectedTemplateForPreview(null); },
+                        },
+                        {
+                            label: t("copy", "Copy"),
+                            icon: t("icon_content_copy", "content_copy"),
+                            dividerBefore: true,
+                            onClick: () => navigator.clipboard?.writeText(String(tf.file_name || "")),
+                        },
+                    ];
+                    openSanctuaryContextMenu(e, menuItems);
+                }}
                 layout="vertical"
                 icon={t("icon_description", "description")}
                 customIcon={
@@ -399,6 +416,21 @@ export default function ArchitectTemplateOversight() {
                                 return (
                                     <UniversalCard
                                         onClick={() => setSelectedTemplateForPreview(defaultTmpl)}
+                                        onContextMenu={(e) => {
+                                            openSanctuaryContextMenu(e, [
+                                                {
+                                                    label: t("preview_title", "Preview"),
+                                                    icon: t("icon_visibility", "visibility"),
+                                                    onClick: () => setSelectedTemplateForPreview(defaultTmpl),
+                                                },
+                                                {
+                                                    label: t("copy", "Copy"),
+                                                    icon: t("icon_content_copy", "content_copy"),
+                                                    dividerBefore: true,
+                                                    onClick: () => navigator.clipboard?.writeText(String(defaultTmpl.name || defaultTmpl.targetFile || "")),
+                                                },
+                                            ]);
+                                        }}
                                         layout="vertical"
                                         icon={t("icon_data_object", "data_object")}
                                         customIcon={<DynamicTemplatePreviewBanner data={defaultTmpl} heightClass="h-full" />}
@@ -478,6 +510,21 @@ export default function ArchitectTemplateOversight() {
                                     <UniversalCard
                                         key={tmpl.id}
                                         onClick={() => setSelectedTemplateForPreview(tmpl)}
+                                        onContextMenu={(e) => {
+                                            openSanctuaryContextMenu(e, [
+                                                {
+                                                    label: t("preview_title", "Preview"),
+                                                    icon: t("icon_visibility", "visibility"),
+                                                    onClick: () => setSelectedTemplateForPreview(tmpl),
+                                                },
+                                                {
+                                                    label: t("copy", "Copy"),
+                                                    icon: t("icon_content_copy", "content_copy"),
+                                                    dividerBefore: true,
+                                                    onClick: () => navigator.clipboard?.writeText(String(tmpl.name || tmpl.targetFile || "")),
+                                                },
+                                            ]);
+                                        }}
                                         layout="vertical"
                                         icon={t("icon_data_object", "data_object")}
                                         customIcon={<DynamicTemplatePreviewBanner data={tmpl} heightClass="h-full" />}

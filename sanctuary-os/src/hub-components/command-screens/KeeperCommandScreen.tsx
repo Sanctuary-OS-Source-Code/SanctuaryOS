@@ -8,6 +8,7 @@ import MasonPostViewer from "../../side-panels/MasonPostViewer";
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading, CommandScreenMetricTile } from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
 import { ReleaseNotesShowcase } from "../../components/ReleaseNotesShowcase";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
 
 const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
@@ -171,6 +172,29 @@ export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
                                   : "support"
                             )
                           }
+                          onContextMenu={(e) => {
+                            const menuItems: SanctuaryContextMenuItem[] = [
+                              {
+                                label: t("view_details", "View Details"),
+                                icon: t("icon_local_activity", "local_activity"),
+                                onClick: () =>
+                                  setTab(
+                                    isPartnerApp
+                                      ? "partner_apps"
+                                      : isKeeperApp
+                                        ? "keeper_apps"
+                                        : "support"
+                                  ),
+                              },
+                              {
+                                label: t("copy", "Copy"),
+                                icon: t("icon_content_copy", "content_copy"),
+                                dividerBefore: true,
+                                onClick: () => navigator.clipboard?.writeText(String(item.description || item.title || item.subject || "")),
+                              },
+                            ];
+                            openSanctuaryContextMenu(e, menuItems);
+                          }}
                           className="w-full"
                           imageOverlay={
                               <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">

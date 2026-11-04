@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
 import { EmptyState, InlineFilterGroup, ActionPill, HeaderActionPortal } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { openSanctuaryContextMenu } from "./ContextMenu";
 import { supabaseAuth } from "./supabase";
 
 interface Ticket {
@@ -212,6 +213,21 @@ export default function WayfinderKeeperTickets({
                 title={ticket.title}
                 subtitle={`#${ticket.id.slice(0, 8)}`}
                 onClick={() => onSelectTicket && onSelectTicket(ticket)}
+                onContextMenu={(e) => {
+                  openSanctuaryContextMenu(e, [
+                    {
+                      label: t("view_ticket", "View Ticket"),
+                      icon: t("icon_confirmation_number", "confirmation_number"),
+                      onClick: () => onSelectTicket && onSelectTicket(ticket),
+                    },
+                    {
+                      divider: true,
+                      label: t("copy_title", "Copy Title"),
+                      icon: t("icon_content_copy", "content_copy"),
+                      onClick: () => navigator.clipboard?.writeText(ticket.title || ""),
+                    },
+                  ]);
+                }}
                 badges={
                   <div className={VAULT_CHIP_CLASS}>
                     <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">

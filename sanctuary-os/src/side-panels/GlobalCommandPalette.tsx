@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   SidePanel,
+  PanelHeaderButton,
   DashboardStatTile,
   EmptyState,
   VAULT_CHIP_CLASS,
@@ -13,6 +15,7 @@ import { useLexicon } from "../LexiconContext";
 import { useTheme } from "../ThemeContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
+import { getActiveGameClient } from "../supabase";
 import { isDesktop } from "../utils/envUtils";
 import { isRootDomain, scrollToLandingSection } from "../utils/routingUtils";
 
@@ -26,9 +29,126 @@ export interface GlobalCommandPaletteProps {
   onTriggerFullBackup: () => void;
   onTriggerPrePatchSnapshot: () => void;
   onOpenNotifications: () => void;
+  onOpenMasonProfile?: (masonId: string, postId?: string) => void;
+  onOpenDefcon?: () => void;
+  onTriggerShelter?: (enable: boolean) => void;
+  onOpenCitizenTickets?: () => void;
 }
 
 type CommandCategory = "all" | "views" | "vault" | "actions";
+
+export interface CommandHotkeyMap {
+  togglePalette: string;
+  quickLaunch: string;
+  radarSweep: string;
+  openDropzone: string;
+}
+
+export interface ControllerBindingMap {
+  togglePalette: string;
+  executeItem: string;
+  secondaryAction: string;
+  nextTab: string;
+  prevTab: string;
+  closePalette: string;
+}
+
+export const DEFAULT_HOTKEYS: CommandHotkeyMap = {
+  togglePalette: "Ctrl+K",
+  quickLaunch: "Ctrl+Shift+L",
+  radarSweep: "Ctrl+Shift+R",
+  openDropzone: "Ctrl+Shift+D",
+};
+
+export const DEFAULT_CONTROLLER_BINDINGS: ControllerBindingMap = {
+  togglePalette: "4+5", // L1 + R1 (LB + RB)
+  executeItem: "0", // A / Cross
+  secondaryAction: "2", // X / Square
+  nextTab: "5", // R1 / RB
+  prevTab: "4", // L1 / LB
+  closePalette: "1", // B / Circle
+};
+
+const HOTKEYS_STORAGE_KEY = "sanctuary_cmd_hotkeys_v1";
+const GAMEPAD_STORAGE_KEY = "sanctuary_cmd_gamepad_v1";
+
+export function getCommandHotkeys(): CommandHotkeyMap {
+  try {
+    const raw = localStorage.getItem(HOTKEYS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { ...DEFAULT_HOTKEYS, ...parsed };
+    }
+  } catch {}
+  return { ...DEFAULT_HOTKEYS };
+}
+
+export function getControllerBindings(): ControllerBindingMap {
+  try {
+    const raw = localStorage.getItem(GAMEPAD_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { ...DEFAULT_CONTROLLER_BINDINGS, ...parsed };
+    }
+  } catch {}
+  return { ...DEFAULT_CONTROLLER_BINDINGS };
+}
+
+const GAMEPAD_BUTTON_NAMES: Record<number, string> = {
+  0: "A",
+  1: "B",
+  2: "X",
+  3: "Y",
+  4: "L1",
+  5: "R1",
+  6: "L2",
+  7: "R2",
+  8: "Select",
+  9: "Start",
+  10: "L3",
+  11: "R3",
+  12: "D-Pad Up",
+  13: "D-Pad Down",
+  14: "D-Pad Left",
+  15: "D-Pad Right",
+  16: "Steam",
+};
+
+export function formatGamepadCombo(combo: string): string {
+  if (!combo) return "—";
+  const parts = combo
+    .split("+")
+    .map((p) => Number(p.trim()))
+    .filter((n) => !Number.isNaN(n));
+  if (parts.length === 0) return combo;
+  return parts.map((idx) => GAMEPAD_BUTTON_NAMES[idx] || `#${idx}`).join(" + ");
+}
+
+function formatKeyboardEventCombo(e: KeyboardEvent): string | null {
+  const key = e.key;
+  if (["Control", "Shift", "Alt", "Meta"].includes(key)) return null;
+  const parts: string[] = [];
+  if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
+  if (e.altKey) parts.push("Alt");
+  if (e.shiftKey) parts.push("Shift");
+
+  let normalizedKey = key.length === 1 ? key.toUpperCase() : key;
+  if (normalizedKey === " ") normalizedKey = "Space";
+
+  const isFunctionKey = /^F([1-9]|1[0-2])$/i.test(normalizedKey);
+  if (parts.length === 0 && !isFunctionKey) {
+    return null;
+  }
+  parts.push(normalizedKey);
+  return parts.join("+");
+}
+
+function matchesKeyboardCombo(e: KeyboardEvent, targetCombo: string): boolean {
+  if (!targetCombo) return false;
+  const pressed = formatKeyboardEventCombo(e);
+  if (!pressed) return false;
+  return pressed.toLowerCase() === targetCombo.toLowerCase();
+}
 
 interface CommandItem {
   id: string;
@@ -140,6 +260,8 @@ const cleanNavLabel = (raw: any, fallback: string): string => {
   return s || fallback;
 };
 
+const CONFIG_EXTENSIONS_REGEX = /\.(cfg|ini|json|txt|xml|toml|yaml|yml)$/i;
+
 export function GlobalCommandPalette({
   onInspectMod,
   onToggleModInBlueprint,
@@ -150,6 +272,10 @@ export function GlobalCommandPalette({
   onTriggerFullBackup,
   onTriggerPrePatchSnapshot,
   onOpenNotifications,
+  onOpenMasonProfile,
+  onOpenDefcon,
+  onTriggerShelter,
+  onOpenCitizenTickets,
 }: GlobalCommandPaletteProps) {
   const { t, activeLang, setActiveLang, lexiconMeta } = useLexicon();
   const { activeThemeId, setActiveThemeId, CORE_THEMES, customThemes, gameThemes } = useTheme();
@@ -159,6 +285,8 @@ export function GlobalCommandPalette({
   const modList = useStore((state) => state.modList);
   const playSets = useStore((state) => state.playSets);
   const activeSetName = useStore((state) => state.activeSetName);
+  const vaultPath = useStore((state) => state.vaultPath);
+  const shelterActive = useStore((state) => state.shelterActive);
   const userRole = useStore((state) => state.userRole);
   const osRole = useStore((state) => state.osRole);
   const isConfigured = useStore((state) => state.isConfigured);
@@ -167,6 +295,7 @@ export function GlobalCommandPalette({
   const setMarketTab = useStore((state) => state.setMarketTab);
   const cwMainTab = useStore((state) => state.cwMainTab);
   const setCwMainTab = useStore((state) => state.setCwMainTab);
+  const setCwSelectedFile = useStore((state) => state.setCwSelectedFile);
   const masonActiveTab = useStore((state) => state.masonActiveTab);
   const setMasonActiveTab = useStore((state) => state.setMasonActiveTab);
   const architectActiveTab = useStore((state) => state.architectActiveTab);
@@ -182,12 +311,46 @@ export function GlobalCommandPalette({
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<CommandCategory>("all");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isControlsOpen, setIsControlsOpen] = useState(false);
+
+  // Hotkeys & Controller / Steam Deck Bindings
+  const [hotkeys, setHotkeys] = useState<CommandHotkeyMap>(() => getCommandHotkeys());
+  const [controllerBindings, setControllerBindings] = useState<ControllerBindingMap>(() =>
+    getControllerBindings()
+  );
+  const [recordingHotkeyField, setRecordingHotkeyField] = useState<keyof CommandHotkeyMap | null>(
+    null
+  );
+  const [recordingPadField, setRecordingPadField] = useState<keyof ControllerBindingMap | null>(
+    null
+  );
+  const [connectedGamepadName, setConnectedGamepadName] = useState<string | null>(null);
+
+  // Cloud / Local Masons & Workbench Config Files
+  const [masonsRegistry, setMasonsRegistry] = useState<any[]>([]);
+  const [workbenchPaths, setWorkbenchPaths] = useState<string[]>([]);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
-  const openPalette = useCallback((initialTab?: CommandCategory) => {
+  const updateHotkeys = useCallback((next: CommandHotkeyMap) => {
+    setHotkeys(next);
+    try {
+      localStorage.setItem(HOTKEYS_STORAGE_KEY, JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("sanctuary-hotkeys-updated", { detail: next }));
+    } catch {}
+  }, []);
+
+  const updateControllerBindings = useCallback((next: ControllerBindingMap) => {
+    setControllerBindings(next);
+    try {
+      localStorage.setItem(GAMEPAD_STORAGE_KEY, JSON.stringify(next));
+    } catch {}
+  }, []);
+
+  const openPalette = useCallback((initialTab?: CommandCategory, openControls?: boolean) => {
     if (initialTab) setActiveTab(initialTab);
+    setIsControlsOpen(Boolean(openControls));
     setIsOpen(true);
     setSelectedIndex(0);
     window.setTimeout(() => {
@@ -198,11 +361,61 @@ export function GlobalCommandPalette({
 
   const closePalette = useCallback(() => {
     setIsOpen(false);
+    setIsControlsOpen(false);
+    setRecordingHotkeyField(null);
+    setRecordingPadField(null);
   }, []);
 
+  // Load Masons & Workbench files when palette opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const client = getActiveGameClient();
+    if (client) {
+      client
+        .from("masons")
+        .select("id, name, bio, is_verified, followers_count")
+        .limit(200)
+        .then(
+          ({ data }) => {
+            if (Array.isArray(data)) {
+              setMasonsRegistry(data);
+            }
+          },
+          () => {}
+        );
+    }
+
+    if (isDesktop() && vaultPath && vaultPath !== "web") {
+      invoke<string[]>("get_workbench_files", { vaultPath })
+        .then((files) => {
+          if (Array.isArray(files)) {
+            setWorkbenchPaths(files);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen, vaultPath]);
+
+  // Keyboard listener for recording or executing global hotkeys
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      if (recordingHotkeyField) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === "Escape") {
+          setRecordingHotkeyField(null);
+          return;
+        }
+        const combo = formatKeyboardEventCombo(e);
+        if (combo) {
+          updateHotkeys({ ...hotkeys, [recordingHotkeyField]: combo });
+          setRecordingHotkeyField(null);
+        }
+        return;
+      }
+
+      if (matchesKeyboardCombo(e, hotkeys.togglePalette)) {
         e.preventDefault();
         e.stopPropagation();
         setIsOpen((prev) => {
@@ -213,16 +426,41 @@ export function GlobalCommandPalette({
               inputRef.current?.focus();
               inputRef.current?.select();
             }, 40);
+          } else {
+            setIsControlsOpen(false);
           }
           return next;
         });
+        return;
+      }
+
+      if (isDesktop()) {
+        if (matchesKeyboardCombo(e, hotkeys.quickLaunch)) {
+          e.preventDefault();
+          e.stopPropagation();
+          onQuickLaunch();
+          return;
+        }
+        if (matchesKeyboardCombo(e, hotkeys.radarSweep)) {
+          e.preventDefault();
+          e.stopPropagation();
+          onRunRadarSweep();
+          return;
+        }
+        if (matchesKeyboardCombo(e, hotkeys.openDropzone)) {
+          e.preventDefault();
+          e.stopPropagation();
+          onOpenDropzone();
+          return;
+        }
       }
     };
 
     const handleCustomOpen = (e: Event) => {
       const detail = (e as CustomEvent)?.detail;
       const requestedTab = detail?.tab as CommandCategory | undefined;
-      openPalette(requestedTab);
+      const openControls = Boolean(detail?.openControls);
+      openPalette(requestedTab, openControls);
     };
 
     const handleCustomClose = () => {
@@ -237,7 +475,16 @@ export function GlobalCommandPalette({
       window.removeEventListener("sanctuary-open-command-palette", handleCustomOpen);
       window.removeEventListener("sanctuary-close-command-palette", handleCustomClose);
     };
-  }, [openPalette, closePalette]);
+  }, [
+    hotkeys,
+    recordingHotkeyField,
+    updateHotkeys,
+    openPalette,
+    closePalette,
+    onQuickLaunch,
+    onRunRadarSweep,
+    onOpenDropzone,
+  ]);
 
   const activeBlueprintModsSet = useMemo(() => {
     const set = new Set<string>();
@@ -286,12 +533,66 @@ export function GlobalCommandPalette({
     [setView, closePalette]
   );
 
+  const navigateToVaultSubTab = useCallback(
+    (equipFilterId: string) => {
+      setView("vault");
+      window.setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("sanctuary-vault-navigate", {
+            detail: { equipFilter: equipFilterId },
+          })
+        );
+      }, 40);
+      closePalette();
+    },
+    [setView, closePalette]
+  );
+
+  const openConfigInWorkbench = useCallback(
+    (rawFileOrPath: string, fallbackDisplayName?: string) => {
+      const normalizedRaw = String(rawFileOrPath || "").replace(/\\/g, "/");
+      const baseFileName = normalizedRaw.split("/").pop() || fallbackDisplayName || normalizedRaw;
+      const lowerBase = baseFileName.toLowerCase();
+
+      let resolvedFullPath = rawFileOrPath;
+      const matchedWbPath = workbenchPaths.find((wb) => {
+        const wbNorm = String(wb || "").replace(/\\/g, "/").toLowerCase();
+        return wbNorm.endsWith(`/${lowerBase}`) || wbNorm === lowerBase;
+      });
+
+      if (matchedWbPath) {
+        resolvedFullPath = matchedWbPath;
+      } else if (
+        vaultPath &&
+        vaultPath !== "web" &&
+        !normalizedRaw.includes(":") &&
+        !normalizedRaw.startsWith("/")
+      ) {
+        const sep = vaultPath.includes("\\") ? "\\" : "/";
+        const cleanVault = vaultPath.replace(/[\\/]+$/, "");
+        const cleanRel = rawFileOrPath.replace(/^[\\/]+/, "").replace(/[\\/]/g, sep);
+        resolvedFullPath = `${cleanVault}${sep}Mods${sep}${cleanRel}`;
+      }
+
+      const isJsonTemplate = lowerBase.endsWith(".json");
+      setCwMainTab(isJsonTemplate ? "TEMPLATES" : "CONFIGS");
+      setCwSelectedFile({
+        name: baseFileName,
+        path: resolvedFullPath,
+      });
+      setView("CitizensWorkbench");
+      closePalette();
+    },
+    [workbenchPaths, vaultPath, setCwMainTab, setCwSelectedFile, setView, closePalette]
+  );
+
   const allItems = useMemo<CommandItem[]>(() => {
     if (!isOpen) return [];
     const items: CommandItem[] = [];
     const schemaFeatures = activeGameSchema?.features || { has_cc: true, has_saves: true };
     const isWebRootOnly = !isDesktop() && isRootDomain() && !isConfigured;
     const viewsBadge = t("cmd_palette_tab_views", "Views & Hubs");
+    const actionsBadge = t("cmd_palette_tab_actions", "Commands & {Settings}");
     const subsectionDescTemplate = t("cmd_palette_subsection_desc", "Open {0} subsection");
     const makeSubDesc = (parentTitle: string, childTitle: string) =>
       subsectionDescTemplate.replace("{0}", `${parentTitle} › ${childTitle}`);
@@ -321,7 +622,7 @@ export function GlobalCommandPalette({
           badgeLabel: viewsBadge,
           badgeIcon: t("icon_desktop_windows", "desktop_windows"),
           icon: t("icon_desktop_windows", "desktop_windows"),
-          keywords: "dashboard command center home overview status",
+          keywords: "dashboard command center home overview status alerts",
           isActive: view === "dashboard",
           onSelect: () => navigateToView("dashboard"),
         },
@@ -336,20 +637,74 @@ export function GlobalCommandPalette({
           keywords: "vault library mods packages files installed artifacts",
           isActive: view === "vault",
           onSelect: () => navigateToView("vault"),
-        },
-        {
-          id: "view_nexus",
-          category: "views",
-          title: nexusTitle,
-          subtitle: t("nexus_subtitle", "Verified Community {Mods}, {Masons} & {Blueprints}"),
-          badgeLabel: viewsBadge,
-          badgeIcon: t("icon_hub", "hub"),
-          icon: t("icon_hub", "hub"),
-          keywords: "nexus market browse discover download creators masons",
-          isActive: view === "nexus",
-          onSelect: () => navigateToView("nexus"),
         }
       );
+
+      // Your Vault Sub-Tabs
+      const vaultSubsections: { id: string; label: string; icon: string; kw: string }[] = [
+        {
+          id: "OVERVIEW",
+          label: t("tab_overview", "Overview"),
+          icon: t("icon_space_dashboard", "space_dashboard"),
+          kw: "overview recent injections updates vault summary",
+        },
+        {
+          id: "ALL",
+          label: t("filter_all_vault", "Main"),
+          icon: t("icon_inventory_2", "inventory_2"),
+          kw: "main all mods artifacts installed vault",
+        },
+        {
+          id: "EQUIPPED",
+          label: t("filter_equipped", "In {Blueprint}"),
+          icon: t("icon_check_circle", "check_circle"),
+          kw: "equipped active in blueprint playset enabled",
+        },
+        {
+          id: "UNEQUIPPED",
+          label: t("filter_unequipped", "Not Equipped"),
+          icon: t("icon_cancel", "cancel"),
+          kw: "unequipped disabled inactive spare",
+        },
+        {
+          id: "DEV",
+          label: t("filter_dev", "Sandbox"),
+          icon: t("icon_code", "code"),
+          kw: "sandbox dev testing local development",
+        },
+        {
+          id: "ARCHIVES",
+          label: t("filter_archives", "Archives"),
+          icon: t("icon_archive", "archive"),
+          kw: "archives legacy incompatible older versions",
+        },
+      ];
+      for (const sub of vaultSubsections) {
+        items.push({
+          id: `sub_vault_${sub.id}`,
+          category: "views",
+          title: `${vaultTitle} > ${sub.label}`,
+          subtitle: makeSubDesc(vaultTitle, sub.label),
+          badgeLabel: vaultTitle,
+          badgeIcon: t("icon_account_balance", "account_balance"),
+          icon: sub.icon,
+          keywords: `${vaultTitle} ${sub.label} ${sub.kw}`,
+          onSelect: () => navigateToVaultSubTab(sub.id),
+        });
+      }
+
+      items.push({
+        id: "view_nexus",
+        category: "views",
+        title: nexusTitle,
+        subtitle: t("nexus_subtitle", "Verified Community {Mods}, {Masons} & {Blueprints}"),
+        badgeLabel: viewsBadge,
+        badgeIcon: t("icon_hub", "hub"),
+        icon: t("icon_hub", "hub"),
+        keywords: "nexus market browse discover download creators masons",
+        isActive: view === "nexus",
+        onSelect: () => navigateToView("nexus"),
+      });
 
       // The Nexus Subsections
       const nexusSubsections: { id: string; label: string; icon: string; kw: string }[] = [
@@ -437,7 +792,7 @@ export function GlobalCommandPalette({
           badgeLabel: viewsBadge,
           badgeIcon: t("icon_design_services", "design_services"),
           icon: t("icon_design_services", "design_services"),
-          keywords: "workbench config ini json cfg editor monaco diff",
+          keywords: "workbench config ini json cfg editor monaco diff settings",
           isActive: view === "CitizensWorkbench",
           onSelect: () => navigateToView("CitizensWorkbench"),
         }
@@ -446,8 +801,8 @@ export function GlobalCommandPalette({
       // Citizen's Workbench Subsections
       const cwSubsections: { id: "COMMAND" | "CONFIGS" | "TEMPLATES"; label: string; icon: string; kw: string }[] = [
         { id: "COMMAND", label: cleanNavLabel(t("wf_tab_command", "Command"), "Command"), icon: t("icon_desktop_windows", "desktop_windows"), kw: "command overview workbench" },
-        { id: "CONFIGS", label: t("cw_tab_configs", "Configs"), icon: t("icon_tune", "tune"), kw: "configs settings sliders ini json" },
-        { id: "TEMPLATES", label: cleanNavLabel(t("ql_templates", "Templates"), "Templates"), icon: t("icon_data_object", "data_object"), kw: "templates presets defaults" },
+        { id: "CONFIGS", label: t("cw_tab_configs", "Configs"), icon: t("icon_tune", "tune"), kw: "configs settings sliders ini json cfg" },
+        { id: "TEMPLATES", label: cleanNavLabel(t("ql_templates", "Templates"), "Templates"), icon: t("icon_data_object", "data_object"), kw: "templates presets defaults json" },
       ];
       for (const sub of cwSubsections) {
         items.push({
@@ -733,7 +1088,7 @@ export function GlobalCommandPalette({
         label: t("web_directives", "System Directives"),
         subtitle: t("cmd_palette_directives_sub", "Phase Roadmap, {Citizen} Guide & Master Architecture"),
         icon: t("icon_folder_special", "folder_special"),
-        kw: "system directives roadmap citizen guide documentation protocols",
+        kw: "system directives roadmap citizen guide documentation protocols compliance eula",
       },
       {
         id: "support",
@@ -778,7 +1133,7 @@ export function GlobalCommandPalette({
       });
     }
 
-    // Settings / System Preferences & Subsections
+    // Settings / System Preferences & Deep-Link Cards
     const settingsTitle = t("settings", "{Settings}");
     items.push({
       id: "view_settings",
@@ -797,14 +1152,14 @@ export function GlobalCommandPalette({
     });
 
     const settingsSubsections: { id: string; label: string; icon: string; kw: string; desktopOnly?: boolean }[] = [
-      { id: "CORE", label: t("tab_core", "Core"), icon: t("icon_account_circle", "account_circle"), kw: "core account profile paths coordinates vault" },
+      { id: "CORE", label: t("tab_core", "Core"), icon: t("icon_account_circle", "account_circle"), kw: "core account profile paths coordinates vault passkey 2fa webauthn" },
       { id: "SUPPORTER", label: t("tab_supporter", "Supporter & Perks"), icon: t("icon_volunteer_activism", "volunteer_activism"), kw: "supporter perks dev builds donations" },
       { id: "TICKETS", label: t("support_tickets", "Support Tickets"), icon: t("icon_confirmation_number", "confirmation_number"), kw: "support tickets feedback core spoke my tickets" },
-      { id: "ENGINE", label: t("tab_engine", "Engine"), icon: t("icon_history", "history"), kw: "engine retention backups cycles", desktopOnly: true },
-      { id: "CLIENT", label: t("tab_preferences", "Preferences"), icon: t("icon_tune", "tune"), kw: "client preferences interface behavior" },
-      { id: "NOTIFICATIONS", label: t("tab_notifs", "Notifications"), icon: t("icon_notifications", "notifications"), kw: "notifications alerts sounds" },
-      { id: "AESTHETICS", label: t("tab_aesthetics", "Aesthetics"), icon: t("icon_format_paint", "format_paint"), kw: "aesthetics chameleons themes lexicons fonts glass" },
-      { id: "LOGIC", label: t("tab_logic", "Logic Integrity"), icon: t("icon_flag", "flag"), kw: "logic integrity anarchy highlander rules", desktopOnly: true },
+      { id: "ENGINE", label: t("tab_engine", "Engine"), icon: t("icon_history", "history"), kw: "engine retention backups cycles defcon emergency agency", desktopOnly: true },
+      { id: "CLIENT", label: t("tab_preferences", "Preferences"), icon: t("icon_tune", "tune"), kw: "client preferences interface behavior date format browser version history", desktopOnly: false },
+      { id: "NOTIFICATIONS", label: t("tab_notifs", "Notifications"), icon: t("icon_notifications", "notifications"), kw: "notifications alerts sounds defcon lockdown", desktopOnly: false },
+      { id: "AESTHETICS", label: t("tab_aesthetics", "Aesthetics"), icon: t("icon_format_paint", "format_paint"), kw: "aesthetics chameleons themes lexicons fonts glass", desktopOnly: false },
+      { id: "LOGIC", label: t("tab_logic", "Logic Integrity"), icon: t("icon_flag", "flag"), kw: "logic integrity anarchy highlander rules conflicts", desktopOnly: true },
     ];
     for (const sub of settingsSubsections) {
       if (sub.desktopOnly && !isDesktop()) continue;
@@ -821,7 +1176,212 @@ export function GlobalCommandPalette({
       });
     }
 
-    // 2. Blueprints & Vault Mods (Deduplicated & Virtual-Placeholder Filtered)
+    // Individual Settings Deep-Link Cards (including DEFCON Protocol, Retention, Version History, etc.)
+    const deepSettingsCards: {
+      id: string;
+      tab: string;
+      title: string;
+      subtitle: string;
+      icon: string;
+      kw: string;
+      desktopOnly?: boolean;
+    }[] = [
+      {
+        id: "setting_defcon_protocol",
+        tab: "ENGINE",
+        title: t("cmd_palette_defcon_protocol_title", "Emergency Backup Protocol (DEFCON)"),
+        subtitle: t(
+          "cmd_palette_defcon_protocol_sub",
+          "Configure Automatic Pre-Patch Backup Scope & Emergency Agency Level"
+        ),
+        icon: t("icon_shield", "shield"),
+        kw: "defcon emergency backup target level protocol pre-patch snapshot lockdown engine agency",
+        desktopOnly: true,
+      },
+      {
+        id: "setting_engine_agency",
+        tab: "ENGINE",
+        title: t("engine_agency", "Emergency Level"),
+        subtitle: t("agency_full_desc", "Automatic backups & protection."),
+        icon: t("icon_tune", "tune"),
+        kw: "defcon level emergency agency full auto semi manual backup protection",
+        desktopOnly: true,
+      },
+      {
+        id: "setting_backup_retention",
+        tab: "ENGINE",
+        title: `${t("vault_capacity", "{Backups} Limit")} & ${t("game_retention", "Game Files Retention")}`,
+        subtitle: t("version_storage_limit", "Version Storage Limit"),
+        icon: t("icon_storage", "storage"),
+        kw: "backups limit retention saves storage capacity version copies days",
+        desktopOnly: true,
+      },
+      {
+        id: "setting_version_history",
+        tab: "CLIENT",
+        title: t("version_pool_auto_archive", "Version History System"),
+        subtitle: t(
+          "version_pool_auto_archive_desc",
+          "When enabled, keeps multiple {mod} versions for rollback and auto-swapping. When disabled, keeps only one version."
+        ),
+        icon: t("icon_history", "history"),
+        kw: "version history system archive legacy versions rollback auto swap",
+        desktopOnly: true,
+      },
+      {
+        id: "setting_ingest_mode",
+        tab: "CLIENT",
+        title: t("settings_ingest_file_mode_title", "Drag & Drop File Behavior"),
+        subtitle: t(
+          "settings_ingest_file_mode_desc",
+          "Choose whether dragged and dropped {mod} files and archives are copied into your {Vault} or moved."
+        ),
+        icon: t("icon_drive_file_move", "drive_file_move"),
+        kw: "drag drop file behavior payload intake copy move import",
+      },
+      {
+        id: "setting_date_format",
+        tab: "CLIENT",
+        title: t("settings_date_format_title", "Date Format"),
+        subtitle: t(
+          "settings_date_format_desc",
+          "Choose how dates are displayed on Comm-Link posts, dispatches, release notes, and records across the OS."
+        ),
+        icon: t("icon_calendar_month", "calendar_month"),
+        kw: "date format calendar mm dd yyyy iso",
+      },
+      {
+        id: "setting_internal_browser",
+        tab: "CLIENT",
+        title: t("settings_use_internal_browser", "Use the Sanctuary Browser"),
+        subtitle: t(
+          "use_internal_browser_desc",
+          "Use Sanctuary's built-in web browser for supported {Mod} download pages."
+        ),
+        icon: t("icon_language", "language"),
+        kw: "sanctuary browser internal web download external",
+        desktopOnly: true,
+      },
+      {
+        id: "setting_local_only",
+        tab: "CLIENT",
+        title: t("local_only", "Local Network Only"),
+        subtitle: t("local_only_desc", "Block external uploads/downloads. Strict offline mode."),
+        icon: t("icon_wifi_off", "wifi_off"),
+        kw: "local network only offline mode privacy block external",
+      },
+      {
+        id: "setting_malware_share",
+        tab: "CLIENT",
+        title: t("malware_share_title", "Share Malware Reports"),
+        subtitle: t(
+          "malware_share_desc",
+          "Send your local quarantine manifests to the Admins for analysis and malware activity updates."
+        ),
+        icon: t("icon_security", "security"),
+        kw: "share malware reports quarantine security telemetry",
+      },
+      {
+        id: "setting_defcon_notifs",
+        tab: "NOTIFICATIONS",
+        title: t("notify_defcon_title", "DEFCON Lockdown Alerts"),
+        subtitle: t("tab_notifs", "Notifications"),
+        icon: t("icon_notifications_active", "notifications_active"),
+        kw: "defcon lockdown alerts notifications patch detected emergency",
+      },
+      {
+        id: "setting_anarchy_highlander",
+        tab: "LOGIC",
+        title: t("tab_logic", "Logic Integrity"),
+        subtitle: makeSubDesc(settingsTitle, t("tab_logic", "Logic Integrity")),
+        icon: t("icon_flag", "flag"),
+        kw: "anarchy highlander logic integrity conflict rules override",
+        desktopOnly: true,
+      },
+    ];
+
+    for (const card of deepSettingsCards) {
+      if (card.desktopOnly && !isDesktop()) continue;
+      items.push({
+        id: card.id,
+        category: "actions",
+        title: card.title,
+        subtitle: card.subtitle,
+        badgeLabel: settingsTitle,
+        badgeIcon: t("icon_settings", "settings"),
+        icon: card.icon,
+        keywords: `${settingsTitle} ${card.title} ${card.kw}`,
+        onSelect: () => navigateToSettingsTab(card.tab),
+      });
+    }
+
+    // 2. Verified & Local Masons (Profile Viewing)
+    const seenMasonIds = new Set<string>();
+    const seenMasonNames = new Set<string>();
+    const combinedMasons: { id: string; name: string; bio?: string; isVerified?: boolean }[] = [];
+
+    for (const m of masonsRegistry) {
+      const mId = String(m?.id || "").trim();
+      const mName = String(m?.name || "").trim();
+      if (!mId || !mName || seenMasonIds.has(mId)) continue;
+      seenMasonIds.add(mId);
+      seenMasonNames.add(mName.toLowerCase());
+      combinedMasons.push({
+        id: mId,
+        name: mName,
+        bio: String(m?.bio || ""),
+        isVerified: Boolean(m?.is_verified),
+      });
+    }
+
+    // Also discover any mason_id + author pairs from modList
+    for (const mod of modList || []) {
+      const mId = String((mod as any)?.mason_id || "").trim();
+      const authorName = String(mod?.author || "").trim();
+      if (
+        mId &&
+        authorName &&
+        authorName.toLowerCase() !== "unknown" &&
+        !seenMasonIds.has(mId) &&
+        !seenMasonNames.has(authorName.toLowerCase())
+      ) {
+        seenMasonIds.add(mId);
+        seenMasonNames.add(authorName.toLowerCase());
+        combinedMasons.push({
+          id: mId,
+          name: authorName,
+          isVerified: true,
+        });
+      }
+    }
+
+    for (const mason of combinedMasons) {
+      items.push({
+        id: `mason_profile_${mason.id}`,
+        category: "vault",
+        title: `${mason.name} — ${t("term_mason", "{Mason}")}`,
+        subtitle:
+          mason.bio && mason.bio.trim().length > 0
+            ? mason.bio
+            : t("cmd_palette_mason_profile_sub", "Verified {Mason} Profile, Published {Mods} & {Blueprints}"),
+        badgeLabel: t("term_mason", "{Mason}"),
+        badgeIcon: t("icon_verified", "verified"),
+        badgeColorVar: "var(--accent)",
+        icon: t("icon_engineering", "engineering"),
+        keywords: `mason creator author profile ${mason.name}`,
+        onSelect: () => {
+          if (onOpenMasonProfile) {
+            onOpenMasonProfile(mason.id);
+          } else {
+            setMarketTab("MASONS");
+            setView("nexus");
+          }
+          closePalette();
+        },
+      });
+    }
+
+    // 3. Blueprints & Vault Mods (Including Suites, Collections & Config Files Routed to Workbench)
     const seenBlueprintNames = new Set<string>();
     for (const ps of playSets || []) {
       const setName = String(ps?.name || "").trim();
@@ -857,30 +1417,66 @@ export function GlobalCommandPalette({
       });
     }
 
+    const seenConfigFiles = new Set<string>();
     const seenModKeys = new Set<string>();
+
     for (const mod of modList || []) {
-      if (!mod || mod.isVirtual || mod.isCollection) continue;
+      if (!mod) continue;
       const rawName = String(mod?.name || "").trim();
       if (
         !rawName ||
-        rawName.startsWith("FOLDER_") ||
-        rawName.startsWith("SET_") ||
         rawName.startsWith("LOCAL_SET_") ||
         String(mod?.hash || "").startsWith("local_set_")
       ) {
         continue;
       }
-      const displayName = String(mod?.displayName || rawName.split(/[\\/]/).pop() || rawName).trim();
+
+      const displayName = String(
+        mod?.displayName || (mod as any)?.meta_name || rawName.split(/[\\/]/).pop() || rawName
+      ).trim();
       if (!displayName || seenBlueprintNames.has(displayName.toLowerCase())) continue;
 
-      const dedupeKey = `${displayName.toLowerCase()}__${String(mod?.author || "").toLowerCase()}`;
+      const cleanFile = (rawName.split(/[\\/]/).pop() || rawName).toLowerCase();
+      const cleanBaseName = cleanFile.replace(/\.[^.]+$/, "");
+      const author = String(mod?.author || t("unknown", "Unknown"));
+      const category = String(mod?.category || mod?.type || t("term_mod", "{Mod}"));
+
+      // Check if this entry is a Settings / Config / Template file that belongs in Citizen's Workbench
+      const isConfigFile =
+        CONFIG_EXTENSIONS_REGEX.test(rawName) ||
+        CONFIG_EXTENSIONS_REGEX.test(String(mod?.type || "")) ||
+        category.toLowerCase() === "configuration" ||
+        /^mc[\s_]*settings$/i.test(displayName);
+
+      if (isConfigFile) {
+        seenConfigFiles.add(cleanFile);
+        const dedupeCfgKey = `cfg__${displayName.toLowerCase()}`;
+        if (seenModKeys.has(dedupeCfgKey)) continue;
+        seenModKeys.add(dedupeCfgKey);
+
+        items.push({
+          id: `cfg_mod_${mod.hash || rawName}`,
+          category: "vault",
+          title: displayName,
+          subtitle: `${t("cmd_palette_open_in_workbench", "Open in {Citizen}'s Workbench")} • ${cleanFile}`,
+          badgeLabel: t("cw_tab_configs", "Configs"),
+          badgeIcon: t("icon_tune", "tune"),
+          badgeColorVar: "var(--accent)",
+          icon: t("icon_design_services", "design_services"),
+          keywords: `${displayName} ${cleanFile} ${cleanBaseName} config settings workbench ini cfg json`,
+          onSelect: () => {
+            openConfigInWorkbench((mod as any)?.physical_path || rawName, displayName);
+          },
+        });
+        continue;
+      }
+
+      const dedupeKey = `${displayName.toLowerCase()}__${author.toLowerCase()}__${Boolean(
+        mod.isVirtual || mod.isCollection
+      )}`;
       if (seenModKeys.has(dedupeKey)) continue;
       seenModKeys.add(dedupeKey);
 
-      const author = String(mod?.author || t("unknown", "Unknown"));
-      const category = String(mod?.category || mod?.type || t("term_mod", "{Mod}"));
-      const cleanFile = (rawName.split(/[\\/]/).pop() || rawName).toLowerCase();
-      const cleanBaseName = cleanFile.replace(/\.[^.]+$/, "");
       const inBlueprint = activeBlueprintModsSet.has(cleanFile);
       const modIcon = getModIcon(mod, activeGameSchema, t);
       const rawVer = String(mod?.version || "").trim();
@@ -891,12 +1487,23 @@ export function GlobalCommandPalette({
         ? ` • ${/^v/i.test(rawVer) ? rawVer : `v${rawVer}`}`
         : ` • ${t("unknown", "Unknown")}`;
 
+      const isSuiteOrCollection = Boolean(mod.isVirtual || mod.isCollection);
+      const matchedMason = combinedMasons.find(
+        (m) =>
+          (mod as any)?.mason_id === m.id ||
+          (author && m.name.toLowerCase() === author.toLowerCase())
+      );
+
       items.push({
         id: `mod_${mod.hash || rawName}`,
         category: "vault",
         title: displayName,
-        subtitle: `${author} • ${category}${formattedVer}`,
-        badgeLabel: inBlueprint ? t("in_set", "In {Blueprint}") : t("term_mod", "{Mod}"),
+        subtitle: `${author} • ${isSuiteOrCollection ? t("tab_cc", "Collections") : category}${formattedVer}`,
+        badgeLabel: inBlueprint
+          ? t("in_set", "In {Blueprint}")
+          : isSuiteOrCollection
+            ? t("tab_cc", "Collections")
+            : t("term_mod", "{Mod}"),
         badgeIcon: inBlueprint ? t("icon_check_circle", "check_circle") : modIcon,
         badgeColorVar: inBlueprint ? "var(--success)" : "var(--accent)",
         icon: modIcon,
@@ -906,20 +1513,80 @@ export function GlobalCommandPalette({
           onInspectMod(mod);
           closePalette();
         },
-        secondaryAction: {
-          label: t("cmd_palette_toggle_in_blueprint", "Toggle in {Blueprint}"),
-          icon: inBlueprint ? t("icon_check_circle", "check_circle") : t("icon_add_circle", "add_circle"),
-          isActive: inBlueprint,
-          onClick: (e) => {
-            e.stopPropagation();
-            onToggleModInBlueprint(mod);
-          },
+        secondaryAction: matchedMason && onOpenMasonProfile
+          ? {
+              label: t("cmd_palette_view_mason_profile", "View {Mason} Profile"),
+              icon: t("icon_verified", "verified"),
+              isActive: false,
+              onClick: (e) => {
+                e.stopPropagation();
+                onOpenMasonProfile(matchedMason.id);
+                closePalette();
+              },
+            }
+          : {
+              label: t("cmd_palette_toggle_in_blueprint", "Toggle in {Blueprint}"),
+              icon: inBlueprint
+                ? t("icon_check_circle", "check_circle")
+                : t("icon_add_circle", "add_circle"),
+              isActive: inBlueprint,
+              onClick: (e) => {
+                e.stopPropagation();
+                onToggleModInBlueprint(mod);
+              },
+            },
+      });
+    }
+
+    // Also index any additional Workbench config/template files discovered on disk
+    for (const wbPath of workbenchPaths) {
+      const norm = String(wbPath || "").replace(/\\/g, "/");
+      const fileName = norm.split("/").pop() || norm;
+      const lowerFile = fileName.toLowerCase();
+      if (!fileName || seenConfigFiles.has(lowerFile)) continue;
+      seenConfigFiles.add(lowerFile);
+
+      const prettyTitle = fileName
+        .replace(/\.[^.]+$/, "")
+        .replace(/[_-]+/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+
+      items.push({
+        id: `wb_file_${norm}`,
+        category: "vault",
+        title: prettyTitle,
+        subtitle: `${t("cmd_palette_open_in_workbench", "Open in {Citizen}'s Workbench")} • ${fileName}`,
+        badgeLabel: lowerFile.endsWith(".json")
+          ? cleanNavLabel(t("ql_templates", "Templates"), "Templates")
+          : t("cw_tab_configs", "Configs"),
+        badgeIcon: t("icon_tune", "tune"),
+        badgeColorVar: "var(--accent)",
+        icon: t("icon_design_services", "design_services"),
+        keywords: `${prettyTitle} ${fileName} config settings workbench ini cfg json`,
+        onSelect: () => {
+          openConfigInWorkbench(wbPath, prettyTitle);
         },
       });
     }
 
-    // 3. Quick Actions, Chameleon Themes & Lexicons
-    const actionsBadge = t("cmd_palette_tab_actions", "Commands & {Settings}");
+    // 4. Quick Actions, DEFCON Lockdown, Version History, Hotkeys & Controller Mapping
+    items.push({
+      id: "action_controls_mapping",
+      category: "actions",
+      title: t("cmd_palette_controls_title", "Hotkeys & Controller Mapping"),
+      subtitle: t(
+        "cmd_palette_controls_sub",
+        "Customize Keyboard Shortcuts & Gamepad / Steam Deck Input Bindings"
+      ),
+      badgeLabel: actionsBadge,
+      badgeIcon: t("icon_sports_esports", "sports_esports"),
+      icon: t("icon_sports_esports", "sports_esports"),
+      keywords: "hotkeys shortcuts keybinds controller gamepad steam deck input mapping buttons",
+      onSelect: () => {
+        setIsControlsOpen(true);
+      },
+    });
+
     if (isDesktop()) {
       items.push(
         {
@@ -938,6 +1605,79 @@ export function GlobalCommandPalette({
           keywords: "launch play start game execute ignition",
           onSelect: () => {
             onQuickLaunch();
+            closePalette();
+          },
+        },
+        {
+          id: "action_lockdown_vault",
+          category: "actions",
+          title: shelterActive
+            ? cleanNavLabel(t("btn_reclaim", "Reclaim {Vault}"), "Reclaim {Vault}")
+            : cleanNavLabel(t("btn_lockdown", "Lockdown {Vault}"), "Lockdown {Vault}"),
+          subtitle: shelterActive
+            ? t("btn_bunker_unlock_desc", "Disable Defensive Process")
+            : t(
+                "cmd_palette_lockdown_vault_sub",
+                "Remove All Symlinks & Clean Game Folder (Safe Mode Shelter)"
+              ),
+          badgeLabel: actionsBadge,
+          badgeIcon: shelterActive
+            ? t("icon_lock", "lock")
+            : t("icon_lock_open", "lock_open"),
+          badgeColorVar: shelterActive ? "var(--warning)" : "var(--accent)",
+          icon: shelterActive
+            ? t("icon_lock", "lock")
+            : t("icon_lock_open", "lock_open"),
+          keywords:
+            "lockdown vault reclaim shelter remove all symlinks clean game folder unequip defensive process bunker safe mode",
+          isActive: Boolean(shelterActive),
+          onSelect: () => {
+            if (onTriggerShelter) {
+              onTriggerShelter(!shelterActive);
+            }
+            closePalette();
+          },
+        },
+        {
+          id: "action_defcon_alert",
+          category: "actions",
+          title: t("cmd_palette_defcon_alert_title", "Emergency Lockdown & Malware Shield (DEFCON)"),
+          subtitle: t(
+            "cmd_palette_defcon_alert_sub",
+            "Inspect Active Security Alerts, Patch Lockdown & Quarantine Shield"
+          ),
+          badgeLabel: actionsBadge,
+          badgeIcon: t("icon_gpp_maybe", "gpp_maybe"),
+          badgeColorVar: "var(--danger)",
+          icon: t("icon_gpp_maybe", "gpp_maybe"),
+          iconColorClass: "text-[var(--danger)]",
+          keywords: "defcon lockdown alert malware security emergency patch shield quarantine",
+          onSelect: () => {
+            if (onOpenDefcon) {
+              onOpenDefcon();
+            } else {
+              useModalStore.getState().setShowDefconAlert(true);
+            }
+            closePalette();
+          },
+        },
+        {
+          id: "action_version_history_drawer",
+          category: "actions",
+          title: t("cmd_palette_version_history_title", "{Mod} Version History"),
+          subtitle: t(
+            "cmd_palette_version_history_sub",
+            "Manage Stored {Mod} Versions, Rollbacks & Automatic Version Routing"
+          ),
+          badgeLabel: actionsBadge,
+          badgeIcon: t("icon_history", "history"),
+          icon: t("icon_history", "history"),
+          keywords: "mod version history rollback archive legacy versions auto swap revisions",
+          onSelect: () => {
+            setView("vault");
+            window.setTimeout(() => {
+              window.dispatchEvent(new CustomEvent("sanctuary-open-version-pool"));
+            }, 50);
             closePalette();
           },
         },
@@ -1003,7 +1743,7 @@ export function GlobalCommandPalette({
           badgeLabel: t("term_backups", "{Backups}"),
           badgeIcon: t("icon_history", "history"),
           icon: t("icon_history", "history"),
-          keywords: "pre-patch snapshot backup update emergency",
+          keywords: "pre-patch snapshot backup update emergency defcon",
           onSelect: () => {
             onTriggerPrePatchSnapshot();
             closePalette();
@@ -1012,7 +1752,231 @@ export function GlobalCommandPalette({
       );
     }
 
+    const panelBadge = t("cmd_palette_panel_badge", "Side Panel");
+    const openCcPanel = (panelName: string) => {
+      setView("dashboard");
+      window.setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("sanctuary-open-cc-panel", { detail: { panel: panelName } })
+        );
+      }, 45);
+      closePalette();
+    };
+
     items.push(
+      {
+        id: "panel_critical_failures",
+        category: "actions",
+        title: cleanNavLabel(t("crit_fail", "Critical Failures"), "Critical Failures"),
+        subtitle: t(
+          "cmd_palette_panel_critical_sub",
+          "Open Critical Failures & Fatal Conflicts Diagnostic Panel"
+        ),
+        badgeLabel: panelBadge,
+        badgeIcon: t("icon_gpp_bad", "gpp_bad"),
+        badgeColorVar: "var(--danger)",
+        icon: t("icon_gpp_bad", "gpp_bad"),
+        iconColorClass: "text-[var(--danger)]",
+        keywords: "critical failures fatal conflicts broken mods command center panel drawer",
+        onSelect: () => openCcPanel("critical"),
+      },
+      {
+        id: "panel_system_alerts",
+        category: "actions",
+        title: t("system_alerts_title", "System Alerts"),
+        subtitle: t(
+          "cmd_palette_panel_alerts_sub",
+          "Open System Alerts & Tuning Overlaps Diagnostic Panel"
+        ),
+        badgeLabel: panelBadge,
+        badgeIcon: t("icon_warning_amber", "warning_amber"),
+        badgeColorVar: "var(--warning)",
+        icon: t("icon_warning_amber", "warning_amber"),
+        iconColorClass: "text-[var(--warning)]",
+        keywords: "system alerts tuning conflicts unstable mods command center panel drawer",
+        onSelect: () => openCcPanel("alert"),
+      },
+      {
+        id: "panel_updates_available",
+        category: "actions",
+        title: t("updates_avail", "Updates Available"),
+        subtitle: t(
+          "cmd_palette_panel_updates_sub",
+          "Open Available {Mod} Updates & Guided Batch Updater Panel"
+        ),
+        badgeLabel: panelBadge,
+        badgeIcon: t("icon_update", "update"),
+        badgeColorVar: "var(--accent)",
+        icon: t("icon_update", "update"),
+        keywords: "updates available mod updates guided batch updater panel drawer",
+        onSelect: () => {
+          useModalStore.getState().setShowUpdatesModal(true);
+          closePalette();
+        },
+      },
+      {
+        id: "panel_conflict_radar",
+        category: "actions",
+        title: `${t("radar_title", "Conflict Radar")} — ${panelBadge}`,
+        subtitle: t(
+          "cmd_palette_panel_radar_sub",
+          "Open Active {Blueprint} Conflict Radar Summary Panel"
+        ),
+        badgeLabel: panelBadge,
+        badgeIcon: t("icon_track_changes", "track_changes"),
+        icon: t("icon_track_changes", "track_changes"),
+        keywords: "conflict radar panel summary collisions overlaps command center drawer",
+        onSelect: () => {
+          useModalStore.getState().setIsConflictRadarOpen(true);
+          closePalette();
+        },
+      },
+      {
+        id: "panel_quarantine_malware",
+        category: "actions",
+        title: t("quarantine_title", "Malware & Quarantine"),
+        subtitle: t(
+          "cmd_palette_panel_quarantine_sub",
+          "Open Malware Quarantine & Security Isolation Panel"
+        ),
+        badgeLabel: panelBadge,
+        badgeIcon: t("icon_coronavirus", "coronavirus"),
+        badgeColorVar: "var(--danger)",
+        icon: t("icon_coronavirus", "coronavirus"),
+        iconColorClass: "text-[var(--danger)]",
+        keywords: "malware alert quarantine panel threats isolation security drawer",
+        onSelect: () => {
+          useModalStore.getState().setShowQuarantineModal(true);
+          closePalette();
+        },
+      },
+      {
+        id: "panel_broken_mods",
+        category: "actions",
+        title: t("incompatible_mods", "Incompatible & Broken {Mods}"),
+        subtitle: t(
+          "cmd_palette_panel_broken_sub",
+          "Open Broken, Corrupted & Incompatible {Mods} Panel"
+        ),
+        badgeLabel: panelBadge,
+        badgeIcon: t("icon_broken_image", "broken_image"),
+        badgeColorVar: "var(--danger)",
+        icon: t("icon_broken_image", "broken_image"),
+        keywords: "broken incompatible obsolete corrupted mods panel drawer",
+        onSelect: () => {
+          useModalStore.getState().setShowBrokenModal(true);
+          closePalette();
+        },
+      },
+      {
+        id: "panel_blueprint_swap",
+        category: "actions",
+        title: `${t("playsets_title", "{Blueprints}")} — ${panelBadge}`,
+        subtitle: t(
+          "cmd_palette_panel_blueprints_sub",
+          "Open Quick {Blueprint} Switcher & Deployment Panel"
+        ),
+        badgeLabel: panelBadge,
+        badgeIcon: t("icon_map", "map"),
+        icon: t("icon_map", "map"),
+        keywords: "blueprints playsets swap switch quick selector panel drawer",
+        onSelect: () => {
+          useModalStore.getState().setIsBlueprintSwapOpen(true);
+          closePalette();
+        },
+      },
+      {
+        id: "panel_active_workspaces",
+        category: "actions",
+        title: `${t("landing_workspaces", "Active Workspaces")} — ${panelBadge}`,
+        subtitle: t(
+          "cmd_palette_panel_workspaces_sub",
+          "Open Active Game Workspaces & Spoke Switcher Panel"
+        ),
+        badgeLabel: panelBadge,
+        badgeIcon: t("icon_public", "public"),
+        icon: t("icon_public", "public"),
+        keywords: "active workspaces game switcher spoke panel drawer",
+        onSelect: () => {
+          window.dispatchEvent(
+            new CustomEvent("sanctuary-tour-workspace-panel", { detail: { open: true } })
+          );
+          closePalette();
+        },
+      },
+      {
+        id: "panel_sanctuary_broadcasts",
+        category: "actions",
+        title: t("title_sanctuary_alerts", "Sanctuary Alerts"),
+        subtitle: t(
+          "cmd_palette_panel_broadcasts_sub",
+          "Open Official Sanctuary Broadcasts & Urgent Alerts Panel"
+        ),
+        badgeLabel: panelBadge,
+        badgeIcon: t("icon_campaign", "campaign"),
+        badgeColorVar: "var(--warning)",
+        icon: t("icon_campaign", "campaign"),
+        keywords: "sanctuary alerts broadcasts urgent announcements command center panel drawer",
+        onSelect: () => openCcPanel("broadcasts"),
+      },
+      {
+        id: "panel_audit_logs",
+        category: "actions",
+        title: t("audit_logs", "Audit Logs"),
+        subtitle: t("audit_logs_desc", "System modification history"),
+        badgeLabel: panelBadge,
+        badgeIcon: t("icon_history", "history"),
+        icon: t("icon_history", "history"),
+        keywords: "audit logs history modification command center panel drawer",
+        onSelect: () => openCcPanel("audit_logs"),
+      },
+      {
+        id: "panel_support_perks",
+        category: "actions",
+        title: t("cmd_quick_support_title", "Support & Perks (0% Fee)"),
+        subtitle: t(
+          "cmd_quick_support_desc",
+          "Support this community & unlock Global Daily Dev Builds"
+        ),
+        badgeLabel: panelBadge,
+        badgeIcon: t("icon_volunteer_activism", "volunteer_activism"),
+        badgeColorVar: "var(--success)",
+        icon: t("icon_volunteer_activism", "volunteer_activism"),
+        keywords: "support perks donations dev builds panel drawer",
+        onSelect: () => openCcPanel("support_perks"),
+      },
+      {
+        id: "panel_submit_ticket",
+        category: "actions",
+        title: t("support_title", "Submit A Ticket"),
+        subtitle: t("btn_submit_ticket_desc", "Open Sanctuary Support System"),
+        badgeLabel: panelBadge,
+        badgeIcon: t("icon_local_activity", "local_activity"),
+        icon: t("icon_local_activity", "local_activity"),
+        keywords: "submit ticket support help report issue panel drawer",
+        onSelect: () => {
+          useModalStore.getState().setIsSupportPanelOpen(true);
+          closePalette();
+        },
+      },
+      {
+        id: "panel_my_tickets",
+        category: "actions",
+        title: t("support_tickets", "Support Tickets"),
+        subtitle: t("sidebar_support", "Sanctuary Support"),
+        badgeLabel: panelBadge,
+        badgeIcon: t("icon_confirmation_number", "confirmation_number"),
+        icon: t("icon_confirmation_number", "confirmation_number"),
+        keywords: "my support tickets inbox replies citizen tickets panel drawer",
+        onSelect: () => {
+          if (onOpenCitizenTickets) {
+            onOpenCitizenTickets();
+          } else {
+            useModalStore.getState().setIsSupportPanelOpen(true);
+          }
+          closePalette();
+        },
+      },
       {
         id: "action_notifications",
         category: "actions",
@@ -1059,6 +2023,19 @@ export function GlobalCommandPalette({
         onSelect: () => {
           useModalStore.getState().setIsLogExpanded(true);
           closePalette();
+        },
+      },
+      {
+        id: "action_screenshot_tour",
+        category: "actions",
+        title: t("landing_tour_btn", "Interactive Tour"),
+        subtitle: t("landing_subtitle", "Sanctuary OS Hub Overview & Pinned Workspaces"),
+        badgeLabel: actionsBadge,
+        badgeIcon: t("icon_photo_camera", "photo_camera"),
+        icon: t("icon_photo_camera", "photo_camera"),
+        keywords: "tour screenshots walkthrough optical capture preview",
+        onSelect: () => {
+          navigateToLandingTab("overview");
         },
       }
     );
@@ -1153,6 +2130,8 @@ export function GlobalCommandPalette({
     playSets,
     activeSetName,
     activeBlueprintModsSet,
+    masonsRegistry,
+    workbenchPaths,
     userRole,
     osRole,
     isConfigured,
@@ -1182,6 +2161,8 @@ export function GlobalCommandPalette({
     navigateToView,
     navigateToLandingTab,
     navigateToSettingsTab,
+    navigateToVaultSubTab,
+    openConfigInWorkbench,
     onEquipBlueprint,
     onInspectMod,
     onToggleModInBlueprint,
@@ -1191,6 +2172,12 @@ export function GlobalCommandPalette({
     onTriggerFullBackup,
     onTriggerPrePatchSnapshot,
     onOpenNotifications,
+    onOpenMasonProfile,
+    onOpenDefcon,
+    onTriggerShelter,
+    onOpenCitizenTickets,
+    shelterActive,
+    setView,
     closePalette,
   ]);
 
@@ -1232,6 +2219,169 @@ export function GlobalCommandPalette({
     }
   }, [selectedIndex]);
 
+  // Web Gamepad API Polling (Steam Deck & Controller Support)
+  const prevPadButtonsRef = useRef<boolean[]>([]);
+  const lastStickMoveRef = useRef<number>(0);
+
+  useEffect(() => {
+    const checkGamepadCombo = (pressedIndices: number[], targetCombo: string): boolean => {
+      if (!targetCombo) return false;
+      const required = targetCombo
+        .split("+")
+        .map((s) => Number(s.trim()))
+        .filter((n) => !Number.isNaN(n));
+      if (required.length === 0) return false;
+      return required.every((idx) => pressedIndices.includes(idx));
+    };
+
+    const interval = window.setInterval(() => {
+      if (typeof navigator === "undefined" || typeof navigator.getGamepads !== "function") return;
+      const pads = navigator.getGamepads();
+      const pad = Array.from(pads || []).find((p) => p && p.connected);
+
+      if (!pad) {
+        if (connectedGamepadName !== null) setConnectedGamepadName(null);
+        prevPadButtonsRef.current = [];
+        return;
+      }
+
+      if (connectedGamepadName !== pad.id) {
+        setConnectedGamepadName(pad.id);
+      }
+
+      const currButtons = pad.buttons.map((b) => Boolean(b?.pressed));
+      const prevButtons = prevPadButtonsRef.current;
+      const pressedIndices: number[] = [];
+      const newlyPressedIndices: number[] = [];
+
+      currButtons.forEach((isDown, idx) => {
+        if (isDown) {
+          pressedIndices.push(idx);
+          if (!prevButtons[idx]) {
+            newlyPressedIndices.push(idx);
+          }
+        }
+      });
+
+      prevPadButtonsRef.current = currButtons;
+
+      // Recording controller button/chord
+      if (recordingPadField) {
+        if (newlyPressedIndices.length > 0 && pressedIndices.length > 0) {
+          const comboStr = pressedIndices.slice(0, 2).sort((a, b) => a - b).join("+");
+          updateControllerBindings({
+            ...controllerBindings,
+            [recordingPadField]: comboStr,
+          });
+          setRecordingPadField(null);
+        }
+        return;
+      }
+
+      // Check Toggle Palette chord/button when at least one button in the combo is newly pressed
+      if (
+        newlyPressedIndices.length > 0 &&
+        checkGamepadCombo(pressedIndices, controllerBindings.togglePalette)
+      ) {
+        setIsOpen((prev) => {
+          const next = !prev;
+          if (next) {
+            setSelectedIndex(0);
+          } else {
+            setIsControlsOpen(false);
+          }
+          return next;
+        });
+        return;
+      }
+
+      if (!isOpen) return;
+
+      // Inside open Command Matrix: D-Pad & Left Stick navigation
+      const now = Date.now();
+      const stickY = pad.axes?.[1] ?? 0;
+      const stickX = pad.axes?.[0] ?? 0;
+
+      const moveDown =
+        newlyPressedIndices.includes(13) ||
+        (stickY > 0.55 && now - lastStickMoveRef.current > 190);
+      const moveUp =
+        newlyPressedIndices.includes(12) ||
+        (stickY < -0.55 && now - lastStickMoveRef.current > 190);
+      const moveRight =
+        newlyPressedIndices.includes(15) ||
+        (stickX > 0.55 && now - lastStickMoveRef.current > 190);
+      const moveLeft =
+        newlyPressedIndices.includes(14) ||
+        (stickX < -0.55 && now - lastStickMoveRef.current > 190);
+
+      if ((moveDown || moveUp || moveRight || moveLeft) && filteredItems.length > 0) {
+        lastStickMoveRef.current = now;
+        setSelectedIndex((prev) => {
+          if (moveDown || moveRight) return (prev + 1) % filteredItems.length;
+          return (prev - 1 + filteredItems.length) % filteredItems.length;
+        });
+        return;
+      }
+
+      if (newlyPressedIndices.length === 0) return;
+
+      // Close / Back
+      if (checkGamepadCombo(pressedIndices, controllerBindings.closePalette)) {
+        if (isControlsOpen) {
+          setIsControlsOpen(false);
+        } else {
+          closePalette();
+        }
+        return;
+      }
+
+      // Next Tab
+      if (checkGamepadCombo(pressedIndices, controllerBindings.nextTab)) {
+        const order: CommandCategory[] = ["all", "views", "vault", "actions"];
+        setActiveTab((prev) => order[(order.indexOf(prev) + 1) % order.length]);
+        return;
+      }
+
+      // Previous Tab
+      if (checkGamepadCombo(pressedIndices, controllerBindings.prevTab)) {
+        const order: CommandCategory[] = ["all", "views", "vault", "actions"];
+        setActiveTab((prev) => order[(order.indexOf(prev) - 1 + order.length) % order.length]);
+        return;
+      }
+
+      // Execute Item
+      if (!isControlsOpen && checkGamepadCombo(pressedIndices, controllerBindings.executeItem)) {
+        const target = filteredItems[selectedIndex];
+        if (target) target.onSelect();
+        return;
+      }
+
+      // Secondary Action
+      if (
+        !isControlsOpen &&
+        checkGamepadCombo(pressedIndices, controllerBindings.secondaryAction)
+      ) {
+        const target = filteredItems[selectedIndex];
+        if (target?.secondaryAction) {
+          target.secondaryAction.onClick({ stopPropagation: () => {} } as React.MouseEvent);
+        }
+      }
+    }, 55);
+
+    return () => window.clearInterval(interval);
+  }, [
+    isOpen,
+    isControlsOpen,
+    connectedGamepadName,
+    recordingPadField,
+    controllerBindings,
+    updateControllerBindings,
+    filteredItems,
+    selectedIndex,
+    closePalette,
+  ]);
+
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -1259,9 +2409,69 @@ export function GlobalCommandPalette({
       setActiveTab(order[nextIdx]);
     } else if (e.key === "Escape") {
       e.preventDefault();
-      closePalette();
+      if (isControlsOpen) {
+        setIsControlsOpen(false);
+      } else {
+        closePalette();
+      }
     }
   };
+
+  const hotkeyRows: { key: keyof CommandHotkeyMap; label: string; icon: string }[] = [
+    {
+      key: "togglePalette",
+      label: t("cmd_palette_hk_toggle", "Toggle Command Palette"),
+      icon: t("icon_terminal", "terminal"),
+    },
+    {
+      key: "quickLaunch",
+      label: t("cmd_palette_hk_launch", "Quick Launch Game"),
+      icon: t("icon_rocket_launch", "rocket_launch"),
+    },
+    {
+      key: "radarSweep",
+      label: t("cmd_palette_hk_radar", "Run Conflict Radar Sweep"),
+      icon: t("icon_radar", "radar"),
+    },
+    {
+      key: "openDropzone",
+      label: t("cmd_palette_hk_dropzone", "Open {Vault} Dropzone"),
+      icon: t("icon_upload_file", "upload_file"),
+    },
+  ];
+
+  const controllerRows: { key: keyof ControllerBindingMap; label: string; icon: string }[] = [
+    {
+      key: "togglePalette",
+      label: t("cmd_palette_pad_toggle", "Toggle Command Palette (Chord / Button)"),
+      icon: t("icon_sports_esports", "sports_esports"),
+    },
+    {
+      key: "executeItem",
+      label: t("cmd_palette_pad_execute", "Execute / Select Item"),
+      icon: t("icon_keyboard_return", "keyboard_return"),
+    },
+    {
+      key: "secondaryAction",
+      label: t("cmd_palette_pad_secondary", "Secondary Action (Toggle in {Blueprint})"),
+      icon: t("icon_add_circle", "add_circle"),
+    },
+    {
+      key: "nextTab",
+      label: t("cmd_palette_pad_tab_next", "Next Filter Tab"),
+      icon: t("icon_chevron_right", "chevron_right"),
+    },
+    {
+      key: "prevTab",
+      label: t("cmd_palette_pad_tab_prev", "Previous Filter Tab"),
+      icon: t("icon_chevron_left", "chevron_left"),
+    },
+    {
+      key: "closePalette",
+      label: t("cmd_palette_pad_close", "Close Command Palette"),
+      icon: t("icon_close", "close"),
+    },
+  ];
 
   return (
     <SidePanel
@@ -1276,11 +2486,19 @@ export function GlobalCommandPalette({
       widthClass="w-[92vw] md:w-[680px] lg:w-[760px] max-w-4xl"
       backdropZ="z-[100040]"
       panelZ="z-[100041]"
+      headerActions={
+        <PanelHeaderButton
+          icon={t("icon_sports_esports", "sports_esports")}
+          tooltip={t("cmd_palette_controls_title", "Hotkeys & Controller Mapping")}
+          isActive={isControlsOpen}
+          onClick={() => setIsControlsOpen((prev) => !prev)}
+        />
+      }
     >
       <div className="flex flex-col gap-4 pb-8">
         {/* Search Input Box */}
         <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-col gap-2.5">
-          <div className="relative flex items-center w-full">
+          <div className="relative flex items-center w-full h-11 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus-within:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] transition-all">
             <span className="material-symbols-outlined !text-[20px] text-[var(--accent)] absolute left-3.5 pointer-events-none">
               {t("icon_search", "search")}
             </span>
@@ -1288,13 +2506,16 @@ export function GlobalCommandPalette({
               ref={inputRef}
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (isControlsOpen) setIsControlsOpen(false);
+              }}
               onKeyDown={handleInputKeyDown}
               placeholder={t(
                 "cmd_palette_placeholder",
                 "Search {mods}, {blueprints}, views, themes, or type a command..."
               )}
-              className="w-full h-11 pl-11 pr-28 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-xs sm:text-sm font-bold text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-60 outline-none transition-all"
+              className="w-full h-full pl-11 pr-36 bg-transparent border-none text-xs sm:text-sm font-bold text-[var(--text)] placeholder:text-[var(--subtext)] placeholder:opacity-60 outline-none"
             />
             <div className="absolute right-2.5 flex items-center gap-1.5">
               {query.trim().length > 0 && (
@@ -1304,20 +2525,42 @@ export function GlobalCommandPalette({
                     setQuery("");
                     inputRef.current?.focus();
                   }}
-                  title={t("clear", "Clear")}
-                  className="w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors cursor-pointer"
+                  className="relative w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <span className="material-symbols-outlined !text-[14px]">
                     {t("icon_close", "close")}
                   </span>
+                  <HoverTooltip
+                    title={t("clear", "Clear")}
+                    icon={t("icon_close", "close")}
+                    vAlign="bottom"
+                  />
                 </button>
               )}
-              <span className={`${VAULT_CHIP_CLASS} pointer-events-none hidden sm:inline-flex`}>
+              <button
+                type="button"
+                onClick={() => setIsControlsOpen((prev) => !prev)}
+                className={`relative ${VAULT_CHIP_CLASS} cursor-pointer transition-all hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] ${
+                  isControlsOpen ? "border-[var(--accent)] text-[var(--accent)]" : ""
+                }`}
+              >
                 <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                  {t("icon_keyboard_command_key", "keyboard_command_key")}
+                  {connectedGamepadName
+                    ? t("icon_sports_esports", "sports_esports")
+                    : t("icon_keyboard_command_key", "keyboard_command_key")}
                 </span>
-                <span>{t("cmd_palette_shortcut_badge", "Ctrl+K")}</span>
-              </span>
+                <span>{hotkeys.togglePalette}</span>
+                <HoverTooltip
+                  title={t("cmd_palette_controls_title", "Hotkeys & Controller Mapping")}
+                  subtitle={t(
+                    "cmd_palette_controls_sub",
+                    "Customize Keyboard Shortcuts & Gamepad / Steam Deck Input Bindings"
+                  )}
+                  icon={t("icon_sports_esports", "sports_esports")}
+                  vAlign="bottom"
+                  align="right"
+                />
+              </button>
             </div>
           </div>
 
@@ -1330,6 +2573,160 @@ export function GlobalCommandPalette({
             </span>
           </div>
         </div>
+
+        {/* Inline Hotkeys & Controller / Steam Deck Configurator */}
+        {isControlsOpen && (
+          <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3 pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined !text-[18px] text-[var(--accent)]">
+                    {t("icon_sports_esports", "sports_esports")}
+                  </span>
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs sm:text-sm font-black text-[var(--text)]">
+                    {t("cmd_palette_controls_title", "Hotkeys & Controller Mapping")}
+                  </span>
+                  <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80">
+                    {t(
+                      "cmd_palette_controls_sub",
+                      "Customize Keyboard Shortcuts & Gamepad / Steam Deck Input Bindings"
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  updateHotkeys(DEFAULT_HOTKEYS);
+                  updateControllerBindings(DEFAULT_CONTROLLER_BINDINGS);
+                  setRecordingHotkeyField(null);
+                  setRecordingPadField(null);
+                }}
+                className="relative h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[11px] font-black text-[var(--text)] hover:text-[var(--accent)] flex items-center gap-1.5 shrink-0 cursor-pointer transition-all"
+              >
+                <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                  {t("icon_restart_alt", "restart_alt")}
+                </span>
+                <span>{t("cmd_palette_reset_controls", "Reset Controls to Default")}</span>
+              </button>
+            </div>
+
+            {/* Keyboard Shortcuts Section */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-1.5 text-[11px] font-black text-[var(--accent)] tracking-wide">
+                <span className="material-symbols-outlined !text-[14px]">
+                  {t("icon_keyboard", "keyboard")}
+                </span>
+                <span>{t("cmd_palette_keyboard_hotkeys", "Keyboard Shortcuts")}</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {hotkeyRows.map((row) => {
+                  const isRecording = recordingHotkeyField === row.key;
+                  return (
+                    <div
+                      key={row.key}
+                      onClick={() => {
+                        setRecordingPadField(null);
+                        setRecordingHotkeyField(isRecording ? null : row.key);
+                      }}
+                      className={`glass-surface rounded-xl p-2.5 border flex items-center justify-between gap-2 cursor-pointer transition-all ${
+                        isRecording
+                          ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
+                          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                          {row.icon}
+                        </span>
+                        <span className="text-xs font-bold text-[var(--text)] leading-snug break-words">
+                          {row.label}
+                        </span>
+                      </div>
+                      <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                        <span className="text-[10px] font-black text-[var(--accent)]">
+                          {isRecording
+                            ? t("cmd_palette_press_key", "Press Key Combo...")
+                            : hotkeys[row.key]}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Controller & Steam Deck Mapping Section */}
+            <div className="flex flex-col gap-2 pt-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-[11px] font-black text-[var(--accent)] tracking-wide">
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_sports_esports", "sports_esports")}
+                  </span>
+                  <span>
+                    {t("cmd_palette_controller_mapping", "Controller & Steam Deck Inputs")}
+                  </span>
+                </div>
+                <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                  <span
+                    className="material-symbols-outlined !text-[12px]"
+                    style={{
+                      color: connectedGamepadName ? "var(--success)" : "var(--subtext)",
+                    }}
+                  >
+                    {connectedGamepadName
+                      ? t("icon_check_circle", "check_circle")
+                      : t("icon_sensors_off", "sensors_off")}
+                  </span>
+                  <span className="whitespace-nowrap">
+                    {connectedGamepadName
+                      ? t("cmd_palette_controller_connected", "Controller Connected")
+                      : t("cmd_palette_controller_none", "No Controller Detected")}
+                  </span>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {controllerRows.map((row) => {
+                  const isRecording = recordingPadField === row.key;
+                  return (
+                    <div
+                      key={row.key}
+                      onClick={() => {
+                        setRecordingHotkeyField(null);
+                        setRecordingPadField(isRecording ? null : row.key);
+                      }}
+                      className={`glass-surface rounded-xl p-2.5 border flex items-center justify-between gap-2 cursor-pointer transition-all ${
+                        isRecording
+                          ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
+                          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                          {row.icon}
+                        </span>
+                        <span className="text-xs font-bold text-[var(--text)] leading-snug break-words">
+                          {row.label}
+                        </span>
+                      </div>
+                      <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                        <span className="text-[10px] font-black text-[var(--accent)]">
+                          {isRecording
+                            ? t("cmd_palette_press_button", "Press Controller Button...")
+                            : formatGamepadCombo(controllerBindings[row.key])}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 2x2 Category Filter Tiles (Full-Width Labels — Never Cut Off) */}
         <div className="grid grid-cols-2 gap-3">
@@ -1399,21 +2796,18 @@ export function GlobalCommandPalette({
                   onClick={item.onSelect}
                   className={`glass-panel rounded-2xl p-3.5 border transition-all duration-200 cursor-pointer flex flex-col justify-between gap-3 group/card ${
                     isSelected
-                      ? "border-[color-mix(in_srgb,var(--accent)_48%,rgba(255,255,255,0.35))] -translate-y-0.5"
-                      : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.35))]"
+                      ? "sa-cmd-card-selected opacity-100 z-10 -translate-y-0.5"
+                      : "opacity-80 hover:opacity-100 border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.3))]"
                   }`}
                 >
                   {/* Top Row: Icon + Full-Width Title & Subtitle */}
                   <div className="flex items-start gap-3 min-w-0">
                     <div
-                      className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center shrink-0 border transition-transform duration-300 group-hover/card:scale-105"
-                      style={{
-                        backgroundColor: "var(--glass-card-icon-bg)",
-                        borderColor: isSelected
-                          ? "color-mix(in srgb, var(--accent) 45%, var(--glass-card-icon-border, rgba(255,255,255,0.22)))"
-                          : "var(--glass-card-icon-border)",
-                        boxShadow: "var(--glass-card-icon-shadow)",
-                      }}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 glass-surface border transition-all duration-300 group-hover/card:scale-105 ${
+                        isSelected
+                          ? "!border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                          : "border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)]"
+                      }`}
                     >
                       <span
                         className={`material-symbols-outlined !text-[20px] ${
@@ -1434,14 +2828,26 @@ export function GlobalCommandPalette({
                       >
                         {item.title}
                       </span>
-                      <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-snug break-words mt-0.5">
+                      <span
+                        className={`text-[11px] font-medium leading-snug break-words mt-0.5 transition-opacity ${
+                          isSelected
+                            ? "text-[var(--text)] opacity-90"
+                            : "text-[var(--subtext)] opacity-80"
+                        }`}
+                      >
                         {item.subtitle}
                       </span>
                     </div>
                   </div>
 
                   {/* Bottom Footer Row: Left Neutral Badge + Right Action Controls */}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                  <div
+                    className={`flex items-center justify-between gap-2 pt-2 border-t ${
+                      isSelected
+                        ? "border-[color-mix(in_srgb,var(--accent)_18%,transparent)]"
+                        : "border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
+                    }`}
+                  >
                     <span className={VAULT_CHIP_CLASS}>
                       <span
                         className="material-symbols-outlined !text-[12px]"
@@ -1454,30 +2860,39 @@ export function GlobalCommandPalette({
 
                     <div className="flex items-center gap-1.5 shrink-0">
                       {item.secondaryAction && (
-                        <HoverTooltip content={item.secondaryAction.label}>
-                          <button
-                            type="button"
-                            onClick={item.secondaryAction.onClick}
-                            className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[10px] font-black text-[var(--text)] hover:text-[var(--accent)] flex items-center gap-1 transition-all cursor-pointer"
+                        <button
+                          type="button"
+                          onClick={item.secondaryAction.onClick}
+                          className="relative h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[10px] font-black text-[var(--text)] hover:text-[var(--accent)] flex items-center gap-1 transition-all cursor-pointer"
+                        >
+                          <span
+                            className="material-symbols-outlined !text-[13px]"
+                            style={{
+                              color: item.secondaryAction.isActive
+                                ? "var(--success)"
+                                : "var(--accent)",
+                            }}
                           >
-                            <span
-                              className="material-symbols-outlined !text-[13px]"
-                              style={{
-                                color: item.secondaryAction.isActive
-                                  ? "var(--success)"
-                                  : "var(--accent)",
-                              }}
-                            >
-                              {item.secondaryAction.icon}
-                            </span>
-                            <span className="hidden sm:inline">
-                              {item.secondaryAction.label}
-                            </span>
-                          </button>
-                        </HoverTooltip>
+                            {item.secondaryAction.icon}
+                          </span>
+                          <span className="hidden sm:inline">
+                            {item.secondaryAction.label}
+                          </span>
+                          <HoverTooltip
+                            title={item.secondaryAction.label}
+                            icon={item.secondaryAction.icon}
+                            vAlign="top"
+                          />
+                        </button>
                       )}
 
-                      <span className="text-[10px] font-black text-[var(--text)] opacity-80 group-hover/card:text-[var(--accent)] group-hover/card:opacity-100 flex items-center gap-1 transition-colors">
+                      <span
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
+                          isSelected
+                            ? "text-[var(--accent)] opacity-100"
+                            : "text-[var(--text)] opacity-65 group-hover/card:text-[var(--accent)] group-hover/card:opacity-100"
+                        }`}
+                      >
                         <span className="material-symbols-outlined !text-[14px]">
                           {t("icon_keyboard_return", "keyboard_return")}
                         </span>

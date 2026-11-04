@@ -769,7 +769,7 @@ export default function SupporterTab() {
               <PanelHeaderGroup>
                 <PanelHeaderButton
                   icon={t("icon_verified", "verified")}
-                  label={t(
+                  tooltip={t(
                     "supporter_web_verify_btn",
                     "Verify Completed Donation (+30 Days / $5)",
                   )}

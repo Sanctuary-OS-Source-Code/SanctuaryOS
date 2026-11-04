@@ -1,9 +1,10 @@
 {
   "id": "sims4",
   "game_id": "the-sims-4",
+  "steam_app_id": "1222670",
   "display_name": "The Sims 4",
   "default_lexicon": "en-default",
-  "schema_version": 10,
+  "schema_version": 11,
   "min_scout_submissions": 5,
   "executable_names": [
     "TS4_x64.exe",
@@ -17,8 +18,10 @@
     "manifest_file": "Resource.cfg",
     "default_mod_dir_windows": "%USERPROFILE%/Documents/Electronic Arts/The Sims 4/Mods",
     "default_mod_dir_mac": "~/Documents/Electronic Arts/The Sims 4/Mods",
+    "default_mod_dir_linux": "%USERPROFILE%/Documents/Electronic Arts/The Sims 4/Mods",
     "user_data_dir_windows": "%USERPROFILE%/Documents/Electronic Arts/The Sims 4",
     "user_data_dir_mac": "~/Documents/Electronic Arts/The Sims 4",
+    "user_data_dir_linux": "%USERPROFILE%/Documents/Electronic Arts/The Sims 4",
     "auto_scan_paths_windows": [
       "C:\\Program Files\\EA Games\\The Sims 4",
       "C:\\Program Files\\EA\\Origin Games\\The Sims 4\\Bin",
@@ -53,6 +56,13 @@
       "~/Applications/EA Games/The Sims 4.app",
       "~/Library/Application Support/Origin/LocalContent/The Sims 4",
       "~/Library/Application Support/Steam/steamapps/common/The Sims 4/The Sims 4.app"
+    ],
+    "auto_scan_paths_linux": [
+      "~/.steam/steam/steamapps/common/The Sims 4",
+      "~/.local/share/Steam/steamapps/common/The Sims 4",
+      "~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/The Sims 4",
+      "/run/media/mmcblk0p1/steamapps/common/The Sims 4",
+      "/run/media/deck/steamapps/common/The Sims 4"
     ]
   },
   "extensions": {
@@ -62,6 +72,7 @@
       ".world",
       ".zip",
       ".rar",
+      ".7z",
       ".tmcatalog",
       ".cfg",
       ".tmdelta",
@@ -77,6 +88,9 @@
       ".json",
       ".txt",
       ".xml"
+    ],
+    "script_extensions": [
+      ".ts4script"
     ],
     "config_extensions": [
       ".cfg",
@@ -111,6 +125,7 @@
       ".cfg": "CONFIG",
       ".rar": "ARCHIVE",
       ".zip": "ARCHIVE",
+      ".7z": "ARCHIVE",
       ".package": "PACKAGE",
       ".tmdelta": "DELTA",
       ".tmcatalog": "CATALOG",
@@ -214,6 +229,41 @@
       "exact": "mc_lastexception.html"
     }
   ],
+  "exception_rules": [
+    {
+      "id": "ts4_store_utils_wallet_ui",
+      "title": "StoreUtils / VirtualCurrencyWallet UI Desync (Error #1006)",
+      "pattern": "StoreUtils/StoreDisabledByFeatureParameter | VirtualCurrencyWallet | TryGetValueAsBoolean",
+      "file_hint": "lastUIException.txt",
+      "severity": "warning",
+      "diagnosis": "ActionScript UI exception in widgets.shared.utils::StoreUtils / VirtualCurrencyWallet. Frequently triggered on the Main Menu when EA Store feature parameters fail to initialize, or when an outdated UI override (.package) conflicts with current game patch UI widgets.",
+      "resolution": "If this occurred on the Main Menu and live gameplay UI works normally, it is often a benign EA Store telemetry quirk (you can toggle 'Ignore During Timed Lab Verification' on this rule if desired). If UI panels are broken in live mode, ensure UI Cheats Extension (.package + .ts4script) and Main Menu overrides match your current game patch.",
+      "ignore_in_lab": false,
+      "enabled": true
+    },
+    {
+      "id": "ts4_python_attr_or_import",
+      "title": "Python Script Tuning Mismatch or Missing Core Library",
+      "pattern": "AttributeError | ModuleNotFoundError | ImportError",
+      "file_hint": "lastException.txt",
+      "severity": "critical",
+      "diagnosis": "A Python script (.ts4script) attempted to call a game engine attribute or import a module that changed in a recent game patch or requires an external core library (such as Lot51 Core Library, XML Injector, or S4CL).",
+      "resolution": "Verify that all required dependency libraries are installed in your Mods folder and that the mod's .ts4script is updated for your active game patch.",
+      "ignore_in_lab": false,
+      "enabled": true
+    },
+    {
+      "id": "ts4_posture_routing_graph",
+      "title": "Posture Graph / Sim Routing Autonomy Exception",
+      "pattern": "posture_graph | routing_service | PostureGraphService",
+      "file_hint": "lastException.txt",
+      "severity": "warning",
+      "diagnosis": "A Sim attempted to route to or interact with an object whose footprint, slot, or posture tuning failed validation during live autonomy.",
+      "resolution": "Check custom furniture/object overrides on the active lot or custom interaction mods that modify Sim posture tuning.",
+      "ignore_in_lab": false,
+      "enabled": true
+    }
+  ],
   "time_capsule": {
     "world_state_targets": [
       {
@@ -281,13 +331,6 @@
   },
   "mod_categories": [
     {
-      "id": "Unknown",
-      "label": "Unknown",
-      "icon": "help",
-      "icon_key": "ui_icon_unknown",
-      "lexicon_key": "class_dd_unknown"
-    },
-    {
       "id": "Core",
       "label": "Core Library",
       "icon": "memory",
@@ -297,75 +340,158 @@
     {
       "id": "Script",
       "label": "Executable Script",
-      "icon": "code",
-      "icon_key": "ui_icon_scroll",
+      "icon": "terminal",
+      "icon_key": "ui_icon_script",
       "lexicon_key": "class_dd_script"
     },
     {
       "id": "Tuning",
-      "label": "Tuning",
+      "label": "Tuning Override",
       "icon": "tune",
       "icon_key": "ui_icon_tuning",
       "lexicon_key": "class_dd_tuning"
     },
     {
       "id": "Override",
-      "label": "Override",
-      "icon": "find_replace",
+      "label": "Default Replacement",
+      "icon": "published_with_changes",
       "icon_key": "ui_icon_override",
       "lexicon_key": "class_dd_override"
     },
     {
       "id": "BuildBuy",
-      "label": "Build / Buy",
+      "label": "Build / Buy Catalog",
       "icon": "chair",
-      "icon_key": "ui_icon_couch",
+      "icon_key": "ui_icon_buildbuy",
       "lexicon_key": "class_dd_buildbuy"
     },
     {
       "id": "CAS",
       "label": "Create-A-Sim (CAS)",
       "icon": "checkroom",
-      "icon_key": "ui_icon_shirt",
+      "icon_key": "ui_icon_cas",
       "lexicon_key": "class_dd_cas",
       "subcategories": [
         {
           "id": "Tattoo",
           "label": "Tattoo",
+          "icon": "ink_pen",
+          "icon_key": "ui_icon_tattoo",
           "lexicon_key": "vault_sub_tattoo"
         },
         {
           "id": "Hair",
           "label": "Hair",
+          "icon": "face",
+          "icon_key": "ui_icon_hair",
           "lexicon_key": "vault_sub_hair"
         },
         {
           "id": "Clothing",
           "label": "Clothing",
+          "icon": "apparel",
+          "icon_key": "ui_icon_clothing",
           "lexicon_key": "vault_sub_clothing"
+        },
+        {
+          "id": "Accessories",
+          "label": "Accessories",
+          "icon": "diamond",
+          "icon_key": "ui_icon_accessories",
+          "lexicon_key": "vault_sub_accessories"
+        },
+        {
+          "id": "Makeup",
+          "label": "Makeup",
+          "icon": "brush",
+          "icon_key": "ui_icon_makeup",
+          "lexicon_key": "vault_sub_makeup"
+        },
+        {
+          "id": "Skin Details",
+          "label": "Skin Details",
+          "icon": "face_retouching_natural",
+          "icon_key": "ui_icon_skin",
+          "lexicon_key": "vault_sub_skin_details"
+        },
+        {
+          "id": "Presets",
+          "label": "Body / Face Presets",
+          "icon": "tune",
+          "icon_key": "ui_icon_presets",
+          "lexicon_key": "vault_sub_presets"
         }
       ]
     },
     {
-      "id": "Animation",
-      "label": "Animation",
-      "icon": "movie",
-      "icon_key": "ui_icon_clapper",
-      "lexicon_key": "class_dd_animation"
+      "id": "Pose",
+      "label": "Pose Pack",
+      "icon": "accessibility_new",
+      "icon_key": "ui_icon_pose",
+      "lexicon_key": "class_dd_pose"
     },
     {
       "id": "Trait",
-      "label": "Trait",
+      "label": "Custom Trait",
       "icon": "psychology",
       "icon_key": "ui_icon_trait",
       "lexicon_key": "class_dd_trait"
     },
     {
       "id": "Career",
-      "label": "Career",
+      "label": "Custom Career",
       "icon": "work",
       "icon_key": "ui_icon_career",
       "lexicon_key": "class_dd_career"
+    },
+    {
+      "id": "Lot",
+      "label": "Lot / Venue",
+      "icon": "home_work",
+      "icon_key": "ui_icon_lot",
+      "lexicon_key": "class_dd_lot"
+    },
+    {
+      "id": "Gameplay",
+      "label": "Gameplay System",
+      "icon": "sports_esports",
+      "icon_key": "ui_icon_gameplay",
+      "lexicon_key": "class_dd_gameplay"
+    },
+    {
+      "id": "UI",
+      "label": "UI / HUD Override",
+      "icon": "dashboard_customize",
+      "icon_key": "ui_icon_ui",
+      "lexicon_key": "class_dd_ui"
+    },
+    {
+      "id": "Animation",
+      "label": "Animation Rig",
+      "icon": "motion_photos_on",
+      "icon_key": "ui_icon_animation",
+      "lexicon_key": "class_dd_animation"
+    },
+    {
+      "id": "Audio",
+      "label": "Audio & Sound",
+      "icon": "graphic_eq",
+      "icon_key": "ui_icon_audio",
+      "lexicon_key": "class_dd_audio"
+    },
+    {
+      "id": "Utility",
+      "label": "Tool / Utility",
+      "icon": "build",
+      "icon_key": "ui_icon_utility",
+      "lexicon_key": "class_dd_utility"
+    },
+    {
+      "id": "Unknown",
+      "label": "Unclassified",
+      "icon": "help_outline",
+      "icon_key": "ui_icon_unknown",
+      "lexicon_key": "class_dd_unknown"
     }
   ]
 }

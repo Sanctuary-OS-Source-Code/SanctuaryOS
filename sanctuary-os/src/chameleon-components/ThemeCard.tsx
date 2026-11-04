@@ -4,6 +4,7 @@ import { getLuminance } from './ChameleonShared';
 import { DEFAULT_CORE_THEMES, computeGlassOpticalVars } from '../ThemeContext';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { HoverTooltip } from '../shared';
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from '../ContextMenu';
 
 const VAULT_CHIP_CLASS =
   'px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0';
@@ -926,7 +927,7 @@ export function DynamicArtifactPreviewBanner({
   const depCount = parseArrLen(data?.required_mods || data?.dependencies);
 
   const scopePill = (() => {
-    if (isSuite && moduleCount > 1) {
+    if (isSuite && moduleCount >= 1) {
       return {
         icon: t('icon_account_tree', 'account_tree'),
         label: `+${moduleCount}`,
@@ -985,7 +986,7 @@ export function DynamicArtifactPreviewBanner({
       return `+${moduleCount - 2}`;
     }
     const creator = String(data?.author || data?.master_author || '').trim();
-    if (creator && creator.toLowerCase() !== 'unknown') {
+    if (creator && !creator.toLowerCase().includes('unknown')) {
       return creator.slice(0, 12);
     }
     return isScript ? t('scr_short', 'SCR') : t('pkg_short', 'PKG');
@@ -1015,14 +1016,14 @@ export function DynamicArtifactPreviewBanner({
 
       <div
         className={`absolute inset-x-3 ${
-          compact ? 'top-10 bottom-2' : 'top-12 bottom-2.5'
-        } flex gap-2 pointer-events-none z-10`}
+          compact ? 'top-9 h-11' : 'top-[52px] h-14'
+        } flex items-stretch gap-2 pointer-events-none z-10`}
       >
-        {/* Left Artifact Identity Tile */}
+        {/* Left Artifact Identity Tile (1:1 Square) */}
         <div
           className={`${
-            compact ? 'w-12' : 'w-14'
-          } h-full rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
+            compact ? 'w-11 h-11 rounded-lg' : 'w-14 h-14 rounded-xl'
+          } glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
         >
           <span
             className={`material-symbols-outlined ${compact ? '!text-[14px]' : '!text-[16px]'}`}
@@ -1205,6 +1206,80 @@ export function ThemeCard({ id, data, theme, isDev = false, isFav = false, isClo
       onClick={() => {
         if (onClick) onClick();
         else if (setActiveThemeId) setActiveThemeId(id);
+      }}
+      onContextMenu={(e) => {
+        const items: SanctuaryContextMenuItem[] = [
+          {
+            id: 'apply',
+            label: isActive
+              ? t('selected', 'Selected')
+              : t('update_panel_install', 'Apply'),
+            icon: isActive
+              ? t('icon_check_circle', 'check_circle')
+              : t('icon_palette', 'palette'),
+            variant: isActive ? 'success' : 'accent',
+            onClick: () => {
+              if (onClick) onClick();
+              else if (setActiveThemeId) setActiveThemeId(id);
+            },
+          },
+        ];
+        if (handleOpenThemeEditor) {
+          items.push({
+            id: 'forge',
+            label: t('btn_open_theme_forge', 'Open Theme Forge'),
+            icon: t('icon_tune', 'tune'),
+            onClick: () => handleOpenThemeEditor(e, id, resolvedData),
+          });
+        }
+        if (!isDev && toggleFavoriteTheme) {
+          items.push({
+            id: 'favorite',
+            label: t('favorite', 'Favorite'),
+            icon: t('icon_star', 'star'),
+            variant: isFav ? 'warning' : 'default',
+            onClick: () => toggleFavoriteTheme(id, e),
+          });
+        }
+        if ((!CORE_THEMES || !CORE_THEMES[id]) && setNewThemeName && setEditingThemeId) {
+          items.push({
+            id: 'rename',
+            label: t('edit', 'Edit'),
+            icon: t('icon_edit', 'edit'),
+            dividerBefore: true,
+            onClick: () => {
+              setNewThemeName(resolvedData.name);
+              setEditingThemeId(id);
+            },
+          });
+        }
+        if (handleExportTheme) {
+          items.push({
+            id: 'export',
+            label: t('btn_export', 'Export'),
+            icon: t('icon_save', 'save'),
+            onClick: () => handleExportTheme(e, resolvedData, isDev),
+          });
+        }
+        if ((!CORE_THEMES || !CORE_THEMES[id]) && !isCloud && resolvedDelete) {
+          items.push({
+            id: 'delete',
+            label: t('delete', 'Delete'),
+            icon: t('icon_delete_forever', 'delete_forever'),
+            variant: 'danger',
+            dividerBefore: true,
+            onClick: () => resolvedDelete(id),
+          });
+        }
+        openSanctuaryContextMenu(e, {
+          title: String(resolvedData.name || id),
+          subtitle: `${badgeLabel} • ${modeLabel}`,
+          statusLabel: isActive ? t('active', 'Active') : undefined,
+          statusColorClass: isActive ? 'text-[var(--success)]' : undefined,
+          icon: t('icon_palette', 'palette'),
+          iconColorClass: isActive ? 'text-[var(--success)]' : 'text-[var(--accent)]',
+          items,
+        });
       }}
       badges={
         <>

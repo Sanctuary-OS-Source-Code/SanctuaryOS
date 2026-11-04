@@ -6,10 +6,11 @@ import {
   CustomDropdown,
   DashboardStatTile,
   EmptyState,
-  ActionPill,
   LoadingScreen,
   SidePanel,
   SidePanelHeroCard,
+  PanelHeaderGroup,
+  PanelHeaderButton,
   ActionButton,
   compareVersions
 } from "./shared";
@@ -64,11 +65,23 @@ export default function MasonProfile({
   initialPostId,
   onModClick,
   syncBlueprintByCode,
+  isSidePanel,
+  isOpen,
+  onClose,
+  onOpenFullProfile,
+  backdropZ = "z-[121000]",
+  panelZ = "z-[121001]",
 }: {
   masonId: string;
   initialPostId?: string | null;
   onModClick: (mod: any) => void;
   syncBlueprintByCode?: (code: string) => void;
+  isSidePanel?: boolean;
+  isOpen?: boolean;
+  onClose?: () => void;
+  onOpenFullProfile?: () => void;
+  backdropZ?: string;
+  panelZ?: string;
 }) {
   const { t, importLexicon, registry } = useLexicon();
   const { importTheme, CORE_THEMES, customThemes } = useTheme();
@@ -194,9 +207,18 @@ export default function MasonProfile({
   );
 
   const toggleMasonAlert = () => {
-    const newAlerts = { ...masonAlerts, [masonId]: !masonAlerts[masonId] };
+    const nextEnabled = !masonAlerts[masonId];
+    const newAlerts = { ...masonAlerts, [masonId]: nextEnabled };
     setMasonAlerts(newAlerts);
     localStorage.setItem("sanctuary_mason_alerts", JSON.stringify(newAlerts));
+    useStore
+      .getState()
+      .pushStatus(
+        nextEnabled
+          ? `${t("profile_notify", "Notifications")}: ${t("enabled", "Enabled")}`
+          : `${t("profile_notify", "Notifications")}: ${t("disabled", "Disabled")}`,
+        "info"
+      );
   };
 
   useEffect(() => {
@@ -244,7 +266,7 @@ export default function MasonProfile({
 
       const { data: modsDataRaw } = await supabase
         .from("mods")
-        .select("*")
+        .select("*, mod_versions(dna_hash, version_label)")
         .eq("mason_id", masonId)
         .order("name");
 
@@ -296,8 +318,17 @@ export default function MasonProfile({
           "*, masons(name, avatar_url, patreon_url, discord_url, website_url, profile_id), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)"
         )
         .eq("mason_id", masonId)
+        .order("is_pinned", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
-      if (postsData) setPosts(postsData);
+      if (postsData) {
+        const sortedPostsData = [...postsData].sort((a: any, b: any) => {
+          const aPin = a?.is_pinned === true || a?.is_pinned === "true" ? 1 : 0;
+          const bPin = b?.is_pinned === true || b?.is_pinned === "true" ? 1 : 0;
+          if (bPin !== aPin) return bPin - aPin;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+        setPosts(sortedPostsData);
+      }
 
       if (mData) {
         let orQuery = `author.ilike.%${mData.name}%`;
@@ -428,7 +459,17 @@ export default function MasonProfile({
       setIsFollowing(nowFollowing);
       const nextCount = Math.max(0, followerCount + (nowFollowing ? 1 : -1));
       setFollowerCount(nextCount);
-      await supabase.from("masons").update({ followers_count: nextCount }).eq("id", masonId);
+      try {
+        await supabase.from("masons").update({ followers_count: nextCount }).eq("id", masonId);
+      } catch {}
+      useStore
+        .getState()
+        .pushStatus(
+          nowFollowing
+            ? `${t("btn_follow", "Follow")}: ${mason?.name || ""}`
+            : `${t("btn_unfollow", "Unfollow")}: ${mason?.name || ""}`,
+          "info"
+        );
     } catch {
       useStore.getState().pushStatus(t("err_follow_mason", "Failed to follow Mason."));
     }
@@ -476,15 +517,107 @@ export default function MasonProfile({
     }
   };
 
-  if (loading) return <LoadingScreen title={t("accessing", "Accessing...")} />;
-  if (!mason)
+  const wrapIfSidePanel = (node: React.ReactNode) => {
+    if (!isSidePanel) return <>{node}</>;
     return (
+      <SidePanel
+        isOpen={Boolean(isOpen)}
+        onClose={onClose || (() => {})}
+        title={mason?.name || t("mason", "{Mason}")}
+        subtitle={`${followerCount} ${t("followers", "Followers")} • ${t("tab_overview", "Overview")}`}
+        icon={t("icon_person", "person")}
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[95vw] md:w-[920px]"
+        backdropZ={backdropZ}
+        panelZ={panelZ}
+        headerActions={
+          <PanelHeaderGroup>
+            {isOwner && (
+              <PanelHeaderButton
+                icon={t("icon_push_pin", "push_pin")}
+                tooltip={t("panel_pin_details", "Feature Assignment")}
+                onClick={() => setIsPinPanelOpen(true)}
+              />
+            )}
+            <PanelHeaderButton
+              icon={
+                masonAlerts[masonId]
+                  ? t("icon_notifications_active", "notifications_active")
+                  : t("icon_notifications_off", "notifications_off")
+              }
+              tooltip={t("profile_notify", "Notifications")}
+              onClick={toggleMasonAlert}
+              active={Boolean(masonAlerts[masonId])}
+            />
+            {mason?.patreon_url && (
+              <PanelHeaderButton
+                icon={t("icon_favorite", "favorite")}
+                tooltip={t("link_patreon", "Patreon")}
+                onClick={() => handleOpenUrl(mason.patreon_url)}
+              />
+            )}
+            {mason?.website_url && (
+              <PanelHeaderButton
+                icon={t("icon_public", "public")}
+                tooltip={t("link_website", "Website")}
+                onClick={() => handleOpenUrl(mason.website_url)}
+              />
+            )}
+            {mason?.discord_url && (
+              <PanelHeaderButton
+                icon={t("icon_chat", "chat")}
+                tooltip={t("link_discord", "Discord")}
+                onClick={() => handleOpenUrl(mason.discord_url)}
+              />
+            )}
+            <PanelHeaderButton
+              icon={
+                localSupporterPass
+                  ? t("icon_verified", "verified")
+                  : t("icon_volunteer_activism", "volunteer_activism")
+              }
+              tooltip={
+                localSupporterPass
+                  ? t("supporter_badge_verified_patron", "VERIFIED SUPPORTER")
+                  : t("supporter_btn_support_creator", "Support")
+              }
+              variant={localSupporterPass ? "success" : "warning"}
+              onClick={() => setIsSupportDrawerOpen(true)}
+            />
+            <PanelHeaderButton
+              icon={
+                isFollowing
+                  ? t("icon_check_circle", "check_circle")
+                  : t("icon_person_add", "person_add")
+              }
+              tooltip={isFollowing ? t("following", "Following") : t("btn_follow", "Follow")}
+              variant={isFollowing ? "success" : "accent"}
+              onClick={toggleFollow}
+            />
+            {onOpenFullProfile && (
+              <PanelHeaderButton
+                icon={t("icon_open_in_full", "open_in_full")}
+                tooltip={t("btn_view_profile", "View Profile")}
+                onClick={onOpenFullProfile}
+              />
+            )}
+          </PanelHeaderGroup>
+        }
+      >
+        {node}
+      </SidePanel>
+    );
+  };
+
+  if (loading) return wrapIfSidePanel(<LoadingScreen title={t("accessing", "Accessing...")} />);
+  if (!mason)
+    return wrapIfSidePanel(
       <div className="p-12 text-center text-[var(--subtext)] opacity-60 font-black tracking-widest capitalize">
         {t("not_found", "Not Found")}
       </div>
     );
   if (!mason.is_verified) {
-    return (
+    return wrapIfSidePanel(
       <div className="p-12 flex items-center justify-center min-h-[50vh] w-full">
         <EmptyState
           icon={t("icon_verified", "verified")}
@@ -568,394 +701,542 @@ export default function MasonProfile({
     );
   };
 
-  return (
-    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 min-h-full w-full pb-36 pt-0 md:pt-4 px-0 md:px-6 max-w-[1600px] mx-auto">
-      <MasonProfileHeader
-        mason={mason}
-        masonId={masonId}
-        followerCount={followerCount}
-        isFollowing={isFollowing}
-        isVerifiedSupporter={!!localSupporterPass}
-        onOpenSupportModal={() => setIsSupportDrawerOpen(true)}
-        masonAlerts={masonAlerts}
-        toggleFollow={toggleFollow}
-        toggleMasonAlert={toggleMasonAlert}
-        activeView={activeView}
-        setActiveView={setActiveView}
-        t={t}
-      >
-        {activeView !== "OVERVIEW" && (
-          <div className="flex flex-row items-center justify-end gap-3 flex-1 w-full ml-auto">
-            <ActionPill
-              searchQuery={modSearch}
-              setSearchQuery={setModSearch}
-              searchPlaceholder={
-                (activeView === "COMM-LINK"
-                  ? t("mason_search_placeholder", "Search {dispatches}...")
-                  : activeView === "LEXICONS"
-                    ? t("ui_search_lexicons", "Search {Lexicons}...")
-                    : activeView === "CHAMELEONS"
-                      ? t("ui_search_chameleons", "Search {Chameleons}...")
-                      : activeView === "TEMPLATES"
-                        ? t("search_tmpl", "Search templates...")
-                        : activeView === "BLUEPRINTS"
-                          ? t("search_blueprints", "Search {Blueprints}...")
-                          : t("search_ph", "Search {mods}...")) as string
-              }
-              primaryPopover={
-                activeView !== "COMM-LINK"
-                  ? {
-                      icon: t("icon_tune", "tune"),
-                      label: t("filters", "Filters"),
-                      content: (
-                        <div className="flex flex-col w-[320px] p-4 max-w-[calc(100vw-40px)] gap-6">
-                          <div className="flex flex-col gap-2 w-full">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
-                              {t("filter_category", "Category")}
-                            </span>
-                            <CustomDropdown
-                              disableTint={true}
-                              flat={true}
-                              variant="pill"
-                              value={modCategory}
-                              onChange={(v: any) => setModCategory(v[0])}
-                              options={(() => {
-                                let rawOpts: any[] = [];
-                                if (activeView === "MODS") {
-                                  rawOpts = [
-                                    {
-                                      id: "ALL",
-                                      label: t("all_classes", "All Classes"),
-                                      icon: t("icon_folder", "folder"),
-                                    },
-                                    ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
-                                      id: cat.id,
-                                      label: t(cat.lexicon_key, cat.id) || cat.id,
-                                      icon:
-                                        t(cat.icon_key, "folder") ||
-                                        t("icon_folder", "folder"),
-                                    })) || []),
-                                  ];
-                                } else if (activeView === "LEXICONS") {
-                                  const langs = Array.from(
-                                    new Set(
-                                      marketAssets
-                                        .filter((a) => a.asset_type === "lexicon")
-                                        .map((a) => {
-                                          let lang = a.language;
-                                          if (!lang && a.json_data) {
-                                            try {
-                                              const parsed =
-                                                typeof a.json_data === "string"
-                                                  ? JSON.parse(a.json_data)
-                                                  : a.json_data;
-                                              lang = parsed.language;
-                                            } catch (e) {}
-                                          }
-                                          return lang || "Custom";
-                                        })
-                                    )
-                                  );
-                                  rawOpts = [
-                                    {
-                                      id: "ALL",
-                                      label: t("all_languages", "All Languages"),
-                                      icon: t("icon_folder", "folder"),
-                                    },
-                                    ...langs.map((l) => ({
-                                      id: String(l),
-                                      label: String(l),
-                                      icon: t("icon_translate", "translate"),
-                                    })),
-                                  ];
-                                } else if (activeView === "BLUEPRINTS") {
-                                  rawOpts = [
-                                    {
-                                      id: "ALL",
-                                      label: t("filter_all_versions", "All Versions"),
-                                      icon: t("icon_folder", "folder"),
-                                    },
-                                  ];
-                                  if (gameVersions && gameVersions.length > 0) {
-                                    rawOpts = [
-                                      ...rawOpts,
-                                      ...gameVersions.map((v: string) => ({
-                                        id: v,
-                                        label: v,
-                                        icon: t("icon_map", "map"),
-                                      })),
-                                    ];
-                                  }
-                                } else if (activeView === "CHAMELEONS") {
-                                  rawOpts = [
-                                    {
-                                      id: "ALL",
-                                      label: t("filter_all_modes", "All Modes"),
-                                      icon: t("icon_folder", "folder"),
-                                    },
-                                    {
-                                      id: "Dark",
-                                      label: t("mode_dark", "Dark"),
-                                      icon: t("icon_dark_mode", "dark_mode"),
-                                    },
-                                    {
-                                      id: "Light",
-                                      label: t("mode_light", "Light"),
-                                      icon: t("icon_light_mode", "light_mode"),
-                                    },
-                                  ];
-                                } else if (activeView === "TEMPLATES") {
-                                  rawOpts = [
-                                    {
-                                      id: "ALL",
-                                      label: t("filter_all_types", "All Types"),
-                                      icon: t("icon_folder", "folder"),
-                                    },
-                                  ];
-                                }
+  const subViewSearchPlaceholder = (
+    activeView === "COMM-LINK"
+      ? t("mason_search_placeholder", "Search {dispatches}...")
+      : activeView === "LEXICONS"
+        ? t("ui_search_lexicons", "Search {Lexicons}...")
+        : activeView === "CHAMELEONS"
+          ? t("ui_search_chameleons", "Search {Chameleons}...")
+          : activeView === "TEMPLATES"
+            ? t("search_tmpl", "Search templates...")
+            : activeView === "BLUEPRINTS"
+              ? t("search_blueprints", "Search {Blueprints}...")
+              : t("search_ph", "Search {mods}...")
+  ) as string;
 
-                                return rawOpts.map((opt) => ({
-                                  id: opt.id,
-                                  label: (
-                                    <div className="flex items-center gap-3 text-xs">
-                                      <span className="material-symbols-outlined !text-[16px] opacity-70">
-                                        {opt.icon}
-                                      </span>
-                                      <span className="truncate">{opt.label}</span>
-                                    </div>
-                                  ),
-                                }));
-                              })()}
-                            />
-                          </div>
+  const subViewPrimaryPopover =
+    activeView !== "OVERVIEW" && activeView !== "COMM-LINK"
+      ? {
+          icon: t("icon_tune", "tune"),
+          label: t("filters", "Filters"),
+          content: (
+            <div className="flex flex-col w-[320px] p-4 max-w-[calc(100vw-40px)] gap-6">
+              <div className="flex flex-col gap-2 w-full">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
+                  {t("filter_category", "Category")}
+                </span>
+                <CustomDropdown
+                  disableTint={true}
+                  flat={true}
+                  variant="pill"
+                  value={modCategory}
+                  onChange={(v: any) => setModCategory(v[0])}
+                  options={(() => {
+                    let rawOpts: any[] = [];
+                    if (activeView === "MODS") {
+                      rawOpts = [
+                        {
+                          id: "ALL",
+                          label: t("all_classes", "All Classes"),
+                          icon: t("icon_folder", "folder"),
+                        },
+                        ...(activeGameSchema?.mod_categories?.map((cat: any) => ({
+                          id: cat.id,
+                          label: t(cat.lexicon_key, cat.id) || cat.id,
+                          icon: t(cat.icon_key, "folder") || t("icon_folder", "folder"),
+                        })) || []),
+                      ];
+                    } else if (activeView === "LEXICONS") {
+                      const langs = Array.from(
+                        new Set(
+                          marketAssets
+                            .filter((a) => a.asset_type === "lexicon")
+                            .map((a) => {
+                              let lang = a.language;
+                              if (!lang && a.json_data) {
+                                try {
+                                  const parsed =
+                                    typeof a.json_data === "string"
+                                      ? JSON.parse(a.json_data)
+                                      : a.json_data;
+                                  lang = parsed.language;
+                                } catch (e) {}
+                              }
+                              return lang || "Custom";
+                            })
+                        )
+                      );
+                      rawOpts = [
+                        {
+                          id: "ALL",
+                          label: t("all_languages", "All Languages"),
+                          icon: t("icon_folder", "folder"),
+                        },
+                        ...langs.map((l) => ({
+                          id: String(l),
+                          label: String(l),
+                          icon: t("icon_translate", "translate"),
+                        })),
+                      ];
+                    } else if (activeView === "BLUEPRINTS") {
+                      rawOpts = [
+                        {
+                          id: "ALL",
+                          label: t("filter_all_versions", "All Versions"),
+                          icon: t("icon_folder", "folder"),
+                        },
+                      ];
+                      if (gameVersions && gameVersions.length > 0) {
+                        rawOpts = [
+                          ...rawOpts,
+                          ...gameVersions.map((v: string) => ({
+                            id: v,
+                            label: v,
+                            icon: t("icon_map", "map"),
+                          })),
+                        ];
+                      }
+                    } else if (activeView === "CHAMELEONS") {
+                      rawOpts = [
+                        {
+                          id: "ALL",
+                          label: t("filter_all_modes", "All Modes"),
+                          icon: t("icon_folder", "folder"),
+                        },
+                        {
+                          id: "Dark",
+                          label: t("mode_dark", "Dark"),
+                          icon: t("icon_dark_mode", "dark_mode"),
+                        },
+                        {
+                          id: "Light",
+                          label: t("mode_light", "Light"),
+                          icon: t("icon_light_mode", "light_mode"),
+                        },
+                      ];
+                    } else if (activeView === "TEMPLATES") {
+                      rawOpts = [
+                        {
+                          id: "ALL",
+                          label: t("filter_all_types", "All Types"),
+                          icon: t("icon_folder", "folder"),
+                        },
+                      ];
+                    }
 
-                          {(activeView === "MODS" || activeView === "BLUEPRINTS") && (
-                            <div className="flex flex-col gap-3 w-full">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
-                                {t("filters", "Filters")}
-                              </span>
-                              <div className="flex flex-col gap-2">
-                                <button
-                                  onClick={() => {
-                                    const newVal = !hidePaid;
-                                    setHidePaid(newVal);
-                                    localStorage.setItem("sanctuary_hide_paid", String(newVal));
-                                    setModPage(1);
-                                  }}
-                                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group ${
-                                    hidePaid
-                                      ? "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] backdrop-blur-md border border-transparent"
-                                      : "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:text-[var(--accent)] border-transparent"
-                                  }`}
-                                >
-                                  <span
-                                    className={`material-symbols-outlined !text-[22px] transition-all duration-500 shrink-0 relative z-10 ${
-                                      hidePaid ? "scale-110" : "group-hover:scale-110"
-                                    }`}
-                                  >
-                                    {hidePaid
-                                      ? t("icon_visibility_off", "visibility_off")
-                                      : t("icon_monetization_on", "monetization_on")}
-                                  </span>
-                                  <span className="text-[10px] font-black uppercase tracking-widest relative z-10 whitespace-nowrap overflow-hidden text-ellipsis pt-0.5">
-                                    {t("filter_hide_paid", "Hide Paid")}
-                                  </span>
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    const newVal = !hideEarlyAccess;
-                                    setHideEarlyAccess(newVal);
-                                    localStorage.setItem("sanctuary_hide_ea", String(newVal));
-                                    setModPage(1);
-                                  }}
-                                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group ${
-                                    hideEarlyAccess
-                                      ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] backdrop-blur-md border border-transparent"
-                                      : "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:text-[var(--accent)] border-transparent"
-                                  }`}
-                                >
-                                  <span
-                                    className={`material-symbols-outlined !text-[22px] transition-all duration-500 shrink-0 relative z-10 ${
-                                      hideEarlyAccess ? "scale-110" : "group-hover:scale-110"
-                                    }`}
-                                  >
-                                    {hideEarlyAccess
-                                      ? t("icon_visibility_off", "visibility_off")
-                                      : t("icon_science", "science")}
-                                  </span>
-                                  <span className="text-[10px] font-black uppercase tracking-widest relative z-10 whitespace-nowrap overflow-hidden text-ellipsis pt-0.5">
-                                    {t("filter_hide_early_access", "Hide Early Access")}
-                                  </span>
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                    return rawOpts.map((opt) => ({
+                      id: opt.id,
+                      label: (
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className="material-symbols-outlined !text-[16px] opacity-70">
+                            {opt.icon}
+                          </span>
+                          <span className="truncate">{opt.label}</span>
                         </div>
                       ),
-                    }
-                  : undefined
-              }
-            />
-          </div>
-        )}
-      </MasonProfileHeader>
+                    }));
+                  })()}
+                />
+              </div>
 
-      <StatTileCarousel>
-        <DashboardStatTile
-          icon={t("icon_dashboard", "dashboard")}
-          number={mods.length + marketAssets.length}
-          label={t("tab_overview", "Overview")}
-          colorClass="text-[var(--accent)]"
-          onClick={() => {
-            setActiveView("OVERVIEW");
-            setModCategory("ALL");
-            setModSearch("");
-          }}
-          variant="tab"
-          isActive={activeView === "OVERVIEW"}
-        />
-        <DashboardStatTile
-          icon={t("icon_account_balance", "account_balance")}
-          number={mods.length}
-          label={t("term_mods", "Artifacts")}
-          colorClass="text-teal-500"
-          onClick={() => {
-            setActiveView("MODS");
-            setModCategory("ALL");
-            setModSearch("");
-          }}
-          variant="tab"
-          isActive={activeView === "MODS"}
-        />
-        <DashboardStatTile
-          icon={t("icon_map", "map")}
-          number={marketAssets.filter((a: any) => a.asset_type === "blueprint").length}
-          label={t("playsets_title", "{Blueprints}")}
-          colorClass="text-blue-500"
-          onClick={() => {
-            setActiveView("BLUEPRINTS");
-            setModCategory("ALL");
-            setModSearch("");
-          }}
-          variant="tab"
-          isActive={activeView === "BLUEPRINTS"}
-        />
-        <DashboardStatTile
-          icon={t("icon_translate", "translate")}
-          number={marketAssets.filter((a: any) => a.asset_type === "lexicon").length}
-          label={t("tab_lexicons", "Lexicons")}
-          colorClass="text-indigo-500"
-          onClick={() => {
-            setActiveView("LEXICONS");
-            setModCategory("ALL");
-            setModSearch("");
-          }}
-          variant="tab"
-          isActive={activeView === "LEXICONS"}
-        />
-        <DashboardStatTile
-          icon={t("icon_palette", "palette")}
-          number={marketAssets.filter((a: any) => a.asset_type === "chameleon").length}
-          label={t("chameleon", "Chameleon")}
-          colorClass="text-purple-500"
-          onClick={() => {
-            setActiveView("CHAMELEONS");
-            setModCategory("ALL");
-            setModSearch("");
-          }}
-          variant="tab"
-          isActive={activeView === "CHAMELEONS"}
-        />
-        <DashboardStatTile
-          icon={t("icon_draw", "draw")}
-          number={
-            marketAssets.filter((a: any) => a.asset_type === "workbench_template").length
-          }
-          label={t("ql_templates", "Templates")}
-          colorClass="text-pink-500"
-          onClick={() => {
-            setActiveView("TEMPLATES");
-            setModCategory("ALL");
-            setModSearch("");
-          }}
-          variant="tab"
-          isActive={activeView === "TEMPLATES"}
-        />
-      </StatTileCarousel>
-
-      <div className="flex-1 flex flex-col min-h-0 w-full mt-2">
-        {activeView === "OVERVIEW" ? (
-          <MasonProfileOverview
-            posts={posts}
-            mods={mods}
-            marketAssets={marketAssets}
-            mason={mason}
-            setActiveView={setActiveView}
-            setModCategory={setModCategory}
-            setModSearch={setModSearch}
-            setActiveAsset={setActiveAsset}
-            setSelectedBlueprint={setSelectedBlueprint}
-            onModClick={onModClick}
-            activeGameSchema={activeGameSchema}
-            handlePostClick={handlePostClick}
-            handleToggleLike={handleToggleLike}
-            isOwner={isOwner}
-            onEditShowcase={() => setIsPinPanelOpen(true)}
-            t={t}
-          />
-        ) : (
-          <div className="flex flex-col gap-6 h-full w-full">
-            <div className="flex-1 overflow-y-auto custom-scrollbar content-start pb-32">
-              {activeView === "COMM-LINK" && (
-                <MasonProfileCommLink
-                  posts={posts}
-                  modSearch={modSearch}
-                  handlePostClick={handlePostClick}
-                  handleToggleLike={handleToggleLike}
-                  t={t}
-                />
-              )}
-              {activeView === "MODS" && (
-                <MasonProfileArtifacts
-                  filteredMods={filteredMods}
-                  onModClick={onModClick}
-                  mason={mason}
-                  activeGameSchema={activeGameSchema}
-                  isOwner={isOwner}
-                  handlePin={handlePin}
-                  t={t}
-                />
-              )}
-              {["BLUEPRINTS", "LEXICONS", "CHAMELEONS", "TEMPLATES"].includes(activeView) && (
-                <MasonProfileAssets
-                  activeView={activeView}
-                  marketAssets={marketAssets}
-                  modSearch={modSearch}
-                  modCategory={modCategory}
-                  hidePaid={hidePaid}
-                  hideEarlyAccess={hideEarlyAccess}
-                  mason={mason}
-                  setSelectedBlueprint={setSelectedBlueprint}
-                  setActiveAsset={setActiveAsset}
-                  isInstalled={isInstalled}
-                  isOutdated={isOutdated}
-                  importLexicon={importLexicon}
-                  importTheme={importTheme}
-                  vaultPath={vaultPath}
-                  exists={exists}
-                  importFs={importFs}
-                  setInstalledTemplates={setInstalledTemplates}
-                  getAssetDisplayVersion={getAssetDisplayVersion}
-                  useStore={useStore}
-                  isOwner={isOwner}
-                  handlePin={handlePin}
-                  t={t}
-                />
+              {(activeView === "MODS" || activeView === "BLUEPRINTS") && (
+                <div className="flex flex-col gap-3 w-full">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1">
+                    {t("filters", "Filters")}
+                  </span>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => {
+                        const newVal = !hidePaid;
+                        setHidePaid(newVal);
+                        localStorage.setItem("sanctuary_hide_paid", String(newVal));
+                        setModPage(1);
+                      }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group ${
+                        hidePaid
+                          ? "bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] text-[var(--warning)] backdrop-blur-md border border-transparent"
+                          : "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:text-[var(--accent)] border-transparent"
+                      }`}
+                    >
+                      <span
+                        className={`material-symbols-outlined !text-[22px] transition-all duration-500 shrink-0 relative z-10 ${
+                          hidePaid ? "scale-110" : "group-hover:scale-110"
+                        }`}
+                      >
+                        {hidePaid
+                          ? t("icon_visibility_off", "visibility_off")
+                          : t("icon_monetization_on", "monetization_on")}
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest relative z-10 whitespace-nowrap overflow-hidden text-ellipsis pt-0.5">
+                        {t("filter_hide_paid", "Hide Paid")}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        const newVal = !hideEarlyAccess;
+                        setHideEarlyAccess(newVal);
+                        localStorage.setItem("sanctuary_hide_ea", String(newVal));
+                        setModPage(1);
+                      }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 relative overflow-hidden group ${
+                        hideEarlyAccess
+                          ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] backdrop-blur-md border border-transparent"
+                          : "text-[var(--sidebartext)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] hover:text-[var(--accent)] border-transparent"
+                      }`}
+                    >
+                      <span
+                        className={`material-symbols-outlined !text-[22px] transition-all duration-500 shrink-0 relative z-10 ${
+                          hideEarlyAccess ? "scale-110" : "group-hover:scale-110"
+                        }`}
+                      >
+                        {hideEarlyAccess
+                          ? t("icon_visibility_off", "visibility_off")
+                          : t("icon_science", "science")}
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest relative z-10 whitespace-nowrap overflow-hidden text-ellipsis pt-0.5">
+                        {t("filter_hide_early_access", "Hide Early Access")}
+                      </span>
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
+          ),
+        }
+      : undefined;
+
+  return wrapIfSidePanel(
+    <div
+      className={`flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full ${
+        isSidePanel
+          ? "pb-16 pt-1 px-1"
+          : "min-h-full pb-36 pt-0 md:pt-4 px-0 md:px-6 max-w-[1600px] mx-auto"
+      }`}
+    >
+      {isSidePanel ? (
+        <div className="flex flex-col gap-5 w-full">
+          <SidePanelHeroCard
+            icon={t("icon_verified_user", "verified_user")}
+            overline={t("verified_mason", "Verified {Mason}")}
+            title={mason.name}
+            description={mason.bio}
+            badge={`${followerCount} ${t("followers", "Followers")}`}
+            badgeIcon={t("icon_group", "group")}
+            variant="accent"
+          />
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full">
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_dashboard", "dashboard")}
+              label={t("tab_overview", "Overview")}
+              value={mods.length + marketAssets.length}
+              isActive={activeView === "OVERVIEW"}
+              onClick={() => {
+                setActiveView("OVERVIEW");
+                setModCategory("ALL");
+                setModSearch("");
+              }}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_account_balance", "account_balance")}
+              label={t("term_mods", "Artifacts")}
+              value={mods.length}
+              isActive={activeView === "MODS"}
+              onClick={() => {
+                setActiveView("MODS");
+                setModCategory("ALL");
+                setModSearch("");
+              }}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_map", "map")}
+              label={t("playsets_title", "{Blueprints}")}
+              value={marketAssets.filter((a: any) => a.asset_type === "blueprint").length}
+              isActive={activeView === "BLUEPRINTS"}
+              onClick={() => {
+                setActiveView("BLUEPRINTS");
+                setModCategory("ALL");
+                setModSearch("");
+              }}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_satellite_alt", "satellite_alt")}
+              label={t("tab_commlink", "Comm-Link")}
+              value={posts.length}
+              isActive={activeView === "COMM-LINK"}
+              onClick={() => {
+                setActiveView("COMM-LINK");
+                setModCategory("ALL");
+                setModSearch("");
+              }}
+            />
           </div>
-        )}
-      </div>
+
+          {activeView === "OVERVIEW" ? (
+            <MasonProfileOverview
+              posts={posts}
+              mods={mods}
+              marketAssets={marketAssets}
+              mason={mason}
+              setActiveAsset={setActiveAsset}
+              setSelectedBlueprint={setSelectedBlueprint}
+              onModClick={onModClick}
+              activeGameSchema={activeGameSchema}
+              handlePostClick={handlePostClick}
+              handleToggleLike={handleToggleLike}
+              isOwner={isOwner}
+              onEditShowcase={() => setIsPinPanelOpen(true)}
+              isSidePanel={true}
+              t={t}
+            />
+          ) : activeView === "MODS" ? (
+            <MasonProfileArtifacts
+              filteredMods={filteredMods}
+              onModClick={onModClick}
+              mason={mason}
+              activeGameSchema={activeGameSchema}
+              isOwner={isOwner}
+              handlePin={handlePin}
+              isSidePanel={true}
+              t={t}
+            />
+          ) : activeView === "BLUEPRINTS" ? (
+            <MasonProfileAssets
+              activeView={activeView}
+              marketAssets={marketAssets}
+              modSearch={modSearch}
+              modCategory={modCategory}
+              hidePaid={hidePaid}
+              hideEarlyAccess={hideEarlyAccess}
+              mason={mason}
+              setSelectedBlueprint={setSelectedBlueprint}
+              setActiveAsset={setActiveAsset}
+              isInstalled={isInstalled}
+              isOutdated={isOutdated}
+              importLexicon={importLexicon}
+              importTheme={importTheme}
+              vaultPath={vaultPath}
+              exists={exists}
+              importFs={importFs}
+              setInstalledTemplates={setInstalledTemplates}
+              getAssetDisplayVersion={getAssetDisplayVersion}
+              useStore={useStore}
+              isOwner={isOwner}
+              handlePin={handlePin}
+              isSidePanel={true}
+              t={t}
+            />
+          ) : (
+            <MasonProfileCommLink
+              posts={posts}
+              modSearch={modSearch}
+              handlePostClick={handlePostClick}
+              handleToggleLike={handleToggleLike}
+              t={t}
+            />
+          )}
+        </div>
+      ) : (
+        <>
+          <MasonProfileHeader
+            mason={mason}
+            masonId={masonId}
+            followerCount={followerCount}
+            isFollowing={isFollowing}
+            isVerifiedSupporter={!!localSupporterPass}
+            onOpenSupportModal={() => setIsSupportDrawerOpen(true)}
+            masonAlerts={masonAlerts}
+            toggleFollow={toggleFollow}
+            toggleMasonAlert={toggleMasonAlert}
+            activeView={activeView}
+            setActiveView={setActiveView}
+            isOwner={isOwner}
+            onEditShowcase={() => setIsPinPanelOpen(true)}
+            searchQuery={modSearch}
+            setSearchQuery={setModSearch}
+            searchPlaceholder={subViewSearchPlaceholder}
+            primaryPopover={subViewPrimaryPopover}
+            t={t}
+          />
+
+          <StatTileCarousel>
+            <DashboardStatTile
+              icon={t("icon_dashboard", "dashboard")}
+              number={mods.length + marketAssets.length}
+              label={t("tab_overview", "Overview")}
+              colorClass="text-[var(--accent)]"
+              onClick={() => {
+                setActiveView("OVERVIEW");
+                setModCategory("ALL");
+                setModSearch("");
+              }}
+              variant="tab"
+              isActive={activeView === "OVERVIEW"}
+            />
+            <DashboardStatTile
+              icon={t("icon_account_balance", "account_balance")}
+              number={mods.length}
+              label={t("term_mods", "Artifacts")}
+              colorClass="text-teal-500"
+              onClick={() => {
+                setActiveView("MODS");
+                setModCategory("ALL");
+                setModSearch("");
+              }}
+              variant="tab"
+              isActive={activeView === "MODS"}
+            />
+            <DashboardStatTile
+              icon={t("icon_map", "map")}
+              number={marketAssets.filter((a: any) => a.asset_type === "blueprint").length}
+              label={t("playsets_title", "{Blueprints}")}
+              colorClass="text-blue-500"
+              onClick={() => {
+                setActiveView("BLUEPRINTS");
+                setModCategory("ALL");
+                setModSearch("");
+              }}
+              variant="tab"
+              isActive={activeView === "BLUEPRINTS"}
+            />
+            <DashboardStatTile
+              icon={t("icon_translate", "translate")}
+              number={marketAssets.filter((a: any) => a.asset_type === "lexicon").length}
+              label={t("tab_lexicons", "Lexicons")}
+              colorClass="text-indigo-500"
+              onClick={() => {
+                setActiveView("LEXICONS");
+                setModCategory("ALL");
+                setModSearch("");
+              }}
+              variant="tab"
+              isActive={activeView === "LEXICONS"}
+            />
+            <DashboardStatTile
+              icon={t("icon_palette", "palette")}
+              number={marketAssets.filter((a: any) => a.asset_type === "chameleon").length}
+              label={t("chameleon", "Chameleon")}
+              colorClass="text-purple-500"
+              onClick={() => {
+                setActiveView("CHAMELEONS");
+                setModCategory("ALL");
+                setModSearch("");
+              }}
+              variant="tab"
+              isActive={activeView === "CHAMELEONS"}
+            />
+            <DashboardStatTile
+              icon={t("icon_draw", "draw")}
+              number={
+                marketAssets.filter((a: any) => a.asset_type === "workbench_template").length
+              }
+              label={t("ql_templates", "Templates")}
+              colorClass="text-pink-500"
+              onClick={() => {
+                setActiveView("TEMPLATES");
+                setModCategory("ALL");
+                setModSearch("");
+              }}
+              variant="tab"
+              isActive={activeView === "TEMPLATES"}
+            />
+          </StatTileCarousel>
+
+          <div className="flex-1 flex flex-col min-h-0 w-full mt-2">
+            {activeView === "OVERVIEW" ? (
+              <MasonProfileOverview
+                posts={posts}
+                mods={mods}
+                marketAssets={marketAssets}
+                mason={mason}
+                masonId={masonId}
+                followerCount={followerCount}
+                isFollowing={isFollowing}
+                isVerifiedSupporter={!!localSupporterPass}
+                onOpenSupportModal={() => setIsSupportDrawerOpen(true)}
+                masonAlerts={masonAlerts}
+                toggleFollow={toggleFollow}
+                toggleMasonAlert={toggleMasonAlert}
+                setActiveView={setActiveView}
+                setModCategory={setModCategory}
+                setModSearch={setModSearch}
+                setActiveAsset={setActiveAsset}
+                setSelectedBlueprint={setSelectedBlueprint}
+                onModClick={onModClick}
+                activeGameSchema={activeGameSchema}
+                handlePostClick={handlePostClick}
+                handleToggleLike={handleToggleLike}
+                isOwner={isOwner}
+                onEditShowcase={() => setIsPinPanelOpen(true)}
+                isSidePanel={false}
+                t={t}
+              />
+            ) : (
+              <div className="flex flex-col gap-6 h-full w-full">
+                <div className="flex-1 overflow-y-auto custom-scrollbar content-start pb-32">
+                  {activeView === "COMM-LINK" && (
+                    <MasonProfileCommLink
+                      posts={posts}
+                      modSearch={modSearch}
+                      handlePostClick={handlePostClick}
+                      handleToggleLike={handleToggleLike}
+                      t={t}
+                    />
+                  )}
+                  {activeView === "MODS" && (
+                    <MasonProfileArtifacts
+                      filteredMods={filteredMods}
+                      onModClick={onModClick}
+                      mason={mason}
+                      activeGameSchema={activeGameSchema}
+                      isOwner={isOwner}
+                      handlePin={handlePin}
+                      isSidePanel={false}
+                      t={t}
+                    />
+                  )}
+                  {["BLUEPRINTS", "LEXICONS", "CHAMELEONS", "TEMPLATES"].includes(activeView) && (
+                    <MasonProfileAssets
+                      activeView={activeView}
+                      marketAssets={marketAssets}
+                      modSearch={modSearch}
+                      modCategory={modCategory}
+                      hidePaid={hidePaid}
+                      hideEarlyAccess={hideEarlyAccess}
+                      mason={mason}
+                      setSelectedBlueprint={setSelectedBlueprint}
+                      setActiveAsset={setActiveAsset}
+                      isInstalled={isInstalled}
+                      isOutdated={isOutdated}
+                      importLexicon={importLexicon}
+                      importTheme={importTheme}
+                      vaultPath={vaultPath}
+                      exists={exists}
+                      importFs={importFs}
+                      setInstalledTemplates={setInstalledTemplates}
+                      getAssetDisplayVersion={getAssetDisplayVersion}
+                      useStore={useStore}
+                      isOwner={isOwner}
+                      handlePin={handlePin}
+                      isSidePanel={false}
+                      t={t}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {selectedPost && (
         <MasonPostViewer
@@ -990,6 +1271,9 @@ export default function MasonProfile({
         marketAssets={marketAssets}
         gameVersions={gameVersions}
         handlePin={handlePin}
+        onModClick={onModClick}
+        setSelectedBlueprint={setSelectedBlueprint}
+        setActiveAsset={setActiveAsset}
         activeGameSchema={activeGameSchema}
         t={t}
       />
@@ -1019,7 +1303,7 @@ export default function MasonProfile({
 
           {(mason?.donation_url || mason?.patreon_url || mason?.website_url) && (
             <UniversalGroup
-              title={t("supporter_btn_support_creator", "Support (0% Fee)")}
+              title={t("supporter_btn_support_creator", "Support")}
               icon={t("icon_volunteer_activism", "volunteer_activism")}
               headerAction={
                 <span className="px-2.5 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-widest text-[var(--accent)]">
@@ -1031,7 +1315,7 @@ export default function MasonProfile({
                 variant="glass"
                 className="w-full justify-center"
                 icon={t("icon_open_in_new", "open_in_new")}
-                label={t("supporter_btn_support_creator", "Support (0% Fee)")}
+                label={t("supporter_btn_support_creator", "Support")}
                 onClick={() =>
                   handleOpenUrl(mason.donation_url || mason.patreon_url || mason.website_url)
                 }

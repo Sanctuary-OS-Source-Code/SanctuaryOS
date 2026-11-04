@@ -2,14 +2,96 @@ import React, { useEffect, useState } from "react";
 import { useLexicon } from "./LexiconContext";
 import { createPortal } from "react-dom";
 import { useStore } from "./store";
+import { useTooltipStore } from "./store/tooltipStore";
 import IconPicker from "./IconPicker";
 import { spellChecker } from "./SpellChecker";
+
+export interface SanctuaryContextMenuItem {
+  id?: string;
+  label: string;
+  icon: string;
+  iconColorClass?: string;
+  variant?: "default" | "danger" | "success" | "warning" | "accent";
+  danger?: boolean;
+  badge?: string;
+  disabled?: boolean;
+  dividerBefore?: boolean;
+  divider?: boolean;
+  onClick?: () => void;
+  submenu?: SanctuaryContextMenuItem[];
+}
+
+export interface SanctuaryContextMenuConfig {
+  title: string;
+  subtitle?: string;
+  statusLabel?: string;
+  statusColorClass?: string;
+  icon?: string;
+  iconColorClass?: string;
+  items: SanctuaryContextMenuItem[];
+}
+
+let globalOpenCardMenu: ((x: number, y: number, config: SanctuaryContextMenuConfig) => void) | null = null;
+let globalCloseCardMenu: (() => void) | null = null;
+
+export function openSanctuaryContextMenu(
+  e: {
+    preventDefault?: () => void;
+    stopPropagation?: () => void;
+    clientX: number;
+    clientY: number;
+    currentTarget?: EventTarget | null;
+    target?: EventTarget | null;
+  },
+  configOrItems: SanctuaryContextMenuConfig | SanctuaryContextMenuItem[]
+) {
+  if (e.preventDefault) e.preventDefault();
+  if (e.stopPropagation) e.stopPropagation();
+  try {
+    useTooltipStore.getState().clearTooltip();
+  } catch {}
+  let config: SanctuaryContextMenuConfig;
+  if (Array.isArray(configOrItems)) {
+    let inferredTitle = "";
+    let inferredSubtitle = "";
+    let inferredIcon = "";
+    const el = (e.currentTarget || e.target) as HTMLElement | null;
+    const cardEl = el?.closest?.(".glass-panel") || el;
+    if (cardEl && typeof cardEl.querySelector === "function") {
+      const h3 = cardEl.querySelector("h3, h4");
+      if (h3?.textContent) inferredTitle = h3.textContent.trim();
+      const sub = h3?.parentElement?.querySelector("p");
+      if (sub?.textContent) inferredSubtitle = sub.textContent.trim();
+      const iconSpan = cardEl.querySelector(".material-symbols-outlined");
+      if (iconSpan?.textContent) inferredIcon = iconSpan.textContent.trim();
+    }
+    config = {
+      title: inferredTitle || configOrItems[0]?.label || "",
+      subtitle: inferredSubtitle || undefined,
+      icon: inferredIcon || configOrItems[0]?.icon,
+      items: configOrItems,
+    };
+  } else {
+    config = configOrItems;
+  }
+  if (globalOpenCardMenu && config.items && config.items.length > 0) {
+    globalOpenCardMenu(e.clientX, e.clientY, config);
+  }
+}
+
+export function closeSanctuaryContextMenu() {
+  if (globalCloseCardMenu) {
+    globalCloseCardMenu();
+  }
+}
 
 export function ContextMenu() {
   const { t } = useLexicon();
   const pushStatus = useStore((state) => state.pushStatus);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isVisible, setIsVisible] = useState(false);
+  const [cardMenu, setCardMenu] = useState<{ x: number; y: number; config: SanctuaryContextMenuConfig } | null>(null);
+  const [activeSubmenuIdx, setActiveSubmenuIdx] = useState<number | null>(null);
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [isMonacoTarget, setIsMonacoTarget] = useState(false);
@@ -18,11 +100,35 @@ export function ContextMenu() {
   const [savedRange, setSavedRange] = useState<Range | null>(null);
   const [misspelledInfo, setMisspelledInfo] = useState<{ word: string, suggestions: string[], range: Range } | null>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
+  const cardMenuRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    globalOpenCardMenu = (x, y, config) => {
+      setIsVisible(false);
+      setShowIconPicker(false);
+      setActiveSubmenuIdx(null);
+      setCardMenu({ x, y, config });
+    };
+    globalCloseCardMenu = () => {
+      setCardMenu(null);
+      setActiveSubmenuIdx(null);
+    };
+    return () => {
+      globalOpenCardMenu = null;
+      globalCloseCardMenu = null;
+    };
+  }, []);
 
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest('.native-context-menu')) return;
+      if (cardMenuRef.current && cardMenuRef.current.contains(target)) {
+        e.preventDefault();
+        return;
+      }
+      setCardMenu(null);
+      setActiveSubmenuIdx(null);
       
       const isInput =
         target.tagName === "INPUT" ||
@@ -40,8 +146,8 @@ export function ContextMenu() {
         
         let x = e.clientX;
         let y = e.clientY;
-        const menuWidth = 200;
-        const menuHeight = isInput ? 160 : 50;
+        const menuWidth = 228;
+        const menuHeight = isInput ? 190 : 72;
 
         if (x + menuWidth > window.innerWidth) x -= menuWidth;
         if (y + menuHeight > window.innerHeight) y -= menuHeight;
@@ -107,10 +213,27 @@ export function ContextMenu() {
       if (isVisible && menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setIsVisible(false);
       }
+      if (cardMenu && cardMenuRef.current && !cardMenuRef.current.contains(e.target as Node)) {
+        setCardMenu(null);
+        setActiveSubmenuIdx(null);
+      }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isVisible) setIsVisible(false);
+      if (e.key === "Escape") {
+        if (isVisible) setIsVisible(false);
+        if (cardMenu) {
+          setCardMenu(null);
+          setActiveSubmenuIdx(null);
+        }
+      }
+    };
+
+    const handleScroll = (e: Event) => {
+      if (cardMenu && cardMenuRef.current && !cardMenuRef.current.contains(e.target as Node)) {
+        setCardMenu(null);
+        setActiveSubmenuIdx(null);
+      }
     };
 
     const handleCustomMonacoContextMenu = (e: any) => {
@@ -165,6 +288,7 @@ export function ContextMenu() {
     window.addEventListener("sanctuary-webview-contextmenu-close", handleWebviewContextClose);
     window.addEventListener("mousedown", handleMouseDown, { capture: true });
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleScroll, { capture: true });
 
     return () => {
       window.removeEventListener("contextmenu", handleContextMenu, { capture: true });
@@ -173,8 +297,9 @@ export function ContextMenu() {
       window.removeEventListener("sanctuary-webview-contextmenu-close", handleWebviewContextClose);
       window.removeEventListener("mousedown", handleMouseDown, { capture: true });
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleScroll, { capture: true });
     };
-  }, [isVisible]);
+  }, [isVisible, cardMenu]);
 
   const handleAction = (action: string) => {
     setIsVisible(false);
@@ -395,6 +520,220 @@ export function ContextMenu() {
     setIsVisible(false);
   };
 
+  const menuBtnClass =
+    "w-full rounded-xl text-left px-2.5 py-2 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-bold text-[var(--text)] flex items-center justify-between gap-2.5 transition-all cursor-pointer group/ctxitem";
+  const dangerMenuBtnClass =
+    "w-full rounded-xl text-left px-2.5 py-2 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-xs font-bold text-[var(--danger)] flex items-center justify-between gap-2.5 transition-all cursor-pointer group/ctxitem";
+  const iconWellClass =
+    "w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors";
+
+  if (cardMenu) {
+    const estHeight = Math.min(480, 96 + cardMenu.config.items.length * 42);
+    const clampedX = Math.max(12, Math.min(cardMenu.x, window.innerWidth - 308));
+    const clampedY = Math.max(12, Math.min(cardMenu.y, window.innerHeight - estHeight));
+    const openSubmenuLeft = cardMenu.x > window.innerWidth - 560;
+
+    return createPortal(
+      <div
+        ref={cardMenuRef}
+        style={{
+          position: "fixed",
+          left: clampedX,
+          top: clampedY,
+          zIndex: 120000,
+        }}
+        className="flex flex-col w-[292px] animate-in fade-in zoom-in-95 duration-150"
+        onClick={(e) => e.stopPropagation()}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+      >
+        <div
+          style={{ overflow: "visible" }}
+          className="w-full h-full glass-panel portal-glass-fix sa-dropdown-popover !overflow-visible rounded-2xl p-2 border border-[color-mix(in_srgb,var(--text)_14%,rgba(255,255,255,0.22))] shadow-[0_24px_60px_rgba(0,0,0,0.65)] flex flex-col gap-1"
+        >
+          {/* Liquid Glass Context Header Card */}
+          <div className="flex items-center gap-3 p-2.5 mb-1 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+            <div
+              className={`w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
+                cardMenu.config.iconColorClass || "text-[var(--accent)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[18px]">
+                {cardMenu.config.icon || t("icon_deployed_code", "deployed_code")}
+              </span>
+            </div>
+            <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+              <span className="text-xs font-black text-[var(--text)] tracking-tight truncate">
+                {cardMenu.config.title}
+              </span>
+              {(cardMenu.config.subtitle || cardMenu.config.statusLabel) && (
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-[var(--subtext)] min-w-0">
+                  {cardMenu.config.subtitle && (
+                    <span className="truncate">{cardMenu.config.subtitle}</span>
+                  )}
+                  {cardMenu.config.subtitle && cardMenu.config.statusLabel && (
+                    <span className="opacity-40 shrink-0">•</span>
+                  )}
+                  {cardMenu.config.statusLabel && (
+                    <span className={`shrink-0 ${cardMenu.config.statusColorClass || "opacity-80"}`}>
+                      {cardMenu.config.statusLabel}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {cardMenu.config.items.map((item, idx) => {
+            const isDanger = item.variant === "danger" || Boolean(item.danger);
+            const resolvedIconColor =
+              item.iconColorClass ||
+              (isDanger
+                ? "text-[var(--danger)]"
+                : item.variant === "success"
+                  ? "text-[var(--success)]"
+                  : item.variant === "warning"
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--accent)]");
+            const hasSubmenu = Array.isArray(item.submenu) && item.submenu.length > 0;
+            const showDivider = Boolean(item.dividerBefore || item.divider);
+
+            return (
+              <React.Fragment key={item.id || `${item.label}_${idx}`}>
+                {showDivider && (
+                  <div
+                    className={`w-full h-px bg-gradient-to-r from-transparent ${
+                      isDanger
+                        ? "via-[color-mix(in_srgb,var(--danger)_25%,transparent)]"
+                        : "via-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                    } to-transparent my-0.5`}
+                  />
+                )}
+                {hasSubmenu ? (
+                  <div
+                    className="relative"
+                    onMouseEnter={() => setActiveSubmenuIdx(idx)}
+                    onMouseLeave={() => setActiveSubmenuIdx(null)}
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveSubmenuIdx((prev) => (prev === idx ? null : idx));
+                      }}
+                      className={menuBtnClass}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`${iconWellClass} ${resolvedIconColor}`}>
+                          <span className="material-symbols-outlined !text-[15px]">
+                            {item.icon}
+                          </span>
+                        </div>
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                      <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-60 shrink-0">
+                        {t("icon_chevron_right", "chevron_right")}
+                      </span>
+                    </button>
+                    {activeSubmenuIdx === idx && (
+                      <div
+                        className={`absolute top-0 w-64 pt-0 z-50 ${
+                          openSubmenuLeft ? "right-full pr-1.5" : "left-full pl-1.5"
+                        }`}
+                      >
+                        <div className="w-full glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl p-2 border border-[color-mix(in_srgb,var(--text)_14%,rgba(255,255,255,0.22))] shadow-[0_24px_60px_rgba(0,0,0,0.65)] flex flex-col gap-1 max-h-64 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-150">
+                          {item.submenu!.map((sub, sIdx) => {
+                            const subDanger = sub.variant === "danger";
+                            const subIconColor =
+                              sub.iconColorClass ||
+                              (sub.variant === "danger"
+                                ? "text-[var(--danger)]"
+                                : sub.variant === "success"
+                                  ? "text-[var(--success)]"
+                                  : sub.variant === "warning"
+                                    ? "text-[var(--warning)]"
+                                    : "text-[var(--accent)]");
+                            return (
+                              <React.Fragment key={sub.id || `${sub.label}_${sIdx}`}>
+                                {sub.dividerBefore && (
+                                  <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent my-0.5" />
+                                )}
+                                <button
+                                  type="button"
+                                  disabled={sub.disabled}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (sub.disabled) return;
+                                    setCardMenu(null);
+                                    setActiveSubmenuIdx(null);
+                                    sub.onClick?.();
+                                  }}
+                                  className={`${subDanger ? dangerMenuBtnClass : menuBtnClass} ${
+                                    sub.disabled ? "opacity-45 cursor-not-allowed" : ""
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className={`${iconWellClass} ${subIconColor}`}>
+                                      <span className="material-symbols-outlined !text-[15px]">
+                                        {sub.icon}
+                                      </span>
+                                    </div>
+                                    <span className="truncate">{sub.label}</span>
+                                  </div>
+                                  {sub.badge && (
+                                    <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75 shrink-0">
+                                      {sub.badge}
+                                    </span>
+                                  )}
+                                </button>
+                              </React.Fragment>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={item.disabled}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (item.disabled) return;
+                      setCardMenu(null);
+                      setActiveSubmenuIdx(null);
+                      item.onClick?.();
+                    }}
+                    className={`${isDanger ? dangerMenuBtnClass : menuBtnClass} ${
+                      item.disabled ? "opacity-45 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`${iconWellClass} ${resolvedIconColor}`}>
+                        <span className="material-symbols-outlined !text-[15px]">
+                          {item.icon}
+                        </span>
+                      </div>
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    {item.badge && (
+                      <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75 shrink-0">
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
   if (!isVisible) return null;
 
   return createPortal(
@@ -409,83 +748,150 @@ export function ContextMenu() {
       className="flex"
     >
       <div
-    className="w-48 h-max glass-panel portal-glass-fix sa-dropdown-popover rounded-xl flex flex-col p-1.5 gap-0.5 animate-in fade-in zoom-in-95 duration-100"
+        className="w-56 h-max glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl p-2 border border-[color-mix(in_srgb,var(--text)_14%,rgba(255,255,255,0.22))] shadow-[0_24px_60px_rgba(0,0,0,0.65)] flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150"
         onContextMenu={(e) => e.preventDefault()}
       >
-      {misspelledInfo && (
-        <>
-            <div className="px-4 py-2 text-[9px] font-black capitalize tracking-widest text-[var(--subtext)] opacity-50 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] bg-black/20">{t("spell_suggest", "Spelling Suggestions")}</div>
+        {misspelledInfo && (
+          <>
+            <div className="px-2.5 py-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-70">
+              {t("spell_suggest", "Spelling Suggestions")}
+            </div>
             {misspelledInfo.suggestions.map((suggestion) => (
-                <button
-                    key={suggestion}
-                    onMouseDown={(e) => { e.preventDefault(); handleAction(`spell_correct:${suggestion}`); }}
-                    className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-bold text-[var(--text)] group"
-                >
-                    {suggestion}
-                </button>
-            ))}
-            <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] my-1 w-full" />
-        </>
-      )}
-      {!isReadOnly && (
-        <button
-          onMouseDown={(e) => { e.preventDefault(); handleAction("cut"); }}
-          className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
-        >
-          <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">{t("icon_content_cut", "content_cut")}</span>
-          {t("ctx_cut", "Cut")}
-        </button>
-      )}
-      <button
-        onMouseDown={(e) => { e.preventDefault(); handleAction("copy"); }}
-        className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
-      >
-        <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">{t("icon_content_copy", "content_copy")}</span>
-        {t("btn_copy", "Copy")}
-      </button>
-      {!isReadOnly && (
-        <>
-          <button
-            onMouseDown={(e) => { e.preventDefault(); handleAction("paste"); }}
-            className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
-          >
-            <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">{t("icon_content_paste", "content_paste")}</span>
-            {t("ctx_paste", "Paste")}
-          </button>
-          {supportsIcons && (
-            <>
-              <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] my-1 w-full" />
               <button
-                onMouseDown={(e) => { e.preventDefault(); setShowIconPicker(!showIconPicker); }}
-                className={`px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center justify-start text-sm font-medium text-[var(--text)] group ${showIconPicker ? 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)]' : ''}`}
+                key={suggestion}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleAction(`spell_correct:${suggestion}`);
+                }}
+                className={menuBtnClass}
               >
-                <div className="flex items-center gap-3">
-                   <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">{t("icon_add_reaction", "add_reaction")}</span>
-                   {t("editor_tt_icon", "Insert Icon")}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`${iconWellClass} text-[var(--accent)]`}>
+                    <span className="material-symbols-outlined !text-[15px]">
+                      {t("icon_spellcheck", "spellcheck")}
+                    </span>
+                  </div>
+                  <span className="truncate">{suggestion}</span>
                 </div>
-                <span className="material-symbols-outlined !text-[16px] opacity-50">{showIconPicker ? t("icon_expand_less", "expand_less") : t("icon_chevron_right", "chevron_right")}</span>
               </button>
-            </>
-          )}
-          <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] my-1 w-full" />
+            ))}
+            <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent my-0.5" />
+          </>
+        )}
+        {!isReadOnly && (
           <button
-            onMouseDown={(e) => { e.preventDefault(); handleAction("selectAll"); }}
-            className="px-4 py-2 text-left hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] group"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleAction("cut");
+            }}
+            className={menuBtnClass}
           >
-            <span className="material-symbols-outlined !text-[16px] opacity-50 group-hover:opacity-100">{t("icon_select_all", "select_all")}</span>
-            {t("btn_select_all", "Select All")}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`${iconWellClass} text-[var(--accent)]`}>
+                <span className="material-symbols-outlined !text-[15px]">
+                  {t("icon_content_cut", "content_cut")}
+                </span>
+              </div>
+              <span className="truncate">{t("ctx_cut", "Cut")}</span>
+            </div>
           </button>
-        </>
-      )}
+        )}
+        <button
+          onMouseDown={(e) => {
+            e.preventDefault();
+            handleAction("copy");
+          }}
+          className={menuBtnClass}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className={`${iconWellClass} text-[var(--accent)]`}>
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_content_copy", "content_copy")}
+              </span>
+            </div>
+            <span className="truncate">{t("btn_copy", "Copy")}</span>
+          </div>
+        </button>
+        {!isReadOnly && (
+          <>
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleAction("paste");
+              }}
+              className={menuBtnClass}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`${iconWellClass} text-[var(--accent)]`}>
+                  <span className="material-symbols-outlined !text-[15px]">
+                    {t("icon_content_paste", "content_paste")}
+                  </span>
+                </div>
+                <span className="truncate">{t("ctx_paste", "Paste")}</span>
+              </div>
+            </button>
+            {supportsIcons && (
+              <>
+                <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent my-0.5" />
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setShowIconPicker(!showIconPicker);
+                  }}
+                  className={`${menuBtnClass} ${
+                    showIconPicker ? "bg-[color-mix(in_srgb,var(--text)_8%,transparent)]" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={`${iconWellClass} text-[var(--accent)]`}>
+                      <span className="material-symbols-outlined !text-[15px]">
+                        {t("icon_add_reaction", "add_reaction")}
+                      </span>
+                    </div>
+                    <span className="truncate">{t("editor_tt_icon", "Insert Icon")}</span>
+                  </div>
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)] opacity-60 shrink-0">
+                    {showIconPicker
+                      ? t("icon_expand_less", "expand_less")
+                      : t("icon_chevron_right", "chevron_right")}
+                  </span>
+                </button>
+              </>
+            )}
+            <div className="w-full h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent my-0.5" />
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleAction("selectAll");
+              }}
+              className={menuBtnClass}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className={`${iconWellClass} text-[var(--accent)]`}>
+                  <span className="material-symbols-outlined !text-[15px]">
+                    {t("icon_select_all", "select_all")}
+                  </span>
+                </div>
+                <span className="truncate">{t("btn_select_all", "Select All")}</span>
+              </div>
+            </button>
+          </>
+        )}
       </div>
 
       {showIconPicker && (
-         <div className={`absolute top-0 ${position.x > window.innerWidth / 2 ? 'right-full mr-2 [&>div]:right-0' : 'left-full ml-2 [&>div]:left-0'}`}>
-            <IconPicker 
-               onSelect={(icon) => handleAction(`insert_icon:${icon}`)} 
-               onClose={() => setShowIconPicker(false)} 
-            />
-         </div>
+        <div
+          className={`absolute top-0 ${
+            position.x > window.innerWidth / 2
+              ? "right-full mr-2 [&>div]:right-0"
+              : "left-full ml-2 [&>div]:left-0"
+          }`}
+        >
+          <IconPicker
+            onSelect={(icon) => handleAction(`insert_icon:${icon}`)}
+            onClose={() => setShowIconPicker(false)}
+          />
+        </div>
       )}
     </div>,
     document.body

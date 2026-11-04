@@ -26,10 +26,27 @@ pub fn delete_local_file(path: String) -> Result<String, String> {
             std::fs::remove_file(p).map_err(|e| e.to_string())?;
         }
 
+        let saved_coords = crate::commands::state_ops::get_saved_coordinates();
+        let mods_root = PathBuf::from(saved_coords.mods_path.trim());
+        let vault_root = PathBuf::from(saved_coords.vault_path.trim());
+        let live_root = PathBuf::from(saved_coords.live_path.trim());
+
         let mut current = p.parent().map(|d| d.to_path_buf());
         while let Some(dir) = current {
-            if dir.file_name().and_then(|s| s.to_str()) == Some("Mods") {
+            if (!mods_root.as_os_str().is_empty() && dir == mods_root)
+                || (!vault_root.as_os_str().is_empty() && dir == vault_root)
+                || (!live_root.as_os_str().is_empty() && dir == live_root)
+            {
                 break;
+            }
+            if let Some(dir_name) = dir.file_name().and_then(|s| s.to_str()) {
+                let lower = dir_name.to_lowercase();
+                if matches!(
+                    lower.as_str(),
+                    "mods" | "_mods" | "data" | "paks" | "~mods" | "plugins" | "scripts" | "mod"
+                ) {
+                    break;
+                }
             }
             if std::fs::remove_dir(&dir).is_err() {
                 break;
@@ -48,8 +65,21 @@ pub fn delete_local_file(path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn get_hardware_id() -> Result<String, String> {
+    use sha2::{Digest, Sha256};
     match machine_uid::get() {
-        Ok(uid) => Ok(uid),
+        Ok(uid) => {
+            let trimmed = uid.trim();
+            if trimmed.is_empty() {
+                return Err("Empty machine UID".into());
+            }
+            // Domain-salted one-way SHA-256 hash so raw hardware UUIDs never leave the Rust boundary
+            let mut hasher = Sha256::new();
+            hasher.update(b"sanctuary-os-zero-pii-hwid-v1:");
+            hasher.update(trimmed.as_bytes());
+            let digest = hasher.finalize();
+            let hex: String = digest.iter().map(|b| format!("{:02x}", b)).collect();
+            Ok(hex)
+        }
         Err(e) => Err(format!("Failed to retrieve hardware ID: {}", e)),
     }
 }
@@ -159,7 +189,30 @@ pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
             }
         }
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    {
+        let mut prod_name = String::new();
+        let mut prod_ver = String::new();
+        if let Ok(out) = std::process::Command::new("sw_vers")
+            .arg("-productName")
+            .output()
+        {
+            prod_name = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        }
+        if let Ok(out) = std::process::Command::new("sw_vers")
+            .arg("-productVersion")
+            .output()
+        {
+            prod_ver = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        }
+        os_version = match (prod_name.is_empty(), prod_ver.is_empty()) {
+            (false, false) => format!("{} {}", prod_name, prod_ver),
+            (false, true) => prod_name,
+            (true, false) => format!("macOS {}", prod_ver),
+            (true, true) => "macOS".to_string(),
+        };
+    }
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
     {
         let mut distro_name = String::new();
         if let Ok(os_rel) = std::fs::read_to_string("/etc/os-release") {
@@ -170,15 +223,31 @@ pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
                 }
             }
         }
+        let is_steam_deck = std::env::var("SteamDeck")
+            .or_else(|_| std::env::var("STEAM_DECK"))
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false)
+            || distro_name.to_lowercase().contains("steamos")
+            || std::fs::read_to_string("/sys/devices/virtual/dmi/id/product_name")
+                .map(|s| {
+                    let l = s.trim().to_lowercase();
+                    l == "jupiter" || l == "galileo"
+                })
+                .unwrap_or(false);
         let mut kernel_ver = String::new();
         if let Ok(output) = std::process::Command::new("uname").arg("-r").output() {
             kernel_ver = String::from_utf8_lossy(&output.stdout).trim().to_string();
         }
-        os_version = match (distro_name.is_empty(), kernel_ver.is_empty()) {
+        let base_os = match (distro_name.is_empty(), kernel_ver.is_empty()) {
             (false, false) => format!("{} (Kernel {})", distro_name, kernel_ver),
             (false, true) => distro_name,
             (true, false) => format!("{} {}", os, kernel_ver),
             (true, true) => os.to_string(),
+        };
+        os_version = if is_steam_deck && !base_os.to_lowercase().contains("steam deck") {
+            format!("{} [Steam Deck]", base_os)
+        } else {
+            base_os
         };
     }
 

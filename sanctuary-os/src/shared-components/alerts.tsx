@@ -282,7 +282,7 @@ export function ActionPill({
 
   return (
     <div
-      className={`flex items-center ${widthClasses} h-13 glass-panel rounded-2xl shadow-lg divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] animate-in slide-in-from-top-4 duration-500 relative z-20 max-w-full overflow-hidden transition-all ${className}`}
+      className={`flex items-center ${widthClasses} h-13 glass-panel rounded-2xl shadow-lg divide-x divide-[color-mix(in_srgb,var(--text)_8%,transparent)] animate-in slide-in-from-top-4 duration-500 relative z-20 max-w-full overflow-hidden transition-all ${className}`}
     >
       {/* Integrated Search or Left Content */}
       {leftContent ? (
@@ -313,7 +313,7 @@ export function ActionPill({
 
       {/* Action Buttons Container (Collapses on search focus for mobile) */}
       <div
-        className={`flex items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] shrink-0 transition-all duration-500 ease-in-out overflow-hidden sm:!max-w-[1000px] sm:!opacity-100 ${isSearchFocused ? "max-w-0 opacity-0 border-transparent" : "max-w-[500px] opacity-100"}`}
+        className={`flex items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_8%,transparent)] shrink-0 transition-all duration-500 ease-in-out overflow-hidden sm:!max-w-[1000px] sm:!opacity-100 ${isSearchFocused ? "max-w-0 opacity-0 border-transparent" : "max-w-[500px] opacity-100"}`}
       >
         {/* Primary Popover (e.g., Filters) */}
         {primaryPopover && (
@@ -322,8 +322,8 @@ export function ActionPill({
             label={primaryPopover.label}
             variant="inline"
             iconOnly={true}
-            className="shrink-0 h-full flex items-center px-1.5"
-            buttonClassName="!h-10 !w-10 !rounded-xl"
+            className="shrink-0 h-full flex items-center"
+            buttonClassName="!h-full !w-12 !rounded-none"
           >
             {primaryPopover.content}
           </FilterPopover>
@@ -332,13 +332,13 @@ export function ActionPill({
         {/* DESKTOP (or Icons-Only) Action Icons */}
         {mergedActions && mergedActions.length > 0 && (
           <div
-            className={`${isIconsOnly ? "flex" : "hidden sm:flex"} items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_6%,transparent)] shrink-0`}
+            className={`${isIconsOnly ? "flex" : "hidden sm:flex"} items-center h-full divide-x divide-[color-mix(in_srgb,var(--text)_8%,transparent)] shrink-0`}
           >
             {mergedActions.map((action) => (
-              <div key={action.id} className="h-full flex items-center px-1.5">
+              <div key={action.id} className="h-full flex items-center">
                 <button
                   onClick={action.onClick}
-                  className={`h-10 w-10 rounded-xl flex items-center justify-center gap-2 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all text-[var(--subtext)] hover:text-[var(--text)] group relative ${action.activeClassName || ""}`}
+                  className={`h-full w-12 rounded-none flex items-center justify-center gap-2 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-colors text-[var(--subtext)] hover:text-[var(--text)] group relative cursor-pointer ${action.activeClassName || ""}`}
                 >
                   <span className="material-symbols-outlined !text-[20px]">
                     {action.icon}

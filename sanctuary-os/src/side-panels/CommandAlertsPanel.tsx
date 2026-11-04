@@ -6,6 +6,7 @@ import {
   EmptyState,
   PanelHeaderGroup,
   PanelHeaderButton,
+  HoverTooltip,
   ActionPill,
   InlineFilterGroup,
   SidePanelHeroCard,
@@ -128,7 +129,7 @@ export default function CommandAlertsPanel({
     );
   }, [isOpen, effectivePlaySet?.name, activeMods, ignoredGlobal, mode, t, radarCacheTick]);
 
-  const brokenMods = useMemo(() => {
+  const allBrokenMods = useMemo(() => {
     if (!isOpen) return [];
     return activeMods
       .map((mod: any) =>
@@ -146,11 +147,26 @@ export default function CommandAlertsPanel({
         if (a._alert_type === "red" && b._alert_type === "amber") return -1;
         if (a._alert_type === "amber" && b._alert_type === "red") return 1;
         return 0;
-      })
-      .filter((m: any) =>
+      });
+  }, [isOpen, activeMods, selectedVersion, ownedDLC, maskedDLC, t, activeGameSchema]);
+
+  const brokenMods = useMemo(
+    () =>
+      allBrokenMods.filter((m: any) =>
         mode === "critical" ? m._alert_type === "red" : m._alert_type === "amber"
-      );
-  }, [isOpen, activeMods, selectedVersion, ownedDLC, maskedDLC, t, mode, activeGameSchema]);
+      ),
+    [allBrokenMods, mode]
+  );
+
+  const allGroupedBrokenMods = useMemo(() => groupBrokenMods(allBrokenMods), [allBrokenMods]);
+  const allGroupedRedMods = useMemo(
+    () => allGroupedBrokenMods.filter((m: any) => m._alert_type === "red"),
+    [allGroupedBrokenMods]
+  );
+  const allGroupedAmberMods = useMemo(
+    () => allGroupedBrokenMods.filter((m: any) => m._alert_type === "amber"),
+    [allGroupedBrokenMods]
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -159,15 +175,6 @@ export default function CommandAlertsPanel({
       setSearchQuery("");
     }
   }, [isOpen, mode]);
-
-  const redMods = useMemo(
-    () => brokenMods.filter((m: any) => m._alert_type === "red"),
-    [brokenMods]
-  );
-  const amberMods = useMemo(
-    () => brokenMods.filter((m: any) => m._alert_type === "amber"),
-    [brokenMods]
-  );
 
   const { applyConflictOverride } = usePlaySetLogic();
 
@@ -205,14 +212,6 @@ export default function CommandAlertsPanel({
   };
 
   const groupedBrokenMods = useMemo(() => groupBrokenMods(brokenMods), [brokenMods]);
-  const groupedRedMods = useMemo(
-    () => groupedBrokenMods.filter((m) => m._alert_type === "red"),
-    [groupedBrokenMods]
-  );
-  const groupedAmberMods = useMemo(
-    () => groupedBrokenMods.filter((m) => m._alert_type === "amber"),
-    [groupedBrokenMods]
-  );
 
   const filteredGroupedBrokenMods = useMemo(() => {
     if (activeTab === "conflicts") return [];
@@ -276,38 +275,19 @@ export default function CommandAlertsPanel({
       iconColorClass={accentColorClass}
       widthClass="w-[90vw] md:w-[760px]"
       headerActions={
-        allow_write && groupedBrokenMods.length > 0 ? (
+        allow_write && allBrokenMods.length > 0 ? (
           <PanelHeaderGroup>
-            {groupedRedMods.length > 0 && (
-              <PanelHeaderButton
-                icon={t("icon_remove_circle_outline", "remove_circle_outline")}
-                tooltip={t("bp_purge_corrupted", "{Remove} {0} Corrupted").replace(
-                  "{0}",
-                  String(groupedRedMods.length)
-                )}
-                variant="danger"
-                onClick={() => {
-                  redMods.forEach((m: any) =>
-                    toggleInActiveSet(m._originalSetName || m.name, true, true)
-                  );
-                }}
-              />
-            )}
-            {groupedAmberMods.length > 0 && (
-              <PanelHeaderButton
-                icon={t("icon_remove_circle_outline", "remove_circle_outline")}
-                tooltip={t("bp_purge_unstable", "{Remove} {0} Unstable").replace(
-                  "{0}",
-                  String(groupedAmberMods.length)
-                )}
-                variant="default"
-                onClick={() => {
-                  amberMods.forEach((m: any) =>
-                    toggleInActiveSet(m._originalSetName || m.name, true, true)
-                  );
-                }}
-              />
-            )}
+            <PanelHeaderButton
+              icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+              tooltip={`${t("btn_remove", "{Remove}")} ${allGroupedRedMods.length + allGroupedAmberMods.length} ${t("term_mods", "{Mods}")}`}
+              tooltipSubtitle={`${t("bp_purge_unstable", "{Remove} {0} Unstable").replace(/^.*\{0\}\s*/, `${allGroupedAmberMods.length} `)}\n${t("bp_purge_corrupted", "{Remove} {0} Corrupted").replace(/^.*\{0\}\s*/, `${allGroupedRedMods.length} `)}`}
+              variant={allGroupedRedMods.length > 0 ? "danger" : "warning"}
+              onClick={() => {
+                allBrokenMods.forEach((m: any) =>
+                  toggleInActiveSet(m._originalSetName || m.name, true, true)
+                );
+              }}
+            />
           </PanelHeaderGroup>
         ) : undefined
       }
@@ -473,6 +453,43 @@ export default function CommandAlertsPanel({
           <UniversalGroup
             title={`${t("citizen_action_incompatible", "Incompatible")} (${filteredGroupedBrokenMods.length})`}
             icon={heroIcon}
+            headerAction={
+              allow_write && toggleInActiveSet ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    filteredGroupedBrokenMods.forEach((mod: any) => {
+                      const members: any[] =
+                        Array.isArray(mod._groupedMods) && mod._groupedMods.length > 0
+                          ? mod._groupedMods
+                          : [mod];
+                      members.forEach((m: any) => {
+                        toggleInActiveSet(m._originalSetName || m.name, true, true);
+                      });
+                    });
+                  }}
+                  className={`relative group/subaction w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] ${
+                    isCriticalMode
+                      ? "text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
+                      : "text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]"
+                  } flex items-center justify-center transition-all cursor-pointer shrink-0`}
+                >
+                  <span className="material-symbols-outlined !text-[15px]">
+                    {t("icon_remove_circle_outline", "remove_circle_outline")}
+                  </span>
+                  <HoverTooltip
+                    className="z-[100] !right-0 !translate-x-0 !left-auto"
+                    title={(isCriticalMode
+                      ? t("bp_purge_corrupted", "{Remove} {0} Corrupted")
+                      : t("bp_purge_unstable", "{Remove} {0} Unstable")
+                    ).replace("{0}", String(filteredGroupedBrokenMods.length))}
+                    icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+                    variant={isCriticalMode ? "danger" : "warning"}
+                  />
+                </button>
+              ) : undefined
+            }
           >
             {renderGroupedIncompatibleSections({
               groupedBrokenMods: filteredGroupedBrokenMods,

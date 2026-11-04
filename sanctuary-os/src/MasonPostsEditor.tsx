@@ -7,6 +7,7 @@ import {
   SidePanel, EmptyState, LinkAssetSidePanel, PanelHeaderGroup, PanelHeaderButton,
   extractPostImage, SidePanelPillToggle, UniversalGroup
 } from "./shared";
+import { HubOverviewSection } from "./components/universal/UniversalLayout";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import MasonPostCard from "./MasonPostCard";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
@@ -459,39 +460,34 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
 
     return (
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[var(--accent)]">{t("icon_history", "history")}</span>
-            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_posts", "Recent {Dispatches}")}</h3>
-            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-          </div>
-          {recentPosts.length === 0 ? (
-            <EmptyState icon={t("icon_cell_tower", "cell_tower")} title={t("no_transmissions", "No {Dispatches} Found")} />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-              {recentPosts.map((post, index) => (
-                <div key={post.id} className="w-full">
-                  <MasonPostCard layout="vertical"
-                    post={post}
-                    index={index}
-                    onPostClick={openEditor}
-                    onToggleLike={() => { }}
-                    hasUnsavedEdits={draftSet.has(post.id)}
-                  />
-                </div>
-              ))}
+        <HubOverviewSection
+          title={t("title_recent_posts", "Recent {Dispatches}")}
+          icon={t("icon_history", "history")}
+          isEmpty={recentPosts.length === 0}
+          emptyIcon={t("icon_cell_tower", "cell_tower")}
+          emptyTitle={t("no_transmissions", "No {Dispatches} Found")}
+          gridClassName="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6"
+        >
+          {recentPosts.map((post, index) => (
+            <div key={post.id} className="w-full">
+              <MasonPostCard layout="vertical"
+                post={post}
+                index={index}
+                onPostClick={openEditor}
+                onToggleLike={() => { }}
+                hasUnsavedEdits={draftSet.has(post.id)}
+              />
             </div>
-          )}
-        </div>
+          ))}
+        </HubOverviewSection>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[var(--accent)]">{t("icon_forum", "forum")}</span>
-            <h3 className="text-sm font-black capitalize tracking-widest text-[var(--text)]">{t("title_recent_replies", "Recent Replies")}</h3>
-            <div className="flex-1 h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"></div>
-          </div>
-          <EmptyState icon={t("icon_forum", "forum")} title={t("no_replies", "No recent replies")} />
-        </div>
+        <HubOverviewSection
+          title={t("title_recent_replies", "Recent Replies")}
+          icon={t("icon_forum", "forum")}
+          isEmpty={true}
+          emptyIcon={t("icon_forum", "forum")}
+          emptyTitle={t("no_replies", "No recent replies")}
+        />
       </div>
     );
   };

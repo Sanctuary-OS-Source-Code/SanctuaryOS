@@ -213,7 +213,16 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_mac_mod_dir_desc",
         "Default path where {Mods} are deployed on macOS."
       ),
-      example: '"Documents/Electronic Arts/The Sims 4/Mods"',
+      example: '"~/Documents/Electronic Arts/The Sims 4/Mods"',
+    },
+    {
+      label: t("schema_studio_linux_mod_dir", "Default Linux / Proton {Mods} Directory"),
+      jsonKey: "paths.default_mod_dir_linux",
+      desc: t(
+        "schema_doc_win_mod_dir_desc",
+        "Default path where {Mods} are deployed on Windows (relative to Documents, user profile, or game root)."
+      ),
+      example: '"%USERPROFILE%/Documents/Electronic Arts/The Sims 4/Mods"',
     },
     {
       label: t("schema_studio_win_user_dir", "Windows Telemetry & Saves Root"),
@@ -234,13 +243,22 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
       example: '"~/Documents/Electronic Arts/The Sims 4"',
     },
     {
+      label: t("schema_studio_user_data_linux", "Linux / Proton User Data / Saves Root"),
+      jsonKey: "paths.user_data_dir_linux",
+      desc: t(
+        "schema_doc_win_user_dir_desc",
+        "Windows directory containing saves, crash logs, and user settings. Supports %USERPROFILE%, %LOCALAPPDATA%, and %APPDATA%."
+      ),
+      example: '"%USERPROFILE%/Documents/Electronic Arts/The Sims 4"',
+    },
+    {
       label: t("schema_studio_win_scan_paths", "Windows & MacOS Auto-Recon Paths"),
-      jsonKey: "paths.auto_scan_paths_*",
+      jsonKey: "paths.auto_scan_paths_windows / _mac / _linux",
       desc: t(
         "schema_doc_scan_paths_desc",
         "Default Steam, EA App, Origin, Epic, GOG, and macOS /Applications paths checked automatically during workspace setup."
       ),
-      example: '"/Applications/The Sims 4.app", "C:\\Program Files\\EA Games\\..."',
+      example: '"/Applications/The Sims 4.app", "~/.steam/steam/steamapps/common/..."',
     },
   ];
 

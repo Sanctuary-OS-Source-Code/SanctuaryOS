@@ -8,6 +8,7 @@ import {
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard } from "../components/universal/UniversalLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { openSanctuaryContextMenu } from "../ContextMenu";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -186,6 +187,21 @@ export function GameManagementOversight() {
     <UniversalCard
       key={v.version}
       onClick={() => openPanel('edit_version', v.version)}
+      onContextMenu={(e) => {
+        openSanctuaryContextMenu(e, [
+          {
+            label: t("edit", "Edit"),
+            icon: t("icon_edit", "edit"),
+            onClick: () => openPanel('edit_version', v.version),
+          },
+          {
+            divider: true,
+            label: t("copy_title", "Copy Title"),
+            icon: t("icon_content_copy", "content_copy"),
+            onClick: () => navigator.clipboard?.writeText(v.version || ""),
+          },
+        ]);
+      }}
       layout="vertical"
       icon={t("icon_gamepad", "gamepad")}
       title={v.version}
@@ -227,6 +243,21 @@ export function GameManagementOversight() {
     <UniversalCard
       key={d.id}
       onClick={() => openPanel('edit_dlc', d)}
+      onContextMenu={(e) => {
+        openSanctuaryContextMenu(e, [
+          {
+            label: t("edit", "Edit"),
+            icon: t("icon_edit", "edit"),
+            onClick: () => openPanel('edit_dlc', d),
+          },
+          {
+            divider: true,
+            label: t("copy_title", "Copy Title"),
+            icon: t("icon_content_copy", "content_copy"),
+            onClick: () => navigator.clipboard?.writeText(`${d.id} - ${d.name}`),
+          },
+        ]);
+      }}
       layout="vertical"
       icon={t("icon_extension", "extension")}
       title={d.name}

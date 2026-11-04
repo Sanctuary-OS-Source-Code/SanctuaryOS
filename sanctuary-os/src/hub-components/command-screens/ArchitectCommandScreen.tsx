@@ -6,6 +6,8 @@ import { WayfinderPostsEditor } from "../WayfinderPostsEditor";
 import { useStore } from '../../store';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
+import { openModDossier } from "../../shared";
 
 const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
@@ -274,6 +276,22 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
                           title={item.suggestion_text || t("reviewing", "Scanner Queue")} 
                           icon={t("icon_search", "search")} 
                           onClick={() => onNavigate("queue")}
+                          onContextMenu={(e) => {
+                            const menuItems: SanctuaryContextMenuItem[] = [
+                              {
+                                label: t("reviewing", "Scanner Queue"),
+                                icon: t("icon_search", "search"),
+                                onClick: () => onNavigate("queue"),
+                              },
+                              {
+                                label: t("copy", "Copy"),
+                                icon: t("icon_content_copy", "content_copy"),
+                                dividerBefore: true,
+                                onClick: () => navigator.clipboard?.writeText(String(item.suggestion_text || "")),
+                              },
+                            ];
+                            openSanctuaryContextMenu(e, menuItems);
+                          }}
                           className="w-full"
                           imageOverlay={
                               <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
@@ -317,6 +335,27 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
                           title={item.name || t("term_mod", "{Mod}")} 
                           icon={t("icon_handyman", "handyman")} 
                           onClick={() => onNavigate("mason_queue")}
+                          onContextMenu={(e) => {
+                            const menuItems: SanctuaryContextMenuItem[] = [
+                              {
+                                label: t("mason_queue", "{Mason} Queue"),
+                                icon: t("icon_handyman", "handyman"),
+                                onClick: () => onNavigate("mason_queue"),
+                              },
+                              {
+                                label: t("btn_inspect", "Inspect {Mod}"),
+                                icon: t("icon_open_in_new", "open_in_new"),
+                                onClick: () => openModDossier({ ...item, isNexusView: true }),
+                              },
+                              {
+                                label: t("copy", "Copy"),
+                                icon: t("icon_content_copy", "content_copy"),
+                                dividerBefore: true,
+                                onClick: () => navigator.clipboard?.writeText(String(item.name || "")),
+                              },
+                            ];
+                            openSanctuaryContextMenu(e, menuItems);
+                          }}
                           className="w-full"
                           imageOverlay={
                               <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
@@ -361,6 +400,22 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
                           subtitle={`${t("reporter", "Reporter")}: ${report.reporter_name || t("anonymous", "Anonymous")}`}
                           icon={t("icon_flag", "flag")} 
                           onClick={() => onNavigate("nexus_reports")}
+                          onContextMenu={(e) => {
+                            const menuItems: SanctuaryContextMenuItem[] = [
+                              {
+                                label: t("btn_inspect", "Inspect"),
+                                icon: t("icon_flag", "flag"),
+                                onClick: () => onNavigate("nexus_reports"),
+                              },
+                              {
+                                label: t("copy", "Copy"),
+                                icon: t("icon_content_copy", "content_copy"),
+                                dividerBefore: true,
+                                onClick: () => navigator.clipboard?.writeText(String(report.clean_reason || report.reason || report.asset_title || "")),
+                              },
+                            ];
+                            openSanctuaryContextMenu(e, menuItems);
+                          }}
                           className="w-full"
                           imageOverlay={
                               <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">

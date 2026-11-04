@@ -22,6 +22,7 @@ import {
   SidePanelTitleInput,
 } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { openSanctuaryContextMenu } from "../ContextMenu";
 import MasonEditorPanel from "./MasonEditorPanel";
 import { useMasonFiles } from "../hooks/useMasonFiles";
 import {
@@ -697,6 +698,20 @@ export default function WayfinderMasterSchemas({
         key="spoke_op_setup"
         layout="vertical"
         onClick={() => setActiveSpokePanel("setup")}
+        onContextMenu={(e) => {
+          openSanctuaryContextMenu(e, [
+            {
+              label: t("configure", "Configure"),
+              icon: t("icon_router", "router"),
+              onClick: () => setActiveSpokePanel("setup"),
+            },
+            {
+              label: t("spoke_copy_uplink_bundle", "Copy Uplink Bundle"),
+              icon: t("icon_content_copy", "content_copy"),
+              onClick: handleCopyUplinkBundle,
+            },
+          ]);
+        }}
         icon={t("icon_router", "router")}
         title={t("wf_card_spoke_setup_title", "Spoke Setup & Maintenance")}
         subtitle={
@@ -783,6 +798,16 @@ export default function WayfinderMasterSchemas({
       key="spoke_op_sever"
       layout="vertical"
       onClick={() => setActiveSpokePanel("sever")}
+      onContextMenu={(e) => {
+        openSanctuaryContextMenu(e, [
+          {
+            label: t("btn_inspect", "Inspect"),
+            icon: t("icon_link_off", "link_off"),
+            danger: true,
+            onClick: () => setActiveSpokePanel("sever"),
+          },
+        ]);
+      }}
       icon={t("icon_link_off", "link_off")}
       title={t("wf_card_spoke_sever_title", "Spoke Sever (Cut the Cord)")}
       subtitle={t("wf_badge_sovereign", "Bilateral Sovereignty")}
@@ -841,6 +866,20 @@ export default function WayfinderMasterSchemas({
       key="spoke_op_forking"
       layout="vertical"
       onClick={() => setActiveSpokePanel("forking")}
+      onContextMenu={(e) => {
+        openSanctuaryContextMenu(e, [
+          {
+            label: t("open", "Open"),
+            icon: t("icon_menu_book", "menu_book"),
+            onClick: () => setActiveSpokePanel("forking"),
+          },
+          {
+            label: t("wf_btn_copy_spoke_sql", "Copy schema.sql"),
+            icon: t("icon_database", "database"),
+            onClick: handleCopySpokeSql,
+          },
+        ]);
+      }}
       icon={t("icon_menu_book", "menu_book")}
       title={t("wf_tab_forking_help", "Forking Help & Walkthrough")}
       subtitle={CANONICAL_DIRECTIVES.forking_guide.title}
@@ -911,6 +950,15 @@ export default function WayfinderMasterSchemas({
         key="spoke_op_donations"
         layout="vertical"
         onClick={() => setActiveSpokePanel("donations")}
+        onContextMenu={(e) => {
+          openSanctuaryContextMenu(e, [
+            {
+              label: t("configure", "Configure"),
+              icon: t("icon_volunteer_activism", "volunteer_activism"),
+              onClick: () => setActiveSpokePanel("donations"),
+            },
+          ]);
+        }}
         icon={t("icon_volunteer_activism", "volunteer_activism")}
         title={t("wf_donation_panel_title", "Non-Custodial Community Donations")}
         subtitle={
@@ -979,6 +1027,18 @@ export default function WayfinderMasterSchemas({
       onClick={() => {
         setCovenantDocTab("partners_agreement");
         setIsCovenantPanelOpen(true);
+      }}
+      onContextMenu={(e) => {
+        openSanctuaryContextMenu(e, [
+          {
+            label: t("btn_inspect", "Inspect"),
+            icon: t("icon_gavel", "gavel"),
+            onClick: () => {
+              setCovenantDocTab("partners_agreement");
+              setIsCovenantPanelOpen(true);
+            },
+          },
+        ]);
       }}
       icon={t("icon_gavel", "gavel")}
       title={t("partner_covenants_title", "Partners Agreement & Compliance Protocol")}
@@ -1058,6 +1118,21 @@ export default function WayfinderMasterSchemas({
         }
         onClick={() => {
           if (renamingFile !== file.path) openFile(file);
+        }}
+        onContextMenu={(e) => {
+          openSanctuaryContextMenu(e, [
+            {
+              label: t("open_editor", "Open in Editor"),
+              icon: t("icon_code", "code"),
+              onClick: () => openFile(file),
+            },
+            {
+              divider: true,
+              label: t("copy_title", "Copy Title"),
+              icon: t("icon_content_copy", "content_copy"),
+              onClick: () => navigator.clipboard?.writeText(displayTitle || file.name || ""),
+            },
+          ]);
         }}
         icon={t("icon_data_object", "data_object")}
         imageOverlay={
@@ -1262,6 +1337,21 @@ export default function WayfinderMasterSchemas({
         title={ticket.title}
         subtitle={`#${ticket.id.slice(0, 8)}`}
         onClick={() => setSelectedTicket(ticket)}
+        onContextMenu={(e) => {
+          openSanctuaryContextMenu(e, [
+            {
+              label: t("view_ticket", "View Ticket"),
+              icon: t("icon_confirmation_number", "confirmation_number"),
+              onClick: () => setSelectedTicket(ticket),
+            },
+            {
+              divider: true,
+              label: t("copy_title", "Copy Title"),
+              icon: t("icon_content_copy", "content_copy"),
+              onClick: () => navigator.clipboard?.writeText(ticket.title || ""),
+            },
+          ]);
+        }}
         imageOverlay={
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
             <div className={VAULT_CHIP_CLASS}>

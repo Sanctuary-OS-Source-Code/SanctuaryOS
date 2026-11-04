@@ -210,7 +210,17 @@ export function WorkspaceSidePanel({
   });
 
   // Fallback for local workspaces that don't have a matching active game from Supabase
+  // (Exclude any workspace whose spoke is explicitly marked offline in globalGames)
   workspaces.forEach((ws: any) => {
+    const wsKey = String(ws.schema_id || ws.id || "").toLowerCase();
+    const isExplicitlyOffline = globalGames.some(
+      (g: any) =>
+        g.is_active === false &&
+        (String(g.schema_id || "").toLowerCase() === wsKey ||
+          String(g.id || "").toLowerCase() === wsKey ||
+          String(g.name || "").toLowerCase() === String(ws.name || "").toLowerCase())
+    );
+    if (isExplicitlyOffline) return;
     if (!cards.find((c) => c.workspace.id === ws.id)) {
       cards.push({
         type: "workspace",

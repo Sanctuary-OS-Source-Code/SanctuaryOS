@@ -10,6 +10,7 @@ import { useLexicon } from "./LexiconContext";
 import { usePlaySetLogic, compileLoadOrder, LoadOrderRule } from "./hooks/usePlaySetLogic";
 import { useStore } from "./store";
 import ConflictCard, { RadarPairPreviewBanner } from "./ConflictCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 import ConflictResolutionSidebar from "./side-panels/ConflictResolutionSidebar";
 import UndoWinnersPanel from "./side-panels/UndoWinnersPanel";
 import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
@@ -825,7 +826,7 @@ export const DbpfScout = () => {
 
     const vaultSingleScript = async (modName: string) => {
         try {
-            if (activeConflictRes) {
+            if (activeConflictRes || modName) {
                 const playSetIndex = playSets.findIndex((p: any) => p.name.toLowerCase() === scanScope.toLowerCase());
                 if (playSetIndex !== -1) {
                     const updatedSets = [...playSets];
@@ -843,7 +844,7 @@ export const DbpfScout = () => {
                 setTuningConflicts((prev) => prev.filter((c) => c.modA !== modName && c.modB !== modName));
                 setCloneConflicts((prev) => prev.filter((c) => c.modA !== modName && c.modB !== modName));
                 setSoftConflicts((prev) => prev.filter((c) => c.modA !== modName && c.modB !== modName));
-                setStats((prev: any) => ({ ...prev, totalClashes: prev.totalClashes - 1 }));
+                setStats((prev: any) => ({ ...prev, totalClashes: Math.max(0, prev.totalClashes - 1) }));
                 setActiveConflictRes(null);
             }
         } catch (err) { useStore.getState().pushStatus(`Error: ${err}`); }
@@ -1473,19 +1474,19 @@ export const DbpfScout = () => {
                                 <CommandScreenMain>
 
                                     <div className="flex flex-col gap-4 w-full">
-                                        <CommandScreenSectionHeading
-                                            title={t("select_blueprint", "Select {Blueprint}")}
-                                            icon="map"
-                                            rightContent={
-                                                <div className="w-full">
-                                                    <ActionPill
-                                                        searchQuery={blueprintSearch}
-                                                        setSearchQuery={setBlueprintSearch}
-                                                        searchPlaceholder={t("search_blueprints", "Search {Blueprints}...") as string}
-                                                    />
-                                                </div>
-                                            }
-                                        />
+                                        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 w-full">
+                                            <CommandScreenSectionHeading
+                                                title={t("select_blueprint", "Select {Blueprint}")}
+                                                icon="map"
+                                            />
+                                            <div className="w-full md:w-auto">
+                                                <ActionPill
+                                                    searchQuery={blueprintSearch}
+                                                    setSearchQuery={setBlueprintSearch}
+                                                    searchPlaceholder={t("search_blueprints", "Search {Blueprints}...") as string}
+                                                />
+                                            </div>
+                                        </div>
                                         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                                             {playSets.filter((bp: any) => !blueprintSearch || bp.name.toLowerCase().includes(blueprintSearch.toLowerCase())).map((blueprint: any) => {
                                                 const isTarget = scanScope === blueprint.name;
@@ -1514,6 +1515,47 @@ export const DbpfScout = () => {
                                                             } else {
                                                                 runRadar(blueprint.name);
                                                             }
+                                                        }}
+                                                        onContextMenu={(e) => {
+                                                            const menuItems: SanctuaryContextMenuItem[] = [
+                                                                {
+                                                                    label: t("btn_scan", "Scan"),
+                                                                    icon: t("icon_radar", "radar"),
+                                                                    onClick: () => {
+                                                                        setScanScope(blueprint.name);
+                                                                        runRadar(blueprint.name);
+                                                                    },
+                                                                },
+                                                                {
+                                                                    label: t("conflicts", "Conflicts"),
+                                                                    icon: t("icon_warning", "warning"),
+                                                                    dividerBefore: true,
+                                                                    onClick: () => {
+                                                                        setScanScope(blueprint.name);
+                                                                        if (!hydrateCachedScope(blueprint.name, ignoredPairs)) {
+                                                                            runRadar(blueprint.name);
+                                                                        }
+                                                                        setActiveTab("CONFLICTS");
+                                                                    },
+                                                                },
+                                                                {
+                                                                    label: t("tab_overrides", "Overrides"),
+                                                                    icon: t("icon_rule", "rule"),
+                                                                    onClick: () => {
+                                                                        setScanScope(blueprint.name);
+                                                                        setActiveTab("OVERRIDES");
+                                                                    },
+                                                                },
+                                                                {
+                                                                    label: t("tab_load_order", "Load Order"),
+                                                                    icon: t("icon_low_priority", "low_priority"),
+                                                                    onClick: () => {
+                                                                        setScanScope(blueprint.name);
+                                                                        setActiveTab("LOAD_ORDER");
+                                                                    },
+                                                                },
+                                                            ];
+                                                            openSanctuaryContextMenu(e, menuItems);
                                                         }}
                                                         icon={isTarget ? t("icon_verified_user", "verified_user") : t("icon_map", "map")}
                                                         title={blueprint.name}
@@ -1755,7 +1797,16 @@ export const DbpfScout = () => {
 
                                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                                                     {filteredFatal.slice(0, visibleFatal).map((c: any) => (
-                                                        <ConflictCard key={c.mod_pair} conflict={c} tier={4} loadOrderInfo={getConflictLoadOrderInfo(c)} onClick={() => setActiveConflictRes(c)} />
+                                                        <ConflictCard
+                                                            key={c.mod_pair}
+                                                            conflict={c}
+                                                            tier={4}
+                                                            loadOrderInfo={getConflictLoadOrderInfo(c)}
+                                                            onClick={() => setActiveConflictRes(c)}
+                                                            onRemoveA={() => vaultSingleScript(c.modA)}
+                                                            onRemoveB={() => vaultSingleScript(c.modB)}
+                                                            onIgnore={() => ignoreConflict(c.mod_pair)}
+                                                        />
                                                     ))}
                                                 </div>
                                                 {fatalConflicts.length > visibleFatal && (
@@ -1779,7 +1830,18 @@ export const DbpfScout = () => {
 
                                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                                                     {filteredTuning.slice(0, visibleTuning).map((c: any) => (
-                                                        <ConflictCard key={c.mod_pair} conflict={c} tier={3} loadOrderInfo={getConflictLoadOrderInfo(c)} onClick={() => setActiveConflictRes(c)} />
+                                                        <ConflictCard
+                                                            key={c.mod_pair}
+                                                            conflict={c}
+                                                            tier={3}
+                                                            loadOrderInfo={getConflictLoadOrderInfo(c)}
+                                                            onClick={() => setActiveConflictRes(c)}
+                                                            onOverrideA={() => applyOverride(c.modA, c.mod_pair, undefined, c.modB)}
+                                                            onOverrideB={() => applyOverride(c.modB, c.mod_pair, undefined, c.modA)}
+                                                            onRemoveA={() => vaultSingleScript(c.modA)}
+                                                            onRemoveB={() => vaultSingleScript(c.modB)}
+                                                            onIgnore={() => ignoreConflict(c.mod_pair)}
+                                                        />
                                                     ))}
                                                 </div>
                                                 {tuningConflicts.length > visibleTuning && (
@@ -1846,7 +1908,20 @@ export const DbpfScout = () => {
 
                                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                                                     {filteredClone.slice(0, visibleClone).map((c: any) => (
-                                                        <ConflictCard key={c.mod_pair} conflict={c} tier={2} loadOrderInfo={getConflictLoadOrderInfo(c)} isSelectedA={selectedForVault.includes(c.modA)} isSelectedB={selectedForVault.includes(c.modB)} onKeepA={() => toggleTarget(c.modA, c.modB)} onKeepB={() => toggleTarget(c.modB, c.modA)} onClick={() => setActiveConflictRes(c)} />
+                                                        <ConflictCard
+                                                            key={c.mod_pair}
+                                                            conflict={c}
+                                                            tier={2}
+                                                            loadOrderInfo={getConflictLoadOrderInfo(c)}
+                                                            isSelectedA={selectedForVault.includes(c.modA)}
+                                                            isSelectedB={selectedForVault.includes(c.modB)}
+                                                            onKeepA={() => toggleTarget(c.modA, c.modB)}
+                                                            onKeepB={() => toggleTarget(c.modB, c.modA)}
+                                                            onRemoveA={() => vaultSingleScript(c.modA)}
+                                                            onRemoveB={() => vaultSingleScript(c.modB)}
+                                                            onIgnore={() => ignoreConflict(c.mod_pair)}
+                                                            onClick={() => setActiveConflictRes(c)}
+                                                        />
                                                     ))}
                                                 </div>
                                                 {cloneConflicts.length > visibleClone && (
@@ -1874,7 +1949,18 @@ export const DbpfScout = () => {
                                                 </summary>
                                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] mt-4">
                                                     {filteredSoft.slice(0, visibleSoft).map((c: any) => (
-                                                        <ConflictCard key={c.mod_pair} conflict={c} tier={1} loadOrderInfo={getConflictLoadOrderInfo(c)} onClick={() => setActiveConflictRes(c)} onIgnore={() => ignoreConflict(c.mod_pair)} />
+                                                        <ConflictCard
+                                                            key={c.mod_pair}
+                                                            conflict={c}
+                                                            tier={1}
+                                                            loadOrderInfo={getConflictLoadOrderInfo(c)}
+                                                            onClick={() => setActiveConflictRes(c)}
+                                                            onOverrideA={() => applyOverride(c.modA, c.mod_pair, undefined, c.modB)}
+                                                            onOverrideB={() => applyOverride(c.modB, c.mod_pair, undefined, c.modA)}
+                                                            onRemoveA={() => vaultSingleScript(c.modA)}
+                                                            onRemoveB={() => vaultSingleScript(c.modB)}
+                                                            onIgnore={() => ignoreConflict(c.mod_pair)}
+                                                        />
                                                     ))}
                                                 </div>
                                                 {softConflicts.length > visibleSoft && (
@@ -2094,6 +2180,56 @@ export const DbpfScout = () => {
                                                                         </div>
                                                                     }
                                                                     onClick={() => openLoadOrderInspector(cleanWinnerPath, undefined, "RULE")}
+                                                                    onContextMenu={(e) => {
+                                                                        const menuItems: SanctuaryContextMenuItem[] = [
+                                                                            {
+                                                                                label: t("edit", "Edit"),
+                                                                                icon: t("icon_rule", "rule"),
+                                                                                onClick: () => openLoadOrderInspector(cleanWinnerPath, undefined, "RULE"),
+                                                                            },
+                                                                            {
+                                                                                label: `${t("btn_inspect", "Inspect {Mod}")}: ${displayWinnerName}`,
+                                                                                icon: t("icon_open_in_new", "open_in_new"),
+                                                                                dividerBefore: true,
+                                                                                onClick: () => openModDossier(vaultWinner || cleanWinnerPath),
+                                                                            },
+                                                                            {
+                                                                                label: `${t("btn_inspect", "Inspect {Mod}")}: ${displayLoserName}`,
+                                                                                icon: t("icon_open_in_new", "open_in_new"),
+                                                                                onClick: () => openModDossier(vaultLoser || cleanLoserPath),
+                                                                            },
+                                                                        ];
+                                                                        if (override.isRule) {
+                                                                            menuItems.push({
+                                                                                label: t("lo_flip_rule", "Invert Rule Direction"),
+                                                                                icon: t("icon_swap_vert", "swap_vert"),
+                                                                                dividerBefore: true,
+                                                                                onClick: () => flipLoadOrderRule(scanScope, override.id),
+                                                                            });
+                                                                        }
+                                                                        menuItems.push({
+                                                                            label: override.isRule
+                                                                                ? t("remove", "Remove")
+                                                                                : t("revert_override", "Revert Override"),
+                                                                            icon: override.isRule
+                                                                                ? t("icon_delete", "delete")
+                                                                                : t("icon_undo", "undo"),
+                                                                            variant: "danger",
+                                                                            dividerBefore: !override.isRule,
+                                                                            onClick: () => {
+                                                                                if (override.isRule) {
+                                                                                    removeLoadOrderRule(scanScope, override.id);
+                                                                                } else if (override.isManual) {
+                                                                                    undoOverride(cleanWinnerPath).then(() => runRadar());
+                                                                                } else {
+                                                                                    unignoreConflict(override.pair).then(() =>
+                                                                                        undoOverride(cleanWinnerPath).then(() => runRadar())
+                                                                                    );
+                                                                                }
+                                                                            },
+                                                                        });
+                                                                        openSanctuaryContextMenu(e, menuItems);
+                                                                    }}
                                                                     footer={
                                                                         <div
                                                                             className="flex items-center justify-between w-full gap-2 text-xs text-[var(--subtext)] font-bold"
@@ -2241,6 +2377,28 @@ export const DbpfScout = () => {
                                                                 <UniversalCard
                                                                     key={`ignored_${i}`}
                                                                     layout="vertical"
+                                                                    onContextMenu={(e) => {
+                                                                        const menuItems: SanctuaryContextMenuItem[] = [
+                                                                            {
+                                                                                label: `${t("btn_inspect", "Inspect {Mod}")}: ${leftDisplay}`,
+                                                                                icon: t("icon_open_in_new", "open_in_new"),
+                                                                                onClick: () => openModDossier(vaultLeft || leftName),
+                                                                            },
+                                                                            {
+                                                                                label: `${t("btn_inspect", "Inspect {Mod}")}: ${rightDisplay}`,
+                                                                                icon: t("icon_open_in_new", "open_in_new"),
+                                                                                onClick: () => openModDossier(vaultRight || rightName),
+                                                                            },
+                                                                            {
+                                                                                label: t("unignore_conflict", "Unignore Conflict"),
+                                                                                icon: t("icon_visibility", "visibility"),
+                                                                                variant: "warning",
+                                                                                dividerBefore: true,
+                                                                                onClick: () => unignoreConflict(pair).then(() => runRadar()),
+                                                                            },
+                                                                        ];
+                                                                        openSanctuaryContextMenu(e, menuItems);
+                                                                    }}
                                                                     title={
                                                                         <span className="text-base md:text-[17px] font-black text-[var(--text)] leading-snug line-clamp-2 break-words">
                                                                             {leftDisplay}
@@ -2449,16 +2607,13 @@ export const DbpfScout = () => {
                                                         subtitle={`${filteredQueue.length} ${t("term_mods", "{Mods}")}`}
                                                         icon={t("icon_search", "search")}
                                                         rightContent={
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setLoadOrderSearch("")}
-                                                                className="h-9 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
-                                                            >
-                                                                <span className="material-symbols-outlined !text-[14px]">
-                                                                    {t("icon_close", "close")}
-                                                                </span>
-                                                                <span>{t("clear", "Clear")}</span>
-                                                            </button>
+                                                            <PanelHeaderGroup>
+                                                                <PanelHeaderButton
+                                                                    icon={t("icon_close", "close")}
+                                                                    tooltip={t("clear", "Clear")}
+                                                                    onClick={() => setLoadOrderSearch("")}
+                                                                />
+                                                            </PanelHeaderGroup>
                                                         }
                                                     />
                                                     {filteredQueue.length === 0 ? (
@@ -2487,6 +2642,38 @@ export const DbpfScout = () => {
                                                                         layout="vertical"
                                                                         isActive={isSelected}
                                                                         onClick={() => openLoadOrderInspector(item.cleanName, undefined, "PRIORITY")}
+                                                                        onContextMenu={(e) => {
+                                                                            const menuItems: SanctuaryContextMenuItem[] = [
+                                                                                {
+                                                                                    label: t("lo_priority_tier", "Priority Tier"),
+                                                                                    icon: t("icon_low_priority", "low_priority"),
+                                                                                    onClick: () => openLoadOrderInspector(item.cleanName, undefined, "PRIORITY"),
+                                                                                },
+                                                                                {
+                                                                                    label: t("btn_inspect", "Inspect {Mod}"),
+                                                                                    icon: t("icon_open_in_new", "open_in_new"),
+                                                                                    onClick: () => openModDossier(vaultMod || item.cleanName),
+                                                                                },
+                                                                            ];
+                                                                            compiledOrder.priorityTiers.forEach((ptOpt: any, idxOpt: number) => {
+                                                                                menuItems.push({
+                                                                                    label: `T${idxOpt + 1}: ${ptOpt.label || ptOpt.folder}`,
+                                                                                    icon: t("icon_workspace_premium", "workspace_premium"),
+                                                                                    dividerBefore: idxOpt === 0,
+                                                                                    onClick: () => setModPriorityTier(scanScope, item.cleanName, ptOpt.folder),
+                                                                                });
+                                                                            });
+                                                                            if (item.tierFolder) {
+                                                                                menuItems.push({
+                                                                                    label: t("revert_override", "Revert Override"),
+                                                                                    icon: t("icon_undo", "undo"),
+                                                                                    variant: "danger",
+                                                                                    dividerBefore: true,
+                                                                                    onClick: () => setModPriorityTier(scanScope, item.cleanName, ""),
+                                                                                });
+                                                                            }
+                                                                            openSanctuaryContextMenu(e, menuItems);
+                                                                        }}
                                                                         title={
                                                                             <span className="text-base md:text-[17px] font-black text-[var(--text)] leading-snug line-clamp-2 break-words">
                                                                                 {item.cleanDisplayTitle}
@@ -2728,30 +2915,24 @@ export const DbpfScout = () => {
                                                             title={tierMeta.roleLabel}
                                                             subtitle={tierMeta.roleDesc}
                                                             icon={tierMeta.icon}
+                                                            breadcrumb={`${tierMods.length}`}
                                                             rightContent={
-                                                                <div className="flex items-center gap-2 shrink-0">
-                                                                    <span className={`${VAULT_CHIP_CLASS} font-mono`}>
-                                                                        <span>{tierMods.length}</span>
-                                                                    </span>
-                                                                    <button
-                                                                        type="button"
+                                                                <PanelHeaderGroup>
+                                                                    <PanelHeaderButton
+                                                                        icon={
+                                                                            isCollapsed
+                                                                                ? t("icon_expand_more", "expand_more")
+                                                                                : t("icon_expand_less", "expand_less")
+                                                                        }
+                                                                        tooltip={isCollapsed ? t("expand", "Expand") : t("collapse", "Collapse")}
                                                                         onClick={() =>
                                                                             setCollapsedTiers((prev) => ({
                                                                                 ...prev,
                                                                                 [pt.id]: !prev[pt.id],
                                                                             }))
                                                                         }
-                                                                        className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer shrink-0"
-                                                                    >
-                                                                        <span
-                                                                            className={`material-symbols-outlined !text-[18px] transition-transform duration-200 ${
-                                                                                isCollapsed ? "" : "rotate-180"
-                                                                            }`}
-                                                                        >
-                                                                            {t("icon_expand_more", "expand_more")}
-                                                                        </span>
-                                                                    </button>
-                                                                </div>
+                                                                    />
+                                                                </PanelHeaderGroup>
                                                             }
                                                         />
 
@@ -2922,6 +3103,38 @@ export const DbpfScout = () => {
                                                                                 onClick={() => {
                                                                                     if (didPointerDragRef.current) return;
                                                                                     openLoadOrderInspector(it.cleanName, undefined, "PRIORITY");
+                                                                                }}
+                                                                                onContextMenu={(e) => {
+                                                                                    const menuItems: SanctuaryContextMenuItem[] = [
+                                                                                        {
+                                                                                            label: t("lo_priority_tier", "Priority Tier"),
+                                                                                            icon: t("icon_low_priority", "low_priority"),
+                                                                                            onClick: () => openLoadOrderInspector(it.cleanName, undefined, "PRIORITY"),
+                                                                                        },
+                                                                                        {
+                                                                                            label: t("btn_inspect", "Inspect {Mod}"),
+                                                                                            icon: t("icon_open_in_new", "open_in_new"),
+                                                                                            onClick: () => openModDossier(vaultMod || it.cleanName),
+                                                                                        },
+                                                                                    ];
+                                                                                    compiledOrder.priorityTiers.forEach((ptOpt: any, idxOpt: number) => {
+                                                                                        if (String(ptOpt.folder || "").toLowerCase() !== String(it.tierFolder || "").toLowerCase()) {
+                                                                                            menuItems.push({
+                                                                                                label: `T${idxOpt + 1}: ${ptOpt.label || ptOpt.folder}`,
+                                                                                                icon: t("icon_workspace_premium", "workspace_premium"),
+                                                                                                dividerBefore: menuItems.length === 2,
+                                                                                                onClick: () => setModPriorityTier(scanScope, it.cleanName, ptOpt.folder),
+                                                                                            });
+                                                                                        }
+                                                                                    });
+                                                                                    menuItems.push({
+                                                                                        label: t("revert_override", "Revert Override"),
+                                                                                        icon: t("icon_undo", "undo"),
+                                                                                        variant: "danger",
+                                                                                        dividerBefore: true,
+                                                                                        onClick: () => setModPriorityTier(scanScope, it.cleanName, ""),
+                                                                                    });
+                                                                                    openSanctuaryContextMenu(e, menuItems);
                                                                                 }}
                                                                                 className="h-full"
                                                                                 title={

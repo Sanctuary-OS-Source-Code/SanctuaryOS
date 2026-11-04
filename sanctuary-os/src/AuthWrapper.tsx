@@ -12,7 +12,6 @@ import {
   fetchMfaSecurityState,
   initDevPasskeyBridge,
   isLocalhostBrowser,
-  isPasskeySessionVerified,
   markPasskeySessionVerified,
   restoreDevSessionFromVite,
   sanitizeFactorFriendlyName,
@@ -25,6 +24,7 @@ import {
   PanelHeaderButton,
   PanelHeaderGroup,
   SidePanel,
+  VAULT_CHIP_CLASS,
 } from "./shared";
 
 export function openSanctuaryLogin() {
@@ -139,19 +139,9 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
           markPasskeySessionVerified(newSession.user?.id);
         }
         syncDevSessionToVite(newSession).catch(() => {});
-        try {
-          if (!isPasskeySessionVerified(newSession)) {
-            const mfaStatus = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-            if (mfaStatus.data?.nextLevel === "aal2" && mfaStatus.data?.currentLevel === "aal1") {
-              if (await prepareMfaChallengeFromState()) {
-                setSession(null);
-                return;
-              }
-            }
-          }
-        } catch (e) {
-          console.error("MFA check failed", e);
-        }
+        // Keep the account signed in across restarts; FIDO2 Passkey verification
+        // is enforced per-session when entering Elevated Hubs (ElevatedPasskeyGate)
+        // or modifying security credentials (CoreTab).
         localStorage.removeItem("sanctuary_show_login");
         localStorage.removeItem("sanctuary_login_bypassed");
         setShowLoginUI(false);
@@ -172,14 +162,16 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
       const isOfflineMode =
         !navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true";
       try {
-        if (!isOfflineMode) {
-          let rawHwid = "WEB_BROWSER_HWID";
-          if (isDesktop()) {
-            try {
-              rawHwid = await invoke<string>("get_hardware_id");
-            } catch {}
-          }
-          if (rawHwid && rawHwid !== "UNKNOWN_HWID") {
+        if (!isOfflineMode && isDesktop()) {
+          let rawHwid = "";
+          try {
+            rawHwid = await invoke<string>("get_hardware_id");
+          } catch {}
+          if (
+            rawHwid &&
+            rawHwid !== "UNKNOWN_HWID" &&
+            rawHwid !== "WEB_BROWSER_HWID"
+          ) {
             const hwid = await hashString(rawHwid);
             const fetchPromise = supabaseAuth
               .from("hardware_bans")
@@ -309,31 +301,37 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
   const finalizeLogin = async (user: any) => {
     try {
-      let rawHwid = "WEB_BROWSER_HWID";
+      let rawHwid = "";
       if (isDesktop()) {
         try {
           rawHwid = await invoke<string>("get_hardware_id");
         } catch {}
       }
-      const hwid = await hashString(rawHwid);
-      const fetchBanPromise = supabaseAuth
-        .from("hardware_bans")
-        .select("hwid_hash")
-        .eq("hwid_hash", hwid)
-        .limit(1);
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Timeout")), 3000)
-      );
-      const res = (await Promise.race([fetchBanPromise, timeoutPromise])) as any;
-
-      if (res.data && res.data.length > 0) {
-        await supabaseAuth.from("profiles").update({ is_banned: true }).eq("id", user.id);
-        setIsHwidBanned(true);
-        localStorage.setItem("sanctuary_blacklisted", "true");
-        await supabase.auth.signOut();
-        throw new Error(
-          t("err_hwid_blacklisted", "Hardware ban detected. Account has been permanently blacklisted.")
+      if (
+        rawHwid &&
+        rawHwid !== "UNKNOWN_HWID" &&
+        rawHwid !== "WEB_BROWSER_HWID"
+      ) {
+        const hwid = await hashString(rawHwid);
+        const fetchBanPromise = supabaseAuth
+          .from("hardware_bans")
+          .select("hwid_hash")
+          .eq("hwid_hash", hwid)
+          .limit(1);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout")), 3000)
         );
+        const res = (await Promise.race([fetchBanPromise, timeoutPromise])) as any;
+
+        if (res.data && res.data.length > 0) {
+          await supabaseAuth.from("profiles").update({ is_banned: true }).eq("id", user.id);
+          setIsHwidBanned(true);
+          localStorage.setItem("sanctuary_blacklisted", "true");
+          await supabase.auth.signOut();
+          throw new Error(
+            t("err_hwid_blacklisted", "Hardware ban detected. Account has been permanently blacklisted.")
+          );
+        }
       }
     } catch (e: any) {
       if (e.message?.includes("blacklisted")) throw e;
@@ -489,11 +487,15 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
               syncDevSessionToVite(data.session).catch(() => {});
             }
           } else {
-            const mfaStatus = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-            if (
-              mfaStatus.data?.nextLevel === "aal2" &&
-              mfaStatus.data?.currentLevel === "aal1"
-            ) {
+            const mfaState = await fetchMfaSecurityState();
+            // Only challenge at general account login if the user relies on TOTP-only 2FA;
+            // FIDO2 Passkeys are enforced per-session at ElevatedPasskeyGate & CoreTab.
+            const needsTotpLoginChallenge =
+              !mfaState.hasPasskey &&
+              mfaState.hasTotp &&
+              mfaState.nextLevel === "aal2" &&
+              mfaState.currentLevel === "aal1";
+            if (needsTotpLoginChallenge) {
               if (await prepareMfaChallengeFromState()) {
                 setIsProcessing(false);
                 setStatus(t("auth_mfa_required_title", "Two-Factor Authentication Required"));
@@ -928,16 +930,21 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                   noValidate
                 >
                   <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                        {t("icon_passkey", "passkey")}
-                      </span>
-                      <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)]">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined !text-[15px]">
+                          {t("icon_passkey", "passkey")}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
                         {t("auth_mfa_passkey_required_title", "Passkey Verification Required")}
                       </span>
                     </div>
-                    <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)]">
-                      {t("auth_passkey_badge_fido", "FIDO2 PASSKEY")}
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                        {t("icon_verified_user", "verified_user")}
+                      </span>
+                      <span>{t("auth_passkey_badge_fido", "FIDO2 Passkey")}</span>
                     </span>
                   </div>
 
@@ -1002,16 +1009,21 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                   noValidate
                 >
                   <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                        {t("icon_qr_code_scanner", "qr_code_scanner")}
-                      </span>
-                      <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)]">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined !text-[15px]">
+                          {t("icon_qr_code_scanner", "qr_code_scanner")}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
                         {t("auth_mfa_code_label", "6-Digit Authenticator Code")}
                       </span>
                     </div>
-                    <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--text)_22%,transparent)] text-[var(--subtext)]">
-                      {t("auth_passkey_badge_totp", "AUTHENTICATOR APP")}
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                        {t("icon_qr_code_scanner", "qr_code_scanner")}
+                      </span>
+                      <span>{t("auth_passkey_badge_totp", "Authenticator App")}</span>
                     </span>
                   </div>
 
@@ -1212,16 +1224,21 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
               {isLogin && !isResetPassword && (
                 <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col">
                   <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                        {t("icon_passkey", "passkey")}
-                      </span>
-                      <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)]">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined !text-[15px]">
+                          {t("icon_passkey", "passkey")}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
                         {t("auth_passkey_badge_fido", "FIDO2 Passkey")}
                       </span>
                     </div>
-                    <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-black uppercase tracking-wider glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)]">
-                      {t("auth_passkey_badge_fido", "FIDO2 PASSKEY")}
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                        {t("icon_verified_user", "verified_user")}
+                      </span>
+                      <span>{t("auth_passkey_badge_fido", "FIDO2 Passkey")}</span>
                     </span>
                   </div>
 

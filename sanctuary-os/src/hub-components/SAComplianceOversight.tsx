@@ -4,6 +4,7 @@ import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { CustomDropdown, CustomComplianceDropdown, SidePanel, PanelHeaderGroup, PanelHeaderButton, ActionButton, SidePanelHeroCard, StatBox, EmptyState } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
+import { openSanctuaryContextMenu } from '../ContextMenu';
 import { DynamicArtifactPreviewBanner } from '../chameleon-components/ThemeCard';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid, SidePanelTitleInput, UniversalGroup, UniversalTextArea } from '../components/layouts/ElevatedHubLayout';
@@ -221,6 +222,26 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       <UniversalCard
         key={mod.id}
         onClick={() => handleOpenPanel(mod)}
+        onContextMenu={(e) => {
+          openSanctuaryContextMenu(e, [
+            {
+              label: t("btn_review", "Review"),
+              icon: t("icon_policy", "policy"),
+              onClick: () => handleOpenPanel(mod),
+            },
+            {
+              label: t("edit_metadata", "Edit Metadata"),
+              icon: t("icon_edit", "edit"),
+              onClick: () => setMetadataMod(mod),
+            },
+            {
+              divider: true,
+              label: t("copy_title", "Copy Title"),
+              icon: t("icon_content_copy", "content_copy"),
+              onClick: () => navigator.clipboard?.writeText(mod.name || ""),
+            },
+          ]);
+        }}
         layout="vertical"
         icon={t("icon_policy", "policy")}
         customIcon={<DynamicArtifactPreviewBanner data={mod} icon={t("icon_policy", "policy")} heightClass="h-full" />}

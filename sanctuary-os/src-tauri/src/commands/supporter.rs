@@ -764,8 +764,7 @@ pub async fn download_and_install_update(
         let installer_str = installer_path.to_string_lossy().to_string();
         if is_dmg {
             // Mount the DMG in the background, copy .app bundle to /Applications if writable (or open the mounted DMG), and relaunch
-            let mac_update_script = format!(
-                "sleep 1; MOUNT_DIR=$(hdiutil attach -nobrowse -readonly \"{}\" | grep '/Volumes/' | sed 's/.*\\(\\/Volumes\\/.*\\)/\\1/' | head -n 1); \
+            let mac_update_script = "sleep 1; MOUNT_DIR=$(hdiutil attach -nobrowse -readonly \"$1\" | grep '/Volumes/' | sed 's/.*\\(\\/Volumes\\/.*\\)/\\1/' | head -n 1); \
                 if [ -n \"$MOUNT_DIR\" ]; then \
                     APP_BUNDLE=$(find \"$MOUNT_DIR\" -maxdepth 2 -name \"*.app\" | head -n 1); \
                     if [ -n \"$APP_BUNDLE\" ] && [ -w \"/Applications\" ]; then \
@@ -777,12 +776,10 @@ pub async fn download_and_install_update(
                         open \"$MOUNT_DIR\"; \
                     fi; \
                 else \
-                    open \"{}\"; \
-                fi",
-                installer_str, installer_str
-            );
+                    open \"$1\"; \
+                fi";
             std::process::Command::new("sh")
-                .args(["-c", &mac_update_script])
+                .args(["-c", mac_update_script, "sanctuary-updater", &installer_str])
                 .spawn()
                 .map_err(|e| format!("Failed to launch macOS DMG updater: {}", e))?;
         } else {
@@ -798,18 +795,26 @@ pub async fn download_and_install_update(
         let installer_str = installer_path.to_string_lossy().to_string();
         if is_appimage {
             let current_appimage = std::env::var("APPIMAGE").unwrap_or_default();
-            let linux_update_script = if !current_appimage.trim().is_empty() {
-                format!(
-                    "sleep 1; chmod +x \"{}\"; cp -f \"{}\" \"{}\" && chmod +x \"{}\" && \"{}\" &",
-                    installer_str, installer_str, current_appimage, current_appimage, current_appimage
-                )
+            if !current_appimage.trim().is_empty() {
+                let linux_update_script =
+                    "sleep 1; chmod +x \"$1\"; cp -f \"$1\" \"$2\" && chmod +x \"$2\" && \"$2\" &";
+                std::process::Command::new("sh")
+                    .args([
+                        "-c",
+                        linux_update_script,
+                        "sanctuary-updater",
+                        &installer_str,
+                        current_appimage.trim(),
+                    ])
+                    .spawn()
+                    .map_err(|e| format!("Failed to launch Linux AppImage updater: {}", e))?;
             } else {
-                format!("sleep 1; chmod +x \"{}\" && \"{}\" &", installer_str, installer_str)
-            };
-            std::process::Command::new("sh")
-                .args(["-c", &linux_update_script])
-                .spawn()
-                .map_err(|e| format!("Failed to launch Linux AppImage updater: {}", e))?;
+                let linux_update_script = "sleep 1; chmod +x \"$1\" && \"$1\" &";
+                std::process::Command::new("sh")
+                    .args(["-c", linux_update_script, "sanctuary-updater", &installer_str])
+                    .spawn()
+                    .map_err(|e| format!("Failed to launch Linux AppImage updater: {}", e))?;
+            }
         } else {
             std::process::Command::new("xdg-open")
                 .arg(&installer_str)

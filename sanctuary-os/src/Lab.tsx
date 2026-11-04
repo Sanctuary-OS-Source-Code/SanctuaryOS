@@ -24,6 +24,7 @@ import {
 } from "./hub-components/SharedCommandScreenLayout";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { SidePanelHeroCard, UniversalGroup } from "./components/layouts/ElevatedHubLayout";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -1684,6 +1685,55 @@ export default function Lab({
                               key={test.id || index}
                               layout="vertical"
                               onClick={() => setSelectedReport(test)}
+                              onContextMenu={(e) => {
+                                const menuItems: SanctuaryContextMenuItem[] = [
+                                  {
+                                    label: t("view_details", "View Details"),
+                                    icon: t("icon_visibility", "visibility"),
+                                    onClick: () => setSelectedReport(test),
+                                  },
+                                ];
+                                if (resolvedTestMod && onOpenDossier) {
+                                  menuItems.push({
+                                    label: t("inspect", "Inspect"),
+                                    icon: t("icon_deployed_code", "deployed_code"),
+                                    onClick: () => onOpenDossier(resolvedTestMod),
+                                  });
+                                }
+                                if (resolvedTestMod) {
+                                  menuItems.push({
+                                    label: t("tab_env_builder", "Environment Builder"),
+                                    icon: t("icon_science", "science"),
+                                    onClick: () => {
+                                      setActiveLabMod(resolvedTestMod);
+                                      setStagedExtras(Array.isArray(test.stagedExtras) ? test.stagedExtras : []);
+                                      setConflictTarget(test.conflictTarget || null);
+                                      setConflictExtras(Array.isArray(test.conflictExtras) ? test.conflictExtras : []);
+                                      setActiveTab("BUILDER");
+                                    },
+                                  });
+                                }
+                                if (test.logSnippet) {
+                                  menuItems.push({
+                                    label: t("copy_log", "Copy Log"),
+                                    icon: t("icon_content_copy", "content_copy"),
+                                    dividerBefore: true,
+                                    onClick: () => navigator.clipboard?.writeText(String(test.logSnippet)),
+                                  });
+                                }
+                                if (isError && submitLabReport) {
+                                  menuItems.push({
+                                    label: t("lab_action_submit_diag_title", "Submit To Diagnostics"),
+                                    icon: t("icon_send", "send"),
+                                    variant: "warning",
+                                    dividerBefore: !test.logSnippet,
+                                    onClick: () => {
+                                      submitLabReport(test);
+                                    },
+                                  });
+                                }
+                                openSanctuaryContextMenu(e, menuItems);
+                              }}
                               icon={isError ? t("icon_warning", "warning") : t("icon_check_circle", "check_circle")}
                               title={
                                 test.mod
@@ -2037,7 +2087,32 @@ export default function Lab({
                       placeholder={t("filter_dna", "Filter File Hash signatures...")}
                     />
                   ) : (
-                    <div className="relative overflow-hidden bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-8 rounded-2xl shadow-md flex flex-col items-center text-center group/core h-full justify-center">
+                    <div
+                      onContextMenu={(e) => {
+                        const menuItems: SanctuaryContextMenuItem[] = [];
+                        if (onOpenDossier) {
+                          menuItems.push({
+                            label: t("inspect", "Inspect"),
+                            icon: t("icon_deployed_code", "deployed_code"),
+                            onClick: () => onOpenDossier(activeLabMod),
+                          });
+                        }
+                        menuItems.push({
+                          label: t("copy", "Copy"),
+                          icon: t("icon_content_copy", "content_copy"),
+                          onClick: () => navigator.clipboard?.writeText(getModName(activeLabMod)),
+                        });
+                        menuItems.push({
+                          label: t("lab_btn_abort", "Abort / Dismount Subject"),
+                          icon: t("icon_close", "close"),
+                          variant: "danger",
+                          dividerBefore: true,
+                          onClick: abortLab,
+                        });
+                        openSanctuaryContextMenu(e, menuItems);
+                      }}
+                      className="relative overflow-hidden bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-8 rounded-2xl shadow-md flex flex-col items-center text-center group/core h-full justify-center"
+                    >
                       <div className="absolute inset-0 rounded-[inherit] border-[2px] border-dashed border-[var(--accent)] opacity-20  animate-[spin_20s_linear_infinite] pointer-events-none scale-150" />
                       <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)] opacity-10 blur-[50px] rounded-full pointer-events-none" />
 
@@ -2183,6 +2258,32 @@ export default function Lab({
                     {stagedExtras.map((m: any) => (
                       <div
                         key={m.hash}
+                        onContextMenu={(e) => {
+                          const menuItems: SanctuaryContextMenuItem[] = [];
+                          if (onOpenDossier) {
+                            menuItems.push({
+                              label: t("inspect", "Inspect"),
+                              icon: t("icon_deployed_code", "deployed_code"),
+                              onClick: () => onOpenDossier(m),
+                            });
+                          }
+                          menuItems.push({
+                            label: t("subject_isolation", "Subject Isolation"),
+                            icon: t("icon_science", "science"),
+                            onClick: () => {
+                              setStagedExtras(stagedExtras.filter((x) => x.hash !== m.hash));
+                              setActiveLabMod(m);
+                            },
+                          });
+                          menuItems.push({
+                            label: t("remove", "Remove"),
+                            icon: t("icon_close", "close"),
+                            variant: "danger",
+                            dividerBefore: true,
+                            onClick: () => setStagedExtras(stagedExtras.filter((x) => x.hash !== m.hash)),
+                          });
+                          openSanctuaryContextMenu(e, menuItems);
+                        }}
                         className="flex justify-start items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all group/item shadow-sm h-[60px]"
                       >
                         <span className="text-[11px] font-black text-[var(--text)] truncate pr-4 flex-1 min-w-0">
@@ -2251,7 +2352,39 @@ export default function Lab({
                 <div className="flex flex-col gap-4 relative z-10 flex-1">
                   {conflictTarget ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-max">
-                      <div className="relative overflow-hidden bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] p-4 rounded-xl shadow-md flex justify-start items-center group md:col-span-2 h-[80px]">
+                      <div
+                        onContextMenu={(e) => {
+                          const menuItems: SanctuaryContextMenuItem[] = [];
+                          if (onOpenDossier) {
+                            menuItems.push({
+                              label: t("inspect", "Inspect"),
+                              icon: t("icon_deployed_code", "deployed_code"),
+                              onClick: () => onOpenDossier(conflictTarget),
+                            });
+                          }
+                          menuItems.push({
+                            label: t("subject_isolation", "Subject Isolation"),
+                            icon: t("icon_science", "science"),
+                            onClick: () => {
+                              const prevPrimary = activeLabMod;
+                              setActiveLabMod(conflictTarget);
+                              setConflictTarget(prevPrimary || null);
+                            },
+                          });
+                          menuItems.push({
+                            label: t("remove", "Remove"),
+                            icon: t("icon_close", "close"),
+                            variant: "danger",
+                            dividerBefore: true,
+                            onClick: () => {
+                              setConflictTarget(null);
+                              setConflictExtras([]);
+                            },
+                          });
+                          openSanctuaryContextMenu(e, menuItems);
+                        }}
+                        className="relative overflow-hidden bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] p-4 rounded-xl shadow-md flex justify-start items-center group md:col-span-2 h-[80px]"
+                      >
                         <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--warning)] opacity-10 blur-[30px] rounded-full pointer-events-none" />
                         <div className="flex flex-col gap-1 relative z-10 min-w-0 pr-4">
                           <span className="text-[9px] font-black theme-text-warning capitalize tracking-[0.3em]">
@@ -2277,6 +2410,40 @@ export default function Lab({
                       {conflictExtras.map((m: any) => (
                         <div
                           key={m.hash}
+                          onContextMenu={(e) => {
+                            const menuItems: SanctuaryContextMenuItem[] = [];
+                            if (onOpenDossier) {
+                              menuItems.push({
+                                label: t("inspect", "Inspect"),
+                                icon: t("icon_deployed_code", "deployed_code"),
+                                onClick: () => onOpenDossier(m),
+                              });
+                            }
+                            menuItems.push({
+                              label: t("primary_adversary", "Primary Adversary"),
+                              icon: t("icon_warning", "warning"),
+                              onClick: () => {
+                                const prevTarget = conflictTarget;
+                                setConflictTarget(m);
+                                setConflictExtras(
+                                  conflictExtras
+                                    .filter((x) => x.hash !== m.hash)
+                                    .concat(prevTarget ? [prevTarget] : [])
+                                );
+                              },
+                            });
+                            menuItems.push({
+                              label: t("remove", "Remove"),
+                              icon: t("icon_close", "close"),
+                              variant: "danger",
+                              dividerBefore: true,
+                              onClick: () =>
+                                setConflictExtras(
+                                  conflictExtras.filter((x) => x.hash !== m.hash)
+                                ),
+                            });
+                            openSanctuaryContextMenu(e, menuItems);
+                          }}
                           className="flex justify-start items-center bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] border border-[color-mix(in_srgb,var(--warning)_10%,transparent)] p-4 rounded-xl hover:border-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] transition-all group/item shadow-sm h-[60px]"
                         >
                           <span className="text-[11px] font-black text-[var(--text)] truncate pr-4 flex-1 min-w-0">
@@ -2341,6 +2508,55 @@ export default function Lab({
                   key={report.id}
                   layout="vertical"
                   onClick={() => setSelectedReport(report)}
+                  onContextMenu={(e) => {
+                    const menuItems: SanctuaryContextMenuItem[] = [
+                      {
+                        label: t("view_details", "View Details"),
+                        icon: t("icon_visibility", "visibility"),
+                        onClick: () => setSelectedReport(report),
+                      },
+                    ];
+                    if (resolvedCardMod && onOpenDossier) {
+                      menuItems.push({
+                        label: t("inspect", "Inspect"),
+                        icon: t("icon_deployed_code", "deployed_code"),
+                        onClick: () => onOpenDossier(resolvedCardMod),
+                      });
+                    }
+                    if (resolvedCardMod) {
+                      menuItems.push({
+                        label: t("tab_env_builder", "Environment Builder"),
+                        icon: t("icon_science", "science"),
+                        onClick: () => {
+                          setActiveLabMod(resolvedCardMod);
+                          setStagedExtras(Array.isArray(report.stagedExtras) ? report.stagedExtras : []);
+                          setConflictTarget(report.conflictTarget || null);
+                          setConflictExtras(Array.isArray(report.conflictExtras) ? report.conflictExtras : []);
+                          setActiveTab("BUILDER");
+                        },
+                      });
+                    }
+                    if (report.logSnippet) {
+                      menuItems.push({
+                        label: t("copy_log", "Copy Log"),
+                        icon: t("icon_content_copy", "content_copy"),
+                        dividerBefore: true,
+                        onClick: () => navigator.clipboard?.writeText(String(report.logSnippet)),
+                      });
+                    }
+                    if (isError && submitLabReport) {
+                      menuItems.push({
+                        label: t("lab_action_submit_diag_title", "Submit To Diagnostics"),
+                        icon: t("icon_send", "send"),
+                        variant: "warning",
+                        dividerBefore: !report.logSnippet,
+                        onClick: () => {
+                          submitLabReport(report);
+                        },
+                      });
+                    }
+                    openSanctuaryContextMenu(e, menuItems);
+                  }}
                   icon={isError ? t("icon_warning", "warning") : t("icon_check_circle", "check_circle")}
                   title={getCleanModBaseName(resolvedCardMod)}
                   subtitle={

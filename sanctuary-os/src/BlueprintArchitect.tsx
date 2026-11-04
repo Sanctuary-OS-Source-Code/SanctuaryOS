@@ -9,6 +9,7 @@ import {
   EmptyState,
   PanelHeaderGroup,
   PanelHeaderButton,
+  HoverTooltip,
   ActionPill,
   InlineFilterGroup,
   DashboardStatTile,
@@ -307,36 +308,17 @@ export default function BlueprintArchitect({
       headerActions={
         allow_write && (rawRedMods.length > 0 || rawAmberMods.length > 0) ? (
           <PanelHeaderGroup>
-            {rawRedMods.length > 0 && (
-              <PanelHeaderButton
-                icon={t("icon_remove_circle_outline", "remove_circle_outline")}
-                tooltip={t("bp_purge_corrupted", "{Remove} {0} Corrupted").replace(
-                  "{0}",
-                  String(groupedRedMods.length)
-                )}
-                variant="danger"
-                onClick={() => {
-                  rawRedMods.forEach((m: any) =>
-                    toggleInActiveSet(m._originalSetName || m.name, true, true)
-                  );
-                }}
-              />
-            )}
-            {rawAmberMods.length > 0 && (
-              <PanelHeaderButton
-                icon={t("icon_remove_circle_outline", "remove_circle_outline")}
-                tooltip={t("bp_purge_unstable", "{Remove} {0} Unstable").replace(
-                  "{0}",
-                  String(groupedAmberMods.length)
-                )}
-                variant="default"
-                onClick={() => {
-                  rawAmberMods.forEach((m: any) =>
-                    toggleInActiveSet(m._originalSetName || m.name, true, true)
-                  );
-                }}
-              />
-            )}
+            <PanelHeaderButton
+              icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+              tooltip={`${t("btn_remove", "{Remove}")} ${groupedRedMods.length + groupedAmberMods.length} ${t("term_mods", "{Mods}")}`}
+              tooltipSubtitle={`${t("bp_purge_unstable", "{Remove} {0} Unstable").replace(/^.*\{0\}\s*/, `${groupedAmberMods.length} `)}\n${t("bp_purge_corrupted", "{Remove} {0} Corrupted").replace(/^.*\{0\}\s*/, `${groupedRedMods.length} `)}`}
+              variant={groupedRedMods.length > 0 ? "danger" : "warning"}
+              onClick={() => {
+                [...rawRedMods, ...rawAmberMods].forEach((m: any) =>
+                  toggleInActiveSet(m._originalSetName || m.name, true, true)
+                );
+              }}
+            />
           </PanelHeaderGroup>
         ) : undefined
       }
@@ -536,6 +518,43 @@ export default function BlueprintArchitect({
                   activeTab === "critical"
                     ? t("icon_gpp_bad", "gpp_bad")
                     : t("icon_gpp_maybe", "gpp_maybe")
+                }
+                headerAction={
+                  allow_write && toggleInActiveSet ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        filteredBrokenMods.forEach((mod: any) => {
+                          const members: any[] =
+                            Array.isArray(mod._groupedMods) && mod._groupedMods.length > 0
+                              ? mod._groupedMods
+                              : [mod];
+                          members.forEach((m: any) => {
+                            toggleInActiveSet(m._originalSetName || m.name, true, true);
+                          });
+                        });
+                      }}
+                      className={`relative group/subaction w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] ${
+                        activeTab === "critical"
+                          ? "text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
+                          : "text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]"
+                      } flex items-center justify-center transition-all cursor-pointer shrink-0`}
+                    >
+                      <span className="material-symbols-outlined !text-[15px]">
+                        {t("icon_remove_circle_outline", "remove_circle_outline")}
+                      </span>
+                      <HoverTooltip
+                        className="z-[100] !right-0 !translate-x-0 !left-auto"
+                        title={(activeTab === "critical"
+                          ? t("bp_purge_corrupted", "{Remove} {0} Corrupted")
+                          : t("bp_purge_unstable", "{Remove} {0} Unstable")
+                        ).replace("{0}", String(filteredBrokenMods.length))}
+                        icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+                        variant={activeTab === "critical" ? "danger" : "warning"}
+                      />
+                    </button>
+                  ) : undefined
                 }
               >
                 {renderGroupedIncompatibleSections({

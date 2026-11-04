@@ -358,6 +358,17 @@ serve(async (req) => {
       })
       const nativeJson = await nativeRes.json().catch(() => ({}))
       if (nativeRes.ok) {
+        const verifiedUid = user?.id || nativeJson?.user?.id
+        if (verifiedUid) {
+          try {
+            await supabaseAdmin.auth.admin.updateUserById(verifiedUid, {
+              app_metadata: {
+                ...(user?.app_metadata || {}),
+                last_passkey_verified_at: new Date().toISOString(),
+              },
+            })
+          } catch {}
+        }
         return new Response(JSON.stringify(nativeJson), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
@@ -445,6 +456,15 @@ serve(async (req) => {
         p_sign_count: signCount,
       })
 
+      try {
+        await supabaseAdmin.auth.admin.updateUserById(credRow.user_id, {
+          app_metadata: {
+            ...(user?.app_metadata || {}),
+            last_passkey_verified_at: new Date().toISOString(),
+          },
+        })
+      } catch {}
+
       // If no active user session was passed (passwordless login flow), mint a session for credRow.user_id
       if (!user) {
         const { data: targetUserRes } = await supabaseAdmin.auth.admin.getUserById(credRow.user_id)
@@ -514,6 +534,38 @@ serve(async (req) => {
         apikey: supabaseAnonKey,
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
+      }
+
+      // Server-side Zero-Trust Step-Up Enforcement:
+      // If the account already has >= 1 registered Passkey, disallow registering an additional
+      // Passkey unless the user has completed a cryptographic Passkey assertion within the last 12h.
+      try {
+        const existingRes = await fetch(`${supabaseUrl}/auth/v1/passkeys`, {
+          method: 'GET',
+          headers: gotrueHeaders,
+        })
+        if (existingRes.ok) {
+          const existingJson = await existingRes.json().catch(() => [])
+          const existingList = Array.isArray(existingJson)
+            ? existingJson
+            : Array.isArray(existingJson?.passkeys)
+              ? existingJson.passkeys
+              : []
+          if (existingList.length > 0) {
+            const lastVerifiedIso = user?.app_metadata?.last_passkey_verified_at
+            const lastVerifiedMs = lastVerifiedIso ? new Date(lastVerifiedIso).getTime() : 0
+            const TwelveHoursMs = 12 * 60 * 60 * 1000
+            if (!lastVerifiedMs || Date.now() - lastVerifiedMs > TwelveHoursMs) {
+              throw new Error(
+                'Security Lock: An active FIDO2 Passkey is already registered on this account. Authenticate with your existing Passkey before registering an additional Passkey.'
+              )
+            }
+          }
+        }
+      } catch (stepUpCheckErr: any) {
+        if (String(stepUpCheckErr?.message || '').includes('Security Lock:')) {
+          throw stepUpCheckErr
+        }
       }
 
       const nativeRes = await fetch(`${supabaseUrl}/auth/v1/passkeys/registration/verify`, {

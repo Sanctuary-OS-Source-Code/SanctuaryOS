@@ -14,6 +14,7 @@ import {
   ActionButton,
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { openSanctuaryContextMenu } from "../ContextMenu";
 import { UniversalGroup, UniversalInput, UniversalTextArea } from "../components/universal/UniversalLayout";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import KeeperSupportSettings from "./KeeperSupportSettings";
@@ -448,6 +449,21 @@ export default function KeepersSupportTickets({
       <UniversalCard
         key={ticket.id}
         onClick={() => setSelectedTicket(ticket)}
+        onContextMenu={(e) => {
+          openSanctuaryContextMenu(e, [
+            {
+              label: t("view_ticket", "View Ticket"),
+              icon: t("icon_support_agent", "support_agent"),
+              onClick: () => setSelectedTicket(ticket),
+            },
+            {
+              divider: true,
+              label: t("copy_title", "Copy Title"),
+              icon: t("icon_content_copy", "content_copy"),
+              onClick: () => navigator.clipboard?.writeText(ticket.title || ""),
+            },
+          ]);
+        }}
         layout="vertical"
         isGhosted={isResolved || isRejected}
         icon={t("icon_support_agent", "support_agent")}

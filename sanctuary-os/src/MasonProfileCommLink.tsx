@@ -2,14 +2,21 @@ import MasonPostCard from './MasonPostCard';
 import { EmptyState } from './shared';
 
 export default function MasonProfileCommLink({ posts, modSearch, handlePostClick, handleToggleLike, t }: any) {
-  const filteredPosts = posts.filter((p: any) => {
-    if (!modSearch) return true;
-    const q = modSearch.toLowerCase();
-    return (
-      (p.title || "").toLowerCase().includes(q) ||
-      (p.content || "").toLowerCase().includes(q)
-    );
-  });
+  const filteredPosts = [...(posts || [])]
+    .filter((p: any) => {
+      if (!modSearch) return true;
+      const q = modSearch.toLowerCase();
+      return (
+        (p.title || "").toLowerCase().includes(q) ||
+        (p.content || "").toLowerCase().includes(q)
+      );
+    })
+    .sort((a: any, b: any) => {
+      const aPin = a?.is_pinned === true || a?.is_pinned === "true" ? 1 : 0;
+      const bPin = b?.is_pinned === true || b?.is_pinned === "true" ? 1 : 0;
+      if (bPin !== aPin) return bPin - aPin;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
   return (
     <>

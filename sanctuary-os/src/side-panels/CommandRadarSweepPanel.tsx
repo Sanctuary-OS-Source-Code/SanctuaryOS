@@ -160,8 +160,8 @@ export default function CommandRadarSweepPanel({
       icon={t("icon_radar", "radar")}
       iconColorClass={c_iconColor}
       widthClass="w-[90vw] md:w-[680px]"
-      backdropZ="z-[10001]"
-      panelZ="z-[10002]"
+      backdropZ="z-[20000]"
+      panelZ="z-[20001]"
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton

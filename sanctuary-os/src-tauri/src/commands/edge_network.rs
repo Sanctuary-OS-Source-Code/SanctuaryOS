@@ -725,8 +725,8 @@ pub async fn export_edge_release(
     let mut current_hashes = Vec::new();
     let mut current_modules = Vec::new();
     let game_schema = state.active_schema.lock().unwrap().clone();
-    let mod_exts = if let Some(schema) = game_schema {
-        schema.extensions.supported
+    let mod_exts = if let Some(ref schema) = game_schema {
+        schema.extensions.supported.clone()
     } else {
         vec!["package".to_string(), "ts4script".to_string()]
     };
@@ -752,7 +752,13 @@ pub async fn export_edge_release(
                     current_modules.push(EdgeModuleEntry {
                         name: rel_name,
                         sha256: h,
-                        role: Some(if ext == "ts4script" { "script".to_string() } else { "package".to_string() }),
+                        role: Some(
+                            if crate::game_logic::is_script_extension(&game_schema, &ext) {
+                                "script".to_string()
+                            } else {
+                                "package".to_string()
+                            },
+                        ),
                     });
                 }
             }

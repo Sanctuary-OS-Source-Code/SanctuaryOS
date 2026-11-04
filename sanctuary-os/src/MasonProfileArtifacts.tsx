@@ -1,48 +1,122 @@
 import React, { useState } from 'react';
-import { getModIcon, AccordionDrawer, DeferredRender, formatDisplayName, EmptyState } from './shared';
+import { getModIcon, AccordionDrawer, DeferredRender, formatDisplayName, EmptyState, HoverTooltip, stripMarkdown } from './shared';
 import { UniversalCard } from './components/universal/UniversalCard';
 import { DynamicArtifactPreviewBanner } from './chameleon-components/ThemeCard';
 import { useStore } from './store';
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from './ContextMenu';
 
-export default function MasonProfileArtifacts({ filteredMods, onModClick, mason, activeGameSchema, isOwner, handlePin, t }: any) {
+const formatModCardTitle = (mod: any) => {
+  const raw =
+    String(mod?.displayName || mod?.name || "")
+      .split(/[\\/]/)
+      .pop() || "";
+  return (
+    raw
+      .replace(/\.(package|ts4script|zip|rar|7z|json|dll|asi|lua|reds|csx)$/i, "")
+      .replace(/_/g, " ")
+      .trim() ||
+    mod?.name ||
+    ""
+  );
+};
+
+export default function MasonProfileArtifacts({ filteredMods, onModClick, mason, activeGameSchema, isSidePanel, t }: any) {
   const [expandedFolder, setExpandedFolder] = useState<string | null>(null);
   const [drawerSearchQuery, setDrawerSearchQuery] = useState("");
   const showImages = useStore((state: any) => state.showImages);
 
+  const sortedMods = [...(filteredMods || [])].sort((a: any, b: any) => {
+    const aPin = mason?.pinned_mod_id === a?.id || mason?.pinned_ccset_id === a?.id ? 1 : 0;
+    const bPin = mason?.pinned_mod_id === b?.id || mason?.pinned_ccset_id === b?.id ? 1 : 0;
+    if (bPin !== aPin) return bPin - aPin;
+    return 0;
+  });
+
+  const gridColsClass = isSidePanel
+    ? "grid grid-flow-row-dense grid-cols-1 sm:grid-cols-2 gap-4"
+    : "grid grid-flow-row-dense grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6";
+
   return (
     <>
-      {filteredMods.length === 0 && (
+      {sortedMods.length === 0 && (
         <EmptyState icon={t("icon_deployed_code", "deployed_code")} title={t("no_mods", "No {mods} deployed.")} minHeightClass="min-h-[300px]" />
       )}
-      <div className="grid grid-flow-row-dense grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
-        {filteredMods.map((mod: any, index: number) => {
+      <div className={gridColsClass}>
+        {sortedMods.map((mod: any, index: number) => {
           const mainKey = mod.id || mod.hash || mod.name || String(index);
           const isFolder = mod.isVirtual || mod.isParent || mod.familyCount > 1;
+          const isPinned = Boolean(mason?.pinned_mod_id === mod.id || mason?.pinned_ccset_id === mod.id);
+          const cleanedTitle = formatModCardTitle(mod);
+          const enrichedMod = {
+            ...mod,
+            author:
+              mod.author && !String(mod.author).toLowerCase().includes("unknown")
+                ? mod.author
+                : mason?.name || mod.author,
+            status:
+              !mod.status || String(mod.status).toLowerCase() === "unverified"
+                ? "verified"
+                : mod.status,
+          };
           const renderedCard = (
             <UniversalCard
               layout="vertical"
+              isActive={expandedFolder === mainKey}
               image={showImages !== false && mod.image_url ? mod.image_url : undefined}
               icon={!mod.image_url ? getModIcon(mod, activeGameSchema, t) : undefined}
               customIcon={
                 <DynamicArtifactPreviewBanner
-                  data={mod}
+                  data={enrichedMod}
                   icon={getModIcon(mod, activeGameSchema, t)}
                   heightClass="h-full"
                 />
               }
-              title={mod.name}
+              title={cleanedTitle}
               subtitle={`${mason.name || t("unknown_mason", "Unknown {Mason}")}${mod.latest_version ? ` • ${mod.latest_version}` : ""}`}
               onClick={() => {
+                onModClick({ ...mod, author: mason.name, isNexusView: true });
+              }}
+              onContextMenu={(e) => {
+                const items: SanctuaryContextMenuItem[] = [
+                  {
+                    id: "inspect",
+                    label: t("btn_inspect", "Inspect {Mod}"),
+                    icon: t("icon_open_in_new", "open_in_new"),
+                    variant: "accent",
+                    onClick: () => onModClick({ ...mod, author: mason.name, isNexusView: true }),
+                  },
+                ];
                 if (isFolder) {
-                  setExpandedFolder(expandedFolder === mainKey ? null : mainKey);
-                } else {
-                  onModClick({ ...mod, author: mason.name, isNexusView: true });
+                  const isExpanded = expandedFolder === mainKey;
+                  const count = mod.familyCount || (mod.flavors?.length || 0);
+                  items.push({
+                    id: "explore",
+                    label: isExpanded
+                      ? t("btn_close", "Close")
+                      : `${t("nav_exploring", "Exploring")} (${count})`,
+                    icon: t("icon_account_tree", "account_tree"),
+                    onClick: () => setExpandedFolder(isExpanded ? null : mainKey),
+                  });
                 }
+                openSanctuaryContextMenu(e, {
+                  title: cleanedTitle,
+                  subtitle: mason.name || t("unknown_mason", "Unknown {Mason}"),
+                  statusLabel: isPinned ? t("pinned", "Pinned") : mod.latest_version || undefined,
+                  icon: getModIcon(mod, activeGameSchema, t),
+                  items,
+                });
               }}
               imageOverlay={
-                <div className="absolute top-3 left-3 z-30 flex items-center gap-1.5 pointer-events-none">
+                <div className="absolute top-3 left-3 z-30 flex flex-wrap items-center gap-1.5 pointer-events-none">
+                  {isPinned && (
+                    <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_push_pin", "push_pin")}</span>
+                      <span>{t("pinned", "Pinned")}</span>
+                    </div>
+                  )}
                   {(() => {
-                    const s = (mod.status || 'UNVERIFIED').toLowerCase().replace(/[\[\]"]/g, "");
+                    const rawStatus = String(mod.status || 'stable').toLowerCase().replace(/[\[\]"]/g, "");
+                    const s = rawStatus === 'unverified' && mason?.is_verified ? 'stable' : rawStatus;
                     const isSandbox = s.toUpperCase().includes('SANDBOX');
                     const icon = isSandbox
                       ? t("icon_science", "science")
@@ -54,7 +128,7 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                             ? t("icon_error", "error")
                             : s === 'under review' || s === 'pending'
                               ? t("icon_schedule", "schedule")
-                              : t("icon_science", "science");
+                              : t("icon_verified", "verified");
                     const iconColor = s === 'stable' || s === 'verified'
                       ? 'text-[var(--success)]'
                       : s === 'unstable'
@@ -62,7 +136,13 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                         : s === 'broken' || s === 'corrupted'
                           ? 'text-[var(--danger)]'
                           : 'text-[var(--accent)]';
-                    const label = isSandbox ? t("studio_badge_sandbox", "Sandbox") : s;
+                    const label = isSandbox
+                      ? t("studio_badge_sandbox", "Sandbox")
+                      : s === 'verified'
+                        ? t("verified", "Verified")
+                        : s === 'stable'
+                          ? t("status_stable", "Stable")
+                          : s;
                     return (
                       <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
                         <span className={`material-symbols-outlined !text-[12px] ${iconColor}`}>{icon}</span>
@@ -94,7 +174,7 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                   )}
                 </>
               }
-              className={`w-full h-full transition-all duration-300 ${expandedFolder === mainKey ? '!border-[color-mix(in_srgb,var(--accent)_65%,transparent)] shadow-[0_0_25px_color-mix(in_srgb,var(--accent)_18%,transparent)]' : ''}`}
+              className="w-full h-full transition-all duration-300"
               footer={
                 <div className="flex items-center justify-between w-full pt-1 relative min-h-[16px] gap-2">
                   <div className="flex items-center gap-1.5">
@@ -102,8 +182,14 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setExpandedFolder(expandedFolder === mainKey ? null : mainKey); }}
-                        className={`px-2.5 py-1 rounded-lg glass-surface border text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer ${expandedFolder === mainKey ? 'sa-glass-pill-active text-[var(--text)]' : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'}`}
+                        className={`relative px-2.5 py-1 rounded-lg glass-surface border text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer ${expandedFolder === mainKey ? 'sa-glass-pill-active text-[var(--text)]' : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'}`}
                       >
+                        <HoverTooltip
+                          title={t("nav_exploring", "Exploring")}
+                          subtitle={`+${mod.familyCount || (mod.flavors?.length || 0)} ${t("badge_modules_count", "Modules")}`}
+                          icon={t("icon_account_tree", "account_tree")}
+                          delay={120}
+                        />
                         <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_account_tree", "account_tree")}</span>
                         <span className="tabular-nums">+{mod.familyCount || (mod.flavors?.length || 0)} {t("badge_modules_count", "Modules")}</span>
                         <span className={`material-symbols-outlined !text-[13px] transition-transform duration-300 ${expandedFolder === mainKey ? 'rotate-180 text-[var(--accent)]' : 'text-[var(--subtext)]'}`}>{t("icon_expand_more", "expand_more")}</span>
@@ -116,23 +202,27 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
                     {isFolder && mod.updated_at && (
                       <span className="text-[8px] font-mono text-[var(--subtext)] opacity-50 capitalize tracking-widest">{new Date(mod.updated_at).toLocaleDateString()}</span>
                     )}
-                    {!isFolder && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); onModClick({ ...mod, author: mason.name, isNexusView: true }); }}
-                        className="px-3 py-1.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black capitalize tracking-widest hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all flex items-center gap-1.5 opacity-0 group-hover:opacity-100"
-                      >
-                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_download", "download")}</span>
-                        <span>{t("update_panel_install", "Install")}</span>
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onModClick({ ...mod, author: mason.name, isNexusView: true }); }}
+                      className="relative px-3 py-1.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] text-[9px] font-black uppercase tracking-widest hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all flex items-center gap-1.5 opacity-80 group-hover:opacity-100 cursor-pointer"
+                    >
+                      <HoverTooltip
+                        title={t("btn_view", "View")}
+                        subtitle={cleanedTitle}
+                        icon={t("icon_visibility", "visibility")}
+                        delay={120}
+                      />
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">{t("icon_visibility", "visibility")}</span>
+                      <span>{t("btn_view", "View")}</span>
+                    </button>
                   </div>
                 </div>
               }
             >
               {mod.description && (
                 <p className="text-[10px] text-[var(--subtext)] opacity-70 line-clamp-2 leading-relaxed mb-1">
-                  {mod.description}
+                  {stripMarkdown(mod.description)}
                 </p>
               )}
             </UniversalCard>

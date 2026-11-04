@@ -289,6 +289,8 @@ pub struct SchemaExtensions {
     #[serde(default)]
     pub config_extensions: Option<Vec<String>>,
     #[serde(default)]
+    pub script_extensions: Option<Vec<String>>,
+    #[serde(default)]
     pub twin_extensions: Option<Vec<Vec<String>>>,
 }
 

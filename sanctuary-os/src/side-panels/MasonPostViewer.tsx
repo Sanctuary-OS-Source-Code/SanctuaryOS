@@ -794,33 +794,35 @@ export default function MasonPostViewer({
                   </PanelHeaderGroup>
                 )
               )}
-              {post.mason_id !== "system" && (
-                <PanelHeaderGroup>
-                  <PanelHeaderButton
-                    icon={t("icon_person", "person")}
-                    tooltip={t("btn_view_profile", "View Profile")}
-                    onClick={() => {
-                      onClose();
-                      onOpenMasonProfile?.(post.mason_id);
-                    }}
-                  />
-                  {post.masons?.patreon_url && (
-                    <PanelHeaderButton
-                      icon={t("icon_favorite", "favorite")}
-                      tooltip={t("btn_patreon", "Patreon")}
-                      onClick={() => handleOpenUrl(post.masons.patreon_url)}
-                      variant="danger"
-                    />
-                  )}
-                  {post.masons?.discord_url && (
-                    <PanelHeaderButton
-                      icon={t("icon_forum", "forum")}
-                      tooltip={t("btn_discord", "Discord")}
-                      onClick={() => handleOpenUrl(post.masons.discord_url)}
-                    />
-                  )}
-                </PanelHeaderGroup>
-              )}
+              {post.mason_id !== "system" &&
+                (onOpenMasonProfile || post.masons?.patreon_url || post.masons?.discord_url) && (
+                  <PanelHeaderGroup>
+                    {onOpenMasonProfile && (
+                      <PanelHeaderButton
+                        icon={t("icon_person", "person")}
+                        tooltip={t("btn_view_profile", "View Profile")}
+                        onClick={() => {
+                          onOpenMasonProfile(post.mason_id);
+                        }}
+                      />
+                    )}
+                    {post.masons?.patreon_url && (
+                      <PanelHeaderButton
+                        icon={t("icon_favorite", "favorite")}
+                        tooltip={t("btn_patreon", "Patreon")}
+                        onClick={() => handleOpenUrl(post.masons.patreon_url)}
+                        variant="danger"
+                      />
+                    )}
+                    {post.masons?.discord_url && (
+                      <PanelHeaderButton
+                        icon={t("icon_forum", "forum")}
+                        tooltip={t("btn_discord", "Discord")}
+                        onClick={() => handleOpenUrl(post.masons.discord_url)}
+                      />
+                    )}
+                  </PanelHeaderGroup>
+                )}
             </>
           ) : undefined
         }
@@ -899,7 +901,6 @@ export default function MasonPostViewer({
                     onClick={
                       post.mason_id !== "system" && onOpenMasonProfile
                         ? () => {
-                            onClose();
                             onOpenMasonProfile(post.mason_id);
                           }
                         : undefined

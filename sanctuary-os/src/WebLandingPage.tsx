@@ -902,20 +902,22 @@ export default function WebLandingPage() {
         setNewsCount(newsRes.count);
       }
       if (data) {
-        const merged = data.map((g: any) => {
-          const override =
-            getLocalPartnerDonationOverride(g.schema_id) ||
-            getLocalPartnerDonationOverride(g.id);
-          return {
-            ...g,
-            donation_url:
-              override?.donation_url !== undefined
-                ? override.donation_url
-                : g.donation_url,
-            payment_processor:
-              override?.payment_processor || g.payment_processor || 'STRIPE',
-          };
-        });
+        const merged = data
+          .filter((g: any) => g.is_active !== false)
+          .map((g: any) => {
+            const override =
+              getLocalPartnerDonationOverride(g.schema_id) ||
+              getLocalPartnerDonationOverride(g.id);
+            return {
+              ...g,
+              donation_url:
+                override?.donation_url !== undefined
+                  ? override.donation_url
+                  : g.donation_url,
+              payment_processor:
+                override?.payment_processor || g.payment_processor || 'STRIPE',
+            };
+          });
         setGames(merged);
       }
       if (pipelineCfg) setKeepersConfig(pipelineCfg);
@@ -923,6 +925,8 @@ export default function WebLandingPage() {
       setLoading(false);
     };
     fetchGames();
+    window.addEventListener('sanctuary-games-updated', fetchGames);
+    return () => window.removeEventListener('sanctuary-games-updated', fetchGames);
   }, [session?.user?.id, refreshSupporterStatus]);
 
   useEffect(() => {
@@ -1694,6 +1698,11 @@ export default function WebLandingPage() {
                 <CommandScreenSectionHeading
                   title={t('landing_workspaces', 'Active Workspaces')}
                   icon={t('icon_public', 'public')}
+                  onBack={
+                    games.length > 0
+                      ? () => scrollToLandingSection('workspaces')
+                      : undefined
+                  }
                   rightSlot={
                     games.length > 0 ? (
                       <PanelHeaderGroup>
@@ -1732,6 +1741,7 @@ export default function WebLandingPage() {
                 <CommandScreenSectionHeading
                   title={t('landing_news', 'Sanctuary Foundry News')}
                   icon={t('icon_campaign', 'campaign')}
+                  onBack={() => scrollToLandingSection('news')}
                   rightSlot={
                     <PanelHeaderGroup>
                       <PanelHeaderButton

@@ -81,7 +81,7 @@ export default function WebNewsFeed({
             post={p}
             index={index}
             onPostClick={() => setSelectedPost(p)}
-            isCompact={true}
+            isCompact={false}
           />
         ))
       )}

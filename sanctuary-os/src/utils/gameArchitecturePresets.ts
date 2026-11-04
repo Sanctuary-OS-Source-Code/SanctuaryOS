@@ -76,6 +76,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         "~/.local/share/Steam/steamapps/common/The Sims 4",
         "~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/The Sims 4",
         "/run/media/mmcblk0p1/steamapps/common/The Sims 4",
+        "/run/media/deck/steamapps/common/The Sims 4",
       ],
     },
     extensions: {
@@ -85,6 +86,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         ".world",
         ".zip",
         ".rar",
+        ".7z",
         ".tmcatalog",
         ".cfg",
         ".tmdelta",
@@ -92,6 +94,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         ".dat",
       ],
       vault_visible: [".package", ".ts4script", ".world", ".cfg", ".ini", ".json", ".txt", ".xml"],
+      script_extensions: [".ts4script"],
       ignore_unidentified: [
         ".cfg",
         ".ini",
@@ -1010,7 +1013,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     default_lexicon: "en-default",
     schema_version: 2,
     min_scout_submissions: 3,
-    executable_names: ["bg3_dx11.exe", "bg3.exe"],
+    executable_names: ["bg3_dx11.exe", "bg3.exe", "Baldur's Gate 3.app", "Baldur's Gate 3"],
     paths: {
       executable_subdir: "bin",
       default_mod_dir_windows: "%LOCALAPPDATA%/Larian Studios/Baldur's Gate 3/Mods",
@@ -1024,11 +1027,16 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         "C:/Program Files (x86)/Steam/steamapps/common/Baldurs Gate 3",
         "C:/GOG Games/Baldur's Gate 3",
       ],
-      auto_scan_paths_mac: ["/Applications/Baldur's Gate 3.app"],
+      auto_scan_paths_mac: [
+        "/Applications/Baldur's Gate 3.app",
+        "~/Library/Application Support/Steam/steamapps/common/Baldurs Gate 3/Baldur's Gate 3.app",
+      ],
       auto_scan_paths_linux: [
         "~/.steam/steam/steamapps/common/Baldurs Gate 3",
         "~/.local/share/Steam/steamapps/common/Baldurs Gate 3",
+        "~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Baldurs Gate 3",
         "/run/media/mmcblk0p1/steamapps/common/Baldurs Gate 3",
+        "/run/media/deck/steamapps/common/Baldurs Gate 3",
       ],
     },
     extensions: {
@@ -1132,7 +1140,13 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     default_lexicon: "en-default",
     schema_version: 2,
     min_scout_submissions: 3,
-    executable_names: ["StardewModdingAPI.exe", "Stardew Valley.exe", "StardewModdingAPI", "StardewValley"],
+    executable_names: [
+      "StardewModdingAPI.exe",
+      "Stardew Valley.exe",
+      "StardewModdingAPI",
+      "StardewValley",
+      "Stardew Valley.app",
+    ],
     paths: {
       executable_subdir: "",
       default_mod_dir_windows: "C:/Program Files (x86)/Steam/steamapps/common/Stardew Valley/Mods",
@@ -1141,16 +1155,21 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       user_data_dir_windows: "%APPDATA%/StardewValley",
       user_data_dir_mac: "~/.config/StardewValley",
       user_data_dir_linux: "~/.config/StardewValley",
-      manifest_file: "",
+      manifest_file: "manifest.json",
       auto_scan_paths_windows: [
         "C:/Program Files (x86)/Steam/steamapps/common/Stardew Valley",
         "C:/GOG Games/Stardew Valley",
       ],
-      auto_scan_paths_mac: [],
+      auto_scan_paths_mac: [
+        "~/Library/Application Support/Steam/steamapps/common/Stardew Valley",
+        "/Applications/Stardew Valley.app",
+      ],
       auto_scan_paths_linux: [
         "~/.steam/steam/steamapps/common/Stardew Valley",
         "~/.local/share/Steam/steamapps/common/Stardew Valley",
+        "~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Stardew Valley",
         "/run/media/mmcblk0p1/steamapps/common/Stardew Valley",
+        "/run/media/deck/steamapps/common/Stardew Valley",
       ],
     },
     extensions: {

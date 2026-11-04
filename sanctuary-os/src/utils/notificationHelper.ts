@@ -67,12 +67,15 @@ const LEGACY_KEY_MAP: Record<NotificationCategory, string> = {
 
 export function getModAlertsBlueprintScope(): string {
   if (typeof window === 'undefined') return 'ACTIVE';
-  return localStorage.getItem('sanctuary_mod_alerts_bp_scope') || 'ACTIVE';
+  const raw = localStorage.getItem('sanctuary_mod_alerts_bp_scope');
+  if (!raw || raw === 'undefined' || raw === 'null') return 'ACTIVE';
+  return raw;
 }
 
 export function setModAlertsBlueprintScope(scope: string): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem('sanctuary_mod_alerts_bp_scope', scope || 'ACTIVE');
+  const clean = !scope || scope === 'undefined' || scope === 'null' ? 'ACTIVE' : scope;
+  localStorage.setItem('sanctuary_mod_alerts_bp_scope', clean);
   window.dispatchEvent(new Event('sanctuary_notification_prefs_changed'));
 }
 
@@ -449,15 +452,21 @@ export async function getAvailableSpokeWorkspaces(
   }
 
   const now = Date.now();
+  const offlineSchemaIds = new Set<string>();
   if (!cachedGamesMeta || now - cachedGamesAt > 60_000) {
     try {
       const { data } = await supabaseAuth
         .from('sanctuary_games')
-        .select('id, name, schema_id, icon, is_active')
-        .not('is_active', 'eq', false);
+        .select('id, name, schema_id, icon, is_active');
       if (Array.isArray(data)) {
+        data.forEach((g: any) => {
+          if (g && g.is_active === false) {
+            if (g.schema_id) offlineSchemaIds.add(String(g.schema_id).trim());
+            if (g.id) offlineSchemaIds.add(String(g.id).trim());
+          }
+        });
         cachedGamesMeta = data
-          .filter((g: any) => g?.schema_id && g.schema_id !== 'default_workspace')
+          .filter((g: any) => g?.schema_id && g.schema_id !== 'default_workspace' && g.is_active !== false)
           .map((g: any) => ({
             id: String(g.id || g.schema_id),
             schema_id: String(g.schema_id).trim(),
@@ -470,6 +479,8 @@ export async function getAvailableSpokeWorkspaces(
       // ignore offline error
     }
   }
+
+  offlineSchemaIds.forEach((id) => map.delete(id));
 
   if (Array.isArray(cachedGamesMeta)) {
     cachedGamesMeta.forEach((g) => {

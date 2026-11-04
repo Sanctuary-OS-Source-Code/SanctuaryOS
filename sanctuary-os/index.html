@@ -138,14 +138,17 @@
           }
         }
         if (resolved.bgImage) {
-          var cssUrl = 'url("' + resolved.bgImage + '")';
+          var bgUrl = resolved.bgImage.indexOf("/themes/") === 0 && resolved.bgImage.indexOf("?") === -1
+            ? resolved.bgImage + "?v=liquid_v20"
+            : resolved.bgImage;
+          var cssUrl = 'url("' + bgUrl + '")';
           root.style.setProperty("--boot-bg-image", cssUrl);
           root.style.backgroundImage = cssUrl;
           var img = new Image();
           img.decoding = "sync";
-          img.src = resolved.bgImage;
+          img.src = bgUrl;
           window.__sanctuaryPreloadedWallpaper = img;
-          window.__sanctuaryPreloadedWallpaperSrc = resolved.bgImage;
+          window.__sanctuaryPreloadedWallpaperSrc = bgUrl;
         } else {
           root.style.setProperty("--boot-bg-image", "none");
           root.style.backgroundImage = "none";

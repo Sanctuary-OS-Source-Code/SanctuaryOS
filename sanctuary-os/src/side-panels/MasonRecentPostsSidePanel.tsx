@@ -64,6 +64,7 @@ export default function MasonRecentPostsSidePanel({
                   onOpenMasonProfile={onOpenMasonProfile}
                   isFeatured={false}
                   isCompact={false}
+                  hidePinBadge={true}
                 />
               ))}
             </div>

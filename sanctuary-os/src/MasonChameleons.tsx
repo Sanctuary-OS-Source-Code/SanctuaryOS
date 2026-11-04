@@ -28,6 +28,7 @@ import {
   uploadThemeAssetsToCloud,
 } from "./chameleon-components/ChameleonShared";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 import MasonFileBrowser from "./hub-components/MasonFileBrowser";
 import MasonEditorPanel from "./hub-components/MasonEditorPanel";
 import {
@@ -825,6 +826,22 @@ export function MasonChameleons({
               title={lx.title}
               subtitle={lx.subtitle}
               onClick={lx.onClick}
+              onContextMenu={(e) => {
+                const menuItems: SanctuaryContextMenuItem[] = [
+                  {
+                    label: t("edit", "Edit"),
+                    icon: t("icon_edit", "edit"),
+                    onClick: lx.onClick,
+                  },
+                  {
+                    label: t("copy", "Copy"),
+                    icon: t("icon_content_copy", "content_copy"),
+                    dividerBefore: true,
+                    onClick: () => navigator.clipboard?.writeText(String(lx.title || "")),
+                  },
+                ];
+                openSanctuaryContextMenu(e, menuItems);
+              }}
               imageOverlay={
                 <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
                   <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
@@ -869,6 +886,22 @@ export function MasonChameleons({
               title={file.name.replace(/\.json$/i, "")}
               subtitle={t("ide_unsaved_files", "Unsaved Changes")}
               onClick={() => openFile(file)}
+              onContextMenu={(e) => {
+                const menuItems: SanctuaryContextMenuItem[] = [
+                  {
+                    label: t("edit", "Edit"),
+                    icon: t("icon_edit", "edit"),
+                    onClick: () => openFile(file),
+                  },
+                  {
+                    label: t("copy", "Copy"),
+                    icon: t("icon_content_copy", "content_copy"),
+                    dividerBefore: true,
+                    onClick: () => navigator.clipboard?.writeText(String(file.name || "")),
+                  },
+                ];
+                openSanctuaryContextMenu(e, menuItems);
+              }}
               className="border-[color-mix(in_srgb,var(--warning)_40%,transparent)]"
               imageOverlay={
                 <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
@@ -953,6 +986,41 @@ export function MasonChameleons({
                     lexiconType: lx.lexicon_type || "Theme",
                     themeMode: "Dark",
                   });
+                }}
+                onContextMenu={(e) => {
+                  const openFlagged = () => {
+                    const parsed =
+                      typeof lx.json_data === "string" ? JSON.parse(lx.json_data) : lx.json_data;
+                    setUploadState({
+                      isOpen: true,
+                      editId: lx.id,
+                      assetType: "lexicon",
+                      isHidden: lx.is_public === false,
+                      fileContent: parsed,
+                      fileName: `${lx.name}.json`,
+                      name: lx.name,
+                      version: lx.version || "1.0.0",
+                      description: lx.description || "",
+                      releaseNotes: lx.release_notes || "",
+                      language: lx.language || "English",
+                      newLanguage: "",
+                      lexiconType: lx.lexicon_type || "Theme",
+                      themeMode: "Dark",
+                    });
+                  };
+                  openSanctuaryContextMenu(e, [
+                    {
+                      label: t("flag_res_resolve_btn_short", "Resolve & Resubmit"),
+                      icon: t("icon_edit", "edit"),
+                      onClick: openFlagged,
+                    },
+                    {
+                      label: t("copy", "Copy"),
+                      icon: t("icon_content_copy", "content_copy"),
+                      dividerBefore: true,
+                      onClick: () => navigator.clipboard?.writeText(String(lx.name || "")),
+                    },
+                  ]);
                 }}
                 imageOverlay={
                   <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
@@ -1191,6 +1259,43 @@ export function MasonChameleons({
                         lexiconType: lx.lexicon_type || "Theme",
                         themeMode: "Dark",
                       });
+                    }}
+                    onContextMenu={(e) => {
+                      const openSynced = () => {
+                        const parsed =
+                          typeof lx.json_data === "string" ? JSON.parse(lx.json_data) : lx.json_data;
+                        setUploadState({
+                          isOpen: true,
+                          editId: lx.id,
+                          assetType: "lexicon",
+                          isHidden: lx.is_public === false,
+                          fileContent: parsed,
+                          fileName: `${lx.name}.json`,
+                          name: lx.name,
+                          version: lx.version || "1.0.0",
+                          description: lx.description || "",
+                          releaseNotes: lx.release_notes || "",
+                          language: lx.language || "English",
+                          newLanguage: "",
+                          lexiconType: lx.lexicon_type || "Theme",
+                          themeMode: "Dark",
+                        });
+                      };
+                      openSanctuaryContextMenu(e, [
+                        {
+                          label: isItemFlagged
+                            ? t("flag_res_resolve_btn_short", "Resolve & Resubmit")
+                            : t("edit", "Edit"),
+                          icon: t("icon_edit", "edit"),
+                          onClick: openSynced,
+                        },
+                        {
+                          label: t("copy", "Copy"),
+                          icon: t("icon_content_copy", "content_copy"),
+                          dividerBefore: true,
+                          onClick: () => navigator.clipboard?.writeText(String(lx.name || "")),
+                        },
+                      ]);
                     }}
                     customIcon={<DynamicLexiconPreviewBanner data={lx} heightClass="h-full" />}
                     imageOverlay={

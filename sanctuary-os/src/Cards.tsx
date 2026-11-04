@@ -3,6 +3,8 @@ import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { DynamicArtifactPreviewBanner } from "./chameleon-components/ThemeCard";
+import { openModDossier } from "./shared";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 
 export const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -15,6 +17,7 @@ export function ArtifactCard({
   overrideActionLabel,
   onRemove,
   layout = "vertical",
+  contextMenuItems,
 }: {
   mod: any;
   activeModId?: string;
@@ -23,6 +26,7 @@ export function ArtifactCard({
   overrideActionLabel?: string;
   onRemove?: (e: React.MouseEvent) => void;
   layout?: "vertical" | "horizontal";
+  contextMenuItems?: SanctuaryContextMenuItem[];
 }) {
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
@@ -353,6 +357,57 @@ export function ArtifactCard({
       layout={layout}
       isActive={activeModId === mod.id}
       onClick={onClick}
+      onContextMenu={(e) => {
+        const menuItems: SanctuaryContextMenuItem[] = [
+          {
+            label:
+              overrideActionLabel ||
+              (isModFlagged
+                ? t("flag_res_card_action", "Resolve & Resubmit")
+                : t("edit", "Edit")),
+            icon: t("icon_edit", "edit"),
+            onClick: () => onClick(),
+          },
+          {
+            label: t("btn_inspect", "Inspect {Mod}"),
+            icon: t("icon_open_in_new", "open_in_new"),
+            onClick: () => openModDossier({ ...mod, isNexusView: true }),
+          },
+        ];
+        if (mod?.url) {
+          menuItems.push({
+            label: t("visit_source", "Visit Source"),
+            icon: t("icon_public", "public"),
+            onClick: () => window.open(mod.url, "_blank", "noopener,noreferrer"),
+          });
+        }
+        if (Array.isArray(contextMenuItems) && contextMenuItems.length > 0) {
+          menuItems.push(...contextMenuItems);
+        }
+        menuItems.push({
+          label: t("copy", "Copy"),
+          icon: t("icon_content_copy", "content_copy"),
+          dividerBefore: true,
+          onClick: () => navigator.clipboard?.writeText(String(mod?.name || "")),
+        });
+        if (mod?.dna_hash) {
+          menuItems.push({
+            label: `${t("copy", "Copy")} ${t("dna_hash", "DNA Hash")}`,
+            icon: t("icon_fingerprint", "fingerprint"),
+            onClick: () => navigator.clipboard?.writeText(String(mod.dna_hash)),
+          });
+        }
+        if (onRemove) {
+          menuItems.push({
+            label: t("remove", "Remove"),
+            icon: t("icon_delete", "delete"),
+            variant: "danger",
+            dividerBefore: true,
+            onClick: () => onRemove(e),
+          });
+        }
+        openSanctuaryContextMenu(e, menuItems);
+      }}
       title={mod?.name || t("unnamed_artifact", "Unnamed Mod")}
       subtitle={`${t("by_prefix", "By")} ${authorName}`}
       image={showImages && mod.image_url ? mod.image_url : undefined}
@@ -405,12 +460,14 @@ export function VaultCard({
   onClick,
   masonsList,
   masonNameFallback,
+  contextMenuItems,
 }: {
   setItem: any;
   activeSetId?: string;
   onClick: () => void;
   masonsList?: any[];
   masonNameFallback?: string;
+  contextMenuItems?: SanctuaryContextMenuItem[];
 }) {
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
@@ -456,6 +513,32 @@ export function VaultCard({
       layout="vertical"
       isActive={activeSetId === setItem.id}
       onClick={onClick}
+      onContextMenu={(e) => {
+        const menuItems: SanctuaryContextMenuItem[] = [
+          {
+            label: t("edit", "Edit"),
+            icon: t("icon_edit", "edit"),
+            onClick: () => onClick(),
+          },
+        ];
+        if (setItem?.url) {
+          menuItems.push({
+            label: t("visit_source", "Visit Source"),
+            icon: t("icon_public", "public"),
+            onClick: () => window.open(setItem.url, "_blank", "noopener,noreferrer"),
+          });
+        }
+        if (Array.isArray(contextMenuItems) && contextMenuItems.length > 0) {
+          menuItems.push(...contextMenuItems);
+        }
+        menuItems.push({
+          label: t("copy", "Copy"),
+          icon: t("icon_content_copy", "content_copy"),
+          dividerBefore: true,
+          onClick: () => navigator.clipboard?.writeText(String(setItem?.name || "")),
+        });
+        openSanctuaryContextMenu(e, menuItems);
+      }}
       title={setItem.name || t("unnamed_artifact", "Unnamed Mod")}
       subtitle={`${t("by_prefix", "By")} ${masonName}`}
       image={showImages && setItem.image_url ? setItem.image_url : undefined}

@@ -4,6 +4,7 @@ import { useStore } from "../store";
 import { EmptyState } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { DynamicTemplatePreviewBanner } from "../chameleon-components/ThemeCard";
+import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -159,6 +160,59 @@ const WorkbenchFileCard = React.memo(
       <UniversalCard
         layout="vertical"
         onClick={() => openFile(file)}
+        onContextMenu={(e) => {
+          const items: SanctuaryContextMenuItem[] = [
+            {
+              id: "open",
+              label: t("btn_inspect", "Open in Workbench"),
+              icon: isTmpl ? t("icon_data_object", "data_object") : t("icon_tune", "tune"),
+              variant: "accent",
+              onClick: () => openFile(file),
+            },
+          ];
+          if (hasUnsavedEdits) {
+            items.push({
+              id: "discard",
+              label: t("btn_clear", "Clear"),
+              icon: t("icon_restart_alt", "restart_alt"),
+              variant: "warning",
+              onClick: () => {
+                const current = { ...(useStore.getState().cwUnsavedEdits || {}) };
+                delete current[file.path];
+                useStore.getState().setCwUnsavedEdits(current);
+              },
+            });
+          }
+          if (isTmpl) {
+            items.push({
+              id: "rename",
+              label: t("edit", "Edit"),
+              icon: t("icon_edit", "edit"),
+              dividerBefore: true,
+              onClick: () => {
+                setRenamingFile(file.path);
+                const d = file.name.lastIndexOf(".");
+                setRenameInput(d > 0 ? file.name.substring(0, d) : file.name);
+              },
+            });
+            items.push({
+              id: "delete",
+              label: t("delete", "Delete"),
+              icon: t("icon_delete_forever", "delete_forever"),
+              variant: "danger",
+              dividerBefore: true,
+              onClick: () => handleDeleteTemplate(file.path),
+            });
+          }
+          openSanctuaryContextMenu(e, {
+            title: baseTitle,
+            subtitle: extLabel,
+            statusLabel: hasUnsavedEdits ? t("unsaved", "Unsaved") : t("active", "Active"),
+            statusColorClass: hasUnsavedEdits ? "text-[var(--warning)]" : "text-[var(--success)]",
+            icon: isTmpl ? t("icon_data_object", "data_object") : t("icon_settings", "settings"),
+            items,
+          });
+        }}
         icon={isTmpl ? t("icon_data_object", "data_object") : t("icon_settings", "settings")}
         customIcon={
           isTmpl ? (

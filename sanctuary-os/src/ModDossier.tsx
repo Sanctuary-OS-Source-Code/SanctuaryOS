@@ -56,7 +56,7 @@ function extractCleanUuid(...vals: any[]): string {
     if (!v) continue;
     const cleaned = String(v)
       .trim()
-      .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
+      .replace(/^(FOLDER_|SET_|LOCAL_SET_|CCSET_|FLAVOR_|virtual_)/i, "")
       .split("@")[0]
       .trim();
     if (UUID_REGEX.test(cleaned)) return cleaned;
@@ -77,6 +77,8 @@ function collectAllCandidateUuids(target: any): string[] {
   if (target.isVirtual || target.isParent || target.isCollection || !directUuid) {
     add(target.baseFamilyId);
     add(target.familyId);
+    add(target.collectionId);
+    add(target.flavorGroupId);
   }
   add(target.name);
   if (Array.isArray(target._groupedIds)) {
@@ -3486,6 +3488,8 @@ export default function ModDossier({
             );
           }
 
+          const resolvedMasonId = mod.mason_id || hydratedMeta?.mason_id;
+          const canViewMasonProfile = Boolean(resolvedMasonId && onOpenMasonProfile);
           const canEquipMain = Boolean(
             !isNexusView && allEquippableManifestNames.length > 0
           );
@@ -3508,6 +3512,7 @@ export default function ModDossier({
           );
 
           if (
+            !canViewMasonProfile &&
             !canEquipMain &&
             !canSyncSandbox &&
             !canExportRelease &&
@@ -3520,6 +3525,15 @@ export default function ModDossier({
 
           return (
             <PanelHeaderGroup>
+              {canViewMasonProfile && (
+                <PanelHeaderButton
+                  icon={t("icon_person", "person")}
+                  tooltip={t("btn_view_profile", "View Profile")}
+                  onClick={() => {
+                    onOpenMasonProfile?.(resolvedMasonId);
+                  }}
+                />
+              )}
               {canEquipMain && (
                 <PanelHeaderButton
                   icon={
@@ -3797,10 +3811,9 @@ export default function ModDossier({
                     icon={t("icon_person", "person")}
                     iconColorClass="text-[var(--accent)]"
                     onClick={
-                      mod.mason_id && onOpenMasonProfile
+                      (mod.mason_id || hydratedMeta?.mason_id) && onOpenMasonProfile
                         ? () => {
-                            onOpenMasonProfile(mod.mason_id);
-                            onClose();
+                            onOpenMasonProfile(mod.mason_id || hydratedMeta?.mason_id);
                           }
                         : undefined
                     }
@@ -4559,7 +4572,6 @@ export default function ModDossier({
                         kidToRender.mason_id && onOpenMasonProfile
                           ? () => {
                               onOpenMasonProfile(kidToRender.mason_id);
-                              onClose();
                             }
                           : undefined
                       }
