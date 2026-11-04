@@ -1804,34 +1804,45 @@ export default function WebDocumentFeed({
                   }`}
                 >
                   {!isActive ? (
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
-                          <span className="material-symbols-outlined !text-[20px]">
-                            {step.icon}
-                          </span>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-2.5 sm:gap-3">
+                        <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+                          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
+                            <span className="material-symbols-outlined !text-[20px]">
+                              {step.icon}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 leading-snug">
+                              {modOverline}
+                            </span>
+                            <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug truncate m-0">
+                              {step.title}
+                            </h3>
+                            <span className="hidden sm:block text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
+                              {step.badge}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80">
-                            {modOverline}
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                            <span>{step.short}</span>
                           </span>
-                          <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug truncate m-0">
-                            {step.title}
-                          </h3>
-                          <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
-                            {step.badge}
+                          <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                            <span className="material-symbols-outlined !text-[16px]">
+                              {t("icon_expand_more", "expand_more")}
+                            </span>
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                          <span>{step.short}</span>
-                        </span>
-                        <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
-                          <span className="material-symbols-outlined !text-[16px]">
-                            {t("icon_expand_more", "expand_more")}
-                          </span>
+                      <div className="flex sm:hidden flex-col gap-0.5 min-w-0">
+                        <h3 className="text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                          {step.title}
+                        </h3>
+                        <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
+                          {step.badge}
                         </span>
                       </div>
                     </div>
@@ -1849,18 +1860,18 @@ export default function WebDocumentFeed({
                         }}
                         className="flex flex-col gap-3 cursor-pointer"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                              <span className="material-symbols-outlined !text-[22px]">
+                        <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                          <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0">
+                            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[20px] sm:!text-[22px]">
                                 {step.icon}
                               </span>
                             </div>
                             <div className="flex flex-col gap-0.5 min-w-0">
-                              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                              <span className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug text-[var(--accent)]">
                                 {modOverline}
                               </span>
-                              <h3 className="text-base sm:text-lg font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                              <h3 className="hidden sm:block text-lg font-black text-[var(--text)] tracking-tight leading-snug m-0">
                                 {step.title}
                               </h3>
                             </div>
@@ -1880,6 +1891,10 @@ export default function WebDocumentFeed({
                             </span>
                           </div>
                         </div>
+
+                        <h3 className="sm:hidden text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                          {step.title}
+                        </h3>
 
                         <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
                           {step.desc}
@@ -2010,48 +2025,54 @@ export default function WebDocumentFeed({
                   }`}
                 >
                   {!isActive ? (
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
-                          <span className="material-symbols-outlined !text-[20px]">
-                            {role.icon}
-                          </span>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-2.5 sm:gap-3">
+                        <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+                          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
+                            <span className="material-symbols-outlined !text-[20px]">
+                              {role.icon}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 leading-snug">
+                              {role.badge}
+                            </span>
+                            <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug truncate m-0">
+                              {role.title}
+                            </h3>
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80">
-                            {role.badge}
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                            <span
+                              className={`material-symbols-outlined !text-[12px] ${
+                                role.requiresPasskey
+                                  ? "text-[var(--warning)]"
+                                  : "text-[var(--success)]"
+                              }`}
+                            >
+                              {role.requiresPasskey
+                                ? t("icon_passkey", "passkey")
+                                : t("icon_check_circle", "check_circle")}
+                            </span>
+                            <span>
+                              {role.requiresPasskey
+                                ? t("auth_passkey_badge_fido", "FIDO2 Passkey")
+                                : t("role_citizen", "{Citizen}")}
+                            </span>
                           </span>
-                          <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug truncate m-0">
-                            {role.title}
-                          </h3>
+                          <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                            <span className="material-symbols-outlined !text-[16px]">
+                              {t("icon_expand_more", "expand_more")}
+                            </span>
+                          </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                          <span
-                            className={`material-symbols-outlined !text-[12px] ${
-                              role.requiresPasskey
-                                ? "text-[var(--warning)]"
-                                : "text-[var(--success)]"
-                            }`}
-                          >
-                            {role.requiresPasskey
-                              ? t("icon_passkey", "passkey")
-                              : t("icon_check_circle", "check_circle")}
-                          </span>
-                          <span>
-                            {role.requiresPasskey
-                              ? t("auth_passkey_badge_fido", "FIDO2 Passkey")
-                              : t("role_citizen", "{Citizen}")}
-                          </span>
-                        </span>
-                        <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
-                          <span className="material-symbols-outlined !text-[16px]">
-                            {t("icon_expand_more", "expand_more")}
-                          </span>
-                        </span>
-                      </div>
+                      <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                        {role.title}
+                      </h3>
                     </div>
                   ) : (
                     <>
@@ -2067,18 +2088,18 @@ export default function WebDocumentFeed({
                         }}
                         className="flex flex-col gap-3 cursor-pointer"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                              <span className="material-symbols-outlined !text-[22px]">
+                        <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                          <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0">
+                            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[20px] sm:!text-[22px]">
                                 {role.icon}
                               </span>
                             </div>
                             <div className="flex flex-col gap-0.5 min-w-0">
-                              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                              <span className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug text-[var(--accent)]">
                                 {role.badge}
                               </span>
-                              <h3 className="text-base sm:text-lg font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                              <h3 className="hidden sm:block text-lg font-black text-[var(--text)] tracking-tight leading-snug m-0">
                                 {role.title}
                               </h3>
                             </div>
@@ -2110,6 +2131,10 @@ export default function WebDocumentFeed({
                             </span>
                           </div>
                         </div>
+
+                        <h3 className="sm:hidden text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                          {role.title}
+                        </h3>
 
                         <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_82%,transparent)] leading-relaxed m-0">
                           {renderCleanInlineText(role.desc)}
@@ -2355,39 +2380,50 @@ export default function WebDocumentFeed({
                 }`}
               >
                 {!isExpanded ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
-                        <span className="material-symbols-outlined !text-[20px]">
-                          {phase.icon}
-                        </span>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2.5 sm:gap-3">
+                      <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {phase.icon}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 leading-snug">
+                            {phase.code}
+                          </span>
+                          <h3 className="hidden sm:block text-base font-black tracking-tight text-[var(--text)] leading-snug truncate m-0">
+                            {phase.title}
+                          </h3>
+                          <span className="hidden sm:block text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
+                            {phase.sub}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-0.5 min-w-0">
-                        <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80">
-                          {phase.code}
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                          <span
+                            className={`material-symbols-outlined !text-[12px] ${phaseMeta.colorClass}`}
+                          >
+                            {phaseMeta.icon}
+                          </span>
+                          <span>{phaseMeta.label}</span>
                         </span>
-                        <h3 className="text-sm sm:text-base font-black tracking-tight text-[var(--text)] leading-snug truncate m-0">
-                          {phase.title}
-                        </h3>
-                        <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
-                          {phase.sub}
+                        <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {t("icon_expand_more", "expand_more")}
+                          </span>
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                        <span
-                          className={`material-symbols-outlined !text-[12px] ${phaseMeta.colorClass}`}
-                        >
-                          {phaseMeta.icon}
-                        </span>
-                        <span>{phaseMeta.label}</span>
-                      </span>
-                      <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
-                        <span className="material-symbols-outlined !text-[16px]">
-                          {t("icon_expand_more", "expand_more")}
-                        </span>
+                    <div className="flex sm:hidden flex-col gap-0.5 min-w-0">
+                      <h3 className="text-sm font-black tracking-tight text-[var(--text)] leading-snug m-0">
+                        {phase.title}
+                      </h3>
+                      <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
+                        {phase.sub}
                       </span>
                     </div>
                   </div>
@@ -2405,22 +2441,22 @@ export default function WebDocumentFeed({
                       }}
                       className="flex flex-col gap-3 cursor-pointer"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                        <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0">
                           <div
-                            className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${phaseMeta.colorClass}`}
+                            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${phaseMeta.colorClass}`}
                           >
-                            <span className="material-symbols-outlined !text-[22px]">
+                            <span className="material-symbols-outlined !text-[20px] sm:!text-[22px]">
                               {phase.icon}
                             </span>
                           </div>
                           <div className="flex flex-col gap-0.5 min-w-0">
                             <span
-                              className={`text-[10px] font-black uppercase tracking-[0.18em] ${phaseMeta.colorClass}`}
+                              className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug ${phaseMeta.colorClass}`}
                             >
                               {phase.code}
                             </span>
-                            <h3 className="text-base sm:text-lg font-black tracking-tight text-[var(--text)] leading-snug m-0">
+                            <h3 className="hidden sm:block text-lg font-black tracking-tight text-[var(--text)] leading-snug m-0">
                               {phase.title}
                             </h3>
                           </div>
@@ -2442,6 +2478,10 @@ export default function WebDocumentFeed({
                           </span>
                         </div>
                       </div>
+
+                      <h3 className="sm:hidden text-base font-black tracking-tight text-[var(--text)] leading-snug m-0">
+                        {phase.title}
+                      </h3>
 
                       <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_82%,transparent)] leading-relaxed m-0">
                         {renderCleanInlineText(phase.desc)}
@@ -4246,66 +4286,72 @@ export default function WebDocumentFeed({
                           }
                         : undefined
                     }
-                    className={`flex items-start justify-between gap-3 ${
+                    className={`flex flex-col gap-2 ${
                       isActive ? "cursor-pointer" : ""
                     }`}
                   >
-                    <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                      <div
-                        className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
-                          isActive
-                            ? "text-[var(--accent)]"
-                            : "text-[var(--subtext)] group-hover:text-[var(--text)]"
-                        }`}
-                      >
-                        <span className="material-symbols-outlined !text-[20px]">
-                          {role.icon}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                        <span
-                          className={`text-[10px] font-black uppercase tracking-[0.18em] ${
+                    <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                      <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+                        <div
+                          className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                             isActive
                               ? "text-[var(--accent)]"
-                              : "text-[var(--subtext)]"
+                              : "text-[var(--subtext)] group-hover:text-[var(--text)]"
                           }`}
                         >
-                          {role.badge}
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {role.icon}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                          <span
+                            className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug ${
+                              isActive
+                                ? "text-[var(--accent)]"
+                                : "text-[var(--subtext)]"
+                            }`}
+                          >
+                            {role.badge}
+                          </span>
+                          <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                            {role.title}
+                          </h3>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                          <span
+                            className={`material-symbols-outlined !text-[12px] ${
+                              role.requiresPasskey
+                                ? "text-[var(--warning)]"
+                                : "text-[var(--success)]"
+                            }`}
+                          >
+                            {role.requiresPasskey
+                              ? t("icon_passkey", "passkey")
+                              : t("icon_check_circle", "check_circle")}
+                          </span>
+                          <span>
+                            {role.requiresPasskey
+                              ? t("auth_passkey_badge_fido", "FIDO2 Passkey")
+                              : t("role_citizen", "{Citizen}")}
+                          </span>
                         </span>
-                        <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                          {role.title}
-                        </h3>
+                        <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {isActive
+                              ? t("icon_expand_less", "expand_less")
+                              : t("icon_expand_more", "expand_more")}
+                          </span>
+                        </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                        <span
-                          className={`material-symbols-outlined !text-[12px] ${
-                            role.requiresPasskey
-                              ? "text-[var(--warning)]"
-                              : "text-[var(--success)]"
-                          }`}
-                        >
-                          {role.requiresPasskey
-                            ? t("icon_passkey", "passkey")
-                            : t("icon_check_circle", "check_circle")}
-                        </span>
-                        <span>
-                          {role.requiresPasskey
-                            ? t("auth_passkey_badge_fido", "FIDO2 Passkey")
-                            : t("role_citizen", "{Citizen}")}
-                        </span>
-                      </span>
-                      <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
-                        <span className="material-symbols-outlined !text-[16px]">
-                          {isActive
-                            ? t("icon_expand_less", "expand_less")
-                            : t("icon_expand_more", "expand_more")}
-                        </span>
-                      </span>
-                    </div>
+                    <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                      {role.title}
+                    </h3>
                   </div>
 
                   {isActive && (
@@ -4406,48 +4452,54 @@ export default function WebDocumentFeed({
                           }
                         : undefined
                     }
-                    className={`flex items-start justify-between gap-3 ${
+                    className={`flex flex-col gap-2 ${
                       isActive ? "cursor-pointer" : ""
                     }`}
                   >
-                    <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                      <div
-                        className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${tier.textColor}`}
-                      >
-                        <span className="material-symbols-outlined !text-[20px]">
-                          {tier.icon}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                        <span
-                          className={`text-[10px] font-black uppercase tracking-[0.18em] ${
-                            isActive ? tier.textColor : "text-[var(--subtext)]"
-                          }`}
+                    <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                      <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+                        <div
+                          className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${tier.textColor}`}
                         >
-                          {tier.badge}
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {tier.icon}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                          <span
+                            className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug ${
+                              isActive ? tier.textColor : "text-[var(--subtext)]"
+                            }`}
+                          >
+                            {tier.badge}
+                          </span>
+                          <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                            {tier.title}
+                          </h3>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                          <span className={`material-symbols-outlined !text-[12px] ${tier.textColor}`}>
+                            {tier.icon}
+                          </span>
+                          <span>{tier.badge.split("•")[0].trim()}</span>
                         </span>
-                        <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                          {tier.title}
-                        </h3>
+                        <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {isActive
+                              ? t("icon_expand_less", "expand_less")
+                              : t("icon_expand_more", "expand_more")}
+                          </span>
+                        </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                        <span className={`material-symbols-outlined !text-[12px] ${tier.textColor}`}>
-                          {tier.icon}
-                        </span>
-                        <span>{tier.badge.split("•")[0].trim()}</span>
-                      </span>
-                      <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
-                        <span className="material-symbols-outlined !text-[16px]">
-                          {isActive
-                            ? t("icon_expand_less", "expand_less")
-                            : t("icon_expand_more", "expand_more")}
-                        </span>
-                      </span>
-                    </div>
+                    <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                      {tier.title}
+                    </h3>
                   </div>
 
                   {isActive && (
@@ -4551,62 +4603,68 @@ export default function WebDocumentFeed({
                           }
                         : undefined
                     }
-                    className={`flex items-start justify-between gap-3 ${
+                    className={`flex flex-col gap-2 ${
                       isActive ? "cursor-pointer" : ""
                     }`}
                   >
-                    <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                      <div
-                        className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
-                          isActive
-                            ? "text-[var(--accent)]"
-                            : "text-[var(--subtext)] group-hover:text-[var(--text)]"
-                        }`}
-                      >
-                        <span className="material-symbols-outlined !text-[20px]">
-                          {dom.icon}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                        <span
-                          className={`text-[10px] font-black uppercase tracking-[0.18em] ${
+                    <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                      <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+                        <div
+                          className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                             isActive
                               ? "text-[var(--accent)]"
-                              : "text-[var(--subtext)]"
+                              : "text-[var(--subtext)] group-hover:text-[var(--text)]"
                           }`}
                         >
-                          {dom.badge}
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {dom.icon}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                          <span
+                            className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug ${
+                              isActive
+                                ? "text-[var(--accent)]"
+                                : "text-[var(--subtext)]"
+                            }`}
+                          >
+                            {dom.badge}
+                          </span>
+                          <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                            {dom.title}
+                          </h3>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+                          <span
+                            className={`material-symbols-outlined !text-[12px] ${
+                              isActive
+                                ? "text-[var(--accent)]"
+                                : "text-[var(--subtext)]"
+                            }`}
+                          >
+                            {isActive
+                              ? t("icon_check_circle", "check_circle")
+                              : dom.icon}
+                          </span>
+                          <span>{dom.badge.split("•")[0].trim()}</span>
                         </span>
-                        <h3 className="text-sm sm:text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                          {dom.title}
-                        </h3>
+                        <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {isActive
+                              ? t("icon_expand_less", "expand_less")
+                              : t("icon_expand_more", "expand_more")}
+                          </span>
+                        </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                        <span
-                          className={`material-symbols-outlined !text-[12px] ${
-                            isActive
-                              ? "text-[var(--accent)]"
-                              : "text-[var(--subtext)]"
-                          }`}
-                        >
-                          {isActive
-                            ? t("icon_check_circle", "check_circle")
-                            : dom.icon}
-                        </span>
-                        <span>{dom.badge.split("•")[0].trim()}</span>
-                      </span>
-                      <span className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--subtext)] group-hover:text-[var(--text)]">
-                        <span className="material-symbols-outlined !text-[16px]">
-                          {isActive
-                            ? t("icon_expand_less", "expand_less")
-                            : t("icon_expand_more", "expand_more")}
-                        </span>
-                      </span>
-                    </div>
+                    <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
+                      {dom.title}
+                    </h3>
                   </div>
 
                   {isActive && (
