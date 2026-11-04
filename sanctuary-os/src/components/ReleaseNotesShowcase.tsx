@@ -281,15 +281,6 @@ function cleanCardParagraph(raw: string): string {
       /\((?:[^()]*?(?:src\/|src-tauri\/|\.github\/|supabase\/|[A-Za-z0-9_/-]+\.(?:rs|tsx?|sql|css|yml)\b|keeper_heuristic|compliance_tier|tier2_hashes|schema_os)[^()]*)\)/gi,
       ""
     )
-    .replace(/\((?:[^()]*`[^`]+`[^()]*)\)/g, (match) => {
-      const withoutBackticks = match
-        .replace(/`[^`]+`/g, "")
-        .replace(
-          /\b(?:in|via|and|or|from|to|with|plus|e\.g\.|such as)\b|[(),/|+&.;:=\s-]/gi,
-          ""
-        );
-      return withoutBackticks.length > 14 ? match : "";
-    })
     .replace(/(?!\[ICON:)\[([^\]]+)\]\((?!asset:\/\/)[^)]+\)/gi, "$1")
     .replace(/\s+([,.;:!?])/g, "$1")
     .replace(/^[\s\u200B\uFEFF#\\]+/, "")
@@ -964,9 +955,45 @@ export function useStableReleaseMeta(): {
   return { stableVersion, stableDateDisplay };
 }
 
-export function LegalDocVersionInfoBlock() {
+export function LegalDocVersionInfoBlock({
+  content,
+  updatedAt,
+}: {
+  content?: string;
+  updatedAt?: string;
+} = {}) {
   const { t } = useLexicon();
   const { stableVersion, stableDateDisplay } = useStableReleaseMeta();
+
+  const resolvedDate = React.useMemo(() => {
+    if (content) {
+      const dateMatch = content.match(
+        /\*\*(?:Effective Date|Last Updated|Last Synchronized):\*\*\s*([^\n\r]+)/i,
+      );
+      if (dateMatch?.[1]?.trim()) {
+        return dateMatch[1].trim();
+      }
+    }
+    if (updatedAt) {
+      const parsed = new Date(updatedAt);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toLocaleDateString();
+      }
+    }
+    return stableDateDisplay;
+  }, [content, updatedAt, stableDateDisplay]);
+
+  const resolvedVersion = React.useMemo(() => {
+    if (content) {
+      const verMatch = content.match(
+        /\*\*(?:Document Version|Version):\*\*\s*([^\n\r]+)/i,
+      );
+      if (verMatch?.[1]?.trim()) {
+        return verMatch[1].trim();
+      }
+    }
+    return `v${stableVersion}`;
+  }, [content, stableVersion]);
 
   return (
     <div className="grid grid-cols-2 gap-3 w-full">
@@ -975,16 +1002,16 @@ export function LegalDocVersionInfoBlock() {
         icon={t("icon_calendar_today", "calendar_today")}
         iconColorClass="text-[var(--accent)]"
         label={t("updated_date", "Last Updated")}
-        value={stableDateDisplay}
-        tooltipSubtitle={stableDateDisplay}
+        value={resolvedDate}
+        tooltipSubtitle={resolvedDate}
       />
       <StatBox
         className="w-full"
         icon={t("icon_tag", "tag")}
         iconColorClass="text-[var(--accent)]"
         label={t("release_notes_meta_version", "Version Number")}
-        value={`v${stableVersion}`}
-        tooltipSubtitle={`v${stableVersion}`}
+        value={resolvedVersion}
+        tooltipSubtitle={resolvedVersion}
       />
     </div>
   );
@@ -1574,7 +1601,15 @@ export function deserializeChangelogRow(
   const raw = String(
     (usePublished ? row.published_message || row.message : row.message) || ""
   ).trim();
-  return raw || fallback;
+  if (
+    !raw ||
+    raw.length < 300 ||
+    raw.includes("- **Title:** Desc") ||
+    (fallback && fallback.length > raw.length + 1000)
+  ) {
+    return fallback;
+  }
+  return raw;
 }
 
 const normalizeMd = (txt: string): string =>
@@ -2235,22 +2270,26 @@ export function ReleaseNotesShowcase({
               if (data?.[0]?.id) {
                 nextDevClRowId = data[0].id;
               }
-            } else if (!areChangelogsEquivalent(localDevClContent, resolvedDevClWorking)) {
+            } else if (!areChangelogsEquivalent(localDevClContent, resolvedDevClWorking) || (devChangelogRow?.message || "").length < localDevClContent.length - 500) {
               if (
                 syncDirection === "local_to_hub" ||
+                localDevClContent.length >= resolvedDevClWorking.length ||
                 (syncDirection === "auto" && devClLocalEpoch > devClDbEpoch + 1500)
               ) {
                 resolvedDevClWorking = localDevClContent;
+                resolvedDevClPublished = localDevClContent;
                 await supabaseAuth
                   .from("keeper_system_broadcasts")
                   .update({
                     message: resolvedDevClWorking,
+                    published_message: resolvedDevClPublished,
                     updated_at: new Date().toISOString(),
                   })
                   .eq("id", nextDevClRowId);
               } else if (
-                syncDirection === "hub_to_local" ||
-                (syncDirection === "auto" && devClDbEpoch > 0 && devClLocalEpoch > 0)
+                (syncDirection === "hub_to_local" ||
+                  (syncDirection === "auto" && devClDbEpoch > 0 && devClLocalEpoch > 0)) &&
+                resolvedDevClWorking.length >= localDevClContent.length
               ) {
                 await writeLocalDirectiveFile("changelog_dev", resolvedDevClWorking);
               }

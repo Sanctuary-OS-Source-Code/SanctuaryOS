@@ -22,11 +22,13 @@ import {
   CustomDropdown,
   DashboardStatTile,
   SidePanel,
-  handleOpenUrl,
 } from "../shared";
 import {
   verifyDevBuildClearance,
   DevBuildClearanceResult,
+  downloadAndInstallReleaseAsset,
+  setDevBuildChannelPreference,
+  syncUpdateChannelNotification,
 } from "../utils/supporterManager";
 import { CommunitySupportSidePanel } from "../side-panels/CommunitySupportSidePanel";
 
@@ -38,6 +40,7 @@ export function DevBuildClearanceGate() {
   const userRole = useStore((state) => state.userRole);
   const view = useStore((state) => state.view);
   const setView = useStore((state) => state.setView);
+  const isUpdatePanelOpen = useModalStore((state) => state.isUpdatePanelOpen);
 
   const [clearance, setClearance] = useState<DevBuildClearanceResult | null>(
     null,
@@ -63,15 +66,98 @@ export function DevBuildClearanceGate() {
 
   const prevViewRef = useRef<string | null>(null);
 
-  const runClearanceCheck = useCallback(async () => {
-    setIsChecking(true);
+  const runClearanceCheck = useCallback(
+    async (manual = false) => {
+      setIsChecking(true);
+      if (manual) {
+        setAuthStatus(
+          t("dev_gate_checking", "Verifying Cloud Supporter Clearance..."),
+        );
+      }
+      try {
+        const [res] = await Promise.all([
+          verifyDevBuildClearance(),
+          manual
+            ? new Promise((resolve) => setTimeout(resolve, 350))
+            : Promise.resolve(),
+        ]);
+        setClearance(res);
+        if (manual) {
+          if (res.isAuthorized) {
+            setAuthStatus("");
+          } else if (res.reason === "unauthenticated" || !useStore.getState().session?.user?.id) {
+            setAuthStatus(
+              `${t("err_validation", "Error: ")}${t("dev_gate_status_unauthenticated", "Not Signed In — Sign in to verify your Supporter timer")}`,
+            );
+          } else {
+            setAuthStatus(
+              `${t("err_validation", "Error: ")}${t("dev_gate_status_expired", "No Active Dev Build Time Found on Account")}`,
+            );
+          }
+        }
+      } finally {
+        setIsChecking(false);
+      }
+    },
+    [t],
+  );
+
+  const handleInstallStableRelease = useCallback(async () => {
+    const targetStableVer = (clearance?.stableVersion || "0.6.0")
+      .replace(/^v/i, "")
+      .trim();
+    const targetStableUrl =
+      clearance?.stableDownloadUrl ||
+      "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases";
+
     try {
-      const res = await verifyDevBuildClearance();
-      setClearance(res);
-    } finally {
-      setIsChecking(false);
+      await setDevBuildChannelPreference(false);
+    } catch {
+      // ignore local preference error
     }
-  }, []);
+
+    const instantStablePayload = {
+      version: targetStableVer,
+      date: new Date().toISOString(),
+      body: "",
+      downloadUrl: targetStableUrl,
+      isDevChannel: false,
+      isChannelSwitchOffer: true,
+      autoStartInstall: true,
+      isExternalDownload: !isDesktop(),
+      downloadAndInstall: async (onEvent?: (event: any) => void) => {
+        await downloadAndInstallReleaseAsset(
+          targetStableUrl,
+          targetStableVer,
+          false,
+          onEvent,
+        );
+      },
+    };
+
+    const modalStore = useModalStore.getState();
+    modalStore.setUpdatePayload(instantStablePayload);
+    modalStore.setIsUpdatePanelOpen(true);
+
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("sanctuary-auto-install-update"));
+    }, 60);
+
+    syncUpdateChannelNotification({
+      currentVersion: clearance?.appVersion || "0.6.0-dev.1",
+      switchedToChannel: "stable",
+      forceGitHubRefresh: true,
+    })
+      .then((res) => {
+        if (res?.payload) {
+          useModalStore.getState().setUpdatePayload({
+            ...res.payload,
+            autoStartInstall: false,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [clearance]);
 
   useEffect(() => {
     runClearanceCheck();
@@ -546,7 +632,7 @@ export function DevBuildClearanceGate() {
         : lockShieldOverlay}
 
       <SidePanel
-        isOpen={!isSupportOpen}
+        isOpen={!isSupportOpen && !isUpdatePanelOpen}
         onClose={() => {}}
         hideCloseButton={true}
         passthroughBackdrop={true}
@@ -562,7 +648,7 @@ export function DevBuildClearanceGate() {
         badgeText={clearance.appVersion ? `v${clearance.appVersion}` : undefined}
       >
         <div
-          className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8"
+          className="flex flex-col gap-4 relative z-10 w-full pb-8"
           onMouseEnter={() => useTooltipStore.getState().clearTooltip()}
         >
           {/* 1. Top Dev Build Clearance Policy Card (matches AuthWrapper & ElevatedPasskeyGate) */}
@@ -629,7 +715,7 @@ export function DevBuildClearanceGate() {
                 variant="glass"
                 icon={t("icon_sync", "sync")}
                 label={t("dev_gate_btn_recheck", "Re-Check Clearance")}
-                onClick={runClearanceCheck}
+                onClick={() => runClearanceCheck(true)}
                 disabled={isChecking}
                 className="shrink-0"
               />
@@ -651,11 +737,7 @@ export function DevBuildClearanceGate() {
                 variant="glass"
                 icon={t("icon_download", "download")}
                 label={`${t("dev_gate_btn_download_stable", "Download Free Stable Release")}${clearance.stableVersion ? ` (v${clearance.stableVersion})` : ""}`}
-                onClick={() => {
-                  if (clearance.stableDownloadUrl) {
-                    handleOpenUrl(clearance.stableDownloadUrl);
-                  }
-                }}
+                onClick={handleInstallStableRelease}
                 className="w-full justify-center"
               />
             </div>
@@ -1176,9 +1258,12 @@ export function DevBuildClearanceGate() {
         panelClass="sa-malware-lockdown-panel"
         backdropZ="z-[60002]"
         panelZ="z-[60003]"
-        onSuccess={() => {
-          setIsSupportOpen(false);
-          runClearanceCheck();
+        onSuccess={(newState) => {
+          const nowSecs = Math.floor(Date.now() / 1000);
+          if ((newState?.dev_build?.dev_build_until || 0) > nowSecs) {
+            setIsSupportOpen(false);
+          }
+          runClearanceCheck(false);
         }}
       />
     </>

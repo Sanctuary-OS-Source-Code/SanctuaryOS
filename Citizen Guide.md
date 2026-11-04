@@ -283,5 +283,3 @@ Every string, button, tooltip, and icon in Sanctuary OS routes through the **Lex
 3. **Readiness-Gated Partner Spoke Onboarding & Sovereign Covenants:**
    - Community leaders applying via **Apply to be a Partner** on the Landing Page can inspect both the **Sanctuary Partners Agreement** and **Compliance Protocol** in an interactive overlay drawer before testing their `schema.sql` Spoke handshake.
    - Once active, Wayfinders can review both covenants at any time inside **Wayfinder Operations → Spoke Control → Spoke Setup & Maintenance**, configure **0%-cut non-custodial community donations**, or execute unilateral **Cut the Cord** severance.
-
-

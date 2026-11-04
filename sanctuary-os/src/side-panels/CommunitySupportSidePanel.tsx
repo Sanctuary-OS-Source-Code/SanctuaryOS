@@ -84,7 +84,6 @@ export function CommunitySupportSidePanel({
     setSupporterState(state);
     setKeepersConfig(pipelineCfg);
     setPartners(partnerList);
-    if (onSuccess) onSuccess(state);
 
     if (initialPartnerId) {
       setSelectedPartnerId(initialPartnerId);

@@ -21,7 +21,10 @@ export const handleOpenUrl = (url: string) => {
 
   const { useInternalBrowser, setSideBrowserUrl, setIsSideBrowserOpen } =
     useModalStore.getState();
-  if (useInternalBrowser) {
+  const isLockdownActive =
+    typeof document !== "undefined" &&
+    document.body.classList.contains("sa-malware-lockdown");
+  if (useInternalBrowser && !isLockdownActive) {
     setSideBrowserUrl(normalizedUrl);
     setIsSideBrowserOpen(true);
   } else {

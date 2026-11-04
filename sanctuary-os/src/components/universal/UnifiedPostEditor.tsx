@@ -361,7 +361,13 @@ export function UnifiedPostBodyEditor({
       mode === "wysiwyg" && prevModeRef.current !== "wysiwyg";
     prevModeRef.current = mode;
 
-    if (modeChangedToWysiwyg && editor && !editor.isDestroyed) {
+    const contentChanged = content !== lastSerializedRef.current;
+
+    if (
+      (modeChangedToWysiwyg || (mode === "wysiwyg" && contentChanged)) &&
+      editor &&
+      !editor.isDestroyed
+    ) {
       const currentMd =
         (editor.storage as any)?.markdown?.getMarkdown?.() ?? "";
       if (currentMd !== content) {
@@ -369,7 +375,7 @@ export function UnifiedPostBodyEditor({
       }
     }
 
-    if (modeChangedToVisual || content !== lastSerializedRef.current) {
+    if (modeChangedToVisual || contentChanged) {
       lastSerializedRef.current = content;
       setVisualDoc(parseMarkdownIntoReleaseSections(content));
       setVisibleEmptyHeaders({});

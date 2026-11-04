@@ -185,6 +185,8 @@ export default function KeepersWebDirectivesEditor({
     null
   );
   const [isDirty, setIsDirty] = useState<boolean>(false);
+  const [isVisualBuilderModified, setIsVisualBuilderModified] =
+    useState<boolean>(false);
   const [iconPickerTarget, setIconPickerTarget] = useState<
     | { type: "card"; tabIdx: number; cardIdx: number }
     | { type: "subcard"; tabIdx: number; cardIdx: number; subIdx: number }
@@ -196,6 +198,9 @@ export default function KeepersWebDirectivesEditor({
 
   const isStaleCanonicalDraft = (key: string, draftObj: any): boolean => {
     if (!CANONICAL_DIRECTIVES[key as DirectiveSlug]) {
+      if (!String(draftObj?.content || "").trim() && !draftObj?.builderSchema) {
+        return true;
+      }
       return Number(draftObj?._draftVersion || 0) < 4;
     }
     if (!draftObj?.isDirty || !draftObj?.userModified) return true;
@@ -345,14 +350,18 @@ export default function KeepersWebDirectivesEditor({
     if (nextMode === editorMode) return;
 
     if (editorMode === "visual" && builderSchema) {
-      const syncedSchema: DirectiveBuilderSchema = {
-        ...builderSchema,
-        title: title.trim() || builderSchema.title,
-        summary: description.trim() || builderSchema.summary,
-      };
-      const compiled = compileDirectiveSchemaToMarkdown(syncedSchema);
-      setContent(compiled);
-      setEditorContentSilently(compiled);
+      if (isVisualBuilderModified || !content.trim()) {
+        const syncedSchema: DirectiveBuilderSchema = {
+          ...builderSchema,
+          title: title.trim() || builderSchema.title,
+          summary: description.trim() || builderSchema.summary,
+        };
+        const compiled = compileDirectiveSchemaToMarkdown(syncedSchema);
+        setContent(compiled);
+        setEditorContentSilently(compiled);
+      } else {
+        setEditorContentSilently(stripDirectiveBuilderComment(content));
+      }
     } else if (editorMode === "wysiwyg" && editor) {
       const md = stripDirectiveBuilderComment(
         (editor.storage as any).markdown.getMarkdown()
@@ -508,15 +517,26 @@ export default function KeepersWebDirectivesEditor({
       };
       for (const legalCat of LEGAL_DOC_CATEGORIES) {
         const rec = syncedLegalMap[legalCat];
-        if (rec) {
+        const canonicalLegal = CANONICAL_LEGAL_DOCS[legalCat];
+        if (rec || canonicalLegal) {
+          const resolvedBody =
+            rec?.message ||
+            rec?.content ||
+            canonicalLegal?.bundledContent ||
+            "";
+          const resolvedDate =
+            rec?.updated_at ||
+            rec?.created_at ||
+            new Date().toISOString();
           latestLegal[legalCat] = {
-            id: rec.id,
-            title: rec.title,
-            message: rec.content,
-            category: rec.category,
-            file_name: rec.file_path,
-            created_at: rec.updated_at,
-            updated_at: rec.updated_at,
+            id: rec?.id || `legal_${legalCat.toLowerCase()}`,
+            title: rec?.title || canonicalLegal?.title || legalCat,
+            message: resolvedBody,
+            content: resolvedBody,
+            category: legalCat,
+            file_name: rec?.file_path || canonicalLegal?.file_path,
+            created_at: resolvedDate,
+            updated_at: resolvedDate,
             is_active: true,
             record_kind: "legal" as EditorRecordKind,
           };
@@ -768,18 +788,27 @@ export default function KeepersWebDirectivesEditor({
     }
     const draft = !isStale && rawDraft?.isDirty ? rawDraft : undefined;
     setIsDirty(Boolean(draft?.isDirty));
+    setIsVisualBuilderModified(false);
 
     if (recordKind === "legal") {
-      const legalCategory = post?.category || "EULA";
+      const legalCategory = (post?.category || "EULA") as LegalDocCategory;
       const existingDoc = legalDocsMap[legalCategory] || post;
+      const canonicalLegal = CANONICAL_LEGAL_DOCS[legalCategory];
       const defaultDef =
         legalDefinitions.find((d) => d.id === legalCategory) ||
         legalDefinitions[0];
       const nextTitle =
-        draft?.title ?? existingDoc?.title ?? defaultDef.label;
-      const nextContent = stripDirectiveBuilderComment(
-        draft?.content ?? existingDoc?.message ?? ""
-      );
+        (draft?.title && draft.title.trim()) ||
+        existingDoc?.title ||
+        canonicalLegal?.title ||
+        defaultDef.label;
+      const rawLegalBody =
+        (draft?.content && draft.content.trim()) ||
+        existingDoc?.message ||
+        existingDoc?.content ||
+        canonicalLegal?.bundledContent ||
+        "";
+      const nextContent = stripDirectiveBuilderComment(rawLegalBody);
 
       setEditingPostId(existingDoc?.id || null);
       setEditingPost(existingDoc || { category: legalCategory });
@@ -1041,6 +1070,7 @@ export default function KeepersWebDirectivesEditor({
     patch: Partial<DirectiveBuilderCard>
   ) => {
     setIsDirty(true);
+    setIsVisualBuilderModified(true);
     setBuilderSchema((prev) => {
       if (!prev) return prev;
       const nextTabs = prev.tabs.map((tab, tIdx) => {
@@ -1059,6 +1089,7 @@ export default function KeepersWebDirectivesEditor({
     const currentTab = builderSchema.tabs[tabIdx];
     if (!currentTab) return;
     setIsDirty(true);
+    setIsVisualBuilderModified(true);
     const nextNum = currentTab.cards.length + 1;
     const newCard: DirectiveBuilderCard = {
       id: `card_${Date.now()}`,
@@ -1107,6 +1138,7 @@ export default function KeepersWebDirectivesEditor({
     const targetIdx = cardIdx + direction;
     if (targetIdx < 0 || targetIdx >= currentTab.cards.length) return;
     setIsDirty(true);
+    setIsVisualBuilderModified(true);
 
     setBuilderSchema((prev) => {
       if (!prev) return prev;
@@ -1127,6 +1159,7 @@ export default function KeepersWebDirectivesEditor({
     const currentTab = builderSchema.tabs[tabIdx];
     if (!currentTab || currentTab.cards.length <= 1) return;
     setIsDirty(true);
+    setIsVisualBuilderModified(true);
 
     setBuilderSchema((prev) => {
       if (!prev) return prev;
@@ -1145,6 +1178,7 @@ export default function KeepersWebDirectivesEditor({
 
   const handleAddSubCard = (tabIdx: number, cardIdx: number) => {
     setIsDirty(true);
+    setIsVisualBuilderModified(true);
     const currentCount =
       builderSchema?.tabs?.[tabIdx]?.cards?.[cardIdx]?.subCards?.length || 0;
     const isRoadmap = activeCanonicalSlug === "phase_roadmap";
@@ -1181,6 +1215,7 @@ export default function KeepersWebDirectivesEditor({
     patch: Partial<DirectiveBuilderSubCard>
   ) => {
     setIsDirty(true);
+    setIsVisualBuilderModified(true);
     setBuilderSchema((prev) => {
       if (!prev) return prev;
       const nextTabs = prev.tabs.map((tab, tIdx) => {
@@ -1205,6 +1240,7 @@ export default function KeepersWebDirectivesEditor({
     direction: -1 | 1
   ) => {
     setIsDirty(true);
+    setIsVisualBuilderModified(true);
     setBuilderSchema((prev) => {
       if (!prev) return prev;
       const nextTabs = prev.tabs.map((tab, tIdx) => {
@@ -1230,6 +1266,7 @@ export default function KeepersWebDirectivesEditor({
     subIdx: number
   ) => {
     setIsDirty(true);
+    setIsVisualBuilderModified(true);
     setBuilderSchema((prev) => {
       if (!prev) return prev;
       const nextTabs = prev.tabs.map((tab, tIdx) => {
@@ -1395,7 +1432,7 @@ export default function KeepersWebDirectivesEditor({
         summary: description.trim() || baseSchema.summary,
         isActive,
       };
-      if (editorMode === "visual" || !finalMarkdownBody.trim()) {
+      if ((editorMode === "visual" && isVisualBuilderModified) || !finalMarkdownBody.trim()) {
         finalMarkdownBody = compileDirectiveSchemaToMarkdown(syncedSchema);
         setContent(finalMarkdownBody);
         setEditorContentSilently(finalMarkdownBody);
@@ -3410,7 +3447,12 @@ export default function KeepersWebDirectivesEditor({
                     </div>
 
                     {editingRecordKind === "legal" && (
-                      <LegalDocVersionInfoBlock />
+                      <LegalDocVersionInfoBlock
+                        content={content}
+                        updatedAt={
+                          editingPost?.updated_at || editingPost?.created_at
+                        }
+                      />
                     )}
 
                     {editingRecordKind === "news" && (

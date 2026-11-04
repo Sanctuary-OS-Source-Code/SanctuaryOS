@@ -532,23 +532,26 @@ export async function syncDirectivesBidirectional(options?: {
     const localBulletCount = (localContent.match(/^[ \t]*[-*]\s+\*\*/gm) || []).length;
     const dbBulletCount = (dbContent.match(/^[ \t]*[-*]\s+\*\*/gm) || []).length;
     const dbHasBrokenTabs =
-      slug === "phase_roadmap" &&
-      (dbContent.includes('"value": "Active Era)"') ||
-        dbContent.includes("## Phase 14 (V0.6.0): Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Guided Diagnostics & Cross-Platform Vault Companion") ||
-        !dbContent.includes("External Mod Manager Migration & Out-of-Tree Setup Importer"));
+      (dbSchemaVer > 0 && dbSchemaVer < 83) ||
+      dbContent.includes("(In Progress) (In Progress)") ||
+      (slug === "phase_roadmap" &&
+        (dbContent.includes('"value": "Active Era)"') ||
+          dbContent.includes("## Phase 14 (V0.6.0): Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Guided Diagnostics & Cross-Platform Vault Companion") ||
+          !dbContent.includes("External Mod Manager Migration & Out-of-Tree Setup Importer")));
     const localIsNewer =
       (localEpochMs > 0 && localEpochMs > dbEpochMs + 2000) ||
-      (dbSchemaVer > 0 && dbSchemaVer < 76) ||
       localBulletCount > dbBulletCount ||
       dbHasBrokenTabs;
 
     // 1. If local file is newer or contains newer codebase milestones/schema than DB:
-    // Sync the file & database working `content` column WITHOUT overwriting `published_content`
-    // so the User side stays on the published snapshot until "Update / Publish" is clicked.
+    // Sync the file & database working `content` column (and update `published_content` when repairing a <83 compiled snapshot).
     if (localIsNewer) {
       const nowIso = new Date(
         Math.max(localEpochMs, dbEpochMs + 1000, Date.now())
       ).toISOString();
+      const nextPublishedContent = dbHasBrokenTabs ? localContent : publishedContent;
+      const nextPublishedTitle = dbHasBrokenTabs ? localMeta.title : publishedTitle;
+      const nextPublishedSummary = dbHasBrokenTabs ? localMeta.summary : publishedSummary;
       if (canWriteHub) {
         await supabaseAuth.from("system_directives").upsert({
           slug,
@@ -557,11 +560,11 @@ export async function syncDirectivesBidirectional(options?: {
           category: dbRow.category || canonical.category,
           file_path: canonical.file_path,
           content: localContent,
-          published_content: publishedContent,
-          published_title: publishedTitle,
-          published_summary: publishedSummary,
-          published_at: publishedAt,
-          version: "v0.6.0",
+          published_content: nextPublishedContent,
+          published_title: nextPublishedTitle,
+          published_summary: nextPublishedSummary,
+          published_at: dbHasBrokenTabs ? nowIso : publishedAt,
+          version: "v0.6.0-Dev.2",
           updated_at: nowIso,
           updated_by: "Codebase Auto-Sync",
         });
@@ -574,13 +577,13 @@ export async function syncDirectivesBidirectional(options?: {
         category: dbRow.category || canonical.category,
         file_path: canonical.file_path,
         content: localContent,
-        published_content: publishedContent,
-        published_title: publishedTitle,
-        published_summary: publishedSummary,
-        published_at: publishedAt,
+        published_content: nextPublishedContent,
+        published_title: nextPublishedTitle,
+        published_summary: nextPublishedSummary,
+        published_at: dbHasBrokenTabs ? nowIso : publishedAt,
         has_unpublished_changes:
-          normalizeMarkdown(localContent) !== normalizeMarkdown(publishedContent),
-        version: "v0.6.0",
+          normalizeMarkdown(localContent) !== normalizeMarkdown(nextPublishedContent),
+        version: "v0.6.0-Dev.2",
         updated_at: nowIso,
         updated_by: "Codebase Auto-Sync",
         sync_state: canWriteHub ? "pushed_to_hub" : "local_fallback",
@@ -679,14 +682,17 @@ export async function syncLegalAndCovenantsBidirectional(options?: {
       const dbRow = latestByCat.get(cat);
 
       if (!dbRow) {
+        const nowIso = new Date().toISOString();
         const fallbackRecord = {
           id: `legal_${cat.toLowerCase()}`,
           category: cat,
           title: canonical.title,
           message: localContent,
+          content: localContent,
           file_path: canonical.file_path,
           is_active: true,
-          created_at: new Date().toISOString(),
+          created_at: nowIso,
+          updated_at: nowIso,
         };
         if (canWriteHub) {
           const { data: inserted } = await supabaseAuth
@@ -703,7 +709,16 @@ export async function syncLegalAndCovenantsBidirectional(options?: {
             .select()
             .maybeSingle();
           if (inserted) {
-            result[cat] = { ...inserted, file_path: canonical.file_path };
+            const insertedBody = inserted.message || localContent;
+            const insertedDate = inserted.created_at || nowIso;
+            result[cat] = {
+              ...inserted,
+              message: insertedBody,
+              content: insertedBody,
+              created_at: insertedDate,
+              updated_at: insertedDate,
+              file_path: canonical.file_path,
+            };
             continue;
           }
         }
@@ -718,8 +733,13 @@ export async function syncLegalAndCovenantsBidirectional(options?: {
         ? new Date(dbRow.created_at).getTime()
         : 0;
       const localEpochMs = localSnap?.modified_epoch_ms || 0;
+      const localHasNewerVersionTag =
+        localContent.includes("v0.6.0-Dev.2") &&
+        !dbContent.includes("v0.6.0-Dev.2");
       const localIsNewer =
-        !isSame && localEpochMs > 0 && localEpochMs > dbEpochMs + 2000;
+        !isSame &&
+        ((localEpochMs > 0 && localEpochMs > dbEpochMs + 2000) ||
+          localHasNewerVersionTag);
 
       if (localIsNewer || forcePushLocal) {
         const nowIso =
@@ -745,22 +765,37 @@ export async function syncLegalAndCovenantsBidirectional(options?: {
             .maybeSingle();
           if (data) updated = data;
         }
+        const resolvedDate = updated?.created_at || nowIso;
         result[cat] = {
           ...updated,
           title: canonical.title,
           message: localContent,
+          content: localContent,
+          created_at: resolvedDate,
+          updated_at: resolvedDate,
           file_path: canonical.file_path,
         };
       } else if (!isSame && dbContent.trim().length > 200) {
         await writeLocalDirectiveFile(canonical.slug, dbContent);
+        const resolvedDate = dbRow.created_at || new Date().toISOString();
         result[cat] = {
           ...dbRow,
+          message: dbContent,
+          content: dbContent,
+          created_at: resolvedDate,
+          updated_at: resolvedDate,
           file_path: canonical.file_path,
         };
       } else {
+        const resolvedBody =
+          dbContent.trim().length > 200 ? dbContent : localContent;
+        const resolvedDate = dbRow.created_at || new Date().toISOString();
         result[cat] = {
           ...dbRow,
-          message: dbContent.trim().length > 200 ? dbContent : localContent,
+          message: resolvedBody,
+          content: resolvedBody,
+          created_at: resolvedDate,
+          updated_at: resolvedDate,
           file_path: canonical.file_path,
         };
       }

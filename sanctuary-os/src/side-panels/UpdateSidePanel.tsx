@@ -328,7 +328,7 @@ export function UpdateSidePanel() {
     }
   };
 
-  const handleInstallUpdate = async () => {
+  const handleInstallUpdate = useCallback(async () => {
     if (!updatePayload || isInstalling) return;
     setIsInstalling(true);
     setInstallStage("downloading");
@@ -404,7 +404,35 @@ export function UpdateSidePanel() {
       setInstallStage("idle");
       setDownloadProgress(null);
     }
-  };
+  }, [
+    updatePayload,
+    isInstalling,
+    setStatus,
+    t,
+    isDevUpdate,
+    pipelineConfig,
+    setIsUpdatePanelOpen,
+  ]);
+
+  useEffect(() => {
+    if (isUpdatePanelOpen && updatePayload?.autoStartInstall && !isInstalling) {
+      updatePayload.autoStartInstall = false;
+      handleInstallUpdate();
+    }
+  }, [isUpdatePanelOpen, updatePayload, isInstalling, handleInstallUpdate]);
+
+  useEffect(() => {
+    const onAutoInstall = () => {
+      if (updatePayload) {
+        updatePayload.autoStartInstall = false;
+      }
+      handleInstallUpdate();
+    };
+    window.addEventListener("sanctuary-auto-install-update", onAutoInstall);
+    return () => {
+      window.removeEventListener("sanctuary-auto-install-update", onAutoInstall);
+    };
+  }, [updatePayload, handleInstallUpdate]);
 
   if (!updatePayload) return null;
 
@@ -534,11 +562,11 @@ export function UpdateSidePanel() {
       icon={t("icon_system_update_alt", "system_update_alt")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[90vw] md:w-[55vw] max-w-5xl"
-      backdropZ="z-[50000]"
-      panelZ="z-[50001]"
+      backdropZ="z-[60004]"
+      panelZ="z-[60005]"
       noPadding={true}
       noScroll={true}
-      panelClass="!border-l-[color-mix(in_srgb,var(--text)_15%,transparent)]"
+      panelClass="sa-malware-lockdown-panel !border-l-[color-mix(in_srgb,var(--text)_15%,transparent)]"
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton

@@ -115,7 +115,7 @@ export interface DirectiveBuilderSchema {
   tabs: DirectiveBuilderTab[];
 }
 
-export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 82;
+export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 83;
 
 const BUILDER_COMMENT_PREFIX = "<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:";
 const BUILDER_COMMENT_REGEX =
@@ -207,18 +207,18 @@ function extractMarkdownSubCards(
         }
         const cleanTitle = rawHeading
           .replace(
-            /^\[(?:In Progress|In Testing(?:\s*\[In Dev Build\])?|Complete\s*\|Completed)[^\]]*\]\s*/i,
+            /^\[(?:In Progress|In Testing(?:\s*\[In Dev Build\])?|Complete|Completed)[^\]]*\]\s*/i,
             ""
           )
           .replace(
-            /\s*(?:\((?:Completed|Complete\s*\|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\])/gi,
+            /\s*(?:\((?:Completed|Complete|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\])+/gi,
             ""
           )
           .replace(/:\s*$/, "")
           .trim();
         const cleanInline = rawRest
           .replace(
-            /^(?:\((?:Completed|Complete\s*\|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\]):?\s*/i,
+            /^(?:\((?:Completed|Complete|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\]):?\s*/i,
             ""
           )
           .trim();
@@ -297,9 +297,6 @@ function extractMarkdownSubCards(
       matchedFb?.roadmapStatus ||
       (matchedFb?.pending ? "in_progress" : "completed");
     const isPending = resolvedStatus === "in_progress";
-    const preferCuratedFallback = Boolean(
-      matchedFb && (item.subLines.length > 0 || combinedDesc.length > 280)
-    );
 
     results.push({
       id: matchedFb?.id || `${idPrefix}_${subIdx + 1}`,
@@ -310,12 +307,8 @@ function extractMarkdownSubCards(
           : isPending
             ? t("icon_rocket_launch", "rocket_launch")
             : t("icon_check_circle", "check_circle")),
-      title: preferCuratedFallback
-        ? matchedFb!.title
-        : t("", cleanItemTitle),
-      desc: preferCuratedFallback
-        ? matchedFb!.desc
-        : t("", combinedDesc),
+      title: t("", cleanItemTitle || matchedFb?.title || ""),
+      desc: t("", combinedDesc || matchedFb?.desc || ""),
       pending: isPending,
       roadmapStatus: resolvedStatus,
     });
@@ -668,7 +661,7 @@ export function parseMarkdownToDirectiveSchema(
     const nextTabs = [...baseSchema.tabs];
 
     // Tab 0: Stage 1..N under `# Part 1`
-    const stageMatches = [...clean.matchAll(/^##\s+Stage\s+(\d+):\s*([^\n]+)$/gim)];
+    const stageMatches = [...clean.matchAll(/^#{1,3}\s+Stage\s+(\d+):\s*([^\n]+)$/gim)];
     if (stageMatches.length > 0 && nextTabs[0]) {
       const defaultStageCards = nextTabs[0].cards;
       const stageCards: DirectiveBuilderCard[] = stageMatches.map((sm, idx) => {
@@ -701,9 +694,9 @@ export function parseMarkdownToDirectiveSchema(
           icon: fb?.icon || t("icon_play_circle", "play_circle"),
           overline: `STAGE ${stageNum} OF ${stageMatches.length}`,
           badge: fb?.badge || `${stageNum}. Stage ${stageNum}`,
-          title: fb?.title || stageTitle,
+          title: stageTitle || fb?.title || `Stage ${stageNum}`,
           footerMeta: fb?.footerMeta || stageTitle,
-          desc: fb?.desc || introDesc,
+          desc: introDesc || fb?.desc || stageTitle,
           subCards: subs.length > 0 ? subs : fb?.subCards || [],
         };
       });
@@ -715,8 +708,8 @@ export function parseMarkdownToDirectiveSchema(
     }
 
     // Tab 1: Numbered modules `1. **Module:** Desc` under `# Part 2`
-    const part2Idx = clean.search(/^#\s+Part\s+2:/im);
-    const part3Idx = clean.search(/^#\s+Part\s+3:/im);
+    const part2Idx = clean.search(/^#{1,3}\s+Part\s+2:/im);
+    const part3Idx = clean.search(/^#{1,3}\s+Part\s+3:/im);
     if (part2Idx >= 0 && nextTabs[1]) {
       const part2Body = clean.slice(
         part2Idx,
@@ -739,9 +732,9 @@ export function parseMarkdownToDirectiveSchema(
             icon: fb?.icon || t("icon_explore", "explore"),
             overline: `MODULE ${modNum} OF ${modMatches.length}`,
             badge: fb?.badge || `${modNum}. ${rawModTitle}`,
-            title: fb?.title || rawModTitle,
+            title: rawModTitle || fb?.title || `Module ${modNum}`,
             footerMeta: fb?.footerMeta || rawModTitle.toUpperCase(),
-            desc: fb?.desc || rawModDesc,
+            desc: rawModDesc || fb?.desc || rawModTitle,
             tip: fb?.tip,
             subCards: fb?.subCards || [],
           };
@@ -765,7 +758,7 @@ export function parseMarkdownToDirectiveSchema(
   }
 
   if (slug === "master_architecture") {
-    const pillarMatches = [...clean.matchAll(/^##\s+Pillar\s+(\d+):\s*([^\n]+)$/gim)];
+    const pillarMatches = [...clean.matchAll(/^#{1,3}\s+Pillar\s+(\d+):\s*([^\n]+)$/gim)];
     if (pillarMatches.length > 0) {
       const updatedTabs: DirectiveBuilderTab[] = pillarMatches.map((pm, idx) => {
         const pillarNum = parseInt(pm[1], 10);
@@ -802,9 +795,9 @@ export function parseMarkdownToDirectiveSchema(
                 fbCard?.overline ||
                 `ARCHITECTURE PILLAR ${pillarNum} • SANCTUARY OS`,
               badge: fbCard?.badge || t("active", "Active"),
-              title: fbCard?.title || pillarTitle,
+              title: pillarTitle || fbCard?.title || `Pillar ${pillarNum}`,
               footerMeta: fbCard?.footerMeta || pillarTitle,
-              desc: fbCard?.desc || introDesc,
+              desc: introDesc || fbCard?.desc || pillarTitle,
               subCards: subs.length > 0 ? subs : fbCard?.subCards || [],
             },
           ],
@@ -825,7 +818,7 @@ export function parseMarkdownToDirectiveSchema(
   if (slug === "master_protocols") {
     const nextTabs = [...baseSchema.tabs];
     const domainMatches = [
-      ...clean.matchAll(/^##\s+([2-5])\.\s+([^\n]+)$/gm),
+      ...clean.matchAll(/^#{1,3}\s+([2-5])\.\s+([^\n]+)$/gm),
     ];
     if (domainMatches.length > 0 && nextTabs[2]) {
       const defaultDomainCards = nextTabs[2].cards;
@@ -1009,13 +1002,19 @@ export function compileDirectiveSchemaToMarkdown(
         for (const sub of card.subCards) {
           if (schema.slug === "phase_roadmap") {
             const subStatus = resolveRoadmapSubCardStatus(sub);
+            const cleanSubTitle = (sub.title || "")
+              .replace(
+                /\s*(?:\((?:Completed|Complete|In Progress|In Testing[^)]*)\)|\[(?:In Progress|In Testing[^\]]*|Complete[^\]]*)\])+/gi,
+                ""
+              )
+              .trim();
             const statusSuffix =
               subStatus === "in_testing"
                 ? " (In Testing [In Dev Build])"
                 : subStatus === "in_progress"
                   ? " (In Progress)"
                   : " (Complete)";
-            lines.push(`- **${sub.title}${statusSuffix}:** ${sub.desc}`);
+            lines.push(`- **${cleanSubTitle}${statusSuffix}:** ${sub.desc}`);
           } else {
             lines.push(`- **${sub.title}:** ${sub.desc}`);
           }

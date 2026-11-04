@@ -131,6 +131,9 @@ export function SupporterCelebrationSidePanel() {
       icon={t("icon_volunteer_activism", "volunteer_activism")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[90vw] md:w-[620px]"
+      backdropZ="z-[60006]"
+      panelZ="z-[60007]"
+      panelClass="sa-malware-lockdown-panel"
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard

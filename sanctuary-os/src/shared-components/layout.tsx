@@ -703,7 +703,7 @@ export function SidePanel({
 
             {!hideHeader && (
               <div
-                className={`px-4 py-3.5 max-md:pt-[calc(env(safe-area-inset-top,0px)+0.875rem)] sm:px-6 sm:py-4 md:px-7 md:py-5 shrink-0 relative z-30 border-b border-[color-mix(in_srgb,var(--text)_8%,rgba(255,255,255,0.16))] ${coverImage ? "pt-36 sm:pt-48" : ""} flex flex-row items-center justify-between gap-3 md:gap-5 w-full`}
+                className={`px-4 pt-3.5 pb-1.5 max-md:pt-[calc(env(safe-area-inset-top,0px)+0.875rem)] sm:px-6 sm:pt-4 sm:pb-2 md:px-7 md:pt-5 md:pb-2 shrink-0 relative z-30 ${coverImage ? "pt-36 sm:pt-48" : ""} flex flex-row items-center justify-between gap-3 md:gap-5 w-full`}
               >
                 {coverImage && (
                   <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[inherit] rounded-tr-[inherit]">
