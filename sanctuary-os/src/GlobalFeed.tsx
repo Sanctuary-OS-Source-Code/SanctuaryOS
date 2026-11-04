@@ -390,7 +390,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                       }
                     />
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6 pb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-6 pb-8">
                       {filteredPosts.map((p, index) => (
                         <MasonPostCard
                           key={p.id}
@@ -444,7 +444,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
               }
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-6">
               {filteredPosts.map((p, index) => {
                 const isCompact = filteredPosts.length >= 3 && index > 0;
                 return (

@@ -45,14 +45,14 @@ export default function WayfinderKeeperSidePanel({ isOpen, onClose, userId }: Ci
             description={t("support_desc", "Review active escalations or open a direct support dossier with Sanctuary Keepers.")}
             variant="accent"
           >
-            <ActionButton
-              variant="glass"
-              icon={t("icon_add_circle", "add_circle")}
-              onClick={() => setIsCreateModalOpen(true)}
-              className="w-full justify-center !py-3"
-            >
-              {t("support_title", "Create Support Escalation")}
-            </ActionButton>
+            <div className="flex flex-wrap items-center justify-end gap-2 w-full">
+              <ActionButton
+                variant="glass"
+                icon={t("icon_add_circle", "add_circle")}
+                label={t("support_title", "Create Support Escalation")}
+                onClick={() => setIsCreateModalOpen(true)}
+              />
+            </div>
           </SidePanelHeroCard>
 
           <div className="relative w-full">

@@ -14,6 +14,7 @@ import { useModalStore } from "../store/modalStore";
 import { isDesktop } from "../utils/envUtils";
 import {
   fetchEncryptedVaultCompanionSnapshots,
+  stageFullBlueprintToRigQueue,
   VaultCompanionDesktopBlueprint,
 } from "../utils/stagingCrypto";
 
@@ -34,6 +35,8 @@ export default function BlueprintSwapSidePanel({
     activePlaySetIndex,
     setActivePlaySetIndex,
     activeGameSchema,
+    modList,
+    selectedVersion,
     session,
     setView,
   } = useStore();
@@ -44,6 +47,8 @@ export default function BlueprintSwapSidePanel({
     stagingTargetDesktopBlueprint,
   } = useModalStore();
   const [searchQuery, setSearchQuery] = useState("");
+  const [stagingSetName, setStagingSetName] = useState<string | null>(null);
+  const [stagedSuccessSetName, setStagedSuccessSetName] = useState<string | null>(null);
   const [companionBlueprints, setCompanionBlueprints] = useState<
     VaultCompanionDesktopBlueprint[]
   >([]);
@@ -253,38 +258,102 @@ export default function BlueprintSwapSidePanel({
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelect(index);
-                      }}
-                      className={`relative group/actionbtn w-8 h-8 rounded-xl glass-surface border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
-                        isActive
-                          ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                          : "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined !text-[16px]">
-                        {isActive
-                          ? t("icon_check", "check")
-                          : t("icon_swap_horiz", "swap_horiz")}
-                      </span>
-                      <HoverTooltip
-                        className="z-[100] !right-0 !translate-x-0 !left-auto"
-                        title={
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {isDesktop() && session?.user?.id && (
+                        <button
+                          type="button"
+                          disabled={stagingSetName === bp.name}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            setStagingSetName(bp.name);
+                            const res = await stageFullBlueprintToRigQueue(
+                              bp,
+                              modList || [],
+                              activeGameSchema,
+                              session,
+                              selectedVersion
+                            );
+                            setStagingSetName(null);
+                            if (res.success) {
+                              setStagedSuccessSetName(bp.name);
+                              setTimeout(() => setStagedSuccessSetName(null), 3500);
+                              useStore
+                                .getState()
+                                .pushStatus(
+                                  t(
+                                    "status_rig_queue_sent",
+                                    "{Blueprint} encrypted and staged to your Rig Queue! Open Signature Queue on your Steam Deck or other PC to deploy."
+                                  ),
+                                  "success"
+                                );
+                            } else {
+                              useStore
+                                .getState()
+                                .pushStatus(
+                                  res.error || t("err_save_failed", "Failed to save blueprint"),
+                                  "error"
+                                );
+                            }
+                          }}
+                          className={`relative group/rigbtn w-8 h-8 rounded-xl glass-surface border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+                            stagedSuccessSetName === bp.name
+                              ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                              : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:text-[var(--accent)]"
+                          }`}
+                        >
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {stagingSetName === bp.name
+                              ? t("icon_sync", "sync")
+                              : stagedSuccessSetName === bp.name
+                                ? t("icon_check_circle", "check_circle")
+                                : t("icon_devices", "devices")}
+                          </span>
+                          <HoverTooltip
+                            className="z-[100] !right-0 !translate-x-0 !left-auto"
+                            title={
+                              stagedSuccessSetName === bp.name
+                                ? t("status_rig_queue_sent", "{Blueprint} Staged to Rig Queue!")
+                                : t("action_send_rig_queue", "Send to Rig Queue")
+                            }
+                            icon={t("icon_devices", "devices")}
+                            variant={stagedSuccessSetName === bp.name ? "success" : "accent"}
+                          />
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelect(index);
+                        }}
+                        className={`relative group/actionbtn w-8 h-8 rounded-xl glass-surface border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                           isActive
-                            ? t("active", "Active")
-                            : t("action_equip", "Equip {Blueprint}")
-                        }
-                        icon={
-                          isActive
-                            ? t("icon_verified_user", "verified_user")
-                            : t("icon_swap_horiz", "swap_horiz")
-                        }
-                        variant={isActive ? "success" : "accent"}
-                      />
-                    </button>
+                            ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                            : "border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined !text-[16px]">
+                          {isActive
+                            ? t("icon_check", "check")
+                            : t("icon_swap_horiz", "swap_horiz")}
+                        </span>
+                        <HoverTooltip
+                          className="z-[100] !right-0 !translate-x-0 !left-auto"
+                          title={
+                            isActive
+                              ? t("active", "Active")
+                              : t("action_equip", "Equip {Blueprint}")
+                          }
+                          icon={
+                            isActive
+                              ? t("icon_verified_user", "verified_user")
+                              : t("icon_swap_horiz", "swap_horiz")
+                          }
+                          variant={isActive ? "success" : "accent"}
+                        />
+                      </button>
+                    </div>
                   </div>
                 );
               })}

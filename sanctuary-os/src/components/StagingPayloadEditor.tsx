@@ -680,8 +680,13 @@ export default function StagingPayloadEditor({
       setStagingDraftStrategy(cloud.payload.loadOrderStrategy);
     }
     setTargetDesktopBlueprint(targetName || null);
-    setStagingDraftItems(cloud.payload.items || []);
-    setStagingDraftRemovedItems(cloud.payload.removedItems || []);
+    if (cloud.payload.isFullRigBlueprint) {
+      setStagingDraftItems([]);
+      setStagingDraftRemovedItems([]);
+    } else {
+      setStagingDraftItems(cloud.payload.items || []);
+      setStagingDraftRemovedItems(cloud.payload.removedItems || []);
+    }
     setIsCloudPanelOpen(false);
     setActiveSubTab("OVERVIEW");
     setDraftVisibleCount(80);
@@ -693,6 +698,20 @@ export default function StagingPayloadEditor({
       setInspectFilterTab("ALL");
       setInspectVisibleCount(80);
       setInspectingPack({ type: "desktop_bp", data: matchedBp });
+    } else if (cloud.payload.isFullRigBlueprint) {
+      setInspectSearchQuery("");
+      setInspectFilterTab("ALL");
+      setInspectVisibleCount(80);
+      setInspectingPack({
+        type: "desktop_bp",
+        data: {
+          name: targetName,
+          code: cloud.payload.blueprintCode || "RIG-BP",
+          isActive: Boolean(cloud.payload.autoEquip),
+          modsCount: (cloud.payload.items || []).length,
+          artifacts: cloud.payload.items || [],
+        },
+      });
     } else {
       setIsDraftPanelOpen(true);
     }
@@ -1282,14 +1301,14 @@ export default function StagingPayloadEditor({
           />
         }
         title={cloudTarget.payload.blueprintName}
-        subtitle={
+        subtitle={`${cloudTarget.payload.sourceDevice ? `${cloudTarget.payload.sourceDevice} • ` : ""}${
           cloudTarget.isCompletedLocally
             ? t("sig_queue_badge_completed_local", "Completed Here • Pending on Other Systems")
             : t("staging_active_cloud_title", "Awaiting Desktop Signature")
-        }
+        }`}
         onClick={selectAndOpenCloud}
         imageOverlay={
-          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[85%] z-30 pointer-events-none">
+          <div className="absolute top-3 left-3 flex flex-nowrap items-center gap-1.5 max-w-[85%] z-30 pointer-events-none whitespace-nowrap">
             <div className={VAULT_CHIP_CLASS}>
               <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                 {cloudTarget.isCompletedLocally
@@ -1321,6 +1340,14 @@ export default function StagingPayloadEditor({
                 {cloudItems.length} {t("artifacts_linked", "{Mods} Linked")}
               </span>
             </button>
+            {cloudTarget.payload?.isFullRigBlueprint && (
+              <div className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]`}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_devices", "devices")}
+                </span>
+                <span>{t("pipeline_badge_full_rig", "Full Rig {Blueprint}")}</span>
+              </div>
+            )}
             {cloudRemoved.length > 0 && (
               <div className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[var(--danger)]`}>
                 <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
@@ -1346,7 +1373,7 @@ export default function StagingPayloadEditor({
           </>
         }
         footer={
-          <div className="flex items-center gap-2 w-full">
+          <div className="flex flex-col gap-2.5 w-full">
             <button
               type="button"
               onClick={(e) => {
@@ -1363,7 +1390,7 @@ export default function StagingPayloadEditor({
                   setIsCloudPanelOpen(true);
                 }
               }}
-              className="flex-1 h-9 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 relative border bg-transparent glass-surface border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] cursor-pointer"
+              className="w-full h-9 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 relative border bg-transparent glass-surface border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[15px]">
                 {t("icon_visibility", "visibility")}
@@ -1371,63 +1398,65 @@ export default function StagingPayloadEditor({
               <span>{t("staging_btn_view_contents", "View {Mods}")}</span>
             </button>
 
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleToggleCloudCompleteLocally(cloudTarget);
-              }}
-              className={`h-9 px-3.5 glass-surface border rounded-xl transition-all flex items-center justify-center gap-1.5 relative font-black uppercase text-[10px] tracking-wider cursor-pointer ${
-                cloudTarget.isCompletedLocally
-                  ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:text-[var(--success)]"
-              }`}
-            >
-              <span className="material-symbols-outlined !text-[16px]">
-                {cloudTarget.isCompletedLocally
-                  ? t("icon_check_circle", "check_circle")
-                  : t("icon_task_alt", "task_alt")}
-              </span>
-              <HoverTooltip
-                title={
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleCloudCompleteLocally(cloudTarget);
+                }}
+                className={`h-8 glass-surface border rounded-lg transition-all flex items-center justify-center relative cursor-pointer ${
                   cloudTarget.isCompletedLocally
-                    ? t("sig_queue_btn_mark_pending_local", "Mark Pending on This System")
-                    : t("sig_queue_btn_mark_complete_local", "Mark Complete on This System")
-                }
-              />
-            </button>
+                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                    : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:text-[var(--success)]"
+                }`}
+              >
+                <span className="material-symbols-outlined !text-[16px]">
+                  {cloudTarget.isCompletedLocally
+                    ? t("icon_check_circle", "check_circle")
+                    : t("icon_task_alt", "task_alt")}
+                </span>
+                <HoverTooltip
+                  title={
+                    cloudTarget.isCompletedLocally
+                      ? t("sig_queue_btn_mark_pending_local", "Mark Pending on This System")
+                      : t("sig_queue_btn_mark_complete_local", "Mark Complete on This System")
+                  }
+                />
+              </button>
 
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleLoadActiveCloudIntoEditor(cloudTarget);
-              }}
-              className="h-9 px-3.5 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] rounded-xl transition-all flex items-center justify-center gap-1.5 relative font-black uppercase text-[10px] tracking-wider cursor-pointer"
-            >
-              <span className="material-symbols-outlined !text-[16px]">
-                {t("icon_edit", "edit")}
-              </span>
-              <HoverTooltip title={t("staging_btn_load_to_editor", "Edit")} />
-            </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleLoadActiveCloudIntoEditor(cloudTarget);
+                }}
+                className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
+              >
+                <span className="material-symbols-outlined !text-[16px]">
+                  {t("icon_edit", "edit")}
+                </span>
+                <HoverTooltip title={t("staging_btn_load_to_editor", "Edit")} />
+              </button>
 
-            <button
-              type="button"
-              disabled={isShredding}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleShredActiveCloud(cloudTarget);
-              }}
-              className="h-9 px-3.5 glass-surface border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[var(--danger)] hover:border-[var(--danger)] rounded-xl transition-all flex items-center justify-center gap-1.5 relative font-black uppercase text-[10px] tracking-wider cursor-pointer"
-            >
-              <span className="material-symbols-outlined !text-[16px]">
-                {t("icon_delete_forever", "delete_forever")}
-              </span>
-              <HoverTooltip
-                title={t("staging_btn_shred_short", "Clear")}
-                variant="danger"
-              />
-            </button>
+              <button
+                type="button"
+                disabled={isShredding}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleShredActiveCloud(cloudTarget);
+                }}
+                className="h-8 glass-surface border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[var(--danger)] hover:border-[var(--danger)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
+              >
+                <span className="material-symbols-outlined !text-[16px]">
+                  {t("icon_delete_forever", "delete_forever")}
+                </span>
+                <HoverTooltip
+                  title={t("staging_btn_shred_short", "Clear")}
+                  variant="danger"
+                />
+              </button>
+            </div>
           </div>
         }
       />

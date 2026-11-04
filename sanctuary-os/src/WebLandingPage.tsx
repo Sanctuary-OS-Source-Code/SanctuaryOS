@@ -284,39 +284,77 @@ export default function WebLandingPage() {
     setFeedbackPlatform(detectedPlatform);
     setFeedbackBugChannel(detectedChannel);
 
-    let sysHeader = `Sanctuary OS v${verLabel} (${detectedChannel}) • ${detectedPlatform}`;
+    const storeState = useStore.getState();
+    const activeSet = storeState.playSets?.[storeState.activePlaySetIndex];
+    const netUpdates = storeState.networkUpdates;
+    const totalUpdates =
+      (netUpdates?.broken?.length || 0) +
+      (netUpdates?.obsolete?.length || 0) +
+      (netUpdates?.updated?.length || 0);
+
+    let sysInfoBlock = '';
     if (isDesktop()) {
       try {
         const rawSys = await invoke<string>('get_system_info');
-        if (rawSys) sysHeader = `${sysHeader}\n${rawSys}`;
+        if (rawSys) sysInfoBlock = scrubLogUserData(rawSys.trim());
       } catch {
-        // fallback to navigator
+        // fallback below
       }
-    } else if (typeof navigator !== 'undefined') {
-      const ua = navigator.userAgent || 'Browser';
-      const viewport =
-        typeof window !== 'undefined'
-          ? `${window.innerWidth}x${window.innerHeight}`
-          : 'N/A';
-      sysHeader = `${sysHeader} • Viewport ${viewport} • ${ua}`;
+    }
+    if (!sysInfoBlock) {
+      const ua =
+        typeof navigator !== 'undefined'
+          ? navigator.userAgent || 'Browser'
+          : 'Browser';
+      sysInfoBlock = [
+        `OS: ${detectedPlatform}`,
+        `Sanctuary OS Version: ${verLabel}`,
+        `User Agent: ${ua}`,
+      ].join('\n');
     }
 
-    const logEntries = useStore.getState().statusLog || [];
+    const viewport =
+      typeof window !== 'undefined'
+        ? `${window.innerWidth}x${window.innerHeight}`
+        : 'N/A';
+
+    const osTelemetryLines = [
+      sysInfoBlock,
+      `Platform Stream: ${detectedPlatform} (${detectedChannel})`,
+      `Display Resolution: ${viewport}`,
+      `Mods Path: ${scrubLogUserData(storeState.modsPath || 'N/A')}`,
+      `Active Blueprint: ${activeSet?.name || 'None'}`,
+      `Active Mods: ${activeSet?.mods?.length || 0}`,
+      `Pending Network Updates: ${totalUpdates}`,
+      `Captured At: ${new Date().toLocaleString()}`,
+      `Diagnostic Bundle Version: 1.0.0`,
+    ].join('\n');
+
+    let fullLogPayload = `--- TELEMETRY: Sanctuary OS Logs (OS) ---\n${osTelemetryLines}\n`;
+
+    if (activeSet) {
+      const bpPayload = scrubLogUserData(
+        JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2)
+      );
+      fullLogPayload += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
+    }
+
+    const logEntries = storeState.statusLog || [];
     const formattedLogs = logEntries
       .map(
         (l: any) =>
-          `[${new Date(l.timestamp).toISOString()}] [${String(l.type || 'info').toUpperCase()}] ${l.message}`
+          `[${new Date(l.timestamp).toISOString()}] [${String(l.type || 'info').toUpperCase()}] ${scrubLogUserData(l.message)}`
       )
       .join('\n');
 
-    const fullLogPayload = scrubLogUserData(
-      `${sysHeader}\n\n--- RUNTIME TELEMETRY LOGS (${logEntries.length} entries) ---\n${
-        formattedLogs || 'No runtime errors recorded in current session.'
-      }`
-    );
+    fullLogPayload += `\n--- TELEMETRY: System Log History ---\n${
+      formattedLogs || 'No system logs available.'
+    }\n`;
 
-    setFeedbackDiagnostics(sysHeader.split('\n')[0]);
-    setFeedbackAutoLogs(fullLogPayload);
+    setFeedbackDiagnostics(
+      `Sanctuary OS v${verLabel} (${detectedChannel}) • ${detectedPlatform}`
+    );
+    setFeedbackAutoLogs(scrubLogUserData(fullLogPayload));
   }, [
     isStandalone,
     keepersConfig.dev_build_version,
@@ -333,8 +371,8 @@ export default function WebLandingPage() {
         const scrubbed = scrubLogUserData(content);
         setFeedbackAutoLogs((prev) =>
           prev
-            ? `${prev}\n\n--- ATTACHED LOG FILE (${file.name}) ---\n${scrubbed}`
-            : scrubbed
+            ? `${prev}\n\n--- TELEMETRY: Manual Attachment (${file.name}) ---\n${scrubbed}`
+            : `--- TELEMETRY: Manual Attachment (${file.name}) ---\n${scrubbed}`
         );
         pushToast(
           t('support_log_loaded', 'Loaded and scrubbed log file:') +
@@ -457,10 +495,10 @@ export default function WebLandingPage() {
 
       const combinedLogs =
         feedbackStream === 'Core Bug Report'
-          ? [feedbackDiagnostics.trim(), feedbackAutoLogs.trim()]
-              .filter(Boolean)
-              .join('\n\n')
-          : feedbackDiagnostics.trim();
+          ? feedbackAutoLogs.trim() || feedbackDiagnostics.trim()
+          : feedbackDiagnostics.trim()
+            ? `--- TELEMETRY: Sanctuary OS Logs (OS) ---\nPlatform Summary: ${feedbackDiagnostics.trim()}\nPlatform Stream: ${feedbackPlatform} (${feedbackStream})\nCaptured At: ${new Date().toLocaleString()}`
+            : '';
 
       const { error } = await supabaseAuth.from('keeper_tickets').insert({
         author_id: uid,

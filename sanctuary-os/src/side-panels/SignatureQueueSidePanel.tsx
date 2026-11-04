@@ -221,7 +221,11 @@ export function SignatureQueueSidePanel({
           : [];
 
         // Auto-shred accidental legacy full-Vault dump (> 500 items targeting an existing Desktop Blueprint)
-        if (rawItems.length > 500 && candidateDecrypted.targetDesktopBlueprint) {
+        if (
+          rawItems.length > 500 &&
+          candidateDecrypted.targetDesktopBlueprint &&
+          !candidateDecrypted.isFullRigBlueprint
+        ) {
           shredCloudStagingRow(candidateRow.id, session).catch(() => {});
           continue;
         }
@@ -261,37 +265,47 @@ export function SignatureQueueSidePanel({
           continue;
         }
 
-        // Resolve child dependencies in volatile memory
-        const { mergedItems } = await resolvePayloadDependencies(decrypted.items || []);
+        // Resolve child dependencies in volatile memory (skip for full Rig-to-Rig Blueprints which already carry exact compiled load order)
+        const { mergedItems } = decrypted.isFullRigBlueprint
+          ? { mergedItems: decrypted.items || [] }
+          : await resolvePayloadDependencies(decrypted.items || []);
 
         // Enrich missing metadata (url, author, paid, early_access) from Spoke DB in RAM
         const enrichedItems = [...mergedItems];
-        const hashesToFetch = enrichedItems
-          .filter((m) => m.hash && (!m.url || typeof m.is_paid === "undefined"))
-          .map((m) => m.hash as string);
+        const hashesToFetch = Array.from(
+          new Set(
+            enrichedItems
+              .filter((m) => m.hash && (!m.url || typeof m.is_paid === "undefined"))
+              .map((m) => m.hash as string)
+          )
+        );
 
         if (hashesToFetch.length > 0) {
-          const { data: vData } = await supabase
-            .from("mod_versions")
-            .select("dna_hash, mods(id, is_paid, is_early_access, url, master_author)")
-            .in("dna_hash", hashesToFetch.slice(0, 60));
+          const chunkSize = 150;
+          for (let i = 0; i < hashesToFetch.length; i += chunkSize) {
+            const chunk = hashesToFetch.slice(i, i + chunkSize);
+            const { data: vData } = await supabase
+              .from("mod_versions")
+              .select("dna_hash, mods(id, is_paid, is_early_access, url, master_author)")
+              .in("dna_hash", chunk);
 
-          if (Array.isArray(vData)) {
-            vData.forEach((dbRow: any) => {
-              const modRef = Array.isArray(dbRow.mods) ? dbRow.mods[0] : dbRow.mods;
-              if (!modRef) return;
-              enrichedItems.forEach((item, idx) => {
-                if (item.hash === dbRow.dna_hash) {
-                  enrichedItems[idx] = {
-                    ...item,
-                    is_paid: item.is_paid ?? modRef.is_paid,
-                    is_early_access: item.is_early_access ?? modRef.is_early_access,
-                    url: item.url || modRef.url || "",
-                    author: item.author || modRef.master_author || "",
-                  };
-                }
+            if (Array.isArray(vData)) {
+              vData.forEach((dbRow: any) => {
+                const modRef = Array.isArray(dbRow.mods) ? dbRow.mods[0] : dbRow.mods;
+                if (!modRef) return;
+                enrichedItems.forEach((item, idx) => {
+                  if (item.hash === dbRow.dna_hash) {
+                    enrichedItems[idx] = {
+                      ...item,
+                      is_paid: item.is_paid ?? modRef.is_paid,
+                      is_early_access: item.is_early_access ?? modRef.is_early_access,
+                      url: item.url || modRef.url || "",
+                      author: item.author || modRef.master_author || "",
+                    };
+                  }
+                });
               });
-            });
+            }
           }
         }
 
@@ -770,10 +784,37 @@ export function SignatureQueueSidePanel({
         const nameRemap = new Map<string, string>();
         const rawAvailableMods: string[] = [];
         const nextModHashes: Record<string, string> = {};
-        const nextModMeta: Record<string, { url?: string; author?: string }> = {};
+        const nextModMeta: Record<string, any> = {};
+        let localOverrides: Record<string, any> = {};
+        let localOverridesDirty = false;
+        try {
+          localOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+        } catch {}
 
         nonAssetSelected.forEach((item) => {
           const cleanArtifactFile = (item.name || "").split(/[\\/]/).pop() || item.name;
+          const targetHash = item.localHash || item.hash;
+          if (
+            targetHash &&
+            (item.isLocalOverride || item.manifest_url || item.description || item.url)
+          ) {
+            const existingOvr = localOverrides[targetHash];
+            if (!existingOvr?.is_user_dossier) {
+              localOverrides[targetHash] = {
+                ...(existingOvr || {}),
+                displayName: existingOvr?.displayName || item.displayName,
+                author: existingOvr?.author || item.author,
+                version: existingOvr?.version || item.version,
+                url: existingOvr?.url || item.url,
+                manifest_url: existingOvr?.manifest_url || item.manifest_url,
+                description: existingOvr?.description || item.description,
+                category_override: existingOvr?.category_override || item.category_override,
+                compliance_tier: existingOvr?.compliance_tier ?? item.compliance_tier,
+              };
+              localOverridesDirty = true;
+            }
+          }
+
           if (item.isOwned && item.localModName) {
             const resolvedClean = item.localModName.split(/[\\/]/).pop() || item.localModName;
             if (cleanArtifactFile) {
@@ -781,13 +822,37 @@ export function SignatureQueueSidePanel({
             }
             rawAvailableMods.push(item.localModName);
             if (item.localHash) nextModHashes[item.localModName] = item.localHash;
+            if (item.url || item.author || item.manifest_url) {
+              nextModMeta[item.localModName] = {
+                url: item.url,
+                author: item.author,
+                manifest_url: item.manifest_url,
+                displayName: item.displayName,
+                compliance_tier: item.compliance_tier,
+              };
+            }
           } else {
+            if (queue.payload.isFullRigBlueprint && item.name) {
+              rawAvailableMods.push(item.name);
+            }
             if (item.hash) nextModHashes[item.name] = item.hash;
-            if (item.url || item.author) {
-              nextModMeta[item.name] = { url: item.url, author: item.author };
+            if (item.url || item.author || item.manifest_url) {
+              nextModMeta[item.name] = {
+                url: item.url,
+                author: item.author,
+                manifest_url: item.manifest_url,
+                displayName: item.displayName,
+                compliance_tier: item.compliance_tier,
+              };
             }
           }
         });
+
+        if (localOverridesDirty) {
+          try {
+            localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOverrides));
+          } catch {}
+        }
 
         const { loadRules, modTiers, loadOrder, ignoredConflicts, formatModWithTier } = unpackBlueprintLoadOrder(
           {
@@ -795,6 +860,7 @@ export function SignatureQueueSidePanel({
             load_rules: queue.payload.loadRules,
             mod_tiers: queue.payload.modTiers,
             load_order: queue.payload.loadOrder,
+            ignored_conflicts: queue.payload.ignoredConflicts,
           },
           nameRemap,
           activeGameSchema
@@ -906,7 +972,7 @@ export function SignatureQueueSidePanel({
             : existingSetMods;
 
         const mergedTargetMods =
-          existingTargetIdx !== -1
+          existingTargetIdx !== -1 && !queue.payload.isFullRigBlueprint
             ? Array.from(new Set([...filteredExistingMods, ...availableMods]))
             : availableMods;
         const readySet = {

@@ -25,9 +25,7 @@ export function ArtifactIdeDrawer({
   setWbShowTimeline: (val: boolean) => void;
 }) {
   const { t } = useLexicon();
-  const [wordWrap, setWordWrap] = useState<boolean>(() =>
-    typeof window !== "undefined" ? window.innerWidth < 768 : false
-  );
+  const [wordWrap, setWordWrap] = useState<boolean>(true);
 
   if (!cwSelectedFile) return null;
 

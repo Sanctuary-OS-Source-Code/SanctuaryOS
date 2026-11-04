@@ -45,6 +45,14 @@ import { DynamicBlueprintPreviewBanner } from "./chameleon-components/ThemeCard"
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
+import {
+  stageFullBlueprintToRigQueue,
+  shredCloudStagingRow,
+  markStagingRowDeployedLocally,
+  unmarkStagingRowDeployedLocally,
+  clearMobileBlueprintEdit,
+  ResolvedStagedPayload,
+} from "./utils/stagingCrypto";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -78,9 +86,20 @@ export default function Blueprints({
   purgeMissingString,
 }: any) {
   const { t } = useLexicon();
-  const { ownedDLC, maskedDLC, selectedVersion, modList, activeGameSchema, ignoredGlobal } = useStore();
-  const setIsBlueprintSwapOpen = useModalStore((state: any) => state.setIsBlueprintSwapOpen);
+  const { ownedDLC, maskedDLC, selectedVersion, modList, activeGameSchema, ignoredGlobal, session } = useStore();
+  const {
+    setIsBlueprintSwapOpen,
+    volatileSignatureQueue,
+    setVolatileSignatureQueue,
+    volatileSignatureQueues,
+    setVolatileSignatureQueues,
+    activeSignatureQueueIndex,
+    setActiveSignatureQueueIndex,
+    setIsSignatureQueueOpen,
+  } = useModalStore();
   const [activeTab, setActiveTab] = useState("LANDING");
+  const [pipelineSearchQuery, setPipelineSearchQuery] = useState("");
+  const [shreddingRowId, setShreddingRowId] = useState<string | null>(null);
   const [selectedUplinkBlueprint, setSelectedUplinkBlueprint] = useState<any>(null);
   const [pinnedBlueprints, setPinnedBlueprints] = useState<string[]>(() => {
     try {
@@ -301,6 +320,47 @@ export default function Blueprints({
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [cleanConfirm, setCleanConfirm] = useState<string | null>(null);
   const [isArchitectOpen, setIsArchitectOpen] = useState(false);
+  const [stagingRigSetName, setStagingRigSetName] = useState<string | null>(null);
+  const [stagedRigSuccessSetName, setStagedRigSuccessSetName] = useState<string | null>(null);
+
+  const handleStageSetToRigQueue = async (targetSet: any) => {
+    if (!targetSet) return;
+    if (!session?.user?.id) {
+      useStore
+        .getState()
+        .pushStatus(
+          t("alert_guest_mode_uploads", "Guest Mode Active: Uploads are disabled."),
+          "warning"
+        );
+      return;
+    }
+    setStagingRigSetName(targetSet.name);
+    const res = await stageFullBlueprintToRigQueue(
+      targetSet,
+      modList,
+      activeGameSchema,
+      session,
+      selectedVersion
+    );
+    setStagingRigSetName(null);
+    if (res.success) {
+      setStagedRigSuccessSetName(targetSet.name);
+      setTimeout(() => setStagedRigSuccessSetName(null), 3500);
+      useStore
+        .getState()
+        .pushStatus(
+          t(
+            "status_rig_queue_sent",
+            "{Blueprint} encrypted and staged to your Rig Queue! Open Signature Queue on your Steam Deck or other PC to deploy."
+          ),
+          "success"
+        );
+    } else {
+      useStore
+        .getState()
+        .pushStatus(res.error || t("err_save_failed", "Failed to save blueprint"), "error");
+    }
+  };
 
   const handleOpenMatrix = (setName: string) => {
     const targetSet = playSets.find((s: any) => s.name === setName);
@@ -314,6 +374,358 @@ export default function Blueprints({
     (acc: number, comp: any) => acc + (comp.alertStatus?.total || 0) + (comp.hasGhosts ? 1 : 0),
     0
   );
+
+  const cloudQueuesList = useMemo<ResolvedStagedPayload[]>(() => {
+    if (Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 0) {
+      return volatileSignatureQueues as ResolvedStagedPayload[];
+    }
+    if (volatileSignatureQueue) {
+      return [volatileSignatureQueue as ResolvedStagedPayload];
+    }
+    return [];
+  }, [volatileSignatureQueues, volatileSignatureQueue]);
+
+  const pipelineSetNames = useMemo(() => {
+    const s = new Set<string>();
+    cloudQueuesList.forEach((q) => {
+      const bpName = String(
+        q?.payload?.targetDesktopBlueprint || q?.payload?.blueprintName || ""
+      )
+        .trim()
+        .toLowerCase();
+      if (bpName) s.add(bpName);
+    });
+    return s;
+  }, [cloudQueuesList]);
+
+  const handleOpenInSignatureQueue = (cloudTarget: ResolvedStagedPayload, queueIdx: number) => {
+    setActiveSignatureQueueIndex(queueIdx);
+    setVolatileSignatureQueue(cloudTarget);
+    setIsSignatureQueueOpen(true);
+  };
+
+  const handleTogglePipelineCompleteLocally = (cloudTarget: ResolvedStagedPayload) => {
+    if (!cloudTarget?.rowId) return;
+    const nextCompleted = !cloudTarget.isCompletedLocally;
+    if (nextCompleted) {
+      markStagingRowDeployedLocally(cloudTarget.rowId);
+      useStore
+        .getState()
+        .pushStatus(
+          t(
+            "status_sig_queue_marked_complete_local",
+            "Marked complete on this system! Payload remains pending in the cloud for your other systems."
+          ),
+          "success"
+        );
+    } else {
+      unmarkStagingRowDeployedLocally(cloudTarget.rowId);
+    }
+    const updated = cloudQueuesList.map((q) =>
+      q.rowId === cloudTarget.rowId ? { ...q, isCompletedLocally: nextCompleted } : q
+    );
+    setVolatileSignatureQueues(updated);
+    if ((volatileSignatureQueue as any)?.rowId === cloudTarget.rowId) {
+      setVolatileSignatureQueue({ ...cloudTarget, isCompletedLocally: nextCompleted });
+    }
+  };
+
+  const handleShredPipelineRow = async (cloudTarget: ResolvedStagedPayload) => {
+    if (!cloudTarget) return;
+    setShreddingRowId(cloudTarget.rowId || "shredding");
+    try {
+      const targetBp =
+        cloudTarget?.payload?.targetDesktopBlueprint || cloudTarget?.payload?.blueprintName;
+      if (targetBp) {
+        clearMobileBlueprintEdit(targetBp);
+      }
+      await shredCloudStagingRow(cloudTarget?.rowId, session);
+      const remaining = cloudQueuesList.filter((q) => q.rowId !== cloudTarget?.rowId);
+      setVolatileSignatureQueues(remaining);
+      const nextIdx = Math.min(activeSignatureQueueIndex, Math.max(0, remaining.length - 1));
+      setActiveSignatureQueueIndex(nextIdx);
+      setVolatileSignatureQueue(remaining[nextIdx] || null);
+      window.dispatchEvent(new CustomEvent("sanctuary-poll-staging-queue"));
+      useStore
+        .getState()
+        .pushStatus(
+          t("status_staging_shredded", "Cloud staging payload permanently shredded."),
+          "info"
+        );
+    } finally {
+      setShreddingRowId(null);
+    }
+  };
+
+  const renderPipelineCard = (cloudTarget: ResolvedStagedPayload, queueIdx: number) => {
+    if (!cloudTarget?.payload) return null;
+    const cloudItems = cloudTarget.resolvedItems || [];
+    const cloudRemoved = cloudTarget.payload?.removedItems || [];
+    const isFullRig = Boolean(cloudTarget.payload?.isFullRigBlueprint);
+    const ownedCount = cloudItems.filter((i: any) => i.isOwned).length;
+    const bpTitle =
+      cloudTarget.payload.blueprintName || t("term_blueprint", "{Blueprint}");
+    const matchingLocalSet = (playSets || []).find(
+      (s: any) => String(s?.name || "").toLowerCase() === bpTitle.toLowerCase()
+    );
+    const sourceDevice = cloudTarget.payload.sourceDevice || "Sanctuary Rig";
+
+    return (
+      <UniversalCard
+        key={cloudTarget.rowId || cloudTarget.payload.blueprintCode || queueIdx}
+        layout="vertical"
+        isActive={!cloudTarget.isCompletedLocally}
+        icon={t("icon_phonelink_ring", "phonelink_ring")}
+        customIcon={
+          <DynamicBlueprintPreviewBanner
+            data={{
+              name: bpTitle,
+              json_data: {
+                artifacts: cloudItems,
+              },
+            }}
+            heightClass="h-full"
+          />
+        }
+        title={bpTitle}
+        subtitle={`${sourceDevice} • ${
+          cloudTarget.isCompletedLocally
+            ? t(
+                "sig_queue_badge_completed_local",
+                "Completed Here • Pending on Other Systems"
+              )
+            : t("staging_active_cloud_title", "Awaiting Desktop Signature")
+        }`}
+        onClick={() => handleOpenInSignatureQueue(cloudTarget, queueIdx)}
+        onContextMenu={(e) => {
+          const items: SanctuaryContextMenuItem[] = [
+            {
+              id: "open_sig_queue",
+              label: t("pipeline_btn_open_sig_queue", "Inspect & Deploy"),
+              icon: t("icon_draw", "draw"),
+              variant: "accent",
+              onClick: () => handleOpenInSignatureQueue(cloudTarget, queueIdx),
+            },
+            {
+              id: "inspect_mods",
+              label: t("blueprint_inspector", "Blueprint Mods"),
+              icon: t("icon_extension", "extension"),
+              badge: String(cloudItems.length),
+              onClick: () =>
+                setSelectedUplinkBlueprint({
+                  name: bpTitle,
+                  code: cloudTarget.payload.blueprintCode || "RIG PIPELINE",
+                  artifacts: cloudItems,
+                }),
+            },
+            {
+              id: "toggle_complete_local",
+              label: cloudTarget.isCompletedLocally
+                ? t("sig_queue_btn_mark_pending_local", "Mark Pending on This System")
+                : t("sig_queue_btn_mark_complete_local", "Mark Complete on This System"),
+              icon: cloudTarget.isCompletedLocally
+                ? t("icon_schedule", "schedule")
+                : t("icon_task_alt", "task_alt"),
+              variant: "success",
+              dividerBefore: true,
+              onClick: () => handleTogglePipelineCompleteLocally(cloudTarget),
+            },
+          ];
+          if (matchingLocalSet) {
+            items.push({
+              id: "rebeam_local",
+              label: t("pipeline_btn_update_beam", "Update in Pipeline"),
+              icon: t("icon_devices", "devices"),
+              variant: "accent",
+              onClick: () => handleStageSetToRigQueue(matchingLocalSet),
+            });
+          }
+          items.push({
+            id: "shred_pipeline",
+            label: t("staging_btn_shred_short", "Clear"),
+            icon: t("icon_delete_forever", "delete_forever"),
+            variant: "danger",
+            dividerBefore: true,
+            onClick: () => handleShredPipelineRow(cloudTarget),
+          });
+          openSanctuaryContextMenu(e, {
+            title: bpTitle,
+            subtitle: `${cloudItems.length} ${t("artifacts_linked", "{Mods} Linked")} • ${sourceDevice}`,
+            statusLabel: cloudTarget.isCompletedLocally
+              ? t("sig_queue_badge_completed_short", "Completed Here")
+              : t("staging_badge_aes", "AES-256-GCM"),
+            statusColorClass: cloudTarget.isCompletedLocally
+              ? "text-[var(--success)]"
+              : "text-[var(--accent)]",
+            icon: t("icon_phonelink_ring", "phonelink_ring"),
+            iconColorClass: "text-[var(--accent)]",
+            items,
+          });
+        }}
+        imageOverlay={
+          <div className="absolute top-3 left-3 flex flex-nowrap items-center gap-1.5 max-w-[85%] z-30 pointer-events-none whitespace-nowrap">
+            <div className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                {cloudTarget.isCompletedLocally
+                  ? t("icon_check_circle", "check_circle")
+                  : t("icon_encrypted", "encrypted")}
+              </span>
+              <span>
+                {cloudTarget.isCompletedLocally
+                  ? t("sig_queue_badge_completed_short", "Completed Here")
+                  : t("staging_badge_aes", "AES-256-GCM")}
+              </span>
+            </div>
+          </div>
+        }
+        badges={
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedUplinkBlueprint({
+                  name: bpTitle,
+                  code: cloudTarget.payload.blueprintCode || "RIG PIPELINE",
+                  artifacts: cloudItems,
+                });
+              }}
+              className={`${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:text-[var(--accent)] transition-colors cursor-pointer`}
+            >
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {t("icon_extension", "extension")}
+              </span>
+              <span>
+                {cloudItems.length} {t("artifacts_linked", "{Mods} Linked")}
+              </span>
+            </button>
+            <div className={VAULT_CHIP_CLASS}>
+              <span
+                className={`material-symbols-outlined !text-[12px] ${
+                  ownedCount === cloudItems.length && cloudItems.length > 0
+                    ? "text-[var(--success)]"
+                    : "text-[var(--warning)]"
+                }`}
+              >
+                {ownedCount === cloudItems.length && cloudItems.length > 0
+                  ? t("icon_verified", "verified")
+                  : t("icon_cloud_download", "cloud_download")}
+              </span>
+              <span>
+                {ownedCount}/{cloudItems.length} {t("status_in_vault", "In {Vault}")}
+              </span>
+            </div>
+            {isFullRig && (
+              <div className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]`}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_devices", "devices")}
+                </span>
+                <span>{t("pipeline_badge_full_rig", "Full Rig {Blueprint}")}</span>
+              </div>
+            )}
+            {cloudRemoved.length > 0 && (
+              <div
+                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[var(--danger)]`}
+              >
+                <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                  {t("icon_remove_circle_outline", "remove_circle_outline")}
+                </span>
+                <span>
+                  -{cloudRemoved.length} {t("staging_badge_removing", "Queued to {Remove}")}
+                </span>
+              </div>
+            )}
+          </>
+        }
+        footer={
+          <div className="flex flex-col gap-2.5 w-full">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenInSignatureQueue(cloudTarget, queueIdx);
+              }}
+              className="w-full h-9 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 relative border bg-transparent glass-surface border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] cursor-pointer"
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_draw", "draw")}
+              </span>
+              <span className="truncate">
+                {t("pipeline_btn_open_sig_queue", "Inspect & Deploy")}
+              </span>
+            </button>
+
+            <div className={`grid ${matchingLocalSet ? "grid-cols-3" : "grid-cols-2"} gap-2`}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTogglePipelineCompleteLocally(cloudTarget);
+                }}
+                className={`h-8 glass-surface border rounded-lg transition-all flex items-center justify-center relative cursor-pointer ${
+                  cloudTarget.isCompletedLocally
+                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                    : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:text-[var(--success)]"
+                }`}
+              >
+                <span className="material-symbols-outlined !text-[16px]">
+                  {cloudTarget.isCompletedLocally
+                    ? t("icon_check_circle", "check_circle")
+                    : t("icon_task_alt", "task_alt")}
+                </span>
+                <HoverTooltip
+                  title={
+                    cloudTarget.isCompletedLocally
+                      ? t("sig_queue_btn_mark_pending_local", "Mark Pending on This System")
+                      : t("sig_queue_btn_mark_complete_local", "Mark Complete on This System")
+                  }
+                />
+              </button>
+
+              {matchingLocalSet && (
+                <button
+                  type="button"
+                  disabled={stagingRigSetName === matchingLocalSet.name}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStageSetToRigQueue(matchingLocalSet);
+                  }}
+                  className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[16px]">
+                    {stagingRigSetName === matchingLocalSet.name
+                      ? t("icon_sync", "sync")
+                      : t("icon_devices", "devices")}
+                  </span>
+                  <HoverTooltip
+                    title={t("pipeline_btn_update_beam", "Update in Pipeline")}
+                  />
+                </button>
+              )}
+
+              <button
+                type="button"
+                disabled={shreddingRowId === cloudTarget.rowId}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleShredPipelineRow(cloudTarget);
+                }}
+                className="h-8 glass-surface border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[var(--danger)] hover:border-[var(--danger)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
+              >
+                <span className="material-symbols-outlined !text-[16px]">
+                  {t("icon_delete_forever", "delete_forever")}
+                </span>
+                <HoverTooltip
+                  title={t("staging_btn_shred_short", "Clear")}
+                  variant="danger"
+                />
+              </button>
+            </div>
+          </div>
+        }
+      />
+    );
+  };
 
   const renderVaultCard = (set: any) => {
     const { alertStatus, hasGhosts } = setComputations[set.name] || {
@@ -481,10 +893,17 @@ export default function Blueprints({
               },
             },
             {
+              id: "send_rig_queue",
+              label: t("action_send_rig_queue", "Send to Rig Queue"),
+              icon: t("icon_devices", "devices"),
+              variant: "accent",
+              dividerBefore: true,
+              onClick: () => handleStageSetToRigQueue(set),
+            },
+            {
               id: "uplink",
               label: t("action_uplink", "Uplink"),
               icon: t("icon_cloud", "cloud"),
-              dividerBefore: true,
               onClick: () => handleOpenMatrix(set.name),
             },
             {
@@ -545,7 +964,7 @@ export default function Blueprints({
           });
         }}
         imageOverlay={
-          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+          <div className="absolute top-3 left-3 flex flex-nowrap items-center gap-1.5 max-w-[75%] z-30 pointer-events-none whitespace-nowrap">
             <div className={VAULT_CHIP_CLASS}>
               <span
                 className={`material-symbols-outlined !text-[12px] ${
@@ -558,6 +977,14 @@ export default function Blueprints({
                 {isDeployed ? t("status_active", "Active") : t("status_standby", "Standby")}
               </span>
             </div>
+            {pipelineSetNames.has(String(set.name || "").toLowerCase()) && (
+              <div className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]`}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_phonelink_ring", "phonelink_ring")}
+                </span>
+                <span>{t("pipeline_badge_in_pipeline", "In Pipeline")}</span>
+              </div>
+            )}
           </div>
         }
         actions={
@@ -727,7 +1154,35 @@ export default function Blueprints({
               </button>
             </div>
 
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-2">
+              <button
+                type="button"
+                disabled={stagingRigSetName === set.name}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStageSetToRigQueue(set);
+                }}
+                className={`h-8 glass-surface border rounded-lg transition-all flex items-center justify-center relative ${
+                  stagedRigSuccessSetName === set.name
+                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                    : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                }`}
+              >
+                <span className="material-symbols-outlined !text-[16px]">
+                  {stagingRigSetName === set.name
+                    ? t("icon_sync", "sync")
+                    : stagedRigSuccessSetName === set.name
+                      ? t("icon_check_circle", "check_circle")
+                      : t("icon_devices", "devices")}
+                </span>
+                <HoverTooltip
+                  title={
+                    stagedRigSuccessSetName === set.name
+                      ? t("status_rig_queue_sent", "{Blueprint} Staged to Rig Queue!")
+                      : t("action_send_rig_queue", "Send to Rig Queue")
+                  }
+                />
+              </button>
               <button
                 type="button"
                 onClick={(e) => {
@@ -844,9 +1299,11 @@ export default function Blueprints({
         iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
         shape="circle"
         breadcrumb={
-          activeTab !== "LANDING"
-            ? t(`tab_${activeTab.toLowerCase()}`, activeTab) || activeTab
-            : undefined
+          activeTab === "PIPELINE"
+            ? t("tab_personal_pipeline", "Personal Rig Pipeline")
+            : activeTab !== "LANDING"
+              ? t(`tab_${activeTab.toLowerCase()}`, activeTab) || activeTab
+              : undefined
         }
         onTitleClick={() => setActiveTab("LANDING")}
       >
@@ -867,6 +1324,50 @@ export default function Blueprints({
                   label: t("draft_new", "Draft New {Blueprint}"),
                   onClick: () => setIsDraftingSet && setIsDraftingSet(true),
                 },
+              ]}
+            />
+          </div>
+        )}
+        {activeTab === "PIPELINE" && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+            <ActionPill
+              searchQuery={pipelineSearchQuery}
+              setSearchQuery={setPipelineSearchQuery}
+              searchPlaceholder={t("nav_search", "Search...") as string}
+              actions={[
+                {
+                  id: "beam_active_bp",
+                  icon: (
+                    <span className="material-symbols-outlined !text-[20px]">
+                      {stagingRigSetName
+                        ? t("icon_sync", "sync")
+                        : t("icon_devices", "devices")}
+                    </span>
+                  ),
+                  label: t("action_send_rig_queue", "Send to Rig Queue"),
+                  onClick: () => {
+                    const activeSet =
+                      playSets?.find((s: any) => s.name === activeSetName) ||
+                      playSets?.[activePlaySetIndex];
+                    if (activeSet) {
+                      handleStageSetToRigQueue(activeSet);
+                    }
+                  },
+                },
+                ...(cloudQueuesList.length > 0
+                  ? [
+                      {
+                        id: "open_sig_queue_panel",
+                        icon: (
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {t("icon_draw", "draw")}
+                          </span>
+                        ),
+                        label: t("sig_queue_title", "Signature Queue"),
+                        onClick: () => setIsSignatureQueueOpen(true),
+                      },
+                    ]
+                  : []),
               ]}
             />
           </div>
@@ -927,6 +1428,14 @@ export default function Blueprints({
             setTab={setActiveTab}
           />
           <VerticalTabButton
+            id="PIPELINE"
+            icon={t("icon_phonelink_ring", "phonelink_ring")}
+            label={t("tab_personal_pipeline", "Personal Rig Pipeline")}
+            activeTab={activeTab}
+            setTab={setActiveTab}
+            iconColorClass="text-cyan-400"
+          />
+          <VerticalTabButton
             id="NETWORK"
             icon={t("icon_cloud", "cloud")}
             label={t("btn_my_cloud_blueprints", "My Cloud {Blueprints}")}
@@ -957,6 +1466,15 @@ export default function Blueprints({
           />
           <DashboardStatTile
             variant="tab"
+            icon={t("icon_phonelink_ring", "phonelink_ring")}
+            label={t("tab_personal_pipeline", "Personal Rig Pipeline")}
+            colorClass="text-cyan-400"
+            number={cloudQueuesList.length}
+            onClick={() => setActiveTab("PIPELINE")}
+            isActive={activeTab === "PIPELINE"}
+          />
+          <DashboardStatTile
+            variant="tab"
             icon={t("icon_cloud", "cloud")}
             label={t("btn_my_cloud_blueprints", "My Cloud {Blueprints}")}
             colorClass="text-sky-500"
@@ -972,24 +1490,40 @@ export default function Blueprints({
           <CommandScreenLayout>
             <CommandScreenBody>
               <CommandScreenMain>
-                <div className="flex flex-col gap-4 w-full">
-                  <CommandScreenSectionHeading
-                    title={t("pinned_blueprints", "Pinned {Blueprints}")}
-                    icon={t("icon_keep", "keep")}
-                  />
-
-                  {pinnedBlueprints.length > 0 ? (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
-                      {playSets
-                        .filter((s: any) => pinnedBlueprints.includes(s.name))
-                        .map((set: any) => renderVaultCard(set))}
-                    </div>
-                  ) : (
-                    <EmptyState
-                      icon={t("icon_push_pin", "push_pin")}
-                      title={t("no_pinned_blueprints", "No Pinned {Blueprints}")}
-                      minHeightClass="min-h-[160px]"
+                <div className="flex flex-col gap-6 w-full">
+                  <div className="flex flex-col gap-4 w-full">
+                    <CommandScreenSectionHeading
+                      title={t("pinned_blueprints", "Pinned {Blueprints}")}
+                      icon={t("icon_keep", "keep")}
                     />
+
+                    {pinnedBlueprints.length > 0 ? (
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+                        {playSets
+                          .filter((s: any) => pinnedBlueprints.includes(s.name))
+                          .map((set: any) => renderVaultCard(set))}
+                      </div>
+                    ) : (
+                      <EmptyState
+                        icon={t("icon_push_pin", "push_pin")}
+                        title={t("no_pinned_blueprints", "No Pinned {Blueprints}")}
+                        minHeightClass="min-h-[160px]"
+                      />
+                    )}
+                  </div>
+
+                  {cloudQueuesList.length > 0 && (
+                    <div className="flex flex-col gap-4 w-full">
+                      <CommandScreenSectionHeading
+                        title={t("tab_personal_pipeline", "Personal Rig Pipeline")}
+                        icon={t("icon_phonelink_ring", "phonelink_ring")}
+                      />
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+                        {cloudQueuesList.map((qItem, qIdx) =>
+                          renderPipelineCard(qItem, qIdx)
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               </CommandScreenMain>
@@ -1138,6 +1672,26 @@ export default function Blueprints({
                   />
                 )}
                 <CommandScreenQuickLink
+                  icon={
+                    stagingRigSetName
+                      ? t("icon_sync", "sync")
+                      : stagedRigSuccessSetName
+                        ? t("icon_check_circle", "check_circle")
+                        : t("icon_phonelink_ring", "phonelink_ring")
+                  }
+                  title={t("action_send_rig_queue", "Send to Rig Queue")}
+                  subtitle={t(
+                    "action_send_rig_queue_desc",
+                    "Encrypted transfer to Steam Deck or PC (includes Tier 1–4 & Unknown {mods})"
+                  )}
+                  onClick={() => setActiveTab("PIPELINE")}
+                  dotColorClass="bg-cyan-500 shadow-md"
+                  textColorClass="text-cyan-500"
+                  hoverTextColorClass="group-hover:text-cyan-400"
+                  iconShadowClass="drop-shadow-md"
+                  iconBorderHoverClass="group-hover:border-cyan-500/30"
+                />
+                <CommandScreenQuickLink
                   icon={t("icon_camera", "camera")}
                   title={t("btn_snapshot", "Snapshot Active {Blueprint}")}
                   subtitle={t("snapshot_desc", "Clone active {blueprint}")}
@@ -1232,6 +1786,83 @@ export default function Blueprints({
               )
               .map((set: any) => renderVaultCard(set))}
           </div>
+        </div>
+      )}
+
+      {activeTab === "PIPELINE" && (
+        <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full pb-32">
+          <div className="flex flex-col gap-4 w-full">
+            <CommandScreenSectionHeading
+              title={`${t("pipeline_section_active_queue", "Active Encrypted Pipeline Queue")} (${cloudQueuesList.length})`}
+              icon={t("icon_phonelink_ring", "phonelink_ring")}
+            />
+            {cloudQueuesList.length === 0 ? (
+              <EmptyState
+                icon={t("icon_phonelink_ring", "phonelink_ring")}
+                title={t("staging_empty_cloud_title", "No Active Payload Waiting for PC")}
+                subtitle={t(
+                  "matrix_rig_transfer_desc",
+                  "Bypass public Tier 0 restrictions using Zero-PII AES-256-GCM encryption. Sends all {mods} in this {Blueprint} (including Tier 1–4, Unknown/Local {mods}, and Load Order rules) directly to your personal Signature Queue on your Steam Deck or other rigs."
+                )}
+                action={
+                  (playSets || []).length > 0 ? (
+                    <ActionButton
+                      variant="primary"
+                      icon={t("icon_devices", "devices")}
+                      label={t("action_send_rig_queue", "Send to Rig Queue")}
+                      onClick={() => {
+                        const activeSet =
+                          playSets?.find((s: any) => s.name === activeSetName) ||
+                          playSets?.[activePlaySetIndex] ||
+                          playSets?.[0];
+                        if (activeSet) {
+                          handleStageSetToRigQueue(activeSet);
+                        }
+                      }}
+                    />
+                  ) : undefined
+                }
+              />
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pt-1">
+                {cloudQueuesList
+                  .map((qItem, qIdx) => ({ qItem, qIdx }))
+                  .filter(({ qItem }) => {
+                    if (!pipelineSearchQuery.trim()) return true;
+                    const q = pipelineSearchQuery.toLowerCase();
+                    return (
+                      String(qItem?.payload?.blueprintName || "")
+                        .toLowerCase()
+                        .includes(q) ||
+                      String(qItem?.payload?.sourceDevice || "")
+                        .toLowerCase()
+                        .includes(q)
+                    );
+                  })
+                  .map(({ qItem, qIdx }) => renderPipelineCard(qItem, qIdx))}
+              </div>
+            )}
+          </div>
+
+          {(playSets || []).length > 0 && (
+            <div className="flex flex-col gap-4 w-full">
+              <CommandScreenSectionHeading
+                title={`${t("pipeline_section_beam_local", "Beam Local {Blueprints} to Pipeline")} (${playSets.length})`}
+                icon={t("icon_devices", "devices")}
+              />
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pt-1">
+                {(playSets || [])
+                  .filter(
+                    (s: any) =>
+                      !pipelineSearchQuery.trim() ||
+                      String(s?.name || "")
+                        .toLowerCase()
+                        .includes(pipelineSearchQuery.toLowerCase())
+                  )
+                  .map((set: any) => renderVaultCard(set))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { invoke } from "@tauri-apps/api/core";
-import { isDesktop } from "./envUtils";
-import { supabaseAuth, RESOLVED_SANCTUARY_CONFIG } from "../supabase";
+import { isDesktop, isLinuxDesktop } from "./envUtils";
+import { supabase, supabaseAuth, RESOLVED_SANCTUARY_CONFIG } from "../supabase";
 
 export interface MfaSecurityState {
   passkeys: any[];
@@ -152,6 +152,38 @@ export function isWebAuthnSupported(): boolean {
     typeof navigator.credentials?.create === "function" &&
     typeof navigator.credentials?.get === "function"
   );
+}
+
+/**
+ * Returns true if the current client has a direct local WebAuthn bridge (Browser WebAuthn on Web/PWA,
+ * or Windows Hello `webauthn.dll` on Windows Desktop). Returns false on SteamOS/Linux Desktop and macOS Desktop,
+ * where Companion Passkey Handshake is used as the primary hardware/biometric Passkey verification flow.
+ */
+export function isNativeLocalPasskeySupported(): boolean {
+  if (!isDesktop()) {
+    return isWebAuthnSupported();
+  }
+  if (isLinuxDesktop()) return false;
+  if (typeof navigator !== "undefined") {
+    const ua = navigator.userAgent || "";
+    const plat = (navigator as any).platform || "";
+    if (/Mac|iPod|iPhone|iPad/i.test(plat) || /Macintosh|Mac OS X/i.test(ua)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function getPasskeyDeviceLabel(): string {
+  if (isLinuxDesktop()) return "SteamOS / Steam Deck Rig";
+  if (isDesktop()) {
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+    if (/Macintosh|Mac OS X/i.test(ua)) return "macOS Desktop Rig";
+    return "Windows Desktop Rig";
+  }
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
+  if (/iPhone|iPad|iPod|Android/i.test(ua)) return "Mobile Companion PWA";
+  return "Web Browser Companion";
 }
 
 /**
@@ -960,7 +992,10 @@ export async function registerFidoPasskey(
  * Authenticates using a FIDO2 / WebAuthn Passkey via Supabase's `/auth/v1/passkeys` REST API.
  * Works natively on both Web (`https://sanctuaryos.net`) and Desktop (`Sanctuary OS` via Windows `webauthn.dll`).
  */
-export async function authenticateFidoPasskey(_factorId?: string): Promise<{
+export async function authenticateFidoPasskey(
+  _factorId?: string,
+  options?: { forceFreshCeremony?: boolean }
+): Promise<{
   data: any | null;
   error: Error | null;
 }> {
@@ -972,7 +1007,7 @@ export async function authenticateFidoPasskey(_factorId?: string): Promise<{
   }
 
   try {
-    if (isLocalhostBrowser()) {
+    if (isLocalhostBrowser() && !options?.forceFreshCeremony) {
       const { data: preSessionData } = await supabaseAuth.auth.getSession();
       const preSession = preSessionData?.session;
       if (preSession?.user?.id) {
@@ -1193,6 +1228,491 @@ export async function deleteSecurityFactor(factor: {
     return { error: null };
   } catch (err: any) {
     return {
+      error: err instanceof Error ? err : new Error(err?.message || String(err)),
+    };
+  }
+}
+
+// ============================================================================
+// ZERO-PII AES-256-GCM COMPANION PASSKEY HANDSHAKE (STEAM DECK / MACOS / RIGS)
+// ============================================================================
+
+export interface CompanionPasskeyHandshakePayload {
+  handshakeId: string;
+  handshakeCode: string;
+  challengeNonce: string;
+  requestingDevice: string;
+  targetScope: string;
+  status: "pending" | "approved";
+  createdAt: number;
+  expiresAt: number;
+  approvedAt?: number;
+  approverDevice?: string;
+  approvalSignature?: string;
+}
+
+export interface ResolvedCompanionPasskeyHandshake {
+  rowId: string;
+  payload: CompanionPasskeyHandshakePayload;
+}
+
+function bytesToBase64UrlSafe(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function base64ToBytesSafe(b64: string): Uint8Array {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const encoded = new TextEncoder().encode(input);
+  const digest = await window.crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export async function derivePasskeyHandshakeToken(
+  userId: string,
+  email?: string
+): Promise<string> {
+  return sha256Hex(
+    `sanctuary_citizen_passkey_handshake_v1:${userId}:${(email || "").trim().toLowerCase()}`
+  );
+}
+
+async function deriveHandshakeAesKey(
+  userId: string,
+  email: string | undefined,
+  salt: Uint8Array
+): Promise<CryptoKey> {
+  const passphrase = `${userId}::${(email || "").trim().toLowerCase()}::sanctuary_passkey_handshake_key_v1`;
+  const keyMaterial = await window.crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(passphrase),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+  return window.crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: salt as unknown as BufferSource,
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function encryptHandshakePayload(
+  payload: CompanionPasskeyHandshakePayload,
+  userId: string,
+  email?: string
+): Promise<{ encrypted_payload: string; iv: string; salt: string }> {
+  const salt = window.crypto.getRandomValues(new Uint8Array(16));
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveHandshakeAesKey(userId, email, salt);
+  const plaintext = new TextEncoder().encode(JSON.stringify(payload));
+  const ciphertext = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv as unknown as BufferSource },
+    key,
+    plaintext
+  );
+  return {
+    encrypted_payload: bytesToBase64UrlSafe(new Uint8Array(ciphertext)),
+    iv: bytesToBase64UrlSafe(iv),
+    salt: bytesToBase64UrlSafe(salt),
+  };
+}
+
+async function decryptHandshakePayload(
+  encrypted_payload: string,
+  ivB64: string,
+  saltB64: string,
+  userId: string,
+  email?: string
+): Promise<CompanionPasskeyHandshakePayload | null> {
+  try {
+    const salt = base64ToBytesSafe(saltB64);
+    const iv = base64ToBytesSafe(ivB64);
+    const ciphertext = base64ToBytesSafe(encrypted_payload);
+    const key = await deriveHandshakeAesKey(userId, email, salt);
+    const decryptedBuffer = await window.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: iv as unknown as BufferSource },
+      key,
+      ciphertext as unknown as BufferSource
+    );
+    const jsonStr = new TextDecoder().decode(decryptedBuffer);
+    return JSON.parse(jsonStr) as CompanionPasskeyHandshakePayload;
+  } catch {
+    return null;
+  }
+}
+
+async function computeHandshakeApprovalSignature(
+  challengeNonce: string,
+  handshakeId: string,
+  handshakeCode: string,
+  userId: string
+): Promise<string> {
+  return sha256Hex(
+    `${challengeNonce}:${handshakeId}:${handshakeCode}:${userId}:APPROVED_BY_LIVE_PASSKEY_V1`
+  );
+}
+
+/**
+ * Initiates a 3-minute Zero-PII AES-256-GCM Companion Passkey Handshake request on a device
+ * (such as Steam Deck, Linux, or macOS) that requires another device (Mobile PWA / Web / Windows PC)
+ * to perform a live FIDO2 Passkey ceremony right then and there to unlock Elevated Hubs.
+ */
+export async function startCompanionPasskeyHandshake(
+  targetScope = "Elevated Hub Access"
+): Promise<{
+  data: ResolvedCompanionPasskeyHandshake | null;
+  error: Error | null;
+}> {
+  try {
+    const { data: sessionData } = await supabaseAuth.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (!user?.id) {
+      return {
+        data: null,
+        error: new Error("You must be signed in to start a Companion Passkey Handshake."),
+      };
+    }
+
+    const userToken = await derivePasskeyHandshakeToken(user.id, user.email);
+    const randDigits = new Uint32Array(2);
+    window.crypto.getRandomValues(randDigits);
+    const partA = String(100 + (randDigits[0] % 900));
+    const partB = String(100 + (randDigits[1] % 900));
+    const handshakeCode = `${partA}-${partB}`;
+
+    const nonceBytes = new Uint8Array(32);
+    window.crypto.getRandomValues(nonceBytes);
+    const challengeNonce = Array.from(nonceBytes)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    const handshakeId =
+      typeof window.crypto.randomUUID === "function"
+        ? window.crypto.randomUUID()
+        : `hs_${Date.now()}_${partA}${partB}`;
+
+    const now = Date.now();
+    const expiresAt = now + 3 * 60 * 1000; // Strict 3-minute live window
+
+    const payload: CompanionPasskeyHandshakePayload = {
+      handshakeId,
+      handshakeCode,
+      challengeNonce,
+      requestingDevice: getPasskeyDeviceLabel(),
+      targetScope,
+      status: "pending",
+      createdAt: now,
+      expiresAt,
+    };
+
+    const { encrypted_payload, iv, salt } = await encryptHandshakePayload(
+      payload,
+      user.id,
+      user.email
+    );
+
+    await supabase.from("citizen_staging_queue").delete().eq("user_token", userToken);
+
+    const { data, error } = await supabase
+      .from("citizen_staging_queue")
+      .insert([
+        {
+          user_token: userToken,
+          payload_type: "passkey_handshake",
+          encrypted_payload,
+          iv,
+          salt,
+          item_count: 0,
+          expires_at: new Date(expiresAt).toISOString(),
+        },
+      ])
+      .select("id")
+      .single();
+
+    if (error) {
+      return { data: null, error: new Error(error.message) };
+    }
+
+    return {
+      data: {
+        rowId: data?.id || "",
+        payload,
+      },
+      error: null,
+    };
+  } catch (err: any) {
+    return {
+      data: null,
+      error: err instanceof Error ? err : new Error(err?.message || String(err)),
+    };
+  }
+}
+
+/**
+ * Polls the status of an active Companion Passkey Handshake on the requesting rig.
+ * When approved by a live Passkey ceremony on the companion device, verifies the cryptographic
+ * signature, shreds the handshake row, and activates the local Passkey session seal.
+ */
+export async function pollCompanionPasskeyHandshake(
+  handshakeId: string,
+  expectedNonce: string
+): Promise<{
+  status: "pending" | "approved" | "expired";
+  approverDevice?: string;
+}> {
+  try {
+    const { data: sessionData } = await supabaseAuth.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (!user?.id) return { status: "expired" };
+
+    const userToken = await derivePasskeyHandshakeToken(user.id, user.email);
+    const { data, error } = await supabase
+      .from("citizen_staging_queue")
+      .select("*")
+      .eq("user_token", userToken)
+      .order("created_at", { ascending: false })
+      .limit(3);
+
+    if (error || !Array.isArray(data) || data.length === 0) {
+      return { status: "expired" };
+    }
+
+    for (const row of data) {
+      if (!row?.encrypted_payload || !row?.iv || !row?.salt) continue;
+      const decrypted = await decryptHandshakePayload(
+        row.encrypted_payload,
+        row.iv,
+        row.salt,
+        user.id,
+        user.email
+      );
+      if (!decrypted || decrypted.handshakeId !== handshakeId) continue;
+
+      if (Date.now() > decrypted.expiresAt) {
+        await supabase.from("citizen_staging_queue").delete().eq("id", row.id);
+        return { status: "expired" };
+      }
+
+      if (decrypted.status === "approved" && decrypted.approvalSignature) {
+        const expectedSig = await computeHandshakeApprovalSignature(
+          expectedNonce,
+          handshakeId,
+          decrypted.handshakeCode,
+          user.id
+        );
+        if (
+          decrypted.approvalSignature === expectedSig &&
+          decrypted.approvedAt &&
+          Date.now() - decrypted.approvedAt < 180_000
+        ) {
+          await supabase.from("citizen_staging_queue").delete().eq("id", row.id);
+          markPasskeySessionVerified(user.id);
+          notifyMfaStateChanged();
+          return {
+            status: "approved",
+            approverDevice: decrypted.approverDevice || "Companion Device",
+          };
+        }
+      }
+
+      return { status: "pending" };
+    }
+
+    return { status: "expired" };
+  } catch {
+    return { status: "pending" };
+  }
+}
+
+export async function cancelCompanionPasskeyHandshake(rowId?: string): Promise<void> {
+  try {
+    if (rowId) {
+      await supabase.from("citizen_staging_queue").delete().eq("id", rowId);
+      return;
+    }
+    const { data: sessionData } = await supabaseAuth.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (!user?.id) return;
+    const userToken = await derivePasskeyHandshakeToken(user.id, user.email);
+    await supabase.from("citizen_staging_queue").delete().eq("user_token", userToken);
+  } catch {}
+}
+
+/**
+ * Fetches any active, non-expired pending Companion Passkey Handshake requests for the signed-in account.
+ */
+export async function fetchPendingCompanionPasskeyHandshakes(): Promise<
+  ResolvedCompanionPasskeyHandshake[]
+> {
+  try {
+    const { data: sessionData } = await supabaseAuth.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (!user?.id) return [];
+
+    const userToken = await derivePasskeyHandshakeToken(user.id, user.email);
+    const { data, error } = await supabase
+      .from("citizen_staging_queue")
+      .select("*")
+      .eq("user_token", userToken)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (error || !Array.isArray(data) || data.length === 0) return [];
+
+    const results: ResolvedCompanionPasskeyHandshake[] = [];
+    const expiredIds: string[] = [];
+
+    for (const row of data) {
+      if (!row?.encrypted_payload || !row?.iv || !row?.salt) continue;
+      const decrypted = await decryptHandshakePayload(
+        row.encrypted_payload,
+        row.iv,
+        row.salt,
+        user.id,
+        user.email
+      );
+      if (!decrypted) continue;
+      if (Date.now() > decrypted.expiresAt) {
+        expiredIds.push(row.id);
+        continue;
+      }
+      if (decrypted.status === "pending") {
+        results.push({
+          rowId: row.id,
+          payload: decrypted,
+        });
+      }
+    }
+
+    if (expiredIds.length > 0) {
+      supabase
+        .from("citizen_staging_queue")
+        .delete()
+        .in("id", expiredIds)
+        .then(() => {});
+    }
+
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Approves a pending Companion Passkey Handshake ONLY after executing a live FIDO2 Passkey
+ * hardware/biometric ceremony right then and there on the approving device.
+ */
+export async function approveCompanionPasskeyHandshake(
+  handshake: ResolvedCompanionPasskeyHandshake,
+  enteredCode?: string
+): Promise<{
+  success: boolean;
+  error: Error | null;
+}> {
+  try {
+    const { data: sessionData } = await supabaseAuth.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (!user?.id) {
+      return {
+        success: false,
+        error: new Error("You must be signed in to approve a Companion Passkey Handshake."),
+      };
+    }
+
+    if (Date.now() > handshake.payload.expiresAt) {
+      await cancelCompanionPasskeyHandshake(handshake.rowId);
+      return {
+        success: false,
+        error: new Error("This Companion Passkey Handshake code has expired. Start a new handshake on your rig."),
+      };
+    }
+
+    if (typeof enteredCode === "string" && enteredCode.trim().length > 0) {
+      const cleanEntered = enteredCode.replace(/[^0-9]/g, "");
+      const cleanExpected = handshake.payload.handshakeCode.replace(/[^0-9]/g, "");
+      if (cleanEntered !== cleanExpected) {
+        return {
+          success: false,
+          error: new Error("Handshake code does not match the 6-digit code displayed on your rig."),
+        };
+      }
+    }
+
+    // MANDATORY LIVE PASSKEY STEP-UP RIGHT THEN AND THERE
+    const authRes = await authenticateFidoPasskey(undefined, {
+      forceFreshCeremony: true,
+    });
+    if (authRes.error || !authRes.data) {
+      return {
+        success: false,
+        error:
+          authRes.error ||
+          new Error("Live FIDO2 Passkey verification was cancelled or failed."),
+      };
+    }
+
+    const approvalSignature = await computeHandshakeApprovalSignature(
+      handshake.payload.challengeNonce,
+      handshake.payload.handshakeId,
+      handshake.payload.handshakeCode,
+      user.id
+    );
+
+    const updatedPayload: CompanionPasskeyHandshakePayload = {
+      ...handshake.payload,
+      status: "approved",
+      approvedAt: Date.now(),
+      approverDevice: getPasskeyDeviceLabel(),
+      approvalSignature,
+    };
+
+    const { encrypted_payload, iv, salt } = await encryptHandshakePayload(
+      updatedPayload,
+      user.id,
+      user.email
+    );
+
+    const { error: updateErr } = await supabase
+      .from("citizen_staging_queue")
+      .update({
+        encrypted_payload,
+        iv,
+        salt,
+      })
+      .eq("id", handshake.rowId);
+
+    if (updateErr) {
+      return {
+        success: false,
+        error: new Error(updateErr.message),
+      };
+    }
+
+    return { success: true, error: null };
+  } catch (err: any) {
+    return {
+      success: false,
       error: err instanceof Error ? err : new Error(err?.message || String(err)),
     };
   }

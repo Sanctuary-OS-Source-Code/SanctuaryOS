@@ -62,9 +62,7 @@ export default function MasonEditorPanel({
   const [isMobileViewport, setIsMobileViewport] = useState<boolean>(() =>
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
-  const [wordWrap, setWordWrap] = useState<boolean>(() =>
-    typeof window !== "undefined" ? window.innerWidth < 768 : false
-  );
+  const [wordWrap, setWordWrap] = useState<boolean>(true);
   const [isValidatorDismissed, setIsValidatorDismissed] = useState(false);
   const rightEditorRef = useRef<any>(null);
   const isSyncingScroll = useRef(false);

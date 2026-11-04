@@ -114,20 +114,18 @@ export default function CitizenTicketsSidePanel({
             badgeIcon={t("icon_verified", "verified")}
             variant="accent"
           >
-            <div className="flex flex-wrap gap-2 w-full">
+            <div className="flex flex-wrap items-center justify-end gap-2 w-full">
               <ActionButton
                 variant="glass"
                 icon={t("icon_add_circle", "add_circle")}
                 label={t("support_title", "Create Support Ticket")}
                 onClick={handleOpenNewTicket}
-                className="flex-1 min-w-[180px]"
               />
               <ActionButton
                 variant="glass"
                 icon={t("icon_open_in_new", "open_in_new")}
                 label={t("support_tickets", "Support Tickets")}
                 onClick={handleOpenFullTicketRegistry}
-                className="flex-1 min-w-[180px]"
               />
             </div>
           </SidePanelHeroCard>

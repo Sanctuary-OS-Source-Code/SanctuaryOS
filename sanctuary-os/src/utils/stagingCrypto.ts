@@ -1,5 +1,6 @@
 import { supabase } from "../supabase";
-import { isDesktop } from "./envUtils";
+import { isDesktop, isLinuxDesktop } from "./envUtils";
+import { packageBlueprintLoadOrder } from "../hooks/usePlaySetLogic";
 
 export interface StagedArtifactItem {
   id: string;
@@ -10,6 +11,7 @@ export interface StagedArtifactItem {
   author?: string;
   master_author?: string;
   url?: string;
+  manifest_url?: string;
   version?: string;
   image_url?: string;
   category?: string;
@@ -27,6 +29,9 @@ export interface StagedArtifactItem {
   requiredDLC?: string[];
   priority_tier?: string;
   load_order_index?: number;
+  load_rules?: any[];
+  ignored_conflicts?: string[];
+  isLocalOverride?: boolean;
   isDependency?: boolean;
   dependencyOf?: string;
   asset_type?: "lexicon" | "chameleon" | "workbench_template";
@@ -46,10 +51,12 @@ export interface StagedCloudPayload {
   autoEquip: boolean;
   items: StagedArtifactItem[];
   removedItems?: StagedArtifactItem[];
-  loadOrderStrategy?: "alphabetical" | "numeric_prefix" | "loadorder_txt";
-  loadRules?: Record<string, string[]>;
+  loadOrderStrategy?: string;
+  loadRules?: any;
   modTiers?: Record<string, string>;
   loadOrder?: string[];
+  ignoredConflicts?: string[];
+  isFullRigBlueprint?: boolean;
   stagedAt: string;
   sourceDevice: string;
 }
@@ -876,6 +883,9 @@ export async function pushEncryptedStagingPayload(
         );
         if (oldKey && oldKey === targetBpKey) {
           matchingRowIdsToDelete.push(row.id);
+          if (payload.isFullRigBlueprint) {
+            continue;
+          }
           const getModKey = (m: any) =>
             String(m?.dbId || m?.hash || m?.id || m?.name || m?.displayName || "")
               .trim()
@@ -938,6 +948,10 @@ export async function pushEncryptedStagingPayload(
     const totalChanges =
       (mergedPayload.items?.length || 0) + (mergedPayload.removedItems?.length || 0);
 
+    const ttlMs = mergedPayload.isFullRigBlueprint
+      ? 7 * 24 * 60 * 60 * 1000
+      : 24 * 60 * 60 * 1000;
+
     const { data, error } = await supabase
       .from("citizen_staging_queue")
       .insert([
@@ -948,7 +962,7 @@ export async function pushEncryptedStagingPayload(
           iv,
           salt,
           item_count: totalChanges,
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          expires_at: new Date(Date.now() + ttlMs).toISOString(),
         },
       ])
       .select("id")
@@ -956,7 +970,7 @@ export async function pushEncryptedStagingPayload(
 
     if (error) throw error;
 
-    if (mergedPayload.mode === "blueprint") {
+    if (mergedPayload.mode === "blueprint" && !mergedPayload.isFullRigBlueprint) {
       recordMobileBlueprintEdit(
         mergedPayload.targetDesktopBlueprint || mergedPayload.blueprintName,
         mergedPayload.items || [],
@@ -967,6 +981,227 @@ export async function pushEncryptedStagingPayload(
     return { success: true, rowId: data?.id };
   } catch (err: any) {
     console.error("Failed to push encrypted staging payload:", err);
+    return { success: false, error: err?.message || String(err) };
+  }
+}
+
+export async function stageFullBlueprintToRigQueue(
+  targetSet: any,
+  modList: any[],
+  activeGameSchema: any,
+  session: any,
+  selectedVersion?: string
+): Promise<{ success: boolean; rowId?: string; count?: number; error?: string }> {
+  if (!session?.user?.id) {
+    return { success: false, error: "Authentication required" };
+  }
+  if (!targetSet || !Array.isArray(targetSet.mods)) {
+    return { success: false, error: "Invalid Blueprint" };
+  }
+
+  try {
+    let localOverrides: Record<string, any> = {};
+    try {
+      localOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+    } catch {}
+
+    const safeModList = Array.isArray(modList) ? modList : [];
+    const byExact = new Map<string, any>();
+    const byCleanLower = new Map<string, any>();
+
+    const registerLocalMod = (m: any) => {
+      if (!m || !m.name) return;
+      if (!byExact.has(m.name)) byExact.set(m.name, m);
+      const lastSlash = Math.max(m.name.lastIndexOf("/"), m.name.lastIndexOf("\\"));
+      const clean = (lastSlash >= 0 ? m.name.slice(lastSlash + 1) : m.name).toLowerCase();
+      if (clean && !byCleanLower.has(clean)) byCleanLower.set(clean, m);
+    };
+
+    for (let i = 0; i < safeModList.length; i++) {
+      const m = safeModList[i];
+      if (!m) continue;
+      if (m.isVirtual) {
+        if (Array.isArray(m.flavors)) {
+          m.flavors.forEach((fl: any) => {
+            if (fl && !fl.isVirtual) registerLocalMod(fl);
+          });
+        }
+        continue;
+      }
+      registerLocalMod(m);
+    }
+
+    const packagedLO = packageBlueprintLoadOrder(targetSet, activeGameSchema, safeModList);
+
+    const rawModObjects = targetSet.mods
+      .map((rawMod: any) => {
+        const modName =
+          typeof rawMod === "string" ? rawMod : String(rawMod?.name || rawMod?.path || "");
+        if (
+          !modName ||
+          modName.startsWith("FOLDER_") ||
+          modName.startsWith("SET_") ||
+          modName.startsWith("LOCAL_SET_")
+        ) {
+          return null;
+        }
+        const lastSlash = Math.max(modName.lastIndexOf("/"), modName.lastIndexOf("\\"));
+        const cleanName = lastSlash >= 0 ? modName.slice(lastSlash + 1) || modName : modName;
+        const mod = byExact.get(modName) || byCleanLower.get(cleanName.toLowerCase());
+        if (mod?.isVirtual) return null;
+
+        const hash = String(
+          mod?.hash || targetSet.modHashes?.[modName] || targetSet.modHashes?.[cleanName] || ""
+        ).trim();
+        const override = hash ? localOverrides[hash] : undefined;
+        const meta = targetSet.modMeta?.[modName] || targetSet.modMeta?.[cleanName];
+
+        return {
+          id: hash || mod?.dbId || cleanName,
+          dbId: mod?.dbId ? String(mod.dbId) : undefined,
+          name: modName,
+          displayName: override?.displayName || meta?.displayName || mod?.displayName || cleanName,
+          hash,
+          url:
+            override?.url ||
+            meta?.url ||
+            mod?.download_url ||
+            mod?.url ||
+            "",
+          manifest_url:
+            override?.manifest_url ||
+            meta?.manifest_url ||
+            mod?.manifest_url ||
+            undefined,
+          author:
+            override?.author ||
+            meta?.author ||
+            mod?.author ||
+            mod?.master_author ||
+            "Unknown",
+          version: override?.version || meta?.version || mod?.version || "v.Local",
+          description: override?.description ?? meta?.description ?? mod?.description ?? undefined,
+          image_url: override?.image_url ?? meta?.image_url ?? mod?.image_url ?? undefined,
+          category_override:
+            override?.category_override ||
+            meta?.category_override ||
+            mod?.category_override ||
+            mod?.category ||
+            undefined,
+          category:
+            override?.category_override ||
+            meta?.category_override ||
+            mod?.category_override ||
+            mod?.category ||
+            undefined,
+          requiredDLC: override?.requiredDLC || meta?.requiredDLC || mod?.requiredDLC || [],
+          compatible_versions:
+            override?.compatible_versions ||
+            meta?.compatible_versions ||
+            mod?.compatible_versions ||
+            [],
+          compliance_tier: Number(mod?.compliance_tier ?? meta?.compliance_tier ?? 0),
+          status: mod?.status || "stable",
+          is_paid: Boolean(override?.is_paid ?? meta?.is_paid ?? mod?.is_paid ?? false),
+          is_early_access: Boolean(
+            override?.is_early_access ?? meta?.is_early_access ?? mod?.is_early_access ?? false
+          ),
+          isLocalOverride: Boolean(override || mod?.isLocalOverride),
+        };
+      })
+      .filter(Boolean);
+
+    const enrichedArtifacts: StagedArtifactItem[] =
+      packagedLO.enrichAndSortArtifacts(rawModObjects);
+
+    // Enrich any items that have a DNA hash and are missing a creator URL from Spoke mod_versions (including Tier 1-4!)
+    const hashesMissingUrl = Array.from(
+      new Set(
+        enrichedArtifacts
+          .filter((it) => it.hash && !it.url)
+          .map((it) => String(it.hash).trim())
+          .filter(Boolean)
+      )
+    );
+
+    if (hashesMissingUrl.length > 0) {
+      const dbByHash = new Map<string, any>();
+      const chunkSize = 150;
+      for (let i = 0; i < hashesMissingUrl.length; i += chunkSize) {
+        const chunk = hashesMissingUrl.slice(i, i + chunkSize);
+        const { data: vData } = await supabase
+          .from("mod_versions")
+          .select(
+            "dna_hash, version_label, mods(id, is_paid, is_early_access, url, master_author, compliance_tier, category_override)"
+          )
+          .in("dna_hash", chunk);
+        if (Array.isArray(vData)) {
+          vData.forEach((row: any) => {
+            if (row?.dna_hash) dbByHash.set(String(row.dna_hash), row);
+          });
+        }
+      }
+
+      if (dbByHash.size > 0) {
+        for (let i = 0; i < enrichedArtifacts.length; i++) {
+          const item = enrichedArtifacts[i];
+          const dbRow = item.hash ? dbByHash.get(String(item.hash)) : undefined;
+          if (!dbRow) continue;
+          const modRef = Array.isArray(dbRow.mods) ? dbRow.mods[0] : dbRow.mods;
+          if (!modRef) continue;
+          enrichedArtifacts[i] = {
+            ...item,
+            dbId: item.dbId || (modRef.id ? String(modRef.id) : undefined),
+            url: item.url || modRef.url || "",
+            author:
+              !item.author || item.author === "Unknown"
+                ? modRef.master_author || item.author
+                : item.author,
+            version:
+              !item.version || item.version === "v.Local"
+                ? dbRow.version_label || item.version
+                : item.version,
+            compliance_tier: item.compliance_tier || modRef.compliance_tier || 0,
+            category: item.category || modRef.category_override || undefined,
+            category_override: item.category_override || modRef.category_override || undefined,
+            is_paid: item.is_paid ?? Boolean(modRef.is_paid),
+            is_early_access: item.is_early_access ?? Boolean(modRef.is_early_access),
+          };
+        }
+      }
+    }
+
+    const payload: StagedCloudPayload = {
+      mode: "blueprint",
+      isFullRigBlueprint: true,
+      blueprintName: String(targetSet.name || "Blueprint"),
+      targetDesktopBlueprint: String(targetSet.name || "Blueprint"),
+      blueprintCode: targetSet.code || undefined,
+      gameVersion: selectedVersion || "all",
+      autoEquip: true,
+      items: enrichedArtifacts,
+      loadOrderStrategy: packagedLO.load_order_strategy,
+      loadRules: packagedLO.load_rules,
+      modTiers: packagedLO.mod_tiers,
+      loadOrder: packagedLO.load_order,
+      ignoredConflicts: packagedLO.ignored_conflicts,
+      stagedAt: new Date().toISOString(),
+      sourceDevice: getSourceDeviceLabel(),
+    };
+
+    const res = await pushEncryptedStagingPayload(payload, session);
+    if (res.success && res.rowId) {
+      // Mark completed on the sending rig so it doesn't prompt this rig to re-deploy its own Blueprint,
+      // while remaining pending in the cloud for the user's Steam Deck / other rigs!
+      markStagingRowDeployedLocally(res.rowId);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("sanctuary-poll-staging-queue"));
+      }
+      return { success: true, rowId: res.rowId, count: enrichedArtifacts.length };
+    }
+    return { success: false, error: res.error || "Failed to stage Blueprint" };
+  } catch (err: any) {
+    console.error("Failed to stage full Blueprint to Rig Queue:", err);
     return { success: false, error: err?.message || String(err) };
   }
 }
@@ -1028,7 +1263,8 @@ export function isStagingRowDeployedLocally(rowId: string): boolean {
 }
 
 export function getSourceDeviceLabel(): string {
-  if (isDesktop()) return "Desktop Client";
+  if (isLinuxDesktop()) return "SteamOS / Linux Rig";
+  if (isDesktop()) return "Windows / Desktop Rig";
   const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
   if (/iPhone|iPad|iPod|Android/i.test(ua)) return "PWA / Mobile";
   return "Web / PWA Client";

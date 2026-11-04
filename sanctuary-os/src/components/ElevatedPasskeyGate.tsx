@@ -15,8 +15,402 @@ import {
   verifyPasswordWithoutSessionDowngrade,
   sanitizeFactorFriendlyName,
   notifyMfaStateChanged,
+  isNativeLocalPasskeySupported,
+  getPasskeyDeviceLabel,
+  startCompanionPasskeyHandshake,
+  pollCompanionPasskeyHandshake,
+  cancelCompanionPasskeyHandshake,
+  fetchPendingCompanionPasskeyHandshakes,
+  approveCompanionPasskeyHandshake,
+  ResolvedCompanionPasskeyHandshake,
   MfaSecurityState,
 } from "../utils/passkeyUtils";
+
+export function CompanionPasskeyHandshakeRequester({
+  targetScope,
+  onVerified,
+  autoStart = false,
+}: {
+  targetScope?: string;
+  onVerified?: () => void;
+  autoStart?: boolean;
+}) {
+  const { t } = useLexicon();
+  const [activeHandshake, setActiveHandshake] =
+    useState<ResolvedCompanionPasskeyHandshake | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [handshakeError, setHandshakeError] = useState("");
+
+  const handleStartHandshake = useCallback(async () => {
+    setStarting(true);
+    setHandshakeError("");
+    const res = await startCompanionPasskeyHandshake(
+      targetScope || t("passkey_handshake_default_scope", "Elevated Hub Access")
+    );
+    if (res.error || !res.data) {
+      setHandshakeError(
+        res.error?.message ||
+          t(
+            "passkey_handshake_err_start",
+            "Failed to start Companion Passkey Handshake."
+          )
+      );
+      setStarting(false);
+      return;
+    }
+    setActiveHandshake(res.data);
+    setSecondsLeft(
+      Math.max(0, Math.ceil((res.data.payload.expiresAt - Date.now()) / 1000))
+    );
+    setStarting(false);
+  }, [targetScope, t]);
+
+  useEffect(() => {
+    if (autoStart && !activeHandshake && !starting) {
+      handleStartHandshake();
+    }
+  }, [autoStart, activeHandshake, starting, handleStartHandshake]);
+
+  useEffect(() => {
+    if (!activeHandshake) return;
+
+    const countdownInterval = window.setInterval(() => {
+      const rem = Math.max(
+        0,
+        Math.ceil((activeHandshake.payload.expiresAt - Date.now()) / 1000)
+      );
+      setSecondsLeft(rem);
+      if (rem <= 0) {
+        setActiveHandshake(null);
+      }
+    }, 1000);
+
+    const pollInterval = window.setInterval(async () => {
+      const statusRes = await pollCompanionPasskeyHandshake(
+        activeHandshake.payload.handshakeId,
+        activeHandshake.payload.challengeNonce
+      );
+      if (statusRes.status === "approved") {
+        window.clearInterval(pollInterval);
+        window.clearInterval(countdownInterval);
+        setActiveHandshake(null);
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "passkey_handshake_approved_toast",
+              "Companion Passkey Handshake verified via live Passkey!"
+            ),
+            "success"
+          );
+        onVerified?.();
+      } else if (statusRes.status === "expired") {
+        window.clearInterval(pollInterval);
+        window.clearInterval(countdownInterval);
+        setActiveHandshake(null);
+      }
+    }, 2400);
+
+    return () => {
+      window.clearInterval(countdownInterval);
+      window.clearInterval(pollInterval);
+    };
+  }, [activeHandshake, onVerified, t]);
+
+  const formatCountdown = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const rem = sec % 60;
+    return `${mins}:${rem < 10 ? "0" : ""}${rem}`;
+  };
+
+  return (
+    <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col">
+      <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined !text-[15px]">
+              {t("icon_phonelink_lock", "phonelink_lock")}
+            </span>
+          </div>
+          <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
+            {t("passkey_handshake_title", "Companion Passkey Handshake")}
+          </span>
+        </div>
+        <span className={VAULT_CHIP_CLASS}>
+          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+            {t("icon_devices", "devices")}
+          </span>
+          <span>
+            {t("passkey_handshake_badge", "Steam Deck • macOS • Mobile PWA")}
+          </span>
+        </span>
+      </div>
+
+      <div className="p-4 flex flex-col gap-3.5">
+        <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+          {t(
+            "passkey_handshake_desc",
+            "On Steam Deck, Linux, or macOS—or when your Passkey lives on your phone—use a live Companion Handshake. Your companion device must perform a real-time FIDO2 Passkey ceremony right then and there to unlock this session."
+          )}
+        </p>
+
+        {handshakeError && (
+          <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
+            <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
+              {t("icon_error", "error")}
+            </span>
+            <span>{handshakeError}</span>
+          </div>
+        )}
+
+        {!activeHandshake ? (
+          <ActionButton
+            onClick={handleStartHandshake}
+            disabled={starting}
+            variant="glass"
+            icon={t("icon_phonelink_lock", "phonelink_lock")}
+            label={
+              starting
+                ? t(
+                    "passkey_handshake_btn_starting",
+                    "Generating Encrypted Handshake..."
+                  )
+                : t(
+                    "passkey_handshake_btn_start",
+                    "Start Companion Passkey Handshake"
+                  )
+            }
+            className="w-full"
+          />
+        ) : (
+          <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex flex-col items-center gap-3">
+            <div className="flex items-center justify-between w-full">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
+                {t("passkey_handshake_code_label", "Live Handshake Verification Code")}
+              </span>
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                  {t("icon_timer", "timer")}
+                </span>
+                <span className="font-mono">{formatCountdown(secondsLeft)}</span>
+              </span>
+            </div>
+
+            <div className="w-full py-3 px-4 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-center">
+              <span className="text-2xl sm:text-3xl font-mono font-black tracking-[0.28em] text-[var(--text)] select-all">
+                {activeHandshake.payload.handshakeCode}
+              </span>
+            </div>
+
+            <p className="text-[11px] font-medium text-[var(--subtext)] text-center leading-relaxed m-0">
+              {t(
+                "passkey_handshake_waiting_instructions",
+                "Open the Sanctuary OS Mobile PWA or sanctuaryos.net on your phone, Mac, or PC. Confirm this 6-digit code and tap your FIDO2 Passkey when prompted—this hub will unlock automatically."
+              )}
+            </p>
+
+            <div className="grid grid-cols-2 gap-2.5 w-full pt-1">
+              <ActionButton
+                onClick={handleStartHandshake}
+                disabled={starting}
+                variant="glass"
+                icon={t("icon_refresh", "refresh")}
+                label={t("passkey_handshake_btn_new_code", "New Code")}
+                className="w-full !py-2 !text-[10px]"
+              />
+              <ActionButton
+                onClick={() => {
+                  cancelCompanionPasskeyHandshake(activeHandshake.rowId);
+                  setActiveHandshake(null);
+                }}
+                variant="glass"
+                icon={t("icon_close", "close")}
+                label={t("cancel", "Cancel")}
+                className="w-full !py-2 !text-[10px]"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function CompanionPasskeyHandshakeApprover({
+  inline = false,
+}: {
+  inline?: boolean;
+}) {
+  const { t } = useLexicon();
+  const session = useStore((state) => state.session);
+  const [pendingList, setPendingList] = useState<ResolvedCompanionPasskeyHandshake[]>([]);
+  const [enteredCode, setEnteredCode] = useState("");
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [approveError, setApproveError] = useState("");
+
+  const canApproveLocally = isNativeLocalPasskeySupported();
+
+  const checkPending = useCallback(async () => {
+    if (!session?.user?.id || !canApproveLocally) {
+      setPendingList([]);
+      return;
+    }
+    const list = await fetchPendingCompanionPasskeyHandshakes();
+    const myDevice = getPasskeyDeviceLabel();
+    const filtered = inline
+      ? list
+      : list.filter((item) => item.payload.requestingDevice !== myDevice);
+    setPendingList(filtered);
+  }, [session?.user?.id, canApproveLocally, inline]);
+
+  useEffect(() => {
+    checkPending();
+    if (!session?.user?.id || !canApproveLocally) return;
+    const interval = window.setInterval(checkPending, 5000);
+    const onFocus = () => checkPending();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [checkPending, session?.user?.id, canApproveLocally]);
+
+  if (!session?.user?.id || !canApproveLocally || pendingList.length === 0) {
+    return null;
+  }
+
+  const activeReq = pendingList[0];
+
+  const handleApprove = async () => {
+    setApprovingId(activeReq.rowId);
+    setApproveError("");
+    const res = await approveCompanionPasskeyHandshake(activeReq, enteredCode);
+    if (!res.success) {
+      setApproveError(
+        res.error?.message ||
+          t(
+            "passkey_handshake_err_approve",
+            "Live Passkey verification failed or was cancelled."
+          )
+      );
+      setApprovingId(null);
+      return;
+    }
+    useStore
+      .getState()
+      .pushStatus(
+        t(
+          "passkey_handshake_sent_approval_toast",
+          "Live Passkey verified! Your companion rig is now unlocked."
+        ),
+        "success"
+      );
+    setEnteredCode("");
+    setApprovingId(null);
+    await checkPending();
+  };
+
+  const handleDeny = async () => {
+    await cancelCompanionPasskeyHandshake(activeReq.rowId);
+    setEnteredCode("");
+    setApproveError("");
+    await checkPending();
+  };
+
+  const cardContent = (
+    <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] shadow-2xl flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined !text-[18px]">
+              {t("icon_phonelink_lock", "phonelink_lock")}
+            </span>
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs sm:text-sm font-black text-[var(--text)] truncate">
+              {t(
+                "passkey_handshake_approve_banner_title",
+                "Approve Rig Passkey Handshake"
+              )}
+            </span>
+            <span className="text-[11px] font-medium text-[var(--subtext)] truncate">
+              {`${activeReq.payload.requestingDevice} • ${activeReq.payload.targetScope}`}
+            </span>
+          </div>
+        </div>
+        <span className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] shrink-0`}>
+          <span className="material-symbols-outlined !text-[12px]">
+            {t("icon_passkey", "passkey")}
+          </span>
+          <span className="font-mono">{activeReq.payload.handshakeCode}</span>
+        </span>
+      </div>
+
+      <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+        {t(
+          "passkey_handshake_approve_banner_desc",
+          "Confirm the 6-digit code shown on your other rig and authenticate with your FIDO2 Passkey right now to authorize elevated access."
+        )}
+      </p>
+
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+        <input
+          type="text"
+          value={enteredCode}
+          onChange={(e) => setEnteredCode(e.target.value)}
+          placeholder={activeReq.payload.handshakeCode}
+          maxLength={7}
+          className="sm:w-40 glass-surface rounded-xl px-3.5 py-2 text-xs font-mono font-black tracking-[0.22em] text-center text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] outline-none focus:border-[var(--accent)]"
+        />
+        <div className="flex items-center gap-2 flex-1">
+          <ActionButton
+            onClick={handleApprove}
+            disabled={approvingId === activeReq.rowId}
+            variant="glass"
+            icon={t("icon_passkey", "passkey")}
+            label={
+              approvingId === activeReq.rowId
+                ? t("btn_verifying_passkey", "Verifying Passkey...")
+                : t(
+                    "passkey_handshake_btn_approve_live",
+                    "Verify Passkey to Approve"
+                  )
+            }
+            className="flex-1 !py-2.5"
+          />
+          <ActionButton
+            onClick={handleDeny}
+            disabled={approvingId === activeReq.rowId}
+            variant="glass"
+            icon={t("icon_close", "close")}
+            label={t("cancel", "Cancel")}
+            className="!px-3.5 !py-2.5"
+          />
+        </div>
+      </div>
+
+      {approveError && (
+        <div className="px-3 py-2 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
+          <span className="material-symbols-outlined !text-[15px] shrink-0 mt-0.5">
+            {t("icon_error", "error")}
+          </span>
+          <span>{approveError}</span>
+        </div>
+      )}
+    </div>
+  );
+
+  if (inline) {
+    return cardContent;
+  }
+
+  return (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100060] w-[94vw] max-w-xl animate-in fade-in slide-in-from-top-3 duration-300">
+      {cardContent}
+    </div>
+  );
+}
 
 interface ElevatedPasskeyGateProps {
   children: React.ReactNode;
@@ -596,57 +990,69 @@ export function ElevatedPasskeyGate({
                 </div>
               </form>
             ) : (
-              <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 flex flex-col gap-4">
-                <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                  {t(
-                    "passkey_gate_verify_desc",
-                    "Your account has a registered FIDO2 Passkey, but this session needs to complete Passkey verification before opening this hub."
-                  )}
-                </p>
+              <div className="flex flex-col gap-4">
+                <CompanionPasskeyHandshakeApprover inline={true} />
 
-                {passkeys.length > 1 && (
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                      {t("auth_mfa_select_passkey_label", "Select Enrolled Passkey")}
-                    </label>
-                    <CustomDropdown
-                      value={selectedPasskeyId || passkeys[0]?.id || ""}
-                      onChange={(vals: any) =>
-                        setSelectedPasskeyId(Array.isArray(vals) ? vals[0] : vals)
+                {isNativeLocalPasskeySupported() && (
+                  <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 flex flex-col gap-4">
+                    <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                      {t(
+                        "passkey_gate_verify_desc",
+                        "Your account has a registered FIDO2 Passkey, but this session needs to complete Passkey verification before opening this hub."
+                      )}
+                    </p>
+
+                    {passkeys.length > 1 && (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                          {t("auth_mfa_select_passkey_label", "Select Enrolled Passkey")}
+                        </label>
+                        <CustomDropdown
+                          value={selectedPasskeyId || passkeys[0]?.id || ""}
+                          onChange={(vals: any) =>
+                            setSelectedPasskeyId(Array.isArray(vals) ? vals[0] : vals)
+                          }
+                          options={passkeys.map((pk: any) => ({
+                            id: pk.id,
+                            label: sanitizeFactorFriendlyName(
+                              pk.friendly_name,
+                              t("passkey_unnamed_device", "FIDO2 Passkey")
+                            ),
+                            icon: t("icon_passkey", "passkey"),
+                          }))}
+                          disableTint={true}
+                        />
+                      </div>
+                    )}
+
+                    {errorMsg && (
+                      <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
+                        <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
+                          {t("icon_error", "error")}
+                        </span>
+                        <span>{errorMsg}</span>
+                      </div>
+                    )}
+
+                    <ActionButton
+                      onClick={handleVerifySessionPasskey}
+                      disabled={busy}
+                      variant="glass"
+                      icon={t("icon_passkey", "passkey")}
+                      label={
+                        busy
+                          ? t("btn_verifying_passkey", "Verifying Passkey...")
+                          : t("btn_verify_with_passkey", "Authenticate with Passkey")
                       }
-                      options={passkeys.map((pk: any) => ({
-                        id: pk.id,
-                        label: sanitizeFactorFriendlyName(
-                          pk.friendly_name,
-                          t("passkey_unnamed_device", "FIDO2 Passkey")
-                        ),
-                        icon: t("icon_passkey", "passkey"),
-                      }))}
-                      disableTint={true}
+                      className="w-full"
                     />
                   </div>
                 )}
 
-                {errorMsg && (
-                  <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
-                    <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
-                      {t("icon_error", "error")}
-                    </span>
-                    <span>{errorMsg}</span>
-                  </div>
-                )}
-
-                <ActionButton
-                  onClick={handleVerifySessionPasskey}
-                  disabled={busy}
-                  variant="glass"
-                  icon={t("icon_passkey", "passkey")}
-                  label={
-                    busy
-                      ? t("btn_verifying_passkey", "Verifying Passkey...")
-                      : t("btn_verify_with_passkey", "Authenticate with Passkey")
-                  }
-                  className="w-full"
+                <CompanionPasskeyHandshakeRequester
+                  targetScope={roleTitle}
+                  autoStart={!isNativeLocalPasskeySupported()}
+                  onVerified={refreshState}
                 />
               </div>
             )

@@ -24,10 +24,15 @@ import {
   deleteSecurityFactor,
   verifyPasswordWithoutSessionDowngrade,
   isElevatedRoleRequiringPasskey,
+  isNativeLocalPasskeySupported,
   notifyMfaStateChanged,
   maskEmailAddress,
   sanitizeFactorFriendlyName,
 } from "../utils/passkeyUtils";
+import {
+  CompanionPasskeyHandshakeRequester,
+  CompanionPasskeyHandshakeApprover,
+} from "../components/ElevatedPasskeyGate";
 
 export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
   const { t } = useLexicon();
@@ -927,53 +932,65 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
               </div>
 
               {/* Selected Enrollment Card */}
+              <CompanionPasskeyHandshakeApprover inline={true} />
+
               {requiresPasskeyStepUp ? (
-                <UniversalGroup
-                  title={t(
-                    "auth_passkey_stepup_required_title",
-                    "Existing Passkey Verification Required"
-                  )}
-                  icon={t("icon_lock", "lock")}
-                  headerAction={
-                    <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--warning)_38%,transparent)]`}>
-                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                        {t("icon_lock", "lock")}
-                      </span>
-                      <span>{t("auth_passkey_stepup_locked_badge", "Step-Up Locked")}</span>
-                    </span>
-                  }
-                >
-                  <div className="flex flex-col gap-4">
-                    <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                      {t(
-                        "auth_passkey_stepup_required_desc",
-                        "Your account already has an active FIDO2 Passkey. To prevent unauthorized credential enrollment from stolen sessions or passwords, you must authenticate with an existing Passkey on this device before adding or modifying security factors."
+                <div className="flex flex-col gap-4">
+                  {isNativeLocalPasskeySupported() && (
+                    <UniversalGroup
+                      title={t(
+                        "auth_passkey_stepup_required_title",
+                        "Existing Passkey Verification Required"
                       )}
-                    </p>
-
-                    {passkeyError && (
-                      <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
-                        <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
-                          {t("icon_error", "error")}
+                      icon={t("icon_lock", "lock")}
+                      headerAction={
+                        <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--warning)_38%,transparent)]`}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                            {t("icon_lock", "lock")}
+                          </span>
+                          <span>{t("auth_passkey_stepup_locked_badge", "Step-Up Locked")}</span>
                         </span>
-                        <span>{passkeyError}</span>
-                      </div>
-                    )}
-
-                    <ActionButton
-                      onClick={handlePasskeyStepUp}
-                      disabled={verifyingStepUp}
-                      variant="glass"
-                      icon={t("icon_passkey", "passkey")}
-                      label={
-                        verifyingStepUp
-                          ? t("btn_verifying_passkey", "Verifying Passkey...")
-                          : t("btn_verify_with_passkey", "Authenticate with Passkey")
                       }
-                      className="w-full"
-                    />
-                  </div>
-                </UniversalGroup>
+                    >
+                      <div className="flex flex-col gap-4">
+                        <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                          {t(
+                            "auth_passkey_stepup_required_desc",
+                            "Your account already has an active FIDO2 Passkey. To prevent unauthorized credential enrollment from stolen sessions or passwords, you must authenticate with an existing Passkey on this device before adding or modifying security factors."
+                          )}
+                        </p>
+
+                        {passkeyError && (
+                          <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
+                            <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
+                              {t("icon_error", "error")}
+                            </span>
+                            <span>{passkeyError}</span>
+                          </div>
+                        )}
+
+                        <ActionButton
+                          onClick={handlePasskeyStepUp}
+                          disabled={verifyingStepUp}
+                          variant="glass"
+                          icon={t("icon_passkey", "passkey")}
+                          label={
+                            verifyingStepUp
+                              ? t("btn_verifying_passkey", "Verifying Passkey...")
+                              : t("btn_verify_with_passkey", "Authenticate with Passkey")
+                          }
+                          className="w-full"
+                        />
+                      </div>
+                    </UniversalGroup>
+                  )}
+
+                  <CompanionPasskeyHandshakeRequester
+                    targetScope={t("auth_passkey_2fa_title", "Passkeys & Two-Factor Auth (2FA)")}
+                    autoStart={!isNativeLocalPasskeySupported()}
+                    onVerified={loadFactors}
+                  />
+                </div>
               ) : mfaEnrollTab === "passkey" ? (
                 <UniversalGroup
                   title={t("auth_passkey_register_section_title", "Register FIDO2 Passkey (Recommended)")}

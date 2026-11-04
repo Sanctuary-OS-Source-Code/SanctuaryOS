@@ -50,7 +50,7 @@ import CommandCenter from "./CommandCenter";
 import Blueprints from "./Blueprints";
 import StagingPayloadEditor from "./components/StagingPayloadEditor";
 import { DevBuildClearanceGate } from "./components/DevBuildClearanceGate";
-import { ElevatedPasskeyGate } from "./components/ElevatedPasskeyGate";
+import { ElevatedPasskeyGate, CompanionPasskeyHandshakeApprover } from "./components/ElevatedPasskeyGate";
 import Vault from "./Vault";
 import Lab from "./Lab";
 import { scrubLogUserData, buildFormattedLabReportText, extractReportLoadoutFromLogAndContext } from "./utils/logScrubber";
@@ -4396,6 +4396,8 @@ function App() {
           </>
         );
       })()}
+      <CompanionPasskeyHandshakeApprover />
+
       {/* 
         Global SVG Noise Texture (Top Level)
         Moved here to sit on top of the entire DOM. This prevents it from being blurred by glass panels

@@ -16,6 +16,7 @@ import {
 } from '../components/universal/UniversalLayout';
 import CitizenTickets from '../CitizenTickets';
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
+import TicketLogViewer from '../side-panels/TicketLogViewer';
 import { useStore } from '../store';
 import { getActiveGameClient } from '../supabase';
 import { isDesktop } from '../utils/envUtils';
@@ -753,17 +754,19 @@ export function LandingSupportDrawers({
                 </div>
 
                 {feedbackStream === 'Core Bug Report' && (
-                  <div className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_28%,transparent)] flex flex-col gap-3">
+                  <div className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_28%,transparent)] flex flex-col gap-3.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">
-                          {t('icon_terminal', 'terminal')}
-                        </span>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                          <span className="material-symbols-outlined !text-[18px]">
+                            {t('icon_terminal', 'terminal')}
+                          </span>
+                        </div>
                         <div className="flex flex-col min-w-0">
                           <span className="text-xs font-black text-[var(--text)] truncate">
                             {t(
-                              'landing_bug_auto_telemetry_title',
-                              'Auto-Captured Telemetry & Scrubbed Logs'
+                              'dossier_attached_logs',
+                              'Attached Telemetry'
                             )}
                           </span>
                           <span className="text-[10px] font-mono text-[var(--subtext)] truncate">
@@ -779,7 +782,7 @@ export function LandingSupportDrawers({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="ml-auto flex flex-wrap items-center justify-end gap-2 shrink-0">
                         <label className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 cursor-pointer transition-all">
                           <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                             {t('icon_upload_file', 'upload_file')}
@@ -817,6 +820,10 @@ export function LandingSupportDrawers({
                         </button>
                       </div>
                     </div>
+
+                    {feedbackAutoLogs && (
+                      <TicketLogViewer logs={feedbackAutoLogs} />
+                    )}
 
                     {isEditingAutoTelemetry && (
                       <div className="flex flex-col gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
@@ -977,6 +984,10 @@ export function LandingSupportDrawers({
                   )}
                 </p>
               </div>
+
+              {feedbackStream === 'Core Bug Report' && feedbackAutoLogs && (
+                <TicketLogViewer logs={feedbackAutoLogs} />
+              )}
 
               <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
                 <ActionButton
@@ -1358,7 +1369,7 @@ export function LandingSupportDrawers({
             badgeIcon={t('icon_verified', 'verified')}
             variant="accent"
           >
-            <div className="flex flex-wrap gap-2 w-full">
+            <div className="flex flex-wrap items-center justify-end gap-2 w-full">
               <ActionButton
                 variant="glass"
                 icon={t('icon_add_circle', 'add_circle')}
@@ -1370,7 +1381,6 @@ export function LandingSupportDrawers({
                   setIsMyTicketsDrawerOpen(false);
                   setIsFeedbackDrawerOpen(true);
                 }}
-                className="flex-1 min-w-[200px]"
               />
               {hasLoadedSpoke && (
                 <ActionButton
@@ -1383,7 +1393,6 @@ export function LandingSupportDrawers({
                       new CustomEvent('open-support-modal')
                     );
                   }}
-                  className="flex-1 min-w-[200px]"
                 />
               )}
             </div>

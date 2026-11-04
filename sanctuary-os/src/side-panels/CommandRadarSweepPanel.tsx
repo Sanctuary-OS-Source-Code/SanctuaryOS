@@ -10,6 +10,7 @@ import {
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { useModalStore } from "../store/modalStore";
 import { useTheme } from "../ThemeContext";
 import { UniversalCard } from "../components/universal/UniversalCard";
 
@@ -374,6 +375,7 @@ export default function CommandRadarSweepPanel({
               className="col-span-2"
               onClick={() => {
                 onClose();
+                useModalStore.getState().setIsLogExpanded(false);
                 useStore.getState().setView("vault");
                 window.dispatchEvent(
                   new CustomEvent("navigateVault", { detail: { filterStatus: "ALL" } })
@@ -387,6 +389,7 @@ export default function CommandRadarSweepPanel({
               layout="stat"
               onClick={() => {
                 onClose();
+                useModalStore.getState().setIsLogExpanded(false);
                 useStore.getState().setView("vault");
                 window.dispatchEvent(
                   new CustomEvent("navigateVault", { detail: { filterStatus: "STABLE" } })
@@ -404,6 +407,7 @@ export default function CommandRadarSweepPanel({
               layout="stat"
               onClick={() => {
                 onClose();
+                useModalStore.getState().setIsLogExpanded(false);
                 useStore.getState().setView("vault");
                 window.dispatchEvent(
                   new CustomEvent("navigateVault", { detail: { filterStatus: "UNVERIFIED" } })
@@ -429,6 +433,7 @@ export default function CommandRadarSweepPanel({
               layout="stat"
               onClick={() => {
                 onClose();
+                useModalStore.getState().setIsLogExpanded(false);
                 localStorage.setItem("sanctuary_settings_tab", "LEXICON");
                 useStore.getState().setView("settings");
                 window.dispatchEvent(
@@ -443,6 +448,7 @@ export default function CommandRadarSweepPanel({
               layout="stat"
               onClick={() => {
                 onClose();
+                useModalStore.getState().setIsLogExpanded(false);
                 localStorage.setItem("sanctuary_settings_tab", "CHAMELEON");
                 useStore.getState().setView("settings");
                 window.dispatchEvent(

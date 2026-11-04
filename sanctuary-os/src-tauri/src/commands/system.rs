@@ -870,6 +870,35 @@ pub fn get_native_gamepad_state() -> NativeGamepadState {
         .unwrap_or_default()
 }
 
+#[tauri::command]
+pub fn open_steam_osk() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        std::thread::spawn(|| {
+            let launched = std::process::Command::new("steam")
+                .arg("steam://open/keyboard")
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .is_ok();
+            if !launched {
+                let _ = std::process::Command::new("xdg-open")
+                    .arg("steam://open/keyboard")
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .spawn();
+            }
+        });
+        return true;
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        false
+    }
+}
+
 pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
     #[cfg(not(target_os = "linux"))]
     {
@@ -896,9 +925,17 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                 hat_x: i16,
                 hat_y: i16,
             }
+            struct HidrawDeckHandle {
+                path: String,
+                file: std::fs::File,
+                lpad_was_touched: bool,
+                prev_lpad_x: i32,
+                prev_lpad_y: i32,
+            }
 
             let mut ev_handles: Vec<EvdevHandle> = Vec::new();
             let mut js_handles: Vec<JsHandle> = Vec::new();
+            let mut hidraw_handles: Vec<HidrawDeckHandle> = Vec::new();
             let mut opened_paths: std::collections::HashSet<String> =
                 std::collections::HashSet::new();
             let mut last_scan = std::time::Instant::now()
@@ -1072,11 +1109,101 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                             });
                         }
                     }
+
+                    // Open Valve Steam Deck Controller (28DE:1205) /dev/hidraw* in read-only non-blocking mode
+                    // so Left Trackpad vertical/circular swipes work even when Steam Client unregisters hid-steam evdev
+                    for idx in 0..16 {
+                        let dev_path = format!("/dev/hidraw{}", idx);
+                        if opened_paths.contains(&dev_path)
+                            || !std::path::Path::new(&dev_path).exists()
+                        {
+                            continue;
+                        }
+                        let uevent_path =
+                            format!("/sys/class/hidraw/hidraw{}/device/uevent", idx);
+                        let uevent = std::fs::read_to_string(&uevent_path)
+                            .unwrap_or_default()
+                            .to_uppercase();
+                        if !uevent.contains("28DE") || !uevent.contains("1205") {
+                            continue;
+                        }
+                        if let Ok(file) = std::fs::OpenOptions::new()
+                            .read(true)
+                            .custom_flags(0o4000) // O_NONBLOCK
+                            .open(&dev_path)
+                        {
+                            opened_paths.insert(dev_path.clone());
+                            hidraw_handles.push(HidrawDeckHandle {
+                                path: dev_path,
+                                file,
+                                lpad_was_touched: false,
+                                prev_lpad_x: 0,
+                                prev_lpad_y: 0,
+                            });
+                        }
+                    }
                 }
 
                 let prev_buttons = buttons.clone();
                 let prev_axes = axes.clone();
                 let prev_connected = !active_name.is_empty();
+                let mut scroll_delta_y: f32 = 0.0;
+
+                if !hidraw_handles.is_empty() {
+                    let mut buf = [0u8; 64];
+                    let mut dead_indices = Vec::new();
+                    for (h_idx, handle) in hidraw_handles.iter_mut().enumerate() {
+                        loop {
+                            match handle.file.read(&mut buf) {
+                                Ok(n) if n >= 20 => {
+                                    // ID_CONTROLLER_DECK_STATE (0x09) 64-byte Steam Deck HID input report
+                                    if buf[0] == 0x01 && buf[2] == 0x09 {
+                                        if active_name.is_empty() {
+                                            active_name = "Steam Deck Controller".to_string();
+                                        }
+                                        let lpad_touched = (buf[10] & 0x08) != 0;
+                                        let lpad_x =
+                                            i16::from_le_bytes([buf[16], buf[17]]) as i32;
+                                        let lpad_y =
+                                            i16::from_le_bytes([buf[18], buf[19]]) as i32;
+
+                                        if lpad_touched && (lpad_x != 0 || lpad_y != 0) {
+                                            if handle.lpad_was_touched {
+                                                // On Steam Deck hardware, lpad_y is +32767 at top and -32767 at bottom.
+                                                // Sliding thumb down decreases lpad_y -> positive dy scrolls down.
+                                                let dy = handle.prev_lpad_y - lpad_y;
+                                                let dx = lpad_x - handle.prev_lpad_x;
+                                                let dominant = if dy.abs() >= dx.abs() {
+                                                    dy
+                                                } else {
+                                                    dx
+                                                };
+                                                if dominant.abs() > 70 && dominant.abs() < 16000 {
+                                                    scroll_delta_y += (dominant as f32) * 0.036;
+                                                }
+                                            }
+                                            handle.lpad_was_touched = true;
+                                            handle.prev_lpad_x = lpad_x;
+                                            handle.prev_lpad_y = lpad_y;
+                                        } else {
+                                            handle.lpad_was_touched = false;
+                                        }
+                                    }
+                                }
+                                Ok(_) => break,
+                                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
+                                Err(_) => {
+                                    dead_indices.push(h_idx);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    for idx in dead_indices.into_iter().rev() {
+                        let removed = hidraw_handles.remove(idx);
+                        opened_paths.remove(&removed.path);
+                    }
+                }
 
                 if !ev_handles.is_empty() {
                     if active_name.is_empty() {
@@ -1121,6 +1248,27 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                                         if let Some(b_idx) = mapped {
                                             buttons[b_idx] = pressed;
                                         }
+                                    } else if ev_type == 0x02 {
+                                        // EV_REL (REL_WHEEL / REL_HWHEEL / HI_RES)
+                                        match ev_code {
+                                            0x08 => {
+                                                // REL_WHEEL (>0 is scroll up, <0 is scroll down)
+                                                scroll_delta_y -= (ev_val as f32) * 64.0;
+                                            }
+                                            0x06 => {
+                                                // REL_HWHEEL
+                                                scroll_delta_y += (ev_val as f32) * 64.0;
+                                            }
+                                            0x0b => {
+                                                // REL_WHEEL_HI_RES
+                                                scroll_delta_y -= ((ev_val as f32) / 120.0) * 64.0;
+                                            }
+                                            0x0c => {
+                                                // REL_HWHEEL_HI_RES
+                                                scroll_delta_y += ((ev_val as f32) / 120.0) * 64.0;
+                                            }
+                                            _ => {}
+                                        }
                                     } else if ev_type == 0x03 {
                                         // EV_ABS
                                         match ev_code {
@@ -1143,16 +1291,30 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                                                 buttons[7] = ev_val > 200;
                                             }
                                             0x10 => {
-                                                // ABS_HAT0X
-                                                handle.hat_x = ev_val;
-                                                buttons[14] = handle.hat_x < 0;
-                                                buttons[15] = handle.hat_x > 0;
+                                                // ABS_HAT0X: digital D-Pad hat (-1..1) vs hid-steam Left Trackpad X (-32767..32767)
+                                                if ev_val.abs() <= 1 {
+                                                    handle.hat_x = ev_val;
+                                                    buttons[14] = handle.hat_x < 0;
+                                                    buttons[15] = handle.hat_x > 0;
+                                                } else {
+                                                    handle.hat_x = ev_val;
+                                                }
                                             }
                                             0x11 => {
-                                                // ABS_HAT0Y
-                                                handle.hat_y = ev_val;
-                                                buttons[12] = handle.hat_y < 0;
-                                                buttons[13] = handle.hat_y > 0;
+                                                // ABS_HAT0Y: digital D-Pad hat (-1..1) vs hid-steam Left Trackpad Y (-32767..32767)
+                                                if ev_val.abs() <= 1 {
+                                                    handle.hat_y = ev_val;
+                                                    buttons[12] = handle.hat_y < 0;
+                                                    buttons[13] = handle.hat_y > 0;
+                                                } else {
+                                                    if handle.hat_y != 0 && ev_val != 0 && hidraw_handles.is_empty() {
+                                                        let dy = ev_val - handle.hat_y;
+                                                        if dy.abs() > 70 && dy.abs() < 16000 {
+                                                            scroll_delta_y += (dy as f32) * 0.036;
+                                                        }
+                                                    }
+                                                    handle.hat_y = ev_val;
+                                                }
                                             }
                                             _ => {}
                                         }
@@ -1225,14 +1387,26 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                                             4 => axes[3] = norm_axis(val as i32),
                                             5 => buttons[7] = val > 16000, // RT (-32767 resting -> +32767 pressed)
                                             6 => {
+                                                if val == 0 || val.abs() >= 32760 {
+                                                    buttons[14] = val < -12000;
+                                                    buttons[15] = val > 12000;
+                                                }
                                                 handle.hat_x = val;
-                                                buttons[14] = handle.hat_x < -12000;
-                                                buttons[15] = handle.hat_x > 12000;
                                             }
                                             7 => {
+                                                if val == 0 || val.abs() >= 32760 {
+                                                    buttons[12] = val < -12000;
+                                                    buttons[13] = val > 12000;
+                                                } else if handle.hat_y != 0
+                                                    && handle.hat_y.abs() < 32760
+                                                    && hidraw_handles.is_empty()
+                                                {
+                                                    let dy = (val as i32) - (handle.hat_y as i32);
+                                                    if dy.abs() > 70 && dy.abs() < 16000 {
+                                                        scroll_delta_y += (dy as f32) * 0.036;
+                                                    }
+                                                }
                                                 handle.hat_y = val;
-                                                buttons[12] = handle.hat_y < -12000;
-                                                buttons[13] = handle.hat_y > 12000;
                                             }
                                             _ => {}
                                         }
@@ -1280,7 +1454,14 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                     let _ = app.emit("sanctuary-native-gamepad", snapshot);
                 }
 
-                std::thread::sleep(std::time::Duration::from_millis(28));
+                if scroll_delta_y.abs() >= 1.5 {
+                    let _ = app.emit(
+                        "sanctuary-native-scroll",
+                        serde_json::json!({ "deltaY": scroll_delta_y }),
+                    );
+                }
+
+                std::thread::sleep(std::time::Duration::from_millis(24));
             }
         });
     }

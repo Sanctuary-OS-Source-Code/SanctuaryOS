@@ -22,6 +22,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { useModalStore } from "./store/modalStore";
 import { packageBlueprintLoadOrder } from "./hooks/usePlaySetLogic";
+import { stageFullBlueprintToRigQueue } from "./utils/stagingCrypto";
 import { formatCleanModTitle } from "./side-panels/CommandIncompatiblePanel";
 
 const VAULT_CHIP_CLASS =
@@ -108,7 +109,7 @@ export default function BlueprintMatrix({
   onUpdatePlaySet,
 }: any) {
   const { t } = useLexicon();
-  const { session, activeGameSchema } = useStore();
+  const { session, activeGameSchema, selectedVersion } = useStore();
   const [isPublic, setIsPublic] = useState(true);
   const [isLocked, setIsLocked] = useState(false);
   const [isMarketListed, setIsMarketListed] = useState(false);
@@ -117,6 +118,8 @@ export default function BlueprintMatrix({
   const [uploadError, setUploadError] = useState("");
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isStagingToRig, setIsStagingToRig] = useState(false);
+  const [stagedToRigSuccess, setStagedToRigSuccess] = useState(false);
 
   const [isRestrictedPanelOpen, setIsRestrictedPanelOpen] = useState(false);
   const [restrictedSearch, setRestrictedSearch] = useState("");
@@ -141,6 +144,8 @@ export default function BlueprintMatrix({
       setUploadError("");
       setUploadSuccess(false);
       setIsUploading(false);
+      setIsStagingToRig(false);
+      setStagedToRigSuccess(false);
 
       const fetchCloudState = async () => {
         try {
@@ -362,6 +367,43 @@ export default function BlueprintMatrix({
       setUploadError(t("err_save_failed", "Failed to save blueprint"));
     }
     setIsUploading(false);
+  };
+
+  const handleStageToRigQueue = async () => {
+    if (!session?.user?.id || !playSet) {
+      useStore
+        .getState()
+        .pushStatus(
+          t("alert_guest_mode_uploads", "Guest Mode Active: Uploads are disabled."),
+          "warning"
+        );
+      return;
+    }
+    setIsStagingToRig(true);
+    setUploadError("");
+    const res = await stageFullBlueprintToRigQueue(
+      playSet,
+      modList,
+      activeGameSchema,
+      session,
+      selectedVersion
+    );
+    setIsStagingToRig(false);
+    if (res.success) {
+      setStagedToRigSuccess(true);
+      setTimeout(() => setStagedToRigSuccess(false), 4000);
+      useStore
+        .getState()
+        .pushStatus(
+          t(
+            "status_rig_queue_sent",
+            "{Blueprint} encrypted and staged to your Rig Queue! Open Signature Queue on your Steam Deck or other PC to deploy."
+          ),
+          "success"
+        );
+    } else {
+      setUploadError(res.error || t("err_save_failed", "Failed to save blueprint"));
+    }
   };
 
   const isGuest = !session;
@@ -791,6 +833,19 @@ export default function BlueprintMatrix({
       headerActions={
         <PanelHeaderGroup>
           <PanelHeaderButton
+            icon={
+              isStagingToRig
+                ? t("icon_sync", "sync")
+                : stagedToRigSuccess
+                  ? t("icon_check", "check")
+                  : t("icon_devices", "devices")
+            }
+            variant={stagedToRigSuccess ? "success" : "accent"}
+            disabled={isStagingToRig || isGuest}
+            onClick={handleStageToRigQueue}
+            tooltip={t("action_send_rig_queue", "Send to Rig Queue")}
+          />
+          <PanelHeaderButton
             icon={isUploading ? t("icon_sync", "sync") : t("icon_cloud_upload", "cloud_upload")}
             variant={isUploadBlocked ? "danger" : "accent"}
             disabled={isUploading || isUploadBlocked}
@@ -838,6 +893,50 @@ export default function BlueprintMatrix({
             />
           </div>
         </SidePanelHeroCard>
+
+        <UniversalGroup
+          title={t("matrix_rig_transfer_title", "Personal Rig Transfer (Desktop ⇄ Steam Deck)")}
+          icon={t("icon_devices", "devices")}
+          headerAction={
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                {t("icon_encrypted", "encrypted")}
+              </span>
+              <span>AES-256-GCM</span>
+            </span>
+          }
+        >
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
+              {t(
+                "matrix_rig_transfer_desc",
+                "Bypass public Tier 0 restrictions using Zero-PII AES-256-GCM encryption. Sends all {mods} in this {Blueprint} (including Tier 1–4, Unknown/Local {mods}, and Load Order rules) directly to your personal Signature Queue on your Steam Deck or other rigs."
+              )}
+            </p>
+            <ActionButton
+              variant={stagedToRigSuccess ? "success" : "accent"}
+              className="w-full justify-center"
+              disabled={isStagingToRig || isGuest}
+              icon={
+                isStagingToRig
+                  ? t("icon_sync", "sync")
+                  : stagedToRigSuccess
+                    ? t("icon_check_circle", "check_circle")
+                    : t("icon_devices", "devices")
+              }
+              label={
+                isStagingToRig
+                  ? t("scanning", "Scanning...")
+                  : stagedToRigSuccess
+                    ? t("status_rig_queue_sent", "{Blueprint} Staged to Rig Queue!")
+                    : `${t("action_send_rig_queue", "Send to Rig Queue")} (${(
+                        allowedMods.length + blockedMods.length
+                      ).toLocaleString()} ${t("term_mods", "{Mods}")})`
+              }
+              onClick={handleStageToRigQueue}
+            />
+          </div>
+        </UniversalGroup>
 
         <UniversalGroup
           title={t("matrix_title", "{Blueprint} Sync")}

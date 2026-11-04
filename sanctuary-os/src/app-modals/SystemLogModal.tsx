@@ -56,84 +56,140 @@ const KNOWN_ICON_PREFIXES = new Set([
   "cloud_done",
 ]);
 
-function resolveAllCachedUnsavedFiles(): { name: string; path: string }[] {
-  const results: { name: string; path: string }[] = [];
+type CachedUnsavedFileItem = {
+  name: string;
+  path: string;
+  source: "cw" | "ide" | "masonhub" | "wayfinder";
+  rawContent?: string;
+  originalContent?: string;
+};
+
+function resolveAllCachedUnsavedFiles(): CachedUnsavedFileItem[] {
+  const results: CachedUnsavedFileItem[] = [];
   const seen = new Set<string>();
-  const addFile = (name: string, path?: string) => {
+  const addFile = (
+    name: string,
+    path?: string,
+    source: "cw" | "ide" | "masonhub" | "wayfinder" = "cw",
+    rawContent?: string,
+    originalContent?: string
+  ) => {
     const cleanName = String(name || "").trim();
     if (!cleanName) return;
     const key = cleanName.toLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
-    results.push({ name: cleanName, path: path || cleanName });
+    results.push({
+      name: cleanName,
+      path: path || cleanName,
+      source,
+      rawContent,
+      originalContent,
+    });
   };
 
+  const state = useStore.getState();
+  const wsId = state.activeWorkspaceId || "default";
+
   try {
-    const state = useStore.getState();
     const cwMem = state.cwUnsavedEdits || {};
     Object.keys(cwMem).forEach((k) => {
       if (cwMem[k] && Object.keys(cwMem[k]).length > 0) {
         const name = k.split(/[\\/]/).pop();
-        if (name) addFile(name, k);
+        if (name) addFile(name, k, "cw", cwMem[k]);
       }
     });
 
-    const cwRaw = localStorage.getItem("sanctuary_cw_unsaved_edits");
-    if (cwRaw) {
-      const parsed = JSON.parse(cwRaw);
-      if (parsed && typeof parsed === "object") {
-        Object.keys(parsed).forEach((k) => {
-          if (parsed[k] && Object.keys(parsed[k]).length > 0) {
-            const name = k.split(/[\\/]/).pop();
-            if (name) addFile(name, k);
-          }
-        });
+    for (const storageKey of [
+      `sanctuary_${wsId}_cw_unsaved_edits`,
+      "sanctuary_cw_unsaved_edits",
+    ]) {
+      const cwRaw = localStorage.getItem(storageKey);
+      if (cwRaw) {
+        const parsed = JSON.parse(cwRaw);
+        if (parsed && typeof parsed === "object") {
+          Object.keys(parsed).forEach((k) => {
+            if (parsed[k] && Object.keys(parsed[k]).length > 0) {
+              const name = k.split(/[\\/]/).pop();
+              if (name) {
+                addFile(
+                  name,
+                  k,
+                  "cw",
+                  typeof parsed[k] === "string"
+                    ? parsed[k]
+                    : JSON.stringify(parsed[k], null, 2)
+                );
+              }
+            }
+          });
+        }
       }
     }
   } catch {}
 
   try {
-    const state = useStore.getState();
     (state.ideOpenFiles || []).forEach((f: any) => {
       if (f && f.content !== f.originalContent && f.name) {
-        addFile(f.name, f.path || f.name);
+        addFile(f.name, f.path || f.name, "ide", f.content, f.originalContent);
       }
     });
-    const ideRaw = localStorage.getItem("sanctuary_ide_open_files");
-    if (ideRaw) {
-      const parsed = JSON.parse(ideRaw);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((f: any) => {
-          if (f && f.content !== f.originalContent && f.name) {
-            addFile(f.name, f.path || f.name);
-          }
-        });
+    for (const storageKey of [
+      `sanctuary_${wsId}_ide_open_files`,
+      "sanctuary_ide_open_files",
+    ]) {
+      const ideRaw = localStorage.getItem(storageKey);
+      if (ideRaw) {
+        const parsed = JSON.parse(ideRaw);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((f: any) => {
+            if (f && f.content !== f.originalContent && f.name) {
+              addFile(
+                f.name,
+                f.path || f.name,
+                "ide",
+                f.content,
+                f.originalContent
+              );
+            }
+          });
+        }
       }
     }
   } catch {}
 
   try {
-    const masonRaw = localStorage.getItem("sanctuary_mason_hub_drafts");
-    if (masonRaw) {
-      const parsed = JSON.parse(masonRaw);
-      if (parsed && typeof parsed === "object") {
-        Object.keys(parsed).forEach((k) => {
-          const name = `${parsed[k]?.title || `Draft ${k}`}.masonhub`;
-          addFile(name, name);
-        });
+    for (const storageKey of [
+      `sanctuary_${wsId}_mason_hub_drafts`,
+      "sanctuary_mason_hub_drafts",
+    ]) {
+      const masonRaw = localStorage.getItem(storageKey);
+      if (masonRaw) {
+        const parsed = JSON.parse(masonRaw);
+        if (parsed && typeof parsed === "object") {
+          Object.keys(parsed).forEach((k) => {
+            const name = `${parsed[k]?.title || `Draft ${k}`}.masonhub`;
+            addFile(name, name, "masonhub");
+          });
+        }
       }
     }
   } catch {}
 
   try {
-    const wfRaw = localStorage.getItem("sanctuary_wayfinder_drafts");
-    if (wfRaw) {
-      const parsed = JSON.parse(wfRaw);
-      if (parsed && typeof parsed === "object") {
-        Object.keys(parsed).forEach((k) => {
-          const name = `${parsed[k]?.title || `Draft ${k}`}.wayfinder`;
-          addFile(name, name);
-        });
+    for (const storageKey of [
+      `sanctuary_${wsId}_wayfinder_drafts`,
+      "sanctuary_wayfinder_drafts",
+    ]) {
+      const wfRaw = localStorage.getItem(storageKey);
+      if (wfRaw) {
+        const parsed = JSON.parse(wfRaw);
+        if (parsed && typeof parsed === "object") {
+          Object.keys(parsed).forEach((k) => {
+            const name = `${parsed[k]?.title || `Draft ${k}`}.wayfinder`;
+            addFile(name, name, "wayfinder");
+          });
+        }
       }
     }
   } catch {}
@@ -526,39 +582,86 @@ export function SystemLogModal({
     }
   };
 
-  const handleOpenCachedFile = (fileName: string, filePath?: string) => {
+  const handleOpenCachedFile = (
+    fileName: string,
+    filePath?: string,
+    sourceOverride?: "cw" | "ide" | "masonhub" | "wayfinder"
+  ) => {
     const cleanName = fileName.trim();
     const lower = cleanName.toLowerCase();
-    const resolvedPath =
-      filePath ||
-      allLiveUnsavedFiles.find(
-        (item) => item.name.toLowerCase() === lower
-      )?.path ||
-      cleanName;
+    const matchedItem = allLiveUnsavedFiles.find(
+      (item) => item.name.toLowerCase() === lower
+    );
+    const resolvedPath = filePath || matchedItem?.path || cleanName;
+    const resolvedSource =
+      sourceOverride ||
+      matchedItem?.source ||
+      (lower.endsWith(".wayfinder")
+        ? "wayfinder"
+        : lower.endsWith(".masonhub")
+          ? "masonhub"
+          : lower.endsWith(".json") ||
+              lower.endsWith(".cfg") ||
+              lower.endsWith(".ini")
+            ? "cw"
+            : "ide");
 
-    if (lower.endsWith(".json")) {
-      useStore
-        .getState()
-        .setCwSelectedFile({ name: cleanName, path: resolvedPath });
-      useStore.getState().setCwMainTab("TEMPLATES");
-      useStore.getState().setView("CitizensWorkbench");
-    } else if (lower.endsWith(".cfg") || lower.endsWith(".ini")) {
-      useStore
-        .getState()
-        .setCwSelectedFile({ name: cleanName, path: resolvedPath });
-      useStore.getState().setCwMainTab("CONFIGS");
-      useStore.getState().setView("CitizensWorkbench");
-    } else if (lower.endsWith(".wayfinder")) {
+    // 1. Section navigations (.wayfinder & .masonhub dispatch drafts): go to section and close log panel
+    if (resolvedSource === "wayfinder" || lower.endsWith(".wayfinder")) {
       useStore.getState().setWayfinderActiveTab("wf_comms_title");
       useStore.getState().setView("WayfinderHub");
-    } else if (lower.endsWith(".masonhub")) {
+      setIsLogExpanded(false);
+      return;
+    }
+
+    if (resolvedSource === "masonhub" || lower.endsWith(".masonhub")) {
       useStore.getState().setMasonActiveTab("posts");
       useStore.getState().setView("MasonHub");
-    } else {
-      useStore.getState().setView("MasonHub");
-      useStore.getState().setMasonActiveTab("ide");
+      setIsLogExpanded(false);
+      return;
     }
-    setIsLogExpanded(false);
+
+    // 2. Panel-backed files (IDE Lexicon/Schema files -> MasonEditorPanel; Workbench Templates/Configs -> WorkbenchSidePanel):
+    //    Stay on the current page and keep SystemLogModal open underneath!
+    if (resolvedSource === "ide") {
+      const storeState = useStore.getState();
+      const existingFiles = Array.isArray(storeState.ideOpenFiles)
+        ? [...storeState.ideOpenFiles]
+        : [];
+      let idx = existingFiles.findIndex(
+        (f: any) =>
+          f?.path === resolvedPath ||
+          String(f?.name || "").toLowerCase() === lower
+      );
+      if (idx === -1) {
+        existingFiles.push({
+          name: cleanName,
+          path: resolvedPath,
+          content: matchedItem?.rawContent ?? "",
+          originalContent: matchedItem?.originalContent ?? "",
+        });
+        idx = existingFiles.length - 1;
+        storeState.setIdeOpenFiles(existingFiles);
+      }
+      storeState.setIdeActiveFileIndex(idx);
+      window.dispatchEvent(new CustomEvent("sanctuary-open-global-ide"));
+      return;
+    }
+
+    // Workbench Template (.json) or Config (.cfg / .ini) -> opens WorkbenchSidePanel overlay in-place
+    const storeState = useStore.getState();
+    if (
+      matchedItem?.rawContent !== undefined &&
+      storeState.cwUnsavedEdits?.[resolvedPath] === undefined
+    ) {
+      storeState.setCwUnsavedEdits((prev) => ({
+        ...prev,
+        [resolvedPath]: matchedItem.rawContent as string,
+      }));
+    }
+    storeState.setCwMainTab(lower.endsWith(".json") ? "TEMPLATES" : "CONFIGS");
+    storeState.setCwSelectedFile({ name: cleanName, path: resolvedPath });
+    window.dispatchEvent(new CustomEvent("sanctuary-open-global-workbench"));
   };
 
   const handleCopyEntry = async (entry: any) => {
@@ -685,7 +788,6 @@ export function SystemLogModal({
               "Hardware & Environment Telemetry"
             )}
             onClick={() => {
-              setIsLogExpanded(false);
               setIsSystemStatusOpen(true);
             }}
           />
@@ -1037,6 +1139,8 @@ export function SystemLogModal({
                       )
                     : null;
 
+                const combinedCachedFiles: CachedUnsavedFileItem[] = [];
+
                 if (cachedMatch) {
                   const filesString = cachedMatch[1];
                   const parts = filesString.split(/\s+and\s+\d+\s+other\s+(?:files|drafts)/i);
@@ -1046,7 +1150,6 @@ export function SystemLogModal({
                     .filter(Boolean);
 
                   // Merge parsed filenames with all live unsaved files from store/localStorage so none are hidden behind "and 4 other files"
-                  const combinedFiles: { name: string; path: string }[] = [];
                   const seenLower = new Set<string>();
 
                   for (const name of parsedFromText) {
@@ -1056,9 +1159,18 @@ export function SystemLogModal({
                       const liveMatch = allLiveUnsavedFiles.find(
                         (item) => item.name.toLowerCase() === lower
                       );
-                      combinedFiles.push({
+                      combinedCachedFiles.push({
                         name: liveMatch?.name || name,
                         path: liveMatch?.path || name,
+                        source:
+                          liveMatch?.source ||
+                          (lower.endsWith(".wayfinder")
+                            ? "wayfinder"
+                            : lower.endsWith(".masonhub")
+                              ? "masonhub"
+                              : "cw"),
+                        rawContent: liveMatch?.rawContent,
+                        originalContent: liveMatch?.originalContent,
                       });
                     }
                   }
@@ -1067,17 +1179,17 @@ export function SystemLogModal({
                     const lower = liveFile.name.toLowerCase();
                     if (!seenLower.has(lower)) {
                       seenLower.add(lower);
-                      combinedFiles.push(liveFile);
+                      combinedCachedFiles.push(liveFile);
                     }
                   }
 
                   bodyContent = (
                     <div className="flex flex-col gap-2">
                       <span className="text-[11px] font-semibold text-[var(--subtext)]">
-                        { `${combinedFiles.length} ${t("files_with_unsaved_edits", "files with unsaved edits — click to open:")}` }
+                        { `${combinedCachedFiles.length} ${t("files_with_unsaved_edits", "files with unsaved edits — click to open:")}` }
                       </span>
                       <div className="flex flex-wrap gap-1.5 items-center">
-                        {combinedFiles.map((fileObj) => {
+                        {combinedCachedFiles.map((fileObj) => {
                           const displayLabel = fileObj.name
                             .replace(/\.wayfinder$/i, "")
                             .replace(/\.masonhub$/i, "");
@@ -1087,7 +1199,11 @@ export function SystemLogModal({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleOpenCachedFile(fileObj.name, fileObj.path);
+                                handleOpenCachedFile(
+                                  fileObj.name,
+                                  fileObj.path,
+                                  fileObj.source
+                                );
                               }}
                               className="relative px-2.5 py-1 glass-surface border border-[color-mix(in_srgb,var(--accent)_32%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] rounded-lg transition-all text-[10px] font-black tracking-wide flex items-center gap-1.5 cursor-pointer"
                             >
@@ -1106,6 +1222,123 @@ export function SystemLogModal({
                     </div>
                   );
                 }
+
+                // Resolve whether this log card's action opens a Panel (stays on current page & keeps SystemLogModal open underneath)
+                // or navigates to a Section (goes to targetView & closes SystemLogModal).
+                const lowerLog = String(log.logText || "").toLowerCase();
+                let entryActionLabel = catMeta.label;
+                let entryActionIcon = catMeta.icon;
+                let entryOnOpenPanel: (() => void) | null =
+                  catMeta.onOpenPanel || null;
+                let entryTargetView: string | null = catMeta.targetView || null;
+
+                if (cachedMatch && combinedCachedFiles.length > 0) {
+                  const primaryFile = combinedCachedFiles[0];
+                  const primaryLower = primaryFile.name.toLowerCase();
+                  const isSectionDraft =
+                    primaryFile.source === "wayfinder" ||
+                    primaryFile.source === "masonhub" ||
+                    primaryLower.endsWith(".wayfinder") ||
+                    primaryLower.endsWith(".masonhub");
+                  const cleanPrimaryLabel = primaryFile.name
+                    .replace(/\.wayfinder$/i, "")
+                    .replace(/\.masonhub$/i, "");
+                  entryActionLabel = cleanPrimaryLabel;
+                  entryActionIcon = t("icon_edit_document", "edit_document");
+                  if (!isSectionDraft) {
+                    entryOnOpenPanel = () =>
+                      handleOpenCachedFile(
+                        primaryFile.name,
+                        primaryFile.path,
+                        primaryFile.source
+                      );
+                    entryTargetView = null;
+                  } else {
+                    entryOnOpenPanel = null;
+                  }
+                } else if (!entryOnOpenPanel) {
+                  if (
+                    lowerLog.includes("sanctuary alert") ||
+                    lowerLog.includes("urgent alert") ||
+                    lowerLog.includes("global alert") ||
+                    lowerLog.includes("advisory")
+                  ) {
+                    entryActionLabel = t(
+                      "sanctuary_alerts",
+                      "Sanctuary Alerts"
+                    );
+                    entryActionIcon = t(
+                      "icon_notifications_active",
+                      "notifications_active"
+                    );
+                    entryOnOpenPanel = () =>
+                      useStore.getState().setIsAlertsOpen(true);
+                  } else if (lowerLog.includes("nexus update")) {
+                    entryActionLabel = t("updates_available", "Updates");
+                    entryActionIcon = t("icon_update", "update");
+                    entryOnOpenPanel = () =>
+                      useModalStore.getState().setIsNexusUpdatesPanelOpen(true);
+                  } else if (
+                    lowerLog.includes("updates available") ||
+                    lowerLog.includes("updates detected")
+                  ) {
+                    entryActionLabel = t("updates_available", "Updates");
+                    entryActionIcon = t("icon_update", "update");
+                    entryOnOpenPanel = () =>
+                      useModalStore.getState().setShowUpdatesModal(true);
+                  } else if (
+                    lowerLog.includes("explicit signature") ||
+                    lowerLog.includes("signature queue")
+                  ) {
+                    entryActionLabel = t("sig_queue_title", "Signature Queue");
+                    entryActionIcon = t("icon_verified", "verified");
+                    entryOnOpenPanel = () =>
+                      useModalStore.getState().setIsSignatureQueueOpen(true);
+                  } else if (lowerLog.includes("dna match")) {
+                    entryActionLabel = t("dna_match_title", "DNA Match");
+                    entryActionIcon = t("icon_fingerprint", "fingerprint");
+                    entryOnOpenPanel = () =>
+                      useModalStore.getState().setIsDnaModalOpen(true);
+                  } else if (
+                    lowerLog.includes("unidentified") ||
+                    lowerLog.includes("scout queue")
+                  ) {
+                    entryActionLabel = t("scout_queue_title", "Scout Queue");
+                    entryActionIcon = t("icon_radar", "radar");
+                    entryOnOpenPanel = () =>
+                      useModalStore.getState().setIsScoutPanelOpen(true);
+                  } else if (
+                    log.category === "system" &&
+                    !log.isPreviewEvent
+                  ) {
+                    entryActionLabel = t("system_status", "System Status");
+                    entryActionIcon = t("icon_memory", "memory");
+                    entryOnOpenPanel = () => setIsSystemStatusOpen(true);
+                  }
+                }
+
+                const triggerEntryOpenAction = () => {
+                  if (entryOnOpenPanel) {
+                    // Panel: stay on current page and keep System Log Panel open underneath!
+                    entryOnOpenPanel();
+                  } else if (cachedMatch && combinedCachedFiles.length > 0) {
+                    // Section draft (.wayfinder / .masonhub): navigate to section and close System Log Panel
+                    const primaryFile = combinedCachedFiles[0];
+                    handleOpenCachedFile(
+                      primaryFile.name,
+                      primaryFile.path,
+                      primaryFile.source
+                    );
+                  } else if (entryTargetView) {
+                    // Section: navigate to section and close System Log Panel
+                    setView(entryTargetView);
+                    setIsLogExpanded(false);
+                  }
+                };
+
+                const hasEntryOpenAction = Boolean(
+                  entryOnOpenPanel || entryTargetView
+                );
 
                 const isCopied = copiedId === log.id;
                 const exactTimeStr = new Date(log.timestamp).toLocaleTimeString(
@@ -1132,19 +1365,12 @@ export function SystemLogModal({
                             icon: t("icon_content_copy", "content_copy"),
                             onClick: () => handleCopyEntry(log),
                           },
-                          ...(catMeta.onOpenPanel || catMeta.targetView
+                          ...(hasEntryOpenAction
                             ? [
                                 {
-                                  label: `${t("open", "Open")} ${catMeta.label}`,
-                                  icon: catMeta.icon,
-                                  onClick: () => {
-                                    if (catMeta.onOpenPanel) {
-                                      catMeta.onOpenPanel();
-                                    } else if (catMeta.targetView) {
-                                      setView(catMeta.targetView);
-                                      setIsLogExpanded(false);
-                                    }
-                                  },
+                                  label: `${t("open", "Open")} ${entryActionLabel}`,
+                                  icon: entryActionIcon,
+                                  onClick: triggerEntryOpenAction,
                                 },
                               ]
                             : []),
@@ -1229,18 +1455,13 @@ export function SystemLogModal({
                           </button>
                         )}
 
-                        {(catMeta.onOpenPanel || catMeta.targetView) &&
+                        {hasEntryOpenAction &&
                           !log.isPreviewEvent && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (catMeta.onOpenPanel) {
-                                  catMeta.onOpenPanel();
-                                } else if (catMeta.targetView) {
-                                  setView(catMeta.targetView);
-                                  setIsLogExpanded(false);
-                                }
+                                triggerEntryOpenAction();
                               }}
                               className="relative w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
                             >
@@ -1248,7 +1469,7 @@ export function SystemLogModal({
                                 {t("icon_open_in_new", "open_in_new")}
                               </span>
                               <HoverTooltip
-                                title={`${t("open", "Open")} ${catMeta.label}`}
+                                title={`${t("open", "Open")} ${entryActionLabel}`}
                               />
                             </button>
                           )}

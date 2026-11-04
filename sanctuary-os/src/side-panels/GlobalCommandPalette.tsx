@@ -49,6 +49,7 @@ export interface ControllerBindingMap {
   togglePalette: string;
   executeItem: string;
   secondaryAction: string;
+  openKeyboard: string;
   nextTab: string;
   prevTab: string;
   closePalette: string;
@@ -65,6 +66,7 @@ export const DEFAULT_CONTROLLER_BINDINGS: ControllerBindingMap = {
   togglePalette: "4+5", // L1 + R1 (LB + RB)
   executeItem: "0", // A / Cross
   secondaryAction: "2", // X / Square
+  openKeyboard: "3", // Y / Triangle
   nextTab: "5", // R1 / RB
   prevTab: "4", // L1 / LB
   closePalette: "1", // B / Circle
@@ -72,6 +74,16 @@ export const DEFAULT_CONTROLLER_BINDINGS: ControllerBindingMap = {
 
 const HOTKEYS_STORAGE_KEY = "sanctuary_cmd_hotkeys_v1";
 const GAMEPAD_STORAGE_KEY = "sanctuary_cmd_gamepad_v1";
+const AUTO_KEYBOARD_STORAGE_KEY = "sanctuary_cmd_auto_keyboard_v1";
+
+export function getAutoOpenKeyboardPref(): boolean {
+  try {
+    const raw = localStorage.getItem(AUTO_KEYBOARD_STORAGE_KEY);
+    if (raw === "true") return true;
+    if (raw === "false") return false;
+  } catch {}
+  return isLinuxDesktop();
+}
 
 export function getCommandHotkeys(): CommandHotkeyMap {
   try {
@@ -206,17 +218,32 @@ export function scrollActiveViewport(deltaY: number): boolean {
   for (let i = panels.length - 1; i >= 0; i--) {
     const panel = panels[i];
     if (panel.offsetParent !== null || panel.getClientRects().length > 0) {
-      const scroller = panel.querySelector<HTMLElement>(".overflow-y-auto");
-      if (scroller && scroller.scrollHeight > scroller.clientHeight) {
-        scroller.scrollTop += deltaY;
-        return true;
+      const scrollers = Array.from(
+        panel.querySelectorAll<HTMLElement>(".overflow-y-auto, .custom-scrollbar")
+      );
+      for (const scroller of scrollers) {
+        if (scroller.scrollHeight > scroller.clientHeight + 2) {
+          scroller.scrollTop += deltaY;
+          return true;
+        }
       }
     }
   }
   const mainScroll = document.getElementById("sanctuary-main-scroll");
-  if (mainScroll && mainScroll.scrollHeight > mainScroll.clientHeight) {
-    mainScroll.scrollTop += deltaY;
-    return true;
+  if (mainScroll) {
+    if (mainScroll.scrollHeight > mainScroll.clientHeight + 2) {
+      mainScroll.scrollTop += deltaY;
+      return true;
+    }
+    const innerScrollers = Array.from(
+      mainScroll.querySelectorAll<HTMLElement>(".overflow-y-auto, .custom-scrollbar")
+    );
+    for (const scroller of innerScrollers) {
+      if (scroller.scrollHeight > scroller.clientHeight + 2) {
+        scroller.scrollTop += deltaY;
+        return true;
+      }
+    }
   }
   return false;
 }
@@ -383,6 +410,10 @@ export function GlobalCommandPalette({
   const [activeTab, setActiveTab] = useState<CommandCategory>("all");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isControlsOpen, setIsControlsOpen] = useState(false);
+  const [autoOpenKeyboard, setAutoOpenKeyboard] = useState<boolean>(() =>
+    getAutoOpenKeyboardPref()
+  );
+  const [isVirtualKeyboardOpen, setIsVirtualKeyboardOpen] = useState<boolean>(false);
 
   // Hotkeys & Controller / Steam Deck Bindings
   const [hotkeys, setHotkeys] = useState<CommandHotkeyMap>(() => getCommandHotkeys());
@@ -403,6 +434,36 @@ export function GlobalCommandPalette({
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const lastDomWheelAtRef = useRef<number>(0);
+
+  const toggleAutoOpenKeyboard = useCallback((nextVal?: boolean) => {
+    setAutoOpenKeyboard((prev) => {
+      const next = typeof nextVal === "boolean" ? nextVal : !prev;
+      try {
+        localStorage.setItem(AUTO_KEYBOARD_STORAGE_KEY, String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const triggerSteamOsk = useCallback(() => {
+    if (isLinuxDesktop()) {
+      invoke("open_steam_osk").catch(() => {});
+    }
+  }, []);
+
+  const toggleOnScreenKeyboard = useCallback(() => {
+    setIsVirtualKeyboardOpen((prev) => {
+      const next = !prev;
+      if (next && isLinuxDesktop()) {
+        invoke("open_steam_osk").catch(() => {});
+      }
+      return next;
+    });
+    window.setTimeout(() => {
+      inputRef.current?.focus();
+    }, 20);
+  }, []);
 
   const updateHotkeys = useCallback((next: CommandHotkeyMap) => {
     setHotkeys(next);
@@ -424,6 +485,12 @@ export function GlobalCommandPalette({
     setIsControlsOpen(Boolean(openControls));
     setIsOpen(true);
     setSelectedIndex(0);
+    if (getAutoOpenKeyboardPref() && !openControls) {
+      setIsVirtualKeyboardOpen(true);
+      if (isLinuxDesktop()) {
+        invoke("open_steam_osk").catch(() => {});
+      }
+    }
     window.setTimeout(() => {
       inputRef.current?.focus();
       inputRef.current?.select();
@@ -433,6 +500,7 @@ export function GlobalCommandPalette({
   const closePalette = useCallback(() => {
     setIsOpen(false);
     setIsControlsOpen(false);
+    setIsVirtualKeyboardOpen(false);
     setRecordingHotkeyField(null);
     setRecordingPadField(null);
   }, []);
@@ -513,12 +581,19 @@ export function GlobalCommandPalette({
           const next = !prev;
           if (next) {
             setSelectedIndex(0);
+            if (getAutoOpenKeyboardPref()) {
+              setIsVirtualKeyboardOpen(true);
+              if (isLinuxDesktop()) {
+                invoke("open_steam_osk").catch(() => {});
+              }
+            }
             window.setTimeout(() => {
               inputRef.current?.focus();
               inputRef.current?.select();
             }, 40);
           } else {
             setIsControlsOpen(false);
+            setIsVirtualKeyboardOpen(false);
           }
           return next;
         });
@@ -527,6 +602,15 @@ export function GlobalCommandPalette({
 
       const st = padStateRef.current;
       if (st.isOpen && !isEditableElementFocused()) {
+        if (
+          st.controllerBindings.openKeyboard?.startsWith("KEY:") &&
+          matchesKeyboardCombo(e, st.controllerBindings.openKeyboard, true)
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleOnScreenKeyboard();
+          return;
+        }
         if (
           st.controllerBindings.closePalette.startsWith("KEY:") &&
           matchesKeyboardCombo(e, st.controllerBindings.closePalette, true)
@@ -638,36 +722,68 @@ export function GlobalCommandPalette({
 
     const handleGlobalWheel = (e: WheelEvent) => {
       if (e.defaultPrevented) return;
+      lastDomWheelAtRef.current = Date.now();
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
-      // Let horizontally scrollable carousels handle their own wheel events
-      const horizEl = target.closest<HTMLElement>(".sa-stat-tile-carousel, .overflow-x-auto");
-      if (horizEl && horizEl.scrollWidth > horizEl.clientWidth + 2) {
+      const linuxMode = isLinuxDesktop();
+      const modeScale = e.deltaMode === 1 ? 56 : e.deltaMode === 2 ? 420 : 1;
+      let dx = e.deltaX * modeScale;
+      let dy = e.deltaY * modeScale;
+
+      // Under X11 / WebKitGTK on SteamOS, wheel & trackpad ticks frequently arrive with deltaMode=0 and small values (±1..±5)
+      if (linuxMode && e.deltaMode === 0) {
+        if (Math.abs(dy) > 0 && Math.abs(dy) <= 5) dy *= 44;
+        if (Math.abs(dx) > 0 && Math.abs(dx) <= 5) dx *= 44;
+      }
+
+      // Let horizontally scrollable carousels handle horizontal wheel events
+      const horizEl = target.closest<HTMLElement>(".sa-stat-tile-carousel");
+      if (horizEl && horizEl.scrollWidth > horizEl.clientWidth + 2 && Math.abs(dx) > Math.abs(dy)) {
+        if (linuxMode) {
+          horizEl.scrollLeft += dx;
+          e.preventDefault();
+        }
         return;
       }
 
-      // Check if target is already inside a vertically scrollable element that can scroll in this direction
+      // Combine/pick dominant axis so Steam Deck Left Trackpad works in Vertical, Horizontal, or Circular wheel modes
+      const effectiveDelta = linuxMode
+        ? Math.abs(dy) >= Math.abs(dx)
+          ? dy
+          : dx
+        : dy !== 0
+        ? dy
+        : dx;
+
+      if (effectiveDelta === 0) return;
+
+      // Walk up from target to find the closest vertically scrollable container
       let curr: HTMLElement | null = target;
       while (curr && curr !== document.body && curr !== document.documentElement) {
         if (curr.scrollHeight > curr.clientHeight + 2) {
           const style = window.getComputedStyle(curr);
           if (style.overflowY === "auto" || style.overflowY === "scroll") {
-            // SteamOS Desktop Mode Left Trackpad often emits horizontal wheel events (deltaX != 0, deltaY == 0)
-            // for vertical trackpad swipes. Convert horizontal-only wheel events into vertical scroll!
-            if (e.deltaY === 0 && e.deltaX !== 0) {
-              curr.scrollTop += e.deltaX;
-              e.preventDefault();
+            const canScrollUp = effectiveDelta < 0 && curr.scrollTop > 0;
+            const canScrollDown =
+              effectiveDelta > 0 && curr.scrollTop + curr.clientHeight < curr.scrollHeight - 1;
+
+            if (canScrollUp || canScrollDown) {
+              // On Linux (WebKitGTK / Steam Deck) or when converting horizontal trackpad wheel events,
+              // directly drive scrollTop so WebKitGTK X11 never drops the scroll event
+              if (linuxMode || e.deltaY === 0 || Math.abs(dx) > Math.abs(dy)) {
+                curr.scrollTop += effectiveDelta;
+                e.preventDefault();
+              }
+              return;
             }
-            return;
           }
         }
         curr = curr.parentElement;
       }
 
-      // If cursor is over a non-scrolling region (Sidebar, TitleBar, margins) or deltaX-only trackpad scroll:
-      const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
-      if (delta !== 0 && scrollActiveViewport(delta)) {
+      // Fallback when cursor is over non-scrolling chrome (Sidebar, TitleBar, margins)
+      if (scrollActiveViewport(effectiveDelta)) {
         e.preventDefault();
       }
     };
@@ -2561,8 +2677,15 @@ export function GlobalCommandPalette({
           const next = !prev;
           if (next) {
             setSelectedIndex(0);
+            if (getAutoOpenKeyboardPref()) {
+              setIsVirtualKeyboardOpen(true);
+              if (isLinuxDesktop()) {
+                invoke("open_steam_osk").catch(() => {});
+              }
+            }
           } else {
             setIsControlsOpen(false);
+            setIsVirtualKeyboardOpen(false);
           }
           return next;
         });
@@ -2654,6 +2777,25 @@ export function GlobalCommandPalette({
         return;
       }
 
+      // Summon On-Screen Keyboard
+      if (
+        !st.isControlsOpen &&
+        st.controllerBindings.openKeyboard &&
+        checkGamepadCombo(pressedIndices, st.controllerBindings.openKeyboard)
+      ) {
+        setIsVirtualKeyboardOpen((prev) => {
+          const next = !prev;
+          if (next && isLinuxDesktop()) {
+            invoke("open_steam_osk").catch(() => {});
+          }
+          return next;
+        });
+        window.setTimeout(() => {
+          inputRef.current?.focus();
+        }, 20);
+        return;
+      }
+
       // Secondary Action
       if (
         !st.isControlsOpen &&
@@ -2667,8 +2809,23 @@ export function GlobalCommandPalette({
     };
 
     let unlistenNative: (() => void) | null = null;
+    let unlistenNativeScroll: (() => void) | null = null;
 
     if (isDesktop()) {
+      listen<{ deltaY: number }>("sanctuary-native-scroll", (event) => {
+        if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+        // Skip if a DOM wheel event already handled this gesture within the last 55ms
+        if (Date.now() - lastDomWheelAtRef.current < 55) return;
+        const deltaY = Number(event.payload?.deltaY || 0);
+        if (Math.abs(deltaY) > 0.5) {
+          scrollActiveViewport(deltaY);
+        }
+      })
+        .then((fn) => {
+          unlistenNativeScroll = fn;
+        })
+        .catch(() => {});
+
       invoke<{
         connected: boolean;
         id: string;
@@ -2760,6 +2917,7 @@ export function GlobalCommandPalette({
     return () => {
       window.clearInterval(interval);
       if (unlistenNative) unlistenNative();
+      if (unlistenNativeScroll) unlistenNativeScroll();
     };
   }, []);
 
@@ -2928,6 +3086,11 @@ export function GlobalCommandPalette({
       icon: t("icon_add_circle", "add_circle"),
     },
     {
+      key: "openKeyboard",
+      label: t("cmd_palette_pad_keyboard", "Summon On-Screen Keyboard"),
+      icon: t("icon_keyboard", "keyboard"),
+    },
+    {
       key: "nextTab",
       label: t("cmd_palette_pad_tab_next", "Next Filter Tab"),
       icon: t("icon_chevron_right", "chevron_right"),
@@ -2942,6 +3105,13 @@ export function GlobalCommandPalette({
       label: t("cmd_palette_pad_close", "Close Command Palette"),
       icon: t("icon_close", "close"),
     },
+  ];
+
+  const VIRTUAL_KEY_ROWS = [
+    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+    ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+    ["a", "s", "d", "f", "g", "h", "j", "k", "l", "-"],
+    ["z", "x", "c", "v", "b", "n", "m", "_", "."],
   ];
 
   return (
@@ -3010,6 +3180,30 @@ export function GlobalCommandPalette({
               )}
               <button
                 type="button"
+                onClick={toggleOnScreenKeyboard}
+                className={`relative ${VAULT_CHIP_CLASS} cursor-pointer transition-all hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] ${
+                  isVirtualKeyboardOpen ? "border-[var(--accent)] text-[var(--accent)]" : ""
+                }`}
+              >
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_keyboard", "keyboard")}
+                </span>
+                <span className="hidden sm:inline">
+                  {formatGamepadCombo(controllerBindings.openKeyboard || "3")}
+                </span>
+                <HoverTooltip
+                  title={t("cmd_palette_pad_keyboard", "Summon On-Screen Keyboard")}
+                  subtitle={t(
+                    "cmd_palette_osk_tooltip_sub",
+                    "Toggle Touch / Controller Keyboard & Steam Deck OSK"
+                  )}
+                  icon={t("icon_keyboard", "keyboard")}
+                  vAlign="bottom"
+                  align="right"
+                />
+              </button>
+              <button
+                type="button"
                 onClick={() => setIsControlsOpen((prev) => !prev)}
                 className={`relative ${VAULT_CHIP_CLASS} cursor-pointer transition-all hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] ${
                   isControlsOpen ? "border-[var(--accent)] text-[var(--accent)]" : ""
@@ -3034,6 +3228,125 @@ export function GlobalCommandPalette({
               </button>
             </div>
           </div>
+
+          {isVirtualKeyboardOpen && (
+            <div className="flex flex-col gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_keyboard", "keyboard")}
+                  </span>
+                  <span>{t("cmd_palette_osk_title", "On-Screen Quick Keyboard")}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {isLinuxDesktop() && (
+                    <button
+                      type="button"
+                      onClick={triggerSteamOsk}
+                      className={`${VAULT_CHIP_CLASS} cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:text-[var(--accent)]`}
+                    >
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                        {t("icon_sports_esports", "sports_esports")}
+                      </span>
+                      <span>{t("cmd_palette_btn_steam_osk", "Steam OSK")}</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => toggleAutoOpenKeyboard()}
+                    className={`${VAULT_CHIP_CLASS} cursor-pointer transition-colors ${
+                      autoOpenKeyboard
+                        ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                        : "hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                    }`}
+                  >
+                    <span
+                      className={`material-symbols-outlined !text-[12px] ${
+                        autoOpenKeyboard ? "text-[var(--success)]" : "text-[var(--subtext)]"
+                      }`}
+                    >
+                      {autoOpenKeyboard
+                        ? t("icon_check_circle", "check_circle")
+                        : t("icon_radio_button_unchecked", "radio_button_unchecked")}
+                    </span>
+                    <span>{t("cmd_palette_auto_osk_short", "Auto-Open")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsVirtualKeyboardOpen(false)}
+                    className={`${VAULT_CHIP_CLASS} cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]`}
+                  >
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {t("icon_keyboard_hide", "keyboard_hide")}
+                    </span>
+                    <span>{t("close", "Close")}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5 select-none">
+                {VIRTUAL_KEY_ROWS.map((row, rIdx) => (
+                  <div key={rIdx} className="grid grid-cols-10 gap-1.5">
+                    {row.map((ch) => (
+                      <button
+                        key={ch}
+                        type="button"
+                        onClick={() => {
+                          setQuery((prev) => prev + ch);
+                          if (isControlsOpen) setIsControlsOpen(false);
+                          inputRef.current?.focus();
+                        }}
+                        className="h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] active:scale-95 text-xs font-black uppercase text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
+                      >
+                        {ch}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+                <div className="grid grid-cols-4 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery((prev) => prev + " ");
+                      inputRef.current?.focus();
+                    }}
+                    className="col-span-2 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] active:scale-95 text-[10px] font-black uppercase tracking-wider text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[14px]">
+                      {t("icon_space_bar", "space_bar")}
+                    </span>
+                    <span>{t("cmd_palette_key_space", "Space")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery((prev) => prev.slice(0, -1));
+                      inputRef.current?.focus();
+                    }}
+                    className="h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_50%,transparent)] active:scale-95 text-[10px] font-black uppercase tracking-wider text-[var(--text)] hover:text-[var(--warning)] flex items-center justify-center gap-1 transition-all cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[14px]">
+                      {t("icon_backspace", "backspace")}
+                    </span>
+                    <span>{t("back", "Back")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery("");
+                      inputRef.current?.focus();
+                    }}
+                    className="h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[var(--danger)] active:scale-95 text-[10px] font-black uppercase tracking-wider text-[var(--danger)] flex items-center justify-center gap-1 transition-all cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[14px]">
+                      {t("icon_delete", "delete")}
+                    </span>
+                    <span>{t("clear", "Clear")}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-between px-1 text-[10px] font-bold text-[var(--subtext)] opacity-75">
             <span>
@@ -3194,6 +3507,57 @@ export function GlobalCommandPalette({
                     </div>
                   );
                 })}
+              </div>
+
+              <div
+                onClick={() => toggleAutoOpenKeyboard()}
+                className={`mt-1 glass-surface rounded-xl p-2.5 border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                  autoOpenKeyboard
+                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
+                    : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                      autoOpenKeyboard ? "text-[var(--success)]" : "text-[var(--accent)]"
+                    }`}
+                  >
+                    {t("icon_keyboard", "keyboard")}
+                  </span>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-bold text-[var(--text)] leading-snug">
+                      {t(
+                        "cmd_palette_auto_osk_label",
+                        "Auto-Open On-Screen Keyboard When Command Matrix Opens"
+                      )}
+                    </span>
+                    <span className="text-[10px] font-medium text-[var(--subtext)] opacity-80">
+                      {t(
+                        "cmd_palette_auto_osk_desc",
+                        "Automatically opens the quick keyboard (and Steam Deck OSK on SteamOS) when summoned"
+                      )}
+                    </span>
+                  </div>
+                </div>
+                <span
+                  className={`${VAULT_CHIP_CLASS} shrink-0 ${
+                    autoOpenKeyboard
+                      ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
+                      : ""
+                  }`}
+                >
+                  <span className="material-symbols-outlined !text-[12px]">
+                    {autoOpenKeyboard
+                      ? t("icon_check_circle", "check_circle")
+                      : t("icon_radio_button_unchecked", "radio_button_unchecked")}
+                  </span>
+                  <span>
+                    {autoOpenKeyboard
+                      ? t("enabled", "Enabled")
+                      : t("disabled", "Disabled")}
+                  </span>
+                </span>
               </div>
             </div>
           </div>

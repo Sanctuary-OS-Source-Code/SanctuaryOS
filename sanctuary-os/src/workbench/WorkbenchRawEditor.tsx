@@ -28,7 +28,7 @@ export const WorkbenchRawEditor: React.FC<WorkbenchRawEditorProps> = ({
    isLight,
    onEditorMount,
    isResizingPreview = false,
-   wordWrap: initialWordWrap = false,
+   wordWrap: initialWordWrap = true,
    fileName,
    showSyncScroll = false,
    isScrollLocked = false,

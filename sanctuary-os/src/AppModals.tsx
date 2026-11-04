@@ -19,6 +19,7 @@ import { BackupRestoreModals } from "./app-modals/BackupRestoreModals";
 import { IngestProgressModal } from "./app-modals/IngestProgressModal";
 import { SystemLogModal } from "./app-modals/SystemLogModal";
 import { SystemStatusBar } from "./app-modals/SystemStatusBar";
+import { GlobalWorkbenchSidePanelHost } from "./app-modals/GlobalWorkbenchSidePanelHost";
 import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel';
 import BlueprintSwapSidePanel from "./side-panels/BlueprintSwapSidePanel";
 import CommandRadarSweepPanel from "./side-panels/CommandRadarSweepPanel";
@@ -262,6 +263,8 @@ export const AppModals = React.memo(function AppModals(props: any) {
         onClose={() => setIsAlertsOpen(false)}
         audience="Citizens"
       />
+
+      <GlobalWorkbenchSidePanelHost />
 
       <ScreenshotTourSidePanel
         isOpen={isScreenshotTourOpen}

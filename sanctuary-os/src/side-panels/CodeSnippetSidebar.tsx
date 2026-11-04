@@ -39,9 +39,7 @@ export default function CodeSnippetSidebar({
   const { t } = useLexicon();
   const { currentTheme } = useTheme();
   const [copied, setCopied] = useState(false);
-  const [wrapLines, setWrapLines] = useState<boolean>(() =>
-    typeof window !== "undefined" ? window.innerWidth < 768 : false
-  );
+  const [wrapLines, setWrapLines] = useState<boolean>(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showReference, setShowReference] = useState(false);
   const [isScrollLocked, setIsScrollLocked] = useState(false);

@@ -60,9 +60,14 @@ fn ensure_linux_desktop_integration() {
         _ => return,
     };
 
-    let exec_path = std::env::var("APPIMAGE")
+    let exec_path = std::env::var("SANCTUARY_REAL_APPIMAGE")
         .ok()
         .filter(|s| !s.trim().is_empty())
+        .or_else(|| {
+            std::env::var("APPIMAGE")
+                .ok()
+                .filter(|s| !s.trim().is_empty())
+        })
         .or_else(|| {
             std::env::current_exe()
                 .ok()
@@ -74,31 +79,83 @@ fn ensure_linux_desktop_integration() {
     };
 
     let icon_bytes = include_bytes!("../icons/128x128@2x.png");
-    let icon_dirs = [
+    let app_icon_dirs = [
         format!("{}/.local/share/icons/hicolor/256x256/apps", home),
         format!("{}/.local/share/icons/hicolor/128x128/apps", home),
+        format!("{}/.local/share/icons/breeze/apps/64", home),
+        format!("{}/.local/share/icons/breeze-dark/apps/64", home),
         format!("{}/.local/share/pixmaps", home),
+    ];
+    let mime_icon_dirs = [
+        format!("{}/.local/share/icons/hicolor/256x256/mimetypes", home),
+        format!("{}/.local/share/icons/hicolor/128x128/mimetypes", home),
+        format!("{}/.local/share/icons/breeze/mimetypes/64", home),
+        format!("{}/.local/share/icons/breeze-dark/mimetypes/64", home),
     ];
     let primary_icon_path = format!(
         "{}/.local/share/icons/hicolor/256x256/apps/sanctuary-os.png",
         home
     );
 
-    for dir in &icon_dirs {
+    for dir in &app_icon_dirs {
         let _ = std::fs::create_dir_all(dir);
-        let target = format!("{}/sanctuary-os.png", dir);
-        let _ = std::fs::write(&target, icon_bytes);
+        let _ = std::fs::write(format!("{}/sanctuary-os.png", dir), icon_bytes);
+        let _ = std::fs::write(format!("{}/SanctuaryOS.png", dir), icon_bytes);
     }
+    for dir in &mime_icon_dirs {
+        let _ = std::fs::create_dir_all(dir);
+        let _ = std::fs::write(format!("{}/sanctuary-os.png", dir), icon_bytes);
+        let _ = std::fs::write(
+            format!("{}/application-x-sanctuary-appimage.png", dir),
+            icon_bytes,
+        );
+    }
+
+    // Register high-priority XDG MIME rule so KDE Dolphin / Plasma displays the Sanctuary OS crest
+    // directly on Sanctuary*.AppImage files in ~/Downloads and ~/Desktop instead of the generic .AppImage gear icon
+    let mime_Base_dir = format!("{}/.local/share/mime", home);
+    let mime_pkg_dir = format!("{}/packages", mime_Base_dir);
+    let _ = std::fs::create_dir_all(&mime_pkg_dir);
+    let mime_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-sanctuary-appimage">
+    <sub-class-of type="application/vnd.appimage"/>
+    <sub-class-of type="application/x-iso9660-appimage"/>
+    <sub-class-of type="application/x-executable"/>
+    <comment>Sanctuary OS AppImage</comment>
+    <icon name="sanctuary-os"/>
+    <generic-icon name="sanctuary-os"/>
+    <glob pattern="Sanctuary*.AppImage" weight="80"/>
+    <glob pattern="sanctuary*.AppImage" weight="80"/>
+    <glob pattern="*SanctuaryOS*.AppImage" weight="80"/>
+    <glob pattern="Sanctuary*.appimage" weight="80"/>
+    <glob pattern="sanctuary*.appimage" weight="80"/>
+  </mime-type>
+</mime-info>
+"#;
+    let _ = std::fs::write(format!("{}/sanctuary-os.xml", mime_pkg_dir), mime_xml);
+    let _ = std::process::Command::new("update-mime-database")
+        .arg(&mime_Base_dir)
+        .output();
 
     if let Ok(meta) = std::fs::metadata(&exec_path) {
         let mut perms = meta.permissions();
         perms.set_mode(0o755);
         let _ = std::fs::set_permissions(&exec_path, perms);
     }
+    let icon_file_uri = format!("file://{}", primary_icon_path);
+    let _ = std::process::Command::new("gio")
+        .args(["set", &exec_path, "metadata::custom-icon", &icon_file_uri])
+        .output();
+    let _ = std::process::Command::new("gio")
+        .args(["set", &exec_path, "metadata::trusted", "true"])
+        .output();
 
+    // Note: Do NOT include TryExec= here because KDE's KDesktopFile::tryExec() does not support spaces
+    // in filenames (e.g. "Sanctuary OS_0.6.0_amd64.AppImage") and falls back to a broken gear icon.
     let desktop_entry = format!(
-        "[Desktop Entry]\nVersion=1.0\nType=Application\nName=Sanctuary OS\nComment=Sovereign Mod & Blueprint Operating System\nExec=\"{}\" %U\nTryExec={}\nIcon={}\nTerminal=false\nCategories=Game;Utility;\nStartupWMClass=SanctuaryOS\nStartupNotify=true\nX-KDE-SubstituteUID=false\n",
-        exec_path, exec_path, primary_icon_path
+        "[Desktop Entry]\nVersion=1.0\nType=Application\nName=Sanctuary OS\nComment=Sovereign Mod & Blueprint Operating System\nExec=\"{}\" %U\nIcon={}\nTerminal=false\nCategories=Game;Utility;\nStartupWMClass=SanctuaryOS\nStartupNotify=true\nX-KDE-SubstituteUID=false\n",
+        exec_path, primary_icon_path
     );
 
     let apps_dir = format!("{}/.local/share/applications", home);
@@ -123,6 +180,14 @@ fn ensure_linux_desktop_integration() {
             }
             let _ = std::process::Command::new("gio")
                 .args(["set", &desktop_shortcut, "metadata::trusted", "true"])
+                .output();
+            let _ = std::process::Command::new("gio")
+                .args([
+                    "set",
+                    &desktop_shortcut,
+                    "metadata::custom-icon",
+                    &icon_file_uri,
+                ])
                 .output();
         }
     }
@@ -151,6 +216,12 @@ fn ensure_linux_desktop_integration() {
 
     let _ = std::process::Command::new("update-desktop-database")
         .arg(&apps_dir)
+        .output();
+    let _ = std::process::Command::new("kbuildsycoca5")
+        .arg("--noincremental")
+        .output();
+    let _ = std::process::Command::new("kbuildsycoca6")
+        .arg("--noincremental")
         .output();
 }
 
@@ -181,6 +252,11 @@ fn main() {
         // GTK/WebKit initializes, ld.so binds directly to the Steam Deck's native RDNA2 GPU stack.
         if is_appimage && std::env::var_os("SANCTUARY_APPIMAGE_REEXEC").is_none() {
             std::env::set_var("SANCTUARY_APPIMAGE_REEXEC", "1");
+            if let Ok(appimage_path) = std::env::var("APPIMAGE") {
+                if !appimage_path.trim().is_empty() {
+                    std::env::set_var("SANCTUARY_REAL_APPIMAGE", appimage_path);
+                }
+            }
             if std::env::var_os("GDK_BACKEND").is_none() {
                 std::env::set_var("GDK_BACKEND", "x11");
             }
@@ -429,7 +505,8 @@ fn main() {
             native_webauthn_register,
             native_webauthn_authenticate,
             reveal_main_window,
-            get_native_gamepad_state
+            get_native_gamepad_state,
+            open_steam_osk
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
