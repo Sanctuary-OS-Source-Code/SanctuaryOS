@@ -1,7 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktop, isLinuxDesktop } from "./envUtils";
-import { supabase, supabaseAuth, RESOLVED_SANCTUARY_CONFIG } from "../supabase";
+import { supabaseAuth, RESOLVED_SANCTUARY_CONFIG } from "../supabase";
+import { triggerPwaWebPush } from "./webPushClient";
 
 export interface MfaSecurityState {
   passkeys: any[];
@@ -1460,9 +1461,9 @@ export async function startCompanionPasskeyHandshake(
       user.email
     );
 
-    await supabase.from("citizen_staging_queue").delete().eq("user_token", userToken);
+    await supabaseAuth.from("citizen_staging_queue").delete().eq("user_token", userToken);
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAuth
       .from("citizen_staging_queue")
       .insert([
         {
@@ -1481,6 +1482,18 @@ export async function startCompanionPasskeyHandshake(
     if (error) {
       return { data: null, error: new Error(error.message) };
     }
+
+    triggerPwaWebPush({
+      type: "passkey_handshake",
+      handshake_token: userToken,
+      title: "Approve Rig Passkey Handshake",
+      body: `${payload.requestingDevice} (${payload.targetScope}) • Code: ${payload.handshakeCode}`,
+      data: {
+        actionTypeId: "PASSKEY_HANDSHAKE",
+        handshakeId: payload.handshakeId,
+        handshakeCode: payload.handshakeCode,
+      },
+    });
 
     return {
       data: {
@@ -1515,7 +1528,7 @@ export async function pollCompanionPasskeyHandshake(
     if (!user?.id) return { status: "expired" };
 
     const userToken = await derivePasskeyHandshakeToken(user.id, user.email);
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAuth
       .from("citizen_staging_queue")
       .select("*")
       .eq("user_token", userToken)
@@ -1538,7 +1551,7 @@ export async function pollCompanionPasskeyHandshake(
       if (!decrypted || decrypted.handshakeId !== handshakeId) continue;
 
       if (Date.now() > decrypted.expiresAt) {
-        await supabase.from("citizen_staging_queue").delete().eq("id", row.id);
+        await supabaseAuth.from("citizen_staging_queue").delete().eq("id", row.id);
         return { status: "expired" };
       }
 
@@ -1554,7 +1567,7 @@ export async function pollCompanionPasskeyHandshake(
           decrypted.approvedAt &&
           Date.now() - decrypted.approvedAt < 180_000
         ) {
-          await supabase.from("citizen_staging_queue").delete().eq("id", row.id);
+          await supabaseAuth.from("citizen_staging_queue").delete().eq("id", row.id);
           markPasskeySessionVerified(user.id);
           notifyMfaStateChanged();
           return {
@@ -1576,14 +1589,14 @@ export async function pollCompanionPasskeyHandshake(
 export async function cancelCompanionPasskeyHandshake(rowId?: string): Promise<void> {
   try {
     if (rowId) {
-      await supabase.from("citizen_staging_queue").delete().eq("id", rowId);
+      await supabaseAuth.from("citizen_staging_queue").delete().eq("id", rowId);
       return;
     }
     const { data: sessionData } = await supabaseAuth.auth.getSession();
     const user = sessionData?.session?.user;
     if (!user?.id) return;
     const userToken = await derivePasskeyHandshakeToken(user.id, user.email);
-    await supabase.from("citizen_staging_queue").delete().eq("user_token", userToken);
+    await supabaseAuth.from("citizen_staging_queue").delete().eq("user_token", userToken);
   } catch {}
 }
 
@@ -1599,7 +1612,7 @@ export async function fetchPendingCompanionPasskeyHandshakes(): Promise<
     if (!user?.id) return [];
 
     const userToken = await derivePasskeyHandshakeToken(user.id, user.email);
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAuth
       .from("citizen_staging_queue")
       .select("*")
       .eq("user_token", userToken)
@@ -1637,7 +1650,7 @@ export async function fetchPendingCompanionPasskeyHandshakes(): Promise<
     }
 
     if (expiredIds.length > 0) {
-      supabase
+      supabaseAuth
         .from("citizen_staging_queue")
         .delete()
         .in("id", expiredIds)
@@ -1724,7 +1737,7 @@ export async function approveCompanionPasskeyHandshake(
       user.email
     );
 
-    const { error: updateErr } = await supabase
+    const { error: updateErr } = await supabaseAuth
       .from("citizen_staging_queue")
       .update({
         encrypted_payload,

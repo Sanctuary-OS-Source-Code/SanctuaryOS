@@ -1,6 +1,7 @@
 import { supabase } from "../supabase";
 import { isDesktop, isLinuxDesktop } from "./envUtils";
 import { packageBlueprintLoadOrder } from "../hooks/usePlaySetLogic";
+import { triggerPwaWebPush } from "./webPushClient";
 
 export interface StagedArtifactItem {
   id: string;
@@ -970,6 +971,13 @@ export async function pushEncryptedStagingPayload(
 
     if (error) throw error;
 
+    triggerPwaWebPush({
+      type: "blueprint_staging",
+      staging_token: userToken,
+      title: "Blueprint Staged to Signature Queue",
+      body: `${mergedPayload.blueprintName} (${totalChanges} items) • ${mergedPayload.sourceDevice}`,
+    });
+
     if (mergedPayload.mode === "blueprint" && !mergedPayload.isFullRigBlueprint) {
       recordMobileBlueprintEdit(
         mergedPayload.targetDesktopBlueprint || mergedPayload.blueprintName,
@@ -1313,6 +1321,32 @@ export async function pushEncryptedVaultCompanionSnapshot(
       },
     ]);
     if (error) throw error;
+
+    const crit = Number(snapshot.criticalCount || 0);
+    const upds = Number(snapshot.updatesCount || 0);
+    if (crit > 0 || upds > 0) {
+      const summaryKey = `${crit}:${upds}`;
+      let lastPushed = "";
+      try {
+        lastPushed = localStorage.getItem("sanctuary_last_pushed_companion_summary") || "";
+      } catch {}
+      if (summaryKey !== lastPushed) {
+        try {
+          localStorage.setItem("sanctuary_last_pushed_companion_summary", summaryKey);
+        } catch {}
+        const parts: string[] = [];
+        if (crit > 0) parts.push(`${crit} Critical Failures`);
+        if (upds > 0) parts.push(`${upds} Updates Available`);
+        triggerPwaWebPush({
+          type: "companion_radar",
+          companion_token: companionToken,
+          title: "Vault Companion Radar Alert",
+          body: `${parts.join(" • ")}${snapshot.activeBlueprintName ? ` (${snapshot.activeBlueprintName})` : ""}`,
+          unique_id: `companion_radar_${summaryKey}`,
+        });
+      }
+    }
+
     return true;
   } catch (err) {
     console.warn("Failed to sync encrypted Vault Companion snapshot:", err);

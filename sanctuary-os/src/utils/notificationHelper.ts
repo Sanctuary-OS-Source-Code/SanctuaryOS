@@ -868,6 +868,9 @@ export async function requestSystemNotificationPermission(): Promise<SystemNotif
     if (perm === 'granted') {
       localStorage.setItem('sanctuary_os_notifications_enabled', 'true');
       window.dispatchEvent(new Event('sanctuary_notification_prefs_changed'));
+      import('./webPushClient')
+        .then(({ syncPwaWebPushSubscription }) => syncPwaWebPushSubscription())
+        .catch(() => {});
       return 'granted';
     }
     return perm === 'denied' ? 'denied' : 'prompt';

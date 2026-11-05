@@ -733,3 +733,32 @@ GRANT EXECUTE ON FUNCTION public.internal_get_webauthn_challenge(uuid) TO servic
 GRANT EXECUTE ON FUNCTION public.internal_get_webauthn_credential(text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.internal_complete_webauthn_authentication(uuid, uuid, bigint) TO service_role;
 GRANT EXECUTE ON FUNCTION public.internal_complete_webauthn_registration(uuid, uuid, text, text, text, uuid, bigint, jsonb, boolean, boolean, text) TO service_role;
+
+
+-- PWA Web Push Subscriptions (W3C Web Push / VAPID)
+CREATE TABLE IF NOT EXISTS public.pwa_push_subscriptions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    endpoint text UNIQUE NOT NULL,
+    p256dh text NOT NULL,
+    auth text NOT NULL,
+    user_id uuid,
+    user_hash text,
+    handshake_token text,
+    staging_token text,
+    companion_token text,
+    device_label text,
+    subscribed_spokes text[] DEFAULT ARRAY['global']::text[],
+    prefs jsonb DEFAULT '{}'::jsonb,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.pwa_push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public upsert of push subscriptions" ON public.pwa_push_subscriptions;
+CREATE POLICY "Allow public upsert of push subscriptions"
+    ON public.pwa_push_subscriptions
+    FOR ALL
+    TO anon, authenticated
+    USING (true)
+    WITH CHECK (true);

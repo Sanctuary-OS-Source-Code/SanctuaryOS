@@ -118,6 +118,9 @@ export function initPwaManager() {
         .register("/sw.js")
         .then((reg) => {
           reg.update().catch(() => {});
+          import("./webPushClient")
+            .then(({ syncPwaWebPushSubscription }) => syncPwaWebPushSubscription())
+            .catch(() => {});
         })
         .catch((err) => {
           console.warn("PWA Service Worker registration skipped:", err);

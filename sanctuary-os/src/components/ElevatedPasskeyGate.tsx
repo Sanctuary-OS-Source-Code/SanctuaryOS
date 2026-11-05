@@ -3,7 +3,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useTooltipStore } from "../store/tooltipStore";
-import { supabase, supabaseAuth } from "../supabase";
+import { supabaseAuth } from "../supabase";
 import {
   ActionButton,
   CustomDropdown,
@@ -325,7 +325,7 @@ export function CompanionPasskeyHandshakeApprover() {
     derivePasskeyHandshakeToken(session.user.id, session.user.email).then(
       (userToken) => {
         if (cancelled) return;
-        channel = supabase
+        channel = supabaseAuth
           .channel(`passkey_handshake_${userToken.slice(0, 16)}`)
           .on(
             "postgres_changes",
@@ -353,7 +353,7 @@ export function CompanionPasskeyHandshakeApprover() {
         onOpenEvent
       );
       if (channel) {
-        supabase.removeChannel(channel);
+        supabaseAuth.removeChannel(channel);
       }
     };
   }, [checkPending, session?.user?.id, session?.user?.email, canApproveLocally, setIsPanelOpen]);

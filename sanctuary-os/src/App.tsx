@@ -503,6 +503,31 @@ function App() {
   const [associatedMods, setAssociatedMods] = useState<any[]>([]);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        let cleaned = false;
+        if (params.get('open_passkey_handshake') === '1') {
+          params.delete('open_passkey_handshake');
+          cleaned = true;
+          useModalStore.getState().setIsPasskeyHandshakePanelOpen(true);
+          window.setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('sanctuary-open-passkey-handshake'));
+          }, 250);
+        }
+        if (params.get('open_notifications') === '1') {
+          params.delete('open_notifications');
+          cleaned = true;
+          setIsNotificationSidebarOpen(true);
+        }
+        if (cleaned) {
+          const qs = params.toString();
+          const nextUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash || ''}`;
+          window.history.replaceState({}, '', nextUrl);
+        }
+      } catch {}
+    }
+
     const handleSwMessage = (event: MessageEvent) => {
       if (event.data?.type === 'SANCTUARY_NOTIFICATION_CLICK') {
         if (event.data?.data?.actionTypeId === 'PASSKEY_HANDSHAKE') {
@@ -510,6 +535,11 @@ function App() {
           window.dispatchEvent(new CustomEvent('sanctuary-open-passkey-handshake'));
         } else {
           setIsNotificationSidebarOpen(true);
+        }
+      } else if (event.data?.type === 'SANCTUARY_PUSH_RECEIVED') {
+        window.dispatchEvent(new Event('refresh_notifications'));
+        if (event.data?.data?.actionTypeId === 'PASSKEY_HANDSHAKE') {
+          window.dispatchEvent(new CustomEvent('sanctuary-open-passkey-handshake'));
         }
       }
     };
@@ -522,6 +552,20 @@ function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (isDesktop()) return;
+    const syncPush = () => {
+      import('./utils/webPushClient')
+        .then(({ syncPwaWebPushSubscription }) => syncPwaWebPushSubscription())
+        .catch(() => {});
+    };
+    syncPush();
+    window.addEventListener('sanctuary_notification_prefs_changed', syncPush);
+    return () => {
+      window.removeEventListener('sanctuary_notification_prefs_changed', syncPush);
+    };
+  }, [session?.user?.id, activeWorkspaceId]);
 
   useEffect(() => {
     const getTitleForDbType = (dbType?: string, spokeName?: string, isCrossWs?: boolean) => {

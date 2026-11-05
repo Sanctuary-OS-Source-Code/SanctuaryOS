@@ -1,4 +1,4 @@
-const CACHE_NAME = "sanctuary-os-pwa-v10";
+const CACHE_NAME = "sanctuary-os-pwa-v11";
 const PRECACHE_URLS = [
   "/",
   "/index.html",
@@ -33,10 +33,81 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+self.addEventListener("push", (event) => {
+  let payload = {};
+  if (event.data) {
+    try {
+      payload = event.data.json();
+    } catch {
+      payload = {
+        title: "Sanctuary OS",
+        body: event.data.text(),
+      };
+    }
+  }
+
+  const title = payload.title || "Sanctuary OS";
+  const body = payload.body || "New Sanctuary OS dispatch.";
+  const actionTypeId = String(payload.actionTypeId || "GEN");
+  const isUrgent =
+    actionTypeId === "PASSKEY_HANDSHAKE" ||
+    actionTypeId === "DEFCON" ||
+    actionTypeId === "ALERT_BANNER";
+  const tag =
+    payload.tag ||
+    payload.uniqueId ||
+    `sanctuary_push_${actionTypeId}_${Date.now()}`;
+  const targetUrl =
+    payload.url ||
+    (actionTypeId === "PASSKEY_HANDSHAKE"
+      ? "/?open_passkey_handshake=1"
+      : "/?open_notifications=1");
+
+  const notifOptions = {
+    body,
+    icon: "/pwa-192x192.png?v=sovereign_v8",
+    badge: "/pwa-192x192.png?v=sovereign_v8",
+    tag,
+    renotify: true,
+    requireInteraction: isUrgent,
+    vibrate: isUrgent ? [200, 100, 200] : [150, 75, 150],
+    data: {
+      actionTypeId,
+      url: targetUrl,
+      ...(payload.data || {}),
+    },
+  };
+
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(title, notifOptions),
+      self.clients
+        .matchAll({ type: "window", includeUncontrolled: true })
+        .then((clientList) => {
+          for (const client of clientList) {
+            client.postMessage({
+              type: "SANCTUARY_PUSH_RECEIVED",
+              data: {
+                actionTypeId,
+                ...(payload.data || {}),
+              },
+            });
+          }
+        })
+        .catch(() => {}),
+    ])
+  );
+});
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const notifData = event.notification.data || {};
-  const targetUrl = notifData.url || "/";
+  const actionTypeId = String(notifData.actionTypeId || "");
+  const targetUrl =
+    notifData.url ||
+    (actionTypeId === "PASSKEY_HANDSHAKE"
+      ? "/?open_passkey_handshake=1"
+      : "/?open_notifications=1");
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
