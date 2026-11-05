@@ -503,21 +503,44 @@ function App() {
   const [associatedMods, setAssociatedMods] = useState<any[]>([]);
 
   useEffect(() => {
+    const resolveDefaultWebSpoke = () => {
+      try {
+        const last = (localStorage.getItem('sanctuary_last_active_workspace') || '').trim();
+        if (last && last !== 'default_workspace' && last !== 'global') return last;
+      } catch {}
+      return 'sims4';
+    };
+
     if (typeof window !== 'undefined') {
       try {
         const params = new URLSearchParams(window.location.search);
+        const wantHandshake = params.get('open_passkey_handshake') === '1';
+        const wantNotifs = params.get('open_notifications') === '1';
+
+        if ((wantHandshake || wantNotifs) && !isDesktop() && isRootDomain()) {
+          const targetSpoke = resolveDefaultWebSpoke();
+          window.location.replace(`/${targetSpoke}${window.location.search}${window.location.hash || ''}`);
+          return;
+        }
+
         let cleaned = false;
-        if (params.get('open_passkey_handshake') === '1') {
+        if (wantHandshake) {
           params.delete('open_passkey_handshake');
           cleaned = true;
+          try {
+            sessionStorage.setItem('sanctuary_pending_push_action', 'passkey_handshake');
+          } catch {}
           useModalStore.getState().setIsPasskeyHandshakePanelOpen(true);
           window.setTimeout(() => {
             window.dispatchEvent(new CustomEvent('sanctuary-open-passkey-handshake'));
           }, 250);
         }
-        if (params.get('open_notifications') === '1') {
+        if (wantNotifs) {
           params.delete('open_notifications');
           cleaned = true;
+          try {
+            sessionStorage.setItem('sanctuary_pending_push_action', 'notifications');
+          } catch {}
           setIsNotificationSidebarOpen(true);
         }
         if (cleaned) {
@@ -530,7 +553,13 @@ function App() {
 
     const handleSwMessage = (event: MessageEvent) => {
       if (event.data?.type === 'SANCTUARY_NOTIFICATION_CLICK') {
-        if (event.data?.data?.actionTypeId === 'PASSKEY_HANDSHAKE') {
+        const isHandshake = event.data?.data?.actionTypeId === 'PASSKEY_HANDSHAKE';
+        if (!isDesktop() && isRootDomain()) {
+          const targetSpoke = resolveDefaultWebSpoke();
+          window.location.href = `/${targetSpoke}?${isHandshake ? 'open_passkey_handshake=1' : 'open_notifications=1'}`;
+          return;
+        }
+        if (isHandshake) {
           useModalStore.getState().setIsPasskeyHandshakePanelOpen(true);
           window.dispatchEvent(new CustomEvent('sanctuary-open-passkey-handshake'));
         } else {
@@ -552,6 +581,23 @@ function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    try {
+      const pendingAction = sessionStorage.getItem('sanctuary_pending_push_action');
+      if (!pendingAction) return;
+      if (pendingAction === 'passkey_handshake') {
+        useModalStore.getState().setIsPasskeyHandshakePanelOpen(true);
+        window.dispatchEvent(new CustomEvent('sanctuary-open-passkey-handshake'));
+        if (session?.user?.id) {
+          sessionStorage.removeItem('sanctuary_pending_push_action');
+        }
+      } else if (pendingAction === 'notifications') {
+        setIsNotificationSidebarOpen(true);
+        sessionStorage.removeItem('sanctuary_pending_push_action');
+      }
+    } catch {}
+  }, [session?.user?.id, activeWorkspaceId]);
 
   useEffect(() => {
     if (isDesktop()) return;

@@ -167,6 +167,16 @@ export async function syncPwaWebPushSubscription(): Promise<boolean> {
       );
 
       const prefs = buildNotificationPrefsSnapshot(subscribedSpokes);
+      const lastActiveWs =
+        typeof localStorage !== "undefined"
+          ? localStorage.getItem("sanctuary_last_active_workspace") || ""
+          : "";
+      prefs.default_spoke =
+        activeWsId && activeWsId !== "default_workspace" && activeWsId !== "global"
+          ? activeWsId
+          : lastActiveWs && lastActiveWs !== "default_workspace" && lastActiveWs !== "global"
+            ? lastActiveWs
+            : "sims4";
 
       const rowPayload = {
         endpoint,

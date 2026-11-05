@@ -33,6 +33,7 @@ import {
   cancelCompanionPasskeyHandshake,
   fetchPendingCompanionPasskeyHandshakes,
   approveCompanionPasskeyHandshake,
+  getPasskeyHandshakeClients,
   ResolvedCompanionPasskeyHandshake,
   MfaSecurityState,
 } from "../utils/passkeyUtils";
@@ -263,100 +264,129 @@ export function CompanionPasskeyHandshakeApprover() {
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [approveError, setApproveError] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [isChecking, setIsChecking] = useState(false);
   const notifiedIdsRef = useRef<Set<string>>(new Set());
+  const hadActiveReqRef = useRef(false);
+  const wasExplicitlyOpenedRef = useRef(false);
 
   const canApproveLocally = isNativeLocalPasskeySupported();
 
   const checkPending = useCallback(async () => {
-    if (!session?.user?.id || !canApproveLocally) {
+    if (!canApproveLocally) {
       setPendingList([]);
       return;
     }
-    const list = await fetchPendingCompanionPasskeyHandshakes();
-    setPendingList(list);
+    setIsChecking(true);
+    try {
+      const list = await fetchPendingCompanionPasskeyHandshakes();
+      setPendingList(list);
 
-    if (list.length > 0) {
-      const top = list[0];
-      const hsId = top.payload.handshakeId;
-      if (hsId && !notifiedIdsRef.current.has(hsId)) {
-        notifiedIdsRef.current.add(hsId);
-        setIsPanelOpen(true);
-        notifyOS(
-          t(
-            "passkey_handshake_approve_banner_title",
-            "Approve Rig Passkey Handshake"
-          ),
-          `${top.payload.requestingDevice} (${top.payload.targetScope}) • ${top.payload.handshakeCode}`,
-          "PASSKEY_HANDSHAKE",
-          true,
-          `passkey_handshake_${hsId}`,
-          {
-            actionTypeId: "PASSKEY_HANDSHAKE",
-            handshakeId: hsId,
-            handshakeCode: top.payload.handshakeCode,
-          }
-        );
+      if (list.length > 0) {
+        hadActiveReqRef.current = true;
+        const top = list[0];
+        const hsId = top.payload.handshakeId;
+        if (hsId && !notifiedIdsRef.current.has(hsId)) {
+          notifiedIdsRef.current.add(hsId);
+          setIsPanelOpen(true);
+          notifyOS(
+            t(
+              "passkey_handshake_approve_banner_title",
+              "Approve Rig Passkey Handshake"
+            ),
+            `${top.payload.requestingDevice} (${top.payload.targetScope}) • ${top.payload.handshakeCode}`,
+            "PASSKEY_HANDSHAKE",
+            true,
+            `passkey_handshake_${hsId}`,
+            {
+              actionTypeId: "PASSKEY_HANDSHAKE",
+              handshakeId: hsId,
+              handshakeCode: top.payload.handshakeCode,
+            }
+          );
+        }
+      } else if (hadActiveReqRef.current && !wasExplicitlyOpenedRef.current) {
+        hadActiveReqRef.current = false;
+        setIsPanelOpen(false);
       }
-    } else {
-      setIsPanelOpen(false);
+    } finally {
+      setIsChecking(false);
     }
-  }, [session?.user?.id, canApproveLocally, setPendingList, setIsPanelOpen, t]);
+  }, [canApproveLocally, setPendingList, setIsPanelOpen, t]);
+
+  useEffect(() => {
+    const onOpenEvent = () => {
+      wasExplicitlyOpenedRef.current = true;
+      setIsPanelOpen(true);
+      checkPending();
+    };
+    window.addEventListener("sanctuary-open-passkey-handshake", onOpenEvent);
+    return () => {
+      window.removeEventListener(
+        "sanctuary-open-passkey-handshake",
+        onOpenEvent
+      );
+    };
+  }, [checkPending, setIsPanelOpen]);
 
   useEffect(() => {
     checkPending();
-    if (!session?.user?.id || !canApproveLocally) return;
+    if (!canApproveLocally) return;
 
     const interval = window.setInterval(checkPending, 4000);
     const onFocus = () => checkPending();
     const onVisibility = () => {
       if (document.visibilityState === "visible") checkPending();
     };
-    const onOpenEvent = () => {
-      checkPending();
-      setIsPanelOpen(true);
-    };
 
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("sanctuary-open-passkey-handshake", onOpenEvent);
 
-    let channel: any = null;
+    const activeChannels: { client: any; channel: any }[] = [];
     let cancelled = false;
-    derivePasskeyHandshakeToken(session.user.id, session.user.email).then(
-      (userToken) => {
-        if (cancelled) return;
-        channel = supabaseAuth
-          .channel(`passkey_handshake_${userToken.slice(0, 16)}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "citizen_staging_queue",
-              filter: `user_token=eq.${userToken}`,
-            },
-            () => {
-              checkPending();
-            }
-          )
-          .subscribe();
-      }
-    );
+
+    if (session?.user?.id) {
+      Promise.all([
+        derivePasskeyHandshakeToken(session.user.id, session.user.email),
+        getPasskeyHandshakeClients(),
+      ])
+        .then(([userToken, clients]) => {
+          if (cancelled || !userToken) return;
+          clients.forEach((client, idx) => {
+            try {
+              const ch = client
+                .channel(`passkey_handshake_${idx}_${userToken.slice(0, 16)}`)
+                .on(
+                  "postgres_changes",
+                  {
+                    event: "*",
+                    schema: "public",
+                    table: "citizen_staging_queue",
+                    filter: `user_token=eq.${userToken}`,
+                  },
+                  () => {
+                    checkPending();
+                  }
+                )
+                .subscribe();
+              activeChannels.push({ client, channel: ch });
+            } catch {}
+          });
+        })
+        .catch(() => {});
+    }
 
     return () => {
       cancelled = true;
       window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener(
-        "sanctuary-open-passkey-handshake",
-        onOpenEvent
-      );
-      if (channel) {
-        supabaseAuth.removeChannel(channel);
+      for (const { client, channel } of activeChannels) {
+        try {
+          client.removeChannel(channel);
+        } catch {}
       }
     };
-  }, [checkPending, session?.user?.id, session?.user?.email, canApproveLocally, setIsPanelOpen]);
+  }, [checkPending, session?.user?.id, session?.user?.email, canApproveLocally]);
 
   const activeReq = pendingList[0];
 
@@ -380,7 +410,7 @@ export function CompanionPasskeyHandshakeApprover() {
     return () => window.clearInterval(timer);
   }, [activeReq?.payload?.expiresAt, checkPending]);
 
-  if (!session?.user?.id || !canApproveLocally || !activeReq) {
+  if (!canApproveLocally || (!activeReq && !isPanelOpen)) {
     return null;
   }
 
@@ -390,7 +420,13 @@ export function CompanionPasskeyHandshakeApprover() {
     return `${mins}:${rem < 10 ? "0" : ""}${rem}`;
   };
 
+  const handleClosePanel = () => {
+    wasExplicitlyOpenedRef.current = false;
+    setIsPanelOpen(false);
+  };
+
   const handleApprove = async () => {
+    if (!activeReq) return;
     setApprovingId(activeReq.rowId);
     setApproveError("");
     const res = await approveCompanionPasskeyHandshake(activeReq, enteredCode);
@@ -416,14 +452,20 @@ export function CompanionPasskeyHandshakeApprover() {
       );
     setEnteredCode("");
     setApprovingId(null);
+    wasExplicitlyOpenedRef.current = false;
     setIsPanelOpen(false);
     await checkPending();
   };
 
   const handleDeny = async () => {
+    if (!activeReq) {
+      handleClosePanel();
+      return;
+    }
     await cancelCompanionPasskeyHandshake(activeReq.rowId);
     setEnteredCode("");
     setApproveError("");
+    wasExplicitlyOpenedRef.current = false;
     setIsPanelOpen(false);
     await checkPending();
   };
@@ -431,12 +473,16 @@ export function CompanionPasskeyHandshakeApprover() {
   return (
     <SidePanel
       isOpen={isPanelOpen}
-      onClose={() => setIsPanelOpen(false)}
+      onClose={handleClosePanel}
       title={t(
         "passkey_handshake_approve_banner_title",
         "Approve Rig Passkey Handshake"
       )}
-      subtitle={`${activeReq.payload.requestingDevice} • ${activeReq.payload.targetScope}`}
+      subtitle={
+        activeReq
+          ? `${activeReq.payload.requestingDevice} • ${activeReq.payload.targetScope}`
+          : t("passkey_handshake_title", "Companion Passkey Handshake")
+      }
       icon={t("icon_phonelink_lock", "phonelink_lock")}
       iconColorClass="text-[var(--accent)]"
       widthClass="w-[92vw] md:w-[640px]"
@@ -444,118 +490,169 @@ export function CompanionPasskeyHandshakeApprover() {
       panelZ="z-[100061]"
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
-        <SidePanelHeroCard
-          icon={t("icon_phonelink_lock", "phonelink_lock")}
-          overline={t("passkey_handshake_title", "Companion Passkey Handshake")}
-          title={t(
-            "passkey_handshake_approve_banner_title",
-            "Approve Rig Passkey Handshake"
-          )}
-          description={t(
-            "passkey_handshake_approve_banner_desc",
-            "Confirm the 6-digit code shown on your other rig and authenticate with your FIDO2 Passkey right now to authorize elevated access."
-          )}
-          badge={activeReq.payload.handshakeCode}
-          badgeIcon={t("icon_passkey", "passkey")}
-          variant="accent"
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            <StatBox
-              label={t("passkey_handshake_requesting_rig", "Requesting Device")}
-              value={activeReq.payload.requestingDevice}
-              icon={t("icon_devices", "devices")}
-            />
-            <StatBox
-              label={t("passkey_handshake_target_hub", "Target Hub")}
-              value={activeReq.payload.targetScope}
-              icon={t("icon_shield", "shield")}
-            />
-          </div>
-        </SidePanelHeroCard>
-
-        <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col">
-          <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[15px]">
-                  {t("icon_passkey", "passkey")}
-                </span>
-              </div>
-              <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
-                {t(
-                  "passkey_handshake_code_label",
-                  "Live Handshake Verification Code"
-                )}
-              </span>
-            </div>
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                {t("icon_timer", "timer")}
-              </span>
-              <span className="font-mono">{formatCountdown(secondsLeft)}</span>
-            </span>
-          </div>
-
-          <div className="p-4 flex flex-col gap-4">
-            <div className="w-full py-4 px-4 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-center flex flex-col items-center gap-1.5">
-              <span className="text-2xl sm:text-3xl font-mono font-black tracking-[0.28em] text-[var(--text)] select-all">
-                {activeReq.payload.handshakeCode}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-bold text-[var(--subtext)] opacity-85">
-                {t(
-                  "passkey_handshake_confirm_code_hint",
-                  "Optional: Enter the 6-digit code from your other device to double-check before verifying your Passkey"
-                )}
-              </span>
-              <input
-                type="text"
-                value={enteredCode}
-                onChange={(e) => setEnteredCode(e.target.value)}
-                placeholder={activeReq.payload.handshakeCode}
-                maxLength={7}
-                className="w-full glass-surface rounded-xl px-4 py-2.5 text-sm font-mono font-black tracking-[0.25em] text-center text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] outline-none focus:border-[var(--accent)]"
-              />
-            </div>
-
-            {approveError && (
-              <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
-                <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
-                  {t("icon_error", "error")}
-                </span>
-                <span>{approveError}</span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+        {!activeReq ? (
+          <SidePanelHeroCard
+            icon={t("icon_phonelink_lock", "phonelink_lock")}
+            overline={t("passkey_handshake_title", "Companion Passkey Handshake")}
+            title={
+              isChecking
+                ? t("loading", "Loading...")
+                : t(
+                    "passkey_handshake_approve_banner_title",
+                    "Approve Rig Passkey Handshake"
+                  )
+            }
+            description={
+              isChecking
+                ? t(
+                    "passkey_handshake_approve_banner_desc",
+                    "Confirm the 6-digit code shown on your other rig and authenticate with your FIDO2 Passkey right now to authorize elevated access."
+                  )
+                : t(
+                    "passkey_handshake_expired",
+                    "Handshake code expired. Generate a new code to continue."
+                  )
+            }
+            variant="accent"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
               <ActionButton
-                onClick={handleApprove}
-                disabled={approvingId === activeReq.rowId}
+                onClick={() => checkPending()}
+                disabled={isChecking}
                 variant="glass"
-                icon={t("icon_passkey", "passkey")}
+                icon={t("icon_refresh", "refresh")}
                 label={
-                  approvingId === activeReq.rowId
-                    ? t("btn_verifying_passkey", "Verifying Passkey...")
-                    : t(
-                        "passkey_handshake_btn_approve_live",
-                        "Verify Passkey to Approve"
-                      )
+                  isChecking
+                    ? t("loading", "Loading...")
+                    : t("refresh", "Refresh")
                 }
                 className="w-full !py-2.5"
               />
               <ActionButton
-                onClick={handleDeny}
-                disabled={approvingId === activeReq.rowId}
+                onClick={handleClosePanel}
                 variant="glass"
                 icon={t("icon_close", "close")}
-                label={t("cancel", "Cancel")}
+                label={t("close", "Close")}
                 className="w-full !py-2.5"
               />
             </div>
-          </div>
-        </div>
+          </SidePanelHeroCard>
+        ) : (
+          <>
+            <SidePanelHeroCard
+              icon={t("icon_phonelink_lock", "phonelink_lock")}
+              overline={t("passkey_handshake_title", "Companion Passkey Handshake")}
+              title={t(
+                "passkey_handshake_approve_banner_title",
+                "Approve Rig Passkey Handshake"
+              )}
+              description={t(
+                "passkey_handshake_approve_banner_desc",
+                "Confirm the 6-digit code shown on your other rig and authenticate with your FIDO2 Passkey right now to authorize elevated access."
+              )}
+              badge={activeReq.payload.handshakeCode}
+              badgeIcon={t("icon_passkey", "passkey")}
+              variant="accent"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <StatBox
+                  label={t("passkey_handshake_requesting_rig", "Requesting Device")}
+                  value={activeReq.payload.requestingDevice}
+                  icon={t("icon_devices", "devices")}
+                />
+                <StatBox
+                  label={t("passkey_handshake_target_hub", "Target Hub")}
+                  value={activeReq.payload.targetScope}
+                  icon={t("icon_shield", "shield")}
+                />
+              </div>
+            </SidePanelHeroCard>
+
+            <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col">
+              <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined !text-[15px]">
+                      {t("icon_passkey", "passkey")}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
+                    {t(
+                      "passkey_handshake_code_label",
+                      "Live Handshake Verification Code"
+                    )}
+                  </span>
+                </div>
+                <span className={VAULT_CHIP_CLASS}>
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                    {t("icon_timer", "timer")}
+                  </span>
+                  <span className="font-mono">{formatCountdown(secondsLeft)}</span>
+                </span>
+              </div>
+
+              <div className="p-4 flex flex-col gap-4">
+                <div className="w-full py-4 px-4 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-center flex flex-col items-center gap-1.5">
+                  <span className="text-2xl sm:text-3xl font-mono font-black tracking-[0.28em] text-[var(--text)] select-all">
+                    {activeReq.payload.handshakeCode}
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-85">
+                    {t(
+                      "passkey_handshake_confirm_code_hint",
+                      "Optional: Enter the 6-digit code from your other device to double-check before verifying your Passkey"
+                    )}
+                  </span>
+                  <input
+                    type="text"
+                    value={enteredCode}
+                    onChange={(e) => setEnteredCode(e.target.value)}
+                    placeholder={activeReq.payload.handshakeCode}
+                    maxLength={7}
+                    className="w-full glass-surface rounded-xl px-4 py-2.5 text-sm font-mono font-black tracking-[0.25em] text-center text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] outline-none focus:border-[var(--accent)]"
+                  />
+                </div>
+
+                {approveError && (
+                  <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
+                    <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
+                      {t("icon_error", "error")}
+                    </span>
+                    <span>{approveError}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  <ActionButton
+                    onClick={handleApprove}
+                    disabled={approvingId === activeReq.rowId}
+                    variant="glass"
+                    icon={t("icon_passkey", "passkey")}
+                    label={
+                      approvingId === activeReq.rowId
+                        ? t("btn_verifying_passkey", "Verifying Passkey...")
+                        : t(
+                            "passkey_handshake_btn_approve_live",
+                            "Verify Passkey to Approve"
+                          )
+                    }
+                    className="w-full !py-2.5"
+                  />
+                  <ActionButton
+                    onClick={handleDeny}
+                    disabled={approvingId === activeReq.rowId}
+                    variant="glass"
+                    icon={t("icon_close", "close")}
+                    label={t("cancel", "Cancel")}
+                    className="w-full !py-2.5"
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </SidePanel>
   );

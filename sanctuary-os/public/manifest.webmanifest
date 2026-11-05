@@ -6,11 +6,6 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "window-controls-overlay"],
-  "scope_extensions": [
-    { "type": "origin", "origin": "https://sanctuaryos.net" },
-    { "type": "origin", "origin": "https://www.sanctuaryos.net" }
-  ],
   "orientation": "any",
   "background_color": "#0e2244",
   "theme_color": "#1d2737",

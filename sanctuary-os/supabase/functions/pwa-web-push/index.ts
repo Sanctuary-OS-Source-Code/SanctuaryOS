@@ -85,13 +85,16 @@ serve(async (req: Request) => {
     const pushType = String(body.type || "direct");
     const excludeEndpoint = String(body.exclude_endpoint || "").trim();
 
+    const targetSpoke =
+      body.spoke_id && body.spoke_id !== "global" ? String(body.spoke_id) : "sims4";
+
     let subscriptions: any[] = [];
     let notifPayload: Record<string, any> = {
       title: sanitizeText(body.title || "Sanctuary OS", 80),
       body: sanitizeText(body.body || "New Sanctuary OS notification.", 160),
       actionTypeId: String(body.actionTypeId || "GEN"),
       tag: String(body.tag || body.unique_id || `sanctuary_${Date.now()}`),
-      url: String(body.url || "/?open_notifications=1"),
+      url: String(body.url || `/${targetSpoke}?open_notifications=1`),
       data: body.data || {},
     };
     let urgency: "very-low" | "low" | "normal" | "high" = "normal";
@@ -126,7 +129,7 @@ serve(async (req: Request) => {
         ),
         actionTypeId: "PASSKEY_HANDSHAKE",
         tag: `passkey_handshake_${handshakeToken.slice(0, 16)}`,
-        url: "/?open_passkey_handshake=1",
+        url: `/${targetSpoke}?open_passkey_handshake=1`,
         data: {
           actionTypeId: "PASSKEY_HANDSHAKE",
           ...(body.data || {}),
@@ -161,7 +164,7 @@ serve(async (req: Request) => {
         ),
         actionTypeId: "SIGNATURE_QUEUE",
         tag: `sig_queue_${stagingToken.slice(0, 16)}`,
-        url: "/?open_notifications=1",
+        url: `/${targetSpoke}?open_notifications=1`,
         data: {
           actionTypeId: "SIGNATURE_QUEUE",
           ...(body.data || {}),
@@ -193,7 +196,7 @@ serve(async (req: Request) => {
         ),
         actionTypeId: "MOD_ALERTS",
         tag: String(body.unique_id || `companion_radar_${companionToken.slice(0, 12)}`),
-        url: "/?open_notifications=1",
+        url: `/${targetSpoke}?open_notifications=1`,
         data: {
           actionTypeId: "MOD_ALERTS",
           ...(body.data || {}),
@@ -223,7 +226,7 @@ serve(async (req: Request) => {
         body: sanitizeText(body.body || "You have a new notification.", 160),
         actionTypeId: category.toUpperCase(),
         tag: String(body.unique_id || `notif_${Date.now()}`),
-        url: "/?open_notifications=1",
+        url: `/${targetSpoke}?open_notifications=1`,
         data: {
           actionTypeId: category.toUpperCase(),
           spokeId: body.spoke_id || "global",
@@ -247,7 +250,7 @@ serve(async (req: Request) => {
         body: sanitizeText(body.body || "New broadcast dispatch.", 160),
         actionTypeId: category.toUpperCase(),
         tag: String(body.unique_id || `bc_${Date.now()}`),
-        url: "/?open_notifications=1",
+        url: `/${targetSpoke}?open_notifications=1`,
         data: {
           actionTypeId: category.toUpperCase(),
           spokeId,
@@ -267,6 +270,23 @@ serve(async (req: Request) => {
     await Promise.all(
       subscriptions.map(async (sub: any) => {
         if (!sub?.endpoint || !sub?.p256dh || !sub?.auth) return;
+        const subSpoke =
+          (body.spoke_id && body.spoke_id !== "global" ? String(body.spoke_id) : "") ||
+          (sub?.prefs?.default_spoke && sub.prefs.default_spoke !== "global"
+            ? String(sub.prefs.default_spoke)
+            : "") ||
+          (Array.isArray(sub?.subscribed_spokes)
+            ? sub.subscribed_spokes.find((s: string) => s && s !== "global")
+            : "") ||
+          "sims4";
+        const subUrl =
+          pushType === "passkey_handshake"
+            ? `/${subSpoke}?open_passkey_handshake=1`
+            : body.url || `/${subSpoke}?open_notifications=1`;
+        const perSubPayload = {
+          ...notifPayload,
+          url: subUrl,
+        };
         try {
           await webpush.sendNotification(
             {
@@ -276,7 +296,7 @@ serve(async (req: Request) => {
                 auth: sub.auth,
               },
             },
-            JSON.stringify(notifPayload),
+            JSON.stringify(perSubPayload),
             {
               TTL: ttl,
               urgency,

@@ -1,4 +1,4 @@
-const CACHE_NAME = "sanctuary-os-pwa-v11";
+const CACHE_NAME = "sanctuary-os-pwa-v12";
 const PRECACHE_URLS = [
   "/",
   "/index.html",
@@ -57,11 +57,17 @@ self.addEventListener("push", (event) => {
     payload.tag ||
     payload.uniqueId ||
     `sanctuary_push_${actionTypeId}_${Date.now()}`;
-  const targetUrl =
+  const rawSpokeId = String(payload.data?.spokeId || "").trim().toLowerCase();
+  const basePath =
+    rawSpokeId && rawSpokeId !== "global" ? `/${rawSpokeId}` : "/sims4";
+  let targetUrl =
     payload.url ||
     (actionTypeId === "PASSKEY_HANDSHAKE"
-      ? "/?open_passkey_handshake=1"
-      : "/?open_notifications=1");
+      ? `${basePath}?open_passkey_handshake=1`
+      : `${basePath}?open_notifications=1`);
+  if (targetUrl.startsWith("/?")) {
+    targetUrl = `${basePath}${targetUrl.slice(1)}`;
+  }
 
   const notifOptions = {
     body,
@@ -103,25 +109,41 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const notifData = event.notification.data || {};
   const actionTypeId = String(notifData.actionTypeId || "");
-  const targetUrl =
+  const rawSpokeId = String(notifData.spokeId || "").trim().toLowerCase();
+  const basePath =
+    rawSpokeId && rawSpokeId !== "global" ? `/${rawSpokeId}` : "/sims4";
+  let targetUrl =
     notifData.url ||
     (actionTypeId === "PASSKEY_HANDSHAKE"
-      ? "/?open_passkey_handshake=1"
-      : "/?open_notifications=1");
+      ? `${basePath}?open_passkey_handshake=1`
+      : `${basePath}?open_notifications=1`);
+  if (targetUrl.startsWith("/?")) {
+    targetUrl = `${basePath}${targetUrl.slice(1)}`;
+  }
 
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clientList) => {
       for (const client of clientList) {
         if ("focus" in client) {
+          try {
+            const clientUrl = new URL(client.url);
+            if (
+              (clientUrl.pathname === "/" || clientUrl.pathname === "/index.html") &&
+              "navigate" in client
+            ) {
+              await client.navigate(new URL(targetUrl, self.location.origin).href);
+              return client.focus();
+            }
+          } catch {}
           client.postMessage({
             type: "SANCTUARY_NOTIFICATION_CLICK",
-            data: notifData
+            data: notifData,
           });
           return client.focus();
         }
       }
       if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
+        return self.clients.openWindow(new URL(targetUrl, self.location.origin).href);
       }
     })
   );

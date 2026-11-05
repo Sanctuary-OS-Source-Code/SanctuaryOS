@@ -1,7 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktop, isLinuxDesktop } from "./envUtils";
-import { supabaseAuth, RESOLVED_SANCTUARY_CONFIG } from "../supabase";
+import {
+  supabaseAuth,
+  getActiveGameClient,
+  getSpokeClientById,
+  RESOLVED_SANCTUARY_CONFIG,
+} from "../supabase";
+import { useStore } from "../store";
 import { triggerPwaWebPush } from "./webPushClient";
 
 export interface MfaSecurityState {
@@ -1400,6 +1406,35 @@ async function computeHandshakeApprovalSignature(
   );
 }
 
+async function resolveSignedInUser(): Promise<{ id: string; email?: string } | null> {
+  try {
+    const storeUser = useStore.getState()?.session?.user;
+    if (storeUser?.id) return storeUser;
+  } catch {}
+  try {
+    const { data } = await supabaseAuth.auth.getSession();
+    if (data?.session?.user?.id) return data.session.user;
+  } catch {}
+  return null;
+}
+
+export async function getPasskeyHandshakeClients(): Promise<any[]> {
+  const clients: any[] = [supabaseAuth];
+  try {
+    const activeClient = getActiveGameClient();
+    if (activeClient && !clients.includes(activeClient)) {
+      clients.push(activeClient);
+    }
+  } catch {}
+  try {
+    const spokeClient = await getSpokeClientById("sims4");
+    if (spokeClient && !clients.includes(spokeClient)) {
+      clients.push(spokeClient);
+    }
+  } catch {}
+  return clients;
+}
+
 /**
  * Initiates a 3-minute Zero-PII AES-256-GCM Companion Passkey Handshake request on a device
  * (such as Steam Deck, Linux, or macOS) that requires another device (Mobile PWA / Web / Windows PC)
@@ -1412,8 +1447,7 @@ export async function startCompanionPasskeyHandshake(
   error: Error | null;
 }> {
   try {
-    const { data: sessionData } = await supabaseAuth.auth.getSession();
-    const user = sessionData?.session?.user;
+    const user = await resolveSignedInUser();
     if (!user?.id) {
       return {
         data: null,
@@ -1461,26 +1495,45 @@ export async function startCompanionPasskeyHandshake(
       user.email
     );
 
-    await supabaseAuth.from("citizen_staging_queue").delete().eq("user_token", userToken);
+    const clients = await getPasskeyHandshakeClients();
+    await Promise.all(
+      clients.map((c) =>
+        c
+          .from("citizen_staging_queue")
+          .delete()
+          .eq("user_token", userToken)
+          .catch(() => {})
+      )
+    );
+
+    const rowPayload = {
+      user_token: userToken,
+      payload_type: "passkey_handshake",
+      encrypted_payload,
+      iv,
+      salt,
+      item_count: 1,
+      expires_at: new Date(expiresAt).toISOString(),
+    };
 
     const { data, error } = await supabaseAuth
       .from("citizen_staging_queue")
-      .insert([
-        {
-          user_token: userToken,
-          payload_type: "passkey_handshake",
-          encrypted_payload,
-          iv,
-          salt,
-          item_count: 0,
-          expires_at: new Date(expiresAt).toISOString(),
-        },
-      ])
+      .insert([rowPayload])
       .select("id")
       .single();
 
     if (error) {
       return { data: null, error: new Error(error.message) };
+    }
+
+    // Mirror into Spoke staging queue as well so both Core Hub DB and Spoke DB clients can see & approve it
+    const insertedId = data?.id;
+    for (const c of clients) {
+      if (c === supabaseAuth) continue;
+      c.from("citizen_staging_queue")
+        .insert([insertedId ? { id: insertedId, ...rowPayload } : rowPayload])
+        .then(() => {})
+        .catch(() => {});
     }
 
     triggerPwaWebPush({
@@ -1523,23 +1576,39 @@ export async function pollCompanionPasskeyHandshake(
   approverDevice?: string;
 }> {
   try {
-    const { data: sessionData } = await supabaseAuth.auth.getSession();
-    const user = sessionData?.session?.user;
+    const user = await resolveSignedInUser();
     if (!user?.id) return { status: "expired" };
 
     const userToken = await derivePasskeyHandshakeToken(user.id, user.email);
-    const { data, error } = await supabaseAuth
-      .from("citizen_staging_queue")
-      .select("*")
-      .eq("user_token", userToken)
-      .order("created_at", { ascending: false })
-      .limit(3);
+    const clients = await getPasskeyHandshakeClients();
 
-    if (error || !Array.isArray(data) || data.length === 0) {
+    const queryResults = await Promise.all(
+      clients.map((client) =>
+        client
+          .from("citizen_staging_queue")
+          .select("*")
+          .eq("user_token", userToken)
+          .order("created_at", { ascending: false })
+          .limit(5)
+          .then((res: any) => ({ client, rows: Array.isArray(res?.data) ? res.data : [] }))
+          .catch(() => ({ client, rows: [] }))
+      )
+    );
+
+    const allEntries: { client: any; row: any }[] = [];
+    for (const qr of queryResults) {
+      for (const row of qr.rows) {
+        allEntries.push({ client: qr.client, row });
+      }
+    }
+
+    if (allEntries.length === 0) {
       return { status: "expired" };
     }
 
-    for (const row of data) {
+    let sawMatchingPending = false;
+
+    for (const { client, row } of allEntries) {
       if (!row?.encrypted_payload || !row?.iv || !row?.salt) continue;
       const decrypted = await decryptHandshakePayload(
         row.encrypted_payload,
@@ -1551,8 +1620,8 @@ export async function pollCompanionPasskeyHandshake(
       if (!decrypted || decrypted.handshakeId !== handshakeId) continue;
 
       if (Date.now() > decrypted.expiresAt) {
-        await supabaseAuth.from("citizen_staging_queue").delete().eq("id", row.id);
-        return { status: "expired" };
+        await client.from("citizen_staging_queue").delete().eq("id", row.id).catch(() => {});
+        continue;
       }
 
       if (decrypted.status === "approved" && decrypted.approvalSignature) {
@@ -1567,7 +1636,15 @@ export async function pollCompanionPasskeyHandshake(
           decrypted.approvedAt &&
           Date.now() - decrypted.approvedAt < 180_000
         ) {
-          await supabaseAuth.from("citizen_staging_queue").delete().eq("id", row.id);
+          await Promise.all(
+            clients.map((c) =>
+              c
+                .from("citizen_staging_queue")
+                .delete()
+                .eq("user_token", userToken)
+                .catch(() => {})
+            )
+          );
           markPasskeySessionVerified(user.id);
           notifyMfaStateChanged();
           return {
@@ -1577,10 +1654,10 @@ export async function pollCompanionPasskeyHandshake(
         }
       }
 
-      return { status: "pending" };
+      sawMatchingPending = true;
     }
 
-    return { status: "expired" };
+    return sawMatchingPending ? { status: "pending" } : { status: "expired" };
   } catch {
     return { status: "pending" };
   }
@@ -1588,15 +1665,24 @@ export async function pollCompanionPasskeyHandshake(
 
 export async function cancelCompanionPasskeyHandshake(rowId?: string): Promise<void> {
   try {
-    if (rowId) {
-      await supabaseAuth.from("citizen_staging_queue").delete().eq("id", rowId);
-      return;
-    }
-    const { data: sessionData } = await supabaseAuth.auth.getSession();
-    const user = sessionData?.session?.user;
-    if (!user?.id) return;
-    const userToken = await derivePasskeyHandshakeToken(user.id, user.email);
-    await supabaseAuth.from("citizen_staging_queue").delete().eq("user_token", userToken);
+    const clients = await getPasskeyHandshakeClients();
+    const user = await resolveSignedInUser();
+    const userToken = user?.id
+      ? await derivePasskeyHandshakeToken(user.id, user.email)
+      : "";
+
+    await Promise.all(
+      clients.map(async (c) => {
+        try {
+          if (rowId) {
+            await c.from("citizen_staging_queue").delete().eq("id", rowId);
+          }
+          if (userToken) {
+            await c.from("citizen_staging_queue").delete().eq("user_token", userToken);
+          }
+        } catch {}
+      })
+    );
   } catch {}
 }
 
@@ -1607,54 +1693,64 @@ export async function fetchPendingCompanionPasskeyHandshakes(): Promise<
   ResolvedCompanionPasskeyHandshake[]
 > {
   try {
-    const { data: sessionData } = await supabaseAuth.auth.getSession();
-    const user = sessionData?.session?.user;
+    const user = await resolveSignedInUser();
     if (!user?.id) return [];
 
     const userToken = await derivePasskeyHandshakeToken(user.id, user.email);
-    const { data, error } = await supabaseAuth
-      .from("citizen_staging_queue")
-      .select("*")
-      .eq("user_token", userToken)
-      .order("created_at", { ascending: false })
-      .limit(5);
+    const clients = await getPasskeyHandshakeClients();
 
-    if (error || !Array.isArray(data) || data.length === 0) return [];
+    const queryResults = await Promise.all(
+      clients.map((client) =>
+        client
+          .from("citizen_staging_queue")
+          .select("*")
+          .eq("user_token", userToken)
+          .order("created_at", { ascending: false })
+          .limit(5)
+          .then((res: any) => ({ client, rows: Array.isArray(res?.data) ? res.data : [] }))
+          .catch(() => ({ client, rows: [] }))
+      )
+    );
 
     const results: ResolvedCompanionPasskeyHandshake[] = [];
-    const expiredIds: string[] = [];
+    const seenHandshakeIds = new Set<string>();
 
-    for (const row of data) {
-      if (!row?.encrypted_payload || !row?.iv || !row?.salt) continue;
-      const decrypted = await decryptHandshakePayload(
-        row.encrypted_payload,
-        row.iv,
-        row.salt,
-        user.id,
-        user.email
-      );
-      if (!decrypted) continue;
-      if (Date.now() > decrypted.expiresAt) {
-        expiredIds.push(row.id);
-        continue;
+    for (const { client, rows } of queryResults) {
+      const expiredIds: string[] = [];
+      for (const row of rows) {
+        if (!row?.encrypted_payload || !row?.iv || !row?.salt) continue;
+        const decrypted = await decryptHandshakePayload(
+          row.encrypted_payload,
+          row.iv,
+          row.salt,
+          user.id,
+          user.email
+        );
+        if (!decrypted) continue;
+        if (Date.now() > decrypted.expiresAt) {
+          expiredIds.push(row.id);
+          continue;
+        }
+        if (isLocallyInitiatedHandshake(decrypted.handshakeId)) {
+          continue;
+        }
+        if (decrypted.status === "pending" && !seenHandshakeIds.has(decrypted.handshakeId)) {
+          seenHandshakeIds.add(decrypted.handshakeId);
+          results.push({
+            rowId: row.id,
+            payload: decrypted,
+          });
+        }
       }
-      if (isLocallyInitiatedHandshake(decrypted.handshakeId)) {
-        continue;
-      }
-      if (decrypted.status === "pending") {
-        results.push({
-          rowId: row.id,
-          payload: decrypted,
-        });
-      }
-    }
 
-    if (expiredIds.length > 0) {
-      supabaseAuth
-        .from("citizen_staging_queue")
-        .delete()
-        .in("id", expiredIds)
-        .then(() => {});
+      if (expiredIds.length > 0) {
+        client
+          .from("citizen_staging_queue")
+          .delete()
+          .in("id", expiredIds)
+          .then(() => {})
+          .catch(() => {});
+      }
     }
 
     return results;
@@ -1675,8 +1771,7 @@ export async function approveCompanionPasskeyHandshake(
   error: Error | null;
 }> {
   try {
-    const { data: sessionData } = await supabaseAuth.auth.getSession();
-    const user = sessionData?.session?.user;
+    const user = await resolveSignedInUser();
     if (!user?.id) {
       return {
         success: false,
@@ -1737,19 +1832,54 @@ export async function approveCompanionPasskeyHandshake(
       user.email
     );
 
-    const { error: updateErr } = await supabaseAuth
-      .from("citizen_staging_queue")
-      .update({
-        encrypted_payload,
-        iv,
-        salt,
-      })
-      .eq("id", handshake.rowId);
+    const userToken = await derivePasskeyHandshakeToken(user.id, user.email);
+    const clients = await getPasskeyHandshakeClients();
+    let anyUpdated = false;
+    let lastErr: any = null;
 
-    if (updateErr) {
+    await Promise.all(
+      clients.map(async (client) => {
+        try {
+          const { data: byIdData, error: byIdErr } = await client
+            .from("citizen_staging_queue")
+            .update({
+              encrypted_payload,
+              iv,
+              salt,
+            })
+            .eq("id", handshake.rowId)
+            .select("id");
+
+          if (!byIdErr && Array.isArray(byIdData) && byIdData.length > 0) {
+            anyUpdated = true;
+            return;
+          }
+
+          const { data: byTokenData, error: byTokenErr } = await client
+            .from("citizen_staging_queue")
+            .update({
+              encrypted_payload,
+              iv,
+              salt,
+            })
+            .eq("user_token", userToken)
+            .select("id");
+
+          if (!byTokenErr && Array.isArray(byTokenData) && byTokenData.length > 0) {
+            anyUpdated = true;
+          } else if (byTokenErr || byIdErr) {
+            lastErr = byTokenErr || byIdErr;
+          }
+        } catch (err) {
+          lastErr = err;
+        }
+      })
+    );
+
+    if (!anyUpdated && lastErr) {
       return {
         success: false,
-        error: new Error(updateErr.message),
+        error: new Error(lastErr.message || String(lastErr)),
       };
     }
 
