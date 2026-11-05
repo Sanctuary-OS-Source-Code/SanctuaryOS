@@ -677,10 +677,14 @@ mod mac_webauthn {
             } else {
                 Err("Passkey verification was cancelled.".to_string())
             };
-            if let Ok(mut guard) = arc_state.result.lock() {
-                *guard = Some(outcome);
-                arc_state.cvar.notify_all();
+            {
+                let lock_res = arc_state.result.lock();
+                if let Ok(mut guard) = lock_res {
+                    *guard = Some(outcome);
+                    arc_state.cvar.notify_all();
+                }
             }
+            drop(arc_state);
         }
     }
 
@@ -771,27 +775,28 @@ mod mac_webauthn {
 
             msg_send_eval(ctx, sel_eval, policy, ns_reason, &mut block);
 
-            let guard = wait_state
-                .result
-                .lock()
-                .map_err(|_| "Touch ID synchronization failed.".to_string())?;
-            let (guard, timeout_res) = wait_state
-                .cvar
-                .wait_timeout_while(guard, Duration::from_secs(60), |res| res.is_none())
-                .map_err(|_| "Touch ID wait interrupted.".to_string())?;
+            let (final_res, timed_out) = {
+                let guard = wait_state
+                    .result
+                    .lock()
+                    .map_err(|_| "Touch ID synchronization failed.".to_string())?;
+                let (guard, timeout_res) = wait_state
+                    .cvar
+                    .wait_timeout_while(guard, Duration::from_secs(60), |res| res.is_none())
+                    .map_err(|_| "Touch ID wait interrupted.".to_string())?;
+                (guard.clone(), timeout_res.timed_out())
+            };
 
             msg_send_void(ctx, sel_release);
 
-            if timeout_res.timed_out() {
+            if timed_out {
                 if !wait_state.claimed.swap(true, Ordering::SeqCst) {
                     let _ = Arc::from_raw(raw_state);
                 }
                 return Err("Touch ID verification timed out.".to_string());
             }
 
-            guard
-                .clone()
-                .unwrap_or_else(|| Err("Passkey verification was cancelled.".to_string()))
+            final_res.unwrap_or_else(|| Err("Passkey verification was cancelled.".to_string()))
         }
     }
 

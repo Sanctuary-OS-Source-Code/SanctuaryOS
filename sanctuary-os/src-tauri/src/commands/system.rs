@@ -155,14 +155,14 @@ pub fn webview_url(app_handle: tauri::AppHandle, label: String) -> Result<String
 
 #[tauri::command]
 pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
-    use tauri::Manager;
     let os = std::env::consts::OS;
     let arch = std::env::consts::ARCH;
     let app_version = app_handle.package_info().version.to_string();
 
-    let mut os_version = String::new();
+    let os_version: String;
     #[cfg(target_os = "windows")]
     {
+        let mut win_ver = String::new();
         if let Ok(output) = std::process::Command::new("cmd")
             .args(["/c", "ver"])
             .output()
@@ -180,14 +180,15 @@ pub fn get_system_info(app_handle: tauri::AppHandle) -> Result<String, String> {
                             }
                         }
                     }
-                    os_version = format!("{} (Build {})", display_name, version_part);
+                    win_ver = format!("{} (Build {})", display_name, version_part);
                 } else {
-                    os_version = ver_str.trim().to_string();
+                    win_ver = ver_str.trim().to_string();
                 }
             } else {
-                os_version = ver_str.trim().to_string();
+                win_ver = ver_str.trim().to_string();
             }
         }
+        os_version = win_ver;
     }
     #[cfg(target_os = "macos")]
     {
