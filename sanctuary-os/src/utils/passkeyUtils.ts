@@ -1497,13 +1497,14 @@ export async function startCompanionPasskeyHandshake(
 
     const clients = await getPasskeyHandshakeClients();
     await Promise.all(
-      clients.map((c) =>
-        c
-          .from("citizen_staging_queue")
-          .delete()
-          .eq("user_token", userToken)
-          .catch(() => {})
-      )
+      clients.map(async (c) => {
+        try {
+          await c
+            .from("citizen_staging_queue")
+            .delete()
+            .eq("user_token", userToken);
+        } catch {}
+      })
     );
 
     const rowPayload = {
@@ -1530,10 +1531,13 @@ export async function startCompanionPasskeyHandshake(
     const insertedId = data?.id;
     for (const c of clients) {
       if (c === supabaseAuth) continue;
-      c.from("citizen_staging_queue")
-        .insert([insertedId ? { id: insertedId, ...rowPayload } : rowPayload])
-        .then(() => {})
-        .catch(() => {});
+      (async () => {
+        try {
+          await c
+            .from("citizen_staging_queue")
+            .insert([insertedId ? { id: insertedId, ...rowPayload } : rowPayload]);
+        } catch {}
+      })();
     }
 
     triggerPwaWebPush({
@@ -1583,16 +1587,19 @@ export async function pollCompanionPasskeyHandshake(
     const clients = await getPasskeyHandshakeClients();
 
     const queryResults = await Promise.all(
-      clients.map((client) =>
-        client
-          .from("citizen_staging_queue")
-          .select("*")
-          .eq("user_token", userToken)
-          .order("created_at", { ascending: false })
-          .limit(5)
-          .then((res: any) => ({ client, rows: Array.isArray(res?.data) ? res.data : [] }))
-          .catch(() => ({ client, rows: [] }))
-      )
+      clients.map(async (client) => {
+        try {
+          const res: any = await client
+            .from("citizen_staging_queue")
+            .select("*")
+            .eq("user_token", userToken)
+            .order("created_at", { ascending: false })
+            .limit(5);
+          return { client, rows: Array.isArray(res?.data) ? res.data : [] };
+        } catch {
+          return { client, rows: [] };
+        }
+      })
     );
 
     const allEntries: { client: any; row: any }[] = [];
@@ -1620,7 +1627,9 @@ export async function pollCompanionPasskeyHandshake(
       if (!decrypted || decrypted.handshakeId !== handshakeId) continue;
 
       if (Date.now() > decrypted.expiresAt) {
-        await client.from("citizen_staging_queue").delete().eq("id", row.id).catch(() => {});
+        try {
+          await client.from("citizen_staging_queue").delete().eq("id", row.id);
+        } catch {}
         continue;
       }
 
@@ -1637,13 +1646,14 @@ export async function pollCompanionPasskeyHandshake(
           Date.now() - decrypted.approvedAt < 180_000
         ) {
           await Promise.all(
-            clients.map((c) =>
-              c
-                .from("citizen_staging_queue")
-                .delete()
-                .eq("user_token", userToken)
-                .catch(() => {})
-            )
+            clients.map(async (c) => {
+              try {
+                await c
+                  .from("citizen_staging_queue")
+                  .delete()
+                  .eq("user_token", userToken);
+              } catch {}
+            })
           );
           markPasskeySessionVerified(user.id);
           notifyMfaStateChanged();
@@ -1700,16 +1710,19 @@ export async function fetchPendingCompanionPasskeyHandshakes(): Promise<
     const clients = await getPasskeyHandshakeClients();
 
     const queryResults = await Promise.all(
-      clients.map((client) =>
-        client
-          .from("citizen_staging_queue")
-          .select("*")
-          .eq("user_token", userToken)
-          .order("created_at", { ascending: false })
-          .limit(5)
-          .then((res: any) => ({ client, rows: Array.isArray(res?.data) ? res.data : [] }))
-          .catch(() => ({ client, rows: [] }))
-      )
+      clients.map(async (client) => {
+        try {
+          const res: any = await client
+            .from("citizen_staging_queue")
+            .select("*")
+            .eq("user_token", userToken)
+            .order("created_at", { ascending: false })
+            .limit(5);
+          return { client, rows: Array.isArray(res?.data) ? res.data : [] };
+        } catch {
+          return { client, rows: [] };
+        }
+      })
     );
 
     const results: ResolvedCompanionPasskeyHandshake[] = [];
@@ -1744,12 +1757,14 @@ export async function fetchPendingCompanionPasskeyHandshakes(): Promise<
       }
 
       if (expiredIds.length > 0) {
-        client
-          .from("citizen_staging_queue")
-          .delete()
-          .in("id", expiredIds)
-          .then(() => {})
-          .catch(() => {});
+        (async () => {
+          try {
+            await client
+              .from("citizen_staging_queue")
+              .delete()
+              .in("id", expiredIds);
+          } catch {}
+        })();
       }
     }
 
