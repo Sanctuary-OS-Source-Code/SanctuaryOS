@@ -960,8 +960,10 @@ export async function notifyOS(
             icon: '/pwa-192x192.png?v=sovereign_v7',
             badge: '/pwa-192x192.png?v=sovereign_v7',
             tag: dedupeKey,
+            requireInteraction: actionTypeId === 'PASSKEY_HANDSHAKE',
+            vibrate: actionTypeId === 'PASSKEY_HANDSHAKE' ? [200, 100, 200] : undefined,
             data: { actionTypeId, ...(data || {}) },
-          });
+          } as any);
           return true;
         }
       } catch (swErr) {
@@ -973,10 +975,14 @@ export async function notifyOS(
       body: cleanBody,
       icon: '/pwa-192x192.png?v=sovereign_v7',
       tag: dedupeKey,
+      requireInteraction: actionTypeId === 'PASSKEY_HANDSHAKE',
       data: { actionTypeId, ...(data || {}) },
     });
     webNotif.onclick = () => {
       window.focus();
+      if (actionTypeId === 'PASSKEY_HANDSHAKE') {
+        window.dispatchEvent(new CustomEvent('sanctuary-open-passkey-handshake'));
+      }
       webNotif.close();
     };
     return true;

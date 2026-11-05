@@ -156,21 +156,15 @@ export function isWebAuthnSupported(): boolean {
 
 /**
  * Returns true if the current client has a direct local WebAuthn bridge (Browser WebAuthn on Web/PWA,
- * or Windows Hello `webauthn.dll` on Windows Desktop). Returns false on SteamOS/Linux Desktop and macOS Desktop,
- * where Companion Passkey Handshake is used as the primary hardware/biometric Passkey verification flow.
+ * Windows Hello `webauthn.dll` on Windows Desktop, or macOS Touch ID / LocalAuthentication on macOS Desktop).
+ * Returns false on SteamOS/Linux Desktop, where Companion Passkey Handshake is used as the primary
+ * hardware/biometric Passkey verification flow.
  */
 export function isNativeLocalPasskeySupported(): boolean {
   if (!isDesktop()) {
     return isWebAuthnSupported();
   }
   if (isLinuxDesktop()) return false;
-  if (typeof navigator !== "undefined") {
-    const ua = navigator.userAgent || "";
-    const plat = (navigator as any).platform || "";
-    if (/Mac|iPod|iPhone|iPad/i.test(plat) || /Macintosh|Mac OS X/i.test(ua)) {
-      return false;
-    }
-  }
   return true;
 }
 
@@ -1362,6 +1356,38 @@ async function decryptHandshakePayload(
   }
 }
 
+const LOCAL_HANDSHAKE_IDS_STORAGE_KEY = "sanctuary_local_handshake_ids_v1";
+const locallyInitiatedHandshakeIds = new Set<string>();
+
+function markLocallyInitiatedHandshake(handshakeId: string): void {
+  if (!handshakeId) return;
+  locallyInitiatedHandshakeIds.add(handshakeId);
+  try {
+    const raw = sessionStorage.getItem(LOCAL_HANDSHAKE_IDS_STORAGE_KEY);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    if (!list.includes(handshakeId)) {
+      list.push(handshakeId);
+      sessionStorage.setItem(
+        LOCAL_HANDSHAKE_IDS_STORAGE_KEY,
+        JSON.stringify(list.slice(-20))
+      );
+    }
+  } catch {}
+}
+
+export function isLocallyInitiatedHandshake(handshakeId: string): boolean {
+  if (!handshakeId) return false;
+  if (locallyInitiatedHandshakeIds.has(handshakeId)) return true;
+  try {
+    const raw = sessionStorage.getItem(LOCAL_HANDSHAKE_IDS_STORAGE_KEY);
+    if (!raw) return false;
+    const list: string[] = JSON.parse(raw);
+    return Array.isArray(list) && list.includes(handshakeId);
+  } catch {
+    return false;
+  }
+}
+
 async function computeHandshakeApprovalSignature(
   challengeNonce: string,
   handshakeId: string,
@@ -1411,6 +1437,8 @@ export async function startCompanionPasskeyHandshake(
       typeof window.crypto.randomUUID === "function"
         ? window.crypto.randomUUID()
         : `hs_${Date.now()}_${partA}${partB}`;
+
+    markLocallyInitiatedHandshake(handshakeId);
 
     const now = Date.now();
     const expiresAt = now + 3 * 60 * 1000; // Strict 3-minute live window
@@ -1595,6 +1623,9 @@ export async function fetchPendingCompanionPasskeyHandshakes(): Promise<
       if (!decrypted) continue;
       if (Date.now() > decrypted.expiresAt) {
         expiredIds.push(row.id);
+        continue;
+      }
+      if (isLocallyInitiatedHandshake(decrypted.handshakeId)) {
         continue;
       }
       if (decrypted.status === "pending") {

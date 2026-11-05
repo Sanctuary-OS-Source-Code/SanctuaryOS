@@ -2828,8 +2828,8 @@
   "passkey_handshake_err_start": "Failed to start Companion Passkey Handshake.",
   "passkey_handshake_approved_toast": "Companion Passkey Handshake verified via live Passkey!",
   "passkey_handshake_title": "Companion Passkey Handshake",
-  "passkey_handshake_badge": "Steam Deck • macOS • Mobile PWA",
-  "passkey_handshake_desc": "On Steam Deck, Linux, or macOS—or when your Passkey lives on your phone—use a live Companion Handshake. Your companion device must perform a real-time FIDO2 Passkey ceremony right then and there to unlock this session.",
+  "passkey_handshake_badge": "Steam Deck • Mobile PWA • Cross-Rig 2FA",
+  "passkey_handshake_desc": "On Steam Deck or Linux—or when your Passkey lives on your phone or Mac—use a live Companion Handshake. Your companion device must perform a real-time FIDO2 Passkey ceremony right then and there to unlock this session.",
   "passkey_handshake_btn_starting": "Generating Encrypted Handshake...",
   "passkey_handshake_btn_start": "Start Companion Passkey Handshake",
   "passkey_handshake_code_label": "Live Handshake Verification Code",
@@ -2839,5 +2839,8 @@
   "passkey_handshake_sent_approval_toast": "Live Passkey verified! Your companion rig is now unlocked.",
   "passkey_handshake_approve_banner_title": "Approve Rig Passkey Handshake",
   "passkey_handshake_approve_banner_desc": "Confirm the 6-digit code shown on your other rig and authenticate with your FIDO2 Passkey right now to authorize elevated access.",
-  "passkey_handshake_btn_approve_live": "Verify Passkey to Approve"
+  "passkey_handshake_btn_approve_live": "Verify Passkey to Approve",
+  "passkey_handshake_requesting_rig": "Requesting Device",
+  "passkey_handshake_target_hub": "Target Hub",
+  "passkey_handshake_confirm_code_hint": "Optional: Enter the 6-digit code from your other device to double-check before verifying your Passkey"
 }

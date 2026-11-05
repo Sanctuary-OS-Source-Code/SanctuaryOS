@@ -505,7 +505,12 @@ function App() {
   useEffect(() => {
     const handleSwMessage = (event: MessageEvent) => {
       if (event.data?.type === 'SANCTUARY_NOTIFICATION_CLICK') {
-        setIsNotificationSidebarOpen(true);
+        if (event.data?.data?.actionTypeId === 'PASSKEY_HANDSHAKE') {
+          useModalStore.getState().setIsPasskeyHandshakePanelOpen(true);
+          window.dispatchEvent(new CustomEvent('sanctuary-open-passkey-handshake'));
+        } else {
+          setIsNotificationSidebarOpen(true);
+        }
       }
     };
     if ('serviceWorker' in navigator) {

@@ -31,7 +31,6 @@ import {
 } from "../utils/passkeyUtils";
 import {
   CompanionPasskeyHandshakeRequester,
-  CompanionPasskeyHandshakeApprover,
 } from "../components/ElevatedPasskeyGate";
 
 export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
@@ -932,8 +931,6 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
               </div>
 
               {/* Selected Enrollment Card */}
-              <CompanionPasskeyHandshakeApprover inline={true} />
-
               {requiresPasskeyStepUp ? (
                 <div
                   className={`grid grid-cols-1 ${
@@ -942,30 +939,31 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                 >
                   {isNativeLocalPasskeySupported() && (
                     <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col h-full">
-                      <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
-                            <span className="material-symbols-outlined !text-[15px]">
-                              {t("icon_lock", "lock")}
-                            </span>
-                          </div>
-                          <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
-                            {t(
-                              "auth_passkey_stepup_required_title",
-                              "Existing Passkey Verification Required"
-                            )}
-                          </span>
-                        </div>
-                        <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--warning)_38%,transparent)]`}>
-                          <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                      <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined !text-[15px]">
                             {t("icon_lock", "lock")}
                           </span>
-                          <span>{t("auth_passkey_stepup_locked_badge", "Step-Up Locked")}</span>
+                        </div>
+                        <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] leading-snug">
+                          {t(
+                            "auth_passkey_stepup_required_title",
+                            "Existing Passkey Verification Required"
+                          )}
                         </span>
                       </div>
 
                       <div className="p-4 flex flex-col justify-between gap-4 flex-1">
-                        <div className="flex flex-col gap-3.5">
+                        <div className="flex flex-col gap-3">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--warning)_38%,transparent)]`}>
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                                {t("icon_lock", "lock")}
+                              </span>
+                              <span>{t("auth_passkey_stepup_locked_badge", "Step-Up Locked")}</span>
+                            </span>
+                          </div>
+
                           <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
                             {t(
                               "auth_passkey_stepup_required_desc",
@@ -1009,19 +1007,19 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                 <UniversalGroup
                   title={t("auth_passkey_register_section_title", "Register FIDO2 Passkey (Recommended)")}
                   icon={t("icon_passkey", "passkey")}
-                  headerAction={
-                    <span className={VAULT_CHIP_CLASS}>
-                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                        {t("icon_verified_user", "verified_user")}
-                      </span>
-                      <span>{t("auth_passkey_badge_fido", "FIDO2 Passkey")}</span>
-                    </span>
-                  }
                 >
                   <form
                     onSubmit={handleRegisterPasskey}
                     className="flex flex-col gap-4"
                   >
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                          {t("icon_verified_user", "verified_user")}
+                        </span>
+                        <span>{t("auth_passkey_badge_fido", "FIDO2 Passkey")}</span>
+                      </span>
+                    </div>
                     <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
                       {t(
                         "auth_passkey_register_section_desc",

@@ -2814,8 +2814,8 @@
   "passkey_handshake_err_start": "Fretishe! Couldn't start Companion Passkey Handshake.",
   "passkey_handshake_approved_toast": "Yibibs! Companion Passkey Handshake booped & unlocked!",
   "passkey_handshake_title": "Companion Passkey Boop-Shake",
-  "passkey_handshake_badge": "Steam Deck • Mac • Phone PWA",
-  "passkey_handshake_desc": "On a Steam Deck or Mac? Start a live Companion Boop-Shake! Your phone or other rig will ask for a live Passkey boop right then and there to unlock this hub!",
+  "passkey_handshake_badge": "Steam Deck • Phone PWA • Cross-Rig",
+  "passkey_handshake_desc": "On a Steam Deck, or keeping your Passkey on your phone or Mac? Start a live Companion Boop-Shake! Your phone or other rig will ask for a live Passkey boop right then and there to unlock this hub!",
   "passkey_handshake_btn_starting": "Cooking Secret Zibbs Code...",
   "passkey_handshake_btn_start": "Start Companion Passkey Boop-Shake",
   "passkey_handshake_code_label": "Live 6-Digit Boop-Shake Code",
@@ -2825,5 +2825,8 @@
   "passkey_handshake_sent_approval_toast": "Sul sul! Live Passkey booped! Your other rig is unlocked!",
   "passkey_handshake_approve_banner_title": "Approve Rig Passkey Boop-Shake",
   "passkey_handshake_approve_banner_desc": "Match the 6-digit code on your other rig and boop your Passkey right now to unlock it!",
-  "passkey_handshake_btn_approve_live": "Boop Passkey to Approve"
+  "passkey_handshake_btn_approve_live": "Boop Passkey to Approve",
+  "passkey_handshake_requesting_rig": "Asking Rig",
+  "passkey_handshake_target_hub": "Hub to Boop-Open",
+  "passkey_handshake_confirm_code_hint": "Optional: Type the 6-digit code from your other screen before booping your Passkey"
 }

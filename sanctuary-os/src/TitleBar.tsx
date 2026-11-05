@@ -32,6 +32,7 @@ export function TitleBar({
   const dnaMatchQueue = useModalStore((state) => state.dnaMatchQueue);
   const scoutQueue = useModalStore((state) => state.scoutQueue);
   const updatePayload = useModalStore((state) => state.updatePayload);
+  const pendingPasskeyHandshakes = useModalStore((state) => state.pendingPasskeyHandshakes);
   const isSideBrowserOpen = useModalStore((state) => state.isSideBrowserOpen);
   const isQueuesPanelOpen = useModalStore((state) => state.isQueuesPanelOpen);
   const setIsQueuesPanelOpen = useModalStore((state) => state.setIsQueuesPanelOpen);
@@ -153,18 +154,22 @@ export function TitleBar({
   const scoutCount = Array.isArray(scoutQueue) ? scoutQueue.length : 0;
   const nexusCount = nexusUpdatesCount || 0;
   const hasAppUpdate = isDesktop() && Boolean(updatePayload);
+  const passkeyHandshakeCount = Array.isArray(pendingPasskeyHandshakes)
+    ? pendingPasskeyHandshakes.length
+    : 0;
   const totalQueueCount =
     quarantineCount +
     dnaCount +
     blueprintQueueCount +
     scoutCount +
     nexusCount +
+    passkeyHandshakeCount +
     (hasAppUpdate ? 1 : 0);
 
   const notifCount = unreadNotificationCount || 0;
   const isRoot = !isDesktop() && isRootDomain();
-  const isOnLandingHub = view === 'landing' || !isConfigured || isRoot;
-  const isWorkspaceActive = !isOnLandingHub && !isSideBrowserOpen && !isHubLockdownActive;
+  const isOnLandingHub = view === 'landing' || (!isConfigured && !activeWorkspaceId) || isRoot;
+  const isToolbarToolsVisible = !isRoot && !isSideBrowserOpen && !isHubLockdownActive;
   const shouldTuckCapsule =
     hasDomSidePanel ||
     isHubLockdownActive ||
@@ -175,13 +180,7 @@ export function TitleBar({
   const queueIcon =
     quarantineCount > 0
       ? t("icon_warning_amber", "warning_amber")
-      : dnaCount > 0
-        ? t("icon_difference", "difference")
-        : hasAppUpdate && totalQueueCount === 1
-          ? t("icon_system_update_alt", "system_update_alt")
-          : blueprintQueueCount > 0 && scoutCount === 0 && nexusCount === 0 && !hasAppUpdate
-            ? t("icon_phonelink_ring", "phonelink_ring")
-            : t("icon_layers", "layers");
+      : t("icon_layers", "layers");
 
   const queueColorClass =
     totalQueueCount === 0
@@ -263,7 +262,7 @@ export function TitleBar({
       </button>
 
       {/* Segment 2: Consolidated System Queues & Utilities */}
-      {isWorkspaceActive && (
+      {isToolbarToolsVisible && (
         <button
           type="button"
           onClick={() => setIsQueuesPanelOpen(true)}
@@ -303,7 +302,7 @@ export function TitleBar({
       )}
 
       {/* Segment 3: Real Notifications (Bell Icon) */}
-      {isWorkspaceActive && (
+      {isToolbarToolsVisible && (
         <button
           type="button"
           onClick={() => setIsNotificationSidebarOpen?.((prev: boolean) => !prev)}

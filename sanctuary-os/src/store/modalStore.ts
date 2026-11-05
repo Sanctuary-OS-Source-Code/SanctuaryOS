@@ -107,6 +107,10 @@ interface ModalState {
   setIsSystemStatusOpen: (val: boolean | ((prev: boolean) => boolean)) => void;
   isQueuesPanelOpen: boolean;
   setIsQueuesPanelOpen: (val: boolean | ((prev: boolean) => boolean)) => void;
+  pendingPasskeyHandshakes: any[];
+  setPendingPasskeyHandshakes: (val: any[]) => void;
+  isPasskeyHandshakePanelOpen: boolean;
+  setIsPasskeyHandshakePanelOpen: (val: boolean | ((prev: boolean) => boolean)) => void;
   
   // Browser Features
   sideBrowserUrl: string; // Legacy/Active Tab URL
@@ -1288,4 +1292,14 @@ export const useModalStore = create<ModalState>((set, get) => ({
     });
   },
   clearGuidedBrowserQueue: () => set({ guidedBrowserQueue: [], guidedBrowserIndex: 0 }),
+  pendingPasskeyHandshakes: [],
+  setPendingPasskeyHandshakes: (pendingPasskeyHandshakes) => set({ pendingPasskeyHandshakes }),
+  isPasskeyHandshakePanelOpen: false,
+  setIsPasskeyHandshakePanelOpen: (isPasskeyHandshakePanelOpen) =>
+    set((state) => ({
+      isPasskeyHandshakePanelOpen:
+        typeof isPasskeyHandshakePanelOpen === 'function'
+          ? isPasskeyHandshakePanelOpen(state.isPasskeyHandshakePanelOpen)
+          : isPasskeyHandshakePanelOpen,
+    })),
 }));

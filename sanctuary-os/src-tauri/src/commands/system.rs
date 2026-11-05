@@ -928,8 +928,7 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
             struct HidrawDeckHandle {
                 path: String,
                 file: std::fs::File,
-                lpad_was_touched: bool,
-                prev_lpad_x: i32,
+                touch_frames: u32,
                 prev_lpad_y: i32,
             }
 
@@ -1136,8 +1135,7 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                             hidraw_handles.push(HidrawDeckHandle {
                                 path: dev_path,
                                 file,
-                                lpad_was_touched: false,
-                                prev_lpad_x: 0,
+                                touch_frames: 0,
                                 prev_lpad_y: 0,
                             });
                         }
@@ -1162,31 +1160,24 @@ pub fn start_linux_gamepad_poller(app: tauri::AppHandle) {
                                             active_name = "Steam Deck Controller".to_string();
                                         }
                                         let lpad_touched = (buf[10] & 0x08) != 0;
-                                        let lpad_x =
-                                            i16::from_le_bytes([buf[16], buf[17]]) as i32;
                                         let lpad_y =
                                             i16::from_le_bytes([buf[18], buf[19]]) as i32;
 
-                                        if lpad_touched && (lpad_x != 0 || lpad_y != 0) {
-                                            if handle.lpad_was_touched {
+                                        if lpad_touched && lpad_y != 0 {
+                                            handle.touch_frames =
+                                                handle.touch_frames.saturating_add(1);
+                                            if handle.touch_frames > 3 {
                                                 // On Steam Deck hardware, lpad_y is +32767 at top and -32767 at bottom.
                                                 // Sliding thumb down decreases lpad_y -> positive dy scrolls down.
                                                 let dy = handle.prev_lpad_y - lpad_y;
-                                                let dx = lpad_x - handle.prev_lpad_x;
-                                                let dominant = if dy.abs() >= dx.abs() {
-                                                    dy
-                                                } else {
-                                                    dx
-                                                };
-                                                if dominant.abs() > 70 && dominant.abs() < 16000 {
-                                                    scroll_delta_y += (dominant as f32) * 0.036;
+                                                if dy.abs() > 90 && dy.abs() < 4500 {
+                                                    let clamped = dy.clamp(-2400, 2400) as f32;
+                                                    scroll_delta_y += clamped * 0.022;
                                                 }
                                             }
-                                            handle.lpad_was_touched = true;
-                                            handle.prev_lpad_x = lpad_x;
                                             handle.prev_lpad_y = lpad_y;
                                         } else {
-                                            handle.lpad_was_touched = false;
+                                            handle.touch_frames = 0;
                                         }
                                     }
                                 }

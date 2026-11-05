@@ -48,6 +48,8 @@ export function SystemQueuesSidePanel({
     setIsLogExpanded,
     useInternalBrowser,
     setIsSideBrowserOpen,
+    pendingPasskeyHandshakes,
+    setIsPasskeyHandshakePanelOpen,
   } = useModalStore();
 
   const quarantineCount = Array.isArray(quarantineList)
@@ -78,6 +80,9 @@ export function SystemQueuesSidePanel({
   const scoutCount = Array.isArray(scoutQueue) ? scoutQueue.length : 0;
   const nexusCount = nexusUpdatesCount || 0;
   const hasAppUpdate = isDesktop() && Boolean(updatePayload);
+  const passkeyHandshakeCount = Array.isArray(pendingPasskeyHandshakes)
+    ? pendingPasskeyHandshakes.length
+    : 0;
 
   const totalQueueItems =
     quarantineCount +
@@ -85,6 +90,7 @@ export function SystemQueuesSidePanel({
     blueprintQueueCount +
     scoutCount +
     nexusCount +
+    passkeyHandshakeCount +
     (hasAppUpdate ? 1 : 0);
 
   const heroVariant: "danger" | "warning" | "success" | "accent" =
@@ -95,6 +101,7 @@ export function SystemQueuesSidePanel({
         : blueprintQueueCount > 0 &&
             scoutCount === 0 &&
             nexusCount === 0 &&
+            passkeyHandshakeCount === 0 &&
             !hasAppUpdate
           ? "success"
           : "accent";
@@ -111,6 +118,30 @@ export function SystemQueuesSidePanel({
     badgeColorClass: string;
     onClick: () => void;
   }[] = [];
+
+  if (passkeyHandshakeCount > 0 && pendingPasskeyHandshakes[0]?.payload) {
+    const activeReq = pendingPasskeyHandshakes[0];
+    activeQueues.push({
+      id: "passkey_handshake",
+      icon: t("icon_phonelink_lock", "phonelink_lock"),
+      statusColor: "accent",
+      title: t(
+        "passkey_handshake_approve_banner_title",
+        "Approve Rig Passkey Handshake"
+      ),
+      subtitle: `${activeReq.payload.requestingDevice} • ${activeReq.payload.targetScope}`,
+      description: t(
+        "passkey_handshake_approve_banner_desc",
+        "Confirm the 6-digit code shown on your other rig and authenticate with your FIDO2 Passkey right now to authorize elevated access."
+      ),
+      badgeLabel: activeReq.payload.handshakeCode,
+      badgeIcon: t("icon_passkey", "passkey"),
+      badgeColorClass: "text-[var(--accent)]",
+      onClick: () => {
+        setIsPasskeyHandshakePanelOpen(true);
+      },
+    });
+  }
 
   if (hasAppUpdate) {
     const rawVer = String(updatePayload?.version || "")
@@ -391,6 +422,23 @@ export function SystemQueuesSidePanel({
 
             <DashboardStatTile
               variant="filter"
+              icon={t("icon_devices", "devices")}
+              label={t("sig_queue_title", "Signature Queue")}
+              value={
+                blueprintQueueCount > 0
+                  ? `${blueprintQueueCount} ${t("playsets_title", "{Blueprints}")}`
+                  : t("blueprint_tab_pipeline", "Personal Rig Pipeline")
+              }
+              colorClass={
+                blueprintQueueCount > 0 ? "text-[var(--success)]" : undefined
+              }
+              onClick={() => {
+                setIsSignatureQueueOpen(true);
+              }}
+            />
+
+            <DashboardStatTile
+              variant="filter"
               icon={t("icon_memory", "memory")}
               label={t("system_status", "System Status")}
               value={t("sys_panel_desc", "Hardware & Environment Telemetry")}
@@ -409,12 +457,16 @@ export function SystemQueuesSidePanel({
               }}
             />
 
-            {useInternalBrowser && isDesktop() && (
+            {isDesktop() && (
               <DashboardStatTile
                 variant="filter"
                 icon={t("icon_public", "public")}
                 label={t("sidebar_web_browser", "Sanctuary Browser")}
-                value={t("active", "Active")}
+                value={
+                  useInternalBrowser
+                    ? t("active", "Active")
+                    : t("open", "Open")
+                }
                 onClick={() => {
                   onClose();
                   setIsSideBrowserOpen(true);

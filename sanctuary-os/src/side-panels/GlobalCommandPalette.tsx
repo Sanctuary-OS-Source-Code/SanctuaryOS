@@ -434,6 +434,7 @@ export function GlobalCommandPalette({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const lastDomWheelAtRef = useRef<number>(0);
+  const lastTouchAtRef = useRef<number>(0);
 
   const toggleAutoOpenKeyboard = useCallback((nextVal?: boolean) => {
     setAutoOpenKeyboard((prev) => {
@@ -701,42 +702,34 @@ export function GlobalCommandPalette({
       closePalette();
     };
 
+    const handleGlobalTouch = () => {
+      lastTouchAtRef.current = Date.now();
+    };
+
     const handleGlobalWheel = (e: WheelEvent) => {
       if (e.defaultPrevented) return;
       lastDomWheelAtRef.current = Date.now();
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
 
-      const linuxMode = isLinuxDesktop();
-      const modeScale = e.deltaMode === 1 ? 56 : e.deltaMode === 2 ? 420 : 1;
-      let dx = e.deltaX * modeScale;
-      let dy = e.deltaY * modeScale;
-
-      // Under X11 / WebKitGTK on SteamOS, wheel & trackpad ticks frequently arrive with deltaMode=0 and small values (±1..±5)
-      if (linuxMode && e.deltaMode === 0) {
-        if (Math.abs(dy) > 0 && Math.abs(dy) <= 5) dy *= 44;
-        if (Math.abs(dx) > 0 && Math.abs(dx) <= 5) dx *= 44;
-      }
-
-      // Let horizontally scrollable carousels handle horizontal wheel events
-      const horizEl = target.closest<HTMLElement>(".sa-stat-tile-carousel");
-      if (horizEl && horizEl.scrollWidth > horizEl.clientWidth + 2 && Math.abs(dx) > Math.abs(dy)) {
-        if (linuxMode) {
-          horizEl.scrollLeft += dx;
-          e.preventDefault();
-        }
+      // Never intercept or alter wheel events synthesized during or immediately after a touchscreen gesture
+      if (Date.now() - lastTouchAtRef.current < 450) {
         return;
       }
 
-      // Combine/pick dominant axis so Steam Deck Left Trackpad works in Vertical, Horizontal, or Circular wheel modes
-      const effectiveDelta = linuxMode
-        ? Math.abs(dy) >= Math.abs(dx)
-          ? dy
-          : dx
-        : dy !== 0
-        ? dy
-        : dx;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
 
+      const modeScale = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? 360 : 1;
+      const dx = e.deltaX * modeScale;
+      const dy = e.deltaY * modeScale;
+
+      // Let horizontally scrollable carousels handle horizontal wheel events natively
+      const horizEl = target.closest<HTMLElement>(".sa-stat-tile-carousel");
+      if (horizEl && horizEl.scrollWidth > horizEl.clientWidth + 2 && Math.abs(dx) > Math.abs(dy)) {
+        return;
+      }
+
+      // Only convert pure horizontal wheel events (e.g. SteamOS Desktop Mode horizontal wheel binding)
+      const effectiveDelta = dy !== 0 ? dy : dx;
       if (effectiveDelta === 0) return;
 
       // Walk up from target to find the closest vertically scrollable container
@@ -750,9 +743,9 @@ export function GlobalCommandPalette({
               effectiveDelta > 0 && curr.scrollTop + curr.clientHeight < curr.scrollHeight - 1;
 
             if (canScrollUp || canScrollDown) {
-              // On Linux (WebKitGTK / Steam Deck) or when converting horizontal trackpad wheel events,
-              // directly drive scrollTop so WebKitGTK X11 never drops the scroll event
-              if (linuxMode || e.deltaY === 0 || Math.abs(dx) > Math.abs(dy)) {
+              // When e.deltaY !== 0, let the browser's native smooth scroll handle it untouched;
+              // only manually apply scrollTop when converting a pure horizontal wheel event (e.deltaY === 0)
+              if (e.deltaY === 0 && e.deltaX !== 0) {
                 curr.scrollTop += effectiveDelta;
                 e.preventDefault();
               }
@@ -763,18 +756,24 @@ export function GlobalCommandPalette({
         curr = curr.parentElement;
       }
 
-      // Fallback when cursor is over non-scrolling chrome (Sidebar, TitleBar, margins)
+      // Fallback only when cursor is over non-scrolling chrome (Sidebar, TitleBar, margins)
       if (scrollActiveViewport(effectiveDelta)) {
         e.preventDefault();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown, { capture: true });
+    window.addEventListener("touchstart", handleGlobalTouch, { passive: true });
+    window.addEventListener("touchmove", handleGlobalTouch, { passive: true });
+    window.addEventListener("touchend", handleGlobalTouch, { passive: true });
     window.addEventListener("wheel", handleGlobalWheel, { passive: false });
     window.addEventListener("sanctuary-open-command-palette", handleCustomOpen);
     window.addEventListener("sanctuary-close-command-palette", handleCustomClose);
     return () => {
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
+      window.removeEventListener("touchstart", handleGlobalTouch);
+      window.removeEventListener("touchmove", handleGlobalTouch);
+      window.removeEventListener("touchend", handleGlobalTouch);
       window.removeEventListener("wheel", handleGlobalWheel);
       window.removeEventListener("sanctuary-open-command-palette", handleCustomOpen);
       window.removeEventListener("sanctuary-close-command-palette", handleCustomClose);
@@ -2787,8 +2786,9 @@ export function GlobalCommandPalette({
     if (isDesktop()) {
       listen<{ deltaY: number }>("sanctuary-native-scroll", (event) => {
         if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-        // Skip if a DOM wheel event already handled this gesture within the last 55ms
-        if (Date.now() - lastDomWheelAtRef.current < 55) return;
+        const now = Date.now();
+        // Skip if a touchscreen gesture or DOM wheel event handled scrolling recently
+        if (now - lastTouchAtRef.current < 450 || now - lastDomWheelAtRef.current < 240) return;
         const deltaY = Number(event.payload?.deltaY || 0);
         if (Math.abs(deltaY) > 0.5) {
           scrollActiveViewport(deltaY);
