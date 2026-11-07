@@ -132,7 +132,7 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
         let mut files = vec![];
         let config = get_saved_coordinates();
         let base = PathBuf::from(&vault_path).join("Backups");
-        let mut pending_size_calcs: Vec<(PathBuf, PathBuf, PathBuf)> = Vec::new();
+        let mut pending_size_calcs: Vec<(String, PathBuf, PathBuf, PathBuf)> = Vec::new();
 
         let mut process_dir = |dir: &std::path::Path| {
             if let Ok(entries) = std::fs::read_dir(dir) {
@@ -172,6 +172,7 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
 
                         if !size_file.exists() || !diff_size_file.exists() {
                             pending_size_calcs.push((
+                                name.clone(),
                                 e.path().clone(),
                                 size_file.clone(),
                                 diff_size_file.clone(),
@@ -227,14 +228,45 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
         }
 
         if !pending_size_calcs.is_empty() {
-            std::thread::spawn(move || {
-                use rayon::prelude::*;
-                pending_size_calcs.par_iter().for_each(|(p_clone, s_clone, d_clone)| {
-                    let (log_size, diff_size) = crate::utils::calculate_sizes(p_clone);
-                    let _ = std::fs::write(s_clone, log_size.to_string());
-                    let _ = std::fs::write(d_clone, diff_size.to_string());
-                });
-            });
+            use rayon::prelude::*;
+            let computed: std::collections::HashMap<String, (u64, u64)> = pending_size_calcs
+                .par_iter()
+                .map(|(b_name, p_clone, s_clone, d_clone)| {
+                    let (calc_log, calc_diff) = crate::utils::calculate_sizes(p_clone);
+                    let log_size = if s_clone.exists() {
+                        std::fs::read_to_string(s_clone)
+                            .ok()
+                            .and_then(|v| v.trim().parse::<u64>().ok())
+                            .unwrap_or_else(|| {
+                                let _ = std::fs::write(s_clone, calc_log.to_string());
+                                calc_log
+                            })
+                    } else {
+                        let _ = std::fs::write(s_clone, calc_log.to_string());
+                        calc_log
+                    };
+                    let diff_size = if d_clone.exists() {
+                        std::fs::read_to_string(d_clone)
+                            .ok()
+                            .and_then(|v| v.trim().parse::<u64>().ok())
+                            .unwrap_or_else(|| {
+                                let _ = std::fs::write(d_clone, calc_diff.to_string());
+                                calc_diff
+                            })
+                    } else {
+                        let _ = std::fs::write(d_clone, calc_diff.to_string());
+                        calc_diff
+                    };
+                    (b_name.clone(), (log_size, diff_size))
+                })
+                .collect();
+
+            for file in &mut files {
+                if let Some(&(log_size, diff_size)) = computed.get(&file.name) {
+                    file.size_mb = diff_size as f64 / 1_048_576.0;
+                    file.logical_size_mb = Some(log_size as f64 / 1_048_576.0);
+                }
+            }
         }
 
         let extract_ts = |name: &str| -> u64 {

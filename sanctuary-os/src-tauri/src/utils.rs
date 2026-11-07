@@ -2318,34 +2318,67 @@ pub fn get_world_backups_dir(docs_path: &str, vault_path: &str) -> Option<PathBu
 }
 
 #[cfg(windows)]
-pub fn calculate_sizes(path: &std::path::Path) -> (u64, u64) {
-    let mut total_size = 0;
-    let diff_size = 0; // Old backups on Windows will gracefully fallback to 0 delta size
-    let mut walker = walkdir::WalkDir::new(path).into_iter();
-
-    while let Some(Ok(entry)) = walker.next() {
-        if let Ok(metadata) = entry.metadata() {
-            if metadata.is_file() {
-                total_size += metadata.len();
-            }
+fn is_single_hardlink_file(entry_path: &std::path::Path, _metadata: &std::fs::Metadata) -> bool {
+    use std::os::windows::io::AsRawHandle;
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::Storage::FileSystem::{
+        GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION,
+    };
+    if let Ok(file) = std::fs::File::open(entry_path) {
+        let handle = HANDLE(file.as_raw_handle());
+        let mut info = BY_HANDLE_FILE_INFORMATION::default();
+        if unsafe { GetFileInformationByHandle(handle, &mut info) }.is_ok() {
+            return info.nNumberOfLinks <= 1;
         }
     }
-    (total_size, diff_size)
+    false
 }
 
 #[cfg(not(windows))]
-pub fn calculate_sizes(path: &std::path::Path) -> (u64, u64) {
+fn is_single_hardlink_file(_entry_path: &std::path::Path, metadata: &std::fs::Metadata) -> bool {
     use std::os::unix::fs::MetadataExt;
-    let mut total_size = 0;
-    let mut diff_size = 0;
-    let mut walker = walkdir::WalkDir::new(path).into_iter();
+    metadata.nlink() <= 1
+}
 
-    while let Some(Ok(entry)) = walker.next() {
-        if let Ok(metadata) = entry.metadata() {
-            if metadata.is_file() {
-                total_size += metadata.len();
-                if metadata.nlink() == 1 {
-                    diff_size += metadata.len();
+pub fn calculate_sizes(path: &std::path::Path) -> (u64, u64) {
+    let mut total_size = 0u64;
+    let mut diff_size = 0u64;
+
+    let manifest_opt: Option<(bool, std::collections::HashSet<String>)> = std::fs::read_to_string(
+        path.join(".delta_manifest.json"),
+    )
+    .ok()
+    .and_then(|raw| serde_json::from_str::<crate::commands::backups::DeltaManifest>(&raw).ok())
+    .map(|m| {
+        let mut set =
+            std::collections::HashSet::with_capacity(m.added_paths.len() + m.updated_paths.len());
+        for p in m.added_paths {
+            set.insert(p.replace('\\', "/"));
+        }
+        for p in m.updated_paths {
+            set.insert(p.replace('\\', "/"));
+        }
+        (m.is_baseline, set)
+    });
+
+    for entry in walkdir::WalkDir::new(path).into_iter().flatten() {
+        let entry_path = entry.path();
+        if let Ok(rel) = entry_path.strip_prefix(path) {
+            let rel_str = rel.to_string_lossy().replace('\\', "/");
+            if rel_str.is_empty() || rel_str.split('/').any(|part| part.starts_with('.')) {
+                continue;
+            }
+            if let Ok(metadata) = entry.metadata() {
+                if metadata.is_file() {
+                    let len = metadata.len();
+                    total_size += len;
+                    if let Some((is_baseline, ref delta_set)) = manifest_opt {
+                        if is_baseline || delta_set.contains(&rel_str) {
+                            diff_size += len;
+                        }
+                    } else if is_single_hardlink_file(entry_path, &metadata) {
+                        diff_size += len;
+                    }
                 }
             }
         }
@@ -2534,12 +2567,212 @@ fn redact_media_mount_usernames(input: &str, marker_lower_str: &str, stop_chars:
     out
 }
 
+fn redact_line_emails(input: &str) -> String {
+    if !input.contains('@') {
+        return input.to_string();
+    }
+    let chars: Vec<char> = input.chars().collect();
+    let is_local_char = |c: char| {
+        c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '%' | '+' | '-')
+    };
+    let is_domain_char = |c: char| c.is_ascii_alphanumeric() || c == '-' || c == '.';
+
+    let mut out = String::with_capacity(input.len());
+    let mut i = 0usize;
+    let mut flushed = 0usize;
+
+    while i < chars.len() {
+        if chars[i] == '@' && i > flushed {
+            let mut l_start = i;
+            while l_start > flushed && is_local_char(chars[l_start - 1]) {
+                l_start -= 1;
+            }
+            while l_start < i && !chars[l_start].is_ascii_alphanumeric() {
+                l_start += 1;
+            }
+            let prev_boundary_ok = l_start == 0
+                || !matches!(chars[l_start - 1], '/' | '\\' | '@');
+
+            let mut d_end = i + 1;
+            while d_end < chars.len() && is_domain_char(chars[d_end]) {
+                d_end += 1;
+            }
+            while d_end > i + 1 && (chars[d_end - 1] == '.' || chars[d_end - 1] == '-') {
+                d_end -= 1;
+            }
+
+            if prev_boundary_ok && l_start < i && d_end > i + 3 {
+                let domain_str: String = chars[i + 1..d_end].iter().collect();
+                if let Some((host_part, tld_part)) = domain_str.rsplit_once('.') {
+                    let tld_lower = tld_part.to_ascii_lowercase();
+                    let is_code_or_asset_ext = matches!(
+                        tld_lower.as_str(),
+                        "py" | "pyc"
+                            | "package"
+                            | "ts4script"
+                            | "dll"
+                            | "exe"
+                            | "so"
+                            | "dylib"
+                            | "json"
+                            | "xml"
+                            | "cfg"
+                            | "ini"
+                            | "txt"
+                            | "log"
+                            | "png"
+                            | "jpg"
+                            | "jpeg"
+                            | "webp"
+                            | "dds"
+                            | "js"
+                            | "ts"
+                            | "tsx"
+                            | "css"
+                            | "html"
+                            | "wasm"
+                    );
+                    let valid_domain = !host_part.is_empty()
+                        && host_part.chars().next().map_or(false, |c| c.is_ascii_alphanumeric())
+                        && !host_part.contains("..")
+                        && tld_part.len() >= 2
+                        && tld_part.len() <= 24
+                        && tld_part.chars().all(|c| c.is_ascii_alphabetic())
+                        && !is_code_or_asset_ext;
+
+                    if valid_domain {
+                        for &c in &chars[flushed..l_start] {
+                            out.push(c);
+                        }
+                        out.push_str(SANCTUARY_REDACTED_TOKEN);
+                        flushed = d_end;
+                        i = d_end;
+                        continue;
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+
+    for &c in &chars[flushed..] {
+        out.push(c);
+    }
+    out
+}
+
+fn redact_line_ipv4(input: &str) -> String {
+    let chars: Vec<char> = input.chars().collect();
+    if chars.len() < 7 {
+        return input.to_string();
+    }
+    let mut out = String::with_capacity(input.len());
+    let mut i = 0usize;
+
+    while i < chars.len() {
+        let prev_ok = i == 0
+            || (!chars[i - 1].is_ascii_alphanumeric()
+                && chars[i - 1] != '.'
+                && chars[i - 1] != '-'
+                && chars[i - 1] != '_');
+
+        if prev_ok && chars[i].is_ascii_digit() {
+            let mut scan = i;
+            let mut octets = [0u16; 4];
+            let mut valid_ipv4 = true;
+
+            for oct_idx in 0..4 {
+                let start = scan;
+                while scan < chars.len() && chars[scan].is_ascii_digit() && (scan - start) < 4 {
+                    scan += 1;
+                }
+                let digits_len = scan - start;
+                if digits_len == 0 || digits_len > 3 || (digits_len > 1 && chars[start] == '0') {
+                    valid_ipv4 = false;
+                    break;
+                }
+                let oct_str: String = chars[start..scan].iter().collect();
+                let val = oct_str.parse::<u16>().unwrap_or(999);
+                if val > 255 {
+                    valid_ipv4 = false;
+                    break;
+                }
+                octets[oct_idx] = val;
+                if oct_idx < 3 {
+                    if scan < chars.len() && chars[scan] == '.' {
+                        scan += 1;
+                    } else {
+                        valid_ipv4 = false;
+                        break;
+                    }
+                }
+            }
+
+            if valid_ipv4 && octets[0] > 0 {
+                // Optional :port suffix
+                let mut end_scan = scan;
+                if end_scan < chars.len() && chars[end_scan] == ':' {
+                    let port_start = end_scan + 1;
+                    let mut p_end = port_start;
+                    while p_end < chars.len() && chars[p_end].is_ascii_digit() && (p_end - port_start) <= 5 {
+                        p_end += 1;
+                    }
+                    if p_end > port_start && (p_end - port_start) <= 5 {
+                        let port_str: String = chars[port_start..p_end].iter().collect();
+                        if let Ok(port_num) = port_str.parse::<u32>() {
+                            if (1..=65535).contains(&port_num) {
+                                end_scan = p_end;
+                            }
+                        }
+                    }
+                }
+
+                let next_ok = end_scan == chars.len()
+                    || (!chars[end_scan].is_ascii_alphanumeric() && chars[end_scan] != '.');
+
+                if next_ok {
+                    // Check preceding context on the line to avoid redacting 4-part game/mod version strings
+                    let prefix_start = i.saturating_sub(32);
+                    let prefix_lower: String = chars[prefix_start..i]
+                        .iter()
+                        .collect::<String>()
+                        .to_ascii_lowercase();
+                    let trimmed_prefix = prefix_lower
+                        .trim_end_matches(|c: char| c.is_ascii_whitespace() || c == ':' || c == '=' || c == '"' || c == '\'');
+                    let is_version_context = prefix_lower.contains("<version>")
+                        || trimmed_prefix.ends_with("version")
+                        || trimmed_prefix.ends_with("ver")
+                        || trimmed_prefix.ends_with("build")
+                        || trimmed_prefix.ends_with("patch")
+                        || trimmed_prefix.ends_with("release")
+                        || trimmed_prefix.ends_with("client")
+                        || trimmed_prefix.ends_with("game")
+                        || trimmed_prefix.ends_with("mod")
+                        || trimmed_prefix.ends_with('v');
+
+                    if !is_version_context {
+                        out.push_str(SANCTUARY_REDACTED_TOKEN);
+                        i = end_scan;
+                        continue;
+                    }
+                }
+            }
+        }
+
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
 fn redact_sids_emails_macs_ips(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
     for line in input.split_inclusive('\n') {
         let mut cur = line.to_string();
         // 1. Windows SIDs (S-1-5-21-...)
-        if let Some(sid_idx) = cur.find("S-1-5-21-") {
+        let mut search_from = 0usize;
+        while let Some(rel_idx) = cur[search_from..].find("S-1-5-21-") {
+            let sid_idx = search_from + rel_idx;
             let mut end = sid_idx + 9;
             let bytes = cur.as_bytes();
             while end < bytes.len() && (bytes[end].is_ascii_digit() || bytes[end] == b'-') {
@@ -2547,6 +2780,9 @@ fn redact_sids_emails_macs_ips(input: &str) -> String {
             }
             if end > sid_idx + 12 {
                 cur.replace_range(sid_idx..end, SANCTUARY_REDACTED_TOKEN);
+                search_from = sid_idx + SANCTUARY_REDACTED_TOKEN.len();
+            } else {
+                search_from = end;
             }
         }
         // 2. MAC addresses (XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX)
@@ -2584,6 +2820,10 @@ fn redact_sids_emails_macs_ips(input: &str) -> String {
             }
             cur = rebuilt;
         }
+        // 3. Plaintext email addresses (user@domain.tld)
+        cur = redact_line_emails(&cur);
+        // 4. Bare IPv4 addresses (excluding 4-part version strings)
+        cur = redact_line_ipv4(&cur);
         out.push_str(&cur);
     }
     out

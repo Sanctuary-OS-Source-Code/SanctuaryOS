@@ -1250,18 +1250,10 @@ pub async fn deploy_playset_bulk(
                     }
                 }
 
-                if m.allow_write {
-                    if !source.is_dir() {
-                        let _ = create_symlink_file(&source, &target)
-                            .or_else(|_| std::fs::hard_link(&source, &target))
-                            .or_else(|_| std::fs::copy(&source, &target).map(|_| ()));
-                    }
-                } else {
-                    if !source.is_dir() {
-                        let _ = create_symlink_file(&source, &target)
-                            .or_else(|_| std::fs::hard_link(&source, &target))
-                            .or_else(|_| std::fs::copy(&source, &target).map(|_| ()));
-                    }
+                if !source.is_dir() {
+                    let _ = create_symlink_file(&source, &target)
+                        .or_else(|_| std::fs::hard_link(&source, &target))
+                        .or_else(|_| std::fs::copy(&source, &target).map(|_| ()));
                 }
 
                 if !source.is_dir() {

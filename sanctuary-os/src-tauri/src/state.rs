@@ -59,6 +59,8 @@ pub struct StructureNode {
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct DeployMod {
     pub path: String,
+    #[serde(default)]
+    #[allow(dead_code)]
     pub allow_write: bool,
     pub target_path: Option<String>,
     pub folder_structure: Option<serde_json::Value>,
