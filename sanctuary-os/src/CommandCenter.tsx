@@ -688,7 +688,7 @@ export default function CommandCenter({
                 variant="warning"
                 icon={t("icon_warning", "warning")}
                 title={t("perm_restricted", "Permissions Restricted")}
-                subtitle={t("perm_hover_desc", "Application lacks sufficient permissions to manage your {Vault}. Enable Windows Developer Mode or run as Administrator.") || t("perm_desc", "Sanctuary OS lacks sufficient clearance to manage your {Vault}.")}
+                subtitle={t("perm_hover_desc", "Click to permanently unlock cross-drive Symlink permissions via 1-click Windows UAC (no Admin mode needed on future launches).") || t("perm_desc", "Sanctuary OS lacks sufficient clearance to manage your {Vault}.")}
                 className="group-hover/perms:flex z-[1000] w-full"
                 vAlign="bottom"
               />
@@ -698,7 +698,13 @@ export default function CommandCenter({
                 label={t("perm_restricted", "Permissions Restricted")}
                 disableBgStrip={true}
                 colorClass="!bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] !border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !text-[var(--warning)] animate-pulse w-full"
-                onClick={() => invoke("open_developer_settings")}
+                onClick={async () => {
+                  try {
+                    await invoke("open_developer_settings");
+                  } finally {
+                    checkPerms();
+                  }
+                }}
               />
             </div>
           );

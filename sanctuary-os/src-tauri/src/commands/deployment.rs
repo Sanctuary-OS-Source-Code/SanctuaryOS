@@ -1029,6 +1029,7 @@ pub async fn deploy_playset_bulk(
                                 &mods_dir,
                                 &vault_mods_lane,
                                 &folders_to_check,
+                                Some(&deployed_links),
                             );
                             if linked > 0 {
                                 return linked;

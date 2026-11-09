@@ -16,7 +16,7 @@ import {
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { UniversalInput, UniversalTextArea, SidePanelPillToggle } from "../components/universal/UniversalLayout";
-import { dispatchKeeperCustomEmail, getKeepersPipelineConfig } from "../utils/supporterManager";
+import { dispatchKeeperCustomEmail, getKeepersPipelineConfig, getSupporterState, isFoundryPatron } from "../utils/supporterManager";
 import TicketLogViewer from "./TicketLogViewer";
 
 interface TicketDossierProps {
@@ -57,6 +57,7 @@ export default function TicketDossierSidePanel({
   const [reason, setReason] = useState("");
   const [replyText, setReplyText] = useState("");
   const [authorName, setAuthorName] = useState("LOADING...");
+  const [isAuthorPatron, setIsAuthorPatron] = useState(false);
   const [replies, setReplies] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fetchedTargetModName, setFetchedTargetModName] = useState<string | null>(null);
@@ -135,49 +136,117 @@ export default function TicketDossierSidePanel({
   }, [ticket]);
 
   useEffect(() => {
-    if (ticket?.author_id) {
-      supabase
-        .from("profiles")
-        .select("username")
-        .eq("id", ticket.author_id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data) {
-            setAuthorName(
-              data.username ||
-                ticket.author_id?.substring(0, 8).toUpperCase() ||
-                "SYSTEM"
+    let isMounted = true;
+    const initialPatron = Boolean(
+      ticket?.metadata?.is_foundry_patron || ticket?.metadata?.expedited_support
+    );
+    setIsAuthorPatron(initialPatron);
+
+    const resolveAuthorAndSupporter = async () => {
+      if (!ticket) return;
+
+      const sessionUser = useStore.getState().session?.user;
+      const isCurrentUserAuthor =
+        Boolean(ticket.author_id) &&
+        (ticket.author_id === currentUserId ||
+          ticket.author_id === sessionUser?.id);
+
+      if (isCurrentUserAuthor) {
+        try {
+          const st = await getSupporterState();
+          if (isMounted && isFoundryPatron(st)) {
+            setIsAuthorPatron(true);
+          }
+        } catch (_) {}
+      }
+
+      if (ticket.author_id) {
+        let resolvedName = "";
+
+        try {
+          const { data: spokeProfile } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", ticket.author_id)
+            .maybeSingle();
+          if (spokeProfile?.username) {
+            resolvedName = spokeProfile.username;
+          }
+        } catch (_) {}
+
+        try {
+          const { data: hubProfile } = await supabaseAuth
+            .from("profiles")
+            .select("username, total_months_unlocked, dev_build_until")
+            .eq("id", ticket.author_id)
+            .maybeSingle();
+          if (hubProfile) {
+            if (!resolvedName && (hubProfile as any).username) {
+              resolvedName = (hubProfile as any).username;
+            }
+            const hubMonths = Number(
+              (hubProfile as any).total_months_unlocked || 0
             );
-          } else {
-            supabase
+            const hubUntil = (hubProfile as any).dev_build_until
+              ? new Date((hubProfile as any).dev_build_until).getTime()
+              : 0;
+            if (isMounted && (hubMonths > 0 || hubUntil > Date.now())) {
+              setIsAuthorPatron(true);
+            }
+          }
+        } catch (_) {}
+
+        if (!resolvedName) {
+          try {
+            const { data: mData } = await supabase
               .from("masons")
               .select("name")
-              .eq("id", ticket.author_id)
-              .single()
-              .then(({ data: mData }) => {
-                if (mData) setAuthorName(mData.name);
-                else
-                  setAuthorName(
-                    ticket.author_id?.substring(0, 8).toUpperCase() || "SYSTEM"
-                  );
-              });
-          }
-        });
-    } else if (ticket) {
-      const fallbackAuthor =
-        ticket.metadata?.partner_application?.lead_contact ||
-        ticket.metadata?.contact_meta?.reply_contact ||
-        ticket.metadata?.feedback_meta?.author_label ||
-        "VISITOR";
-      setAuthorName(fallbackAuthor);
-    }
+              .or(`id.eq.${ticket.author_id},profile_id.eq.${ticket.author_id}`)
+              .maybeSingle();
+            if (mData?.name) {
+              resolvedName = mData.name;
+            }
+          } catch (_) {}
+        }
+
+        if (!resolvedName && isCurrentUserAuthor && sessionUser) {
+          resolvedName =
+            sessionUser.user_metadata?.mason_name ||
+            sessionUser.user_metadata?.username ||
+            sessionUser.email?.split("@")[0] ||
+            "";
+        }
+
+        if (isMounted) {
+          setAuthorName(
+            resolvedName ||
+              ticket.author_username ||
+              ticket.author_id?.substring(0, 8).toUpperCase() ||
+              "SYSTEM"
+          );
+        }
+      } else {
+        const fallbackAuthor =
+          ticket.metadata?.partner_application?.lead_contact ||
+          ticket.metadata?.contact_meta?.reply_contact ||
+          ticket.metadata?.feedback_meta?.author_label ||
+          "VISITOR";
+        if (isMounted) setAuthorName(fallbackAuthor);
+      }
+    };
+
+    resolveAuthorAndSupporter();
 
     if (ticket?.metadata?.replies) {
       setReplies(ticket.metadata.replies);
     } else {
       setReplies([]);
     }
-  }, [ticket]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [ticket, currentUserId]);
 
   const handleSendReply = async () => {
     if (!replyText.trim() || !ticket) return;
@@ -277,17 +346,25 @@ export default function TicketDossierSidePanel({
 
   if (!isOpen || !ticket) return null;
 
-  const statusLower = ticket.status?.toLowerCase() || "new";
-  const isNew = statusLower === "open" || statusLower === "new";
-  const isClosed =
-    statusLower === "resolved" ||
-    statusLower === "closed" ||
-    statusLower === "rejected";
+  const statusLower = ticket.status?.toLowerCase() || "open";
+  const isResolved = statusLower === "resolved" || statusLower === "closed";
+  const isRejected = statusLower === "rejected";
+  const isEscalated = statusLower === "escalated";
   const isPending = statusLower === "investigating" || statusLower === "pending";
 
-  const heroVariant = isNew
+  const statusLabel = isResolved
+    ? t("ticket_status_resolved", "Resolved")
+    : isRejected
+      ? t("ticket_status_rejected", "Rejected")
+      : isEscalated
+        ? t("ticket_status_escalated", "Escalated")
+        : isPending
+          ? t("ticket_status_pending", "Pending")
+          : t("ticket_status_open", "Open");
+
+  const heroVariant = isEscalated || isRejected
     ? "danger"
-    : isClosed
+    : isResolved
       ? "success"
       : isPending
         ? "warning"
@@ -343,8 +420,8 @@ export default function TicketDossierSidePanel({
             "dossier_ticket_details",
             "Ticket details, diagnostic telemetry, and agent correspondence."
           )}
-          badge={isNew ? t("badge_new", "NEW") : ticket.status}
-          badgeIcon={t("icon_info", "info")}
+          badge={statusLabel}
+          badgeIcon={t("icon_confirmation_number", "confirmation_number")}
           variant={heroVariant}
         >
           <div className="grid grid-cols-2 gap-3 pt-1">
@@ -352,16 +429,30 @@ export default function TicketDossierSidePanel({
               label={t("author", "Author")
                 .replace(/^[^\w]*/, "")
                 .trim()}
-              value={ticket.author_username || authorName}
+              value={
+                <span className="inline-flex items-center gap-2 flex-wrap">
+                  <span>{ticket.author_username || authorName}</span>
+                  {isAuthorPatron && (
+                    <span className="px-2 py-0.5 rounded-md border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[8px] font-black uppercase tracking-wider text-[var(--accent)] inline-flex items-center gap-1 shrink-0">
+                      <span className="material-symbols-outlined !text-[10px]">
+                        {t("icon_workspace_premium", "workspace_premium")}
+                      </span>
+                      <span>
+                        {t("supporter_patron_badge_label", "Foundry Supporter")}
+                      </span>
+                    </span>
+                  )}
+                </span>
+              }
               icon={t("icon_person", "person")}
               iconColorClass="text-[var(--accent)]"
             />
             <StatBox
-              label={t("status", "Status")
+              label={t("ticket_status", "Ticket Status")
                 .replace(/^[^\w]*/, "")
                 .trim()}
-              value={isNew ? t("badge_new", "NEW") : ticket.status}
-              icon={t("icon_info", "info")}
+              value={statusLabel}
+              icon={t("icon_confirmation_number", "confirmation_number")}
               iconColorClass="text-[var(--accent)]"
             />
             <StatBox

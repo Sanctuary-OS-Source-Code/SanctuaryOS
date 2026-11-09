@@ -10,7 +10,7 @@ import { invoke } from "@tauri-apps/api/core";
 import ArtifactResolutionSidePanel from "./side-panels/ArtifactResolutionSidePanel";
 import TicketLogViewer from "./side-panels/TicketLogViewer";
 import { UniversalInput, UniversalTextArea, UniversalToggle, SidePanelHeroCard, StatBox } from "./components/universal/UniversalLayout";
-import { getSupporterState, findLocalMasonSupporterPass, LocalMasonSupporter } from "./utils/supporterManager";
+import { getSupporterState, findLocalMasonSupporterPass, isFoundryPatron, LocalMasonSupporter } from "./utils/supporterManager";
 import { scrubLogUserData } from "./utils/logScrubber";
 
 export default function SupportHub() {
@@ -54,11 +54,15 @@ export default function SupportHub() {
   const [banReason, setBanReason] = useState("");
   const [resolutionType, setResolutionType] = useState<'vault' | 'blueprint' | null>(null);
   const [localSupporters, setLocalSupporters] = useState<LocalMasonSupporter[]>([]);
+  const [isPatronUser, setIsPatronUser] = useState(false);
+  const [patronMonths, setPatronMonths] = useState(0);
 
   useEffect(() => {
     if (!isOpen) return;
     getSupporterState().then(state => {
       setLocalSupporters(state.supporters || []);
+      setIsPatronUser(isFoundryPatron(state));
+      setPatronMonths(state.dev_build?.total_months_unlocked || 0);
     }).catch(() => {});
   }, [isOpen]);
 
@@ -591,6 +595,10 @@ export default function SupportHub() {
             expedited_support: true,
             supporter_tier: matchedSupporterPass.tier_name,
             supporter_pass_hash: matchedSupporterPass.cryptographic_pass
+          } : {}),
+          ...(isPatronUser ? {
+            is_foundry_patron: true,
+            patron_months: patronMonths,
           } : {}),
           ...(hasViolations && activeCategory?.requires_target_mod ? { restricted_violations: [...new Set(violations)] } : {})
         }

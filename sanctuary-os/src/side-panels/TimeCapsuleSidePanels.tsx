@@ -173,44 +173,65 @@ export function TimeCapsuleSnapshotDossier({
 
   useEffect(() => {
     if (!normalizedBackup || !activeConfig?.vault_path) return;
+    let cancelled = false;
     setIsLoading(true);
     setBackupFiles([]);
     setRemovedFromPrevious([]);
     setPreviousBackupName(null);
     setDiffEntries([]);
-    Promise.all([
-      invoke("get_backup_contents", {
-        vaultPath: activeConfig.vault_path,
-        backupName: normalizedBackup,
-      }).catch(() => null),
-      invoke("diff_backup", {
-        vaultPath: activeConfig.vault_path,
-        docsPath: docsPath,
-        backupName: normalizedBackup,
-      }).catch(() => []),
-    ])
-      .then(([contentsRes, diffRes]: [any, any]) => {
-        if (contentsRes) {
-          setBackupFiles(contentsRes?.files || []);
-          setRemovedFromPrevious(contentsRes?.removed_from_previous || []);
-          setPreviousBackupName(contentsRes?.previous_backup_name || null);
-          const baseline = Boolean(contentsRes?.is_baseline);
-          setIsBaseline(baseline);
-          setLogicalSize(contentsRes?.logical_size_bytes || 0);
-          setDiffSize(contentsRes?.diff_size_bytes || 0);
-          setRawDiffSize(
-            typeof contentsRes?.raw_diff_size_bytes === "number"
-              ? contentsRes.raw_diff_size_bytes
-              : contentsRes?.diff_size_bytes || 0
-          );
-          const loc = contentsRes?.location || "";
-          setLocation(loc);
-          if (onLocationChange) onLocationChange(loc);
-        }
+
+    const applyContents = (contentsRes: any) => {
+      if (cancelled || !contentsRes) return;
+      setBackupFiles(contentsRes?.files || []);
+      setRemovedFromPrevious(contentsRes?.removed_from_previous || []);
+      setPreviousBackupName(contentsRes?.previous_backup_name || null);
+      const baseline = Boolean(contentsRes?.is_baseline);
+      setIsBaseline(baseline);
+      setLogicalSize(contentsRes?.logical_size_bytes || 0);
+      setDiffSize(contentsRes?.diff_size_bytes || 0);
+      setRawDiffSize(
+        typeof contentsRes?.raw_diff_size_bytes === "number"
+          ? contentsRes.raw_diff_size_bytes
+          : contentsRes?.diff_size_bytes || 0
+      );
+      const loc = contentsRes?.location || "";
+      setLocation(loc);
+      if (onLocationChange) onLocationChange(loc);
+    };
+
+    const contentsPromise = invoke("get_backup_contents", {
+      vaultPath: activeConfig.vault_path,
+      backupName: normalizedBackup,
+    }).catch(() => null);
+
+    const diffPromise = invoke("diff_backup", {
+      vaultPath: activeConfig.vault_path,
+      docsPath: docsPath,
+      backupName: normalizedBackup,
+    }).catch(() => []);
+
+    if (isPostBackupSummary) {
+      contentsPromise
+        .then((contentsRes: any) => {
+          applyContents(contentsRes);
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoading(false);
+        });
+
+      diffPromise.then((diffRes: any) => {
+        if (cancelled) return;
         const diffs = Array.isArray(diffRes) ? diffRes : [];
         setDiffEntries(diffs);
+      });
+    } else {
+      Promise.all([contentsPromise, diffPromise])
+        .then(([contentsRes, diffRes]: [any, any]) => {
+          if (cancelled) return;
+          applyContents(contentsRes);
+          const diffs = Array.isArray(diffRes) ? diffRes : [];
+          setDiffEntries(diffs);
 
-        if (!isPostBackupSummary) {
           const hasLiveDrift = diffs.some(
             (d: any) =>
               !String(d.path || "")
@@ -223,9 +244,15 @@ export function TimeCapsuleSnapshotDossier({
           } else {
             setActiveView("DIFF");
           }
-        }
-      })
-      .finally(() => setIsLoading(false));
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoading(false);
+        });
+    }
+
+    return () => {
+      cancelled = true;
+    };
   }, [normalizedBackup, activeConfig, docsPath, isPostBackupSummary]);
 
   const markFilesExtracted = (paths: string[]) => {
@@ -338,6 +365,18 @@ export function TimeCapsuleSnapshotDossier({
   };
 
   const isEngine = Boolean(normalizedBackup?.toLowerCase().includes("engine"));
+  const selectedVersion = useStore((s: any) => s.selectedVersion);
+  const liveVersionDisplay = useMemo(() => {
+    if (!selectedVersion) return "";
+    const clean = String(selectedVersion).replace(/^v\.?/i, "").trim();
+    return clean ? `${t("tc_version_prefix", "v.")}${clean}` : "";
+  }, [selectedVersion, t]);
+
+  const currentSig = useMemo(() => {
+    if (!normalizedBackup) return null;
+    if (getBackupSignature) return getBackupSignature(normalizedBackup);
+    return parseBackupSignatureFallback(normalizedBackup, t);
+  }, [normalizedBackup, getBackupSignature, t]);
 
   const prevSig = useMemo(() => {
     if (!previousBackupName) return null;
@@ -1100,36 +1139,73 @@ export function TimeCapsuleSnapshotDossier({
             : t("world_state", "World State")
         }
         title={
-          isBaseline
-            ? t(
-                "tc_delta_baseline_note",
-                "Initial Baseline Snapshot (100% Newly Written)"
+          activeView === "DIFF"
+            ? (
+                t("tc_delta_compared_to", "Compared to {PREV}") ||
+                "Compared to {PREV}"
+              ).replace(
+                "{PREV}",
+                `${t("tc_tab_live_diff", "Live Folder Diff")}${
+                  liveVersionDisplay ? ` (${liveVersionDisplay})` : ""
+                }`
               )
-            : previousBackupName
-              ? (
-                  t("tc_delta_compared_to", "Compared to {PREV}") ||
-                  "Compared to {PREV}"
-                ).replace(
-                  "{PREV}",
-                  `${prevSig?.version || previousBackupName}${
-                    prevDateDisplay ? ` (${prevDateDisplay})` : ""
-                  }`
-                )
-              : t(
-                  "tc_complete_subtitle",
-                  "Point-in-time backup verified and indexed"
-                )
+            : activeView === "EXTRACT"
+              ? `${currentSig?.version || normalizedBackup}`
+              : isBaseline
+                ? t(
+                    "tc_delta_baseline_note",
+                    "Initial Baseline Snapshot (100% Newly Written)"
+                  )
+                : previousBackupName
+                  ? (
+                      t("tc_delta_compared_to", "Compared to {PREV}") ||
+                      "Compared to {PREV}"
+                    ).replace(
+                      "{PREV}",
+                      `${prevSig?.version || previousBackupName}${
+                        prevDateDisplay ? ` (${prevDateDisplay})` : ""
+                      }`
+                    )
+                  : t(
+                      "tc_complete_subtitle",
+                      "Point-in-time backup verified and indexed"
+                    )
         }
         description={location || undefined}
         badge={
-          diffCounts.changes > 0
-            ? `${diffCounts.changes} ${t("tab_diff", "Differences")}`
-            : t("diff_in_sync", "In Sync")
+          activeView === "DIFF"
+            ? diffCounts.changes > 0
+              ? `${diffCounts.changes.toLocaleString()} ${t(
+                  "tab_diff",
+                  "Differences"
+                )}`
+              : t("diff_in_sync", "In Sync")
+            : activeView === "EXTRACT"
+              ? `${visibleBackupFiles.length.toLocaleString()} ${t(
+                  "tc_stat_indexed_files",
+                  "Indexed Files"
+                )}`
+              : isBaseline
+                ? t("tc_delta_badge_baseline", "Baseline")
+                : deltaStats.changed > 0
+                  ? `${deltaStats.changed.toLocaleString()} ${t(
+                      "tc_diff_changes",
+                      "Changes"
+                    )}`
+                  : t("tc_delta_filter_dedup", "Hardlinked")
         }
         badgeIcon={
-          diffCounts.changes > 0
-            ? t("icon_difference", "difference")
-            : t("icon_check_circle", "check_circle")
+          activeView === "DIFF"
+            ? diffCounts.changes > 0
+              ? t("icon_difference", "difference")
+              : t("icon_check_circle", "check_circle")
+            : activeView === "EXTRACT"
+              ? t("icon_inventory_2", "inventory_2")
+              : isBaseline
+                ? t("icon_inventory_2", "inventory_2")
+                : deltaStats.changed > 0
+                  ? t("icon_archive", "archive")
+                  : t("icon_link", "link")
         }
         variant={isEngine ? "danger" : "accent"}
       >

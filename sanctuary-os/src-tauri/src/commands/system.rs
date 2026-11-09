@@ -111,10 +111,28 @@ pub fn check_symlink_permissions() -> Result<bool, String> {
 
 #[tauri::command]
 pub fn open_developer_settings() -> Result<(), String> {
-    println!("Opening Developer Settings...");
     #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        // 1-Click UAC unlock: enables Windows unprivileged symlinks permanently in Registry
+        // (HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock\AllowDevelopmentWithoutDevLicense = 1)
+        // so users can keep their Vault on external/separate drives and never need to Run as Admin again.
+        let ps_cmd = "Start-Process reg -ArgumentList 'add HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock /v AllowDevelopmentWithoutDevLicense /t REG_DWORD /d 1 /f' -Verb RunAs -WindowStyle Hidden -Wait";
+        let _ = std::process::Command::new("powershell")
+            .creation_flags(CREATE_NO_WINDOW)
+            .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", ps_cmd])
+            .status();
+
+        // If the 1-click UAC unlock succeeded, we're done immediately without opening Settings!
+        if check_symlink_permissions().unwrap_or(false) {
+            return Ok(());
+        }
+
+        // Fallback if UAC prompt was declined: open Windows Developer Settings page
         std::process::Command::new("cmd")
+            .creation_flags(CREATE_NO_WINDOW)
             .args(["/c", "start", "ms-settings:developers"])
             .spawn()
             .map_err(|e| e.to_string())?;

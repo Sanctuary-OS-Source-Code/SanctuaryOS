@@ -12,12 +12,21 @@ pub fn process_structure_nodes(
     current_target_dir: &std::path::Path,
     vault_mods_lane: &std::path::Path,
     folders_to_check: &[&str],
+    deployed_links: Option<&std::sync::Mutex<Vec<String>>>,
 ) -> usize {
     let mut linked_count = 0usize;
     for node in nodes {
         if node.node_type == "folder" {
             let next_target_dir = current_target_dir.join(&node.name);
             let _ = std::fs::create_dir_all(&next_target_dir);
+            if let Some(dl_mutex) = deployed_links {
+                if let Ok(mut dl) = dl_mutex.lock() {
+                    let dir_str = next_target_dir.to_string_lossy().to_string();
+                    if !dl.contains(&dir_str) {
+                        dl.push(dir_str);
+                    }
+                }
+            }
             if let Some(children) = &node.children {
                 linked_count += process_structure_nodes(
                     schema,
@@ -25,6 +34,7 @@ pub fn process_structure_nodes(
                     &next_target_dir,
                     vault_mods_lane,
                     folders_to_check,
+                    deployed_links,
                 );
             }
         } else if node.node_type == "file" {
@@ -81,6 +91,14 @@ pub fn process_structure_nodes(
                 let target_path = current_target_dir.join(final_name);
                 if source.is_dir() {
                     if deploy_junction(&source, &target_path).is_ok() {
+                        if let Some(dl_mutex) = deployed_links {
+                            if let Ok(mut dl) = dl_mutex.lock() {
+                                let t_str = target_path.to_string_lossy().to_string();
+                                if !dl.contains(&t_str) {
+                                    dl.push(t_str);
+                                }
+                            }
+                        }
                         linked_count += 1;
                     }
                 } else {
@@ -89,6 +107,14 @@ pub fn process_structure_nodes(
                         .or_else(|_| std::fs::copy(&source, &target_path).map(|_| ()))
                         .is_ok()
                     {
+                        if let Some(dl_mutex) = deployed_links {
+                            if let Ok(mut dl) = dl_mutex.lock() {
+                                let t_str = target_path.to_string_lossy().to_string();
+                                if !dl.contains(&t_str) {
+                                    dl.push(t_str);
+                                }
+                            }
+                        }
                         linked_count += 1;
                     }
                 }
@@ -991,8 +1017,173 @@ fn normalize_path_key(p: &std::path::Path) -> String {
         .to_lowercase()
 }
 
+fn dir_looks_like_shared_game_folder(
+    dir: &std::path::Path,
+    live_path: &str,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> bool {
+    let schema_flag = game_schema
+        .as_ref()
+        .and_then(|s| s.constraints.as_ref())
+        .and_then(|c| c.mods_dir_is_shared_with_vanilla)
+        .unwrap_or(false);
+    if schema_flag {
+        return true;
+    }
+
+    let norm_dir = normalize_path_key(dir);
+    if !live_path.trim().is_empty() {
+        let norm_live = normalize_path_key(std::path::Path::new(live_path.trim()));
+        let engine_root =
+            crate::game_logic::resolve_game_engine_root(live_path.trim(), game_schema);
+        let norm_engine = normalize_path_key(&engine_root);
+        if (!norm_live.is_empty() && norm_dir == norm_live)
+            || (!norm_engine.is_empty() && norm_dir == norm_engine)
+        {
+            return true;
+        }
+    }
+
+    // Also treat any directory that directly contains game executables (.exe or .app) as a shared root folder
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            if let Some(ext) = entry.path().extension().and_then(|e| e.to_str()) {
+                if ext.eq_ignore_ascii_case("exe") || ext.eq_ignore_ascii_case("app") {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
+
+fn rescue_untracked_mod_file(
+    file_path: &std::path::Path,
+    root_mods_dir: &std::path::Path,
+    vault_mods_lane: &std::path::Path,
+    supported_exts: &[String],
+) -> bool {
+    if !vault_mods_lane.exists() {
+        let _ = std::fs::create_dir_all(vault_mods_lane);
+    }
+    let fname = match file_path.file_name().and_then(|n| n.to_str()) {
+        Some(n) => n,
+        None => return false,
+    };
+    let fname_lower = fname.to_lowercase();
+    if fname_lower.starts_with('.')
+        || fname_lower.starts_with("._")
+        || fname_lower == "desktop.ini"
+        || fname_lower == "thumbs.db"
+        || fname_lower == "resource.cfg"
+        || fname_lower == "localthumbcache.package"
+        || fname_lower == "avatarcache.package"
+    {
+        return false;
+    }
+
+    let ext_lower = file_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|s| s.trim_start_matches('.').to_lowercase())
+        .unwrap_or_default();
+    if ext_lower.is_empty() {
+        return false;
+    }
+
+    let is_mod_ext = is_mod_binary_extension(&ext_lower)
+        || supported_exts.iter().any(|e| {
+            e.trim_start_matches('.').eq_ignore_ascii_case(&ext_lower)
+        });
+    if !is_mod_ext {
+        return false;
+    }
+
+    let src_len = std::fs::metadata(file_path).map(|m| m.len()).unwrap_or(0);
+    if src_len == 0 {
+        return false;
+    }
+
+    // Check if an identical file (by size + SHA-256) already exists in the Vault
+    if let Some(existing_vault_path) =
+        find_surviving_vault_file(vault_mods_lane, &fname_lower, file_path)
+    {
+        let existing_len = std::fs::metadata(&existing_vault_path)
+            .map(|m| m.len())
+            .unwrap_or(0);
+        if existing_len == src_len {
+            if let (Ok(h1), Ok(h2)) = (
+                calculate_hash(file_path),
+                calculate_hash(&existing_vault_path),
+            ) {
+                if h1 == h2 {
+                    // Already safely in the Vault; safe to remove the duplicate in Mods/
+                    let _ = std::fs::remove_file(file_path);
+                    return true;
+                }
+            }
+        }
+    }
+
+    let rel = file_path
+        .strip_prefix(root_mods_dir)
+        .unwrap_or_else(|_| std::path::Path::new(fname));
+    let mut dest = vault_mods_lane.join(rel);
+
+    if dest.exists() {
+        let dest_len = std::fs::metadata(&dest).map(|m| m.len()).unwrap_or(0);
+        if dest_len == src_len {
+            if let (Ok(h1), Ok(h2)) = (calculate_hash(file_path), calculate_hash(&dest)) {
+                if h1 == h2 {
+                    let _ = std::fs::remove_file(file_path);
+                    return true;
+                }
+            }
+        }
+        // Different content with same relative path: rescue with a non-colliding suffix
+        let stem = file_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("Mod");
+        let parent = dest.parent().unwrap_or(vault_mods_lane);
+        let mut attempt = 1usize;
+        loop {
+            let candidate_name = if attempt == 1 {
+                format!("{}_Rescued.{}", stem, ext_lower)
+            } else {
+                format!("{}_Rescued_{}.{}", stem, attempt, ext_lower)
+            };
+            let candidate = parent.join(candidate_name);
+            if !candidate.exists() {
+                dest = candidate;
+                break;
+            }
+            attempt += 1;
+        }
+    }
+
+    if let Some(parent) = dest.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    if std::fs::rename(file_path, &dest).is_ok() {
+        return true;
+    }
+    if std::fs::copy(file_path, &dest).is_ok() {
+        let _ = std::fs::remove_file(file_path);
+        return true;
+    }
+
+    // If rescue failed (e.g. Vault drive disconnected), return true so we DO NOT delete the user's file!
+    true
+}
+
 fn safe_wipe_mods_dir_inner(
     dir: &std::path::Path,
+    root_mods_dir: &std::path::Path,
+    vault_mods_lane: &Option<PathBuf>,
+    supported_exts: &[String],
     game_schema: &Option<crate::schema::GameSchema>,
     shared_with_vanilla: bool,
     tracked_set: &std::collections::HashSet<String>,
@@ -1054,10 +1245,19 @@ fn safe_wipe_mods_dir_inner(
                 return;
             }
 
+            let norm = normalize_path_key(&path);
+
             if shared_with_vanilla {
-                let norm = normalize_path_key(&path);
                 if path.is_dir() {
-                    safe_wipe_mods_dir_inner(&path, game_schema, true, tracked_set);
+                    safe_wipe_mods_dir_inner(
+                        &path,
+                        root_mods_dir,
+                        vault_mods_lane,
+                        supported_exts,
+                        game_schema,
+                        true,
+                        tracked_set,
+                    );
                     if tracked_set.contains(&norm) {
                         let _ = std::fs::remove_dir(&path);
                     }
@@ -1068,9 +1268,31 @@ fn safe_wipe_mods_dir_inner(
             }
 
             if path.is_dir() {
-                safe_wipe_mods_dir_inner(&path, game_schema, false, tracked_set);
+                safe_wipe_mods_dir_inner(
+                    &path,
+                    root_mods_dir,
+                    vault_mods_lane,
+                    supported_exts,
+                    game_schema,
+                    false,
+                    tracked_set,
+                );
                 let _ = std::fs::remove_dir(&path);
             } else {
+                // Dedicated Mods folder: if this is an untracked regular mod file dropped directly
+                // into Mods/, rescue/assimilate it into Vault/Mods before cleaning!
+                if !tracked_set.contains(&norm) {
+                    if let Some(ref lane) = vault_mods_lane {
+                        if rescue_untracked_mod_file(&path, root_mods_dir, lane, supported_exts) {
+                            return;
+                        }
+                    }
+                } else if let Some(ref lane) = vault_mods_lane {
+                    // Even if tracked (e.g. fallback copy), ensure a copy exists in Vault before deleting
+                    if rescue_untracked_mod_file(&path, root_mods_dir, lane, supported_exts) {
+                        return;
+                    }
+                }
                 let _ = std::fs::remove_file(&path);
             }
         });
@@ -1078,15 +1300,19 @@ fn safe_wipe_mods_dir_inner(
 }
 
 pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::schema::GameSchema>) {
-    let shared_with_vanilla = game_schema
-        .as_ref()
-        .and_then(|s| s.constraints.as_ref())
-        .and_then(|c| c.mods_dir_is_shared_with_vanilla)
-        .unwrap_or(false);
+    let saved_coords = crate::commands::state_ops::get_saved_coordinates();
+    let shared_with_vanilla =
+        dir_looks_like_shared_game_folder(dir, &saved_coords.live_path, game_schema);
+
+    let vault_mods_lane = if !saved_coords.vault_path.trim().is_empty() {
+        Some(get_vault_mods_lane(&saved_coords.vault_path))
+    } else {
+        None
+    };
+    let supported_exts = crate::game_logic::get_supported_extensions(game_schema);
 
     let mut tracked_set: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut manifest_locations = vec![dir.join(".sanctuary_deployed_links.json")];
-    let saved_coords = crate::commands::state_ops::get_saved_coordinates();
     if !saved_coords.vault_path.trim().is_empty() {
         if let Some((raw, _)) = get_vault_kv(&saved_coords.vault_path, "deployed_links") {
             if let Ok(list) = serde_json::from_str::<Vec<String>>(&raw) {
@@ -1123,7 +1349,15 @@ pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::sch
         }
     }
 
-    safe_wipe_mods_dir_inner(dir, game_schema, shared_with_vanilla, &tracked_set);
+    safe_wipe_mods_dir_inner(
+        dir,
+        dir,
+        &vault_mods_lane,
+        &supported_exts,
+        game_schema,
+        shared_with_vanilla,
+        &tracked_set,
+    );
 }
 
 pub fn obscure_username(path: &str) -> String {
@@ -2091,23 +2325,115 @@ pub fn find_backup(vault_path: &str, file_name: &str) -> Option<PathBuf> {
     None
 }
 
+pub fn extract_backup_timestamp(name: &str) -> u64 {
+    let clean = name
+        .trim_end_matches(".tar.zst")
+        .trim_end_matches(".tar")
+        .trim_end_matches(".zst");
+    if let Some(last) = clean.split("--").last() {
+        if let Ok(ts) = last.parse::<u64>() {
+            return ts;
+        }
+    }
+    if let Some(last) = clean.split('_').last() {
+        if let Ok(ts) = last.parse::<u64>() {
+            return ts;
+        }
+    }
+    0
+}
+
+pub fn write_snapshot_meta_file(path: &Path, content: &str) {
+    if path.exists() {
+        if let Ok(meta) = std::fs::metadata(path) {
+            if meta.permissions().readonly() {
+                let mut perms = meta.permissions();
+                perms.set_readonly(false);
+                let _ = std::fs::set_permissions(path, perms);
+            }
+        }
+        let _ = std::fs::remove_file(path);
+    }
+    let _ = std::fs::write(path, content);
+}
+
+pub fn clean_stray_snapshot_meta_files(dir: &Path) {
+    for meta_name in [".size_bytes.txt", ".diff_size_bytes.txt", ".delta_manifest.json"] {
+        let stray = dir.join(meta_name);
+        if stray.is_file() {
+            if let Ok(meta) = std::fs::metadata(&stray) {
+                if meta.permissions().readonly() {
+                    let mut perms = meta.permissions();
+                    perms.set_readonly(false);
+                    let _ = std::fs::set_permissions(&stray, perms);
+                }
+            }
+            let _ = std::fs::remove_file(&stray);
+        }
+    }
+}
+
 pub fn get_all_files(dir: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
     if dir.is_file() {
-        files.push(dir.to_path_buf());
+        if let Some(fname) = dir.file_name().and_then(|n| n.to_str()) {
+            if !fname.starts_with('.') {
+                files.push(dir.to_path_buf());
+            }
+        }
         return files;
     }
-    if let Ok(entries) = fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                files.extend(get_all_files(&path));
-            } else {
-                files.push(path);
+    for entry in walkdir::WalkDir::new(dir).into_iter().flatten() {
+        if entry.file_type().is_file() {
+            let p = entry.path();
+            if let Ok(rel) = p.strip_prefix(dir) {
+                let has_dot_component = rel
+                    .components()
+                    .any(|c| c.as_os_str().to_string_lossy().starts_with('.'));
+                if has_dot_component {
+                    continue;
+                }
+            } else if p
+                .file_name()
+                .map_or(false, |n| n.to_string_lossy().starts_with('.'))
+            {
+                continue;
             }
+            files.push(entry.into_path());
         }
     }
     files
+}
+
+pub fn remove_backup_dir_cow_safe(dir: &Path) -> std::io::Result<()> {
+    if !dir.exists() {
+        return Ok(());
+    }
+    use rayon::prelude::*;
+    let readonly_paths: Vec<PathBuf> = walkdir::WalkDir::new(dir)
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| {
+            let meta = entry.metadata().ok()?;
+            if meta.permissions().readonly() {
+                Some(entry.into_path())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    readonly_paths.par_iter().for_each(|p| {
+        if let Ok(meta) = std::fs::metadata(p) {
+            let mut perms = meta.permissions();
+            if perms.readonly() {
+                perms.set_readonly(false);
+                let _ = std::fs::set_permissions(p, perms);
+            }
+        }
+    });
+
+    std::fs::remove_dir_all(dir)
 }
 
 pub fn enforce_retention_policy(target_dir: &Path, keep_count: u32) {
@@ -2115,39 +2441,74 @@ pub fn enforce_retention_policy(target_dir: &Path, keep_count: u32) {
         return;
     }
     if let Ok(entries) = std::fs::read_dir(target_dir) {
-        let mut backups: Vec<PathBuf> = entries
-            .flatten()
-            .map(|e| e.path())
-            .filter(|p| {
-                let name = p.file_name().unwrap_or_default().to_string_lossy();
-                (p.is_file()
-                    && (p.extension() == Some(std::ffi::OsStr::new("zst"))
-                        || p.extension() == Some(std::ffi::OsStr::new("tar"))))
-                    || (p.is_dir()
-                        && (name.starts_with("World_State") || name.starts_with("Engine_Core")))
-            })
-            .collect();
+        let mut backups: Vec<PathBuf> = Vec::new();
+        let mut stale_purging: Vec<PathBuf> = Vec::new();
+
+        for e in entries.flatten() {
+            let p = e.path();
+            let name = e.file_name().to_string_lossy().into_owned();
+            if name.starts_with(".purging_") && p.is_dir() {
+                stale_purging.push(p);
+                continue;
+            }
+            let is_archive = p.is_file()
+                && (p.extension() == Some(std::ffi::OsStr::new("zst"))
+                    || p.extension() == Some(std::ffi::OsStr::new("tar")));
+            let is_snapshot_dir =
+                p.is_dir() && (name.starts_with("World_State") || name.starts_with("Engine_Core"));
+            if is_archive || is_snapshot_dir {
+                backups.push(p);
+            }
+        }
 
         backups.sort_by(|a, b| {
-            let m_a = a
-                .metadata()
-                .and_then(|m| m.modified())
-                .unwrap_or(std::time::UNIX_EPOCH);
-            let m_b = b
-                .metadata()
-                .and_then(|m| m.modified())
-                .unwrap_or(std::time::UNIX_EPOCH);
-            m_b.cmp(&m_a)
+            let name_a = a.file_name().unwrap_or_default().to_string_lossy();
+            let name_b = b.file_name().unwrap_or_default().to_string_lossy();
+            let ts_a = extract_backup_timestamp(&name_a);
+            let ts_b = extract_backup_timestamp(&name_b);
+            ts_b.cmp(&ts_a).then_with(|| {
+                let m_a = a
+                    .metadata()
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::UNIX_EPOCH);
+                let m_b = b
+                    .metadata()
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::UNIX_EPOCH);
+                m_b.cmp(&m_a)
+            })
         });
 
+        let mut dirs_to_purge_async: Vec<PathBuf> = stale_purging;
+
         if backups.len() > keep_count as usize {
-            for old_backup in backups.iter().skip(keep_count as usize) {
+            let now_ms = current_epoch_ms();
+            for (idx, old_backup) in backups.iter().skip(keep_count as usize).enumerate() {
                 if old_backup.is_dir() {
-                    let _ = std::fs::remove_dir_all(old_backup);
+                    let old_name = old_backup
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .into_owned();
+                    let purging_path =
+                        old_backup.with_file_name(format!(".purging_{}_{}_{}", now_ms, idx, old_name));
+                    if std::fs::rename(old_backup, &purging_path).is_ok() {
+                        dirs_to_purge_async.push(purging_path);
+                    } else {
+                        dirs_to_purge_async.push(old_backup.clone());
+                    }
                 } else {
                     let _ = std::fs::remove_file(old_backup);
                 }
             }
+        }
+
+        if !dirs_to_purge_async.is_empty() {
+            std::thread::spawn(move || {
+                for dir in dirs_to_purge_async {
+                    let _ = remove_backup_dir_cow_safe(&dir);
+                }
+            });
         }
     }
 }

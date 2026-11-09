@@ -34,6 +34,9 @@ import {
   LocalSupporterStatePayload,
   LocalMasonSupporter,
   hasDevBuildAccessClearance,
+  getMonthlyServerGoalStatus,
+  getSpokeServerGoalStatus,
+  isFoundryPatron,
 } from "../utils/supporterManager";
 import { isDesktop } from "../utils/envUtils";
 import { useModalStore } from "../store/modalStore";
@@ -229,6 +232,8 @@ export default function SupporterTab() {
     100,
     Math.round(((creditCents % 500) / 500) * 100),
   );
+  const serverGoal = getMonthlyServerGoalStatus(keepersConfig);
+  const isPatron = isFoundryPatron(supporterState);
   const expiryDateFormatted =
     devBuildUntil > nowSecs
       ? new Date(devBuildUntil * 1000).toLocaleDateString(undefined, {
@@ -667,6 +672,13 @@ export default function SupporterTab() {
                   ? `${remainingDays} ${t("supporter_days_remaining_suffix", "Days Remaining")}`
                   : t("supporter_no_active_time", "No Active Time")
               }
+              bannerTopRightLabel={
+                isDevBuildUnlocked
+                  ? supporterState.dev_build.channel_enabled
+                    ? t("active", "Active")
+                    : t("disabled", "Disabled")
+                  : t("status_locked", "Locked")
+              }
               bannerBottomLabel={
                 isDevBuildUnlocked
                   ? `${t("supporter_expires_prefix", "Expires")} ${expiryDateFormatted} • ${
@@ -680,6 +692,24 @@ export default function SupporterTab() {
                     )}`
               }
               onClick={handleToggleDevChannel}
+              badges={
+                <div
+                  className={`px-2 py-0.5 rounded-lg border bg-transparent ${
+                    isPatron
+                      ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
+                      : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
+                  } text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1 whitespace-nowrap`}
+                >
+                  <span className="material-symbols-outlined !text-[11px]">
+                    {t("icon_workspace_premium", "workspace_premium")}
+                  </span>
+                  <span>
+                    {isPatron
+                      ? t("supporter_patron_badge_label", "Foundry Supporter")
+                      : t("supporter_patron_locked_chip", "Unlocks Supporter Badge")}
+                  </span>
+                </div>
+              }
               actions={
                 <div
                   className={
@@ -729,10 +759,16 @@ export default function SupporterTab() {
                     <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-80">
                       {t("supporter_counter_rollover_lbl", "Rollover")}
                     </span>
-                    <div className="absolute bottom-0 inset-x-0 h-0.5 bg-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                    <div className="absolute bottom-0 inset-x-0 h-1 bg-[color-mix(in_srgb,var(--text)_10%,transparent)] overflow-hidden">
                       <div
-                        className="h-full bg-[var(--accent)] transition-all duration-300"
-                        style={{ width: `${rolloverPercent}%` }}
+                        className="h-full transition-all duration-300"
+                        style={{
+                          width: `${rolloverPercent}%`,
+                          background:
+                            "linear-gradient(180deg, rgba(255,255,255,0.45) 0%, color-mix(in srgb, var(--accent) 80%, transparent) 100%)",
+                          boxShadow:
+                            "0 0 8px color-mix(in srgb, var(--accent) 55%, transparent)",
+                        }}
                       />
                     </div>
                   </div>
@@ -824,9 +860,14 @@ export default function SupporterTab() {
                 "landing_banner_support_os_bottom",
                 "100% Core OS Development",
               )}
+              bannerTopRightLabel={
+                serverGoal.enabled
+                  ? `$${serverGoal.coveredDollars} / $${serverGoal.goalDollars}`
+                  : undefined
+              }
               bannerBottomLabel={t(
-                "landing_banner_support_os_top",
-                "$5 = +30 Days Dev Builds",
+                "supporter_server_goal_title",
+                "Monthly Hub & Code-Signing Goal",
               )}
               onClick={() =>
                 handlePartnerDonateClick(
@@ -849,89 +890,164 @@ export default function SupporterTab() {
                 </div>
               }
             >
-              <ActionButton
-                variant="accent"
-                icon={
-                  isSandboxDonationUrl(keepersConfig.keepers_donation_url)
-                    ? t("icon_science", "science")
-                    : t("icon_open_in_new", "open_in_new")
-                }
-                label={
-                  isSandboxDonationUrl(keepersConfig.keepers_donation_url)
-                    ? t(
-                        "supporter_spoke_sandbox_checkout_btn",
-                        "Simulate Sandbox Checkout (Test Mode)",
-                      )
-                    : t("supporter_keepers_btn", "Support Sanctuary Foundry")
-                }
-                className="w-full pointer-events-none mt-2"
-              />
-            </UniversalCard>
-
-            {/* CONFIGURED PARTNER COMMUNITIES */}
-            {configuredPartners.map((partner) => (
-              <UniversalCard
-                key={partner.id}
-                title={partner.name}
-                subtitle={t(
-                  "supporter_claim_partner_label",
-                  "Partner Community",
-                )}
-                description={t(
-                  "supporter_partners_subtitle",
-                  "Donate to any Partner Community below to support their work and stack Global Dev Build time.",
-                )}
-                icon={
-                  partner.icon || t("icon_sports_esports", "sports_esports")
-                }
-                bannerTopLabel={t(
-                  "landing_banner_support_partner_top",
-                  "100% Direct To Community",
-                )}
-                bannerBottomLabel={t(
-                  "landing_banner_support_partner_bottom",
-                  "Server & {Mason} Support",
-                )}
-                onClick={() =>
-                  handlePartnerDonateClick(
-                    String(partner.id),
-                    partner.donation_url,
-                  )
-                }
-                actions={
-                  <div className="px-2.5 py-1 rounded-lg glass-surface backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 shadow-sm">
-                    <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                      {isSandboxDonationUrl(partner.donation_url)
-                        ? t("icon_science", "science")
-                        : t("icon_payments", "payments")}
-                    </span>
-                    <span className="text-[9px] font-black uppercase tracking-wider text-[var(--text)]">
-                      {isSandboxDonationUrl(partner.donation_url)
-                        ? t("supporter_sandbox_mode_badge", "Sandbox Mode")
-                        : partner.payment_processor}
+              <div className="flex flex-col gap-2.5 w-full mt-1">
+                {serverGoal.enabled && (
+                  <div className="px-3 py-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wider">
+                      <span className="text-[var(--text)] tabular-nums">
+                        {`$${serverGoal.coveredDollars} / $${serverGoal.goalDollars} ${t("supporter_server_goal_covered_lbl", "Covered This Month")}`}
+                      </span>
+                      <span className="text-[var(--accent)] tabular-nums">
+                        {`${serverGoal.percent}%`}
+                      </span>
+                    </div>
+                    <div className="w-full h-3 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] p-0.5 shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] overflow-hidden relative">
+                      <div
+                        className="h-full rounded-full transition-all duration-500 relative overflow-hidden"
+                        style={{
+                          width: `${Math.max(4, serverGoal.percent)}%`,
+                          background:
+                            "linear-gradient(180deg, rgba(255,255,255,0.45) 0%, color-mix(in srgb, var(--accent) 78%, transparent) 45%, color-mix(in srgb, var(--accent) 95%, black) 100%)",
+                          boxShadow:
+                            "0 0 12px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.65)",
+                        }}
+                      />
+                    </div>
+                    <span className="text-[9px] font-mono font-bold text-[var(--subtext)] opacity-80">
+                      {`$5 = +${serverGoal.fiveDollarStepPercent}% & +30d`}
                     </span>
                   </div>
-                }
-              >
+                )}
+
                 <ActionButton
-                  variant="glass"
+                  variant="accent"
                   icon={
-                    isSandboxDonationUrl(partner.donation_url)
+                    isSandboxDonationUrl(keepersConfig.keepers_donation_url)
                       ? t("icon_science", "science")
                       : t("icon_open_in_new", "open_in_new")
                   }
                   label={
-                    isSandboxDonationUrl(partner.donation_url)
+                    isSandboxDonationUrl(keepersConfig.keepers_donation_url)
                       ? t(
                           "supporter_spoke_sandbox_checkout_btn",
                           "Simulate Sandbox Checkout (Test Mode)",
                         )
-                      : t("supporter_btn_donate_partner", "Donate to Partner")
+                      : t("supporter_keepers_btn", "Support Sanctuary Foundry")
                   }
-                  className="w-full pointer-events-none mt-2"
+                  className="w-full pointer-events-none"
                 />
-              </UniversalCard>
-            ))}
+              </div>
+            </UniversalCard>
+
+            {/* CONFIGURED PARTNER COMMUNITIES */}
+            {configuredPartners.map((partner) => {
+              const spokeGoal = getSpokeServerGoalStatus(partner);
+              return (
+                <UniversalCard
+                  key={partner.id}
+                  title={partner.name}
+                  subtitle={t(
+                    "supporter_claim_partner_label",
+                    "Partner Community",
+                  )}
+                  description={t(
+                    "supporter_partners_subtitle",
+                    "Donate to any Partner Community below to support their work and stack Global Dev Build time.",
+                  )}
+                  icon={
+                    partner.icon || t("icon_sports_esports", "sports_esports")
+                  }
+                  bannerTopLabel={t(
+                    "landing_banner_support_partner_top",
+                    "100% Direct To Community",
+                  )}
+                  bannerTopRightLabel={
+                    spokeGoal.enabled
+                      ? `$${spokeGoal.coveredDollars} / $${spokeGoal.goalDollars}`
+                      : undefined
+                  }
+                  bannerBottomLabel={
+                    spokeGoal.enabled
+                      ? t(
+                          "supporter_spoke_server_goal_title",
+                          "Monthly Community Server Goal",
+                        )
+                      : t(
+                          "landing_banner_support_partner_bottom",
+                          "Server & {Mason} Support",
+                        )
+                  }
+                  onClick={() =>
+                    handlePartnerDonateClick(
+                      String(partner.id),
+                      partner.donation_url,
+                    )
+                  }
+                  actions={
+                    <div className="px-2.5 py-1 rounded-lg glass-surface backdrop-blur-md border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5 shadow-sm">
+                      <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                        {isSandboxDonationUrl(partner.donation_url)
+                          ? t("icon_science", "science")
+                          : t("icon_payments", "payments")}
+                      </span>
+                      <span className="text-[9px] font-black uppercase tracking-wider text-[var(--text)]">
+                        {isSandboxDonationUrl(partner.donation_url)
+                          ? t("supporter_sandbox_mode_badge", "Sandbox Mode")
+                          : partner.payment_processor}
+                      </span>
+                    </div>
+                  }
+                >
+                  <div className="flex flex-col gap-2.5 w-full mt-1">
+                    {spokeGoal.enabled && (
+                      <div className="px-3 py-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wider">
+                          <span className="text-[var(--text)] tabular-nums">
+                            {`$${spokeGoal.coveredDollars} / $${spokeGoal.goalDollars} ${t("supporter_server_goal_covered_lbl", "Covered This Month")}`}
+                          </span>
+                          <span className="text-[var(--accent)] tabular-nums">
+                            {`${spokeGoal.percent}%`}
+                          </span>
+                        </div>
+                        <div className="w-full h-3 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] p-0.5 shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] overflow-hidden relative">
+                          <div
+                            className="h-full rounded-full transition-all duration-500 relative overflow-hidden"
+                            style={{
+                              width: `${Math.max(4, spokeGoal.percent)}%`,
+                              background:
+                                "linear-gradient(180deg, rgba(255,255,255,0.45) 0%, color-mix(in srgb, var(--accent) 78%, transparent) 45%, color-mix(in srgb, var(--accent) 95%, black) 100%)",
+                              boxShadow:
+                                "0 0 12px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.65)",
+                            }}
+                          />
+                        </div>
+                        <span className="text-[9px] font-mono font-bold text-[var(--subtext)] opacity-80">
+                          {`$5 = +${spokeGoal.fiveDollarStepPercent}% & +30d`}
+                        </span>
+                      </div>
+                    )}
+
+                    <ActionButton
+                      variant="glass"
+                      icon={
+                        isSandboxDonationUrl(partner.donation_url)
+                          ? t("icon_science", "science")
+                          : t("icon_open_in_new", "open_in_new")
+                      }
+                      label={
+                        isSandboxDonationUrl(partner.donation_url)
+                          ? t(
+                              "supporter_spoke_sandbox_checkout_btn",
+                              "Simulate Sandbox Checkout (Test Mode)",
+                            )
+                          : t("supporter_btn_donate_partner", "Donate to Partner")
+                      }
+                      className="w-full pointer-events-none"
+                    />
+                  </div>
+                </UniversalCard>
+              );
+            })}
           </SettingsGrid>
         </TabContainer>
 

@@ -24,6 +24,13 @@ export function useBackupLogic(detectGameVersion: () => void) {
 
   async function restoreGameBackup(filename: string) {
     setStatus(`${t("status_restoring_prefix", "Restoring: ")}${filename}...`);
+    useModalStore.getState().setCompletedBackups([]);
+    useModalStore.getState().setIsDefconBackupSession(false);
+    useModalStore
+      .getState()
+      .setRestoreType(
+        filename.toLowerCase().includes("engine") ? "engine" : "world"
+      );
     useStore.getState().setBackupProgress(null);
     setIsRestoring(true);
     try {
@@ -35,6 +42,11 @@ export function useBackupLogic(detectGameVersion: () => void) {
         backupName: filename,
       });
       setStatus(msg as string);
+      const cleanName = filename.replace(/^Secured:\s*/i, "").trim();
+      if (cleanName) {
+        useModalStore.getState().setCompletedBackups([cleanName]);
+      }
+      fetchBackups();
     } catch (err) {
       setStatus(`${t("status_restore_failure", "Restore failed: ")}${err}`);
     } finally {

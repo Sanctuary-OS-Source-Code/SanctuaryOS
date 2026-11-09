@@ -28,6 +28,13 @@ import {
   notifyMfaStateChanged,
   maskEmailAddress,
   sanitizeFactorFriendlyName,
+  isBlindedEmailAddress,
+  deriveBlindedEmailAlias,
+  generateSovereignRecoveryKey,
+  getCitizenSecurityPolicy,
+  updateCitizenSecurityPolicy,
+  updateUserCredentialsZeroKnowledge,
+  CitizenSecurityPolicy,
 } from "../utils/passkeyUtils";
 import {
   CompanionPasskeyHandshakeRequester,
@@ -37,6 +44,9 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
   const { t } = useLexicon();
   const { session, userRole, osRole, activeWorkspaceId } = useStore();
   const [emailInput, setEmailInput] = useState("");
+  const [blindEmailOnSave, setBlindEmailOnSave] = useState<boolean>(() =>
+    Boolean(session?.user?.email && isBlindedEmailAddress(session.user.email))
+  );
   const [currentPasswordInput, setCurrentPasswordInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
@@ -57,6 +67,7 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
   const [isVerifiedMason, setIsVerifiedMason] = useState(false);
   const [loading2FA, setLoading2FA] = useState(true);
   const [mfaEnrollTab, setMfaEnrollTab] = useState<"passkey" | "totp">("passkey");
+  const [showAddPasskeyForm, setShowAddPasskeyForm] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [totpSecret, setTotpSecret] = useState<string | null>(null);
   const [factorId, setFactorId] = useState<string | null>(null);
@@ -68,6 +79,10 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
   const [registeringPasskey, setRegisteringPasskey] = useState(false);
   const [verifyingStepUp, setVerifyingStepUp] = useState(false);
   const [passkeyError, setPasskeyError] = useState("");
+  const [citizenPolicy, setCitizenPolicy] = useState<CitizenSecurityPolicy>(() =>
+    getCitizenSecurityPolicy(session, false, false)
+  );
+  const [savingPolicy, setSavingPolicy] = useState(false);
 
   const isElevatedRole = isElevatedRoleRequiringPasskey({
     userRole,
@@ -76,16 +91,42 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
   });
 
   const requiresPasskeyStepUp = passkeys.length > 0 && !isPasskeyVerified;
+  const isCurrentEmailBlinded = isBlindedEmailAddress(session?.user?.email);
+  const [blindEmailPreview, setBlindEmailPreview] = useState("");
+  const [generatedKeyPreview, setGeneratedKeyPreview] = useState("");
+
+  useEffect(() => {
+    setBlindEmailOnSave(isCurrentEmailBlinded);
+  }, [isCurrentEmailBlinded]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const candidateEmail =
+      emailInput.trim() || (!isCurrentEmailBlinded ? session?.user?.email || "" : "");
+    if (blindEmailOnSave && candidateEmail) {
+      deriveBlindedEmailAlias(candidateEmail).then((alias) => {
+        if (!cancelled) setBlindEmailPreview(alias);
+      });
+    } else {
+      setBlindEmailPreview("");
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [emailInput, blindEmailOnSave, isCurrentEmailBlinded, session?.user?.email]);
 
   const resetSecurityInputs = () => {
     setEmailInput("");
+    setBlindEmailOnSave(isCurrentEmailBlinded);
     setCurrentPasswordInput("");
     setPasswordInput("");
     setConfirmPasswordInput("");
+    setGeneratedKeyPreview("");
     setEnrollPasswordInput("");
     setPendingUnenrollFactorId(null);
     setPasskeyError("");
     setEnrollError("");
+    setShowAddPasskeyForm(false);
   };
 
   const handleClosePanel = () => {
@@ -100,6 +141,13 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
     setTotpFactors(state.totpFactors);
     setFactors(state.allVerifiedFactors);
     setIsPasskeyVerified(Boolean(state.isPasskeyVerified));
+    setCitizenPolicy(
+      getCitizenSecurityPolicy(
+        useStore.getState().session || session,
+        state.hasPasskey || state.hasTotp,
+        state.hasPasskey
+      )
+    );
     setLoading2FA(false);
   };
 
@@ -224,6 +272,7 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
 
     setPasskeyNameInput("");
     setEnrollPasswordInput("");
+    setShowAddPasskeyForm(false);
     setRegisteringPasskey(false);
     useStore.getState().pushStatus(
       t("auth_passkey_enrolled_toast", "FIDO2 Passkey registered and verified!"),
@@ -366,6 +415,58 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
     }
   };
 
+  const handleToggleCitizenPolicy = async (key: keyof CitizenSecurityPolicy, nextVal: boolean) => {
+    if (requiresPasskeyStepUp) {
+      useStore.getState().pushStatus(
+        t(
+          "auth_passkey_stepup_required_desc",
+          "Your account already has an active FIDO2 Passkey. To prevent unauthorized credential enrollment from stolen sessions or passwords, you must authenticate with an existing Passkey on this device before adding or modifying security factors."
+        ),
+        "error"
+      );
+      return;
+    }
+    setSavingPolicy(true);
+    const patch: Partial<CitizenSecurityPolicy> =
+      key === "enforceSessionLock"
+        ? {
+            enforceSessionLock: nextVal,
+            strictPasskeyOnly: nextVal,
+            ...(nextVal ? { enforceLoginMfa: true } : {}),
+          }
+        : { [key]: nextVal };
+    setCitizenPolicy((prev) => ({ ...prev, ...patch }));
+    const { policy, error } = await updateCitizenSecurityPolicy(patch);
+    setSavingPolicy(false);
+    if (error) {
+      useStore.getState().pushStatus(error.message, "error");
+      await loadFactors();
+      return;
+    }
+    setCitizenPolicy(policy);
+    useStore.getState().pushStatus(
+      t("auth_policy_saved_toast", "Account security lockdown policy updated."),
+      "success"
+    );
+  };
+
+  const handleGenerateSovereignKey = () => {
+    const generated = generateSovereignRecoveryKey();
+    setPasswordInput(generated);
+    setConfirmPasswordInput(generated);
+    setGeneratedKeyPreview(generated);
+    try {
+      navigator.clipboard.writeText(generated);
+    } catch {}
+    useStore.getState().pushStatus(
+      t(
+        "auth_sovereign_key_generated_toast",
+        "256-bit Sovereign Key generated and copied to clipboard! Click Update to save."
+      ),
+      "success"
+    );
+  };
+
   const updateAuth = async (type: "email" | "password") => {
     setAuthLoading(true);
     try {
@@ -379,8 +480,14 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
         await loadFactors();
       }
       if (type === "email") {
-        const cleanEmail = emailInput.trim();
-        if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        const typedEmail = emailInput.trim();
+        const fallbackCurrentEmail =
+          !typedEmail && !isCurrentEmailBlinded && blindEmailOnSave
+            ? (session?.user?.email || "").trim()
+            : "";
+        const sourceEmail = typedEmail || fallbackCurrentEmail;
+
+        if (!sourceEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sourceEmail)) {
           useStore.getState().pushStatus(
             t("auth_email_invalid_err", "Please enter a valid email address."),
             "error"
@@ -388,19 +495,37 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
           setAuthLoading(false);
           return;
         }
-        const verified = await verifyCurrentPassword();
-        if (!verified) {
+        if (!currentPasswordInput.trim()) {
+          useStore.getState().pushStatus(
+            t("err_enter_current_password", "Please enter your current password to verify."),
+            "error"
+          );
           setAuthLoading(false);
           return;
         }
-        const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
-        const { error } = await supabaseAuth.auth.updateUser(
-          { email: cleanEmail },
-          redirectTo ? { emailRedirectTo: redirectTo } : undefined
-        );
+
+        const targetEmail = blindEmailOnSave
+          ? await deriveBlindedEmailAlias(sourceEmail)
+          : sourceEmail.toLowerCase();
+
+        const { error } = await updateUserCredentialsZeroKnowledge({
+          currentPassword: currentPasswordInput,
+          newEmail: targetEmail,
+          metadataPatch: {
+            email_blinded_v2: blindEmailOnSave,
+            email_blinded_v1: blindEmailOnSave,
+            email_blinded: blindEmailOnSave,
+          },
+        });
         if (error) throw error;
+
         useStore.getState().pushStatus(
-          t("auto_email_update_initiated_45", "Email update initiated."),
+          blindEmailOnSave
+            ? t(
+                "auth_blind_email_converted_toast",
+                "Personal email shredded! Account converted to Blinded Email Alias."
+              )
+            : t("auto_email_update_initiated_45", "Email update initiated."),
           "success"
         );
         handleClosePanel();
@@ -422,13 +547,22 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
           setAuthLoading(false);
           return;
         }
-        const verified = await verifyCurrentPassword();
-        if (!verified) {
+        if (!currentPasswordInput.trim()) {
+          useStore.getState().pushStatus(
+            t("err_enter_current_password", "Please enter your current password to verify."),
+            "error"
+          );
           setAuthLoading(false);
           return;
         }
-        const { error } = await supabaseAuth.auth.updateUser({ password: passwordInput });
+
+        const { error } = await updateUserCredentialsZeroKnowledge({
+          currentPassword: currentPasswordInput,
+          newPassword: passwordInput,
+          metadataPatch: { zk_password_v2: true, zk_password_v1: true },
+        });
         if (error) throw error;
+
         useStore.getState().pushStatus(
           t("auto_password_updated_successfully_34", "Password updated successfully."),
           "success"
@@ -498,7 +632,21 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
         key={dir.rustKey}
         title={dir.label}
         subtitle={obfuscatePath(dir.value)}
-        icon={t("icon_folder", "folder")}
+        description={
+          dir.isUniversal
+            ? t(
+                "vault_universal_desc",
+                "Universal Master {Vault} directory shared across the Hub (Themes & Lexicons) and all Spoke workspaces."
+              )
+            : undefined
+        }
+        bannerTopLabel={
+          dir.isUniversal
+            ? t("vault_universal_badge", "Universal Hub & Spokes")
+            : undefined
+        }
+        bannerBottomLabel={dir.isUniversal ? obfuscatePath(dir.value) : undefined}
+        icon={dir.icon || t("icon_folder", "folder")}
         onClick={() => pickPath(dir.rustKey, dir.label)}
         footer={
           <ActionButton
@@ -521,6 +669,9 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
             .replace("{1}", String(totpFactors.length))
         : t("auth_passkey_2fa_subtitle", "Manage FIDO2 Passkeys and Authenticator Apps");
 
+  const activeTabFactors = mfaEnrollTab === "passkey" ? passkeys : totpFactors;
+  const isPasskeyFormOpen = showAddPasskeyForm || passkeys.length === 0;
+
   return (
     <>
       <div className="flex flex-col gap-30 w-full pb-48">
@@ -542,10 +693,12 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
               title={t("auth_email", "Update Email")}
               subtitle={
                 session?.user?.email
-                  ? session.user.email.replace(/(.).*(@.*)/, "$1***$2")
+                  ? isCurrentEmailBlinded
+                    ? `${t("auth_blind_email_active_badge", "Blinded Email Alias")} • ${maskEmailAddress(session.user.email)}`
+                    : maskEmailAddress(session.user.email)
                   : t("path_not_set", "Not Set")
               }
-              icon={t("icon_mail", "mail")}
+              icon={isCurrentEmailBlinded ? t("icon_visibility_off", "visibility_off") : t("icon_mail", "mail")}
               onClick={() => {
                 resetSecurityInputs();
                 setActivePanel("email");
@@ -554,7 +707,7 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
 
             <UniversalCard
               title={t("auth_password", "Update Password")}
-              subtitle="••••••••••••"
+              subtitle={`${t("auth_zk_password_badge", "600k PBKDF2 + Bcrypt")} • ••••••••`}
               icon={t("icon_key", "key")}
               onClick={() => {
                 resetSecurityInputs();
@@ -619,13 +772,17 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
         subtitle={t("settings_auth_title", "Identity & Security")}
         icon={t("icon_mail", "mail")}
         iconColorClass="theme-text-accent"
-        widthClass="w-[90vw] md:w-[580px]"
+        widthClass="w-[90vw] md:w-[600px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon={t("icon_save", "save")}
               tooltip={t("btn_update", "Update")}
-              disabled={authLoading || !emailInput.trim() || !currentPasswordInput}
+              disabled={
+                authLoading ||
+                !currentPasswordInput ||
+                (!emailInput.trim() && (isCurrentEmailBlinded || !blindEmailOnSave))
+              }
               onClick={() => updateAuth("email")}
             />
           </PanelHeaderGroup>
@@ -633,61 +790,166 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard
-            icon={t("icon_verified_user", "verified_user")}
-            overline={t("auth_email_current_label", "Current Bound Email")}
+            icon={
+              isCurrentEmailBlinded
+                ? t("icon_visibility_off", "visibility_off")
+                : t("icon_verified_user", "verified_user")
+            }
+            overline={
+              isCurrentEmailBlinded
+                ? t("auth_blind_email_active_badge", "Blinded Email Alias")
+                : t("auth_email_current_label", "Current Bound Email")
+            }
             title={maskEmailAddress(session?.user?.email) || t("path_not_set", "Not Set")}
             description={t(
               "auth_email_update_desc",
               "Update the email address associated with your Sanctuary account."
             )}
-            variant="accent"
+            variant={isCurrentEmailBlinded ? "success" : "accent"}
           />
 
           <UniversalGroup
             title={t("auth_email", "Update Email")}
             icon={t("icon_mail", "mail")}
+            headerAction={
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_shield", "shield")}
+                </span>
+                <span>{t("auth_blind_email_badge", "Blinded Email Alias")}</span>
+              </span>
+            }
           >
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 updateAuth("email");
               }}
-              className="flex flex-col gap-4"
+              className="flex flex-col gap-3.5"
             >
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                  {t("auth_email_new_label", "New Email Address")}
-                </label>
-                <input
-                  type="email"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder={t("auth_email_placeholder", "name@example.com")}
-                  autoFocus
-                  className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
-                />
+              <div
+                onClick={() => setBlindEmailOnSave((v) => !v)}
+                className="glass-surface rounded-xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col gap-2.5 cursor-pointer transition-all"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                    <div className="w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined !text-[16px]">
+                        {t("icon_visibility_off", "visibility_off")}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-xs font-black text-[var(--text)]">
+                        {t("auth_blind_email_toggle_title", "Blinded Email Alias (No Plaintext Email Stored)")}
+                      </span>
+                      <span className="text-[11px] font-medium text-[var(--subtext)] leading-snug">
+                        {t(
+                          "auth_blind_email_toggle_desc",
+                          "Deterministically derives a blinded alias on-device (600,000-iteration PBKDF2-HMAC-SHA256) before transmission so no plaintext email is stored in the database."
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={blindEmailOnSave}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBlindEmailOnSave((v) => !v);
+                    }}
+                    className={`sa-glass-toggle shrink-0 ${blindEmailOnSave ? "is-on" : ""}`}
+                  >
+                    <span className="sa-glass-toggle-thumb" />
+                  </button>
+                </div>
+
+                {blindEmailOnSave && blindEmailPreview && (
+                  <div className="pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                      {t("auth_blind_email_active_badge", "Blinded Email Alias")}
+                    </span>
+                    <span className="text-[11px] font-mono font-bold text-[var(--accent)] truncate">
+                      {maskEmailAddress(blindEmailPreview)}
+                    </span>
+                  </div>
+                )}
+
+                <div
+                  className={`pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-start gap-2 text-[11px] font-medium leading-relaxed ${
+                    blindEmailOnSave ? "text-[var(--warning)]" : "text-[var(--subtext)]"
+                  }`}
+                >
+                  <span className="material-symbols-outlined !text-[15px] shrink-0 mt-0.5">
+                    {blindEmailOnSave
+                      ? t("icon_warning", "warning")
+                      : t("icon_info", "info")}
+                  </span>
+                  <span>
+                    {blindEmailOnSave
+                      ? t(
+                          "auth_blind_email_no_recovery_warn",
+                          "Important: Because no plaintext email is stored on the server, automated password reset emails cannot be sent. Keep your password or 256-Bit Sovereign Key saved, or bind a FIDO2 Passkey for recovery."
+                        )
+                      : t(
+                          "auth_blind_email_plaintext_warn",
+                          "Standard Email Mode: Your plaintext email address will be stored on the authentication server to allow traditional password reset emails."
+                        )}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                  {t("auth_current_password_label", "Current Password (Required)")}
-                </label>
-                <input
-                  type="password"
-                  value={currentPasswordInput}
-                  onChange={(e) => setCurrentPasswordInput(e.target.value)}
-                  placeholder={t("auth_current_password_ph", "Enter your current password to verify...")}
-                  autoComplete="current-password"
-                  className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                    {t("auth_email_new_label", "New Email Address")}
+                  </label>
+                  <input
+                    type="email"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    placeholder={
+                      !isCurrentEmailBlinded && blindEmailOnSave && session?.user?.email
+                        ? maskEmailAddress(session.user.email)
+                        : t("auth_email_placeholder", "name@example.com")
+                    }
+                    className="w-full glass-surface rounded-xl px-3.5 py-2.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                    {t("auth_current_password_label", "Current Password (Required)")}
+                  </label>
+                  <input
+                    type="password"
+                    value={currentPasswordInput}
+                    onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                    placeholder={t("auth_current_password_ph", "Enter your current password to verify...")}
+                    autoComplete="current-password"
+                    className="w-full glass-surface rounded-xl px-3.5 py-2.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+                  />
+                </div>
               </div>
 
               <ActionButton
                 type="submit"
-                disabled={authLoading || !emailInput.trim() || !currentPasswordInput}
+                disabled={
+                  authLoading ||
+                  !currentPasswordInput ||
+                  (!emailInput.trim() && (isCurrentEmailBlinded || !blindEmailOnSave))
+                }
                 variant="glass"
-                icon={t("icon_save", "save")}
-                label={t("btn_update", "Update")}
+                icon={
+                  !emailInput.trim() && !isCurrentEmailBlinded && blindEmailOnSave
+                    ? t("icon_visibility_off", "visibility_off")
+                    : t("icon_save", "save")
+                }
+                label={
+                  !emailInput.trim() && !isCurrentEmailBlinded && blindEmailOnSave
+                    ? t("auth_blind_email_btn_convert", "Blind & Shred Server Email")
+                    : t("btn_update", "Update")
+                }
                 className="w-full"
               />
             </form>
@@ -703,7 +965,7 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
         subtitle={t("settings_auth_title", "Identity & Security")}
         icon={t("icon_key", "key")}
         iconColorClass="theme-text-accent"
-        widthClass="w-[90vw] md:w-[580px]"
+        widthClass="w-[90vw] md:w-[600px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
@@ -718,11 +980,11 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard
             icon={t("icon_lock", "lock")}
-            overline={t("auth_password_status_title", "Encrypted Credential Protection")}
+            overline={t("auth_zk_password_badge", "600k PBKDF2 + Bcrypt")}
             title={t("auth_password", "Update Password")}
             description={t(
-              "auth_password_update_desc",
-              "Update your Sanctuary account password. For security, you may be required to re-authenticate."
+              "auth_zk_password_active_desc",
+              "Passwords are stretched on-device (600,000-iteration PBKDF2-HMAC-SHA256) before transmission and bcrypt-hashed by the server—your plaintext password is never transmitted."
             )}
             variant="accent"
           />
@@ -730,15 +992,56 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
           <UniversalGroup
             title={t("auth_password", "Update Password")}
             icon={t("icon_key", "key")}
+            headerAction={
+              <button
+                type="button"
+                onClick={handleGenerateSovereignKey}
+                className={`${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] cursor-pointer transition-all`}
+              >
+                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                  {t("icon_vpn_key", "vpn_key")}
+                </span>
+                <span>{t("auth_sovereign_key_btn_generate", "Generate 256-Bit Key & Copy")}</span>
+              </button>
+            }
           >
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 updateAuth("password");
               }}
-              className="flex flex-col gap-4"
+              className="flex flex-col gap-3.5"
             >
-              <div className="flex flex-col gap-2">
+              {generatedKeyPreview && (
+                <div className="glass-surface rounded-xl px-3.5 py-2.5 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-between gap-2.5 animate-in fade-in duration-200">
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)]">
+                      {t("auth_sovereign_key_title", "256-Bit Sovereign Recovery Key")}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-[var(--text)] truncate select-all">
+                      {generatedKeyPreview}
+                    </span>
+                  </div>
+                  <ActionButton
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedKeyPreview);
+                      useStore
+                        .getState()
+                        .pushStatus(
+                          t("auto_copied_to_clipboard_45", "Copied to clipboard!"),
+                          "success"
+                        );
+                    }}
+                    variant="glass"
+                    icon={t("icon_content_copy", "content_copy")}
+                    label={t("btn_copy_key", "Copy Key")}
+                    className="!px-3 !py-1.5 !text-[10px] shrink-0"
+                  />
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
                   {t("auth_current_password_label", "Current Password (Required)")}
                 </label>
@@ -749,38 +1052,45 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                   placeholder={t("auth_current_password_ph", "Enter your current password to verify...")}
                   autoComplete="current-password"
                   autoFocus
-                  className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+                  className="w-full glass-surface rounded-xl px-3.5 py-2.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
                 />
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                  {t("auth_recovery_new_password_label", "New Password (Min. 8 Characters)")}
-                </label>
-                <input
-                  type="password"
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="••••••••••••"
-                  autoComplete="new-password"
-                  minLength={8}
-                  className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
-                />
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                    {t("auth_recovery_new_password_label", "New Password (Min. 8 Characters)")}
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordInput}
+                    onChange={(e) => {
+                      setPasswordInput(e.target.value);
+                      if (generatedKeyPreview && e.target.value !== generatedKeyPreview) {
+                        setGeneratedKeyPreview("");
+                      }
+                    }}
+                    placeholder="••••••••••••"
+                    autoComplete="new-password"
+                    minLength={8}
+                    className="w-full glass-surface rounded-xl px-3.5 py-2.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+                  />
+                </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                  {t("auth_confirm_new_password_label", "Confirm New Password")}
-                </label>
-                <input
-                  type="password"
-                  value={confirmPasswordInput}
-                  onChange={(e) => setConfirmPasswordInput(e.target.value)}
-                  placeholder={t("auth_confirm_new_password_ph", "Re-enter new password...")}
-                  autoComplete="new-password"
-                  minLength={8}
-                  className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
-                />
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                    {t("auth_confirm_new_password_label", "Confirm New Password")}
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPasswordInput}
+                    onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                    placeholder={t("auth_confirm_new_password_ph", "Re-enter new password...")}
+                    autoComplete="new-password"
+                    minLength={8}
+                    className="w-full glass-surface rounded-xl px-3.5 py-2.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+                  />
+                </div>
               </div>
 
               <ActionButton
@@ -930,56 +1240,50 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                 />
               </div>
 
-              {/* Selected Enrollment Card */}
-              {requiresPasskeyStepUp ? (
-                <div
-                  className={`grid grid-cols-1 ${
-                    isNativeLocalPasskeySupported() ? "md:grid-cols-2" : ""
-                  } gap-3.5 items-stretch`}
-                >
+              {requiresPasskeyStepUp && (
+                <div className="flex flex-col gap-3.5">
                   {isNativeLocalPasskeySupported() && (
-                    <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col h-full">
-                      <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined !text-[15px]">
-                            {t("icon_lock", "lock")}
+                    <div className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col shrink-0">
+                      <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined !text-[15px]">
+                              {t("icon_lock", "lock")}
+                            </span>
+                          </div>
+                          <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
+                            {t(
+                              "auth_passkey_stepup_required_title",
+                              "Existing Passkey Verification Required"
+                            )}
                           </span>
                         </div>
-                        <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] leading-snug">
-                          {t(
-                            "auth_passkey_stepup_required_title",
-                            "Existing Passkey Verification Required"
-                          )}
+                        <span
+                          className={`${VAULT_CHIP_CLASS} shrink-0 !border-[color-mix(in_srgb,var(--warning)_38%,transparent)]`}
+                        >
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                            {t("icon_lock", "lock")}
+                          </span>
+                          <span>{t("auth_passkey_stepup_locked_badge", "Step-Up Locked")}</span>
                         </span>
                       </div>
 
-                      <div className="p-4 flex flex-col justify-between gap-4 flex-1">
-                        <div className="flex flex-col gap-3">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className={`${VAULT_CHIP_CLASS} !border-[color-mix(in_srgb,var(--warning)_38%,transparent)]`}>
-                              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                                {t("icon_lock", "lock")}
-                              </span>
-                              <span>{t("auth_passkey_stepup_locked_badge", "Step-Up Locked")}</span>
-                            </span>
-                          </div>
-
-                          <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                            {t(
-                              "auth_passkey_stepup_required_desc",
-                              "Your account already has an active FIDO2 Passkey. To prevent unauthorized credential enrollment from stolen sessions or passwords, you must authenticate with an existing Passkey on this device before adding or modifying security factors."
-                            )}
-                          </p>
-
-                          {passkeyError && (
-                            <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
-                              <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
-                                {t("icon_error", "error")}
-                              </span>
-                              <span>{passkeyError}</span>
-                            </div>
+                      <div className="p-4 flex flex-col gap-3.5">
+                        <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                          {t(
+                            "auth_passkey_stepup_required_desc",
+                            "Your account already has an active FIDO2 Passkey. To prevent unauthorized credential enrollment from stolen sessions or passwords, you must authenticate with an existing Passkey on this device before adding or modifying security factors."
                           )}
-                        </div>
+                        </p>
+
+                        {passkeyError && (
+                          <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
+                            <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
+                              {t("icon_error", "error")}
+                            </span>
+                            <span>{passkeyError}</span>
+                          </div>
+                        )}
 
                         <ActionButton
                           onClick={handlePasskeyStepUp}
@@ -991,7 +1295,7 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                               ? t("btn_verifying_passkey", "Verifying Passkey...")
                               : t("btn_verify_with_passkey", "Authenticate with Passkey")
                           }
-                          className="w-full mt-auto"
+                          className="w-full"
                         />
                       </div>
                     </div>
@@ -1003,226 +1307,9 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                     onVerified={loadFactors}
                   />
                 </div>
-              ) : mfaEnrollTab === "passkey" ? (
-                <UniversalGroup
-                  title={t("auth_passkey_register_section_title", "Register FIDO2 Passkey (Recommended)")}
-                  icon={t("icon_passkey", "passkey")}
-                >
-                  <form
-                    onSubmit={handleRegisterPasskey}
-                    className="flex flex-col gap-4"
-                  >
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className={VAULT_CHIP_CLASS}>
-                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                          {t("icon_verified_user", "verified_user")}
-                        </span>
-                        <span>{t("auth_passkey_badge_fido", "FIDO2 Passkey")}</span>
-                      </span>
-                    </div>
-                    <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                      {t(
-                        "auth_passkey_register_section_desc",
-                        "Works with Windows Hello, macOS Touch ID, iCloud Keychain, 1Password, Bitwarden, and hardware FIDO2 keys (YubiKey)."
-                      )}
-                    </p>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                        {t("auth_passkey_name_label", "Passkey Device Label")}
-                      </label>
-                      <input
-                        type="text"
-                        value={passkeyNameInput}
-                        onChange={(e) => setPasskeyNameInput(e.target.value)}
-                        placeholder={t(
-                          "auth_passkey_name_placeholder",
-                          "e.g. Windows Hello, MacBook Touch ID, YubiKey 5C..."
-                        )}
-                        className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                        {t("auth_current_password_label", "Current Password (Required)")}
-                      </label>
-                      <input
-                        type="password"
-                        value={enrollPasswordInput}
-                        onChange={(e) => setEnrollPasswordInput(e.target.value)}
-                        placeholder={t(
-                          "auth_current_password_ph",
-                          "Enter your current password to verify..."
-                        )}
-                        autoComplete="current-password"
-                        className="w-full glass-surface rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
-                      />
-                      <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80 px-1">
-                        {t(
-                          "auth_passkey_enroll_password_desc",
-                          "Confirm your current account password to authorize registering this FIDO2 Passkey. This prevents stolen session tokens from enrolling unauthorized credentials."
-                        )}
-                      </span>
-                    </div>
-
-                    {passkeyError && (
-                      <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
-                        <span className="material-symbols-outlined !text-[16px] shrink-0 mt-0.5">
-                          {t("icon_error", "error")}
-                        </span>
-                        <span>{passkeyError}</span>
-                      </div>
-                    )}
-
-                    <ActionButton
-                      type="submit"
-                      disabled={registeringPasskey || !enrollPasswordInput.trim()}
-                      variant="glass"
-                      icon={t("icon_passkey", "passkey")}
-                      label={
-                        registeringPasskey
-                          ? t("btn_registering_passkey", "Waiting for Passkey Prompt...")
-                          : t("btn_register_passkey", "Register Passkey")
-                      }
-                      className="w-full"
-                    />
-                  </form>
-                </UniversalGroup>
-              ) : (
-                <UniversalGroup
-                  title={t("auth_totp_section_title", "Authenticator App (TOTP Backup)")}
-                  icon={t("icon_qr_code_scanner", "qr_code_scanner")}
-                  headerAction={
-                    <span className={VAULT_CHIP_CLASS}>
-                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                        {t("icon_qr_code_scanner", "qr_code_scanner")}
-                      </span>
-                      <span>{t("auth_passkey_badge_totp", "Authenticator App")}</span>
-                    </span>
-                  }
-                >
-                  {!qrCode ? (
-                    <div className="flex flex-col gap-4">
-                      <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-                        {t(
-                          "auth_totp_section_desc",
-                          "Optional 6-digit code generator (Google Authenticator, Authy, 1Password) for standard accounts or backup verification."
-                        )}
-                      </p>
-                      {enrollError && (
-                        <div className="px-3.5 py-2.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed">
-                          {enrollError}
-                        </div>
-                      )}
-                      <ActionButton
-                        onClick={startEnrollment}
-                        disabled={enrolling}
-                        variant="glass"
-                        icon={t("icon_devices", "devices")}
-                        label={t("btn_enroll_totp_app", "Set Up Authenticator App")}
-                        className="w-full"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-5">
-                      <div className="text-center flex flex-col gap-1">
-                        <h3 className="text-sm font-black text-[var(--text)] tracking-wide m-0">
-                          {t("auth_2fa_scan_qr", "Scan QR Code")}
-                        </h3>
-                        <p className="text-xs font-medium text-[var(--subtext)] m-0">
-                          {t("auth_2fa_scan_desc", "Scan this QR code with your authenticator app.")}
-                        </p>
-                      </div>
-
-                      <div className="bg-white p-4 rounded-2xl shadow-lg flex items-center justify-center">
-                        <img
-                          src={
-                            qrCode.startsWith("data:")
-                              ? qrCode
-                              : `data:image/svg+xml;utf8,${encodeURIComponent(qrCode)}`
-                          }
-                          alt={t("auth_2fa_scan_qr", "Scan QR Code")}
-                          className="w-40 h-40 object-contain"
-                        />
-                      </div>
-
-                      {totpSecret && (
-                        <div className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-2xl p-4 flex flex-col gap-2">
-                          <h4 className="text-[10px] font-black tracking-widest text-[var(--subtext)] uppercase m-0">
-                            {t("auth_2fa_setup_key_title", "Manual Setup Key")}
-                          </h4>
-                          <p className="text-xs font-medium text-[var(--subtext)] m-0">
-                            {t(
-                              "auth_2fa_setup_key_desc",
-                              "If you cannot scan the QR code, enter this secret key manually:"
-                            )}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <input
-                              type="text"
-                              readOnly
-                              value={totpSecret}
-                              className="flex-1 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-[var(--text)] outline-none select-all"
-                            />
-                            <ActionButton
-                              onClick={() => {
-                                navigator.clipboard.writeText(totpSecret);
-                                useStore
-                                  .getState()
-                                  .pushStatus(
-                                    t("auto_copied_to_clipboard_45", "Copied to clipboard!"),
-                                    "success"
-                                  );
-                              }}
-                              variant="glass"
-                              icon={t("icon_content_copy", "content_copy")}
-                              label={t("btn_copy_key", "Copy Key")}
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex flex-col gap-3 w-full">
-                        <input
-                          type="text"
-                          placeholder={t("auth_2fa_placeholder_code", "000000")}
-                          value={verifyCode}
-                          onChange={(e) => setVerifyCode(e.target.value)}
-                          className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] rounded-xl px-4 py-3 text-sm font-mono font-black text-[var(--text)] text-center tracking-[0.3em] focus:outline-none focus:border-[var(--accent)] transition-colors"
-                          maxLength={6}
-                        />
-                        {enrollError && (
-                          <div className="text-xs font-bold text-[var(--danger)] text-center">
-                            {enrollError}
-                          </div>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-3 mt-1">
-                          <ActionButton
-                            onClick={cancelEnrollment}
-                            variant="glass"
-                            icon={t("icon_close", "close")}
-                            label={t("cancel", "Cancel")}
-                            className="w-full"
-                          />
-                          <ActionButton
-                            onClick={verifyEnrollment}
-                            disabled={verifyCode.length < 6 || enrolling}
-                            variant="glass"
-                            icon={t("icon_check", "check")}
-                            label={t("btn_verify_2fa", "Verify")}
-                            className="w-full"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </UniversalGroup>
               )}
 
-              {/* Linked Items for Active Tile (Underneath the New Button) */}
-              {(mfaEnrollTab === "passkey" ? passkeys : totpFactors).length > 0 && (
+              {(!requiresPasskeyStepUp || activeTabFactors.length > 0) && (
                 <UniversalGroup
                   title={
                     mfaEnrollTab === "passkey"
@@ -1235,20 +1322,41 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                       : t("icon_qr_code_scanner", "qr_code_scanner")
                   }
                   headerAction={
-                    <span className={VAULT_CHIP_CLASS}>
-                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                        {mfaEnrollTab === "passkey"
-                          ? t("icon_passkey", "passkey")
-                          : t("icon_qr_code_scanner", "qr_code_scanner")}
+                    <div className="flex items-center gap-2">
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                          {mfaEnrollTab === "passkey"
+                            ? t("icon_passkey", "passkey")
+                            : t("icon_qr_code_scanner", "qr_code_scanner")}
+                        </span>
+                        <span>{activeTabFactors.length}</span>
                       </span>
-                      <span>{(mfaEnrollTab === "passkey" ? passkeys : totpFactors).length}</span>
-                    </span>
+                      {!requiresPasskeyStepUp &&
+                        mfaEnrollTab === "passkey" &&
+                        passkeys.length > 0 &&
+                        isPasskeyFormOpen && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAddPasskeyForm(false);
+                              setPasskeyError("");
+                            }}
+                            className={`${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] cursor-pointer transition-all`}
+                          >
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                              {t("icon_close", "close")}
+                            </span>
+                            <span>{t("close", "Close")}</span>
+                          </button>
+                        )}
+                    </div>
                   }
                 >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(mfaEnrollTab === "passkey" ? passkeys : totpFactors).map((f) => {
+                    {activeTabFactors.map((f) => {
                       const isPasskey = f.factor_type === "webauthn";
-                      const isLastRequiredPasskey = isPasskey && isElevatedRole && passkeys.length <= 1;
+                      const isLastRequiredPasskey =
+                        isPasskey && isElevatedRole && passkeys.length <= 1;
                       const isPendingRemoval = pendingUnenrollFactorId === f.id;
                       const displayLabel = sanitizeFactorFriendlyName(
                         f.friendly_name,
@@ -1305,69 +1413,72 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                               </span>
                             </span>
 
-                            <ActionButton
-                              onClick={() => {
-                                if (requiresPasskeyStepUp) {
-                                  useStore.getState().pushStatus(
-                                    t(
-                                      "auth_passkey_stepup_required_desc",
-                                      "Your account already has an active FIDO2 Passkey. To prevent unauthorized credential enrollment from stolen sessions or passwords, you must authenticate with an existing Passkey on this device before adding or modifying security factors."
-                                    ),
-                                    "error"
-                                  );
-                                  return;
+                            {requiresPasskeyStepUp && isPasskey ? (
+                              <ActionButton
+                                onClick={handlePasskeyStepUp}
+                                disabled={verifyingStepUp}
+                                variant="glass"
+                                icon={t("icon_passkey", "passkey")}
+                                label={
+                                  verifyingStepUp
+                                    ? t("btn_verifying_passkey", "Verifying Passkey...")
+                                    : t("btn_verify_2fa", "Verify")
                                 }
-                                if (isLastRequiredPasskey) {
-                                  useStore.getState().pushStatus(
-                                    t(
-                                      "auth_passkey_last_required_err",
-                                      "Elevated roles must keep at least one active FIDO2 Passkey. Register a backup Passkey before removing this one."
-                                    ),
-                                    "error"
-                                  );
-                                  return;
+                                className="!px-3 !py-1.5 !text-[10px]"
+                              />
+                            ) : (
+                              <ActionButton
+                                onClick={() => {
+                                  if (requiresPasskeyStepUp) {
+                                    useStore.getState().pushStatus(
+                                      t(
+                                        "auth_passkey_stepup_required_desc",
+                                        "Your account already has an active FIDO2 Passkey. To prevent unauthorized credential enrollment from stolen sessions or passwords, you must authenticate with an existing Passkey on this device before adding or modifying security factors."
+                                      ),
+                                      "error"
+                                    );
+                                    return;
+                                  }
+                                  if (isLastRequiredPasskey) {
+                                    useStore.getState().pushStatus(
+                                      t(
+                                        "auth_passkey_last_required_err",
+                                        "Elevated roles must keep at least one active FIDO2 Passkey. Register a backup Passkey before removing this one."
+                                      ),
+                                      "error"
+                                    );
+                                    return;
+                                  }
+                                  setPendingUnenrollFactorId(isPendingRemoval ? null : f.id);
+                                  setCurrentPasswordInput("");
+                                }}
+                                disabled={isLastRequiredPasskey || requiresPasskeyStepUp}
+                                variant="glass"
+                                icon={
+                                  isLastRequiredPasskey || requiresPasskeyStepUp
+                                    ? t("icon_lock", "lock")
+                                    : t("icon_delete", "delete")
                                 }
-                                setPendingUnenrollFactorId(isPendingRemoval ? null : f.id);
-                                setCurrentPasswordInput("");
-                              }}
-                              disabled={isLastRequiredPasskey || requiresPasskeyStepUp}
-                              variant="glass"
-                              icon={
-                                isLastRequiredPasskey || requiresPasskeyStepUp
-                                  ? t("icon_lock", "lock")
-                                  : t("icon_delete", "delete")
-                              }
-                              label={
-                                requiresPasskeyStepUp
-                                  ? t("auth_passkey_stepup_locked_badge", "Step-Up Locked")
-                                  : isLastRequiredPasskey
-                                    ? t("passkey_min_one_required_badge", "Required for Role")
-                                    : isPasskey
-                                      ? t("btn_remove_passkey", "Remove Passkey")
-                                      : t("btn_disable_2fa", "Disable 2FA")
-                              }
-                              className="!px-3 !py-1.5 !text-[10px]"
-                            />
+                                label={
+                                  requiresPasskeyStepUp
+                                    ? t("auth_passkey_stepup_locked_badge", "Step-Up Locked")
+                                    : isLastRequiredPasskey
+                                      ? t("passkey_min_one_required_badge", "Required for Role")
+                                      : isPasskey
+                                        ? t("btn_remove_passkey", "Remove Passkey")
+                                        : t("btn_disable_2fa", "Disable 2FA")
+                                }
+                                className="!px-3 !py-1.5 !text-[10px]"
+                              />
+                            )}
                           </div>
 
                           {isPendingRemoval && (
                             <form
                               onSubmit={confirmUnenrollFactor}
-                              className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-3 animate-in fade-in duration-200"
+                              className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-2.5 animate-in fade-in duration-200"
                             >
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
-                                  {t("auth_mfa_disable_confirm_title", "Confirm Two-Factor Removal")}
-                                </span>
-                                <p className="text-[11px] text-[var(--subtext)] leading-snug m-0">
-                                  {t(
-                                    "auth_mfa_disable_confirm_desc",
-                                    "Enter your current password to confirm disabling Two-Factor Authentication."
-                                  )}
-                                </p>
-                              </div>
-
-                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                                 <input
                                   type="password"
                                   value={currentPasswordInput}
@@ -1378,7 +1489,7 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                                   )}
                                   autoComplete="current-password"
                                   autoFocus
-                                  className="flex-1 glass-surface rounded-xl px-3.5 py-2.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+                                  className="flex-1 glass-surface rounded-xl px-3 py-2 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_14%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
                                 />
                                 <div className="flex items-center gap-2 shrink-0">
                                   <ActionButton
@@ -1390,7 +1501,7 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                                     variant="glass"
                                     icon={t("icon_close", "close")}
                                     label={t("cancel", "Cancel")}
-                                    className="!px-3.5 !py-2.5"
+                                    className="!px-3 !py-2 !text-[10px]"
                                   />
                                   <ActionButton
                                     type="submit"
@@ -1398,7 +1509,7 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                                     variant="glass"
                                     icon={t("icon_check", "check")}
                                     label={t("confirm", "Confirm")}
-                                    className="!px-4 !py-2.5"
+                                    className="!px-3.5 !py-2 !text-[10px]"
                                   />
                                 </div>
                               </div>
@@ -1407,9 +1518,430 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
                         </div>
                       );
                     })}
+
+                    {/* Compact Add Card / Inline Enrollment Row */}
+                    {!requiresPasskeyStepUp &&
+                      (mfaEnrollTab === "passkey" ? (
+                        !isPasskeyFormOpen ? (
+                        <div
+                          onClick={() => {
+                            setShowAddPasskeyForm(true);
+                            setPasskeyError("");
+                          }}
+                          className="glass-panel rounded-2xl p-3.5 flex flex-col justify-between gap-3 border border-dashed border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] cursor-pointer transition-all group"
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                              <span className="material-symbols-outlined !text-[19px]">
+                                {t("icon_add", "add")}
+                              </span>
+                            </div>
+                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                              <span className="text-xs md:text-sm font-black text-[var(--text)] truncate leading-snug">
+                                {t("auth_btn_add_passkey", "Add Passkey")}
+                              </span>
+                              <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80 line-clamp-1">
+                                {t(
+                                  "auth_card_add_passkey_sub",
+                                  "Windows Hello, Touch ID, 1Password, Bitwarden, or YubiKey"
+                                )}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 mt-auto">
+                            <span className={`${VAULT_CHIP_CLASS} !px-2 !py-0.5`}>
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                {t("icon_verified_user", "verified_user")}
+                              </span>
+                              <span>{t("auth_passkey_badge_fido", "FIDO2 Passkey")}</span>
+                            </span>
+                            <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] opacity-80 group-hover:translate-x-0.5 transition-transform">
+                              {t("icon_arrow_forward", "arrow_forward")}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <form
+                          onSubmit={handleRegisterPasskey}
+                          className="sm:col-span-2 glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col gap-3 animate-in fade-in duration-200"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                                <span className="material-symbols-outlined !text-[17px]">
+                                  {t("icon_passkey", "passkey")}
+                                </span>
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-black text-[var(--text)] truncate">
+                                  {t(
+                                    "auth_passkey_register_section_title",
+                                    "Register FIDO2 Passkey (Recommended)"
+                                  )}
+                                </span>
+                                <span className="text-[11px] font-medium text-[var(--subtext)] truncate">
+                                  {t(
+                                    "auth_card_add_passkey_sub",
+                                    "Windows Hello, Touch ID, 1Password, Bitwarden, or YubiKey"
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+
+                            {passkeys.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowAddPasskeyForm(false);
+                                  setPasskeyError("");
+                                }}
+                                className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center shrink-0 cursor-pointer"
+                              >
+                                <span className="material-symbols-outlined !text-[15px]">
+                                  {t("icon_close", "close")}
+                                </span>
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                                {t("auth_passkey_name_label", "Passkey Device Label")}
+                              </label>
+                              <input
+                                type="text"
+                                value={passkeyNameInput}
+                                onChange={(e) => setPasskeyNameInput(e.target.value)}
+                                placeholder={t(
+                                  "auth_passkey_name_placeholder",
+                                  "e.g. Windows Hello, MacBook Touch ID, YubiKey 5C..."
+                                )}
+                                className="w-full glass-surface rounded-xl px-3 py-2 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+                              />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                                {t("auth_current_password_label", "Current Password (Required)")}
+                              </label>
+                              <input
+                                type="password"
+                                value={enrollPasswordInput}
+                                onChange={(e) => setEnrollPasswordInput(e.target.value)}
+                                placeholder={t(
+                                  "auth_current_password_ph",
+                                  "Enter your current password to verify..."
+                                )}
+                                autoComplete="current-password"
+                                className="w-full glass-surface rounded-xl px-3 py-2 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+                              />
+                            </div>
+                          </div>
+
+                          {passkeyError && (
+                            <div className="px-3 py-2 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] text-xs font-bold leading-relaxed flex items-start gap-2">
+                              <span className="material-symbols-outlined !text-[15px] shrink-0 mt-0.5">
+                                {t("icon_error", "error")}
+                              </span>
+                              <span>{passkeyError}</span>
+                            </div>
+                          )}
+
+                          <div className="pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-snug">
+                              {t(
+                                "auth_passkey_enroll_password_desc",
+                                "Confirm your current account password to authorize registering this FIDO2 Passkey."
+                              )}
+                            </span>
+                            <ActionButton
+                              type="submit"
+                              disabled={registeringPasskey || !enrollPasswordInput.trim()}
+                              variant="glass"
+                              icon={t("icon_passkey", "passkey")}
+                              label={
+                                registeringPasskey
+                                  ? t("btn_registering_passkey", "Waiting for Passkey Prompt...")
+                                  : t("btn_register_passkey", "Register Passkey")
+                              }
+                              className="shrink-0 !px-4 !py-2"
+                            />
+                          </div>
+                        </form>
+                      )
+                    ) : !qrCode ? (
+                      <div
+                        onClick={() => {
+                          if (!enrolling) startEnrollment();
+                        }}
+                        className="glass-panel rounded-2xl p-3.5 flex flex-col justify-between gap-3 border border-dashed border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] cursor-pointer transition-all group"
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                            <span className="material-symbols-outlined !text-[19px]">
+                              {t("icon_add", "add")}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                            <span className="text-xs md:text-sm font-black text-[var(--text)] truncate leading-snug">
+                              {t("btn_enroll_totp_app", "Set Up Authenticator App")}
+                            </span>
+                            <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80 line-clamp-1">
+                              {t(
+                                "auth_card_add_totp_sub",
+                                "Google Authenticator, Authy, 1Password, or Bitwarden 6-digit code"
+                              )}
+                            </span>
+                          </div>
+                        </div>
+
+                        {enrollError && (
+                          <div className="text-[11px] font-bold text-[var(--danger)]">
+                            {enrollError}
+                          </div>
+                        )}
+
+                        <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2 mt-auto">
+                          <span className={`${VAULT_CHIP_CLASS} !px-2 !py-0.5`}>
+                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                              {t("icon_qr_code_scanner", "qr_code_scanner")}
+                            </span>
+                            <span>{t("auth_passkey_badge_totp", "Authenticator App")}</span>
+                          </span>
+                          <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] opacity-80 group-hover:translate-x-0.5 transition-transform">
+                            {t("icon_arrow_forward", "arrow_forward")}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="sm:col-span-2 glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] grid grid-cols-1 sm:grid-cols-[128px_1fr] gap-4 items-center animate-in fade-in duration-200">
+                        <div className="bg-white p-2.5 rounded-2xl shadow-lg flex items-center justify-center mx-auto sm:mx-0">
+                          <img
+                            src={
+                              qrCode.startsWith("data:")
+                                ? qrCode
+                                : `data:image/svg+xml;utf8,${encodeURIComponent(qrCode)}`
+                            }
+                            alt={t("auth_2fa_scan_qr", "Scan QR Code")}
+                            className="w-28 h-28 object-contain"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-2.5 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex flex-col">
+                              <span className="text-xs font-black text-[var(--text)]">
+                                {t("auth_2fa_scan_qr", "Scan QR Code")}
+                              </span>
+                              <span className="text-[11px] font-medium text-[var(--subtext)]">
+                                {t(
+                                  "auth_2fa_scan_desc",
+                                  "Scan this QR code with your authenticator app."
+                                )}
+                              </span>
+                            </div>
+                          </div>
+
+                          {totpSecret && (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                readOnly
+                                value={totpSecret}
+                                className="flex-1 min-w-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl px-3 py-1.5 text-[11px] font-mono font-bold text-[var(--text)] outline-none select-all"
+                              />
+                              <ActionButton
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(totpSecret);
+                                  useStore
+                                    .getState()
+                                    .pushStatus(
+                                      t("auto_copied_to_clipboard_45", "Copied to clipboard!"),
+                                      "success"
+                                    );
+                                }}
+                                variant="glass"
+                                icon={t("icon_content_copy", "content_copy")}
+                                label={t("btn_copy_key", "Copy Key")}
+                                className="!px-3 !py-1.5 !text-[10px] shrink-0"
+                              />
+                            </div>
+                          )}
+
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                            <input
+                              type="text"
+                              placeholder={t("auth_2fa_placeholder_code", "000000")}
+                              value={verifyCode}
+                              onChange={(e) => setVerifyCode(e.target.value)}
+                              className="flex-1 glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] rounded-xl px-3 py-2 text-xs font-mono font-black text-[var(--text)] text-center tracking-[0.28em] focus:outline-none focus:border-[var(--accent)] transition-colors"
+                              maxLength={6}
+                            />
+                            <div className="flex items-center gap-2 shrink-0">
+                              <ActionButton
+                                type="button"
+                                onClick={cancelEnrollment}
+                                variant="glass"
+                                icon={t("icon_close", "close")}
+                                label={t("cancel", "Cancel")}
+                                className="!px-3 !py-2 !text-[10px]"
+                              />
+                              <ActionButton
+                                type="button"
+                                onClick={verifyEnrollment}
+                                disabled={verifyCode.length < 6 || enrolling}
+                                variant="glass"
+                                icon={t("icon_check", "check")}
+                                label={t("btn_verify_2fa", "Verify")}
+                                className="!px-3.5 !py-2 !text-[10px]"
+                              />
+                            </div>
+                          </div>
+
+                          {enrollError && (
+                            <div className="text-[11px] font-bold text-[var(--danger)]">
+                              {enrollError}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </UniversalGroup>
               )}
+
+              {/* Citizen Account Security Lockdown Policy */}
+              <UniversalGroup
+                title={t("auth_policy_section_title", "{Citizen} Security Lockdown")}
+                icon={t("icon_shield_lock", "shield_lock")}
+                headerAction={
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_security", "security")}
+                    </span>
+                    <span>{t("active", "Active")}</span>
+                  </span>
+                }
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* 1. Require 2FA / Passkey on Sign-In */}
+                  <div
+                    onClick={() => {
+                      if (factors.length > 0 && !savingPolicy) {
+                        handleToggleCitizenPolicy(
+                          "enforceLoginMfa",
+                          !citizenPolicy.enforceLoginMfa
+                        );
+                      }
+                    }}
+                    className={`glass-panel rounded-2xl p-3.5 flex flex-col justify-between gap-2.5 border transition-all ${
+                      factors.length === 0
+                        ? "opacity-60 cursor-not-allowed border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
+                        : "cursor-pointer border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {t("icon_login", "login")}
+                          </span>
+                        </div>
+                        <span className="text-xs font-black text-[var(--text)] leading-snug">
+                          {t("auth_policy_login_mfa_title", "Require 2FA / Passkey on Sign-In")}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        disabled={factors.length === 0 || savingPolicy}
+                        aria-checked={factors.length > 0 && citizenPolicy.enforceLoginMfa}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (factors.length > 0 && !savingPolicy) {
+                            handleToggleCitizenPolicy(
+                              "enforceLoginMfa",
+                              !citizenPolicy.enforceLoginMfa
+                            );
+                          }
+                        }}
+                        className={`sa-glass-toggle shrink-0 ${
+                          factors.length > 0 && citizenPolicy.enforceLoginMfa ? "is-on" : ""
+                        }`}
+                      >
+                        <span className="sa-glass-toggle-thumb" />
+                      </button>
+                    </div>
+                    <p className="text-[11px] font-medium text-[var(--subtext)] leading-relaxed m-0">
+                      {t(
+                        "auth_policy_login_mfa_desc",
+                        "Block password-only logins; require FIDO2 Passkey or 2FA verification on every new sign-in."
+                      )}
+                    </p>
+                  </div>
+
+                  {/* 2. Per-Session FIDO2 Lockdown (Full Account Gate) */}
+                  <div
+                    onClick={() => {
+                      if (passkeys.length > 0 && !savingPolicy) {
+                        handleToggleCitizenPolicy(
+                          "enforceSessionLock",
+                          !citizenPolicy.enforceSessionLock
+                        );
+                      }
+                    }}
+                    className={`glass-panel rounded-2xl p-3.5 flex flex-col justify-between gap-2.5 border transition-all ${
+                      passkeys.length === 0
+                        ? "opacity-60 cursor-not-allowed border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
+                        : "cursor-pointer border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined !text-[16px]">
+                            {t("icon_lock", "lock")}
+                          </span>
+                        </div>
+                        <span className="text-xs font-black text-[var(--text)] leading-snug">
+                          {t("auth_policy_session_lock_title", "Per-Session FIDO2 Lockdown")}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        disabled={passkeys.length === 0 || savingPolicy}
+                        aria-checked={passkeys.length > 0 && citizenPolicy.enforceSessionLock}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (passkeys.length > 0 && !savingPolicy) {
+                            handleToggleCitizenPolicy(
+                              "enforceSessionLock",
+                              !citizenPolicy.enforceSessionLock
+                            );
+                          }
+                        }}
+                        className={`sa-glass-toggle shrink-0 ${
+                          passkeys.length > 0 && citizenPolicy.enforceSessionLock
+                            ? "is-on"
+                            : ""
+                        }`}
+                      >
+                        <span className="sa-glass-toggle-thumb" />
+                      </button>
+                    </div>
+                    <p className="text-[11px] font-medium text-[var(--subtext)] leading-relaxed m-0">
+                      {t(
+                        "auth_policy_session_lock_desc",
+                        "Lock your entire account like an Elevated Hub—requiring a live FIDO2 Passkey or Companion Handshake on every session launch."
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </UniversalGroup>
             </>
           )}
         </div>

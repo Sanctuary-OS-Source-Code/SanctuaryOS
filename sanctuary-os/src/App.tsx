@@ -51,6 +51,7 @@ import Blueprints from "./Blueprints";
 import StagingPayloadEditor from "./components/StagingPayloadEditor";
 import { DevBuildClearanceGate } from "./components/DevBuildClearanceGate";
 import { ElevatedPasskeyGate, CompanionPasskeyHandshakeApprover } from "./components/ElevatedPasskeyGate";
+import { getCitizenSecurityPolicy } from "./utils/passkeyUtils";
 import Vault from "./Vault";
 import Lab from "./Lab";
 import { scrubLogUserData, buildFormattedLabReportText, extractReportLoadoutFromLogAndContext } from "./utils/logScrubber";
@@ -3809,7 +3810,15 @@ function App() {
                   {(view === "landing" || ((!isConfigured || (!isDesktop() && isRootDomain())) && view !== "settings" && view !== "KeepersCore")) ? (
                     <WebLandingPage />
                   ) : (
-                    <>
+                    <ElevatedPasskeyGate
+                      requirePasskey={Boolean(
+                        session?.user?.id &&
+                          getCitizenSecurityPolicy(session).enforceSessionLock &&
+                          !["ArchitectHub", "Oversight", "WayfinderHub", "KeepersCore"].includes(view)
+                      )}
+                      roleLabelKey="auth_citizen_lockdown_role_label"
+                      roleLabelFallback="{Citizen} Account Lockdown"
+                    >
                       {(view === "dashboard" || view === "BlueprintArchitect") && (
                         <div style={{ width: '100%', height: '100%' }}>
                           <ErrorBoundary moduleName="Command Center">
@@ -4074,7 +4083,7 @@ function App() {
                           />
                         </ErrorBoundary>
                       )}
-                    </>
+                    </ElevatedPasskeyGate>
                   )}
                 </>
               )}

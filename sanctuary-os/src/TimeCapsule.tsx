@@ -170,6 +170,33 @@ export default function TimeCapsule({
     return true;
   };
 
+  const { oldestWorldName, oldestEngineName } = useMemo(() => {
+    const allWorld: any[] = [];
+    const allEngine: any[] = [];
+    (backupList || []).forEach((b: any) => {
+      const name = typeof b === "string" ? b : b?.name || "";
+      if (!name) return;
+      const sig = getBackupSignature ? getBackupSignature(name) : null;
+      const isEng = sig ? sig.isEngine : name.toLowerCase().includes("engine");
+      if (isEng) allEngine.push(b);
+      else allWorld.push(b);
+    });
+    allWorld.sort(
+      (a: any, b: any) => getBackupTimestamp(b) - getBackupTimestamp(a)
+    );
+    allEngine.sort(
+      (a: any, b: any) => getBackupTimestamp(b) - getBackupTimestamp(a)
+    );
+    const lastWorld = allWorld[allWorld.length - 1];
+    const lastEngine = allEngine[allEngine.length - 1];
+    return {
+      oldestWorldName:
+        typeof lastWorld === "string" ? lastWorld : lastWorld?.name || null,
+      oldestEngineName:
+        typeof lastEngine === "string" ? lastEngine : lastEngine?.name || null,
+    };
+  }, [backupList, getBackupSignature]);
+
   // Sorted Newest to Oldest
   const worldBackups = useMemo(() => {
     return (backupList || [])
@@ -272,11 +299,11 @@ export default function TimeCapsule({
 
         {/* Inset Dashed Create-Slot Frame */}
         <div
-          className={`pointer-events-none absolute inset-2.5 rounded-[calc(var(--radius)-8px)] border-2 border-dashed transition-colors duration-300 z-10 ${themeDashedBorder}`}
+          className={`pointer-events-none absolute inset-2 rounded-[calc(var(--radius)-6px)] border border-dashed transition-colors duration-300 z-10 ${themeDashedBorder}`}
         />
 
         {/* Top Header Pill Row */}
-        <div className="flex items-center justify-between gap-2 px-1.5 pt-0.5 relative z-20">
+        <div className="flex items-center justify-between gap-2 px-2 pt-1 relative z-20">
           <span
             className={`px-2.5 py-1 rounded-lg border bg-transparent ${themeBorder} ${themeColor} text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 shrink-0`}
           >
@@ -286,7 +313,7 @@ export default function TimeCapsule({
             <span>{t("tc_card_new_badge", "New Snapshot")}</span>
           </span>
 
-          <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] inline-flex items-center gap-1.5 truncate">
+          <span className="px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] inline-flex items-center gap-1.5 truncate">
             <span
               className={`material-symbols-outlined !text-[11px] ${themeColor}`}
             >
@@ -302,18 +329,18 @@ export default function TimeCapsule({
         </div>
 
         {/* Center Hero Add Medallion & Copy */}
-        <div className="flex flex-col items-center justify-center text-center gap-2.5 my-auto py-3 px-3 relative z-20">
+        <div className="flex flex-col items-center justify-center text-center gap-2.5 my-auto py-2 px-3 relative z-20">
           <div className="relative mb-0.5">
             <div
               className={`pointer-events-none absolute -inset-1.5 rounded-[18px] border border-dashed opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300 ${themeBorder}`}
             />
             <div
-              className={`w-14 h-14 rounded-2xl glass-surface border ${themeBorder} ${themeColor} flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 relative`}
+              className={`w-13 h-13 rounded-2xl glass-surface border ${themeBorder} ${themeColor} flex items-center justify-center shadow-lg group-hover:scale-110 transition-all duration-300 relative`}
               style={{
                 boxShadow: `0 8px 24px -6px color-mix(in srgb, ${accentVar} 35%, transparent)`,
               }}
             >
-              <span className="material-symbols-outlined !text-[28px]">
+              <span className="material-symbols-outlined !text-[26px]">
                 {t("icon_add", "add")}
               </span>
               <span
@@ -346,11 +373,18 @@ export default function TimeCapsule({
                   )}
             </p>
           </div>
+
+          <span className={VAULT_CHIP_CLASS}>
+            <span className={`material-symbols-outlined !text-[12px] ${themeColor}`}>
+              {t("icon_shield_lock", "shield_lock")}
+            </span>
+            <span>{t("tc_cow_badge", "Copy-on-Write Protected")}</span>
+          </span>
         </div>
 
         {/* Bottom Full-Width Action Bar */}
         <div
-          className="px-1.5 pb-0.5 pt-1 relative z-20 w-full"
+          className="px-2 pb-1 pt-1 relative z-20 w-full"
           onClick={(e) => e.stopPropagation()}
         >
           {!isConfirming ? (
@@ -365,37 +399,34 @@ export default function TimeCapsule({
               <span>{t("create_new_snapshot", "Create New Snapshot")}</span>
             </button>
           ) : (
-            <div className="flex items-center justify-between gap-2 w-full h-9 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)]">
-              <span
-                className={`text-[9px] font-black uppercase tracking-wider ${themeColor} truncate`}
+            <div className="grid grid-cols-2 gap-2 w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isEngine) {
+                    triggerFullEngineBackup && triggerFullEngineBackup();
+                  } else {
+                    triggerPrePatchSnapshot && triggerPrePatchSnapshot();
+                  }
+                  setConfirming(false);
+                }}
+                className={`w-full h-9 rounded-xl glass-surface border ${themeBorder} ${themeColor} hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer`}
               >
-                {isEngine
-                  ? t("confirm_seal_engine_prompt", "Seal Engine Core?")
-                  : t("confirm_seal_world_prompt", "Seal World State?")}
-              </span>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isEngine) {
-                      triggerFullEngineBackup && triggerFullEngineBackup();
-                    } else {
-                      triggerPrePatchSnapshot && triggerPrePatchSnapshot();
-                    }
-                    setConfirming(false);
-                  }}
-                  className={`px-2.5 h-6 rounded-lg border bg-transparent ${themeBorder} ${themeColor} hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer`}
-                >
-                  {t("confirm", "Confirm")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirming(false)}
-                  className="px-2.5 h-6 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                >
-                  {t("cancel", "Cancel")}
-                </button>
-              </div>
+                <span className="material-symbols-outlined !text-[14px]">
+                  {t("icon_check", "check")}
+                </span>
+                <span>{t("confirm", "Confirm")}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                className="w-full h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <span className="material-symbols-outlined !text-[14px]">
+                  {t("icon_close", "close")}
+                </span>
+                <span>{t("cancel", "Cancel")}</span>
+              </button>
             </div>
           )}
         </div>
@@ -422,11 +453,9 @@ export default function TimeCapsule({
       !rawAlias ||
       rawAlias.toLowerCase() === "world state" ||
       rawAlias.toLowerCase() === "engine core";
-    const title = isDefaultAlias
-      ? isEngine
-        ? t("engine_full", "Engine Core")
-        : t("world_state", "World State")
-      : rawAlias;
+    const categoryLabel = isEngine
+      ? t("engine_full", "Engine Core")
+      : t("world_state", "World State");
     const icon = isEngine
       ? t("icon_settings", "settings")
       : t("icon_public", "public");
@@ -443,9 +472,11 @@ export default function TimeCapsule({
 
     const versionLabel = sig?.version || backupName.replace(".tar.zst", "");
     const isLatest = index === 0;
-    const isZeroDelta = sizeMb <= 0.00005;
+    const isBaselineSnapshot =
+      backupName === (isEngine ? oldestEngineName : oldestWorldName);
+    const isZeroDelta = !isBaselineSnapshot && sizeMb <= 0.00005;
     const showSeparateLogicalSize =
-      logicalSizeMb > 0 && Math.abs(logicalSizeMb - sizeMb) > 0.05;
+      !isBaselineSnapshot && logicalSizeMb > 0;
     const isConfirmingRestore = confirmRestoreBackup === backupName;
     const isConfirmingDelete = confirmDeleteBackup === backupName;
 
@@ -454,21 +485,43 @@ export default function TimeCapsule({
         ? new Date(Number(sig.timestamp) * 1000).toLocaleDateString()
         : "";
 
+    const cardTitle = isDefaultAlias ? versionLabel : rawAlias;
+    const cardSubtitle = isDefaultAlias
+      ? formattedDate
+        ? `${categoryLabel} • ${formattedDate}`
+        : categoryLabel
+      : formattedDate
+        ? `${versionLabel} • ${formattedDate}`
+        : versionLabel;
+
+    const bannerTopRight = isLatest
+      ? t("lineage_latest", "Latest")
+      : formattedDate || t("verified", "Verified");
+
+    const bannerBottom = isBaselineSnapshot
+      ? t("tc_cow_baseline_status", "Copy-on-Write • Baseline")
+      : isZeroDelta
+        ? t("tc_cow_dedup_status", "Copy-on-Write • 0 MB Delta")
+        : `${t("tc_badge_delta", "Delta")}: ${formatSizeMb(sizeMb)} / ${formatSizeMb(logicalSizeMb || sizeMb)}`;
+
     return (
       <UniversalCard
         key={backupName}
         layout="vertical"
-        title={versionLabel}
-        subtitle={title}
+        title={cardTitle}
+        subtitle={cardSubtitle}
         icon={icon}
+        bannerTopLabel={categoryLabel}
+        bannerTopRightLabel={bannerTopRight}
+        bannerBottomLabel={bannerBottom}
         onClick={() => {
           setSelectedBackupForInspection(backupName);
           setIsSidePanelOpen(true);
         }}
         onContextMenu={(e) => {
           openSanctuaryContextMenu(e, {
-            title: versionLabel,
-            subtitle: title,
+            title: cardTitle,
+            subtitle: cardSubtitle,
             statusLabel: isZeroDelta
               ? t("tc_delta_filter_dedup", "Hardlinked")
               : formatSizeMb(sizeMb),
@@ -509,20 +562,16 @@ export default function TimeCapsule({
           });
         }}
         className={themeHoverBorder}
-        imageOverlay={
-          isLatest ? (
-            <div className="absolute top-2.5 left-2.5 z-30 pointer-events-none">
-              <div className={VAULT_CHIP_CLASS}>
+        badges={
+          <>
+            {isLatest && (
+              <div className="px-2 py-0.5 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--success)] inline-flex items-center gap-1 whitespace-nowrap">
                 <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                   {t("icon_check_circle", "check_circle")}
                 </span>
                 <span>{t("lineage_latest", "Latest")}</span>
               </div>
-            </div>
-          ) : undefined
-        }
-        badges={
-          <>
+            )}
             <div className={VAULT_CHIP_CLASS}>
               <span
                 className={`material-symbols-outlined !text-[12px] ${
@@ -534,9 +583,11 @@ export default function TimeCapsule({
                   : t("icon_hard_drive", "hard_drive")}
               </span>
               <span>
-                {isZeroDelta
-                  ? t("tc_delta_filter_dedup", "Hardlinked")
-                  : formatSizeMb(sizeMb)}
+                {isBaselineSnapshot
+                  ? `${t("tc_delta_badge_baseline", "Baseline")}: ${formatSizeMb(logicalSizeMb || sizeMb)}`
+                  : isZeroDelta
+                    ? t("tc_delta_filter_dedup", "Hardlinked")
+                    : `${t("tc_badge_delta", "Delta")}: ${formatSizeMb(sizeMb)}`}
               </span>
             </div>
             {showSeparateLogicalSize && (
@@ -544,7 +595,9 @@ export default function TimeCapsule({
                 <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
                   {t("icon_inventory_2", "inventory_2")}
                 </span>
-                <span>{formatSizeMb(logicalSizeMb)}</span>
+                <span>
+                  {`${t("tc_badge_total", "Total")}: ${formatSizeMb(logicalSizeMb)}`}
+                </span>
               </div>
             )}
           </>
@@ -555,63 +608,59 @@ export default function TimeCapsule({
             onClick={(e) => e.stopPropagation()}
           >
             {isConfirmingRestore ? (
-              <div className="flex items-center justify-between gap-2 w-full">
-                <span
-                  className={`text-[9px] font-black uppercase tracking-wider ${themeColor} truncate`}
+              <div className="grid grid-cols-2 gap-2 w-full">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmRestoreBackup(null);
+                    useModalStore
+                      .getState()
+                      .setRestoreType(isEngine ? "engine" : "world");
+                    if (restoreGameBackup) restoreGameBackup(backupName);
+                  }}
+                  className={`w-full h-8 rounded-xl glass-surface border ${themeBorder} ${themeColor} hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[10px] font-black uppercase tracking-wider inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer`}
                 >
-                  {isEngine
-                    ? t("confirm_restore_engine_card", "Confirm Engine Restore")
-                    : t("confirm_restore_state", "Confirm Restore")}
-                </span>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setConfirmRestoreBackup(null);
-                      useModalStore
-                        .getState()
-                        .setRestoreType(isEngine ? "engine" : "world");
-                      if (restoreGameBackup) restoreGameBackup(backupName);
-                    }}
-                    className={`px-2.5 h-7 rounded-lg border bg-transparent ${themeBorder} ${themeColor} hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer`}
-                  >
-                    {t("confirm", "Confirm")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmRestoreBackup(null)}
-                    className="px-2.5 h-7 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                  >
-                    {t("btn_cancel", "Cancel")}
-                  </button>
-                </div>
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_check", "check")}
+                  </span>
+                  <span>{t("confirm", "Confirm")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmRestoreBackup(null)}
+                  className="w-full h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[10px] font-black uppercase tracking-wider inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_close", "close")}
+                  </span>
+                  <span>{t("btn_cancel", "Cancel")}</span>
+                </button>
               </div>
             ) : isConfirmingDelete ? (
-              <div className="flex items-center justify-between gap-2 w-full">
-                <span className="text-[9px] font-black uppercase tracking-wider text-[var(--danger)] truncate">
-                  {isEngine
-                    ? t("confirm_delete_engine_card", "Confirm Engine Delete")
-                    : t("confirm_delete_state", "Confirm Delete")}
-                </span>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setConfirmDeleteBackup(null);
-                      if (deleteBackup) deleteBackup(backupName);
-                    }}
-                    className="px-2.5 h-7 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                  >
-                    {t("confirm", "Confirm")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDeleteBackup(null)}
-                    className="px-2.5 h-7 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                  >
-                    {t("btn_cancel", "Cancel")}
-                  </button>
-                </div>
+              <div className="grid grid-cols-2 gap-2 w-full">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDeleteBackup(null);
+                    if (deleteBackup) deleteBackup(backupName);
+                  }}
+                  className="w-full h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[10px] font-black uppercase tracking-wider inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_check", "check")}
+                  </span>
+                  <span>{t("confirm", "Confirm")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteBackup(null)}
+                  className="w-full h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[10px] font-black uppercase tracking-wider inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_close", "close")}
+                  </span>
+                  <span>{t("btn_cancel", "Cancel")}</span>
+                </button>
               </div>
             ) : (
               <>
@@ -632,9 +681,9 @@ export default function TimeCapsule({
                   <button
                     type="button"
                     onClick={() => setConfirmRestoreBackup(backupName)}
-                    className={`px-2.5 h-7 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:${themeBorder} text-[var(--text)] hover:${themeColor} text-[9px] font-black uppercase tracking-wider inline-flex items-center gap-1 transition-all cursor-pointer`}
+                    className={`px-3 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:${themeBorder} text-[var(--text)] hover:${themeColor} text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition-all cursor-pointer`}
                   >
-                    <span className="material-symbols-outlined !text-[12px]">
+                    <span className="material-symbols-outlined !text-[14px]">
                       {t("icon_restore", "restore")}
                     </span>
                     {t("btn_restore", "Restore")}
@@ -643,9 +692,9 @@ export default function TimeCapsule({
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteBackup(backupName)}
-                    className="w-7 h-7 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all relative cursor-pointer"
+                    className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all relative cursor-pointer"
                   >
-                    <span className="material-symbols-outlined !text-[14px]">
+                    <span className="material-symbols-outlined !text-[15px]">
                       {t("icon_delete", "delete")}
                     </span>
                     <HoverTooltip

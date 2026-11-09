@@ -418,15 +418,25 @@ export function WayfinderDonationSetupSidePanel({ isOpen, onClose }: { isOpen: b
 
   const [processor, setProcessor] = useState("STRIPE");
   const [donationUrl, setDonationUrl] = useState("");
+  const [monthlyGoalDollars, setMonthlyGoalDollars] = useState("25");
+  const [monthlyCoveredDollars, setMonthlyCoveredDollars] = useState("0");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
     const loadCurrent = async () => {
-      const { getLocalPartnerDonationOverride } = await import("../utils/supporterManager");
+      const { getLocalPartnerDonationOverride, getSpokeServerGoalStatus } = await import("../utils/supporterManager");
       const localOverride =
         getLocalPartnerDonationOverride(activeWs?.schema_id) ||
         getLocalPartnerDonationOverride(activeWorkspaceId);
+      const goalStatus = getSpokeServerGoalStatus({
+        id: activeWs?.id || activeWorkspaceId,
+        schema_id: activeWs?.schema_id || activeWorkspaceId,
+        monthly_goal_cents: localOverride?.monthly_goal_cents,
+        monthly_covered_cents: localOverride?.monthly_covered_cents,
+      });
+      setMonthlyGoalDollars(String(goalStatus.goalDollars));
+      setMonthlyCoveredDollars(String(goalStatus.coveredDollars));
       if (localOverride) {
         setDonationUrl(localOverride.donation_url || "");
         setProcessor((localOverride.payment_processor || "STRIPE").toUpperCase());
@@ -458,11 +468,15 @@ export function WayfinderDonationSetupSidePanel({ isOpen, onClose }: { isOpen: b
     setSaving(true);
     try {
       const { savePartnerCommunityDonationConfig } = await import("../utils/supporterManager");
+      const goalCents = Math.max(0, Math.round((parseFloat(monthlyGoalDollars) || 0) * 100));
+      const coveredCents = Math.max(0, Math.round((parseFloat(monthlyCoveredDollars) || 0) * 100));
       await savePartnerCommunityDonationConfig({
         gameId: activeWs?.id || activeWorkspaceId,
         schemaId: activeWs?.schema_id || activeWorkspaceId,
         donationUrl,
         paymentProcessor: processor,
+        monthlyGoalCents: goalCents,
+        monthlyCoveredCents: coveredCents,
       });
       const { syncGameDatabases } = await import("../store");
       await syncGameDatabases();
@@ -570,6 +584,43 @@ export function WayfinderDonationSetupSidePanel({ isOpen, onClose }: { isOpen: b
                 className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3.5 text-sm font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
+                  {t("wf_monthly_goal_dollars_label", "Monthly Server Goal ($ USD)")}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={monthlyGoalDollars}
+                  onChange={(e) => setMonthlyGoalDollars(e.target.value)}
+                  placeholder="25"
+                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
+                  {t("wf_monthly_covered_dollars_label", "Covered This Month ($ USD)")}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={monthlyCoveredDollars}
+                  onChange={(e) => setMonthlyCoveredDollars(e.target.value)}
+                  placeholder="0"
+                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed m-0 px-1">
+              {t(
+                "wf_monthly_goal_hint",
+                "Set your monthly infrastructure cost (e.g., $25 for Supabase Pro) to display a live co-op goal bar on your donation card. Set to 0 to hide the bar.",
+              )}
+            </p>
           </div>
         </UniversalGroup>
 
@@ -594,6 +645,8 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
   const [keepersProcessor, setKeepersProcessor] = useState("STRIPE");
   const [keepersUrl, setKeepersUrl] = useState("");
   const [supportEmail, setSupportEmail] = useState("support@sanctuaryos.gg");
+  const [hubGoalDollars, setHubGoalDollars] = useState("45");
+  const [hubCoveredDollars, setHubCoveredDollars] = useState("25");
   const [liveStableVer, setLiveStableVer] = useState("0.5.7");
   const [liveStableDate, setLiveStableDate] = useState("");
   const [liveDevVer, setLiveDevVer] = useState("");
@@ -611,6 +664,24 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
       setKeepersProcessor(cfg.keepers_payment_processor || "STRIPE");
       setKeepersUrl(cfg.keepers_donation_url || "");
       setSupportEmail(cfg.support_contact_email || "support@sanctuaryos.gg");
+      setHubGoalDollars(
+        String(
+          Math.round(
+            (cfg.monthly_server_goal_cents !== undefined
+              ? Number(cfg.monthly_server_goal_cents)
+              : 4500) / 100,
+          ),
+        ),
+      );
+      setHubCoveredDollars(
+        String(
+          Math.round(
+            (cfg.monthly_server_covered_cents !== undefined
+              ? Number(cfg.monthly_server_covered_cents)
+              : 2500) / 100,
+          ),
+        ),
+      );
       setLiveStableVer(cfg.stable_version || "0.5.7");
       setLiveStableDate(cfg.stable_published_at || "");
       setLiveDevVer(cfg.dev_build_version || "");
@@ -673,10 +744,14 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
     setSaving(true);
     try {
       const { saveKeepersPipelineConfig } = await import("../utils/supporterManager");
+      const goalCents = Math.max(0, Math.round((parseFloat(hubGoalDollars) || 0) * 100));
+      const coveredCents = Math.max(0, Math.round((parseFloat(hubCoveredDollars) || 0) * 100));
       await saveKeepersPipelineConfig({
         keepers_payment_processor: keepersProcessor,
         keepers_donation_url: keepersUrl.trim(),
         support_contact_email: supportEmail.trim() || "support@sanctuaryos.gg",
+        monthly_server_goal_cents: goalCents,
+        monthly_server_covered_cents: coveredCents,
       });
       useStore
         .getState()
@@ -814,6 +889,43 @@ export function KeeperReleasePipelineSidePanel({ isOpen, onClose }: { isOpen: bo
                 className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
+                  {t("wf_monthly_goal_dollars_label", "Monthly Server Goal ($ USD)")}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={hubGoalDollars}
+                  onChange={(e) => setHubGoalDollars(e.target.value)}
+                  placeholder="45"
+                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
+                  {t("wf_monthly_covered_dollars_label", "Covered This Month ($ USD)")}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={hubCoveredDollars}
+                  onChange={(e) => setHubCoveredDollars(e.target.value)}
+                  placeholder="25"
+                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed m-0 px-1">
+              {t(
+                "wf_monthly_goal_hint",
+                "Set your monthly infrastructure cost (e.g., $25 for Supabase Pro) to display a live co-op goal bar on your donation card. Set to 0 to hide the bar.",
+              )}
+            </p>
           </div>
         </UniversalGroup>
 

@@ -213,6 +213,7 @@ export function UniversalCard({
                       .trim();
                   }
                   if (React.isValidElement(node)) {
+                    if (node.type === "button") return "";
                     const props = (node.props as any) || {};
                     const cls = String(props.className || "");
                     const clsTokens = cls.split(/\s+/);
@@ -258,7 +259,10 @@ export function UniversalCard({
                     : "";
                 const footerLeftText = (() => {
                   if (!React.isValidElement(footer)) return "";
-                  const rawChildren = (footer.props as any)?.children;
+                  let rawChildren = (footer.props as any)?.children;
+                  if (React.isValidElement(rawChildren) && rawChildren.type === React.Fragment) {
+                    rawChildren = (rawChildren.props as any)?.children;
+                  }
                   const firstChild = Array.isArray(rawChildren) ? rawChildren[0] : rawChildren;
                   const secondChild = Array.isArray(rawChildren) ? rawChildren[1] : undefined;
                   const secondRaw = secondChild ? extractNodeText(secondChild).trim() : "";

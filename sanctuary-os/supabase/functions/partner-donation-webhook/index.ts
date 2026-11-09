@@ -96,6 +96,15 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    const reqUrl = new URL(req.url);
+    let targetId = (
+      reqUrl.searchParams.get("target") ||
+      reqUrl.searchParams.get("spoke") ||
+      "keepers_core"
+    )
+      .trim()
+      .toLowerCase();
+
     const contentType = req.headers.get("content-type") || "";
     const rawBody = await req.text();
 
@@ -172,10 +181,23 @@ Deno.serve(async (req: Request) => {
 
       if (body.type === "checkout.session.completed" && body.data?.object) {
         const session = body.data.object;
-        userId =
+        const rawRef = String(
           session.client_reference_id ||
-          session.metadata?.sanctuary_user_id ||
-          "";
+            session.metadata?.sanctuary_user_id ||
+            "",
+        );
+        if (rawRef.includes("__")) {
+          const [parsedTarget, parsedUid] = rawRef.split("__");
+          if (parsedTarget) targetId = parsedTarget.trim().toLowerCase();
+          userId = (parsedUid || "").trim();
+        } else {
+          userId = rawRef.trim();
+        }
+        if (session.metadata?.sanctuary_target_id) {
+          targetId = String(session.metadata.sanctuary_target_id)
+            .trim()
+            .toLowerCase();
+        }
         email =
           session.customer_details?.email || session.customer_email || "";
         const amountTotal = Number(session.amount_total || 0);
@@ -236,11 +258,11 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (!userId || amountCents <= 0 || !txNonce) {
+    if (amountCents <= 0 || !txNonce) {
       return new Response(
         JSON.stringify({
           ok: false,
-          error: "Missing user_id/email, amount_cents, or tx_nonce",
+          error: "Missing amount_cents or tx_nonce",
         }),
         {
           status: 400,
@@ -249,24 +271,110 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Call the cumulative stacking RPC via service_role
-    const { data, error } = await supabase.rpc(
-      "register_partner_donation_event",
-      {
-        p_user_id: userId,
-        p_amount_cents: amountCents,
-        p_tx_nonce: txNonce,
-      },
-    );
+    // Automatically tally this verified donation into the current UTC month's ledger (YYYY-MM) for targetId
+    const now = new Date();
+    const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+    const normTarget = (targetId || "keepers_core")
+      .replace(/[^a-z0-9_-]/gi, "")
+      .toLowerCase() || "keepers_core";
+    const ledgerTitle = `LEDGER_${monthKey}_${normTarget.toUpperCase()}`;
 
-    if (error) {
-      throw error;
+    try {
+      const { data: existingLedger } = await supabase
+        .from("keeper_system_broadcasts")
+        .select("id, description, message")
+        .eq("category", "MonthlyDonationLedger")
+        .eq("title", ledgerTitle)
+        .limit(1)
+        .maybeSingle();
+
+      let prevCents = 0;
+      let nonces: string[] = [];
+      if (existingLedger) {
+        try {
+          const parsed = JSON.parse(
+            existingLedger.description || existingLedger.message || "{}",
+          );
+          if (parsed.month_key === monthKey) {
+            prevCents = Math.max(0, Number(parsed.covered_cents || 0));
+            if (Array.isArray(parsed.tx_nonces)) {
+              nonces = parsed.tx_nonces;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!nonces.includes(txNonce)) {
+        const nextNonces = [...nonces.slice(-199), txNonce];
+        const nextCents = prevCents + amountCents;
+        const ledgerPayload = JSON.stringify({
+          month_key: monthKey,
+          target_id: normTarget,
+          covered_cents: nextCents,
+          tx_nonces: nextNonces,
+          updated_at: now.toISOString(),
+        });
+
+        if (existingLedger?.id) {
+          await supabase
+            .from("keeper_system_broadcasts")
+            .update({
+              description: ledgerPayload,
+              message: ledgerPayload,
+              target_audience: "Internal_Pipeline",
+              is_active: true,
+            })
+            .eq("id", existingLedger.id);
+        } else {
+          await supabase.from("keeper_system_broadcasts").insert([
+            {
+              title: ledgerTitle,
+              category: "MonthlyDonationLedger",
+              description: ledgerPayload,
+              message: ledgerPayload,
+              target_audience: "Internal_Pipeline",
+              is_active: true,
+              is_pinned: false,
+            },
+          ]);
+        }
+      }
+    } catch {
+      // Non-fatal if broadcast ledger table is unreachable
     }
 
-    return new Response(JSON.stringify({ ok: true, result: data }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // If donor has a resolved Sanctuary user_id, also stack +30 days per $5 onto their account
+    let rpcResult: any = null;
+    if (userId) {
+      const { data, error } = await supabase.rpc(
+        "register_partner_donation_event",
+        {
+          p_user_id: userId,
+          p_amount_cents: amountCents,
+          p_tx_nonce: txNonce,
+        },
+      );
+      if (error) {
+        throw error;
+      }
+      rpcResult = data;
+    }
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        target_id: normTarget,
+        month_key: monthKey,
+        amount_cents: amountCents,
+        result: rpcResult,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (err: any) {
     return new Response(
       JSON.stringify({ ok: false, error: err?.message || String(err) }),

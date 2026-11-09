@@ -96,12 +96,12 @@ export function SupporterCelebrationSidePanel() {
   const expiryDateStr =
     devBuildUntil > 0
       ? new Date(devBuildUntil * 1000).toLocaleDateString(undefined, {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
       : payload?.expiryDateStr ||
-        t("supporter_active_channel_label", "Active Stream");
+      t("supporter_active_channel_label", "Active Stream");
 
   const totalMonths =
     supporterState?.dev_build?.total_months_unlocked ||
@@ -181,6 +181,17 @@ export function SupporterCelebrationSidePanel() {
               )}
             />
           </div>
+
+          <div className="pt-1 flex items-center justify-between gap-2 flex-wrap">
+            <span className="px-2 py-0.5 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--success)] inline-flex items-center gap-1">
+              <span className="material-symbols-outlined !text-[11px]">
+                {t("icon_workspace_premium", "workspace_premium")}
+              </span>
+              <span>
+                {t("supporter_patron_badge_label", "Foundry Supporter")}
+              </span>
+            </span>
+          </div>
         </SidePanelHeroCard>
 
         <UniversalGroup
@@ -215,10 +226,10 @@ export function SupporterCelebrationSidePanel() {
                 prev
                   ? { ...prev, dev_build: updated }
                   : {
-                      follows: [],
-                      supporters: [],
-                      dev_build: updated,
-                    },
+                    follows: [],
+                    supporters: [],
+                    dev_build: updated,
+                  },
               );
               window.dispatchEvent(
                 new CustomEvent("sanctuary-supporter-updated"),
@@ -252,7 +263,7 @@ export function SupporterCelebrationSidePanel() {
               icon={t("icon_settings", "settings")}
               label={t(
                 "supporter_spoke_open_settings_btn",
-                "Open Full Support & Perks Settings",
+                "Open Support & Perks",
               )}
               onClick={() => {
                 setIsOpen(false);

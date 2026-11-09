@@ -1266,3 +1266,259 @@ CREATE POLICY "Allow public upsert of push subscriptions"
     TO anon, authenticated
     USING (true)
     WITH CHECK (true);
+
+-- ============================================================================
+-- ZERO-KNOWLEDGE CREDENTIAL & SECURITY METADATA RPCs (AAL2 BYPASS FOR FIDO2)
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.sanctuary_update_own_credentials(
+    p_current_password text,
+    p_current_zk_password text DEFAULT NULL,
+    p_new_email text DEFAULT NULL,
+    p_new_password text DEFAULT NULL,
+    p_metadata_patch jsonb DEFAULT '{}'::jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, extensions
+AS $$
+DECLARE
+    v_uid uuid := auth.uid();
+    v_stored_hash text;
+    v_current_email text;
+    v_password_valid boolean := false;
+    v_clean_email text;
+BEGIN
+    IF v_uid IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    SELECT encrypted_password, email
+      INTO v_stored_hash, v_current_email
+      FROM auth.users
+     WHERE id = v_uid;
+
+    IF v_stored_hash IS NULL THEN
+        RAISE EXCEPTION 'Account record not found';
+    END IF;
+
+    IF p_current_zk_password IS NOT NULL AND length(p_current_zk_password) > 0 THEN
+        IF extensions.crypt(p_current_zk_password, v_stored_hash) = v_stored_hash THEN
+            v_password_valid := true;
+        END IF;
+    END IF;
+
+    IF NOT v_password_valid AND p_current_password IS NOT NULL AND length(p_current_password) > 0 THEN
+        IF extensions.crypt(p_current_password, v_stored_hash) = v_stored_hash THEN
+            v_password_valid := true;
+        END IF;
+    END IF;
+
+    IF NOT v_password_valid THEN
+        RAISE EXCEPTION 'Invalid current password';
+    END IF;
+
+    IF p_new_email IS NOT NULL AND length(trim(p_new_email)) > 0 THEN
+        v_clean_email := lower(trim(p_new_email));
+
+        IF EXISTS (
+            SELECT 1 FROM auth.users
+             WHERE lower(email) = v_clean_email
+               AND id <> v_uid
+        ) THEN
+            RAISE EXCEPTION 'Email address is already in use by another account';
+        END IF;
+
+        UPDATE auth.users
+           SET email = v_clean_email,
+               email_confirmed_at = COALESCE(email_confirmed_at, now()),
+               email_change = '',
+               email_change_token_new = '',
+               email_change_token_current = '',
+               raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb)
+                   || jsonb_build_object('email', v_clean_email, 'email_verified', true)
+                   || COALESCE(p_metadata_patch, '{}'::jsonb),
+               updated_at = now()
+         WHERE id = v_uid;
+
+        UPDATE auth.identities
+           SET identity_data = COALESCE(identity_data, '{}'::jsonb) || jsonb_build_object('email', v_clean_email),
+               updated_at = now()
+         WHERE user_id = v_uid
+           AND provider = 'email';
+
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+             WHERE table_schema = 'public'
+               AND table_name = 'profiles'
+               AND column_name = 'email'
+        ) THEN
+            EXECUTE 'UPDATE public.profiles SET email = $1, updated_at = now() WHERE id = $2'
+            USING v_clean_email, v_uid;
+        END IF;
+    ELSIF p_metadata_patch IS NOT NULL AND p_metadata_patch <> '{}'::jsonb THEN
+        UPDATE auth.users
+           SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || p_metadata_patch,
+               updated_at = now()
+         WHERE id = v_uid;
+    END IF;
+
+    IF p_new_password IS NOT NULL AND length(p_new_password) >= 8 THEN
+        UPDATE auth.users
+           SET encrypted_password = extensions.crypt(p_new_password, extensions.gen_salt('bf', 10)),
+               updated_at = now()
+         WHERE id = v_uid;
+    END IF;
+
+    RETURN jsonb_build_object(
+        'ok', true,
+        'email', COALESCE(v_clean_email, v_current_email)
+    );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.sanctuary_update_own_credentials(text, text, text, text, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.sanctuary_update_own_credentials(text, text, text, text, jsonb) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.sanctuary_update_own_security_metadata(
+    p_metadata_patch jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+    v_uid uuid := auth.uid();
+    v_meta jsonb;
+BEGIN
+    IF v_uid IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    UPDATE auth.users
+       SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || COALESCE(p_metadata_patch, '{}'::jsonb),
+           updated_at = now()
+     WHERE id = v_uid
+    RETURNING raw_user_meta_data INTO v_meta;
+
+    RETURN COALESCE(v_meta, '{}'::jsonb);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.sanctuary_update_own_security_metadata(jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.sanctuary_update_own_security_metadata(jsonb) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.sanctuary_reset_own_password_from_recovery(
+    p_new_password text,
+    p_metadata_patch jsonb DEFAULT '{}'::jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, extensions
+AS $$
+DECLARE
+    v_uid uuid := auth.uid();
+    v_meta jsonb;
+BEGIN
+    IF v_uid IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    IF p_new_password IS NULL OR length(p_new_password) < 8 THEN
+        RAISE EXCEPTION 'Password must be at least 8 characters long.';
+    END IF;
+
+    UPDATE auth.users
+       SET encrypted_password = extensions.crypt(p_new_password, extensions.gen_salt('bf', 10)),
+           raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || COALESCE(p_metadata_patch, '{}'::jsonb),
+           updated_at = now()
+     WHERE id = v_uid
+    RETURNING raw_user_meta_data INTO v_meta;
+
+    RETURN jsonb_build_object(
+        'ok', true,
+        'user_metadata', COALESCE(v_meta, '{}'::jsonb)
+    );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.sanctuary_reset_own_password_from_recovery(text, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.sanctuary_reset_own_password_from_recovery(text, jsonb) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.sanctuary_check_recovery_method(
+    p_email text,
+    p_blind_email text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+    v_has_plain boolean := false;
+    v_has_blind boolean := false;
+BEGIN
+    IF p_email IS NOT NULL AND length(trim(p_email)) > 0 THEN
+        SELECT EXISTS(
+            SELECT 1 FROM auth.users WHERE lower(email) = lower(trim(p_email))
+        ) INTO v_has_plain;
+    END IF;
+
+    IF p_blind_email IS NOT NULL AND length(trim(p_blind_email)) > 0 THEN
+        SELECT EXISTS(
+            SELECT 1 FROM auth.users WHERE lower(email) = lower(trim(p_blind_email))
+        ) INTO v_has_blind;
+    END IF;
+
+    RETURN jsonb_build_object(
+        'has_plain_email', v_has_plain,
+        'is_blinded_account', (v_has_blind AND NOT v_has_plain)
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.sanctuary_check_recovery_method(text, text) TO anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.sanctuary_resolve_login_identifier(
+    p_identifier text
+)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+    v_clean text := btrim(COALESCE(p_identifier, ''));
+    v_resolved_email text;
+BEGIN
+    IF v_clean = '' OR position('@' in v_clean) > 0 THEN
+        RETURN NULL;
+    END IF;
+
+    SELECT u.email
+      INTO v_resolved_email
+      FROM public.profiles p
+      JOIN auth.users u ON u.id = p.id
+     WHERE lower(p.username) = lower(v_clean)
+     LIMIT 1;
+
+    IF v_resolved_email IS NULL THEN
+        SELECT u.email
+          INTO v_resolved_email
+          FROM auth.users u
+         WHERE lower(u.raw_user_meta_data->>'username') = lower(v_clean)
+         LIMIT 1;
+    END IF;
+
+    IF v_resolved_email IS NOT NULL AND v_resolved_email LIKE 'zk-%' THEN
+        RETURN v_resolved_email;
+    END IF;
+
+    RETURN NULL;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.sanctuary_resolve_login_identifier(text) TO anon, authenticated, service_role;

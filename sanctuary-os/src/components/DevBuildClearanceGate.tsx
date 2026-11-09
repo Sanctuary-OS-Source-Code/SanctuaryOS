@@ -10,16 +10,16 @@ import { hashString } from "../lib/cryptoUtils";
 import { isDesktop } from "../utils/envUtils";
 import {
   authenticateFidoPasskey,
+  checkAccountRecoveryMethod,
   clearPasskeySessionVerified,
   fetchMfaSecurityState,
   isLocalhostBrowser,
   markPasskeySessionVerified,
-  sanitizeFactorFriendlyName,
+  signInWithZeroKnowledgeFallback,
   syncDevSessionToVite,
 } from "../utils/passkeyUtils";
 import {
   ActionButton,
-  CustomDropdown,
   DashboardStatTile,
   SidePanel,
 } from "../shared";
@@ -458,10 +458,20 @@ export function DevBuildClearanceGate() {
       setIsProcessing(true);
       setAuthStatus(t("status_authenticating", "Authenticating..."));
       try {
+        const recoveryCheck = await checkAccountRecoveryMethod(email);
+        if (recoveryCheck.isBlindedAccount && !recoveryCheck.hasPlainEmail) {
+          setAuthStatus(
+            t(
+              "auth_reset_blinded_email_notice",
+              "This account uses Zero-PII Blinded Email (Subpoena Shield), so no personal email is stored on the server to send a reset link. Use FIDO2 Passkey Recovery below or sign in with your 256-Bit Sovereign Recovery Key.",
+            ),
+          );
+          return;
+        }
         const redirectTo =
           typeof window !== "undefined" ? window.location.origin : undefined;
         const { error } = await supabase.auth.resetPasswordForEmail(
-          email,
+          email.trim(),
           redirectTo ? { redirectTo } : undefined,
         );
         if (error) throw error;
@@ -485,10 +495,10 @@ export function DevBuildClearanceGate() {
     try {
       if (isLogin) {
         clearPasskeySessionVerified();
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await signInWithZeroKnowledgeFallback(
           email,
           password,
-        });
+        );
         if (error) throw error;
 
         if (data?.user) {
@@ -507,12 +517,7 @@ export function DevBuildClearanceGate() {
             if (needsTotpLoginChallenge) {
               if (await prepareMfaChallengeFromState()) {
                 setIsProcessing(false);
-                setAuthStatus(
-                  t(
-                    "auth_mfa_required_title",
-                    "Two-Factor Authentication Required",
-                  ),
-                );
+                setAuthStatus("");
                 return;
               }
             }
@@ -847,7 +852,7 @@ export function DevBuildClearanceGate() {
               {mfaMode === "passkey" && mfaPasskeys.length > 0 ? (
                 <form
                   onSubmit={handlePasskeyMfaAuth}
-                  className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col"
+                  className="glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col shrink-0"
                   noValidate
                 >
                   <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
@@ -867,41 +872,13 @@ export function DevBuildClearanceGate() {
                     </span>
                   </div>
 
-                  <div className="p-4 flex flex-col gap-4">
+                  <div className="p-4 flex flex-col gap-3.5">
                     <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
                       {t(
                         "auth_mfa_passkey_prompt_desc",
                         "Verify your identity using your enrolled FIDO2 Passkey or hardware security key.",
                       )}
                     </p>
-
-                    {mfaPasskeys.length > 1 && (
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
-                          {t(
-                            "auth_mfa_select_passkey_label",
-                            "Select Enrolled Passkey",
-                          )}
-                        </label>
-                        <CustomDropdown
-                          value={selectedPasskeyId}
-                          onChange={(vals: any) =>
-                            setSelectedPasskeyId(
-                              Array.isArray(vals) ? vals[0] : vals,
-                            )
-                          }
-                          options={mfaPasskeys.map((pk) => ({
-                            id: pk.id,
-                            label: sanitizeFactorFriendlyName(
-                              pk.friendly_name,
-                              t("passkey_unnamed_device", "FIDO2 Passkey"),
-                            ),
-                            icon: t("icon_passkey", "passkey"),
-                          }))}
-                          disableTint={true}
-                        />
-                      </div>
-                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                       <ActionButton
@@ -921,7 +898,7 @@ export function DevBuildClearanceGate() {
                         variant="glass"
                         icon={t("icon_passkey", "passkey")}
                         label={t(
-                          "auth_mfa_passkey_btn",
+                          "btn_verify_with_passkey",
                           "Authenticate with Passkey",
                         )}
                         className="w-full"
@@ -932,7 +909,7 @@ export function DevBuildClearanceGate() {
               ) : (
                 <form
                   onSubmit={handleMfaAuth}
-                  className="glass-panel rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col"
+                  className="glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col shrink-0"
                   noValidate
                 >
                   <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
@@ -952,24 +929,36 @@ export function DevBuildClearanceGate() {
                     </span>
                   </div>
 
-                  <div className="p-4 flex flex-col gap-4">
-                    <div className="relative group/input">
-                      <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 group-focus-within/input:text-[var(--accent)] group-focus-within/input:opacity-100 transition-all !text-[18px]">
-                        {t("icon_pin", "pin")}
-                      </span>
-                      <input
-                        type="text"
-                        value={mfaCode}
-                        onChange={(e) => setMfaCode(e.target.value)}
-                        autoComplete="off"
-                        spellCheck="false"
-                        maxLength={6}
-                        placeholder={t(
+                  <div className="p-4 flex flex-col gap-3.5">
+                    <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                      {t(
+                        "auth_mfa_totp_prompt_desc",
+                        "Open your authenticator app (Google Authenticator, Authy, 1Password, or Bitwarden) and enter the 6-digit verification code for your account.",
+                      )}
+                    </p>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                        {t(
                           "auth_mfa_code_label",
                           "6-Digit Authenticator Code",
                         )}
-                        className="w-full glass-surface rounded-xl pl-11 pr-4 py-3 text-sm font-mono font-black tracking-[0.25em] text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
-                      />
+                      </label>
+                      <div className="relative group/input">
+                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 group-focus-within/input:text-[var(--accent)] group-focus-within/input:opacity-100 transition-all !text-[18px]">
+                          {t("icon_pin", "pin")}
+                        </span>
+                        <input
+                          type="text"
+                          value={mfaCode}
+                          onChange={(e) => setMfaCode(e.target.value)}
+                          autoComplete="one-time-code"
+                          spellCheck="false"
+                          maxLength={6}
+                          placeholder={t("auth_2fa_placeholder_code", "000000")}
+                          className="w-full glass-surface rounded-xl pl-11 pr-4 py-3 text-base font-mono font-black tracking-[0.35em] text-center text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -989,7 +978,7 @@ export function DevBuildClearanceGate() {
                         disabled={isProcessing || mfaCode.length < 6}
                         variant="glass"
                         icon={t("icon_check", "check")}
-                        label={t("auth_mfa_verify_btn", "Verify 2FA")}
+                        label={t("btn_verify_2fa", "Verify")}
                         className="w-full"
                       />
                     </div>

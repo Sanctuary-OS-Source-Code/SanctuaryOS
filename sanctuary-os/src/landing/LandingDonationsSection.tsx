@@ -12,6 +12,8 @@ import { UniversalCard } from '../components/universal/UniversalCard';
 import {
   KeepersPipelineConfig,
   isSandboxDonationUrl,
+  getMonthlyServerGoalStatus,
+  getSpokeServerGoalStatus,
 } from '../utils/supporterManager';
 import { CommandScreenSectionHeading } from '../hub-components/SharedCommandScreenLayout';
 
@@ -47,6 +49,7 @@ export function LandingDonationsSection({
   donationFilter = 'ALL',
 }: LandingDonationsSectionProps) {
   const { t } = useLexicon();
+  const serverGoal = getMonthlyServerGoalStatus(keepersConfig);
   const q = searchQuery.trim().toLowerCase();
   const showCoreOsCard =
     (donationFilter === 'ALL' || donationFilter === 'core') &&
@@ -288,9 +291,10 @@ export function LandingDonationsSection({
             'landing_banner_support_os_top',
             '$5 = +30 Days Dev Builds'
           )}
+          bannerTopRightLabel={`$${serverGoal.coveredDollars} / $${serverGoal.goalDollars}`}
           bannerBottomLabel={t(
-            'landing_banner_support_os_bottom',
-            '100% Core OS Development'
+            'supporter_server_goal_title',
+            'Monthly Hub & Code-Signing Goal'
           )}
           title={t(
             'supporter_keepers_title',
@@ -323,16 +327,44 @@ export function LandingDonationsSection({
             </div>
           }
         >
-          <p className="text-[11px] text-[var(--subtext)] leading-relaxed mt-2 opacity-80 line-clamp-3">
-            {t(
-              'supporter_keepers_desc',
-              'Directly support the Keepers building Sanctuary OS. Every $5 contribution dynamically stacks +30 days of Global Dev Build access onto your account.'
+          <div className="flex flex-col gap-2.5 mt-2">
+            <p className="text-[11px] text-[var(--subtext)] leading-relaxed m-0 opacity-80 line-clamp-2">
+              {t(
+                'supporter_keepers_desc',
+                'Directly support the Keepers building Sanctuary OS. Every $5 contribution dynamically stacks +30 days of Global Dev Build access onto your account.'
+              )}
+            </p>
+            {serverGoal.enabled && (
+              <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-2 text-[9px] font-black uppercase tracking-wider">
+                  <span className="text-[var(--text)] tabular-nums">
+                    {`$${serverGoal.coveredDollars} / $${serverGoal.goalDollars} ${t('supporter_server_goal_covered_lbl', 'Covered This Month')}`}
+                  </span>
+                  <span className="text-[var(--accent)] tabular-nums">
+                    {`${serverGoal.percent}%`}
+                  </span>
+                </div>
+                <div className="w-full h-3 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] p-0.5 shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] overflow-hidden relative">
+                  <div
+                    className="h-full rounded-full transition-all duration-500 relative overflow-hidden"
+                    style={{
+                      width: `${Math.max(4, serverGoal.percent)}%`,
+                      background:
+                        'linear-gradient(180deg, rgba(255,255,255,0.45) 0%, color-mix(in srgb, var(--accent) 78%, transparent) 45%, color-mix(in srgb, var(--accent) 95%, black) 100%)',
+                      boxShadow:
+                        '0 0 12px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.65)',
+                    }}
+                  />
+                </div>
+              </div>
             )}
-          </p>
+          </div>
         </UniversalCard>
         )}
 
-        {filteredPartnerGames.map((g) => (
+        {filteredPartnerGames.map((g) => {
+          const spokeGoal = getSpokeServerGoalStatus(g);
+          return (
             <UniversalCard
               key={`support-${g.id}`}
               layout="vertical"
@@ -352,7 +384,19 @@ export function LandingDonationsSection({
                 'landing_banner_support_partner_top',
                 '100% Direct To Community'
               )}
-              bannerBottomLabel={`${g.name} • ${t('landing_banner_support_partner_bottom', 'Server & {Mason} Support')}`}
+              bannerTopRightLabel={
+                spokeGoal.enabled
+                  ? `$${spokeGoal.coveredDollars} / $${spokeGoal.goalDollars}`
+                  : undefined
+              }
+              bannerBottomLabel={
+                spokeGoal.enabled
+                  ? t(
+                      'supporter_spoke_server_goal_title',
+                      'Monthly Community Server Goal'
+                    )
+                  : `${g.name} • ${t('landing_banner_support_partner_bottom', 'Server & {Mason} Support')}`
+              }
               customIcon={
                 g.icon ? (
                   <img
@@ -389,8 +433,36 @@ export function LandingDonationsSection({
                   </span>
                 </div>
               }
-            />
-          ))}
+            >
+              {spokeGoal.enabled && (
+                <div className="flex flex-col gap-2.5 mt-2">
+                  <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between gap-2 text-[9px] font-black uppercase tracking-wider">
+                      <span className="text-[var(--text)] tabular-nums">
+                        {`$${spokeGoal.coveredDollars} / $${spokeGoal.goalDollars} ${t('supporter_server_goal_covered_lbl', 'Covered This Month')}`}
+                      </span>
+                      <span className="text-[var(--accent)] tabular-nums">
+                        {`${spokeGoal.percent}%`}
+                      </span>
+                    </div>
+                    <div className="w-full h-3 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] p-0.5 shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] overflow-hidden relative">
+                      <div
+                        className="h-full rounded-full transition-all duration-500 relative overflow-hidden"
+                        style={{
+                          width: `${Math.max(4, spokeGoal.percent)}%`,
+                          background:
+                            'linear-gradient(180deg, rgba(255,255,255,0.45) 0%, color-mix(in srgb, var(--accent) 78%, transparent) 45%, color-mix(in srgb, var(--accent) 95%, black) 100%)',
+                          boxShadow:
+                            '0 0 12px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.65)',
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </UniversalCard>
+          );
+        })}
       </div>
     </section>
   );

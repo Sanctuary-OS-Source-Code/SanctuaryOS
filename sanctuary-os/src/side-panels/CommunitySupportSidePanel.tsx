@@ -23,6 +23,10 @@ import {
   DEFAULT_KEEPERS_PIPELINE_CONFIG,
   KeepersPipelineConfig,
   LocalSupporterStatePayload,
+  getMonthlyServerGoalStatus,
+  getSpokeServerGoalStatus,
+  recordMonthlyServerGoalContribution,
+  isFoundryPatron,
 } from "../utils/supporterManager";
 
 interface CommunitySupportSidePanelProps {
@@ -109,7 +113,7 @@ export function CommunitySupportSidePanel({
     const matchedPartner = partnerList.find(
       (p) =>
         String(p.id).toLowerCase() ===
-          String(activeWorkspaceId).toLowerCase() ||
+        String(activeWorkspaceId).toLowerCase() ||
         (activeSchemaId &&
           String(p.schema_id).toLowerCase() === activeSchemaId) ||
         (activeName && String(p.name).toLowerCase() === activeName)
@@ -175,7 +179,7 @@ export function CommunitySupportSidePanel({
   const matchedSpokePartner = partners.find(
     (p) =>
       String(p.id).toLowerCase() ===
-        String(activeWorkspaceId).toLowerCase() ||
+      String(activeWorkspaceId).toLowerCase() ||
       (activeSchemaId &&
         String(p.schema_id || "").toLowerCase() === activeSchemaId) ||
       (activeSpokeName &&
@@ -184,24 +188,28 @@ export function CommunitySupportSidePanel({
 
   const activeSpokeOption = matchedSpokePartner
     ? {
-        id: String(matchedSpokePartner.id),
-        name: matchedSpokePartner.name,
-        icon:
-          matchedSpokePartner.icon ||
-          t("icon_sports_esports", "sports_esports"),
-        donation_url: matchedSpokePartner.donation_url || "",
-        payment_processor: matchedSpokePartner.payment_processor || "STRIPE",
-      }
+      id: String(matchedSpokePartner.id),
+      schema_id: matchedSpokePartner.schema_id || activeSchemaId,
+      name: matchedSpokePartner.name,
+      icon:
+        matchedSpokePartner.icon ||
+        t("icon_sports_esports", "sports_esports"),
+      donation_url: matchedSpokePartner.donation_url || "",
+      payment_processor: matchedSpokePartner.payment_processor || "STRIPE",
+      monthly_goal_cents: matchedSpokePartner.monthly_goal_cents,
+      monthly_covered_cents: matchedSpokePartner.monthly_covered_cents,
+    }
     : {
-        id: String(activeWorkspaceId || "active_spoke"),
-        name: activeSpokeName,
-        icon:
-          activeWs?.icon ||
-          activeGameSchema?.icon ||
-          t("icon_sports_esports", "sports_esports"),
-        donation_url: "",
-        payment_processor: "STRIPE",
-      };
+      id: String(activeWorkspaceId || "active_spoke"),
+      schema_id: activeSchemaId,
+      name: activeSpokeName,
+      icon:
+        activeWs?.icon ||
+        activeGameSchema?.icon ||
+        t("icon_sports_esports", "sports_esports"),
+      donation_url: "",
+      payment_processor: "STRIPE",
+    };
 
   const spokeTileOptions = [
     {
@@ -216,23 +224,24 @@ export function CommunitySupportSidePanel({
     },
   ];
 
-  const selectedPartner =
+  const selectedPartner: any =
     selectedPartnerId === "keepers_core"
       ? {
-          id: "keepers_core",
-          name: t("supporter_keepers_title", "Sanctuary Foundry"),
-          icon: t("icon_rocket_launch", "rocket_launch"),
-          donation_url: keepersConfig.keepers_donation_url || "",
-          payment_processor:
-            keepersConfig.keepers_payment_processor ||
-            "STRIPE / GITHUB SPONSORS",
-        }
+        id: "keepers_core",
+        schema_id: "keepers_core",
+        name: t("supporter_keepers_title", "Sanctuary Foundry"),
+        icon: t("icon_rocket_launch", "rocket_launch"),
+        donation_url: keepersConfig.keepers_donation_url || "",
+        payment_processor:
+          keepersConfig.keepers_payment_processor ||
+          "STRIPE / GITHUB SPONSORS",
+      }
       : partners.find((p) => String(p.id) === String(selectedPartnerId)) ||
-        activeSpokeOption;
+      activeSpokeOption;
 
   const hasConfiguredUrl = Boolean(
     selectedPartner.donation_url &&
-      String(selectedPartner.donation_url).trim().length > 0
+    String(selectedPartner.donation_url).trim().length > 0
   );
   const isSandbox = isSandboxDonationUrl(selectedPartner.donation_url);
 
@@ -244,6 +253,11 @@ export function CommunitySupportSidePanel({
   const creditDollars = (
     (supporterState.dev_build.donation_credit_cents || 0) / 100
   ).toFixed(2);
+  const activeGoal =
+    selectedPartnerId === "keepers_core"
+      ? getMonthlyServerGoalStatus(keepersConfig)
+      : getSpokeServerGoalStatus(selectedPartner);
+  const isPatron = isFoundryPatron(supporterState);
 
   const handleCheckoutOrSandbox = async () => {
     if (!hasConfiguredUrl) return;
@@ -255,6 +269,12 @@ export function CommunitySupportSidePanel({
           amountUsd: 5,
           txNonce: fakeNonce,
         });
+        if (selectedPartnerId !== "keepers_core") {
+          recordMonthlyServerGoalContribution(
+            500,
+            String(selectedPartner.schema_id || selectedPartner.id || "spoke"),
+          );
+        }
         const nextState: LocalSupporterStatePayload = {
           ...supporterState,
           dev_build: result.devBuild,
@@ -379,13 +399,13 @@ export function CommunitySupportSidePanel({
           description={
             selectedPartnerId === "keepers_core"
               ? t(
-                  "supporter_keepers_desc",
-                  "Directly support Sanctuary Foundry building Sanctuary OS. Every $5 donation adds +30 days of Global Dev Build access to your account."
-                )
+                "supporter_keepers_desc",
+                "Directly support Sanctuary Foundry building Sanctuary OS. Every $5 donation adds +30 days of Global Dev Build access to your account."
+              )
               : t(
-                  "supporter_webhook_auto_note",
-                  "Donations are verified automatically by the payment processor's webhook using your Sanctuary ID — no manual receipt entry required."
-                )
+                "supporter_webhook_auto_note",
+                "Donations are verified automatically by the payment processor's webhook using your Sanctuary ID — no manual receipt entry required."
+              )
           }
           badge={
             !hasConfiguredUrl
@@ -422,6 +442,57 @@ export function CommunitySupportSidePanel({
             />
           </div>
 
+          {hasConfiguredUrl && activeGoal.enabled && (
+            <div className="px-3.5 py-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs font-black tabular-nums text-[var(--text)]">
+                    {`$${activeGoal.coveredDollars} / $${activeGoal.goalDollars}`}
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--subtext)] opacity-85">
+                    {t("supporter_server_goal_covered_lbl", "Covered This Month")}
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] inline-flex items-center gap-1 shrink-0">
+                  <span className="material-symbols-outlined !text-[11px]">
+                    {t("icon_trending_up", "trending_up")}
+                  </span>
+                  <span>{`${activeGoal.percent}%`}</span>
+                </span>
+              </div>
+
+              <div className="w-full h-3 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] p-0.5 shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] overflow-hidden relative">
+                <div
+                  className="h-full rounded-full transition-all duration-500 relative overflow-hidden"
+                  style={{
+                    width: `${Math.max(4, activeGoal.percent)}%`,
+                    background:
+                      "linear-gradient(180deg, rgba(255,255,255,0.45) 0%, color-mix(in srgb, var(--accent) 78%, transparent) 45%, color-mix(in srgb, var(--accent) 95%, black) 100%)",
+                    boxShadow:
+                      "0 0 12px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.65)",
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-2 flex-wrap text-[10px] font-medium text-[var(--subtext)] opacity-85">
+                <span>
+                  {selectedPartnerId === "keepers_core"
+                    ? t(
+                      "supporter_server_goal_title",
+                      "Monthly Hub & Code-Signing Goal",
+                    )
+                    : t(
+                      "supporter_spoke_server_goal_title",
+                      "Monthly Community Server Goal",
+                    )}
+                </span>
+                <span className="font-mono font-bold text-[9px] uppercase tracking-wider">
+                  {`$5 = +${activeGoal.fiveDollarStepPercent}% & +30d`}
+                </span>
+              </div>
+            </div>
+          )}
+
           {hasConfiguredUrl ? (
             <ActionButton
               variant="glass"
@@ -433,9 +504,9 @@ export function CommunitySupportSidePanel({
               label={
                 isSandbox
                   ? t(
-                      "supporter_spoke_sandbox_checkout_btn",
-                      "Simulate Sandbox Checkout (Test Mode)"
-                    )
+                    "supporter_spoke_sandbox_checkout_btn",
+                    "Simulate Sandbox Checkout (Test Mode)"
+                  )
                   : selectedPartnerId === "keepers_core"
                     ? `${t("supporter_keepers_btn", "Support Sanctuary Foundry")} (${selectedPartner.payment_processor})`
                     : `${t("supporter_btn_donate_partner", "Support Community")} (${selectedPartner.payment_processor})`
@@ -489,12 +560,29 @@ export function CommunitySupportSidePanel({
           icon={t("icon_rocket_launch", "rocket_launch")}
         >
           <div className="glass-surface px-4 py-3.5 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3">
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <span className="text-xs font-black text-[var(--text)] truncate">
-                {isDevBuildUnlocked
-                  ? `${remainingDays} ${t("supporter_days_remaining_suffix", "Days Remaining")}`
-                  : t("supporter_no_active_time", "No Active Time")}
-              </span>
+            <div className="flex flex-col gap-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-black text-[var(--text)] truncate">
+                  {isDevBuildUnlocked
+                    ? `${remainingDays} ${t("supporter_days_remaining_suffix", "Days Remaining")}`
+                    : t("supporter_no_active_time", "No Active Time")}
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded-lg border bg-transparent ${isPatron
+                      ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
+                      : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
+                    } text-[8px] font-black uppercase tracking-wider inline-flex items-center gap-1 shrink-0`}
+                >
+                  <span className="material-symbols-outlined !text-[10px]">
+                    {t("icon_workspace_premium", "workspace_premium")}
+                  </span>
+                  <span>
+                    {isPatron
+                      ? t("supporter_patron_badge_label", "Foundry Supporter")
+                      : t("supporter_patron_locked_chip", "Supporter Badge")}
+                  </span>
+                </span>
+              </div>
               <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">
                 {supporterState.dev_build.total_months_unlocked || 0}{" "}
                 {t("supporter_months_suffix", "Months")} • ${creditDollars} /
@@ -515,11 +603,10 @@ export function CommunitySupportSidePanel({
                 setSupporterState(nextState);
                 if (onSuccess) onSuccess(nextState);
               }}
-              className={`flex flex-col items-end gap-1 shrink-0 ${
-                isDevBuildUnlocked
+              className={`flex flex-col items-end gap-1 shrink-0 ${isDevBuildUnlocked
                   ? "cursor-pointer"
                   : "opacity-50 cursor-not-allowed"
-              }`}
+                }`}
             >
               <SettingsToggle
                 checked={
@@ -552,7 +639,7 @@ export function CommunitySupportSidePanel({
             icon={t("icon_settings", "settings")}
             label={t(
               "supporter_spoke_open_settings_btn",
-              "Open Full Support & Perks Settings"
+              "Open Support & Perks"
             )}
             onClick={onNavigateSettings}
             className="w-full"

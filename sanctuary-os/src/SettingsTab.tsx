@@ -92,12 +92,50 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   const [config, setConfig] = useState<any>(null);
   const [globalConfig, setGlobalConfig] = useState<any>(null);
 
+  const resolveUniversalMasterVaultPath = (
+    rawPath: string | undefined | null,
+    workspacesList?: any[],
+    activeW?: any
+  ): string => {
+    const trimmed = String(rawPath || '').trim().replace(/[\\/]+$/, '');
+    if (!trimmed || trimmed.toLowerCase() === 'web') return trimmed;
+    const parts = trimmed.split(/[\\/]/);
+    if (parts.length <= 1) return trimmed;
+    const lastSeg = parts[parts.length - 1].toLowerCase();
+    const knownSchemas = new Set<string>(['sims4']);
+    if (Array.isArray(workspacesList)) {
+      workspacesList.forEach((w: any) => {
+        if (w?.schema_id && String(w.schema_id).toLowerCase() !== 'default_schema') {
+          knownSchemas.add(String(w.schema_id).toLowerCase());
+        }
+        if (w?.id && String(w.id).toLowerCase() !== 'default_workspace') {
+          knownSchemas.add(String(w.id).toLowerCase());
+        }
+      });
+    }
+    if (Array.isArray(availableWorkspaces)) {
+      availableWorkspaces.forEach((w: any) => {
+        if (w?.schema_id) knownSchemas.add(String(w.schema_id).toLowerCase());
+        if (w?.id) knownSchemas.add(String(w.id).toLowerCase());
+      });
+    }
+    if (activeW?.schema_id) knownSchemas.add(String(activeW.schema_id).toLowerCase());
+    if (activeW?.id && String(activeW.id).toLowerCase() !== 'default_workspace') {
+      knownSchemas.add(String(activeW.id).toLowerCase());
+    }
+    if (knownSchemas.has(lastSeg)) {
+      const sep = trimmed.includes('/') && !trimmed.includes('\\') ? '/' : '\\';
+      return parts.slice(0, -1).join(sep);
+    }
+    return trimmed;
+  };
+
   const refreshConfig = async () => {
     try {
       if (!isDesktop()) {
-        const dummyConfig = { id: 'web', vault_path: 'web', mods_path: 'web', live_path: 'web' };
+        const dummyConfig = { id: 'web', vault_path: 'web', master_vault_path: 'web', mods_path: 'web', live_path: 'web' };
         setConfig(dummyConfig);
-        setGlobalConfig({ workspaces: [dummyConfig], active_workspace_id: 'web' });
+        setGlobalConfig({ workspaces: [dummyConfig], active_workspace_id: 'web', vault_path: 'web' });
         return;
       }
       const gConf: any = await invoke('get_global_config');
@@ -119,14 +157,19 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       if (!activeW && gConf?.workspaces?.length > 0) {
         activeW = gConf.workspaces[0];
       }
+      const masterVault = resolveUniversalMasterVaultPath(
+        gConf?.vault_path || activeW?.master_vault_path || activeW?.vault_path || storeState.vaultPath,
+        gConf?.workspaces,
+        activeW
+      );
+      const sep = masterVault.includes('/') && !masterVault.includes('\\') ? '/' : '\\';
+
       if (!activeW) {
         const storeMatch = (storeState.workspaces || []).find(
           (w: any) =>
             String(w.id || '').toLowerCase() === String(activeId || '').toLowerCase() ||
             String(w.schema_id || '').toLowerCase() === String(activeId || '').toLowerCase()
         );
-        const masterVault = gConf?.vault_path || '';
-        const sep = masterVault.includes('/') ? '/' : '\\';
         const resolvedId = storeMatch?.id || activeId || 'sims4';
         const resolvedSchema = storeMatch?.schema_id || resolvedId;
         activeW = {
@@ -137,15 +180,35 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
           schema_id: resolvedSchema,
           live_path: storeState.livePath || '',
           mods_path: storeState.modsPath || '',
+          master_vault_path: masterVault,
           vault_path:
-            storeState.vaultPath ||
-            (masterVault ? `${masterVault}${sep}${resolvedSchema}` : ''),
+            masterVault ? `${masterVault}${sep}${resolvedSchema}` : (storeState.vaultPath || ''),
+        };
+      } else {
+        activeW = {
+          ...activeW,
+          master_vault_path: masterVault || activeW.master_vault_path,
         };
       }
+      const normalizedWorkspaces = Array.isArray(gConf?.workspaces)
+        ? gConf.workspaces.map((w: any) => {
+            if (!masterVault) return w;
+            const wsSchema = w.schema_id && w.schema_id !== 'default_schema' ? w.schema_id : w.id;
+            return {
+              ...w,
+              master_vault_path: masterVault,
+              vault_path:
+                wsSchema && wsSchema !== 'default_workspace'
+                  ? `${masterVault}${sep}${wsSchema}`
+                  : w.vault_path,
+            };
+          })
+        : [];
       const normalizedGlobal = {
         ...gConf,
+        vault_path: masterVault || gConf?.vault_path,
         active_workspace_id: activeW.id || activeId,
-        workspaces: Array.isArray(gConf?.workspaces) ? gConf.workspaces : [],
+        workspaces: normalizedWorkspaces,
       };
       setGlobalConfig(normalizedGlobal);
       setConfig(activeW);
@@ -186,18 +249,46 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       useStore.getState().activeWorkspaceId ||
       localStorage.getItem('sanctuary_last_active_workspace') ||
       'sims4';
+    const resolvedSchema = cleanBase.schema_id || resolvedId;
+
+    let universalMasterVault = resolveUniversalMasterVaultPath(
+      globalConfig.vault_path || cleanBase.master_vault_path || cleanBase.vault_path,
+      globalConfig.workspaces,
+      cleanBase
+    );
+
+    if (typeof parsedPatch.vault_path === 'string' && parsedPatch.vault_path.trim()) {
+      universalMasterVault = resolveUniversalMasterVaultPath(
+        parsedPatch.vault_path,
+        globalConfig.workspaces,
+        cleanBase
+      );
+      const sep =
+        universalMasterVault.includes('/') && !universalMasterVault.includes('\\')
+          ? '/'
+          : '\\';
+      parsedPatch.master_vault_path = universalMasterVault;
+      parsedPatch.vault_path =
+        resolvedSchema &&
+        resolvedSchema !== 'default_schema' &&
+        resolvedSchema !== 'default_workspace'
+          ? `${universalMasterVault}${sep}${resolvedSchema}`
+          : universalMasterVault;
+    }
+
     const newConfig = {
       ...cleanBase,
       id: resolvedId,
       name:
         cleanBase.name ||
         (String(resolvedId).toLowerCase() === 'sims4' ? 'The Sims 4' : resolvedId),
-      schema_id: cleanBase.schema_id || resolvedId,
+      schema_id: resolvedSchema,
+      ...(universalMasterVault ? { master_vault_path: universalMasterVault } : {}),
       ...parsedPatch,
     };
     setConfig(newConfig);
 
-    const existingList = Array.isArray(globalConfig.workspaces)
+    let existingList = Array.isArray(globalConfig.workspaces)
       ? [...globalConfig.workspaces]
       : [];
     const matchIdx = existingList.findIndex(
@@ -211,14 +302,31 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       existingList.push(newConfig);
     }
 
+    if (universalMasterVault) {
+      const sep =
+        universalMasterVault.includes('/') && !universalMasterVault.includes('\\')
+          ? '/'
+          : '\\';
+      existingList = existingList.map((w: any) => {
+        const wsSchema =
+          w.schema_id && w.schema_id !== 'default_schema' ? w.schema_id : w.id;
+        return {
+          ...w,
+          master_vault_path: universalMasterVault,
+          vault_path:
+            wsSchema && wsSchema !== 'default_workspace'
+              ? `${universalMasterVault}${sep}${wsSchema}`
+              : universalMasterVault,
+        };
+      });
+    }
+
     const newGlobal = {
       ...globalConfig,
       active_workspace_id: newConfig.id,
       workspaces: existingList,
+      ...(universalMasterVault ? { vault_path: universalMasterVault } : {}),
     };
-    if (parsedPatch.vault_path) {
-      newGlobal.vault_path = parsedPatch.vault_path;
-    }
     setGlobalConfig(newGlobal);
 
     // Sync Zustand store so paths and configuration state reflect immediately across the OS
@@ -234,6 +342,20 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     try {
       if (isDesktop()) {
         await invoke("save_coordinates", { config: newGlobal });
+        const savedCoords: any = await invoke("get_saved_coordinates").catch(() => null);
+        if (savedCoords?.vault_path) {
+          storeState.setVaultPath(savedCoords.vault_path);
+          setConfig((prev: any) =>
+            prev
+              ? {
+                  ...prev,
+                  vault_path: savedCoords.vault_path,
+                  master_vault_path:
+                    savedCoords.master_vault_path || universalMasterVault || prev.master_vault_path,
+                }
+              : prev
+          );
+        }
       }
     } catch (err) { console.error(err); }
   };
@@ -250,10 +372,32 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
 
   if (config === null) return <div className="p-12 font-black animate-pulse capitalize tracking-widest" style={{ color: currentTheme.accent }}>{t("booting", "Booting core systems...") || "Booting..."}</div>;
 
+  const universalMasterVaultValue = resolveUniversalMasterVaultPath(
+    globalConfig?.vault_path || config?.master_vault_path || config?.vault_path,
+    globalConfig?.workspaces,
+    config
+  );
+
   const pathMap = [
-    { rustKey: 'vault_path', label: t("vault_path", "The {Vault} Path") || "Vault Path", value: config.vault_path, icon: t("icon_account_balance", "account_balance") || "account_balance" },
-    { rustKey: 'mods_path', label: t("library_path", "Active Library ({Mods} Folder)") || "Library Path", value: config.mods_path, icon: t("icon_folder", "folder") || "folder" },
-    { rustKey: 'live_path', label: t("setup_btn_bin", "Select Bin Folder") || "Live Path", value: config.live_path, icon: t("icon_push_pin", "push_pin") || "push_pin" }
+    {
+      rustKey: 'vault_path',
+      label: t("vault_path", "The {Vault} Path") || "Vault Path",
+      value: universalMasterVaultValue,
+      icon: t("icon_account_balance", "account_balance") || "account_balance",
+      isUniversal: true,
+    },
+    {
+      rustKey: 'mods_path',
+      label: t("library_path", "Active Library ({Mods} Folder)") || "Library Path",
+      value: config.mods_path,
+      icon: t("icon_folder", "folder") || "folder",
+    },
+    {
+      rustKey: 'live_path',
+      label: t("setup_btn_bin", "Select Bin Folder") || "Live Path",
+      value: config.live_path,
+      icon: t("icon_push_pin", "push_pin") || "push_pin",
+    }
   ];
 
   let TABS = [

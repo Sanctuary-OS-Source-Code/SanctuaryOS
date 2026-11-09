@@ -50,6 +50,15 @@ export function BackupRestoreModals({
 
   const [selectedCompletedIdx, setSelectedCompletedIdx] = useState(0);
   const [activeLocation, setActiveLocation] = useState("");
+  const [lastOpWasRestore, setLastOpWasRestore] = useState(false);
+
+  useEffect(() => {
+    if (isRestoring) {
+      setLastOpWasRestore(true);
+    } else if (isBackingUp) {
+      setLastOpWasRestore(false);
+    }
+  }, [isBackingUp, isRestoring]);
 
   useEffect(() => {
     if (completedBackups.length > 0) {
@@ -163,16 +172,20 @@ export function BackupRestoreModals({
         : isEngineRestore
           ? t("overlay_restoring_engine", "Restoring Engine Core")
           : t("overlay_restoring_world", "Restoring World State")
-      : t("tc_complete_title", "Snapshot Complete");
+      : lastOpWasRestore
+        ? t("status_restored", "Restored")
+        : t("tc_complete_title", "Snapshot Complete");
 
   const activeSubtitle = isDefconPrompt
     ? t("defcon_panel_subtitle", "Emergency Pre-Patch Protection")
     : isBusy
       ? categoryLabel
-      : t(
-          "tc_complete_subtitle",
-          "Point-in-time backup verified and indexed"
-        );
+      : lastOpWasRestore
+        ? categoryLabel
+        : t(
+            "tc_complete_subtitle",
+            "Point-in-time backup verified and indexed"
+          );
 
   const activeIcon = isDefconPrompt
     ? t("icon_warning_amber", "warning")
@@ -556,18 +569,18 @@ export function BackupRestoreModals({
                 </div>
 
                 {/* Progress Track & Live File Stream */}
-                <div className="w-full rounded-2xl p-4 bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
-                  <div className="w-full h-2.5 rounded-full bg-[color-mix(in_srgb,var(--text)_8%,transparent)] overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+                <div className="w-full rounded-2xl p-4 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-3">
+                  <div className="w-full h-3.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] p-0.5 shadow-[inset_0_2px_6px_rgba(0,0,0,0.45)] overflow-hidden relative">
                     <div
                       className="h-full transition-all duration-300 rounded-full relative overflow-hidden"
                       style={{
                         width: `${Math.max(4, pct)}%`,
                         background: isDangerTheme
-                          ? "linear-gradient(90deg, color-mix(in srgb, var(--danger) 75%, white), var(--danger))"
-                          : "linear-gradient(90deg, color-mix(in srgb, var(--accent) 75%, white), var(--accent))",
+                          ? "linear-gradient(180deg, rgba(255,255,255,0.42) 0%, color-mix(in srgb, var(--danger) 78%, transparent) 45%, color-mix(in srgb, var(--danger) 95%, black) 100%)"
+                          : "linear-gradient(180deg, rgba(255,255,255,0.42) 0%, color-mix(in srgb, var(--accent) 78%, transparent) 45%, color-mix(in srgb, var(--accent) 95%, black) 100%)",
                         boxShadow: isDangerTheme
-                          ? "0 0 12px color-mix(in srgb, var(--danger) 55%, transparent)"
-                          : "0 0 12px color-mix(in srgb, var(--accent) 55%, transparent)",
+                          ? "0 0 14px color-mix(in srgb, var(--danger) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.65)"
+                          : "0 0 14px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.65)",
                       }}
                     />
                   </div>

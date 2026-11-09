@@ -4,6 +4,7 @@ import { EmptyState, InlineFilterGroup, ActionPill, HoverTooltip } from "./share
 import { supabase, supabaseAuth } from "./supabase";
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { getSupporterState, isFoundryPatron } from "./utils/supporterManager";
 
 export interface Ticket {
   id: string;
@@ -52,6 +53,21 @@ export default function CitizenTickets({
   const [isLoading, setIsLoading] = useState(externalTickets === undefined);
   const [activeFilter, setActiveFilter] = useState<"all" | "open" | "pending" | "closed">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isCurrentUserSupporter, setIsCurrentUserSupporter] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    getSupporterState()
+      .then((st) => {
+        if (isMounted && isFoundryPatron(st)) {
+          setIsCurrentUserSupporter(true);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
 
   useEffect(() => {
     if (externalTickets !== undefined) {
@@ -314,6 +330,18 @@ export default function CitizenTickets({
                       </span>
                       <span>{(ticket.ticket_type || t("support_tickets", "Support")).replace(/_/g, " ")}</span>
                     </div>
+                    {(Boolean(ticket.metadata?.is_foundry_patron) ||
+                      (isCurrentUserSupporter &&
+                        (!ticket.author_id || ticket.author_id === userId))) && (
+                      <div className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                          {t("icon_workspace_premium", "workspace_premium")}
+                        </span>
+                        <span>
+                          {t("supporter_patron_badge_label", "Foundry Supporter")}
+                        </span>
+                      </div>
+                    )}
                     {replyCount > 0 && (
                       <div className={VAULT_CHIP_CLASS}>
                         <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">

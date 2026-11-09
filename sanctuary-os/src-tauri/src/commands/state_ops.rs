@@ -12,57 +12,143 @@ pub fn update_active_game_schema(
 }
 
 #[tauri::command]
+fn resolve_spoke_vault_subdir(master_root: &std::path::Path, schema_id: &str) -> std::path::PathBuf {
+    let trimmed = schema_id.trim();
+    if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("default_schema") {
+        return master_root.to_path_buf();
+    }
+    if let Ok(entries) = fs::read_dir(master_root) {
+        for entry in entries.flatten() {
+            if let Ok(ft) = entry.file_type() {
+                if ft.is_dir() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        if name.eq_ignore_ascii_case(trimmed) {
+                            return master_root.join(name);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    master_root.join(trimmed)
+}
+
+fn strip_spoke_suffix_from_master_vault(
+    raw_master: &str,
+    workspaces: &[WorkspaceConfig],
+) -> String {
+    let trimmed = raw_master.trim().trim_end_matches(&['/', '\\'][..]);
+    if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("web") {
+        return trimmed.to_string();
+    }
+    let path = std::path::Path::new(trimmed);
+    if let Some(last_seg) = path.file_name().and_then(|n| n.to_str()) {
+        let matches_workspace = workspaces.iter().any(|w| {
+            (!w.schema_id.trim().is_empty() && w.schema_id.eq_ignore_ascii_case(last_seg))
+                || (!w.id.trim().is_empty()
+                    && !w.id.eq_ignore_ascii_case("default_workspace")
+                    && w.id.eq_ignore_ascii_case(last_seg))
+        }) || last_seg.eq_ignore_ascii_case("sims4");
+        if matches_workspace {
+            if let Some(parent) = path.parent() {
+                let parent_str = parent.to_string_lossy().to_string();
+                if !parent_str.trim().is_empty() {
+                    return parent_str;
+                }
+            }
+        }
+    }
+    trimmed.to_string()
+}
+
+fn normalize_solder_config(config: &mut SolderConfig) -> bool {
+    let mut healed = false;
+
+    let raw_master = config
+        .vault_path
+        .clone()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| {
+            config
+                .workspaces
+                .iter()
+                .find_map(|w| w.master_vault_path.clone().filter(|s| !s.trim().is_empty()))
+        })
+        .or_else(|| {
+            config
+                .workspaces
+                .iter()
+                .find_map(|w| (!w.vault_path.trim().is_empty()).then(|| w.vault_path.clone()))
+        });
+
+    if let Some(raw_mv) = raw_master {
+        let mv_trimmed = strip_spoke_suffix_from_master_vault(&raw_mv, &config.workspaces);
+        if !mv_trimmed.is_empty() && !mv_trimmed.eq_ignore_ascii_case("web") {
+            if config.vault_path.as_deref() != Some(mv_trimmed.as_str()) {
+                config.vault_path = Some(mv_trimmed.clone());
+                healed = true;
+            }
+            let mv_path = std::path::PathBuf::from(&mv_trimmed);
+            let _ = std::fs::create_dir_all(mv_path.join("Data").join("Themes"));
+            let _ = std::fs::create_dir_all(mv_path.join("Data").join("Lexicons"));
+
+            for ws in config.workspaces.iter_mut() {
+                if ws.master_vault_path.as_deref() != Some(mv_trimmed.as_str()) {
+                    ws.master_vault_path = Some(mv_trimmed.clone());
+                    healed = true;
+                }
+                let target_schema = if !ws.schema_id.trim().is_empty()
+                    && ws.schema_id != "default_schema"
+                {
+                    ws.schema_id.trim()
+                } else if !ws.id.trim().is_empty() && ws.id != "default_workspace" {
+                    ws.id.trim()
+                } else {
+                    ""
+                };
+                if !target_schema.is_empty() {
+                    let spoke_vp = resolve_spoke_vault_subdir(&mv_path, target_schema)
+                        .to_string_lossy()
+                        .to_string();
+                    if ws.vault_path != spoke_vp {
+                        ws.vault_path = spoke_vp;
+                        healed = true;
+                    }
+                }
+            }
+        }
+    }
+
+    // Auto-heal any workspace whose live_path or mods_path was accidentally cloned from the primary workspace
+    if config.workspaces.len() > 1 {
+        let first_schema = config.workspaces[0].schema_id.to_lowercase();
+        let first_live = config.workspaces[0].live_path.clone();
+        let first_mods = config.workspaces[0].mods_path.clone();
+        for ws in config.workspaces.iter_mut().skip(1) {
+            if ws.schema_id.to_lowercase() != first_schema {
+                if !first_live.is_empty() && ws.live_path == first_live {
+                    ws.live_path.clear();
+                    healed = true;
+                }
+                if !first_mods.is_empty() && ws.mods_path == first_mods {
+                    ws.mods_path.clear();
+                    healed = true;
+                }
+            }
+        }
+    }
+
+    healed
+}
+
+#[tauri::command]
 pub fn get_global_config() -> SolderConfig {
     let path = get_config_path();
     if let Ok(content) = fs::read_to_string(&path) {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
             if let Ok(mut config) = serde_json::from_value::<SolderConfig>(v.clone()) {
                 if !config.workspaces.is_empty() {
-                    let mut healed = false;
-                    if let Some(mv) = config.vault_path.clone() {
-                        let mv_trimmed = mv.trim().trim_end_matches(&['/', '\\'][..]);
-                        if !mv_trimmed.is_empty() {
-                            let mv_path = std::path::PathBuf::from(mv_trimmed);
-                            for ws in config.workspaces.iter_mut() {
-                                if ws.master_vault_path.as_deref() != Some(mv_trimmed) {
-                                    ws.master_vault_path = Some(mv_trimmed.to_string());
-                                    healed = true;
-                                }
-                                let ws_vp_trimmed =
-                                    ws.vault_path.trim().trim_end_matches(&['/', '\\'][..]);
-                                if !ws.schema_id.trim().is_empty()
-                                    && (ws_vp_trimmed.is_empty()
-                                        || ws_vp_trimmed.eq_ignore_ascii_case(mv_trimmed))
-                                {
-                                    let spoke_vp =
-                                        mv_path.join(&ws.schema_id).to_string_lossy().to_string();
-                                    if ws.vault_path != spoke_vp {
-                                        ws.vault_path = spoke_vp;
-                                        healed = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Auto-heal any workspace whose live_path or mods_path was accidentally cloned from the primary workspace
-                    if config.workspaces.len() > 1 {
-                        let first_schema = config.workspaces[0].schema_id.to_lowercase();
-                        let first_live = config.workspaces[0].live_path.clone();
-                        let first_mods = config.workspaces[0].mods_path.clone();
-                        for ws in config.workspaces.iter_mut().skip(1) {
-                            if ws.schema_id.to_lowercase() != first_schema {
-                                if !first_live.is_empty() && ws.live_path == first_live {
-                                    ws.live_path.clear();
-                                    healed = true;
-                                }
-                                if !first_mods.is_empty() && ws.mods_path == first_mods {
-                                    ws.mods_path.clear();
-                                    healed = true;
-                                }
-                            }
-                        }
-                    }
-                    if healed {
+                    if normalize_solder_config(&mut config) {
                         if let Ok(healed_json) = serde_json::to_string_pretty(&config) {
                             let _ = fs::write(&path, healed_json);
                         }
@@ -169,25 +255,15 @@ pub fn get_saved_coordinates() -> WorkspaceConfig {
                 let mv_path = std::path::PathBuf::from(&mv);
                 let _ = std::fs::create_dir_all(mv_path.join("Data").join("Themes"));
                 let _ = std::fs::create_dir_all(mv_path.join("Data").join("Lexicons"));
-                let new_path = mv_path.join(&workspace.schema_id);
+                let new_path = resolve_spoke_vault_subdir(&mv_path, &workspace.schema_id);
                 workspace.vault_path = new_path.to_string_lossy().to_string();
             }
         }
         if workspace.master_vault_path.is_none() && !workspace.vault_path.is_empty() {
-            let vp = std::path::PathBuf::from(&workspace.vault_path);
-            let resolved_master = if vp
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map_or(false, |name| {
-                    name.eq_ignore_ascii_case(&workspace.schema_id)
-                        || name.eq_ignore_ascii_case(&workspace.id)
-                }) {
-                vp.parent()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_else(|| workspace.vault_path.clone())
-            } else {
-                workspace.vault_path.clone()
-            };
+            let resolved_master = strip_spoke_suffix_from_master_vault(
+                &workspace.vault_path,
+                &global_config.workspaces,
+            );
             workspace.master_vault_path = Some(resolved_master);
         }
         return workspace;
@@ -197,7 +273,8 @@ pub fn get_saved_coordinates() -> WorkspaceConfig {
 }
 
 #[tauri::command]
-pub fn save_coordinates(config: SolderConfig) -> Result<String, String> {
+pub fn save_coordinates(mut config: SolderConfig) -> Result<String, String> {
+    normalize_solder_config(&mut config);
     let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
 
     let config_path = get_config_path();
@@ -444,20 +521,28 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
         .or_else(|| global_cfg.active_workspace_id.clone())
         .unwrap_or_else(|| "sims4".to_string());
 
-    if let Some(existing_ws) = global_cfg.workspaces.iter().find(|w| {
-        w.id.eq_ignore_ascii_case(&schema_folder)
-            || w.schema_id.eq_ignore_ascii_case(&schema_folder)
-    }) {
-        if !existing_ws.vault_path.trim().is_empty() {
-            vault_path = existing_ws.vault_path.clone();
+    if let Some(ref master_vault) = global_cfg.vault_path {
+        let cleaned = strip_spoke_suffix_from_master_vault(master_vault, &global_cfg.workspaces);
+        if !cleaned.is_empty() {
+            vault_path = cleaned;
         }
     }
     if vault_path.is_empty() {
-        if let Some(ref master_vault) = global_cfg.vault_path {
-            if !master_vault.trim().is_empty() {
-                let candidate = std::path::Path::new(master_vault).join(&schema_folder);
-                let _ = std::fs::create_dir_all(&candidate);
-                vault_path = candidate.to_string_lossy().to_string();
+        if let Some(existing_ws) = global_cfg.workspaces.iter().find(|w| {
+            w.id.eq_ignore_ascii_case(&schema_folder)
+                || w.schema_id.eq_ignore_ascii_case(&schema_folder)
+        }) {
+            if let Some(ref mv) = existing_ws.master_vault_path {
+                let cleaned = strip_spoke_suffix_from_master_vault(mv, &global_cfg.workspaces);
+                if !cleaned.is_empty() {
+                    vault_path = cleaned;
+                }
+            }
+            if vault_path.is_empty() && !existing_ws.vault_path.trim().is_empty() {
+                vault_path = strip_spoke_suffix_from_master_vault(
+                    &existing_ws.vault_path,
+                    &global_cfg.workspaces,
+                );
             }
         }
     }
@@ -467,9 +552,10 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
             .map(std::path::PathBuf::from)
             .or_else(dirs::home_dir)
         {
-            let default_vault = home.join("SanctuaryVault").join(&schema_folder);
-            let _ = std::fs::create_dir_all(&default_vault);
-            vault_path = default_vault.to_string_lossy().to_string();
+            let default_master = home.join("SanctuaryVault");
+            let default_spoke = default_master.join(&schema_folder);
+            let _ = std::fs::create_dir_all(&default_spoke);
+            vault_path = default_master.to_string_lossy().to_string();
         }
     }
 
@@ -487,6 +573,7 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
         "live_path": live_path,
         "mods_path": mods_path,
         "vault_path": vault_path,
+        "master_vault_path": vault_path,
         "steam_app_id": steam_app_id,
         "proton_prefix": proton_prefix
     })

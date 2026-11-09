@@ -40,6 +40,8 @@ export interface LocalSupporterStatePayload {
   follows: LocalMasonFollow[];
   supporters: LocalMasonSupporter[];
   dev_build: LocalDevBuildStatus;
+  total_months_unlocked?: number;
+  is_unlocked?: boolean;
 }
 
 const LOCAL_STORAGE_KEY = "sanctuary_local_supporter_vault_v1";
@@ -434,6 +436,7 @@ export async function clearExpiredLocalMasonSupporters(
 export async function stackGlobalDevBuildDonation(params: {
   amountUsd: number;
   txNonce: string;
+  targetId?: string;
 }): Promise<{
   devBuild: LocalDevBuildStatus;
   monthsAdded: number;
@@ -561,10 +564,321 @@ export async function stackGlobalDevBuildDonation(params: {
   if (updatedDevBuild.channel_enabled) {
     localStorage.setItem("sanctuary_dev_build_channel", "true");
   }
+  recordMonthlyServerGoalContribution(
+    amountCents,
+    params.targetId || "keepers_core",
+    cleanNonce,
+  );
 
   return {
     devBuild: updatedDevBuild,
     monthsAdded: finalMonthsAdded,
+  };
+}
+
+const MONTHLY_SERVER_POOL_STORAGE_KEY = "sanctuary_monthly_server_pool_v1";
+
+function getCurrentMonthKey(): string {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+export function recordMonthlyServerGoalContribution(
+  amountCents: number,
+  targetId = "keepers_core",
+  txNonce?: string,
+): void {
+  if (!amountCents || amountCents <= 0) return;
+  const monthKey = getCurrentMonthKey();
+  const normTarget =
+    String(targetId || "keepers_core")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "") || "keepers_core";
+
+  try {
+    const raw = localStorage.getItem(MONTHLY_SERVER_POOL_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    const isSameMonth = parsed && parsed.monthKey === monthKey;
+    const prevTargets: Record<string, number> =
+      isSameMonth && parsed.targets && typeof parsed.targets === "object"
+        ? { ...parsed.targets }
+        : {};
+    if (
+      isSameMonth &&
+      typeof parsed.addedCents === "number" &&
+      prevTargets.keepers_core === undefined
+    ) {
+      prevTargets.keepers_core = Number(parsed.addedCents || 0);
+    }
+    prevTargets[normTarget] =
+      Math.max(0, Number(prevTargets[normTarget] || 0)) + amountCents;
+    localStorage.setItem(
+      MONTHLY_SERVER_POOL_STORAGE_KEY,
+      JSON.stringify({
+        monthKey,
+        addedCents: prevTargets.keepers_core || 0,
+        targets: prevTargets,
+      }),
+    );
+  } catch {
+    // ignore storage errors
+  }
+
+  // Also sync to cloud MonthlyDonationLedger (deduplicated by txNonce) so all clients see the automated monthly total
+  const localOnly =
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("sanctuary_local_only") === "true";
+  if (!localOnly && typeof navigator !== "undefined" && navigator.onLine) {
+    (async () => {
+      try {
+        const client = supabaseAuth || supabase;
+        const ledgerTitle = `LEDGER_${monthKey}_${normTarget.toUpperCase()}`;
+        const nonceKey = txNonce || `client_${Date.now()}`;
+        const { data: existingLedger } = await client
+          .from("keeper_system_broadcasts")
+          .select("id, description, message")
+          .eq("category", "MonthlyDonationLedger")
+          .eq("title", ledgerTitle)
+          .limit(1)
+          .maybeSingle();
+
+        let prevCents = 0;
+        let nonces: string[] = [];
+        if (existingLedger) {
+          try {
+            const p = JSON.parse(
+              existingLedger.description || existingLedger.message || "{}",
+            );
+            if (p.month_key === monthKey) {
+              prevCents = Math.max(0, Number(p.covered_cents || 0));
+              if (Array.isArray(p.tx_nonces)) nonces = p.tx_nonces;
+            }
+          } catch {
+            // ignore
+          }
+        }
+        if (!nonces.includes(nonceKey)) {
+          const nextNonces = [...nonces.slice(-199), nonceKey];
+          const nextCents = prevCents + amountCents;
+          const payloadStr = JSON.stringify({
+            month_key: monthKey,
+            target_id: normTarget,
+            covered_cents: nextCents,
+            tx_nonces: nextNonces,
+            updated_at: new Date().toISOString(),
+          });
+          if (existingLedger?.id) {
+            await client
+              .from("keeper_system_broadcasts")
+              .update({
+                description: payloadStr,
+                message: payloadStr,
+                target_audience: "Internal_Pipeline",
+                is_active: true,
+              })
+              .eq("id", existingLedger.id);
+          } else {
+            await client.from("keeper_system_broadcasts").insert([
+              {
+                title: ledgerTitle,
+                category: "MonthlyDonationLedger",
+                description: payloadStr,
+                message: payloadStr,
+                target_audience: "Internal_Pipeline",
+                is_active: true,
+                is_pinned: false,
+              },
+            ]);
+          }
+        }
+      } catch {
+        // non-fatal
+      }
+    })();
+  }
+}
+
+export async function syncMonthlyDonationLedgersFromCloud(): Promise<void> {
+  if (
+    typeof localStorage === "undefined" ||
+    localStorage.getItem("sanctuary_local_only") === "true" ||
+    (typeof navigator !== "undefined" && !navigator.onLine)
+  ) {
+    return;
+  }
+  try {
+    const monthKey = getCurrentMonthKey();
+    const client = supabaseAuth || supabase;
+    const { data: rows } = await client
+      .from("keeper_system_broadcasts")
+      .select("title, description, message")
+      .eq("category", "MonthlyDonationLedger")
+      .ilike("title", `LEDGER_${monthKey}_%`)
+      .eq("is_active", true);
+    if (!Array.isArray(rows) || rows.length === 0) return;
+
+    const raw = localStorage.getItem(MONTHLY_SERVER_POOL_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    const isSameMonth = parsed && parsed.monthKey === monthKey;
+    const targets: Record<string, number> =
+      isSameMonth && parsed.targets && typeof parsed.targets === "object"
+        ? { ...parsed.targets }
+        : {};
+
+    for (const r of rows) {
+      try {
+        const p = JSON.parse(r.description || r.message || "{}");
+        if (p.month_key === monthKey && p.target_id) {
+          const tKey = String(p.target_id).toLowerCase();
+          const cloudCents = Math.max(0, Number(p.covered_cents || 0));
+          targets[tKey] = Math.max(Number(targets[tKey] || 0), cloudCents);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    localStorage.setItem(
+      MONTHLY_SERVER_POOL_STORAGE_KEY,
+      JSON.stringify({
+        monthKey,
+        addedCents: targets.keepers_core || 0,
+        targets,
+      }),
+    );
+  } catch {
+    // ignore
+  }
+}
+
+export function isFoundryPatron(
+  supporterState?: LocalSupporterStatePayload | null,
+): boolean {
+  if (!supporterState?.dev_build) return false;
+  return (
+    (supporterState.dev_build.total_months_unlocked || 0) > 0 ||
+    (supporterState.dev_build.dev_build_until || 0) > 0 ||
+    (supporterState.dev_build.donation_credit_cents || 0) > 0
+  );
+}
+
+function getLocalAddedCentsForTarget(targetId: string): number {
+  try {
+    const monthKey = getCurrentMonthKey();
+    const normTarget = String(targetId || "keepers_core").trim().toLowerCase();
+    const raw = localStorage.getItem(MONTHLY_SERVER_POOL_STORAGE_KEY);
+    if (!raw) return 0;
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.monthKey !== monthKey) return 0;
+    if (parsed.targets && typeof parsed.targets === "object") {
+      if (parsed.targets[normTarget] !== undefined) {
+        return Math.max(0, Number(parsed.targets[normTarget] || 0));
+      }
+    }
+    if (normTarget === "keepers_core") {
+      return Math.max(0, Number(parsed.addedCents || 0));
+    }
+  } catch {
+    // ignore
+  }
+  return 0;
+}
+
+export function getMonthlyServerGoalStatus(
+  config?: KeepersPipelineConfig | null,
+): {
+  enabled: boolean;
+  goalCents: number;
+  coveredCents: number;
+  goalDollars: number;
+  coveredDollars: number;
+  percent: number;
+  fiveDollarStepPercent: number;
+} {
+  const rawGoal =
+    config?.monthly_server_goal_cents !== undefined
+      ? Number(config.monthly_server_goal_cents)
+      : 4500;
+  const enabled = rawGoal > 0;
+  const goalCents = enabled ? Math.max(100, rawGoal) : 0;
+  const baseCoveredCents = Number(
+    config?.monthly_server_covered_cents ?? 2500,
+  );
+  const localAddedCents = getLocalAddedCentsForTarget("keepers_core");
+  const coveredCents = Math.max(0, baseCoveredCents + localAddedCents);
+  const goalDollars = Math.round(goalCents / 100);
+  const coveredDollars = Math.round(coveredCents / 100);
+  const percent =
+    goalCents > 0 ? Math.min(100, Math.round((coveredCents / goalCents) * 100)) : 0;
+  const fiveDollarStepPercent =
+    goalCents > 0 ? Math.max(1, Math.round((500 / goalCents) * 100)) : 0;
+  return {
+    enabled,
+    goalCents,
+    coveredCents,
+    goalDollars,
+    coveredDollars,
+    percent,
+    fiveDollarStepPercent,
+  };
+}
+
+export function getSpokeServerGoalStatus(
+  partner?: {
+    id?: string;
+    schema_id?: string;
+    monthly_goal_cents?: number;
+    monthly_covered_cents?: number;
+  } | null,
+): {
+  enabled: boolean;
+  goalCents: number;
+  coveredCents: number;
+  goalDollars: number;
+  coveredDollars: number;
+  percent: number;
+  fiveDollarStepPercent: number;
+} {
+  const localOverride =
+    getLocalPartnerDonationOverride(partner?.schema_id) ||
+    getLocalPartnerDonationOverride(partner?.id);
+  const rawGoal =
+    partner?.monthly_goal_cents !== undefined
+      ? Number(partner.monthly_goal_cents)
+      : localOverride?.monthly_goal_cents !== undefined
+        ? Number(localOverride.monthly_goal_cents)
+        : 2500;
+  const enabled = rawGoal > 0;
+  const goalCents = enabled ? Math.max(100, rawGoal) : 0;
+  const baseCoveredCents =
+    partner?.monthly_covered_cents !== undefined
+      ? Number(partner.monthly_covered_cents)
+      : localOverride?.monthly_covered_cents !== undefined
+        ? Number(localOverride.monthly_covered_cents)
+        : 0;
+  const addedSchema = partner?.schema_id
+    ? getLocalAddedCentsForTarget(partner.schema_id)
+    : 0;
+  const addedId =
+    partner?.id && String(partner.id).toLowerCase() !== String(partner?.schema_id || "").toLowerCase()
+      ? getLocalAddedCentsForTarget(partner.id)
+      : 0;
+  const coveredCents = Math.max(0, baseCoveredCents + addedSchema + addedId);
+  const goalDollars = Math.round(goalCents / 100);
+  const coveredDollars = Math.round(coveredCents / 100);
+  const percent =
+    goalCents > 0 ? Math.min(100, Math.round((coveredCents / goalCents) * 100)) : 0;
+  const fiveDollarStepPercent =
+    goalCents > 0 ? Math.max(1, Math.round((500 / goalCents) * 100)) : 0;
+  return {
+    enabled,
+    goalCents,
+    coveredCents,
+    goalDollars,
+    coveredDollars,
+    percent,
+    fiveDollarStepPercent,
   };
 }
 
@@ -731,6 +1045,8 @@ export interface KeepersPipelineConfig {
   dev_published_at?: string;
   dev_release_url?: string;
   has_live_dev_release?: boolean;
+  monthly_server_goal_cents?: number;
+  monthly_server_covered_cents?: number;
   updated_at: string;
 }
 
@@ -884,6 +1200,8 @@ export const DEFAULT_KEEPERS_PIPELINE_CONFIG: KeepersPipelineConfig = {
     "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest",
   dev_build_notes:
     "Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).",
+  monthly_server_goal_cents: 4500,
+  monthly_server_covered_cents: 2500,
   updated_at: new Date().toISOString(),
 };
 
@@ -1144,6 +1462,7 @@ export async function getKeepersPipelineConfig(
         }
       })(),
       fetchLiveGitHubReleases(forceGitHubRefresh),
+      syncMonthlyDonationLedgersFromCloud(),
     ]);
 
     if (
@@ -1277,20 +1596,37 @@ export async function savePartnerCommunityDonationConfig(params: {
   schemaId?: string;
   donationUrl: string;
   paymentProcessor: string;
+  monthlyGoalCents?: number;
+  monthlyCoveredCents?: number;
 }): Promise<void> {
   const cleanUrl = (params.donationUrl || "").trim();
   const cleanProcessor = (params.paymentProcessor || "STRIPE")
     .trim()
     .toUpperCase();
+  const key = (params.schemaId || params.gameId || "default").toLowerCase();
+  const existingLocal = getLocalPartnerDonationOverride(key);
+  const goalCents =
+    params.monthlyGoalCents !== undefined
+      ? Math.max(0, Math.round(Number(params.monthlyGoalCents) || 0))
+      : existingLocal?.monthly_goal_cents !== undefined
+        ? Number(existingLocal.monthly_goal_cents)
+        : 2500;
+  const coveredCents =
+    params.monthlyCoveredCents !== undefined
+      ? Math.max(0, Math.round(Number(params.monthlyCoveredCents) || 0))
+      : existingLocal?.monthly_covered_cents !== undefined
+        ? Number(existingLocal.monthly_covered_cents)
+        : 0;
 
   // Persist locally inside workspace overrides cache so immediate UI reflects it
   try {
     const rawMap = localStorage.getItem("sanctuary_partner_donations_v1");
     const map = rawMap ? JSON.parse(rawMap) : {};
-    const key = (params.schemaId || params.gameId || "default").toLowerCase();
     map[key] = {
       donation_url: cleanUrl,
       payment_processor: cleanProcessor,
+      monthly_goal_cents: goalCents,
+      monthly_covered_cents: coveredCents,
       updated_at: new Date().toISOString(),
     };
     if (params.gameId) {
@@ -1329,11 +1665,62 @@ export async function savePartnerCommunityDonationConfig(params: {
       })
       .ilike("schema_id", schemaLookup);
   }
+
+  // Also persist Spoke Monthly Server Goal in keeper_system_broadcasts so all clients receive it without schema column dependencies
+  try {
+    const broadcastTitle = `SPOKE_DONATION_${key.toUpperCase()}`;
+    const payloadStr = JSON.stringify({
+      schema_id: key,
+      game_id: params.gameId || key,
+      donation_url: cleanUrl,
+      payment_processor: cleanProcessor,
+      monthly_goal_cents: goalCents,
+      monthly_covered_cents: coveredCents,
+      updated_at: new Date().toISOString(),
+    });
+    const { data: existingBroadcast } = await client
+      .from("keeper_system_broadcasts")
+      .select("id")
+      .eq("category", "SpokeDonationConfig")
+      .eq("title", broadcastTitle)
+      .limit(1)
+      .maybeSingle();
+    if (existingBroadcast?.id) {
+      await client
+        .from("keeper_system_broadcasts")
+        .update({
+          description: payloadStr,
+          message: payloadStr,
+          target_audience: "Internal_Pipeline",
+          is_active: true,
+        })
+        .eq("id", existingBroadcast.id);
+    } else {
+      await client.from("keeper_system_broadcasts").insert([
+        {
+          title: broadcastTitle,
+          category: "SpokeDonationConfig",
+          description: payloadStr,
+          message: payloadStr,
+          target_audience: "Internal_Pipeline",
+          is_active: true,
+          is_pinned: false,
+        },
+      ]);
+    }
+  } catch {
+    // non-fatal if offline or restricted
+  }
 }
 
 export function getLocalPartnerDonationOverride(
   idOrSchema?: string,
-): { donation_url?: string; payment_processor?: string } | null {
+): {
+  donation_url?: string;
+  payment_processor?: string;
+  monthly_goal_cents?: number;
+  monthly_covered_cents?: number;
+} | null {
   if (!idOrSchema) return null;
   try {
     const rawMap = localStorage.getItem("sanctuary_partner_donations_v1");
@@ -1936,13 +2323,42 @@ export async function loadPartnerCommunitiesList(
   const partnerList: any[] = [];
   const seenNames = new Set<string>();
   const wsList = workspaces || useStore.getState().workspaces || [];
+  const remoteSpokeGoalMap: Record<
+    string,
+    { monthly_goal_cents?: number; monthly_covered_cents?: number }
+  > = {};
 
   try {
     const client = supabaseAuth || supabase;
-    const { data: games } = await client
-      .from("sanctuary_games")
-      .select("id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor")
-      .order("name", { ascending: true });
+    const [{ data: games }, { data: spokeBroadcasts }] = await Promise.all([
+      client
+        .from("sanctuary_games")
+        .select("id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor")
+        .order("name", { ascending: true }),
+      client
+        .from("keeper_system_broadcasts")
+        .select("title, description, message, content")
+        .eq("category", "SpokeDonationConfig")
+        .eq("is_active", true),
+      syncMonthlyDonationLedgersFromCloud(),
+    ]);
+
+    if (Array.isArray(spokeBroadcasts)) {
+      for (const b of spokeBroadcasts) {
+        try {
+          const parsed = JSON.parse(
+            b.description || b.message || b.content || "{}",
+          );
+          const sKey = String(parsed.schema_id || "").toLowerCase();
+          const gKey = String(parsed.game_id || "").toLowerCase();
+          if (sKey) remoteSpokeGoalMap[sKey] = parsed;
+          if (gKey) remoteSpokeGoalMap[gKey] = parsed;
+        } catch {
+          // ignore
+        }
+      }
+    }
+
     if (Array.isArray(games)) {
       for (const g of games) {
         seenNames.add((g.name || "").toLowerCase());
@@ -1952,6 +2368,9 @@ export async function loadPartnerCommunitiesList(
         const localOverride =
           getLocalPartnerDonationOverride(g.schema_id) ||
           getLocalPartnerDonationOverride(g.id);
+        const remoteGoal =
+          remoteSpokeGoalMap[String(g.schema_id || "").toLowerCase()] ||
+          remoteSpokeGoalMap[String(g.id || "").toLowerCase()];
         if (
           isDesktop() &&
           localOverride?.donation_url &&
@@ -1964,6 +2383,8 @@ export async function loadPartnerCommunitiesList(
             donationUrl: localOverride.donation_url,
             paymentProcessor:
               localOverride.payment_processor || g.payment_processor || "STRIPE",
+            monthlyGoalCents: localOverride.monthly_goal_cents,
+            monthlyCoveredCents: localOverride.monthly_covered_cents,
           }).catch(() => {});
         }
         const rawDonUrl =
@@ -1974,6 +2395,18 @@ export async function loadPartnerCommunitiesList(
           rawDonUrl.trim() === LEGACY_DEACTIVATED_STRIPE_URL
             ? "sandbox://checkout"
             : rawDonUrl;
+        const resolvedGoalCents =
+          localOverride?.monthly_goal_cents !== undefined
+            ? Number(localOverride.monthly_goal_cents)
+            : remoteGoal?.monthly_goal_cents !== undefined
+              ? Number(remoteGoal.monthly_goal_cents)
+              : 2500;
+        const resolvedCoveredCents =
+          localOverride?.monthly_covered_cents !== undefined
+            ? Number(localOverride.monthly_covered_cents)
+            : remoteGoal?.monthly_covered_cents !== undefined
+              ? Number(remoteGoal.monthly_covered_cents)
+              : 0;
         partnerList.push({
           id: g.id,
           name: g.name,
@@ -1987,6 +2420,8 @@ export async function loadPartnerCommunitiesList(
                 g.payment_processor ||
                 "STRIPE"
           ).toUpperCase(),
+          monthly_goal_cents: resolvedGoalCents,
+          monthly_covered_cents: resolvedCoveredCents,
         });
       }
     }
@@ -2009,6 +2444,8 @@ export async function loadPartnerCommunitiesList(
         const localOverride =
           getLocalPartnerDonationOverride(w.schema_id) ||
           getLocalPartnerDonationOverride(w.id);
+        const remoteGoal =
+          remoteSpokeGoalMap[wSchemaKey] || remoteSpokeGoalMap[wIdKey];
         partnerList.push({
           id: w.id || wName,
           name: wName,
@@ -2023,6 +2460,18 @@ export async function loadPartnerCommunitiesList(
             w.payment_processor ||
             "STRIPE"
           ).toUpperCase(),
+          monthly_goal_cents:
+            localOverride?.monthly_goal_cents !== undefined
+              ? Number(localOverride.monthly_goal_cents)
+              : remoteGoal?.monthly_goal_cents !== undefined
+                ? Number(remoteGoal.monthly_goal_cents)
+                : 2500,
+          monthly_covered_cents:
+            localOverride?.monthly_covered_cents !== undefined
+              ? Number(localOverride.monthly_covered_cents)
+              : remoteGoal?.monthly_covered_cents !== undefined
+                ? Number(remoteGoal.monthly_covered_cents)
+                : 0,
         });
       }
     }
