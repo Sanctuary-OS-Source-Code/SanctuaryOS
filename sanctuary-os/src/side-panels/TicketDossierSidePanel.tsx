@@ -422,6 +422,20 @@ export default function TicketDossierSidePanel({
           )}
           badge={statusLabel}
           badgeIcon={t("icon_confirmation_number", "confirmation_number")}
+          badges={
+            isAuthorPatron
+              ? [
+                  {
+                    label: t(
+                      "supporter_patron_badge_label",
+                      "Foundry Supporter"
+                    ),
+                    icon: t("icon_workspace_premium", "workspace_premium"),
+                    colorClass: "text-[var(--accent)]",
+                  },
+                ]
+              : undefined
+          }
           variant={heroVariant}
         >
           <div className="grid grid-cols-2 gap-3 pt-1">
@@ -429,22 +443,12 @@ export default function TicketDossierSidePanel({
               label={t("author", "Author")
                 .replace(/^[^\w]*/, "")
                 .trim()}
-              value={
-                <span className="inline-flex items-center gap-2 flex-wrap">
-                  <span>{ticket.author_username || authorName}</span>
-                  {isAuthorPatron && (
-                    <span className="px-2 py-0.5 rounded-md border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[8px] font-black uppercase tracking-wider text-[var(--accent)] inline-flex items-center gap-1 shrink-0">
-                      <span className="material-symbols-outlined !text-[10px]">
-                        {t("icon_workspace_premium", "workspace_premium")}
-                      </span>
-                      <span>
-                        {t("supporter_patron_badge_label", "Foundry Supporter")}
-                      </span>
-                    </span>
-                  )}
-                </span>
+              value={ticket.author_username || authorName}
+              icon={
+                isAuthorPatron
+                  ? t("icon_workspace_premium", "workspace_premium")
+                  : t("icon_person", "person")
               }
-              icon={t("icon_person", "person")}
               iconColorClass="text-[var(--accent)]"
             />
             <StatBox

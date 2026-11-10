@@ -1016,7 +1016,7 @@ export function DynamicArtifactPreviewBanner({
 
       <div
         className={`absolute inset-x-3 ${
-          compact ? 'top-9 h-11' : 'top-[52px] h-14'
+          compact ? 'top-[50px] h-11' : 'top-[52px] h-14'
         } flex items-stretch gap-2 pointer-events-none z-10`}
       >
         {/* Left Artifact Identity Tile (1:1 Square) */}

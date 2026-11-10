@@ -885,28 +885,66 @@ CREATE OR REPLACE FUNCTION public.handle_new_spoke_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public
-AS $$
+AS $
 DECLARE
+    v_username TEXT := COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1), 'Citizen');
     assigned_role TEXT := 'citizen';
+    v_legacy_id UUID;
+    v_legacy_role TEXT;
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE role = 'wayfinder') THEN
+    -- 1. Check if any local auth.users-backed Wayfinder exists yet
+    IF NOT EXISTS (
+        SELECT 1
+        FROM public.profiles p
+        JOIN auth.users u ON u.id = p.id
+        WHERE p.role = 'wayfinder'
+    ) THEN
         assigned_role := 'wayfinder';
     END IF;
 
+    -- 2. Check if there is an unclaimed Hub-origin Spoke profile with this username
+    SELECT p.id, p.role
+    INTO v_legacy_id, v_legacy_role
+    FROM public.profiles p
+    WHERE lower(p.username) = lower(v_username)
+      AND p.id <> NEW.id
+      AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.id)
+    ORDER BY p.created_at ASC
+    LIMIT 1;
+
+    IF v_legacy_id IS NOT NULL AND assigned_role = 'citizen' AND v_legacy_role IS NOT NULL THEN
+        assigned_role := v_legacy_role;
+    END IF;
+
+    -- 3. Insert the new local auth-backed profile row
     INSERT INTO public.profiles (id, username, role, is_banned, is_comm_banned, created_at)
     VALUES (
         NEW.id,
-        COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1), 'Citizen'),
+        v_username,
         assigned_role,
         false,
         false,
         NOW()
     )
-    ON CONFLICT (id) DO NOTHING;
+    ON CONFLICT (id) DO UPDATE
+    SET username = EXCLUDED.username,
+        role = EXCLUDED.role;
+
+    -- 4. If an unclaimed Hub-origin Spoke profile matched, migrate foreign keys to NEW.id
+    IF v_legacy_id IS NOT NULL THEN
+        UPDATE public.masons SET profile_id = NEW.id WHERE profile_id = v_legacy_id;
+        UPDATE public.blueprints SET mason_id = NEW.id WHERE mason_id = v_legacy_id;
+        UPDATE public.mods SET last_updated_by = NEW.id WHERE last_updated_by = v_legacy_id;
+        UPDATE public.nexus_assets SET author_id = NEW.id WHERE author_id = v_legacy_id;
+        UPDATE public.sanctuary_tickets SET author_id = NEW.id WHERE author_id = v_legacy_id;
+        UPDATE public.sanctuary_tickets SET claimed_by = NEW.id WHERE claimed_by = v_legacy_id;
+        UPDATE public.mason_followers SET user_id = NEW.id WHERE user_id = v_legacy_id;
+        DELETE FROM public.profiles WHERE id = v_legacy_id;
+    END IF;
 
     RETURN NEW;
 END;
-$$;
+$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created_spoke ON auth.users;
 CREATE TRIGGER on_auth_user_created_spoke

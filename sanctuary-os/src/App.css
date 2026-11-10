@@ -120,6 +120,42 @@ textarea,
   user-select: text;
 }
 
+::selection,
+*::selection,
+input::selection,
+textarea::selection {
+  background-color: color-mix(in srgb, var(--accent, #38bdf8) 35%, transparent) !important;
+  color: var(--text, #f8fafc) !important;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent, #38bdf8) 45%, transparent) !important;
+}
+
+::-moz-selection,
+*::-moz-selection,
+input::-moz-selection,
+textarea::-moz-selection {
+  background-color: color-mix(in srgb, var(--accent, #38bdf8) 35%, transparent) !important;
+  color: var(--text, #f8fafc) !important;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent, #38bdf8) 45%, transparent) !important;
+}
+
+html[data-sa-light-mode="true"] ::selection,
+html[data-sa-light-mode="true"] *::selection,
+html[data-sa-light-mode="true"] input::selection,
+html[data-sa-light-mode="true"] textarea::selection {
+  background-color: color-mix(in srgb, var(--accent, #0284c7) 28%, transparent) !important;
+  color: var(--text, #0f172a) !important;
+  text-shadow: none !important;
+}
+
+html[data-sa-light-mode="true"] ::-moz-selection,
+html[data-sa-light-mode="true"] *::-moz-selection,
+html[data-sa-light-mode="true"] input::-moz-selection,
+html[data-sa-light-mode="true"] textarea::-moz-selection {
+  background-color: color-mix(in srgb, var(--accent, #0284c7) 28%, transparent) !important;
+  color: var(--text, #0f172a) !important;
+  text-shadow: none !important;
+}
+
 input:focus,
 input:focus-visible,
 textarea:focus,
@@ -1023,38 +1059,34 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
   flex-shrink: 0;
   background-color: transparent !important;
   background-image: none !important;
-  border-radius: max(10px, calc(var(--radius, 1.25rem) * 0.60)) !important;
+  border-radius: max(10px, calc(var(--radius, 1.25rem) * 0.55)) !important;
   border: 1px solid transparent !important;
   box-shadow: none !important;
   color: var(--text) !important;
-  opacity: 0.86;
+  opacity: 0.84;
   transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease, opacity 0.16s ease !important;
 }
 
 .sa-dropdown-popover .sa-dropdown-item:hover:not(.is-selected) {
   background-color: var(--glass-dropdown-item-hover, var(--glass-nested-surface-bg)) !important;
-  background-image: var(--glass-surface-sheen) !important;
+  background-image: none !important;
   border-top-color: var(--glass-border-top) !important;
   border-left-color: var(--glass-border-left) !important;
   border-right-color: var(--glass-surface-border) !important;
   border-bottom-color: var(--glass-surface-border) !important;
-  box-shadow:
-    var(--glass-surface-outer-shadow),
-    var(--glass-surface-inset-highlight) !important;
+  box-shadow: none !important;
   color: var(--text) !important;
   opacity: 1;
 }
 
 .sa-dropdown-popover .sa-dropdown-item.is-selected {
-  background-color: color-mix(in srgb, var(--accent) 12%, var(--glass-nested-surface-bg, rgba(255, 255, 255, 0.06))) !important;
-  background-image: var(--glass-surface-sheen) !important;
-  border-top: 1px solid color-mix(in srgb, var(--accent) 44%, var(--glass-border-top)) !important;
-  border-left: 1px solid color-mix(in srgb, var(--accent) 36%, var(--glass-border-left)) !important;
-  border-right: 1px solid color-mix(in srgb, var(--accent) 26%, var(--glass-border-right)) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 30%, var(--glass-border-bottom)) !important;
-  box-shadow:
-    var(--glass-surface-outer-shadow),
-    var(--glass-surface-inset-highlight) !important;
+  background-color: var(--glass-nav-active-bg) !important;
+  background-image: var(--glass-nav-active-sheen, none) !important;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 48%, var(--glass-nav-active-border-top, var(--glass-border-top))) !important;
+  border-left: 1px solid color-mix(in srgb, var(--accent) 40%, var(--glass-nav-active-border-left, var(--glass-border-left))) !important;
+  border-right: 1px solid color-mix(in srgb, var(--accent) 28%, var(--glass-nav-active-border-right, var(--glass-border-right))) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 32%, var(--glass-nav-active-border-bottom, var(--glass-border-bottom))) !important;
+  box-shadow: var(--glass-nav-active-shadow) !important;
   color: var(--text) !important;
   opacity: 1 !important;
 }

@@ -349,7 +349,7 @@ export function CustomDropdown({
                 })}
               </div>
             )}
-            <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar p-1.5 flex flex-col gap-0.5">
+            <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar p-2 flex flex-col gap-1">
               {filteredOptions
                 .slice(0, 100)
                 .map((opt: any) => {
@@ -367,7 +367,7 @@ export function CustomDropdown({
                         e.stopPropagation();
                         handleSelect(opt.id);
                       }}
-                      className={`sa-dropdown-item w-full text-left px-3 py-2.5 text-xs tracking-wide flex items-center gap-2.5 group cursor-pointer shrink-0 ${
+                      className={`sa-dropdown-item w-full text-left px-3.5 py-2.5 text-xs tracking-wide flex items-center gap-2.5 group cursor-pointer shrink-0 ${
                         isSelected ? "is-selected font-bold" : "font-medium"
                       }`}
                     >
@@ -376,7 +376,7 @@ export function CustomDropdown({
                           style={{ borderRadius: "5px" }}
                           className={`w-4 h-4 border flex items-center justify-center transition-colors shrink-0 ${
                             isSelected
-                              ? "bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_65%,transparent)] text-[var(--accent)]"
+                              ? "bg-transparent border-[color-mix(in_srgb,var(--accent)_65%,transparent)] text-[var(--accent)]"
                               : "bg-transparent border-[color-mix(in_srgb,var(--text)_22%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)]"
                           }`}
                         >
@@ -406,8 +406,10 @@ export function CustomDropdown({
                         </span>
                       )}
                       {isSelected && !multiSelect && (
-                        <span className="material-symbols-outlined !text-[15px] shrink-0 text-[var(--accent)]">
-                          {t("icon_check", "check")}
+                        <span className="w-5 h-5 rounded-md border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined !text-[13px] font-bold">
+                            {t("icon_check", "check")}
+                          </span>
                         </span>
                       )}
                     </button>

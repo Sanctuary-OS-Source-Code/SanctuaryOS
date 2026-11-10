@@ -13,7 +13,6 @@ import WebDocumentFeed from './WebDocumentFeed';
 import WebLegalViewer from './WebLegalViewer';
 import { fetchSyncedLegalAndCovenants } from './utils/directivesSync';
 import {
-  handleOpenUrl,
   ViewHeader,
   PanelHeaderGroup,
   PanelHeaderButton,
@@ -38,8 +37,7 @@ import { usePwaInstall, isMobileDevice } from './utils/pwaManager';
 import {
   getKeepersPipelineConfig,
   getSupporterState,
-  buildPartnerCheckoutUrl,
-  isSandboxDonationUrl,
+  loadPartnerCommunitiesList,
   stackGlobalDevBuildDonation,
   presentSupporterCelebrationModal,
   extractCheckoutReceiptNonce,
@@ -50,6 +48,7 @@ import {
   isClientOnDevBuildStream,
   setDevBuildChannelPreference,
 } from './utils/supporterManager';
+import { CommunitySupportSidePanel } from './side-panels/CommunitySupportSidePanel';
 import { scrubLogUserData } from './utils/logScrubber';
 import { ReleaseNotesShowcase } from './components/ReleaseNotesShowcase';
 import {
@@ -242,6 +241,9 @@ export default function WebLandingPage() {
   // Stacked Partner Spoke Covenants Drawer State (2 Tabs: Partners Agreement & Compliance Protocol)
   const [activePartnerCovenant, setActivePartnerCovenant] = useState<
     'PartnersAgreement' | 'ComplianceProtocol' | null
+  >(null);
+  const [selectedSupportPanelId, setSelectedSupportPanelId] = useState<
+    string | null
   >(null);
   const [covenantViewMode, setCovenantViewMode] = useState<'ui' | 'normal'>(
     'ui'
@@ -915,13 +917,14 @@ export default function WebLandingPage() {
 
   useEffect(() => {
     const fetchGames = async () => {
-      const [{ data }, pipelineCfg, newsRes] = await Promise.all([
+      const [{ data }, pipelineCfg, partnerList, newsRes] = await Promise.all([
         supabase
           .from('sanctuary_games')
           .select(
             'id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor'
           ),
         getKeepersPipelineConfig(),
+        loadPartnerCommunitiesList(),
         supabaseAuth
           .from('system_broadcasts')
           .select('id', { count: 'exact', head: true })
@@ -946,14 +949,33 @@ export default function WebLandingPage() {
             const override =
               getLocalPartnerDonationOverride(g.schema_id) ||
               getLocalPartnerDonationOverride(g.id);
+            const matchedPartner = (partnerList || []).find(
+              (p: any) =>
+                String(p.id).toLowerCase() === String(g.id).toLowerCase() ||
+                (g.schema_id &&
+                  String(p.schema_id || '').toLowerCase() ===
+                    String(g.schema_id).toLowerCase())
+            );
             return {
               ...g,
               donation_url:
                 override?.donation_url !== undefined
                   ? override.donation_url
-                  : g.donation_url,
+                  : matchedPartner?.donation_url || g.donation_url,
               payment_processor:
-                override?.payment_processor || g.payment_processor || 'STRIPE',
+                override?.payment_processor ||
+                matchedPartner?.payment_processor ||
+                g.payment_processor ||
+                'STRIPE',
+              monthly_goal_cents:
+                override?.monthly_goal_cents ??
+                matchedPartner?.monthly_goal_cents,
+              monthly_covered_cents:
+                override?.monthly_covered_cents ??
+                matchedPartner?.monthly_covered_cents,
+              spoke_cost_breakdown:
+                override?.spoke_cost_breakdown ||
+                matchedPartner?.spoke_cost_breakdown,
             };
           });
         setGames(merged);
@@ -1029,72 +1051,10 @@ export default function WebLandingPage() {
 
   const handleDonateCardClick = async (
     targetId: string,
-    targetName: string,
-    rawDonationUrl?: string
+    _targetName: string,
+    _rawDonationUrl?: string
   ) => {
-    const cleanUrl = (rawDonationUrl || '').trim();
-    if (!cleanUrl) return;
-
-    if (isSandboxDonationUrl(cleanUrl)) {
-      if (!session?.user?.id) {
-        pushToast(
-          t(
-            'supporter_auth_required_for_dev_builds',
-            'Please sign in to your Sanctuary OS account first so your donation automatically stacks +30 days of Global Daily Dev Builds per $5.'
-          ),
-          'warning'
-        );
-        return;
-      }
-      try {
-        const res = await stackGlobalDevBuildDonation({
-          amountUsd: 5,
-          txNonce: `sandbox_${targetId}_${Date.now()}`,
-        });
-        devBuildUntilRef.current = res.devBuild.dev_build_until;
-        setDevBuildUntil(res.devBuild.dev_build_until);
-        setIsDevUnlocked(
-          res.devBuild.dev_build_until > Math.floor(Date.now() / 1000)
-        );
-        presentSupporterCelebrationModal({
-          devBuildUntil: res.devBuild.dev_build_until,
-          monthsAdded: Math.max(1, res.monthsAdded || 1),
-          t,
-        });
-      } catch (err: any) {
-        pushToast(
-          err?.message ||
-            t('supporter_err_stack', 'Failed to stack donation.'),
-          'error'
-        );
-      }
-      return;
-    }
-
-    const checkoutUrl = buildPartnerCheckoutUrl(
-      cleanUrl,
-      session?.user?.id,
-      session?.user?.email
-    );
-
-    handleOpenUrl(checkoutUrl);
-
-    if (!isDesktop()) {
-      setPendingWebCheckout({
-        targetId,
-        targetName,
-        startedAt: Date.now(),
-      });
-      if (!session?.user?.id) {
-        pushToast(
-          t(
-            'supporter_guest_checkout_notice',
-            'Checkout opened! Sign in to Sanctuary OS or use your account email at checkout so your +30 days of Dev Builds per $5 link to your account.'
-          ),
-          'info'
-        );
-      }
-    }
+    setSelectedSupportPanelId(targetId || 'keepers_core');
   };
 
   const handleVerifyWebDonation = async () => {
@@ -2250,6 +2210,17 @@ export default function WebLandingPage() {
           setVerifyReceiptInput={setVerifyReceiptInput}
           verifyAmountUsd={verifyAmountUsd}
           setVerifyAmountUsd={setVerifyAmountUsd}
+        />
+
+        {/* DRAWER 6: COMMUNITY SUPPORT & PERKS SIDEPANEL (LOCKED TO SELECTED HUB OR SPOKE) */}
+        <CommunitySupportSidePanel
+          isOpen={Boolean(selectedSupportPanelId)}
+          onClose={() => setSelectedSupportPanelId(null)}
+          initialPartnerId={selectedSupportPanelId || undefined}
+          singlePartnerOnly={true}
+          onSuccess={() => {
+            refreshSupporterStatus();
+          }}
         />
 
         <WebLegalViewer />

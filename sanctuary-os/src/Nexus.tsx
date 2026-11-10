@@ -2299,7 +2299,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                             className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group"
                                           >
                                             <div
-                                              className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
+                                              className="relative z-20 h-28 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
                                               style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit', background: 'var(--glass-card-banner-bg)' }}
                                             >
                                               {(showImages !== false && flavor.image_url) ? (
@@ -2751,7 +2751,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                           className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group"
                                         >
                                           <div
-                                            className="relative z-20 h-24 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
+                                            className="relative z-20 h-28 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
                                             style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit', background: 'var(--glass-card-banner-bg)' }}
                                           >
                                             {(showImages !== false && flavor.image_url) ? (

@@ -53,6 +53,7 @@ import { isCoreOnlyAuditRow, logArchitectAction } from "../lib/audit";
 import WayfinderKeeperTickets from "../WayfinderKeeperTickets";
 import TicketDossierSidePanel from "../side-panels/TicketDossierSidePanel";
 import WayfinderSupportSidePanel from "../side-panels/WayfinderSupportSidePanel";
+import { WayfinderDonationSetupSidePanel } from "../side-panels/WayfinderSidePanels";
 
 const VAULT_CHIP_CLASS =
   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
@@ -86,10 +87,10 @@ export default function WayfinderMasterSchemas({
   const resolveInitialTab = (tab: string) => {
     if (tab === "audit_logs") return "audit_logs";
     if (tab === "keepers_support") return "keepers_support";
+    if (tab === "guides_legal" || tab === "forking_help") return "guides_legal";
     if (
       tab === "spoke_setup" ||
       tab === "spoke_sever" ||
-      tab === "forking_help" ||
       tab === "donations" ||
       tab === "schemas"
     ) {
@@ -130,15 +131,15 @@ export default function WayfinderMasterSchemas({
 
   // Spoke Sever State
   const [severReason, setSeverReason] = useState("");
+  const [severConfirmText, setSeverConfirmText] = useState("");
   const [confirmSever, setConfirmSever] = useState(false);
   const [isSevering, setIsSevering] = useState(false);
+  const isSeverPhraseValid =
+    severConfirmText.trim().toUpperCase() === "CUT THE CORD";
 
   // Donations State
   const [processor, setProcessor] = useState("STRIPE");
   const [donationUrl, setDonationUrl] = useState("");
-  const [monthlyGoalDollars, setMonthlyGoalDollars] = useState("25");
-  const [monthlyCoveredDollars, setMonthlyCoveredDollars] = useState("0");
-  const [savingDonation, setSavingDonation] = useState(false);
 
   // Interactive Forking Guide SidePanel State
   const [forkTab, setForkTab] = useState<"spoke" | "standalone" | "sql">("spoke");
@@ -331,43 +332,45 @@ export default function WayfinderMasterSchemas({
     preloadTelemetry();
   }, [session?.user?.id, activeWorkspaceId, isCreateSupportOpen]);
 
-  useEffect(() => {
-    const loadDonationConfig = async () => {
-      const { getLocalPartnerDonationOverride, getSpokeServerGoalStatus } = await import("../utils/supporterManager");
-      const localOverride =
-        getLocalPartnerDonationOverride(activeWs?.schema_id) ||
-        getLocalPartnerDonationOverride(activeWorkspaceId);
-      const goalStatus = getSpokeServerGoalStatus({
-        id: activeWs?.id || activeWorkspaceId,
-        schema_id: activeWs?.schema_id || activeWorkspaceId,
-        monthly_goal_cents: localOverride?.monthly_goal_cents,
-        monthly_covered_cents: localOverride?.monthly_covered_cents,
-      });
-      setMonthlyGoalDollars(String(goalStatus.goalDollars));
-      setMonthlyCoveredDollars(String(goalStatus.coveredDollars));
-      if (localOverride) {
-        setDonationUrl(localOverride.donation_url || "");
-        setProcessor((localOverride.payment_processor || "STRIPE").toUpperCase());
-      } else if (activeWs) {
-        setDonationUrl(activeWs.donation_url || "");
-        setProcessor((activeWs.payment_processor || "STRIPE").toUpperCase());
-      }
-      if (activeWs?.schema_id) {
-        const { data } = await supabase
-          .from("sanctuary_games")
-          .select("donation_url, payment_processor")
-          .ilike("schema_id", activeWs.schema_id)
-          .maybeSingle();
-        if (data) {
-          if (data.donation_url !== undefined && data.donation_url !== null) {
-            setDonationUrl(data.donation_url);
-          }
-          if (data.payment_processor) {
-            setProcessor(String(data.payment_processor).toUpperCase());
-          }
+  const loadDonationConfig = async () => {
+    const { getLocalPartnerDonationOverride } = await import(
+      "../utils/supporterManager"
+    );
+    const localOverride =
+      getLocalPartnerDonationOverride(activeWs?.schema_id) ||
+      getLocalPartnerDonationOverride(activeWorkspaceId);
+    if (localOverride) {
+      setDonationUrl(localOverride.donation_url || "");
+      const proc = (localOverride.payment_processor || "STRIPE").toUpperCase();
+      setProcessor(proc === "SANDBOX" ? "STRIPE" : proc);
+    } else if (activeWs) {
+      setDonationUrl(activeWs.donation_url || "");
+      const proc = (activeWs.payment_processor || "STRIPE").toUpperCase();
+      setProcessor(proc === "SANDBOX" ? "STRIPE" : proc);
+    }
+    if (activeWs?.schema_id) {
+      const { data } = await supabase
+        .from("sanctuary_games")
+        .select("donation_url, payment_processor")
+        .ilike("schema_id", activeWs.schema_id)
+        .maybeSingle();
+      if (data) {
+        if (
+          data.donation_url !== undefined &&
+          data.donation_url !== null &&
+          !String(data.donation_url).toLowerCase().startsWith("sandbox://")
+        ) {
+          setDonationUrl(data.donation_url);
+        }
+        if (data.payment_processor) {
+          const proc = String(data.payment_processor).toUpperCase();
+          setProcessor(proc === "SANDBOX" ? "STRIPE" : proc);
         }
       }
-    };
+    }
+  };
+
+  useEffect(() => {
     loadDonationConfig();
   }, [activeWorkspaceId, activeWs?.schema_id]);
 
@@ -434,6 +437,7 @@ export default function WayfinderMasterSchemas({
   };
 
   const handleCutTheCord = async () => {
+    if (!isSeverPhraseValid) return;
     if (!confirmSever) {
       setConfirmSever(true);
       setTimeout(() => setConfirmSever(false), 4500);
@@ -461,52 +465,12 @@ export default function WayfinderMasterSchemas({
         "info"
       );
       setConfirmSever(false);
+      setSeverConfirmText("");
       setActiveSpokePanel(null);
     } catch (err: any) {
       pushStatus(err.message, "error");
     } finally {
       setIsSevering(false);
-    }
-  };
-
-  const handleSaveDonation = async () => {
-    if (savingDonation) return;
-    setSavingDonation(true);
-    try {
-      const { savePartnerCommunityDonationConfig } = await import("../utils/supporterManager");
-      const goalCents = Math.max(0, Math.round((parseFloat(monthlyGoalDollars) || 0) * 100));
-      const coveredCents = Math.max(0, Math.round((parseFloat(monthlyCoveredDollars) || 0) * 100));
-      await savePartnerCommunityDonationConfig({
-        gameId: activeWs?.id || activeWorkspaceId,
-        schemaId: activeWs?.schema_id || activeWorkspaceId,
-        donationUrl,
-        paymentProcessor: processor,
-        monthlyGoalCents: goalCents,
-        monthlyCoveredCents: coveredCents,
-      });
-      await logArchitectAction(
-        "Updated Spoke Donation Settings",
-        "sanctuary_schemas",
-        activeWs?.name || activeWs?.schema_id || activeWorkspaceId,
-        "Automated from Spoke Control",
-        "Wayfinder Operations",
-        false,
-        {
-          donation_url: { to: donationUrl || "None" },
-          payment_processor: { to: processor || "None" },
-        }
-      );
-      const { syncGameDatabases } = await import("../store");
-      await syncGameDatabases();
-      pushStatus(
-        t("wf_donation_saved_toast", "Partner Community donation settings updated!"),
-        "success"
-      );
-      setActiveSpokePanel(null);
-    } catch (err: any) {
-      pushStatus(err?.message || String(err), "error");
-    } finally {
-      setSavingDonation(false);
     }
   };
 
@@ -663,10 +627,12 @@ export default function WayfinderMasterSchemas({
     }
   };
 
-  const spokeAndSchemaCount = 5 + (schemaFiles?.length || 0);
-  const totalOverviewItems = spokeAndSchemaCount + ticketsCount;
+  const spokeAndSchemaCount = 3 + (schemaFiles?.length || 0);
+  const guidesAndLegalCount = 4;
+  const totalOverviewItems =
+    spokeAndSchemaCount + guidesAndLegalCount + ticketsCount;
 
-  // 4 Top StatTileCarousel Tabs — every single tile has a live number value & zero horizontal overflow
+  // 5 Top StatTileCarousel Tabs — every single tile has a live number value & zero horizontal overflow
   const tabs = [
     {
       id: "overview",
@@ -676,9 +642,15 @@ export default function WayfinderMasterSchemas({
     },
     {
       id: "spoke_setup",
-      label: t("wf_tab_spoke_setup", "Spoke & Setup"),
+      label: t("wf_tab_spoke_schemas", "Spoke & Schemas"),
       icon: t("icon_settings_ethernet", "settings_ethernet"),
       number: String(spokeAndSchemaCount),
+    },
+    {
+      id: "guides_legal",
+      label: t("wf_tab_guides_legal", "Guides & Legal"),
+      icon: t("icon_menu_book", "menu_book"),
+      number: String(guidesAndLegalCount),
     },
     {
       id: "audit_logs",
@@ -1034,37 +1006,100 @@ export default function WayfinderMasterSchemas({
     );
   };
 
-  const renderCovenantsCard = () => (
+  const renderSqlSchemasCard = () => (
     <UniversalCard
-      key="spoke_op_covenants"
+      key="spoke_op_sql_schemas"
+      layout="vertical"
+      onClick={() => {
+        setForkTab("sql");
+        setActiveSpokePanel("forking");
+      }}
+      icon={t("icon_database", "database")}
+      title={t(
+        "wf_card_sql_schemas_title",
+        "Spoke & Hub SQL Schemas (schema.sql)"
+      )}
+      subtitle={t("dir_fork_sql_spoke_val", "schema.sql (36 Tables)")}
+      imageOverlay={
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+              {t("icon_storage", "storage")}
+            </span>
+            <span>{t("dir_fork_sql_spoke_val", "schema.sql (36 Tables)")}</span>
+          </div>
+        </div>
+      }
+      badges={
+        <>
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              {t("icon_hub", "hub")}
+            </span>
+            <span>{t("dir_fork_sql_hub_val", "schema_os.sql (19 Tables)")}</span>
+          </div>
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+              {t("icon_passkey", "passkey")}
+            </span>
+            <span>{t("wf_badge_100_data", "100% Data Retained")}</span>
+          </div>
+        </>
+      }
+      actions={
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleCopySpokeSql();
+          }}
+          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:scale-110"
+        >
+          <span className="material-symbols-outlined !text-[14px]">
+            {t("icon_content_copy", "content_copy")}
+          </span>
+          <HoverTooltip title={t("wf_btn_copy_spoke_sql", "Copy schema.sql")} />
+        </button>
+      }
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <span className="text-[10px] font-mono font-bold text-[var(--subtext)] opacity-75 flex items-center gap-1.5 truncate pr-2">
+            <span className="material-symbols-outlined !text-[12px] opacity-70">
+              {t("icon_database", "database")}
+            </span>
+            {t("wf_btn_copy_spoke_sql", "Copy schema.sql")}
+          </span>
+          <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+            {t("btn_inspect", "Inspect")}{" "}
+            <span className="text-base leading-none">&rarr;</span>
+          </span>
+        </div>
+      }
+    >
+      <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
+        {t(
+          "wf_card_sql_schemas_desc",
+          "Inspect and copy the complete PostgreSQL database schemas for Community Spokes (schema.sql) and Central Federation Hubs (schema_os.sql)."
+        )}
+      </p>
+    </UniversalCard>
+  );
+
+  const renderPartnersAgreementCard = () => (
+    <UniversalCard
+      key="spoke_op_partners_agreement"
       layout="vertical"
       onClick={() => {
         setCovenantDocTab("partners_agreement");
         setIsCovenantPanelOpen(true);
       }}
-      onContextMenu={(e) => {
-        openSanctuaryContextMenu(e, [
-          {
-            label: t("btn_inspect", "Inspect"),
-            icon: t("icon_gavel", "gavel"),
-            onClick: () => {
-              setCovenantDocTab("partners_agreement");
-              setIsCovenantPanelOpen(true);
-            },
-          },
-        ]);
-      }}
-      icon={t("icon_gavel", "gavel")}
-      title={t("partner_covenants_title", "Partners Agreement & Compliance Protocol")}
-      subtitle={t(
-        "partner_covenants_subtitle",
-        "Spoke Governance, Anti-Malware & Bilateral Sovereignty Covenants"
-      )}
+      icon={t("icon_handshake", "handshake")}
+      title={t("partner_agreement_title", "Partners Agreement")}
+      subtitle={`V${stableVersion} • ${t("partner_agreement_badge", "Spoke Charter")}`}
       imageOverlay={
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
           <div className={VAULT_CHIP_CLASS}>
-            <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-              {t("icon_verified", "verified")}
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              {t("icon_handshake", "handshake")}
             </span>
             <span>{`V${stableVersion} • ${t("partner_agreement_badge", "Spoke Charter")}`}</span>
           </div>
@@ -1073,16 +1108,16 @@ export default function WayfinderMasterSchemas({
       badges={
         <>
           <div className={VAULT_CHIP_CLASS}>
-            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-              {t("icon_handshake", "handshake")}
+            <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+              {t("icon_verified", "verified")}
             </span>
-            <span>{t("partner_agreement_title", "Partners Agreement")}</span>
+            <span>{t("wf_badge_zero_cut", "0% Sanctuary Cut")}</span>
           </div>
           <div className={VAULT_CHIP_CLASS}>
-            <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-              {t("icon_shield", "shield")}
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              {t("icon_link_off", "link_off")}
             </span>
-            <span>{t("compliance_protocol_title", "Compliance Protocol")}</span>
+            <span>{t("wf_badge_sovereign", "Bilateral Sovereignty")}</span>
           </div>
         </>
       }
@@ -1092,18 +1127,80 @@ export default function WayfinderMasterSchemas({
             <span className="material-symbols-outlined !text-[12px] opacity-70">
               {t("icon_gavel", "gavel")}
             </span>
-            {`V${stableVersion} • ${t("compliance_protocol_badge", "Safety & Privacy")}`}
+            {t("partner_agreement_badge", "Spoke Charter")}
           </span>
           <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
-            {t("btn_inspect", "Inspect")} <span className="text-base leading-none">&rarr;</span>
+            {t("btn_inspect", "Inspect")}{" "}
+            <span className="text-base leading-none">&rarr;</span>
           </span>
         </div>
       }
     >
       <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
         {t(
-          "partner_covenants_desc",
-          "Inspect the binding Sanctuary OS Partners Agreement and Compliance Protocol governing Spoke sovereignty, 0% non-custodial donations, heuristic malware enforcement, and cryptographic {mod} integrity."
+          "partner_agreement_desc",
+          "Bilateral Sovereignty (Cut the Cord), 0% non-custodial donations, Spoke maintenance duties, and brand boundaries."
+        )}
+      </p>
+    </UniversalCard>
+  );
+
+  const renderComplianceProtocolCard = () => (
+    <UniversalCard
+      key="spoke_op_compliance_protocol"
+      layout="vertical"
+      onClick={() => {
+        setCovenantDocTab("compliance_protocol");
+        setIsCovenantPanelOpen(true);
+      }}
+      icon={t("icon_shield", "shield")}
+      title={t("compliance_protocol_title", "Compliance Protocol")}
+      subtitle={`V${stableVersion} • ${t("compliance_protocol_badge", "Safety & Privacy")}`}
+      imageOverlay={
+        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+              {t("icon_shield", "shield")}
+            </span>
+            <span>{`V${stableVersion} • ${t("compliance_protocol_badge", "Safety & Privacy")}`}</span>
+          </div>
+        </div>
+      }
+      badges={
+        <>
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+              {t("icon_security", "security")}
+            </span>
+            <span>{t("compliance_protocol_badge", "Safety & Privacy")}</span>
+          </div>
+          <div className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              {t("icon_gavel", "gavel")}
+            </span>
+            <span>{t("partner_covenants_title", "Partners Agreement & Compliance Protocol")}</span>
+          </div>
+        </>
+      }
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <span className="text-[10px] font-mono font-bold text-[var(--subtext)] opacity-75 flex items-center gap-1.5 truncate pr-2">
+            <span className="material-symbols-outlined !text-[12px] opacity-70">
+              {t("icon_shield", "shield")}
+            </span>
+            {t("compliance_protocol_badge", "Safety & Privacy")}
+          </span>
+          <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
+            {t("btn_inspect", "Inspect")}{" "}
+            <span className="text-base leading-none">&rarr;</span>
+          </span>
+        </div>
+      }
+    >
+      <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
+        {t(
+          "compliance_protocol_desc",
+          "Zero-malware enforcement, SHA-256 {mod} verification, DMCA takedown compliance, and GDPR/CCPA privacy standards."
         )}
       </p>
     </UniversalCard>
@@ -1643,6 +1740,26 @@ export default function WayfinderMasterSchemas({
                     <pre className="text-xs font-mono text-[var(--text)] opacity-90 overflow-x-auto custom-scrollbar leading-relaxed p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)] m-0">
                       <code>{STANDALONE_MANUAL_SNIPPET}</code>
                     </pre>
+                  </div>
+
+                  <div className="glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)]">
+                    <div className="flex items-center gap-2 text-[var(--accent)]">
+                      <span className="material-symbols-outlined !text-[16px]">
+                        {t("icon_passkey", "passkey")}
+                      </span>
+                      <span className="text-xs font-black uppercase tracking-wider">
+                        {t(
+                          "wf_sever_identity_arch_title",
+                          "How Accounts Work After Severing (Hub Auth vs. Spoke Profiles)"
+                        )}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--subtext)] leading-relaxed m-0">
+                      {t(
+                        "wf_sever_identity_arch_desc",
+                        "In federated mode, login credentials (auth.users) live in the Core Hub database while your Spoke stores public.profiles (username & role). If you transition your severed Spoke into a Standalone Fork pointed solely at your Spoke Supabase URL, citizens and Creators register a local login on your Spoke Auth. When they sign up with their existing Spoke username, the Spoke's on_auth_user_created_spoke trigger automatically relinks their existing Spoke profile, Creator studio, and {Blueprints} to their new local Auth ID, and promotes the first local account to Wayfinder."
+                      )}
+                    </p>
                   </div>
                 </div>
               )}
@@ -2456,7 +2573,7 @@ export default function WayfinderMasterSchemas({
         </HubOverviewLanding>
       )}
 
-      {/* 2. SPOKE & SETUP TAB (UniversalCard Grid -> Clicking Opens Right-Hand SidePanel) */}
+      {/* 2. SPOKE & SCHEMAS TAB (Spoke Setup, Cut the Cord, Donations, and Master Schema Files) */}
       {activeTab === "spoke_setup" && (
         <div className="flex flex-col gap-6 w-full pb-16 animate-in fade-in">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">
@@ -2479,26 +2596,9 @@ export default function WayfinderMasterSchemas({
 
             {showSpokeOps &&
               matchesQuery(
-                `${t("wf_tab_forking_help", "Forking Help & Walkthrough")} ${
-                  CANONICAL_DIRECTIVES.forking_guide.title
-                }`
-              ) &&
-              renderForkingHelpCard()}
-
-            {showSpokeOps &&
-              matchesQuery(
                 `${t("wf_donation_panel_title", "Non-Custodial Community Donations")} ${processor}`
               ) &&
               renderDonationsCard()}
-
-            {showSpokeOps &&
-              matchesQuery(
-                `${t("partner_covenants_title", "Partners Agreement & Compliance Protocol")} ${t(
-                  "partner_agreement_title",
-                  "Partners Agreement"
-                )} ${t("compliance_protocol_title", "Compliance Protocol")}`
-              ) &&
-              renderCovenantsCard()}
 
             {showSchemas && filteredSchemaFiles.map(renderSchemaFileCard)}
           </div>
@@ -2510,6 +2610,40 @@ export default function WayfinderMasterSchemas({
               className="col-span-full py-16"
             />
           )}
+        </div>
+      )}
+
+      {/* 3. GUIDES & LEGAL TAB (Forking Walkthrough, SQL Schemas, Partners Agreement, Compliance Protocol) */}
+      {activeTab === "guides_legal" && (
+        <div className="flex flex-col gap-6 w-full pb-16 animate-in fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">
+            {matchesQuery(
+              `${t("wf_tab_forking_help", "Forking Help & Walkthrough")} ${
+                CANONICAL_DIRECTIVES.forking_guide.title
+              }`
+            ) && renderForkingHelpCard()}
+
+            {matchesQuery(
+              `${t("wf_card_sql_schemas_title", "Spoke & Hub SQL Schemas (schema.sql)")} ${t(
+                "dir_fork_sql_spoke_val",
+                "schema.sql (36 Tables)"
+              )} ${t("dir_fork_sql_hub_val", "schema_os.sql (19 Tables)")}`
+            ) && renderSqlSchemasCard()}
+
+            {matchesQuery(
+              `${t("partner_agreement_title", "Partners Agreement")} ${t(
+                "partner_agreement_badge",
+                "Spoke Charter"
+              )}`
+            ) && renderPartnersAgreementCard()}
+
+            {matchesQuery(
+              `${t("compliance_protocol_title", "Compliance Protocol")} ${t(
+                "compliance_protocol_badge",
+                "Safety & Privacy"
+              )}`
+            ) && renderComplianceProtocolCard()}
+          </div>
         </div>
       )}
 
@@ -2884,6 +3018,7 @@ export default function WayfinderMasterSchemas({
         isOpen={activeSpokePanel === "sever"}
         onClose={() => {
           setConfirmSever(false);
+          setSeverConfirmText("");
           setActiveSpokePanel(null);
         }}
         title={t("wf_card_spoke_sever_title", "Spoke Sever (Cut the Cord)")}
@@ -2957,6 +3092,46 @@ export default function WayfinderMasterSchemas({
             headerColorClass="text-[var(--danger)]"
           >
             <div className="flex flex-col gap-4 w-full">
+              <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-[var(--danger)]">
+                  <span className="material-symbols-outlined !text-[16px]">
+                    {t("icon_warning", "warning")}
+                  </span>
+                  <span className="text-xs font-black uppercase tracking-wider">
+                    {t(
+                      "wf_sever_warning_title",
+                      "Permanent Network Severance & Auth Architecture Warning"
+                    )}
+                  </span>
+                </div>
+                <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                  {t(
+                    "wf_sever_warning_desc",
+                    "Cutting the cord immediately deactivates your Spoke on the Sanctuary OS Hub and permanently scrubs your Service Role Key from Keepers Core. 100% of your Spoke database tables remain intact in your own Supabase project."
+                  )}
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-[var(--accent)]">
+                  <span className="material-symbols-outlined !text-[16px]">
+                    {t("icon_passkey", "passkey")}
+                  </span>
+                  <span className="text-xs font-black uppercase tracking-wider">
+                    {t(
+                      "wf_sever_identity_arch_title",
+                      "How Accounts Work After Severing (Hub Auth vs. Spoke Profiles)"
+                    )}
+                  </span>
+                </div>
+                <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                  {t(
+                    "wf_sever_identity_arch_desc",
+                    "In federated mode, login credentials (auth.users) live in the Core Hub database while your Spoke stores public.profiles (username & role). If you transition your severed Spoke into a Standalone Fork pointed solely at your Spoke Supabase URL, citizens and Creators register a local login on your Spoke Auth. When they sign up with their existing Spoke username, the Spoke's on_auth_user_created_spoke trigger automatically relinks their existing Spoke profile, Creator studio, and {Blueprints} to their new local Auth ID, and promotes the first local account to Wayfinder."
+                  )}
+                </p>
+              </div>
+
               <input
                 type="text"
                 value={severReason}
@@ -2967,19 +3142,44 @@ export default function WayfinderMasterSchemas({
                 )}
                 className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] focus:outline-none focus:border-[var(--danger)]"
               />
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)] ml-1">
+                  {t(
+                    "wf_sever_type_confirm_label",
+                    'Type "CUT THE CORD" to unlock severance'
+                  )}
+                </label>
+                <input
+                  type="text"
+                  value={severConfirmText}
+                  onChange={(e) => {
+                    setSeverConfirmText(e.target.value);
+                    setConfirmSever(false);
+                  }}
+                  placeholder={t("wf_sever_type_confirm_ph", "CUT THE CORD")}
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono font-black uppercase tracking-wider text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] focus:outline-none focus:border-[var(--danger)]"
+                />
+              </div>
+
               <ActionButton
                 variant="danger"
                 icon={t("icon_link_off", "link_off")}
                 onClick={handleCutTheCord}
-                disabled={isSevering}
+                disabled={isSevering || !isSeverPhraseValid}
                 className={`w-full justify-center !py-3.5 ${confirmSever ? "animate-pulse" : ""}`}
               >
-                {confirmSever
+                {!isSeverPhraseValid
                   ? t(
-                      "wf_cut_cord_confirm_btn",
-                      "Confirm: Click Again to Permanently Sever Uplink"
+                      "wf_sever_btn_locked",
+                      'Type "CUT THE CORD" Above to Unlock'
                     )
-                  : t("wf_cut_cord_btn", "Cut the Cord (Double-Click to Sever)")}
+                  : confirmSever
+                    ? t(
+                        "wf_cut_cord_confirm_btn",
+                        "Confirm: Click Again to Permanently Sever Uplink"
+                      )
+                    : t("wf_cut_cord_btn", "Cut the Cord (Double-Click to Sever)")}
               </ActionButton>
             </div>
           </UniversalGroup>
@@ -3042,197 +3242,14 @@ export default function WayfinderMasterSchemas({
         </div>
       </SidePanel>
 
-      {/* SidePanel 4: Partner Community Donations */}
-      <SidePanel
+      {/* SidePanel 4: Partner Community Donations (Reworked with Cost & Spending Report + Processor & Checkout Sub-Tabs) */}
+      <WayfinderDonationSetupSidePanel
         isOpen={activeSpokePanel === "donations"}
-        onClose={() => setActiveSpokePanel(null)}
-        title={t("wf_donation_panel_title", "Non-Custodial Community Donations")}
-        subtitle={activeWs?.name || activeWs?.schema_id || processor}
-        icon={t("icon_volunteer_activism", "volunteer_activism")}
-        iconColorClass="text-[var(--accent)]"
-        widthClass="w-[90vw] md:w-[680px]"
-        headerActions={
-          <PanelHeaderGroup>
-            <PanelHeaderButton
-              icon={t("icon_science", "science")}
-              tooltip={t(
-                "supporter_sandbox_enable_btn",
-                "Use Sandbox Test Processor (For Testing)"
-              )}
-              onClick={() => {
-                setProcessor("SANDBOX");
-                setDonationUrl("sandbox://checkout");
-              }}
-            />
-            <PanelHeaderButton
-              icon={savingDonation ? t("icon_sync", "sync") : t("icon_save", "save")}
-              variant="accent"
-              disabled={savingDonation}
-              tooltip={t("wf_donation_save_btn", "Save Donation Settings")}
-              onClick={handleSaveDonation}
-            />
-          </PanelHeaderGroup>
-        }
-      >
-        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
-          <SidePanelHeroCard
-            icon={t("icon_volunteer_activism", "volunteer_activism")}
-            overline={
-              activeWs?.name ||
-              activeWs?.schema_id ||
-              t("wf_donation_panel_title", "Partner Community")
-            }
-            title={t("wf_donation_panel_title", "Non-Custodial Community Donations")}
-            description={t(
-              "wf_donation_notice_desc",
-              "Your community receives 100% of all citizen donations directly via your own payment processor. Sanctuary OS takes a 0% cut, never touches your funds, and does not cover chargebacks. Every $5 a citizen donates to your community automatically grants them +30 days of Global Dev Build access."
-            )}
-            badge={processor}
-            variant="accent"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <StatBox
-                label={t("wf_donation_processor_label", "Payment Processor")}
-                value={processor}
-                icon={t("icon_volunteer_activism", "volunteer_activism")}
-                iconColorClass="text-[var(--accent)]"
-              />
-              <StatBox
-                label={t("status", "Status")}
-                value={
-                  donationUrl.trim()
-                    ? t("status_live", "Live")
-                    : t("status_not_live", "Not Live")
-                }
-                icon={
-                  donationUrl.trim()
-                    ? t("icon_check_circle", "check_circle")
-                    : t("icon_info", "info")
-                }
-                iconColorClass={
-                  donationUrl.trim() ? "text-[var(--success)]" : "text-[var(--warning)]"
-                }
-              />
-            </div>
-          </SidePanelHeroCard>
-
-          <UniversalGroup
-            title={t("wf_donation_processor_label", "Payment Processor & Checkout Link")}
-            icon={t("icon_volunteer_activism", "volunteer_activism")}
-            headerActions={
-              <ActionButton
-                variant="glass"
-                icon={t("icon_science", "science")}
-                onClick={() => {
-                  setProcessor("SANDBOX");
-                  setDonationUrl("sandbox://checkout");
-                }}
-                className="!px-3 !py-1.5"
-              >
-                {t("supporter_sandbox_enable_btn", "Use Sandbox Test Processor (For Testing)")}
-              </ActionButton>
-            }
-          >
-            <div className="flex flex-col gap-4 w-full">
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
-                  {t("wf_donation_processor_label", "Payment Processor")}
-                </label>
-                <CustomDropdown
-                  disableTint={true}
-                  value={processor}
-                  onChange={(val: any) => setProcessor(Array.isArray(val) ? val[0] : val)}
-                  options={[
-                    { id: "STRIPE", label: "Stripe Checkout / Payment Link" },
-                    { id: "KO-FI", label: "Ko-fi" },
-                    { id: "PATREON", label: "Patreon" },
-                    { id: "PAYPAL", label: "PayPal" },
-                    { id: "FOURTHWALL", label: "Fourthwall" },
-                    { id: "OPENCOLLECTIVE", label: "OpenCollective" },
-                    { id: "SANDBOX", label: "Sandbox Test Processor (Testing)" },
-                    { id: "CUSTOM", label: "Custom Direct Processor" },
-                  ]}
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
-                  {t("wf_donation_url_label", "Donation / Checkout Link (Leave blank to hide)")}
-                </label>
-                <input
-                  type="url"
-                  value={donationUrl}
-                  onChange={(e) => setDonationUrl(e.target.value)}
-                  placeholder={t(
-                    "wf_donation_url_ph",
-                    "https://donate.stripe.com/... or https://ko-fi.com/..."
-                  )}
-                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3.5 text-sm font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
-                    {t("wf_monthly_goal_dollars_label", "Monthly Server Goal ($ USD)")}
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={monthlyGoalDollars}
-                    onChange={(e) => setMonthlyGoalDollars(e.target.value)}
-                    placeholder="25"
-                    className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
-                    {t("wf_monthly_covered_dollars_label", "Covered This Month ($ USD)")}
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={monthlyCoveredDollars}
-                    onChange={(e) => setMonthlyCoveredDollars(e.target.value)}
-                    placeholder="0"
-                    className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
-                  />
-                </div>
-              </div>
-              <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed m-0 px-1">
-                {t(
-                  "wf_monthly_goal_hint",
-                  "Set your monthly infrastructure cost (e.g., $25 for Supabase Pro) to display a live co-op goal bar on your donation card. Set to 0 to hide the bar."
-                )}
-              </p>
-
-              <ActionButton
-                variant="glass"
-                icon={savingDonation ? t("icon_sync", "sync") : t("icon_check", "check")}
-                onClick={handleSaveDonation}
-                disabled={savingDonation}
-                className="w-full justify-center !py-3.5 mt-1"
-              >
-                {t("wf_donation_save_btn", "Save Donation Settings")}
-              </ActionButton>
-            </div>
-          </UniversalGroup>
-
-          <UniversalGroup
-            title={t("supporter_processor_setup_guide_title", "How to Connect Stripe or Ko-fi")}
-            icon={t("icon_info", "info")}
-          >
-            <p className="text-xs font-medium text-[var(--subtext)] whitespace-pre-line leading-relaxed m-0">
-              {t(
-                "supporter_processor_setup_guide_desc",
-                "1. Create a Stripe Payment Link (buy.stripe.com/...) or Ko-fi page.\n2. Paste the URL above. Sanctuary OS automatically attaches ?client_reference_id=<user_id> on checkout.\n3. (Optional) Point your Stripe/Ko-fi webhook to the partner-donation-webhook Edge Function to auto-credit citizens, or let citizens verify their receipt ID directly."
-              )}
-            </p>
-          </UniversalGroup>
-        </div>
-      </SidePanel>
+        onClose={() => {
+          setActiveSpokePanel(null);
+          loadDonationConfig();
+        }}
+      />
 
       {/* Keepers Support SidePanels (Always mounted so Overview ticket clicks also open Dossier) */}
       <TicketDossierSidePanel

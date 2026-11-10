@@ -88,7 +88,7 @@ export function UniversalCard({
       break;
     case "vertical-compact":
       layoutClasses = "flex-col";
-      imageContainerClasses = "w-full h-28";
+      imageContainerClasses = "w-full h-[116px]";
       contentClasses = `flex-col p-4`;
       break;
     case "stat":
@@ -235,23 +235,23 @@ export function UniversalCard({
                 const extractedSubtitleText = extractNodeText(resolvedSubtitle).trim();
                 const subtitleSegments = extractedSubtitleText
                   ? extractedSubtitleText
-                      .split(/[•·|]/)
-                      .map((s) => s.trim())
-                      .filter(Boolean)
+                    .split(/[•·|]/)
+                    .map((s) => s.trim())
+                    .filter(Boolean)
                   : [];
                 const extractedDescriptionText = (
                   extractNodeText(resolvedDescription) || extractNodeText(children)
                 ).trim();
                 const badgeLabels = Array.isArray(badges)
                   ? badges
-                      .map((b) =>
-                        typeof b?.label === "string" && b.label.trim()
-                          ? td
-                            ? td(b.label.trim())
-                            : b.label.trim()
-                          : ""
-                      )
-                      .filter(Boolean)
+                    .map((b) =>
+                      typeof b?.label === "string" && b.label.trim()
+                        ? td
+                          ? td(b.label.trim())
+                          : b.label.trim()
+                        : ""
+                    )
+                    .filter(Boolean)
                   : [];
                 const firstBadgeIcon =
                   Array.isArray(badges) && typeof badges[0]?.icon === "string" && badges[0].icon.trim()
@@ -335,12 +335,12 @@ export function UniversalCard({
                 const bottomLabel = resolvedBannerBottom
                   ? resolvedBannerBottom
                   : extractedDescriptionText &&
-                      extractedDescriptionText.toLowerCase() !== extractedTitleText.toLowerCase()
+                    extractedDescriptionText.toLowerCase() !== extractedTitleText.toLowerCase()
                     ? extractedDescriptionText
                     : subtitleSegments.length >= 2
                       ? subtitleSegments.join(" • ")
                       : subtitleSegments[0] &&
-                          subtitleSegments[0].toLowerCase() !== topLabel.toLowerCase()
+                        subtitleSegments[0].toLowerCase() !== topLabel.toLowerCase()
                         ? subtitleSegments[0]
                         : extractedTitleText
                           ? extractedTitleText
@@ -361,20 +361,17 @@ export function UniversalCard({
                     </span>
 
                     <div
-                      className={`absolute inset-x-3 ${
-                        isCompactBanner ? "top-12 h-11" : "top-[52px] h-14"
-                      } flex items-stretch gap-2 pointer-events-none z-10`}
+                      className={`absolute inset-x-3 ${isCompactBanner ? "top-[50px] h-11" : "top-[52px] h-14"
+                        } flex items-stretch gap-2 pointer-events-none z-10`}
                     >
                       {/* Left Icon Tile (1:1 Square) */}
                       <div
-                        className={`${
-                          isCompactBanner ? "w-11 h-11 rounded-lg" : "w-14 h-14 rounded-xl"
-                        } glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.08))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.035))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
+                        className={`${isCompactBanner ? "w-11 h-11 rounded-lg" : "w-14 h-14 rounded-xl"
+                          } glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.08))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.035))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
                       >
                         <span
-                          className={`material-symbols-outlined ${
-                            isCompactBanner ? "!text-[16px]" : "!text-[20px]"
-                          } ${!isDisabled && isInteractive ? "group-hover/card:scale-110 group-hover:scale-110" : ""} transition-transform duration-300`}
+                          className={`material-symbols-outlined ${isCompactBanner ? "!text-[16px]" : "!text-[20px]"
+                            } ${!isDisabled && isInteractive ? "group-hover/card:scale-110 group-hover:scale-110" : ""} transition-transform duration-300`}
                           style={{ color: headerAccentVar }}
                         >
                           {resolvedBannerIcon}
@@ -440,11 +437,11 @@ export function UniversalCard({
       style={
         layout === "stat"
           ? ({
-              "--glass-outer-shadow": "0 0 #0000",
-              "--glass-nested-shadow": "0 0 #0000",
-              boxShadow: "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.12), inset 1px 0 0 0 rgba(255, 255, 255, 0.06))",
-              ...style,
-            } as React.CSSProperties)
+            "--glass-outer-shadow": "0 0 #0000",
+            "--glass-nested-shadow": "0 0 #0000",
+            boxShadow: "var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.12), inset 1px 0 0 0 rgba(255, 255, 255, 0.06))",
+            ...style,
+          } as React.CSSProperties)
           : style
       }
       {...restProps}

@@ -11,7 +11,6 @@ import { isDesktop } from '../utils/envUtils';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import {
   KeepersPipelineConfig,
-  isSandboxDonationUrl,
   getMonthlyServerGoalStatus,
   getSpokeServerGoalStatus,
 } from '../utils/supporterManager';
@@ -283,7 +282,7 @@ export function LandingDonationsSection({
             onDonateCardClick(
               'keepers_core',
               t('supporter_keepers_title', 'Sanctuary OS (Keepers Core)'),
-              keepersConfig.keepers_donation_url || 'sandbox://checkout'
+              keepersConfig.keepers_donation_url
             )
           }
           icon={t('icon_rocket_launch', 'rocket_launch')}
@@ -291,7 +290,7 @@ export function LandingDonationsSection({
             'landing_banner_support_os_top',
             '$5 = +30 Days Dev Builds'
           )}
-          bannerTopRightLabel={`$${serverGoal.coveredDollars} / $${serverGoal.goalDollars}`}
+          bannerTopRightLabel={`${serverGoal.coveredFormatted} / ${serverGoal.goalFormatted}`}
           bannerBottomLabel={t(
             'supporter_server_goal_title',
             'Monthly Hub & Code-Signing Goal'
@@ -319,9 +318,7 @@ export function LandingDonationsSection({
                   {t('supporter_keepers_btn', 'Support Sanctuary OS')}
                 </span>
                 <span className="material-symbols-outlined !text-[14px]">
-                  {isSandboxDonationUrl(keepersConfig.keepers_donation_url)
-                    ? t('icon_science', 'science')
-                    : t('icon_arrow_forward', 'arrow_forward')}
+                  {t('icon_arrow_forward', 'arrow_forward')}
                 </span>
               </span>
             </div>
@@ -338,7 +335,7 @@ export function LandingDonationsSection({
               <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2 text-[9px] font-black uppercase tracking-wider">
                   <span className="text-[var(--text)] tabular-nums">
-                    {`$${serverGoal.coveredDollars} / $${serverGoal.goalDollars} ${t('supporter_server_goal_covered_lbl', 'Covered This Month')}`}
+                    {`${serverGoal.coveredFormatted} / ${serverGoal.goalFormatted} ${t('supporter_server_goal_covered_lbl', 'Covered This Month')}`}
                   </span>
                   <span className="text-[var(--accent)] tabular-nums">
                     {`${serverGoal.percent}%`}
@@ -386,7 +383,7 @@ export function LandingDonationsSection({
               )}
               bannerTopRightLabel={
                 spokeGoal.enabled
-                  ? `$${spokeGoal.coveredDollars} / $${spokeGoal.goalDollars}`
+                  ? `${spokeGoal.coveredFormatted} / ${spokeGoal.goalFormatted}`
                   : undefined
               }
               bannerBottomLabel={
@@ -426,9 +423,7 @@ export function LandingDonationsSection({
                       )}
                     </span>
                     <span className="material-symbols-outlined !text-[14px]">
-                      {isSandboxDonationUrl(g.donation_url)
-                        ? t('icon_science', 'science')
-                        : t('icon_arrow_forward', 'arrow_forward')}
+                      {t('icon_arrow_forward', 'arrow_forward')}
                     </span>
                   </span>
                 </div>
@@ -439,7 +434,7 @@ export function LandingDonationsSection({
                   <div className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5">
                     <div className="flex items-center justify-between gap-2 text-[9px] font-black uppercase tracking-wider">
                       <span className="text-[var(--text)] tabular-nums">
-                        {`$${spokeGoal.coveredDollars} / $${spokeGoal.goalDollars} ${t('supporter_server_goal_covered_lbl', 'Covered This Month')}`}
+                        {`${spokeGoal.coveredFormatted} / ${spokeGoal.goalFormatted} ${t('supporter_server_goal_covered_lbl', 'Covered This Month')}`}
                       </span>
                       <span className="text-[var(--accent)] tabular-nums">
                         {`${spokeGoal.percent}%`}

@@ -233,7 +233,59 @@ export function MasonSandbox({
 
   const openCloudMod = (mod: any) => {
     setEditorMode("registry");
-    setActiveMod(mod);
+    const versionHashes = new Set<string>(
+      Array.isArray(mod.mod_versions)
+        ? mod.mod_versions.map((v: any) => v?.dna_hash).filter(Boolean)
+        : []
+    );
+    if (mod.hash) versionHashes.add(mod.hash);
+
+    const matchedSandbox = sandboxMods.find(
+      (sm: any) =>
+        (sm.hash && versionHashes.has(sm.hash)) ||
+        (sm.id && mod.id && String(sm.id) === String(mod.id))
+    );
+    const storeMods = useStore.getState().modList || [];
+    const matchedVault = storeMods.find(
+      (vm: any) =>
+        !vm?.isVirtual &&
+        ((vm?.hash && versionHashes.has(vm.hash)) ||
+          (vm?.dbId && mod.id && String(vm.dbId) === String(mod.id)))
+    );
+
+    const resolvedHash =
+      mod.hash ||
+      matchedSandbox?.hash ||
+      matchedVault?.hash ||
+      mod.mod_versions?.[0]?.dna_hash ||
+      "";
+    const resolvedPhysicalPath =
+      mod.physical_path ||
+      matchedSandbox?.physical_path ||
+      matchedSandbox?.name ||
+      matchedVault?.physical_path ||
+      matchedVault?.name ||
+      mod.name;
+
+    const savedAll = JSON.parse(
+      localStorage.getItem("sanctuary_sandbox_configs") || "{}"
+    );
+    const savedById = (mod.id && savedAll[mod.id]) || {};
+    const savedByHash = (resolvedHash && savedAll[resolvedHash]) || {};
+
+    setActiveMod({
+      ...savedByHash,
+      ...savedById,
+      ...mod,
+      hash: resolvedHash || mod.hash,
+      physical_path: resolvedPhysicalPath,
+      static_manifest_url:
+        mod.static_manifest_url ||
+        mod.manifest_url ||
+        savedById.static_manifest_url ||
+        savedByHash.static_manifest_url ||
+        "",
+    });
     setStudioTab("overview");
     setIsEditorOpen(true);
     setConfirmPurge(false);
@@ -414,7 +466,10 @@ export function MasonSandbox({
         },
         payload: {
           download_url: customDownloadUrl,
-          sha256: activeMod.hash || "",
+          sha256:
+            activeMod.hash ||
+            activeMod.mod_versions?.[0]?.dna_hash ||
+            "",
           archive_type: "zip",
         },
         atomic_logic: {
@@ -1348,21 +1403,21 @@ export function MasonSandbox({
           noPadding
           headerActions={
             <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t("icon_menu_book", "menu_book")}
+                onClick={() => setIsStaticGuideOpen(true)}
+                tooltip={t("studio_static_guide_btn", "Static Polling Guide")}
+              />
+              <PanelHeaderButton
+                icon={t("icon_move_to_inbox", "move_to_inbox")}
+                onClick={handleExportRelease}
+                disabled={isCommitting}
+                tooltip={t("btn_export_release", "Export Release")}
+              />
               {editorMode === "sandbox" && (
                 <>
                   <PanelHeaderButton
-                    icon={t("icon_menu_book", "menu_book")}
-                    onClick={() => setIsStaticGuideOpen(true)}
-                    tooltip={t("studio_static_guide_btn", "Static Polling Guide")}
-                  />
-                  <PanelHeaderButton
-                    icon="move_to_inbox"
-                    onClick={handleExportRelease}
-                    disabled={isCommitting}
-                    tooltip={t("btn_export_release", "Export Release")}
-                  />
-                  <PanelHeaderButton
-                    icon="delete"
+                    icon={t("icon_delete", "delete")}
                     onClick={handlePurge}
                     disabled={isCommitting}
                     tooltip={confirmPurge ? t("ui_confirm_delete", "Confirm") : t("purge", "Purge")}
@@ -1370,7 +1425,7 @@ export function MasonSandbox({
                   />
                   {isVerifiedMason && (
                     <PanelHeaderButton
-                      icon={requireMasonLabTest && !isActiveModLabVerified ? "lock" : "sync"}
+                      icon={requireMasonLabTest && !isActiveModLabVerified ? t("icon_lock", "lock") : t("icon_sync", "sync")}
                       onClick={handleSyncToNetwork}
                       disabled={isCommitting || (requireMasonLabTest && !isActiveModLabVerified)}
                       tooltip={
@@ -1387,7 +1442,7 @@ export function MasonSandbox({
               )}
               {editorMode === "registry" && (
                 <PanelHeaderButton
-                  icon="save"
+                  icon={t("icon_save", "save")}
                   tooltip={t("save_meta", "Save Changes")}
                   onClick={handleSaveCloudModChanges}
                   disabled={isCommitting}
@@ -1416,7 +1471,7 @@ export function MasonSandbox({
               setFamilyRefreshTick((n) => n + 1);
               fetchExistingMods();
             }}
-            onExportRelease={editorMode === "sandbox" ? handleExportRelease : undefined}
+            onExportRelease={handleExportRelease}
             onSyncToNetwork={editorMode === "sandbox" ? handleSyncToNetwork : undefined}
             onSaveCloudChanges={editorMode === "registry" ? handleSaveCloudModChanges : undefined}
             isCommitting={isCommitting}

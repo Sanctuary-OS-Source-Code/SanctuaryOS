@@ -289,6 +289,7 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
 
       let prevCents = 0;
+      let prevFeeCents = 0;
       let nonces: string[] = [];
       if (existingLedger) {
         try {
@@ -297,6 +298,7 @@ Deno.serve(async (req: Request) => {
           );
           if (parsed.month_key === monthKey) {
             prevCents = Math.max(0, Number(parsed.covered_cents || 0));
+            prevFeeCents = Math.max(0, Number(parsed.stripe_fees_cents || 0));
             if (Array.isArray(parsed.tx_nonces)) {
               nonces = parsed.tx_nonces;
             }
@@ -309,10 +311,16 @@ Deno.serve(async (req: Request) => {
       if (!nonces.includes(txNonce)) {
         const nextNonces = [...nonces.slice(-199), txNonce];
         const nextCents = prevCents + amountCents;
+        const estTxFeeCents = txNonce.startsWith("stripe_")
+          ? Math.round(amountCents * 0.029) + 30
+          : 0;
+        const nextFeeCents = prevFeeCents + estTxFeeCents;
         const ledgerPayload = JSON.stringify({
           month_key: monthKey,
           target_id: normTarget,
           covered_cents: nextCents,
+          stripe_fees_cents: nextFeeCents,
+          net_received_cents: Math.max(0, nextCents - nextFeeCents),
           tx_nonces: nextNonces,
           updated_at: now.toISOString(),
         });

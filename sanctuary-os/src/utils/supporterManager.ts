@@ -583,6 +583,34 @@ function getCurrentMonthKey(): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+export function formatCycleMonthLabel(monthKeyOrIso?: string): string {
+  try {
+    if (monthKeyOrIso && /^\d{4}-\d{2}$/.test(monthKeyOrIso.trim())) {
+      const [y, m] = monthKeyOrIso.trim().split("-").map(Number);
+      const d = new Date(Date.UTC(y, (m || 1) - 1, 15));
+      return d.toLocaleDateString(undefined, {
+        month: "short",
+        year: "numeric",
+      });
+    }
+    const d = monthKeyOrIso ? new Date(monthKeyOrIso) : new Date();
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString(undefined, {
+        month: "short",
+        year: "numeric",
+      });
+    }
+  } catch {
+    // ignore
+  }
+  return getCurrentMonthKey();
+}
+
+export function estimateStripeFeeCents(amountCents: number): number {
+  if (!amountCents || amountCents <= 0) return 0;
+  return Math.round(amountCents * 0.029) + 30;
+}
+
 export function recordMonthlyServerGoalContribution(
   amountCents: number,
   targetId = "keepers_core",
@@ -595,6 +623,7 @@ export function recordMonthlyServerGoalContribution(
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9_-]/g, "") || "keepers_core";
+  const txFeeCents = estimateStripeFeeCents(amountCents);
 
   try {
     const raw = localStorage.getItem(MONTHLY_SERVER_POOL_STORAGE_KEY);
@@ -603,6 +632,10 @@ export function recordMonthlyServerGoalContribution(
     const prevTargets: Record<string, number> =
       isSameMonth && parsed.targets && typeof parsed.targets === "object"
         ? { ...parsed.targets }
+        : {};
+    const prevTargetFees: Record<string, number> =
+      isSameMonth && parsed.targetFees && typeof parsed.targetFees === "object"
+        ? { ...parsed.targetFees }
         : {};
     if (
       isSameMonth &&
@@ -613,12 +646,15 @@ export function recordMonthlyServerGoalContribution(
     }
     prevTargets[normTarget] =
       Math.max(0, Number(prevTargets[normTarget] || 0)) + amountCents;
+    prevTargetFees[normTarget] =
+      Math.max(0, Number(prevTargetFees[normTarget] || 0)) + txFeeCents;
     localStorage.setItem(
       MONTHLY_SERVER_POOL_STORAGE_KEY,
       JSON.stringify({
         monthKey,
         addedCents: prevTargets.keepers_core || 0,
         targets: prevTargets,
+        targetFees: prevTargetFees,
       }),
     );
   } catch {
@@ -644,6 +680,7 @@ export function recordMonthlyServerGoalContribution(
           .maybeSingle();
 
         let prevCents = 0;
+        let prevFeeCents = 0;
         let nonces: string[] = [];
         if (existingLedger) {
           try {
@@ -652,6 +689,7 @@ export function recordMonthlyServerGoalContribution(
             );
             if (p.month_key === monthKey) {
               prevCents = Math.max(0, Number(p.covered_cents || 0));
+              prevFeeCents = Math.max(0, Number(p.stripe_fees_cents || 0));
               if (Array.isArray(p.tx_nonces)) nonces = p.tx_nonces;
             }
           } catch {
@@ -661,10 +699,13 @@ export function recordMonthlyServerGoalContribution(
         if (!nonces.includes(nonceKey)) {
           const nextNonces = [...nonces.slice(-199), nonceKey];
           const nextCents = prevCents + amountCents;
+          const nextFeeCents = prevFeeCents + txFeeCents;
           const payloadStr = JSON.stringify({
             month_key: monthKey,
             target_id: normTarget,
             covered_cents: nextCents,
+            stripe_fees_cents: nextFeeCents,
+            net_received_cents: Math.max(0, nextCents - nextFeeCents),
             tx_nonces: nextNonces,
             updated_at: new Date().toISOString(),
           });
@@ -725,6 +766,10 @@ export async function syncMonthlyDonationLedgersFromCloud(): Promise<void> {
       isSameMonth && parsed.targets && typeof parsed.targets === "object"
         ? { ...parsed.targets }
         : {};
+    const targetFees: Record<string, number> =
+      isSameMonth && parsed.targetFees && typeof parsed.targetFees === "object"
+        ? { ...parsed.targetFees }
+        : {};
 
     for (const r of rows) {
       try {
@@ -732,7 +777,12 @@ export async function syncMonthlyDonationLedgersFromCloud(): Promise<void> {
         if (p.month_key === monthKey && p.target_id) {
           const tKey = String(p.target_id).toLowerCase();
           const cloudCents = Math.max(0, Number(p.covered_cents || 0));
+          const cloudFeeCents = Math.max(0, Number(p.stripe_fees_cents || 0));
           targets[tKey] = Math.max(Number(targets[tKey] || 0), cloudCents);
+          targetFees[tKey] = Math.max(
+            Number(targetFees[tKey] || 0),
+            cloudFeeCents,
+          );
         }
       } catch {
         // ignore
@@ -745,6 +795,7 @@ export async function syncMonthlyDonationLedgersFromCloud(): Promise<void> {
         monthKey,
         addedCents: targets.keepers_core || 0,
         targets,
+        targetFees,
       }),
     );
   } catch {
@@ -763,7 +814,7 @@ export function isFoundryPatron(
   );
 }
 
-function getLocalAddedCentsForTarget(targetId: string): number {
+export function getLocalAddedCentsForTarget(targetId: string): number {
   try {
     const monthKey = getCurrentMonthKey();
     const normTarget = String(targetId || "keepers_core").trim().toLowerCase();
@@ -785,42 +836,329 @@ function getLocalAddedCentsForTarget(targetId: string): number {
   return 0;
 }
 
-export function getMonthlyServerGoalStatus(
-  config?: KeepersPipelineConfig | null,
-): {
+export function getLocalAddedFeeCentsForTarget(targetId: string): number {
+  try {
+    const monthKey = getCurrentMonthKey();
+    const normTarget = String(targetId || "keepers_core").trim().toLowerCase();
+    const raw = localStorage.getItem(MONTHLY_SERVER_POOL_STORAGE_KEY);
+    if (!raw) return 0;
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.monthKey !== monthKey) return 0;
+    if (parsed.targetFees && typeof parsed.targetFees === "object") {
+      if (parsed.targetFees[normTarget] !== undefined) {
+        return Math.max(0, Number(parsed.targetFees[normTarget] || 0));
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return 0;
+}
+
+export interface FoundryCostBreakdown {
+  domain_annual_cents?: number;
+  supabase_monthly_cents?: number;
+  windows_signing_annual_cents?: number;
+  apple_dev_annual_cents?: number;
+  infra_other_monthly_cents?: number;
+  infra_hosting_cents?: number;
+  infra_email_cents?: number;
+  infra_release_storage_cents?: number;
+  infra_monitoring_cents?: number;
+  gross_contributions_cents?: number;
+  stripe_fees_cents?: number;
+  carryover_cents?: number;
+  saved_month_key?: string;
+  baseline_gross_at_save_cents?: number;
+  baseline_fees_at_save_cents?: number;
+}
+
+export interface SpokeCostBreakdown {
+  db_compute_storage_cents?: number;
+  auth_activity_cents?: number;
+  realtime_cents?: number;
+  edge_functions_cents?: number;
+  storage_egress_cents?: number;
+  backups_logs_cents?: number;
+  gross_contributions_cents?: number;
+  stripe_fees_cents?: number;
+  carryover_cents?: number;
+  saved_month_key?: string;
+  baseline_gross_at_save_cents?: number;
+  baseline_fees_at_save_cents?: number;
+}
+
+export interface TransparentCostReportSubItem {
+  id: string;
+  monthlyCents: number;
+}
+
+export interface TransparentCostReportLineItem {
+  id: string;
+  cadence: "annual" | "monthly" | "supabase_dimension";
+  annualCents?: number;
+  monthlyCents: number;
+  subItems?: TransparentCostReportSubItem[];
+}
+
+export interface TransparentGoalStatus {
   enabled: boolean;
+  isFoundry: boolean;
   goalCents: number;
   coveredCents: number;
   goalDollars: number;
   coveredDollars: number;
+  goalFormatted: string;
+  coveredFormatted: string;
   percent: number;
   fiveDollarStepPercent: number;
-} {
-  const rawGoal =
-    config?.monthly_server_goal_cents !== undefined
+  lineItems: TransparentCostReportLineItem[];
+  grossContributionsCents: number;
+  stripeFeesCents: number;
+  netReceivedCents: number;
+  positiveCarryoverCents: number;
+  totalOperatingCostCents: number;
+  fundedThisCycleCents: number;
+  priorCarryoverCents: number;
+  carryoverAfterCycleCents: number;
+  remainingThisCycleCents: number;
+  billingPeriodLabel: string;
+  updatedLabel: string;
+  foundryBreakdown?: Required<FoundryCostBreakdown>;
+  spokeBreakdown?: Required<SpokeCostBreakdown>;
+}
+
+function formatCentsToUsdString(cents: number): string {
+  const abs = Math.abs(Math.round(Number(cents || 0))) / 100;
+  return `${cents < 0 ? "-" : ""}$${abs.toFixed(2)}`;
+}
+
+export function getMonthlyServerGoalStatus(
+  config?: KeepersPipelineConfig | null,
+): TransparentGoalStatus {
+  const currentMonthKey = getCurrentMonthKey();
+  const fb = config?.foundry_cost_breakdown;
+  const domainAnnual =
+    fb?.domain_annual_cents !== undefined
+      ? Math.max(0, Math.round(Number(fb.domain_annual_cents) || 0))
+      : 2400;
+  const supabaseMonthly =
+    fb?.supabase_monthly_cents !== undefined
+      ? Math.max(0, Math.round(Number(fb.supabase_monthly_cents) || 0))
+      : 2500;
+  const windowsAnnual =
+    fb?.windows_signing_annual_cents !== undefined
+      ? Math.max(0, Math.round(Number(fb.windows_signing_annual_cents) || 0))
+      : 12000;
+  const appleAnnual =
+    fb?.apple_dev_annual_cents !== undefined
+      ? Math.max(0, Math.round(Number(fb.apple_dev_annual_cents) || 0))
+      : 9900;
+
+  const hasSubInfra =
+    fb?.infra_hosting_cents !== undefined ||
+    fb?.infra_email_cents !== undefined ||
+    fb?.infra_release_storage_cents !== undefined ||
+    fb?.infra_monitoring_cents !== undefined;
+  const rawInfraTotal =
+    fb?.infra_other_monthly_cents !== undefined
+      ? Math.max(0, Math.round(Number(fb.infra_other_monthly_cents) || 0))
+      : 500;
+  const infraHosting =
+    fb?.infra_hosting_cents !== undefined
+      ? Math.max(0, Math.round(Number(fb.infra_hosting_cents) || 0))
+      : Math.round(rawInfraTotal * 0.3);
+  const infraEmail =
+    fb?.infra_email_cents !== undefined
+      ? Math.max(0, Math.round(Number(fb.infra_email_cents) || 0))
+      : Math.round(rawInfraTotal * 0.3);
+  const infraStorage =
+    fb?.infra_release_storage_cents !== undefined
+      ? Math.max(0, Math.round(Number(fb.infra_release_storage_cents) || 0))
+      : Math.round(rawInfraTotal * 0.2);
+  const infraMonitoring =
+    fb?.infra_monitoring_cents !== undefined
+      ? Math.max(0, Math.round(Number(fb.infra_monitoring_cents) || 0))
+      : Math.max(0, rawInfraTotal - infraHosting - infraEmail - infraStorage);
+
+  const infraOtherMonthly = hasSubInfra
+    ? infraHosting + infraEmail + infraStorage + infraMonitoring
+    : rawInfraTotal;
+
+  const domainMonthly = Math.round(domainAnnual / 12);
+  const windowsMonthly = Math.round(windowsAnnual / 12);
+  const appleMonthly = Math.round(appleAnnual / 12);
+  const computedOperatingCost =
+    domainMonthly +
+    supabaseMonthly +
+    windowsMonthly +
+    appleMonthly +
+    infraOtherMonthly;
+
+  const rawGoal = fb
+    ? computedOperatingCost
+    : config?.monthly_server_goal_cents !== undefined
       ? Number(config.monthly_server_goal_cents)
-      : 4500;
+      : computedOperatingCost;
   const enabled = rawGoal > 0;
-  const goalCents = enabled ? Math.max(100, rawGoal) : 0;
-  const baseCoveredCents = Number(
-    config?.monthly_server_covered_cents ?? 2500,
+  const totalOperatingCostCents = enabled ? Math.max(100, rawGoal) : 0;
+
+  const localAddedGross = getLocalAddedCentsForTarget("keepers_core");
+  const localAddedFees = getLocalAddedFeeCentsForTarget("keepers_core");
+  const savedMonthKey = fb?.saved_month_key || currentMonthKey;
+  const isNewCycleRollover = Boolean(
+    fb?.saved_month_key && fb.saved_month_key !== currentMonthKey,
   );
-  const localAddedCents = getLocalAddedCentsForTarget("keepers_core");
-  const coveredCents = Math.max(0, baseCoveredCents + localAddedCents);
+
+  const savedBaseGross =
+    fb?.gross_contributions_cents !== undefined
+      ? Math.max(0, Math.round(Number(fb.gross_contributions_cents) || 0))
+      : Math.max(0, Math.round(Number(config?.monthly_server_covered_cents ?? 0)));
+  const savedBaseFees =
+    fb?.stripe_fees_cents !== undefined
+      ? Math.max(0, Math.round(Number(fb.stripe_fees_cents) || 0))
+      : 0;
+  const savedCarryover = Math.round(Number(fb?.carryover_cents ?? 0) || 0);
+
+  let grossContributionsCents = 0;
+  let stripeFeesCents = 0;
+  let priorCarryoverCents = savedCarryover;
+
+  if (isNewCycleRollover) {
+    // Automatically roll forward the previous cycle's ending balance into the new month's carryover
+    const prevNet = Math.max(0, savedBaseGross - savedBaseFees);
+    priorCarryoverCents = savedCarryover + prevNet - totalOperatingCostCents;
+    grossContributionsCents = localAddedGross;
+    stripeFeesCents = localAddedFees;
+  } else {
+    // Only add automated ledger amounts that arrived AFTER the admin's last save in this month
+    const baselineGross =
+      fb?.baseline_gross_at_save_cents !== undefined
+        ? Math.max(0, Math.round(Number(fb.baseline_gross_at_save_cents) || 0))
+        : fb?.gross_contributions_cents !== undefined
+          ? localAddedGross
+          : 0;
+    const baselineFees =
+      fb?.baseline_fees_at_save_cents !== undefined
+        ? Math.max(0, Math.round(Number(fb.baseline_fees_at_save_cents) || 0))
+        : fb?.stripe_fees_cents !== undefined
+          ? localAddedFees
+          : 0;
+    const deltaGross = Math.max(0, localAddedGross - baselineGross);
+    const deltaFees = Math.max(0, localAddedFees - baselineFees);
+    grossContributionsCents = Math.max(0, savedBaseGross + deltaGross);
+    stripeFeesCents = Math.max(0, savedBaseFees + deltaFees);
+  }
+
+  const netReceivedCents = Math.max(
+    0,
+    grossContributionsCents - stripeFeesCents,
+  );
+  const positiveCarryoverCents = Math.max(0, priorCarryoverCents);
+  // Public progress bar uses net received + positive carryover (not gross contributions)
+  const fundedThisCycleCents = netReceivedCents + positiveCarryoverCents;
+  const carryoverAfterCycleCents =
+    priorCarryoverCents + netReceivedCents - totalOperatingCostCents;
+  const remainingThisCycleCents = Math.max(
+    0,
+    totalOperatingCostCents - fundedThisCycleCents,
+  );
+
+  const goalCents = totalOperatingCostCents;
+  const coveredCents = fundedThisCycleCents;
   const goalDollars = Math.round(goalCents / 100);
   const coveredDollars = Math.round(coveredCents / 100);
+  const goalFormatted = formatCentsToUsdString(goalCents);
+  const coveredFormatted = formatCentsToUsdString(coveredCents);
   const percent =
-    goalCents > 0 ? Math.min(100, Math.round((coveredCents / goalCents) * 100)) : 0;
+    goalCents > 0
+      ? Math.min(100, Math.round((coveredCents / goalCents) * 100))
+      : 0;
   const fiveDollarStepPercent =
     goalCents > 0 ? Math.max(1, Math.round((500 / goalCents) * 100)) : 0;
+
+  const lineItems: TransparentCostReportLineItem[] = [
+    {
+      id: "domain",
+      cadence: "annual",
+      annualCents: domainAnnual,
+      monthlyCents: domainMonthly,
+    },
+    {
+      id: "supabase_hub",
+      cadence: "monthly",
+      monthlyCents: supabaseMonthly,
+    },
+    {
+      id: "windows_signing",
+      cadence: "annual",
+      annualCents: windowsAnnual,
+      monthlyCents: windowsMonthly,
+    },
+    {
+      id: "apple_dev",
+      cadence: "annual",
+      annualCents: appleAnnual,
+      monthlyCents: appleMonthly,
+    },
+    {
+      id: "infra_other",
+      cadence: "monthly",
+      monthlyCents: infraOtherMonthly,
+      subItems: [
+        { id: "infra_sub_hosting", monthlyCents: infraHosting },
+        { id: "infra_sub_email", monthlyCents: infraEmail },
+        { id: "infra_sub_storage", monthlyCents: infraStorage },
+        { id: "infra_sub_monitoring", monthlyCents: infraMonitoring },
+      ],
+    },
+  ];
+
+  const billingPeriodLabel = formatCycleMonthLabel(currentMonthKey);
+  const updatedLabel = formatCycleMonthLabel(
+    config?.updated_at || currentMonthKey,
+  );
+
   return {
     enabled,
+    isFoundry: true,
     goalCents,
     coveredCents,
     goalDollars,
     coveredDollars,
+    goalFormatted,
+    coveredFormatted,
     percent,
     fiveDollarStepPercent,
+    lineItems,
+    grossContributionsCents,
+    stripeFeesCents,
+    netReceivedCents,
+    positiveCarryoverCents,
+    totalOperatingCostCents,
+    fundedThisCycleCents,
+    priorCarryoverCents,
+    carryoverAfterCycleCents,
+    remainingThisCycleCents,
+    billingPeriodLabel,
+    updatedLabel,
+    foundryBreakdown: {
+      domain_annual_cents: domainAnnual,
+      supabase_monthly_cents: supabaseMonthly,
+      windows_signing_annual_cents: windowsAnnual,
+      apple_dev_annual_cents: appleAnnual,
+      infra_other_monthly_cents: infraOtherMonthly,
+      infra_hosting_cents: infraHosting,
+      infra_email_cents: infraEmail,
+      infra_release_storage_cents: infraStorage,
+      infra_monitoring_cents: infraMonitoring,
+      gross_contributions_cents: grossContributionsCents,
+      stripe_fees_cents: stripeFeesCents,
+      carryover_cents: priorCarryoverCents,
+      saved_month_key: savedMonthKey,
+      baseline_gross_at_save_cents: localAddedGross,
+      baseline_fees_at_save_cents: localAddedFees,
+    },
   };
 }
 
@@ -830,27 +1168,60 @@ export function getSpokeServerGoalStatus(
     schema_id?: string;
     monthly_goal_cents?: number;
     monthly_covered_cents?: number;
+    spoke_cost_breakdown?: SpokeCostBreakdown;
+    updated_at?: string;
   } | null,
-): {
-  enabled: boolean;
-  goalCents: number;
-  coveredCents: number;
-  goalDollars: number;
-  coveredDollars: number;
-  percent: number;
-  fiveDollarStepPercent: number;
-} {
+): TransparentGoalStatus {
+  const currentMonthKey = getCurrentMonthKey();
   const localOverride =
     getLocalPartnerDonationOverride(partner?.schema_id) ||
     getLocalPartnerDonationOverride(partner?.id);
-  const rawGoal =
+  const sb = partner?.spoke_cost_breakdown || localOverride?.spoke_cost_breakdown;
+
+  const rawLegacyGoal =
     partner?.monthly_goal_cents !== undefined
       ? Number(partner.monthly_goal_cents)
       : localOverride?.monthly_goal_cents !== undefined
         ? Number(localOverride.monthly_goal_cents)
         : 2500;
+
+  const authActivity =
+    sb?.auth_activity_cents !== undefined
+      ? Math.max(0, Math.round(Number(sb.auth_activity_cents) || 0))
+      : 200;
+  const realtime =
+    sb?.realtime_cents !== undefined
+      ? Math.max(0, Math.round(Number(sb.realtime_cents) || 0))
+      : 200;
+  const edgeFunctions =
+    sb?.edge_functions_cents !== undefined
+      ? Math.max(0, Math.round(Number(sb.edge_functions_cents) || 0))
+      : 200;
+  const storageEgress =
+    sb?.storage_egress_cents !== undefined
+      ? Math.max(0, Math.round(Number(sb.storage_egress_cents) || 0))
+      : 200;
+  const backupsLogs =
+    sb?.backups_logs_cents !== undefined
+      ? Math.max(0, Math.round(Number(sb.backups_logs_cents) || 0))
+      : 200;
+  const dbComputeStorage =
+    sb?.db_compute_storage_cents !== undefined
+      ? Math.max(0, Math.round(Number(sb.db_compute_storage_cents) || 0))
+      : Math.max(0, rawLegacyGoal - 1000);
+
+  const computedOperatingCost =
+    dbComputeStorage +
+    authActivity +
+    realtime +
+    edgeFunctions +
+    storageEgress +
+    backupsLogs;
+
+  const rawGoal = sb ? computedOperatingCost : rawLegacyGoal;
   const enabled = rawGoal > 0;
-  const goalCents = enabled ? Math.max(100, rawGoal) : 0;
+  const totalOperatingCostCents = enabled ? Math.max(100, rawGoal) : 0;
+
   const baseCoveredCents =
     partner?.monthly_covered_cents !== undefined
       ? Number(partner.monthly_covered_cents)
@@ -861,24 +1232,169 @@ export function getSpokeServerGoalStatus(
     ? getLocalAddedCentsForTarget(partner.schema_id)
     : 0;
   const addedId =
-    partner?.id && String(partner.id).toLowerCase() !== String(partner?.schema_id || "").toLowerCase()
+    partner?.id &&
+    String(partner.id).toLowerCase() !==
+      String(partner?.schema_id || "").toLowerCase()
       ? getLocalAddedCentsForTarget(partner.id)
       : 0;
-  const coveredCents = Math.max(0, baseCoveredCents + addedSchema + addedId);
+  const localAddedGross = addedSchema + addedId;
+
+  const feeSchema = partner?.schema_id
+    ? getLocalAddedFeeCentsForTarget(partner.schema_id)
+    : 0;
+  const feeId =
+    partner?.id &&
+    String(partner.id).toLowerCase() !==
+      String(partner?.schema_id || "").toLowerCase()
+      ? getLocalAddedFeeCentsForTarget(partner.id)
+      : 0;
+  const localAddedFees = feeSchema + feeId;
+
+  const savedMonthKey = sb?.saved_month_key || currentMonthKey;
+  const isNewCycleRollover = Boolean(
+    sb?.saved_month_key && sb.saved_month_key !== currentMonthKey,
+  );
+
+  const savedBaseGross =
+    sb?.gross_contributions_cents !== undefined
+      ? Math.max(0, Math.round(Number(sb.gross_contributions_cents) || 0))
+      : Math.max(0, Math.round(baseCoveredCents));
+  const savedBaseFees =
+    sb?.stripe_fees_cents !== undefined
+      ? Math.max(0, Math.round(Number(sb.stripe_fees_cents) || 0))
+      : 0;
+  const savedCarryover = Math.round(Number(sb?.carryover_cents ?? 0) || 0);
+
+  let grossContributionsCents = 0;
+  let stripeFeesCents = 0;
+  let priorCarryoverCents = savedCarryover;
+
+  if (isNewCycleRollover) {
+    const prevNet = Math.max(0, savedBaseGross - savedBaseFees);
+    priorCarryoverCents = savedCarryover + prevNet - totalOperatingCostCents;
+    grossContributionsCents = localAddedGross;
+    stripeFeesCents = localAddedFees;
+  } else {
+    const baselineGross =
+      sb?.baseline_gross_at_save_cents !== undefined
+        ? Math.max(0, Math.round(Number(sb.baseline_gross_at_save_cents) || 0))
+        : sb?.gross_contributions_cents !== undefined
+          ? localAddedGross
+          : 0;
+    const baselineFees =
+      sb?.baseline_fees_at_save_cents !== undefined
+        ? Math.max(0, Math.round(Number(sb.baseline_fees_at_save_cents) || 0))
+        : sb?.stripe_fees_cents !== undefined
+          ? localAddedFees
+          : 0;
+    const deltaGross = Math.max(0, localAddedGross - baselineGross);
+    const deltaFees = Math.max(0, localAddedFees - baselineFees);
+    grossContributionsCents = Math.max(0, savedBaseGross + deltaGross);
+    stripeFeesCents = Math.max(0, savedBaseFees + deltaFees);
+  }
+
+  const netReceivedCents = Math.max(
+    0,
+    grossContributionsCents - stripeFeesCents,
+  );
+  const positiveCarryoverCents = Math.max(0, priorCarryoverCents);
+  // Public progress bar uses net received + positive carryover (not gross contributions)
+  const fundedThisCycleCents = netReceivedCents + positiveCarryoverCents;
+  const carryoverAfterCycleCents =
+    priorCarryoverCents + netReceivedCents - totalOperatingCostCents;
+  const remainingThisCycleCents = Math.max(
+    0,
+    totalOperatingCostCents - fundedThisCycleCents,
+  );
+
+  const goalCents = totalOperatingCostCents;
+  const coveredCents = fundedThisCycleCents;
   const goalDollars = Math.round(goalCents / 100);
   const coveredDollars = Math.round(coveredCents / 100);
+  const goalFormatted = formatCentsToUsdString(goalCents);
+  const coveredFormatted = formatCentsToUsdString(coveredCents);
   const percent =
-    goalCents > 0 ? Math.min(100, Math.round((coveredCents / goalCents) * 100)) : 0;
+    goalCents > 0
+      ? Math.min(100, Math.round((coveredCents / goalCents) * 100))
+      : 0;
   const fiveDollarStepPercent =
     goalCents > 0 ? Math.max(1, Math.round((500 / goalCents) * 100)) : 0;
+
+  const lineItems: TransparentCostReportLineItem[] = [
+    {
+      id: "spoke_db",
+      cadence: "supabase_dimension",
+      monthlyCents: dbComputeStorage,
+    },
+    {
+      id: "spoke_auth",
+      cadence: "supabase_dimension",
+      monthlyCents: authActivity,
+    },
+    {
+      id: "spoke_realtime",
+      cadence: "supabase_dimension",
+      monthlyCents: realtime,
+    },
+    {
+      id: "spoke_edge",
+      cadence: "supabase_dimension",
+      monthlyCents: edgeFunctions,
+    },
+    {
+      id: "spoke_storage",
+      cadence: "supabase_dimension",
+      monthlyCents: storageEgress,
+    },
+    {
+      id: "spoke_backups",
+      cadence: "supabase_dimension",
+      monthlyCents: backupsLogs,
+    },
+  ];
+
+  const billingPeriodLabel = formatCycleMonthLabel(currentMonthKey);
+  const updatedLabel = formatCycleMonthLabel(
+    partner?.updated_at || currentMonthKey,
+  );
+
   return {
     enabled,
+    isFoundry: false,
     goalCents,
     coveredCents,
     goalDollars,
     coveredDollars,
+    goalFormatted,
+    coveredFormatted,
     percent,
     fiveDollarStepPercent,
+    lineItems,
+    grossContributionsCents,
+    stripeFeesCents,
+    netReceivedCents,
+    positiveCarryoverCents,
+    totalOperatingCostCents,
+    fundedThisCycleCents,
+    priorCarryoverCents,
+    carryoverAfterCycleCents,
+    remainingThisCycleCents,
+    billingPeriodLabel,
+    updatedLabel,
+    spokeBreakdown: {
+      db_compute_storage_cents: dbComputeStorage,
+      auth_activity_cents: authActivity,
+      realtime_cents: realtime,
+      edge_functions_cents: edgeFunctions,
+      storage_egress_cents: storageEgress,
+      backups_logs_cents: backupsLogs,
+      gross_contributions_cents: grossContributionsCents,
+      stripe_fees_cents: stripeFeesCents,
+      carryover_cents: priorCarryoverCents,
+      saved_month_key: savedMonthKey,
+      baseline_gross_at_save_cents: localAddedGross,
+      baseline_fees_at_save_cents: localAddedFees,
+    },
   };
 }
 
@@ -1047,6 +1563,7 @@ export interface KeepersPipelineConfig {
   has_live_dev_release?: boolean;
   monthly_server_goal_cents?: number;
   monthly_server_covered_cents?: number;
+  foundry_cost_breakdown?: FoundryCostBreakdown;
   updated_at: string;
 }
 
@@ -1182,8 +1699,8 @@ export function isLinuxClient(): boolean {
 }
 
 export const DEFAULT_KEEPERS_PIPELINE_CONFIG: KeepersPipelineConfig = {
-  keepers_donation_url: "sandbox://checkout",
-  keepers_payment_processor: "SANDBOX",
+  keepers_donation_url: "https://donate.stripe.com/bJe8wH95gVfuo2Nv08g03",
+  keepers_payment_processor: "STRIPE",
   support_contact_email: "support@sanctuaryos.gg",
   support_sender_name: "Sanctuary OS Keepers Core",
   support_reply_to_email: "support@sanctuaryos.gg",
@@ -1200,8 +1717,18 @@ export const DEFAULT_KEEPERS_PIPELINE_CONFIG: KeepersPipelineConfig = {
     "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest",
   dev_build_notes:
     "Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).",
-  monthly_server_goal_cents: 4500,
-  monthly_server_covered_cents: 2500,
+  monthly_server_goal_cents: 5025,
+  monthly_server_covered_cents: 0,
+  foundry_cost_breakdown: {
+    domain_annual_cents: 2400,
+    supabase_monthly_cents: 2500,
+    windows_signing_annual_cents: 12000,
+    apple_dev_annual_cents: 9900,
+    infra_other_monthly_cents: 500,
+    gross_contributions_cents: 0,
+    stripe_fees_cents: 0,
+    carryover_cents: 0,
+  },
   updated_at: new Date().toISOString(),
 };
 
@@ -1433,10 +1960,17 @@ export async function getKeepersPipelineConfig(
       cached = { ...cached, ...parsedLocal };
       if (
         cached.keepers_donation_url &&
-        cached.keepers_donation_url.trim() === LEGACY_DEACTIVATED_STRIPE_URL
+        (cached.keepers_donation_url.trim() === LEGACY_DEACTIVATED_STRIPE_URL ||
+          cached.keepers_donation_url.trim().toLowerCase().startsWith("sandbox://"))
       ) {
-        cached.keepers_donation_url = "sandbox://checkout";
-        cached.keepers_payment_processor = "SANDBOX";
+        cached.keepers_donation_url =
+          DEFAULT_KEEPERS_PIPELINE_CONFIG.keepers_donation_url;
+      }
+      if (
+        String(cached.keepers_payment_processor || "").toUpperCase() ===
+        "SANDBOX"
+      ) {
+        cached.keepers_payment_processor = "STRIPE";
       }
     }
   } catch {
@@ -1475,11 +2009,21 @@ export async function getKeepersPipelineConfig(
         );
         if (
           parsed.keepers_donation_url &&
-          String(parsed.keepers_donation_url).trim() ===
-            LEGACY_DEACTIVATED_STRIPE_URL
+          (String(parsed.keepers_donation_url).trim() ===
+            LEGACY_DEACTIVATED_STRIPE_URL ||
+            String(parsed.keepers_donation_url)
+              .trim()
+              .toLowerCase()
+              .startsWith("sandbox://"))
         ) {
-          parsed.keepers_donation_url = "sandbox://checkout";
-          parsed.keepers_payment_processor = "SANDBOX";
+          parsed.keepers_donation_url =
+            DEFAULT_KEEPERS_PIPELINE_CONFIG.keepers_donation_url;
+        }
+        if (
+          String(parsed.keepers_payment_processor || "").toUpperCase() ===
+          "SANDBOX"
+        ) {
+          parsed.keepers_payment_processor = "STRIPE";
         }
         cached = {
           ...cached,
@@ -1537,9 +2081,23 @@ export async function saveKeepersPipelineConfig(
   config: Partial<KeepersPipelineConfig>,
 ): Promise<KeepersPipelineConfig> {
   const current = await getKeepersPipelineConfig();
+  const currentMonthKey = getCurrentMonthKey();
+  const stampedFoundryBreakdown: FoundryCostBreakdown | undefined =
+    config.foundry_cost_breakdown
+      ? {
+          ...config.foundry_cost_breakdown,
+          saved_month_key: currentMonthKey,
+          baseline_gross_at_save_cents:
+            getLocalAddedCentsForTarget("keepers_core"),
+          baseline_fees_at_save_cents:
+            getLocalAddedFeeCentsForTarget("keepers_core"),
+        }
+      : current.foundry_cost_breakdown;
+
   const next: KeepersPipelineConfig = {
     ...current,
     ...config,
+    foundry_cost_breakdown: stampedFoundryBreakdown,
     updated_at: new Date().toISOString(),
   };
 
@@ -1598,13 +2156,38 @@ export async function savePartnerCommunityDonationConfig(params: {
   paymentProcessor: string;
   monthlyGoalCents?: number;
   monthlyCoveredCents?: number;
+  spokeCostBreakdown?: SpokeCostBreakdown;
 }): Promise<void> {
   const cleanUrl = (params.donationUrl || "").trim();
-  const cleanProcessor = (params.paymentProcessor || "STRIPE")
-    .trim()
-    .toUpperCase();
+  const rawProc = (params.paymentProcessor || "STRIPE").trim().toUpperCase();
+  const cleanProcessor = rawProc === "SANDBOX" ? "STRIPE" : rawProc;
   const key = (params.schemaId || params.gameId || "default").toLowerCase();
   const existingLocal = getLocalPartnerDonationOverride(key);
+  const currentMonthKey = getCurrentMonthKey();
+  const localAddedGross =
+    (params.schemaId ? getLocalAddedCentsForTarget(params.schemaId) : 0) +
+    (params.gameId &&
+    String(params.gameId).toLowerCase() !==
+      String(params.schemaId || "").toLowerCase()
+      ? getLocalAddedCentsForTarget(params.gameId)
+      : 0);
+  const localAddedFees =
+    (params.schemaId ? getLocalAddedFeeCentsForTarget(params.schemaId) : 0) +
+    (params.gameId &&
+    String(params.gameId).toLowerCase() !==
+      String(params.schemaId || "").toLowerCase()
+      ? getLocalAddedFeeCentsForTarget(params.gameId)
+      : 0);
+  const rawBreakdown: SpokeCostBreakdown | undefined =
+    params.spokeCostBreakdown || existingLocal?.spoke_cost_breakdown;
+  const resolvedBreakdown: SpokeCostBreakdown | undefined = rawBreakdown
+    ? {
+        ...rawBreakdown,
+        saved_month_key: currentMonthKey,
+        baseline_gross_at_save_cents: localAddedGross,
+        baseline_fees_at_save_cents: localAddedFees,
+      }
+    : undefined;
   const goalCents =
     params.monthlyGoalCents !== undefined
       ? Math.max(0, Math.round(Number(params.monthlyGoalCents) || 0))
@@ -1627,6 +2210,7 @@ export async function savePartnerCommunityDonationConfig(params: {
       payment_processor: cleanProcessor,
       monthly_goal_cents: goalCents,
       monthly_covered_cents: coveredCents,
+      spoke_cost_breakdown: resolvedBreakdown,
       updated_at: new Date().toISOString(),
     };
     if (params.gameId) {
@@ -1676,6 +2260,7 @@ export async function savePartnerCommunityDonationConfig(params: {
       payment_processor: cleanProcessor,
       monthly_goal_cents: goalCents,
       monthly_covered_cents: coveredCents,
+      spoke_cost_breakdown: resolvedBreakdown,
       updated_at: new Date().toISOString(),
     });
     const { data: existingBroadcast } = await client
@@ -1720,6 +2305,7 @@ export function getLocalPartnerDonationOverride(
   payment_processor?: string;
   monthly_goal_cents?: number;
   monthly_covered_cents?: number;
+  spoke_cost_breakdown?: SpokeCostBreakdown;
 } | null {
   if (!idOrSchema) return null;
   try {
@@ -2237,14 +2823,8 @@ export async function downloadAndInstallReleaseAsset(
   }
 }
 
-export function isSandboxDonationUrl(url?: string | null): boolean {
-  if (!url) return false;
-  const trimmed = String(url).trim().toLowerCase();
-  return (
-    trimmed.startsWith("sandbox://") ||
-    trimmed === "sandbox" ||
-    trimmed.includes("sandbox.sanctuaryos")
-  );
+export function isSandboxDonationUrl(_url?: string | null): boolean {
+  return false;
 }
 
 export function buildPartnerCheckoutUrl(
@@ -2325,7 +2905,11 @@ export async function loadPartnerCommunitiesList(
   const wsList = workspaces || useStore.getState().workspaces || [];
   const remoteSpokeGoalMap: Record<
     string,
-    { monthly_goal_cents?: number; monthly_covered_cents?: number }
+    {
+      monthly_goal_cents?: number;
+      monthly_covered_cents?: number;
+      spoke_cost_breakdown?: SpokeCostBreakdown;
+    }
   > = {};
 
   try {
@@ -2337,7 +2921,7 @@ export async function loadPartnerCommunitiesList(
         .order("name", { ascending: true }),
       client
         .from("keeper_system_broadcasts")
-        .select("title, description, message, content")
+        .select("title, description, message")
         .eq("category", "SpokeDonationConfig")
         .eq("is_active", true),
       syncMonthlyDonationLedgersFromCloud(),
@@ -2347,7 +2931,7 @@ export async function loadPartnerCommunitiesList(
       for (const b of spokeBroadcasts) {
         try {
           const parsed = JSON.parse(
-            b.description || b.message || b.content || "{}",
+            b.description || b.message || "{}",
           );
           const sKey = String(parsed.schema_id || "").toLowerCase();
           const gKey = String(parsed.game_id || "").toLowerCase();
@@ -2392,8 +2976,9 @@ export async function loadPartnerCommunitiesList(
             ? localOverride.donation_url
             : g.donation_url || "";
         const resolvedDonUrl =
-          rawDonUrl.trim() === LEGACY_DEACTIVATED_STRIPE_URL
-            ? "sandbox://checkout"
+          rawDonUrl.trim() === LEGACY_DEACTIVATED_STRIPE_URL ||
+          rawDonUrl.trim().toLowerCase().startsWith("sandbox://")
+            ? ""
             : rawDonUrl;
         const resolvedGoalCents =
           localOverride?.monthly_goal_cents !== undefined
@@ -2407,21 +2992,24 @@ export async function loadPartnerCommunitiesList(
             : remoteGoal?.monthly_covered_cents !== undefined
               ? Number(remoteGoal.monthly_covered_cents)
               : 0;
+        const resolvedBreakdown =
+          localOverride?.spoke_cost_breakdown ||
+          remoteGoal?.spoke_cost_breakdown;
+        const rawProcessor = (
+          localOverride?.payment_processor ||
+          g.payment_processor ||
+          "STRIPE"
+        ).toUpperCase();
         partnerList.push({
           id: g.id,
           name: g.name,
           schema_id: g.schema_id || "workspace",
           icon: g.icon || "sports_esports",
           donation_url: resolvedDonUrl,
-          payment_processor: (
-            resolvedDonUrl === "sandbox://checkout"
-              ? "SANDBOX"
-              : localOverride?.payment_processor ||
-                g.payment_processor ||
-                "STRIPE"
-          ).toUpperCase(),
+          payment_processor: rawProcessor === "SANDBOX" ? "STRIPE" : rawProcessor,
           monthly_goal_cents: resolvedGoalCents,
           monthly_covered_cents: resolvedCoveredCents,
+          spoke_cost_breakdown: resolvedBreakdown,
         });
       }
     }
@@ -2446,20 +3034,24 @@ export async function loadPartnerCommunitiesList(
           getLocalPartnerDonationOverride(w.id);
         const remoteGoal =
           remoteSpokeGoalMap[wSchemaKey] || remoteSpokeGoalMap[wIdKey];
+        const rawDonUrl =
+          localOverride?.donation_url !== undefined
+            ? localOverride.donation_url
+            : w.donation_url || "";
+        const rawProc = (
+          localOverride?.payment_processor ||
+          w.payment_processor ||
+          "STRIPE"
+        ).toUpperCase();
         partnerList.push({
           id: w.id || wName,
           name: wName,
           schema_id: w.schema_id || w.id || "workspace",
           icon: w.icon || "sports_esports",
-          donation_url:
-            localOverride?.donation_url !== undefined
-              ? localOverride.donation_url
-              : w.donation_url || "",
-          payment_processor: (
-            localOverride?.payment_processor ||
-            w.payment_processor ||
-            "STRIPE"
-          ).toUpperCase(),
+          donation_url: rawDonUrl.trim().toLowerCase().startsWith("sandbox://")
+            ? ""
+            : rawDonUrl,
+          payment_processor: rawProc === "SANDBOX" ? "STRIPE" : rawProc,
           monthly_goal_cents:
             localOverride?.monthly_goal_cents !== undefined
               ? Number(localOverride.monthly_goal_cents)
@@ -2472,6 +3064,9 @@ export async function loadPartnerCommunitiesList(
               : remoteGoal?.monthly_covered_cents !== undefined
                 ? Number(remoteGoal.monthly_covered_cents)
                 : 0,
+          spoke_cost_breakdown:
+            localOverride?.spoke_cost_breakdown ||
+            remoteGoal?.spoke_cost_breakdown,
         });
       }
     }

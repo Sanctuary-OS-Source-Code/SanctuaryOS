@@ -734,8 +734,10 @@ export async function syncLegalAndCovenantsBidirectional(options?: {
         : 0;
       const localEpochMs = localSnap?.modified_epoch_ms || 0;
       const localHasNewerVersionTag =
-        localContent.includes("v0.6.0-Dev.2") &&
-        !dbContent.includes("v0.6.0-Dev.2");
+        (localContent.includes("v0.6.0-Dev.10") &&
+          !dbContent.includes("v0.6.0-Dev.10")) ||
+        (localContent.includes("v0.6.0-Dev.2") &&
+          !dbContent.includes("v0.6.0-Dev.2"));
       const localIsNewer =
         !isSame &&
         ((localEpochMs > 0 && localEpochMs > dbEpochMs + 2000) ||

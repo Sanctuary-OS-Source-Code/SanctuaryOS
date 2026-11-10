@@ -33,6 +33,34 @@ body {
   background-color: transparent;
 }
 
+/* Chameleon-Adaptive Liquid Glass Text Selection Highlight */
+::selection,
+*::selection,
+input::selection,
+textarea::selection {
+  background-color: color-mix(in srgb, var(--accent, #38bdf8) 35%, transparent) !important;
+  color: var(--text, #f8fafc) !important;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--accent, #38bdf8) 36%, transparent);
+}
+
+::-moz-selection,
+*::-moz-selection,
+input::-moz-selection,
+textarea::-moz-selection {
+  background-color: color-mix(in srgb, var(--accent, #38bdf8) 35%, transparent) !important;
+  color: var(--text, #f8fafc) !important;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--accent, #38bdf8) 36%, transparent);
+}
+
+html[data-sa-light-mode="true"] ::selection,
+html[data-sa-light-mode="true"] *::selection,
+html[data-sa-light-mode="true"] input::selection,
+html[data-sa-light-mode="true"] textarea::selection {
+  background-color: color-mix(in srgb, var(--accent, #0284c7) 26%, transparent) !important;
+  color: var(--text, #0f172a) !important;
+  text-shadow: none;
+}
+
 
 @keyframes shimmer {
   100% {

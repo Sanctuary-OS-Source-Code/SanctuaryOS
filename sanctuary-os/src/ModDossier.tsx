@@ -16,6 +16,11 @@ import {
   getFileLabel,
   getExtensionRegex,
   getModIcon,
+  isVersionMatch,
+  mapDlcCode,
+  parseStringArray,
+  cleanSearchName,
+  formatDisplayName,
   HoverTooltip,
   SidePanel,
   SidePanelHeroCard,
@@ -1417,6 +1422,8 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
 export default function ModDossier({
   mod: rawMod,
   modList,
+  ownedDLC,
+  maskedDLC,
   activePlaySet,
   onToggleInActiveSet,
   onShowYeetAlert,
@@ -1437,6 +1444,14 @@ export default function ModDossier({
   const { t } = useLexicon();
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const storeModList = useStore((state: any) => state.modList);
+  const selectedVersion = useStore((state: any) => state.selectedVersion);
+  const storePlaySets = useStore((state: any) => state.playSets);
+  const anarchyRules = useStore((state: any) => state.anarchyRules);
+  const storeOwnedDLC = useStore((state: any) => state.ownedDLC);
+  const storeMaskedDLC = useStore((state: any) => state.maskedDLC);
+  const effectiveOwnedDLC: string[] = Array.isArray(ownedDLC) ? ownedDLC : Array.isArray(storeOwnedDLC) ? storeOwnedDLC : [];
+  const effectiveMaskedDLC: string[] = Array.isArray(maskedDLC) ? maskedDLC : Array.isArray(storeMaskedDLC) ? storeMaskedDLC : [];
+  const [dossierAlertPending, setDossierAlertPending] = useState<any | null>(null);
   const allAvailableMods = useMemo(() => {
     const combined: any[] = [];
     const seen = new Set<string>();
@@ -2677,136 +2692,657 @@ export default function ModDossier({
 
   let familyVersion = "Unknown";
   if (mod.isVirtual) {
-    const highestPerFlavor = (mod.flavors || []).map((f: any) =>
-      getHighestVersion(getVersions(f))
-    );
-    familyVersion = getLowestVersion(highestPerFlavor);
+    const highestPerFlavor = (mod.flavors || [])
+      .map((f: any) => getHighestVersion(getVersions(f)))
+      .filter(
+        (v: string) =>
+          v &&
+          v !== "Unknown" &&
+          v !== "ALL" &&
+          v !== "ANY" &&
+          v.toLowerCase() !== "global"
+      );
+    familyVersion =
+      highestPerFlavor.length > 0
+        ? getLowestVersion(highestPerFlavor)
+        : getHighestVersion(getVersions(mod));
   } else {
     familyVersion = getHighestVersion(getVersions(mod));
   }
 
-  const getCasualties = (targetName: string): string[] => {
-    const target = (modList || []).find((m: any) => m.name === targetName);
-    if (!target) return [];
+  const getBatchCasualties = (
+    targetNames: string[],
+    rootLabel?: string
+  ): string[] => {
+    if (!targetNames || targetNames.length === 0) return [];
+    const extRegex = getExtensionRegex(activeGameSchema);
+    const getBaseNoScript = (raw: string) =>
+      String(raw || "")
+        .split(/[\\/]/)
+        .pop()
+        ?.replace(extRegex, "")
+        .toUpperCase()
+        .replace(/_SCRIPT(S)?$/i, "") || "";
+    const normLookup = (s: string) =>
+      stripPriorityTierPrefix(String(s || ""), activeGameSchema)
+        .replace(/\\/g, "/")
+        .toLowerCase();
+
+    // Build fast O(1) lookup structures over vaultIndex.physicalMods once per batch
+    const byBaseNoScript = new Map<string, any[]>();
+    const byNormRel = new Map<string, any>();
+    const byNormBase = new Map<string, any>();
+    const equippedWithReqs: any[] = [];
+
+    for (const pm of vaultIndex.physicalMods) {
+      if (!pm?.name) continue;
+      const bns = getBaseNoScript(pm.name);
+      if (bns) {
+        let arr = byBaseNoScript.get(bns);
+        if (!arr) {
+          arr = [];
+          byBaseNoScript.set(bns, arr);
+        }
+        arr.push(pm);
+      }
+      const nr = normLookup(pm.name);
+      if (nr && !byNormRel.has(nr)) byNormRel.set(nr, pm);
+      const nb = nr.split("/").pop() || "";
+      if (nb && !byNormBase.has(nb)) byNormBase.set(nb, pm);
+
+      if (isModNameEquipped(pm.name)) {
+        const hasReqs =
+          (Array.isArray(pm.requirements) && pm.requirements.length > 0) ||
+          (Array.isArray(pm.requires) && pm.requires.length > 0) ||
+          (Array.isArray(pm.twins) && pm.twins.length > 0);
+        if (hasReqs) equippedWithReqs.push(pm);
+      }
+    }
+
+    const resolveTargetMod = (tName: string): any => {
+      const direct =
+        vaultIndex.physicalByName.get(tName)?.[0] ||
+        vaultIndex.physicalByName.get(tName.toLowerCase())?.[0];
+      if (direct) return direct;
+      const tNorm = normLookup(tName);
+      const tBase = tNorm.split("/").pop() || tNorm;
+      return (
+        byNormRel.get(tNorm) ||
+        byNormBase.get(tBase) ||
+        (mod?.name === tName || normLookup(mod?.name || "") === tNorm ? mod : null)
+      );
+    };
+
+    const initialTargets: any[] = [];
+    const initialNameSet = new Set<string>(targetNames);
+    for (const tn of targetNames) {
+      const found = resolveTargetMod(tn);
+      if (found) {
+        if (found.isVirtual && Array.isArray(found.flavors) && found.flavors.length > 0) {
+          for (const fl of found.flavors) {
+            if (fl?.name) {
+              initialTargets.push(fl);
+              initialNameSet.add(fl.name);
+            }
+          }
+        } else {
+          initialTargets.push(found);
+          if (found.name) initialNameSet.add(found.name);
+        }
+      }
+    }
+    if (initialTargets.length === 0) return [];
 
     const toDelete = new Set<string>();
-    const initialMods =
-      target.isVirtual && target.flavors ? target.flavors : [target];
+    const deletedModMap = new Map<string, any>();
+    const deletedUuids = new Set<string>();
+    const deletedDbIds = new Set<string>();
+    const deletedHashes = new Set<string>();
+    const deletedDispUpperList: string[] = [];
 
-    initialMods.forEach((mItem: any) => {
-      toDelete.add(mItem.name);
-
-      const familyAnchor = mItem.familyId || mItem.dbId;
-      const isMaster =
-        mItem.dbId && String(mItem.dbId) === String(familyAnchor);
-
-      const localSets = JSON.parse(
-        localStorage.getItem(
-          `sanctuary_${useStore.getState().activeWorkspaceId}_playsets`
-        ) || "[]"
-      );
-      const isArchMember = localSets.some(
-        (s: any) =>
-          s.archetypes?.core === mItem.hash ||
-          s.archetypes?.twins?.includes(mItem.hash)
-      );
-
-      if (
-        mItem.isVirtual ||
-        isMaster ||
-        isArchMember ||
-        mItem.relationshipType === "twin" ||
-        mItem.relationshipType === "core" ||
-        mItem.relationshipType === "beta"
-      ) {
-        (modList || [])
-          .filter(
-            (m: any) =>
-              (String(m.familyId) === String(familyAnchor) ||
-                String(m.dbId) === String(familyAnchor) ||
-                String(m.setId) === String(mItem.dbId) ||
-                (isArchMember &&
-                  localSets.some(
-                    (s: any) =>
-                      (s.archetypes?.core === mItem.hash ||
-                        s.archetypes?.twins?.includes(mItem.hash)) &&
-                      s.items.includes(m.hash)
-                  ))) &&
-              m.name &&
-              !m.isVirtual &&
-              m.name !== mItem.name &&
-              isModNameEquipped(m.name)
-          )
-          .forEach((m: any) => toDelete.add(m.name));
+    const registerDeletedMod = (mObj: any) => {
+      if (!mObj?.name || toDelete.has(mObj.name)) return;
+      toDelete.add(mObj.name);
+      deletedModMap.set(mObj.name, mObj);
+      collectAllCandidateUuids(mObj).forEach((u) => deletedUuids.add(u));
+      if (mObj.dbId) deletedDbIds.add(String(mObj.dbId));
+      if (mObj.hash) deletedHashes.add(String(mObj.hash).toLowerCase());
+      const dispUpper = String(mObj.displayName || mObj.name || "").toUpperCase();
+      if (dispUpper) {
+        deletedDispUpperList.push(dispUpper);
+        const spaced = dispUpper.replace(/_/g, " ");
+        if (spaced !== dispUpper) deletedDispUpperList.push(spaced);
       }
-    });
+    };
+
+    const localSets = Array.isArray(storePlaySets) ? storePlaySets : [];
+
+    for (const mItem of initialTargets) {
+      if (!mItem?.name) continue;
+      registerDeletedMod(mItem);
+
+      const mItemBase = getBaseNoScript(mItem.name);
+      if (mItemBase) {
+        const sameBase = byBaseNoScript.get(mItemBase);
+        if (sameBase) {
+          for (const cand of sameBase) {
+            if (cand?.name && cand.name !== mItem.name && isModNameEquipped(cand.name)) {
+              registerDeletedMod(cand);
+            }
+          }
+        }
+      }
+
+      // Only expand family/archetype siblings when checking a single item/module,
+      // or if not already covered by the batch target list
+      if (targetNames.length <= 4) {
+        const familyAnchor = mItem.familyId || mItem.dbId;
+        const isMaster = mItem.dbId && String(mItem.dbId) === String(familyAnchor);
+        const isArchMember = localSets.some(
+          (s: any) =>
+            s?.archetypes?.core === mItem.hash ||
+            s?.archetypes?.twins?.includes(mItem.hash)
+        );
+        if (
+          mItem.isVirtual ||
+          isMaster ||
+          isArchMember ||
+          mItem.relationshipType === "twin" ||
+          mItem.relationshipType === "core" ||
+          mItem.relationshipType === "beta"
+        ) {
+          const anchorUuid = extractCleanUuid(familyAnchor, mItem.dbId).toLowerCase();
+          const famCands = anchorUuid ? vaultIndex.byUuid.get(anchorUuid) || [] : [];
+          for (const fm of famCands) {
+            if (fm?.name && !fm.isVirtual && isModNameEquipped(fm.name)) {
+              registerDeletedMod(fm);
+            }
+          }
+        }
+      }
+    }
 
     let keepChecking = true;
     while (keepChecking) {
       keepChecking = false;
-      (modList || []).forEach((m: any) => {
-        if (
-          !m.isVirtual &&
-          isModNameEquipped(m.name) &&
-          !toDelete.has(m.name)
-        ) {
-          const isDependent = m.requirements?.some((r: any) => {
-            const reqId = typeof r === "string" ? r : r.id || r.dbId;
-            const reqName = typeof r === "string" ? r : r.name;
-            const isReqNumeric = !isNaN(Number(reqName));
+      for (const m of equippedWithReqs) {
+        if (!m?.name || toDelete.has(m.name)) continue;
+        const allModReqs = [
+          ...(Array.isArray(m.requirements) ? m.requirements : []),
+          ...(Array.isArray(m.requires) ? m.requires : []),
+          ...(Array.isArray(m.twins) ? m.twins : []),
+        ];
+        const isDependent = allModReqs.some((r: any) => {
+          if (!r) return false;
+          const rawReqId =
+            typeof r === "string" ? r : r.id || r.dbId || r.hash || "";
+          const cleanReqUuid = extractCleanUuid(rawReqId).toLowerCase();
+          if (cleanReqUuid && deletedUuids.has(cleanReqUuid)) return true;
+          if (rawReqId) {
+            if (deletedDbIds.has(String(rawReqId))) return true;
+            if (deletedHashes.has(String(rawReqId).toLowerCase())) return true;
+          }
+          const reqName =
+            typeof r === "string"
+              ? r.split("@").pop() || r
+              : r.name || r.displayName || r.id || "";
+          const isReqNumeric = !isNaN(Number(reqName));
+          if (!isReqNumeric) {
             const reqBaseName = String(reqName)
               .split(/[\\/]/)
               .pop()
-              ?.replace(getExtensionRegex(activeGameSchema), "")
-              .toUpperCase();
-
-            return Array.from(toDelete).some((delName) => {
-              const delMod = modList.find((ml: any) => ml.name === delName);
-              if (!delMod) return false;
-              return (
-                (reqId && String(delMod.dbId) === String(reqId)) ||
-                (reqId && delMod.hash === reqId) ||
-                (!isReqNumeric &&
-                  reqBaseName &&
-                  delMod.displayName &&
-                  (delMod.displayName.toUpperCase().includes(reqBaseName) ||
-                    delMod.displayName
-                      .toUpperCase()
-                      .replace(/_/g, " ")
-                      .includes(reqBaseName.replace(/_/g, " "))))
-              );
-            });
-          });
-
-          if (isDependent) {
-            toDelete.add(m.name);
-            keepChecking = true;
+              ?.replace(extRegex, "")
+              .toUpperCase()
+              .replace(/_SCRIPT(S)?$/i, "");
+            if (reqBaseName && reqBaseName.length > 2) {
+              const reqSpaced = reqBaseName.replace(/_/g, " ");
+              if (
+                deletedDispUpperList.some(
+                  (d) => d.includes(reqBaseName) || d.includes(reqSpaced)
+                )
+              ) {
+                return true;
+              }
+            }
           }
+          return false;
+        });
+
+        if (isDependent) {
+          registerDeletedMod(m);
+          keepChecking = true;
         }
-      });
+      }
     }
 
-    toDelete.delete(target.name);
-
+    initialNameSet.forEach((n) => toDelete.delete(n));
     if (toDelete.size === 0) return [];
 
-    const cleanTarget = (
-      target.displayName ||
-      (target.name || "").split("/").pop() ||
-      ""
-    )
-      .replace(/_/g, " ")
-      .replace(/\.[^/.]+$/, "");
+    const firstTarget = initialTargets[0];
+    const cleanTarget =
+      rootLabel ||
+      (
+        firstTarget?.displayName ||
+        (firstTarget?.name || targetNames[0] || "").split(/[\\/]/).pop() ||
+        ""
+      )
+        .replace(/_/g, " ")
+        .replace(/\.[^/.]+$/, "");
 
     const cleanDeps = Array.from(toDelete).map((delName) => {
-      const d = modList.find((m: any) => m.name === delName);
-      if (!d) return delName;
-      return (d.displayName || (d.name || "").split("/").pop() || "")
+      const d =
+        deletedModMap.get(delName) ||
+        vaultIndex.physicalByName.get(delName)?.[0];
+      if (!d)
+        return (delName.split(/[\\/]/).pop() || delName)
+          .replace(/_/g, " ")
+          .replace(/\.[^/.]+$/, "");
+      return (d.displayName || (d.name || "").split(/[\\/]/).pop() || "")
         .replace(/_/g, " ")
         .replace(/\.[^/.]+$/, "");
     });
 
-    return [cleanTarget, ...cleanDeps];
+    return [cleanTarget, ...Array.from(new Set(cleanDeps))];
+  };
+
+  const getCasualties = (targetName: string): string[] =>
+    getBatchCasualties([targetName]);
+
+  const evaluatePreEquipAlerts = (
+    targetNames: string[],
+    explicitItems: any[] = []
+  ) => {
+    const extRegex = getExtensionRegex(activeGameSchema);
+    const resolvedTargets: any[] = [];
+    const seenNames = new Set<string>();
+    const targetNameSet = new Set<string>(targetNames);
+
+    const addTargetObj = (obj: any) => {
+      if (!obj) return;
+      const key = String(obj.name || obj.hash || obj.dbId || "");
+      if (key && seenNames.has(key)) return;
+      if (key) seenNames.add(key);
+      resolvedTargets.push(obj);
+    };
+
+    explicitItems.forEach(addTargetObj);
+    const flavorByName = new Map<string, any>();
+    if (Array.isArray(mod?.flavors)) {
+      mod.flavors.forEach((f: any) => {
+        if (f?.name) flavorByName.set(f.name, f);
+      });
+    }
+    targetNames.forEach((n) => {
+      const found =
+        vaultIndex.physicalByName.get(n)?.[0] ||
+        vaultIndex.physicalByName.get(n.toLowerCase())?.[0] ||
+        flavorByName.get(n) ||
+        (mod?.name === n ? mod : null);
+      if (found) addTargetObj(found);
+    });
+    if (resolvedTargets.length === 0 && mod) {
+      addTargetObj(mod);
+    }
+
+    // 1. Game Version Mismatch
+    const versionCandidates: string[] = [];
+    resolvedTargets.forEach((tm) => {
+      const vList = getVersions(tm);
+      const hv = getHighestVersion(vList);
+      if (
+        hv &&
+        hv !== "Unknown" &&
+        hv !== "ALL" &&
+        hv !== "ANY" &&
+        hv.toLowerCase() !== "global"
+      ) {
+        versionCandidates.push(hv);
+      }
+    });
+    const effectiveTargetVer =
+      versionCandidates.length > 0
+        ? getLowestVersion(versionCandidates)
+        : familyVersion;
+
+    const isGameVersionMismatch = Boolean(
+      selectedVersion &&
+        effectiveTargetVer &&
+        effectiveTargetVer !== "Unknown" &&
+        effectiveTargetVer !== "ALL" &&
+        effectiveTargetVer !== "ANY" &&
+        effectiveTargetVer.toLowerCase() !== "global" &&
+        !isVersionMatch([effectiveTargetVer], selectedVersion)
+    );
+
+    // 2. Missing DLC
+    const rawDlcSet = new Set<string>();
+    const collectDlc = (item: any) => {
+      if (!item?.requiredDLC) return;
+      parseStringArray(item.requiredDLC).forEach((d: string) => {
+        const code = d.split(" ")[0].toUpperCase().trim();
+        if (code && code !== "BASE") rawDlcSet.add(d.trim());
+      });
+    };
+    collectDlc(mod);
+    resolvedTargets.forEach(collectDlc);
+    const missingPacks = Array.from(rawDlcSet).filter((p: string) => {
+      const baseCode = p.split(" ")[0].toUpperCase().trim();
+      return (
+        !effectiveOwnedDLC.includes(baseCode) ||
+        effectiveMaskedDLC.includes(baseCode)
+      );
+    });
+
+    // 3. Missing Dependencies & Twins
+    const missingDeps: any[] = [];
+    const seenMissingKeys = new Set<string>();
+    const selfUuids = new Set<string>();
+    const selfBaseNames = new Set<string>();
+    [mod, ...resolvedTargets, ...(mod?.flavors || [])].forEach((item) => {
+      if (!item) return;
+      collectAllCandidateUuids(item).forEach((u) => selfUuids.add(u));
+      if (item.name) {
+        selfBaseNames.add(
+          String(item.name)
+            .split(/[\\/]/)
+            .pop()
+            ?.replace(extRegex, "")
+            .toLowerCase() || ""
+        );
+      }
+    });
+
+    groupedRelations.forEach((rel: any) => {
+      if (rel && rel.isInstalled === false) {
+        const key = String(rel.dbId || rel.hash || rel._groupedTitle || "").toLowerCase();
+        if (key && !seenMissingKeys.has(key)) {
+          seenMissingKeys.add(key);
+          missingDeps.push(rel);
+        }
+      }
+    });
+
+    resolvedTargets.forEach((tm) => {
+      const reqList = [
+        ...(Array.isArray(tm?.requirements) ? tm.requirements : []),
+        ...(Array.isArray(tm?.requires) ? tm.requires : []),
+        ...(Array.isArray(tm?.twins) ? tm.twins : []),
+      ];
+      reqList.forEach((req: any) => {
+        if (!req) return;
+        const rawId =
+          typeof req === "string" ? req : req.id || req.dbId || req.hash || "";
+        const cleanId = extractCleanUuid(rawId).toLowerCase();
+        const rawName =
+          typeof req === "string"
+            ? req.split("@").pop() || req
+            : req.name || req.displayName || String(rawId);
+        const baseName =
+          String(rawName)
+            .split(/[\\/]/)
+            .pop()
+            ?.replace(extRegex, "")
+            .toLowerCase() || "";
+
+        if (cleanId && selfUuids.has(cleanId)) return;
+        if (baseName && selfBaseNames.has(baseName)) return;
+
+        let installedMatch: any = null;
+        if (cleanId) {
+          installedMatch =
+            vaultIndex.physicalByUuid.get(cleanId)?.[0] ||
+            vaultIndex.virtualByUuid.get(cleanId) ||
+            null;
+        }
+        if (!installedMatch && rawId) {
+          installedMatch =
+            vaultIndex.physicalByHash.get(String(rawId).toLowerCase())?.[0] ||
+            null;
+        }
+        if (!installedMatch && baseName && isNaN(Number(baseName))) {
+          const normTitle = normTitleForMatch(rawName);
+          if (normTitle) {
+            installedMatch = vaultIndex.physicalByNormTitle.get(normTitle)?.[0] || null;
+          }
+          if (!installedMatch) {
+            installedMatch = vaultIndex.physicalMods.find((m: any) => {
+              const mDisp = String(m.displayName || m.name || "").toLowerCase();
+              return (
+                mDisp.includes(baseName) ||
+                mDisp.replace(/_/g, " ").includes(baseName.replace(/_/g, " "))
+              );
+            });
+          }
+        }
+        if (!installedMatch) {
+          const dedupKey = cleanId || baseName || String(rawId).toLowerCase();
+          if (dedupKey && !seenMissingKeys.has(dedupKey)) {
+            seenMissingKeys.add(dedupKey);
+            missingDeps.push(
+              typeof req === "object"
+                ? req
+                : { id: cleanId || rawId, name: cleanSearchName(rawName, activeGameSchema) }
+            );
+          }
+        }
+      });
+    });
+
+    // 4. Broken / Corrupted Status
+    const getIsBrokenMod = (m: any) => {
+      if (!m) return false;
+      const st = String(m.status || "").toLowerCase();
+      let broken = st === "broken" || st === "corrupted";
+      if (
+        broken &&
+        st === "broken" &&
+        m.compatible_versions &&
+        m.compatible_versions.length > 0 &&
+        selectedVersion
+      ) {
+        if (selectedVersion !== getHighestVersion(getVersions(m))) {
+          broken = false;
+        }
+      }
+      return broken;
+    };
+    const brokenMods = resolvedTargets.filter(getIsBrokenMod);
+    if (brokenMods.length === 0 && getIsBrokenMod(mod) && !mod.isVirtual) {
+      brokenMods.push(mod);
+    }
+
+    // 5. Flavor / Beta Swap Rivals & 6. Severity 4 / Severity 3 Collisions
+    const flavorRivals: any[] = [];
+    const fatalConflicts: any[] = [];
+    const tier3Conflicts: any[] = [];
+    const seenRivals = new Set<string>();
+    const seenFatal = new Set<string>();
+    const seenTier3 = new Set<string>();
+
+    const equippedModObjects = vaultIndex.physicalMods.filter(
+      (m: any) => m?.name && !targetNameSet.has(m.name) && isModNameEquipped(m.name)
+    );
+    const equippedRivalCandidates = equippedModObjects.filter(
+      (eq: any) =>
+        eq.flavorGroupId != null ||
+        eq.communityGroupId != null ||
+        eq.relationshipType === "beta"
+    );
+    const equippedWithConflicts = equippedModObjects.filter(
+      (eq: any) => Array.isArray(eq.conflicts) && eq.conflicts.length > 0
+    );
+    const equippedByUuid = new Map<string, any>();
+    const equippedByCleanName = new Map<string, any>();
+    for (const eq of equippedModObjects) {
+      collectAllCandidateUuids(eq).forEach((u) => {
+        if (!equippedByUuid.has(u)) equippedByUuid.set(u, eq);
+      });
+      const eqBase =
+        String(eq.name || "")
+          .split(/[\\/]/)
+          .pop()
+          ?.replace(extRegex, "")
+          .toUpperCase()
+          .replace(/_SCRIPT(S)?$/i, "") || "";
+      if (eqBase && !equippedByCleanName.has(eqBase)) {
+        equippedByCleanName.set(eqBase, eq);
+      }
+      const eqDisp = String(eq.displayName || "").toUpperCase();
+      if (eqDisp && !equippedByCleanName.has(eqDisp)) {
+        equippedByCleanName.set(eqDisp, eq);
+      }
+    }
+
+    resolvedTargets.forEach((tm) => {
+      if (!tm) return;
+      if (anarchyRules?.highlander !== false) {
+        if (mod?.isFlavorFolder && Array.isArray(mod.flavors)) {
+          mod.flavors.forEach((fl: any) => {
+            if (
+              fl?.name &&
+              fl.name !== tm.name &&
+              !targetNameSet.has(fl.name) &&
+              isModNameEquipped(fl.name) &&
+              !seenRivals.has(fl.name)
+            ) {
+              seenRivals.add(fl.name);
+              flavorRivals.push(fl);
+            }
+          });
+        }
+
+        if (
+          tm.flavorGroupId != null ||
+          tm.communityGroupId != null ||
+          tm.relationshipType === "beta" ||
+          equippedRivalCandidates.length > 0
+        ) {
+          equippedRivalCandidates.forEach((eq: any) => {
+            if (eq.name === tm.name) return;
+            const isFlavorRival =
+              tm.flavorGroupId &&
+              eq.flavorGroupId &&
+              String(tm.flavorGroupId) === String(eq.flavorGroupId) &&
+              tm.relationshipType !== "twin" &&
+              eq.relationshipType !== "twin";
+            const isCommunityRival =
+              tm.communityGroupId &&
+              eq.communityGroupId &&
+              String(tm.communityGroupId) === String(eq.communityGroupId);
+            const isBetaRival =
+              ((tm.relationshipType === "beta" && eq.relationshipType !== "beta") ||
+                (tm.relationshipType !== "beta" && eq.relationshipType === "beta")) &&
+              (tm.familyId || tm.dbId) &&
+              (String(eq.familyId) === String(tm.familyId || tm.dbId) ||
+                String(eq.dbId) === String(tm.familyId || tm.dbId));
+
+            if (
+              (isFlavorRival || isCommunityRival || isBetaRival) &&
+              !seenRivals.has(eq.name)
+            ) {
+              seenRivals.add(eq.name);
+              flavorRivals.push(eq);
+            }
+          });
+        }
+      }
+
+      const tmBase =
+        String(tm.name || "")
+          .split(/[\\/]/)
+          .pop()
+          ?.replace(extRegex, "")
+          .toUpperCase()
+          .replace(/_SCRIPT(S)?$/i, "") || "";
+      const tmDispUpper = String(tm.displayName || "").toUpperCase();
+      const tmUuidSet = new Set(collectAllCandidateUuids(tm));
+
+      const allTargetConflicts = [
+        ...(Array.isArray(tm.conflicts) ? tm.conflicts : []),
+        ...(Array.isArray(mod?.conflicts) ? mod.conflicts : []),
+      ];
+
+      allTargetConflicts.forEach((c: any) => {
+        if (!c) return;
+        const rank = Number(c.severity_rank || 4);
+        const enemyId = c.enemy_id ? extractCleanUuid(c.enemy_id).toLowerCase() : "";
+        const enemyClean = c.enemy_name
+          ? String(c.enemy_name)
+              .replace(/\.[^/.]+$/i, "")
+              .toUpperCase()
+              .replace(/_SCRIPT(S)?$/i, "")
+          : "";
+
+        const matchedEquipped =
+          (enemyId ? equippedByUuid.get(enemyId) : null) ||
+          (enemyClean ? equippedByCleanName.get(enemyClean) : null);
+
+        if (matchedEquipped) {
+          if (rank === 4 && anarchyRules?.intercept !== false) {
+            if (!seenFatal.has(matchedEquipped.name)) {
+              seenFatal.add(matchedEquipped.name);
+              fatalConflicts.push(matchedEquipped);
+            }
+          } else if (rank === 3) {
+            if (!seenTier3.has(matchedEquipped.name)) {
+              seenTier3.add(matchedEquipped.name);
+              tier3Conflicts.push(matchedEquipped);
+            }
+          }
+        }
+      });
+
+      equippedWithConflicts.forEach((eq: any) => {
+        eq.conflicts.forEach((c: any) => {
+          if (!c) return;
+          const rank = Number(c.severity_rank || 4);
+          const enemyId = c.enemy_id ? extractCleanUuid(c.enemy_id).toLowerCase() : "";
+          const enemyClean = c.enemy_name
+            ? String(c.enemy_name)
+                .replace(/\.[^/.]+$/i, "")
+                .toUpperCase()
+                .replace(/_SCRIPT(S)?$/i, "")
+            : "";
+          const isMatch =
+            (enemyId && tmUuidSet.has(enemyId)) ||
+            (enemyClean && (tmBase === enemyClean || tmDispUpper === enemyClean));
+          if (isMatch) {
+            if (rank === 4 && anarchyRules?.intercept !== false) {
+              if (!seenFatal.has(eq.name)) {
+                seenFatal.add(eq.name);
+                fatalConflicts.push(eq);
+              }
+            } else if (rank === 3) {
+              if (!seenTier3.has(eq.name)) {
+                seenTier3.add(eq.name);
+                tier3Conflicts.push(eq);
+              }
+            }
+          }
+        });
+      });
+    });
+
+    const hasAnyAlert =
+      isGameVersionMismatch ||
+      missingPacks.length > 0 ||
+      missingDeps.length > 0 ||
+      brokenMods.length > 0 ||
+      flavorRivals.length > 0 ||
+      fatalConflicts.length > 0 ||
+      tier3Conflicts.length > 0;
+
+    return {
+      hasAnyAlert,
+      isGameVersionMismatch,
+      requiredGameVersion: effectiveTargetVer,
+      missingPacks,
+      missingDeps,
+      brokenMods,
+      flavorRivals,
+      fatalConflicts,
+      tier3Conflicts,
+    };
   };
 
   const allEquippableManifestNames = (() => {
@@ -2844,6 +3380,17 @@ export default function ModDossier({
     allEquippableManifestNames.length > 0 &&
     allEquippableManifestNames.every((n) => isModNameEquipped(n));
 
+  const triggerYeetCascadeAlert = (
+    casualties: string[],
+    onConfirm: () => void
+  ) => {
+    setDossierAlertPending({
+      mode: "yeet_cascade",
+      casualties,
+      onConfirm,
+    });
+  };
+
   const safeToggle = (targetName: string, forceMode?: "add" | "remove") => {
     if (!targetName) return;
     const isCurrentlyEquipped = isModNameEquipped(targetName);
@@ -2866,8 +3413,19 @@ export default function ModDossier({
 
     if (shouldRemove) {
       const c = getCasualties(targetName);
-      if (c.length > 0 && onShowYeetAlert) {
-        onShowYeetAlert(c, doToggle);
+      if (c.length > 0) {
+        triggerYeetCascadeAlert(c, doToggle);
+        return;
+      }
+    } else {
+      const alerts = evaluatePreEquipAlerts([targetName]);
+      if (alerts.hasAnyAlert) {
+        setDossierAlertPending({
+          mode: "pre_equip",
+          targetLabel: formatDisplayName(targetName),
+          ...alerts,
+          onConfirm: doToggle,
+        });
         return;
       }
     }
@@ -2901,47 +3459,35 @@ export default function ModDossier({
     const isGroupEquipped = validNames.some((n) => isModNameEquipped(n));
     const performGroupToggle = () => {
       if (isGroupEquipped) {
-        validNames.forEach((n) => {
-          if (isModNameEquipped(n)) {
-            onToggleInActiveSet(n, false, true, false);
-          }
-        });
+        const toRem = validNames.filter((n) => isModNameEquipped(n));
+        if (toRem.length > 0) {
+          onToggleInActiveSet(toRem, false, true, false);
+        }
       } else {
-        validNames.forEach((n) => {
-          onToggleInActiveSet(n, false, false, true);
-        });
+        onToggleInActiveSet(validNames, false, false, true);
       }
     };
 
+    const groupLabel =
+      groupItem?._groupedTitle ||
+      groupItem?.displayName ||
+      formatDisplayName(validNames[0]);
+
     if (isGroupEquipped) {
-      const groupNameSet = new Set(validNames);
-      const allCas: string[] = [];
-      validNames.forEach((n) => {
-        const c = getCasualties(n);
-        if (c.length > 1) {
-          c.slice(1).forEach((depLabel) => {
-            const isInternal = groupMods.some((gm: any) => {
-              if (!gm?.name || !groupNameSet.has(gm.name)) return false;
-              const cleanGm = (
-                gm.displayName ||
-                (gm.name || "").split("/").pop() ||
-                ""
-              )
-                .replace(/_/g, " ")
-                .replace(/\.[^/.]+$/, "");
-              return cleanGm.toLowerCase() === String(depLabel).toLowerCase();
-            });
-            if (!isInternal) allCas.push(depLabel);
-          });
-        }
-      });
-      const uniqueCas = Array.from(new Set(allCas));
-      if (uniqueCas.length > 0 && onShowYeetAlert) {
-        const groupLabel =
-          groupItem?._groupedTitle ||
-          groupItem?.displayName ||
-          validNames[0];
-        onShowYeetAlert([groupLabel, ...uniqueCas], performGroupToggle);
+      const c = getBatchCasualties(validNames, groupLabel);
+      if (c.length > 0) {
+        triggerYeetCascadeAlert(c, performGroupToggle);
+        return;
+      }
+    } else {
+      const alerts = evaluatePreEquipAlerts(validNames, [groupItem, ...groupMods]);
+      if (alerts.hasAnyAlert) {
+        setDossierAlertPending({
+          mode: "pre_equip",
+          targetLabel: groupLabel,
+          ...alerts,
+          onConfirm: performGroupToggle,
+        });
         return;
       }
     }
@@ -2951,57 +3497,50 @@ export default function ModDossier({
 
   const handleToggleAll = () => {
     if (allEquippableManifestNames.length === 0) {
-      if (mod?.name) onToggleInActiveSet(mod.name, false);
+      if (mod?.name) safeToggle(mod.name);
       return;
     }
 
+    const rootLabel =
+      mod.displayName ||
+      (mod.name || "").replace(/^(FOLDER_|SET_|LOCAL_SET_)/i, "");
+
     if (allEquipped) {
+      const equippedNames = allEquippableManifestNames.filter((n) =>
+        isModNameEquipped(n)
+      );
       const doRemoveAll = () => {
-        allEquippableManifestNames.forEach((n) => {
-          if (isModNameEquipped(n)) {
-            onToggleInActiveSet(n, false, true, false);
-          }
-        });
+        if (equippedNames.length > 0) {
+          onToggleInActiveSet(equippedNames, false, true, false);
+        }
       };
 
-      const manifestNameSet = new Set(allEquippableManifestNames);
-      const externalDeps: string[] = [];
-      allEquippableManifestNames.forEach((n) => {
-        if (isModNameEquipped(n)) {
-          const c = getCasualties(n);
-          if (c.length > 1) {
-            c.slice(1).forEach((depLabel) => {
-              const isSelfMember = (modList || []).some((m: any) => {
-                if (!m?.name || !manifestNameSet.has(m.name)) return false;
-                const cleanM = (
-                  m.displayName ||
-                  (m.name || "").split("/").pop() ||
-                  ""
-                )
-                  .replace(/_/g, " ")
-                  .replace(/\.[^/.]+$/, "");
-                return cleanM.toLowerCase() === String(depLabel).toLowerCase();
-              });
-              if (!isSelfMember) externalDeps.push(depLabel);
-            });
-          }
-        }
-      });
-      const uniqueDeps = [...new Set(externalDeps)];
-      if (uniqueDeps.length > 0 && onShowYeetAlert) {
-        const rootLabel =
-          mod.displayName ||
-          (mod.name || "").replace(/^(FOLDER_|SET_|LOCAL_SET_)/i, "");
-        onShowYeetAlert([rootLabel, ...uniqueDeps], doRemoveAll);
+      const c = getBatchCasualties(equippedNames, rootLabel);
+      if (c.length > 0) {
+        triggerYeetCascadeAlert(c, doRemoveAll);
         return;
       }
       doRemoveAll();
     } else {
-      allEquippableManifestNames.forEach((n) => {
-        if (!isModNameEquipped(n)) {
-          onToggleInActiveSet(n, false, false, true);
+      const unequippedNames = allEquippableManifestNames.filter(
+        (n) => !isModNameEquipped(n)
+      );
+      const doEquipAll = () => {
+        if (unequippedNames.length > 0) {
+          onToggleInActiveSet(unequippedNames, false, false, true);
         }
-      });
+      };
+      const alerts = evaluatePreEquipAlerts(unequippedNames, [mod]);
+      if (alerts.hasAnyAlert) {
+        setDossierAlertPending({
+          mode: "pre_equip",
+          targetLabel: rootLabel,
+          ...alerts,
+          onConfirm: doEquipAll,
+        });
+        return;
+      }
+      doEquipAll();
     }
   };
 
@@ -3495,7 +4034,11 @@ export default function ModDossier({
           );
           const canSyncSandbox = Boolean(mod.hash?.startsWith("dev_sandbox_") && isDesktop());
           const canExportRelease = Boolean(
-            !mod.isVirtual &&
+            (mod.hash?.startsWith("dev_sandbox_") ||
+              mod._isLocalSandbox ||
+              mod.isSandbox ||
+              String(mod.status || "").toLowerCase().includes("sandbox")) &&
+              !mod.isVirtual &&
               !isNexusView &&
               !mod.name?.startsWith("LOCAL_SET_") &&
               isDesktop()
@@ -3641,6 +4184,25 @@ export default function ModDossier({
                       : localCategory || t("label_artifact", "{Mod}")
             }
             badgeIcon={t("icon_inventory_2", "inventory_2")}
+            badges={[
+              ...((editMode ? metaInputs.is_early_access : mod.is_early_access)
+                ? [
+                    {
+                      label: t("badge_early_access", "Early Access"),
+                      icon: t("icon_science", "science"),
+                    },
+                  ]
+                : []),
+              ...((editMode ? metaInputs.is_paid : mod.is_paid)
+                ? [
+                    {
+                      label: t("badge_paid", "Paid"),
+                      icon: t("icon_monetization_on", "monetization_on"),
+                      colorClass: "text-[var(--warning)]",
+                    },
+                  ]
+                : []),
+            ]}
             variant={statusVariant}
           >
             <div className="flex flex-col gap-3">
@@ -3656,32 +4218,36 @@ export default function ModDossier({
               )}
 
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  {!mod.isVirtual && mod.hash && (
+                {!mod.isVirtual && mod.hash && (
+                  <div className="flex flex-wrap items-center gap-2">
                     <LabVerificationBadge
                       dnaHash={mod.hash}
                       required={requireScoutLabTest && isCorrecting}
                     />
-                  )}
-                  {(editMode ? metaInputs.is_early_access : mod.is_early_access) && (
-                    <span className={VAULT_CHIP_CLASS}>
-                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                        {t("icon_science", "science")}
-                      </span>
-                      {t("badge_early_access", "Early Access")}
-                    </span>
-                  )}
-                  {(editMode ? metaInputs.is_paid : mod.is_paid) && (
-                    <span className={VAULT_CHIP_CLASS}>
-                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
-                        {t("icon_monetization_on", "monetization_on")}
-                      </span>
-                      {t("badge_paid", "Paid")}
-                    </span>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <div className="flex flex-wrap items-center gap-2 ml-auto">
+                  {!editMode && !isNexusView && allEquippableManifestNames.length > 0 && (
+                    <ActionButton
+                      variant={allEquipped ? "danger" : "success"}
+                      icon={
+                        allEquipped
+                          ? t("icon_remove_circle_outline", "remove_circle_outline")
+                          : t("icon_add_circle_outline", "add_circle_outline")
+                      }
+                      label={
+                        allEquipped
+                          ? groupedKids.length > 1
+                            ? t("remove_all", "Remove All")
+                            : t("btn_unequip", "Unequip {Mod}")
+                          : groupedKids.length > 1
+                            ? t("add_all", "Add All")
+                            : t("btn_equip", "Equip {Mod}")
+                      }
+                      onClick={handleToggleAll}
+                    />
+                  )}
                   {!editMode && !isDesktop() && (
                     <ActionButton
                       variant={isModStaged ? "accent" : "glass"}
@@ -4104,25 +4670,26 @@ export default function ModDossier({
               icon={t("icon_inventory_2", "inventory_2")}
               headerAction={
                 !isNexusView && (
-                  <ActionButton
+                  <button
+                    type="button"
                     onClick={handleToggleAll}
-                    variant="glass"
-                    icon={
+                    className={`h-7 px-3 rounded-lg glass-surface border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                       allEquipped
+                        ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)]"
+                        : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] hover:border-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)]"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[14px]">
+                      {allEquipped
                         ? t("icon_remove_circle_outline", "remove_circle_outline")
-                        : t("icon_add_circle_outline", "add_circle_outline")
-                    }
-                    label={
-                      allEquipped
+                        : t("icon_add_circle_outline", "add_circle_outline")}
+                    </span>
+                    <span>
+                      {allEquipped
                         ? t("remove_all", "Remove All")
-                        : t("add_all", "Add All")
-                    }
-                    className={
-                      allEquipped
-                        ? "!text-[var(--danger)] !border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
-                        : "!text-[var(--success)] !border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
-                    }
-                  />
+                        : t("add_all", "Add All")}
+                    </span>
+                  </button>
                 )
               }
             >
@@ -4488,6 +5055,26 @@ export default function ModDossier({
                   variant="accent"
                 >
                   <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                    {!isNexusView && kidEquippableNames.length > 0 && (
+                      <ActionButton
+                        variant={isKidEquipped ? "danger" : "success"}
+                        icon={
+                          isKidEquipped
+                            ? t("icon_remove_circle_outline", "remove_circle_outline")
+                            : t("icon_add_circle_outline", "add_circle_outline")
+                        }
+                        label={
+                          isKidEquipped
+                            ? groupedKidModules.length > 1
+                              ? t("remove_all", "Remove All")
+                              : t("btn_unequip", "Unequip {Mod}")
+                            : groupedKidModules.length > 1
+                              ? t("add_all", "Add All")
+                              : t("btn_equip", "Equip {Mod}")
+                        }
+                        onClick={() => safeToggleGroup(kidToRender)}
+                      />
+                    )}
                     {!isDesktop() && (
                       <ActionButton
                         variant={
@@ -4666,6 +5253,31 @@ export default function ModDossier({
                   <UniversalGroup
                     title={`${t("manifest", "Manifest")} (${groupedKidModules.length})`}
                     icon={t("icon_inventory_2", "inventory_2")}
+                    headerAction={
+                      !isNexusView &&
+                      kidEquippableNames.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => safeToggleGroup(kidToRender)}
+                          className={`h-7 px-3 rounded-lg glass-surface border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                            isKidEquipped
+                              ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)]"
+                              : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] hover:border-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)]"
+                          }`}
+                        >
+                          <span className="material-symbols-outlined !text-[14px]">
+                            {isKidEquipped
+                              ? t("icon_remove_circle_outline", "remove_circle_outline")
+                              : t("icon_add_circle_outline", "add_circle_outline")}
+                          </span>
+                          <span>
+                            {isKidEquipped
+                              ? t("remove_all", "Remove All")
+                              : t("add_all", "Add All")}
+                          </span>
+                        </button>
+                      )
+                    }
                   >
                     <div className="grid grid-cols-3 gap-2.5 mb-3">
                       <DashboardStatTile
@@ -4867,6 +5479,450 @@ export default function ModDossier({
           </div>
         </SidePanel>
       )}
+
+      {dossierAlertPending &&
+        (() => {
+          const isCascade = dossierAlertPending.mode === "yeet_cascade";
+          const handleConfirmDossierAlert = () => {
+            const cb = dossierAlertPending.onConfirm;
+            setDossierAlertPending(null);
+            cb?.();
+          };
+
+          if (isCascade) {
+            const casualties: string[] = Array.isArray(
+              dossierAlertPending.casualties
+            )
+              ? dossierAlertPending.casualties
+              : [];
+            return (
+              <SidePanel
+                isOpen={true}
+                onClose={() => setDossierAlertPending(null)}
+                title={t("yeet_cascade_detected", "Cascade Removal Detected")}
+                subtitle={t(
+                  "yeet_removing_following",
+                  "Removing the following dependent artifacts"
+                )}
+                icon={t("icon_warning_amber", "warning")}
+                iconColorClass="text-[var(--danger)] animate-pulse"
+                backdropZ="z-[125000]"
+                panelZ="z-[125001]"
+                widthClass="w-[90vw] md:w-[620px]"
+                headerActions={
+                  <PanelHeaderGroup>
+                    <PanelHeaderButton
+                      icon={t("icon_delete", "delete")}
+                      tooltip={t("yeet_btn_confirm", "Confirm Removal")}
+                      variant="danger"
+                      onClick={handleConfirmDossierAlert}
+                    />
+                  </PanelHeaderGroup>
+                }
+              >
+                <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+                  <SidePanelHeroCard
+                    icon={t("icon_warning_amber", "warning")}
+                    overline={t("protocol_override", "Protocol Override")}
+                    title={t(
+                      "yeet_cascade_detected",
+                      "Cascade Removal Detected"
+                    )}
+                    description={t(
+                      "yeet_removing_following",
+                      "These dependent artifacts require the target module and will also be unequipped."
+                    )}
+                    badge={`${casualties.length} ${t("term_mods", "Items")}`}
+                    badgeIcon={t("icon_delete", "delete")}
+                    variant="danger"
+                  >
+                    <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_close", "close")}
+                        label={t("cancel", "Cancel")}
+                        onClick={() => setDossierAlertPending(null)}
+                      />
+                      <ActionButton
+                        variant="danger"
+                        icon={t("icon_delete", "delete")}
+                        label={t("yeet_btn_confirm", "Confirm Removal")}
+                        onClick={handleConfirmDossierAlert}
+                      />
+                    </div>
+                  </SidePanelHeroCard>
+
+                  <UniversalGroup
+                    title={`${t("yeet_removing_following", "Affected Artifacts")} (${casualties.length})`}
+                    icon={t("icon_delete", "delete")}
+                    headerColorClass="text-[var(--danger)]"
+                  >
+                    <div className="flex flex-col gap-2.5">
+                      {casualties.map((c: any, i: number) => (
+                        <div
+                          key={i}
+                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[16px]">
+                                {t("icon_delete", "delete")}
+                              </span>
+                            </div>
+                            <span className="text-xs sm:text-sm font-bold text-[var(--text)] truncate">
+                              {String(c).replace(/_/g, " ")}
+                            </span>
+                          </div>
+                          <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                            <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">
+                              {t("icon_link_off", "link_off")}
+                            </span>
+                            <span>{t("protocol_override", "Dependent")}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </UniversalGroup>
+                </div>
+              </SidePanel>
+            );
+          }
+
+          const {
+            targetLabel,
+            isGameVersionMismatch,
+            requiredGameVersion,
+            missingPacks = [],
+            missingDeps = [],
+            brokenMods = [],
+            flavorRivals = [],
+            fatalConflicts = [],
+            tier3Conflicts = [],
+          } = dossierAlertPending;
+
+          const primaryTitle = isGameVersionMismatch
+            ? t("unsupported_version", "Unsupported Game Version")
+            : missingDeps.length > 0
+              ? t("missing_artifacts", "Missing {Mods}")
+              : missingPacks.length > 0
+                ? t("missing_dlc", "Missing DLC")
+                : brokenMods.length > 0
+                  ? t("broken_artifacts", "Corrupted {Mods}")
+                  : fatalConflicts.length > 0
+                    ? t("fatal_conflict", "Severity 4 Collision")
+                    : flavorRivals.length > 0
+                      ? t("flavor_swap", "Flavor Swap")
+                      : t("tier3_conflict", "Severity 3 Collision");
+
+          const primaryIcon = isGameVersionMismatch
+            ? t("icon_sports_esports", "sports_esports")
+            : missingDeps.length > 0
+              ? t("icon_extension", "extension")
+              : missingPacks.length > 0
+                ? t("icon_currency_exchange", "currency_exchange")
+                : brokenMods.length > 0
+                  ? t("icon_broken_image", "broken_image")
+                  : fatalConflicts.length > 0
+                    ? t("icon_crisis_alert", "crisis_alert")
+                    : flavorRivals.length > 0
+                      ? t("icon_swap_horiz", "swap_horiz")
+                      : t("icon_tune", "tune");
+
+          const primaryVariant: "danger" | "warning" | "accent" =
+            isGameVersionMismatch ||
+            missingDeps.length > 0 ||
+            missingPacks.length > 0 ||
+            brokenMods.length > 0 ||
+            fatalConflicts.length > 0
+              ? "danger"
+              : flavorRivals.length > 0
+                ? "accent"
+                : "warning";
+
+          return (
+            <SidePanel
+              isOpen={true}
+              onClose={() => setDossierAlertPending(null)}
+              title={primaryTitle}
+              subtitle={targetLabel || cleanArtifactTitle}
+              icon={primaryIcon}
+              iconColorClass={
+                primaryVariant === "danger"
+                  ? "text-[var(--danger)]"
+                  : primaryVariant === "accent"
+                    ? "text-[var(--accent)]"
+                    : "text-[var(--warning)]"
+              }
+              backdropZ="z-[125000]"
+              panelZ="z-[125001]"
+              widthClass="w-[90vw] md:w-[620px]"
+              headerActions={
+                <PanelHeaderGroup>
+                  <PanelHeaderButton
+                    icon={t("icon_check", "check")}
+                    tooltip={t("btn_equip", "Equip {Mod}")}
+                    variant={primaryVariant === "danger" ? "danger" : "warning"}
+                    onClick={handleConfirmDossierAlert}
+                  />
+                </PanelHeaderGroup>
+              }
+            >
+              <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+                <SidePanelHeroCard
+                  icon={primaryIcon}
+                  overline={t("protocol_override", "Protocol Override")}
+                  title={primaryTitle}
+                  description={targetLabel || cleanArtifactTitle}
+                  badge={
+                    selectedVersion
+                      ? `${t("label_game_version", "Game Version")}: ${selectedVersion}`
+                      : undefined
+                  }
+                  badgeIcon={t("icon_sports_esports", "sports_esports")}
+                  variant={primaryVariant}
+                >
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_close", "close")}
+                      label={t("cancel", "Cancel")}
+                      onClick={() => setDossierAlertPending(null)}
+                    />
+                    <ActionButton
+                      variant={primaryVariant === "danger" ? "danger" : "warning"}
+                      icon={t("icon_add_circle_outline", "add_circle_outline")}
+                      label={t("btn_equip", "Equip {Mod}")}
+                      onClick={handleConfirmDossierAlert}
+                    />
+                  </div>
+                </SidePanelHeroCard>
+
+                {isGameVersionMismatch && (
+                  <UniversalGroup
+                    title={t("unsupported_version", "Unsupported Game Version")}
+                    icon={t("icon_sports_esports", "sports_esports")}
+                    headerColorClass="text-[var(--danger)]"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <StatBox
+                        label={t("required_version", "Required Game Version")}
+                        value={requiredGameVersion || familyVersion}
+                        icon={t("icon_sports_esports", "sports_esports")}
+                        iconColorClass="text-[var(--danger)]"
+                      />
+                      <StatBox
+                        label={t("label_game_version", "Game Version")}
+                        value={selectedVersion || t("unknown", "Unknown")}
+                        icon={t("icon_verified", "verified")}
+                        iconColorClass="text-[var(--accent)]"
+                      />
+                    </div>
+                  </UniversalGroup>
+                )}
+
+                {missingPacks.length > 0 && (
+                  <UniversalGroup
+                    title={`${t("missing_dlc", "Missing DLC")} (${missingPacks.length})`}
+                    icon={t("icon_currency_exchange", "currency_exchange")}
+                    headerColorClass="text-[var(--danger)]"
+                  >
+                    <div className="flex flex-col gap-2.5">
+                      {missingPacks.map((p: string) => (
+                        <div
+                          key={p}
+                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[15px]">
+                                {t("icon_currency_exchange", "currency_exchange")}
+                              </span>
+                            </div>
+                            <span className="text-xs sm:text-sm font-bold text-[var(--text)] truncate">
+                              {mapDlcCode(p)}
+                            </span>
+                          </div>
+                          <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                            {p.split(" ")[0].toUpperCase()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </UniversalGroup>
+                )}
+
+                {missingDeps.length > 0 && (
+                  <UniversalGroup
+                    title={`${t("missing_artifacts", "Missing {Mods}")} (${missingDeps.length})`}
+                    icon={t("icon_extension", "extension")}
+                    headerColorClass="text-[var(--danger)]"
+                  >
+                    <div className="flex flex-col gap-2.5">
+                      {missingDeps.map((dep: any, idx: number) => {
+                        const depTitle =
+                          dep?._groupedTitle ||
+                          dep?.displayName ||
+                          dep?.name ||
+                          String(dep?.id || dep || "");
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              setDossierAlertPending(null);
+                              handleInspectKid(dep);
+                            }}
+                            className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_55%,transparent)] flex items-center justify-between gap-3 cursor-pointer transition-all"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                                <span className="material-symbols-outlined !text-[15px]">
+                                  {t("icon_extension", "extension")}
+                                </span>
+                              </div>
+                              <span className="text-xs sm:text-sm font-bold text-[var(--text)] truncate">
+                                {formatDisplayName(depTitle)}
+                              </span>
+                            </div>
+                            <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                              <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">
+                                {t("icon_error", "error")}
+                              </span>
+                              <span>{t("status_missing", "Missing")}</span>
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </UniversalGroup>
+                )}
+
+                {brokenMods.length > 0 && (
+                  <UniversalGroup
+                    title={`${t("broken_artifacts", "Corrupted {Mods}")} (${brokenMods.length})`}
+                    icon={t("icon_broken_image", "broken_image")}
+                    headerColorClass="text-[var(--danger)]"
+                  >
+                    <div className="flex flex-col gap-2.5">
+                      {brokenMods.map((bm: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[15px]">
+                                {t("icon_broken_image", "broken_image")}
+                              </span>
+                            </div>
+                            <span className="text-xs sm:text-sm font-bold text-[var(--text)] truncate">
+                              {formatDisplayName(bm.displayName || bm.name || "")}
+                            </span>
+                          </div>
+                          <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                            {t("status_corrupted", "Corrupted")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </UniversalGroup>
+                )}
+
+                {flavorRivals.length > 0 && (
+                  <UniversalGroup
+                    title={`${t("flavor_swap", "Flavor Swap")} (${flavorRivals.length})`}
+                    icon={t("icon_swap_horiz", "swap_horiz")}
+                    headerColorClass="text-[var(--accent)]"
+                  >
+                    <div className="flex flex-col gap-2.5">
+                      {flavorRivals.map((rv: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_32%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[15px]">
+                                {t("icon_swap_horiz", "swap_horiz")}
+                              </span>
+                            </div>
+                            <span className="text-xs sm:text-sm font-bold text-[var(--text)] truncate">
+                              {formatDisplayName(rv.displayName || rv.name || "")}
+                            </span>
+                          </div>
+                          <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                            {t("flavor_replaced", "Will Replace")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </UniversalGroup>
+                )}
+
+                {fatalConflicts.length > 0 && (
+                  <UniversalGroup
+                    title={`${t("fatal_conflict", "Severity 4 Collision")} (${fatalConflicts.length})`}
+                    icon={t("icon_crisis_alert", "crisis_alert")}
+                    headerColorClass="text-[var(--danger)]"
+                  >
+                    <div className="flex flex-col gap-2.5">
+                      {fatalConflicts.map((fc: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[15px]">
+                                {t("icon_crisis_alert", "crisis_alert")}
+                              </span>
+                            </div>
+                            <span className="text-xs sm:text-sm font-bold text-[var(--text)] truncate">
+                              {formatDisplayName(fc.displayName || fc.name || "")}
+                            </span>
+                          </div>
+                          <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                            {t("artifact_removed", "Will {Remove}")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </UniversalGroup>
+                )}
+
+                {tier3Conflicts.length > 0 && (
+                  <UniversalGroup
+                    title={`${t("tier3_conflict", "Severity 3 Collision")} (${tier3Conflicts.length})`}
+                    icon={t("icon_tune", "tune")}
+                    headerColorClass="text-[var(--warning)]"
+                  >
+                    <div className="flex flex-col gap-2.5">
+                      {tier3Conflicts.map((tc: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--warning)_32%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined !text-[15px]">
+                                {t("icon_tune", "tune")}
+                              </span>
+                            </div>
+                            <span className="text-xs sm:text-sm font-bold text-[var(--text)] truncate">
+                              {formatDisplayName(tc.displayName || tc.name || "")}
+                            </span>
+                          </div>
+                          <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
+                            {t("tier3_conflict", "Severity 3 Collision")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </UniversalGroup>
+                )}
+              </div>
+            </SidePanel>
+          );
+        })()}
     </>
   );
 }

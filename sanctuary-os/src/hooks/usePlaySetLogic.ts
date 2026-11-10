@@ -849,14 +849,37 @@ export function usePlaySetLogic() {
   const { t } = useLexicon();
   const { setPendingImportSet, setMissingImportMods } = useModalStore();
 
-  const { modMap, hashToMod, baseToMod, byDbId, byFamilyOrDbId, byParsedBaseName, namesAndDisplayNames, precomputedBaseNames } = useMemo(() => {
+  const {
+    modMap,
+    hashToMod,
+    baseToMod,
+    byDbId,
+    byFamilyOrDbId,
+    bySetId,
+    byFlavorGroup,
+    byCommunityGroup,
+    byParsedBaseName,
+    normRelToMod,
+    normBaseToMod,
+    modsWithConflicts,
+    modsWithRequirements,
+    namesAndDisplayNames,
+    precomputedBaseNames,
+  } = useMemo(() => {
     const extRegex = getExtensionRegex(activeGameSchema);
     const m1 = new Map<string, any>();
     const m2 = new Map<string, any>();
     const m3 = new Map<string, any>();
     const byDbId = new Map<string, any>();
     const byFamilyOrDbId = new Map<string, any[]>();
+    const bySetId = new Map<string, any[]>();
+    const byFlavorGroup = new Map<string, any[]>();
+    const byCommunityGroup = new Map<string, any[]>();
     const byParsedBaseName = new Map<string, any[]>();
+    const normRelToMod = new Map<string, any>();
+    const normBaseToMod = new Map<string, any>();
+    const modsWithConflicts: any[] = [];
+    const modsWithRequirements: any[] = [];
     const namesAndDisplayNames: any[] = [];
     const precomputedBaseNames = new Map<string, string>();
 
@@ -868,529 +891,790 @@ export function usePlaySetLogic() {
       }
       arr.push(val);
     };
-    
+
     modList.forEach((m: any) => {
-        m1.set(m.name, m);
-        if (m.hash) m2.set(m.hash, m);
-        const mBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, '');
-        if (mBase && !m3.has(mBase)) m3.set(mBase, m);
-        if (m.familyId != null) pushToMap(byFamilyOrDbId, String(m.familyId), m);
-        if (m.dbId != null && String(m.dbId) !== String(m.familyId)) {
-            pushToMap(byFamilyOrDbId, String(m.dbId), m);
+      if (!m?.name) return;
+      m1.set(m.name, m);
+      if (m.hash) m2.set(m.hash, m);
+      const mBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, "");
+      if (mBase && !m3.has(mBase)) m3.set(mBase, m);
+      const normRel = stripPriorityTierPrefix(String(m.name), activeGameSchema)
+        .replace(/\\/g, "/")
+        .toLowerCase();
+      if (normRel && (!normRelToMod.has(normRel) || !m.isVirtual)) {
+        normRelToMod.set(normRel, m);
+      }
+      const normBase = normRel.split("/").pop() || "";
+      if (normBase && (!normBaseToMod.has(normBase) || !m.isVirtual)) {
+        normBaseToMod.set(normBase, m);
+      }
+      if (m.familyId != null) pushToMap(byFamilyOrDbId, String(m.familyId), m);
+      if (m.dbId != null && String(m.dbId) !== String(m.familyId)) {
+        pushToMap(byFamilyOrDbId, String(m.dbId), m);
+      }
+      if (m.setId != null) pushToMap(bySetId, String(m.setId), m);
+      if (!m.isVirtual) {
+        if (m.dbId) byDbId.set(String(m.dbId), m);
+        if (m.flavorGroupId != null) pushToMap(byFlavorGroup, String(m.flavorGroupId), m);
+        if (m.communityGroupId != null) pushToMap(byCommunityGroup, String(m.communityGroupId), m);
+        if (Array.isArray(m.conflicts) && m.conflicts.length > 0) {
+          modsWithConflicts.push(m);
         }
-        if (!m.isVirtual) {
-            if (m.dbId) byDbId.set(String(m.dbId), m);
-            const dn = m.displayName || "";
-            namesAndDisplayNames.push({
-               name: m.name || "",
-               displayNameUpper: dn.toUpperCase(),
-               displayNameSpaced: dn.toUpperCase().replace(/_/g, " "),
-               orig: m
-            });
+        if (Array.isArray(m.requirements) && m.requirements.length > 0) {
+          modsWithRequirements.push(m);
         }
-        const parsedBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, '').toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
-        precomputedBaseNames.set(m.name, parsedBase);
-        if (parsedBase) pushToMap(byParsedBaseName, parsedBase, m);
+        const dn = m.displayName || "";
+        namesAndDisplayNames.push({
+          name: m.name || "",
+          displayNameUpper: dn.toUpperCase(),
+          displayNameSpaced: dn.toUpperCase().replace(/_/g, " "),
+          orig: m,
+        });
+      }
+      const parsedBase =
+        m.name
+          .split(/[\\/]/)
+          .pop()
+          ?.replace(extRegex, "")
+          .toUpperCase()
+          .replace(/_SCRIPT(S)?$/i, "") || "";
+      precomputedBaseNames.set(m.name, parsedBase);
+      if (parsedBase) pushToMap(byParsedBaseName, parsedBase, m);
     });
-    
-    return { modMap: m1, hashToMod: m2, baseToMod: m3, byDbId, byFamilyOrDbId, byParsedBaseName, namesAndDisplayNames, precomputedBaseNames };
+
+    return {
+      modMap: m1,
+      hashToMod: m2,
+      baseToMod: m3,
+      byDbId,
+      byFamilyOrDbId,
+      bySetId,
+      byFlavorGroup,
+      byCommunityGroup,
+      byParsedBaseName,
+      normRelToMod,
+      normBaseToMod,
+      modsWithConflicts,
+      modsWithRequirements,
+      namesAndDisplayNames,
+      precomputedBaseNames,
+    };
   }, [modList, activeGameSchema]);
 
-  const toggleInActiveSet = useCallback((targetName: string, excludeBroken: boolean = true, forceRemove: boolean = false, forceActive: boolean = false) => {
-    console.time("PlaySetLogic: toggleInActiveSet");
-    setPlaySets((prevSets) => {
-      const currentSet = prevSets[activePlaySetIndex];
-      if (!currentSet) return prevSets;
-      const currentRules = anarchyRules || {
-        highlander: true,
-        family: true,
-        dependencies: true,
-        intercept: true,
-      };
-      let rawNewMods = new Set<any>(currentSet.mods);
-      const healedMods = new Set<any>();
-      const localSets = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]");
-      const tierFolders: string[] = ["sanctuary", "!sanctuary", "sanctuary2", "!sanctuary2", "sanctuary3", "!sanctuary3"];
-      if (Array.isArray(activeGameSchema?.load_order?.priority_tiers)) {
-        for (const tObj of activeGameSchema.load_order.priority_tiers) {
-          const f = String(tObj?.folder || "").trim().toLowerCase();
-          if (f && !tierFolders.includes(f)) tierFolders.push(f);
+  const toggleInActiveSet = useCallback(
+    (
+      targetNameOrNames: string | string[],
+      excludeBroken: boolean = true,
+      forceRemove: boolean = false,
+      forceActive: boolean = false
+    ) => {
+      const targetList = (
+        Array.isArray(targetNameOrNames) ? targetNameOrNames : [targetNameOrNames]
+      ).filter((n) => typeof n === "string" && n.length > 0);
+      if (targetList.length === 0) return;
+
+      console.time("PlaySetLogic: toggleInActiveSet");
+      setPlaySets((prevSets) => {
+        const currentSet = prevSets[activePlaySetIndex];
+        if (!currentSet) {
+          console.timeEnd("PlaySetLogic: toggleInActiveSet");
+          return prevSets;
         }
-      }
-      const hasTierPrefix = (pathStr: string) => {
-        const lower = pathStr.toLowerCase();
-        return tierFolders.some((tf) => lower.startsWith(`${tf}/`) || lower.startsWith(`${tf}\\`));
-      };
-      const stripTierPrefix = (pathStr: string) => {
-        let cur = pathStr;
-        let changed = true;
-        while (changed) {
-          changed = false;
-          const lower = cur.toLowerCase();
-          for (const tf of tierFolders) {
-            if (lower.startsWith(`${tf}/`) || lower.startsWith(`${tf}\\`)) {
-              cur = cur.slice(tf.length + 1);
-              changed = true;
-              break;
-            }
+        const currentRules = anarchyRules || {
+          highlander: true,
+          family: true,
+          dependencies: true,
+          intercept: true,
+        };
+        const rawNewMods = new Set<any>(currentSet.mods);
+        const healedMods = new Set<any>();
+        const localSets = prevSets;
+        const tierFolders: string[] = [
+          "sanctuary",
+          "!sanctuary",
+          "sanctuary2",
+          "!sanctuary2",
+          "sanctuary3",
+          "!sanctuary3",
+        ];
+        if (Array.isArray(activeGameSchema?.load_order?.priority_tiers)) {
+          for (const tObj of activeGameSchema.load_order.priority_tiers) {
+            const f = String(tObj?.folder || "").trim().toLowerCase();
+            if (f && !tierFolders.includes(f)) tierFolders.push(f);
           }
         }
-        return cur;
-      };
-      const sanctuaryMods = new Map<string, any>();
-      rawNewMods.forEach((mObj: any) => {
-         const m = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
-         if (hasTierPrefix(m)) {
-             const cleanM = m.split(/[\\/]/).pop()?.toLowerCase();
-             if (cleanM) sanctuaryMods.set(cleanM, mObj);
-         }
-      });
+        const hasTierPrefix = (pathStr: string) => {
+          const lower = pathStr.toLowerCase();
+          return tierFolders.some(
+            (tf) => lower.startsWith(`${tf}/`) || lower.startsWith(`${tf}\\`)
+          );
+        };
+        const stripTierPrefix = (pathStr: string) => {
+          let cur = pathStr;
+          let changed = true;
+          while (changed) {
+            changed = false;
+            const lower = cur.toLowerCase();
+            for (const tf of tierFolders) {
+              if (lower.startsWith(`${tf}/`) || lower.startsWith(`${tf}\\`)) {
+                cur = cur.slice(tf.length + 1);
+                changed = true;
+                break;
+              }
+            }
+          }
+          return cur;
+        };
+        const sanctuaryMods = new Map<string, any>();
+        rawNewMods.forEach((mObj: any) => {
+          const m = typeof mObj === "string" ? mObj : mObj.name || mObj.path || "";
+          if (hasTierPrefix(m)) {
+            const cleanM = m.split(/[\\/]/).pop()?.toLowerCase();
+            if (cleanM) sanctuaryMods.set(cleanM, mObj);
+          }
+        });
 
-      rawNewMods.forEach((mObj: any) => {
-         const m = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
-         if (hasTierPrefix(m)) {
-             healedMods.add(mObj);
-         } else {
-             const cleanM = m.split(/[\\/]/).pop()?.toLowerCase();
-             const foundSanc = cleanM ? sanctuaryMods.get(cleanM) : null;
-             if (foundSanc) healedMods.add(foundSanc);
-             else healedMods.add(mObj);
-         }
-      });
-      let newMods = healedMods;
+        rawNewMods.forEach((mObj: any) => {
+          const m = typeof mObj === "string" ? mObj : mObj.name || mObj.path || "";
+          if (hasTierPrefix(m)) {
+            healedMods.add(mObj);
+          } else {
+            const cleanM = m.split(/[\\/]/).pop()?.toLowerCase();
+            const foundSanc = cleanM ? sanctuaryMods.get(cleanM) : null;
+            if (foundSanc) healedMods.add(foundSanc);
+            else healedMods.add(mObj);
+          }
+        });
+        const newMods = healedMods;
 
+        const normRelPath = (n: string) =>
+          stripTierPrefix(String(n || ""))
+            .replace(/\\/g, "/")
+            .toLowerCase();
+        const normBaseName = (n: string) => normRelPath(n).split("/").pop() || "";
 
-      const areArchetypes = (hash1: string, hash2: string) => {
-         if (!hash1 || !hash2) return false;
-         return localSets.some((s: any) => (
-            (s.archetypes?.core === hash1 && (s.archetypes?.twins?.includes(hash2) || s.archetypes?.addons?.includes(hash2))) ||
-            (s.archetypes?.core === hash2 && (s.archetypes?.twins?.includes(hash1) || s.archetypes?.addons?.includes(hash1))) ||
-            ((s.archetypes?.twins?.includes(hash1) || s.archetypes?.addons?.includes(hash1)) && (s.archetypes?.twins?.includes(hash2) || s.archetypes?.addons?.includes(hash2)))
-         ));
-      };
-      const checkGhosted = (mObj: any) => {
-        if (mObj.isGhosted) return true;
-        let rDLC = mObj.requiredDLC || [];
-        if (typeof rDLC === 'string') rDLC = rDLC.split(',').map((s: string) => s.trim()).filter(Boolean);
-        if (rDLC.some((dlc: string) => {
-           const baseCode = dlc.split(' ')[0].toUpperCase();
-           return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
-        })) return true;
-        if (mObj.requirements) {
-           const hasMissing = mObj.requirements.some((req: any) => {
-               const reqId = typeof req === 'string' ? req : req.id || req.dbId;
-               const reqName = typeof req === 'string' ? req : req.name;
-               const reqBaseName = precomputedBaseNames.get(reqName) || reqName?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
-               const isReqNumeric = !isNaN(Number(reqName));
-               let match = null;
-                   if (reqId) {
-                       match = byDbId.get(String(reqId)) || hashToMod.get(reqId) || byFamilyOrDbId.get(String(reqId))?.find((m: any) => !m.isVirtual);
-                       if (!match) match = modList.find(m => m.interchangeableIds?.includes(String(reqId)));
-                   }
-               if (!match && !isReqNumeric && reqBaseName) {
-                   match = namesAndDisplayNames.find(n => n.displayNameUpper.includes(reqBaseName) || n.displayNameSpaced.includes(reqBaseName.replace(/_/g, " ")))?.orig;
-               }
-               return !match;
-           });
-           if (hasMissing) return true;
-        }
-        if (mObj.conflicts) {
-           const hasFatal = mObj.conflicts.some((c: any) => {
-              if (c.severity_rank == 4 && currentRules.intercept !== false) {
-                 const matchStr = Array.from(newMods as Set<string>).find((n: string) => {
-                    const mData = modMap.get(n);
-                    let isMatch = false;
-                    if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) isMatch = true;
-                     if (!isMatch && c.enemy_name) {
-                        const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase().replace(/_SCRIPT(S)?$/i, "");
-                        const cleanN = precomputedBaseNames.get(n) || "";
-                        if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) isMatch = true;
+        // O(1) lookup maps synchronized with `newMods`
+        const exactEntryMap = new Map<string, any>();
+        const normRelEntryMap = new Map<string, any>();
+        const baseNameEntryMap = new Map<string, any>();
+
+        const indexEntry = (mObj: any) => {
+          const strM = typeof mObj === "string" ? mObj : mObj?.name || mObj?.path || "";
+          if (!strM) return;
+          exactEntryMap.set(strM, mObj);
+          const rel = normRelPath(strM);
+          if (rel) normRelEntryMap.set(rel, mObj);
+          const base = rel.split("/").pop() || "";
+          if (base) baseNameEntryMap.set(base, mObj);
+        };
+
+        const unindexEntry = (mObj: any) => {
+          const strM = typeof mObj === "string" ? mObj : mObj?.name || mObj?.path || "";
+          if (!strM) return;
+          if (exactEntryMap.get(strM) === mObj) exactEntryMap.delete(strM);
+          const rel = normRelPath(strM);
+          if (rel && normRelEntryMap.get(rel) === mObj) normRelEntryMap.delete(rel);
+          const base = rel.split("/").pop() || "";
+          if (base && baseNameEntryMap.get(base) === mObj) baseNameEntryMap.delete(base);
+        };
+
+        newMods.forEach(indexEntry);
+
+        const findEntryInNewMods = (name: string): any => {
+          if (!name) return undefined;
+          const exact = exactEntryMap.get(name);
+          if (exact !== undefined && newMods.has(exact)) return exact;
+          const rel = normRelPath(name);
+          if (rel) {
+            const byRel = normRelEntryMap.get(rel);
+            if (byRel !== undefined && newMods.has(byRel)) return byRel;
+          }
+          const base = rel.split("/").pop() || "";
+          if (base) {
+            const byBase = baseNameEntryMap.get(base);
+            if (byBase !== undefined && newMods.has(byBase)) return byBase;
+          }
+          return undefined;
+        };
+
+        const hasInNewMods = (name: string) => findEntryInNewMods(name) !== undefined;
+
+        const areArchetypes = (hash1: string, hash2: string) => {
+          if (!hash1 || !hash2) return false;
+          return localSets.some(
+            (s: any) =>
+              (s.archetypes?.core === hash1 &&
+                (s.archetypes?.twins?.includes(hash2) ||
+                  s.archetypes?.addons?.includes(hash2))) ||
+              (s.archetypes?.core === hash2 &&
+                (s.archetypes?.twins?.includes(hash1) ||
+                  s.archetypes?.addons?.includes(hash1))) ||
+              ((s.archetypes?.twins?.includes(hash1) ||
+                s.archetypes?.addons?.includes(hash1)) &&
+                (s.archetypes?.twins?.includes(hash2) ||
+                  s.archetypes?.addons?.includes(hash2)))
+          );
+        };
+
+        const checkGhosted = (mObj: any) => {
+          if (mObj.isGhosted) return true;
+          let rDLC = mObj.requiredDLC || [];
+          if (typeof rDLC === "string")
+            rDLC = rDLC
+              .split(",")
+              .map((s: string) => s.trim())
+              .filter(Boolean);
+          if (
+            rDLC.some((dlc: string) => {
+              const baseCode = dlc.split(" ")[0].toUpperCase();
+              return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
+            })
+          )
+            return true;
+          if (mObj.requirements) {
+            const hasMissing = mObj.requirements.some((req: any) => {
+              const reqId = typeof req === "string" ? req : req.id || req.dbId;
+              const reqName = typeof req === "string" ? req : req.name;
+              const reqBaseName =
+                precomputedBaseNames.get(reqName) ||
+                reqName
+                  ?.split(/[\\/]/)
+                  .pop()
+                  ?.replace(getExtensionRegex(activeGameSchema), "")
+                  .toUpperCase()
+                  .replace(/_SCRIPT(S)?$/i, "") ||
+                "";
+              const isReqNumeric = !isNaN(Number(reqName));
+              let match = null;
+              if (reqId) {
+                match =
+                  byDbId.get(String(reqId)) ||
+                  hashToMod.get(reqId) ||
+                  byFamilyOrDbId.get(String(reqId))?.find((m: any) => !m.isVirtual);
+                if (!match)
+                  match = modList.find((m) =>
+                    m.interchangeableIds?.includes(String(reqId))
+                  );
+              }
+              if (!match && !isReqNumeric && reqBaseName) {
+                match = namesAndDisplayNames.find(
+                  (n) =>
+                    n.displayNameUpper.includes(reqBaseName) ||
+                    n.displayNameSpaced.includes(reqBaseName.replace(/_/g, " "))
+                )?.orig;
+              }
+              return !match;
+            });
+            if (hasMissing) return true;
+          }
+          if (mObj.conflicts && mObj.conflicts.length > 0 && currentRules.intercept !== false) {
+            const hasFatal = mObj.conflicts.some((c: any) => {
+              if (c.severity_rank != 4) return false;
+              if (c.enemy_id) {
+                const enemyMod =
+                  byDbId.get(String(c.enemy_id)) ||
+                  byFamilyOrDbId.get(String(c.enemy_id))?.find((m: any) => !m.isVirtual);
+                if (enemyMod && hasInNewMods(enemyMod.name)) {
+                  if (mObj.hash && enemyMod.hash && areArchetypes(mObj.hash, enemyMod.hash)) {
+                    return false;
+                  }
+                  return true;
+                }
+              }
+              if (c.enemy_name) {
+                const targetClean = c.enemy_name
+                  .replace(/\.[^/.]+$/i, "")
+                  .toUpperCase()
+                  .replace(/_SCRIPT(S)?$/i, "");
+                const cands = byParsedBaseName.get(targetClean) || [];
+                for (const cand of cands) {
+                  if (cand?.name && hasInNewMods(cand.name)) {
+                    if (mObj.hash && cand.hash && areArchetypes(mObj.hash, cand.hash)) {
+                      continue;
                     }
-                    
-                    if (isMatch && mData && mObj.hash && mData.hash) {
-                       if (areArchetypes(mObj.hash, mData.hash)) return false;
-                    }
-                    
-                    return isMatch;
-                 });
-                 return !!matchStr;
+                    return true;
+                  }
+                }
               }
               return false;
-           });
-           if (hasFatal) return true;
-        }
-        return false;
-      };
-
-      const normRelPath = (n: string) => stripTierPrefix(String(n || "")).replace(/\\/g, "/").toLowerCase();
-      const normBaseName = (n: string) => (normRelPath(n).split("/").pop() || "");
-      const isSameModPath = (a: string, b: string) => {
-        if (!a || !b) return false;
-        if (a === b) return true;
-        const na = normRelPath(a);
-        const nb = normRelPath(b);
-        if (na && na === nb) return true;
-        const ba = normBaseName(a);
-        const bb = normBaseName(b);
-        return Boolean(ba && ba === bb);
-      };
-
-      const targetMod = modMap.get(targetName) || modList.find((m: any) => isSameModPath(m.name, targetName));
-      if (!targetMod) {
-         if (forceRemove) {
-            const toDelete = Array.from(newMods).find((m: any) => {
-                const strM = typeof m === 'string' ? m : (m.name || m.path || '');
-                return isSameModPath(strM, targetName);
             });
-            if (toDelete) {
-               newMods.delete(toDelete);
-               setStatus(`${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(targetName)} ${t("artifact_removed", "Will {Remove}")}.`);
-            }
-            const updatedSets = [...prevSets];
-            updatedSets[activePlaySetIndex] = { ...currentSet, mods: Array.from(newMods) };
+            if (hasFatal) return true;
+          }
+          return false;
+        };
 
-            window.dispatchEvent(new Event("storage"));
-            console.timeEnd("PlaySetLogic: toggleInActiveSet");
-            return updatedSets;
-         }
-         console.timeEnd("PlaySetLogic: toggleInActiveSet");
-         return prevSets;
-      }
-      const kids = targetMod.isVirtual
-        ? modList.filter(
-            (m) =>
-              (String(m.familyId) === String(targetMod.dbId) ||
-                String(m.setId) === String(targetMod.dbId)) &&
-              !m.isVirtual
-          )
-        : [];
-      const isActuallyFlavorFolder =
-        targetMod.isVirtual && kids.some((k) => k.flavorGroupId != null);
-      const cleanSanctuaryPrefix = (n: string) => stripTierPrefix(n);
-      const newModsCleaned = new Set(Array.from(newMods).map((mObj: any) => 
-          cleanSanctuaryPrefix(typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || ''))
-      ));
-      const hasInNewMods = (name: string) => {
-        if (newModsCleaned.has(cleanSanctuaryPrefix(name))) return true;
-        return Array.from(newMods).some((mObj: any) => {
-          const strM = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
-          return isSameModPath(strM, name);
-        });
-      };
-      const deletedInPass = new Set<string>();
+        const deletedInPass = new Set<string>();
 
-      let isEquipping = targetMod.isVirtual
-        ? !kids.some((k) => hasInNewMods(k.name))
-        : !hasInNewMods(targetMod.name || targetName);
-      if (forceRemove) isEquipping = false;
-      if (forceActive) isEquipping = true;
-      const deepDelete = (nameToDelete: string, shallow: boolean = false) => {
-        const toDelete = Array.from(newMods).find((mObj: any) => {
-           const strM = typeof mObj === 'string' ? mObj : (mObj.name || mObj.path || '');
-           return isSameModPath(strM, nameToDelete);
-        });
-        if (!toDelete) return;
-        newMods.delete(toDelete);
-        deletedInPass.add(nameToDelete);
+        const removeEntryByName = (nameToRemove: string): boolean => {
+          const entry = findEntryInNewMods(nameToRemove);
+          if (entry === undefined) return false;
+          unindexEntry(entry);
+          newMods.delete(entry);
+          deletedInPass.add(nameToRemove);
+          return true;
+        };
 
-        const targetClean = precomputedBaseNames.get(nameToDelete) || "";
-        if (targetClean) {
-           Array.from(newMods).forEach((depObj: any) => {
-              const depName = typeof depObj === 'string' ? depObj : (depObj.name || depObj.path || '');
-              const depClean = precomputedBaseNames.get(depName) || "";
-              if (depClean === targetClean && depName !== nameToDelete) {
-                  newMods.delete(depObj);
-              }
-           });
-        }
+        const deepDelete = (nameToDelete: string, shallow: boolean = false) => {
+          if (!removeEntryByName(nameToDelete)) return;
 
-        const mDataDelete = modMap.get(nameToDelete);
-        if (mDataDelete) {
-            const matchingSet = localSets.find((s: any) => s.archetypes?.core === mDataDelete.hash);
-            if (matchingSet) {
-                const isAnyTwinEquipped = matchingSet.archetypes?.twins?.some((tHash: string) => {
-                   const tMod = hashToMod.get(tHash);
-                   return tMod && newMods.has(tMod.name);
-                });
-                
-                if (!isAnyTwinEquipped) {
-                   const children = [...(matchingSet.archetypes?.twins || []), ...(matchingSet.archetypes?.addons || [])];
-                   children.forEach((childHash: string) => {
-                       const childMod = hashToMod.get(childHash);
-                       if (childMod && childMod.name && newMods.has(childMod.name)) {
-                           deepDelete(childMod.name, true);
-                       }
-                   });
+          const targetClean = precomputedBaseNames.get(nameToDelete) || "";
+          if (targetClean) {
+            const sameBaseMods = byParsedBaseName.get(targetClean);
+            if (sameBaseMods) {
+              for (const sib of sameBaseMods) {
+                if (sib?.name && sib.name !== nameToDelete) {
+                  removeEntryByName(sib.name);
                 }
+              }
             }
-        }
+          }
 
-        if (!shallow && currentRules.dependencies !== false) {
-          const mData = modMap.get(nameToDelete);
-          if (mData) {
-            const currentEquipped = Array.from(newMods as Set<string>).map(n => modMap.get(n)).filter(Boolean);
-            Array.from(newMods as Set<string>).forEach((depName: string) => {
-               const dep = modMap.get(depName);
-               if (!dep || !dep.requirements) return;
-               const dependsOnDeleted = dep.requirements.some((r: any) => {
-                  const reqId = typeof r === 'string' ? r : r.id || r.dbId;
-                  const reqName = typeof r === 'string' ? r : r.name;
-                  const reqBaseName = precomputedBaseNames.get(reqName) || reqName?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
-                  const isReqNumeric = !isNaN(Number(reqName));
-                  return (reqId && String(mData.dbId) === String(reqId)) ||
-                         (reqId && mData.hash === reqId) ||
-                         (!isReqNumeric && reqBaseName && mData.displayName && (mData.displayName.toUpperCase().includes(reqBaseName) || mData.displayName.toUpperCase().replace(/_/g, " ").includes(reqBaseName.replace(/_/g, " "))));
-               });
-               if (dependsOnDeleted) {
-                  const isStillSatisfied = dep.requirements.every((r: any) => {
-                      const reqId = typeof r === 'string' ? r : r.id || r.dbId;
-                      const reqName = typeof r === 'string' ? r : r.name;
-                      const reqBaseName = precomputedBaseNames.get(reqName) || reqName?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
-                      const isReqNumeric = !isNaN(Number(reqName));
-                      
-                      return currentEquipped.some((equipped: any) => {
-                         return equipped && (
-                           String(equipped.dbId) === String(reqId) ||
-                           (reqId && equipped.interchangeableIds && equipped.interchangeableIds.includes(String(reqId))) ||
-                           (!isReqNumeric && reqBaseName && equipped.displayName && equipped.displayName.toUpperCase().includes(reqBaseName))
-                         );
-                      });
-                  });
-                  if (!isStillSatisfied) deepDelete(depName);
-               }
+          const mDataDelete = modMap.get(nameToDelete);
+          if (mDataDelete) {
+            const matchingSet = localSets.find(
+              (s: any) => s.archetypes?.core === mDataDelete.hash
+            );
+            if (matchingSet) {
+              const isAnyTwinEquipped = matchingSet.archetypes?.twins?.some(
+                (tHash: string) => {
+                  const tMod = hashToMod.get(tHash);
+                  return tMod && hasInNewMods(tMod.name);
+                }
+              );
+
+              if (!isAnyTwinEquipped) {
+                const children = [
+                  ...(matchingSet.archetypes?.twins || []),
+                  ...(matchingSet.archetypes?.addons || []),
+                ];
+                children.forEach((childHash: string) => {
+                  const childMod = hashToMod.get(childHash);
+                  if (childMod && childMod.name && hasInNewMods(childMod.name)) {
+                    deepDelete(childMod.name, true);
+                  }
+                });
+              }
+            }
+          }
+        };
+
+        const applyConflicts = (modObj: any) => {
+          if (currentRules.highlander !== false) {
+            const rivalCandidates = new Set<any>();
+            if (modObj.flavorGroupId != null) {
+              const fg = byFlavorGroup.get(String(modObj.flavorGroupId));
+              if (fg) fg.forEach((m) => rivalCandidates.add(m));
+            }
+            if (modObj.communityGroupId != null) {
+              const cg = byCommunityGroup.get(String(modObj.communityGroupId));
+              if (cg) cg.forEach((m) => rivalCandidates.add(m));
+            }
+            const famKey = modObj.familyId || modObj.dbId;
+            if (famKey != null) {
+              const fam = byFamilyOrDbId.get(String(famKey));
+              if (fam) fam.forEach((m) => rivalCandidates.add(m));
+            }
+
+            rivalCandidates.forEach((m: any) => {
+              if (!m || m.isVirtual || !m.name || m.name === modObj.name) return;
+              if (!hasInNewMods(m.name)) return;
+              const isFlavorRival =
+                m.flavorGroupId &&
+                String(m.flavorGroupId) === String(modObj.flavorGroupId) &&
+                m.relationshipType !== "twin" &&
+                modObj.relationshipType !== "twin";
+              const isCommunityRival =
+                m.communityGroupId &&
+                String(m.communityGroupId) === String(modObj.communityGroupId);
+              const isBetaRival =
+                ((modObj.relationshipType !== "beta" && m.relationshipType === "beta") ||
+                  (modObj.relationshipType === "beta" && m.relationshipType !== "beta")) &&
+                (String(m.familyId) === String(modObj.familyId) ||
+                  String(m.dbId) === String(modObj.familyId || modObj.dbId));
+
+              if (isFlavorRival || isCommunityRival || isBetaRival) {
+                deepDelete(m.name, true);
+                setStatus(
+                  `${t("radar_intercept", "RADAR")}: ${formatDisplayName(modObj.displayName || modObj.name)} ${t("flavor_replaced", "Will Replace")} ${formatDisplayName(m.displayName || m.name)}.`
+                );
+              }
             });
           }
-        }
-      };
-      
-
-
-      const applyConflicts = (modObj: any) => {
-        if (currentRules.highlander !== false) {
-          Array.from(newMods as Set<string>).forEach((mName: string) => {
-             const m = modMap.get(mName);
-             if (m && m.name !== modObj.name) {
-                 const isFlavorRival = m.flavorGroupId && String(m.flavorGroupId) === String(modObj.flavorGroupId) && m.relationshipType !== "twin" && modObj.relationshipType !== "twin";
-                 const isCommunityRival = m.communityGroupId && String(m.communityGroupId) === String(modObj.communityGroupId);
-                 const isBetaRival = ((modObj.relationshipType !== 'beta' && m.relationshipType === 'beta') || (modObj.relationshipType === 'beta' && m.relationshipType !== 'beta')) && (String(m.familyId) === String(modObj.familyId) || String(m.dbId) === String(modObj.familyId || modObj.dbId));
-                 
-                 if (isFlavorRival || isCommunityRival || isBetaRival) {
-                     deepDelete(m.name, true);
-                     setStatus(`${t("radar_intercept", "RADAR")}: ${formatDisplayName(modObj.displayName || modObj.name)} ${t("flavor_replaced", "Will Replace")} ${formatDisplayName(m.displayName || m.name)}.`);
-                 }
-             }
-          });
-        }
-        if (modObj.conflicts && currentRules.intercept !== false) {
-           modObj.conflicts.forEach((c: any) => {
+          if (modObj.conflicts && modObj.conflicts.length > 0 && currentRules.intercept !== false) {
+            modObj.conflicts.forEach((c: any) => {
               if (c.severity_rank == 4 && currentRules.intercept !== false) {
-                 const matchStr = Array.from(newMods as Set<string>).find((n: string) => {
-                    const mData = modMap.get(n);
-                    if (c.enemy_id && String(mData?.dbId) === String(c.enemy_id)) return true;
-                     if (c.enemy_name) {
-                        const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase().replace(/_SCRIPT(S)?$/i, "");
-                        const cleanN = precomputedBaseNames.get(n) || "";
-                        if (cleanN === targetClean || mData?.displayName?.toUpperCase() === targetClean) return true;
-                    }
-                    return false;
-                 });
-                 if (matchStr) {
-                    const deletedMod = modMap.get(matchStr);
-                    deepDelete(matchStr);
-                    setStatus(`${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(deletedMod?.displayName || deletedMod?.name || matchStr)} ${t("artifact_removed", "Will {Remove}")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`);
-                 }
+                let matchedMod: any = null;
+                if (c.enemy_id) {
+                  const cand =
+                    byDbId.get(String(c.enemy_id)) ||
+                    byFamilyOrDbId.get(String(c.enemy_id))?.find((m: any) => !m.isVirtual && hasInNewMods(m.name));
+                  if (cand && hasInNewMods(cand.name)) matchedMod = cand;
+                }
+                if (!matchedMod && c.enemy_name) {
+                  const targetClean = c.enemy_name
+                    .replace(/\.[^/.]+$/i, "")
+                    .toUpperCase()
+                    .replace(/_SCRIPT(S)?$/i, "");
+                  const cands = byParsedBaseName.get(targetClean) || [];
+                  matchedMod = cands.find((m: any) => m?.name && hasInNewMods(m.name));
+                }
+                if (matchedMod && matchedMod.name) {
+                  deepDelete(matchedMod.name, true);
+                  setStatus(
+                    `${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(matchedMod.displayName || matchedMod.name)} ${t("artifact_removed", "Will {Remove}")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`
+                  );
+                }
               }
-           });
-        }
-      };
-      
-      const addPathCleanly = (nameToAdd: string) => {
-        if (!nameToAdd) return;
-        const targetBase = normBaseName(nameToAdd);
-        if (targetBase) {
-          Array.from(newMods).forEach((existing: any) => {
-            const strE = typeof existing === 'string' ? existing : (existing.name || existing.path || '');
-            if (strE !== nameToAdd && normBaseName(strE) === targetBase && stripTierPrefix(strE) === strE) {
-              newMods.delete(existing);
-            }
-          });
-        }
-        newMods.add(nameToAdd);
-      };
-
-      const addWithFamily = (modObj: any) => {
-        if (!modObj || !modObj.name) return;
-        if (excludeBroken && (modObj.status === t("status_corrupted", "Corrupted") || modObj.status?.includes("BROKEN") || checkGhosted(modObj))) {
-          setStatus(t("critical_action", "CRITICAL ACTION REQUIRED: Fatal conflicts require resolution before deployment"));
-          return;
-        }
-        addPathCleanly(modObj.name);
-        applyConflicts(modObj);
-        
-        Array.from(newMods as Set<string>).forEach((activeName: string) => {
-            if (activeName === modObj.name) return;
-            const activeM = modMap.get(activeName);
-            if (activeM && activeM.conflicts && currentRules.intercept !== false) {
-                activeM.conflicts.forEach((c: any) => {
-                    if (c.severity_rank == 4) {
-                        let isReverseMatch = false;
-                        if (c.enemy_id && String(modObj.dbId) === String(c.enemy_id)) isReverseMatch = true;
-                        if (c.enemy_name) {
-                            const targetClean = c.enemy_name.replace(/\.[^/.]+$/i, "").toUpperCase().replace(/_SCRIPT(S)?$/i, "");
-                            const cleanN = precomputedBaseNames.get(modObj.name) || "";
-                            if (cleanN === targetClean || modObj.displayName?.toUpperCase() === targetClean) isReverseMatch = true;
-                        }
-                        if (isReverseMatch) {
-                            deepDelete(activeName);
-                            setStatus(`${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(activeM.displayName || activeM.name)} ${t("artifact_removed", "Will {Remove}")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`);
-                        }
-                    }
-                });
-            }
-        });
-        
-
-        
-        const anchor = modObj.familyId || modObj.dbId;
-        const modBaseName = precomputedBaseNames.get(modObj.name) || "";
-        const candidateMods = new Set<any>();
-        if (anchor && currentRules.family !== false) {
-          const famCandidates = byFamilyOrDbId.get(String(anchor));
-          if (famCandidates) famCandidates.forEach((c) => candidateMods.add(c));
-        }
-        if (modBaseName) {
-          const baseCandidates = byParsedBaseName.get(modBaseName);
-          if (baseCandidates) baseCandidates.forEach((c) => candidateMods.add(c));
-        }
-        
-        candidateMods.forEach((m) => {
-          let isTwinMatch = false;
-          const mBaseName = precomputedBaseNames.get(m.name) || "";
-          if (mBaseName && modBaseName && mBaseName === modBaseName && m.name !== modObj.name) {
-              isTwinMatch = true;
+            });
           }
-          
-          if ((anchor && currentRules.family !== false && (String(m.familyId) === String(anchor) || String(m.dbId) === String(anchor))) || isTwinMatch) {
-            if (m.name && !m.isVirtual) {
-              const objV = modObj.version;
-              const mV = m.version;
-              const sharesVersion = !objV || !mV || objV === "v.Local" || mV === "v.Local" || objV === mV;
-              if (!sharesVersion && !isTwinMatch) return;
+        };
 
-              const isRival =
-                (m.flavorGroupId &&
-                String(m.flavorGroupId) === String(modObj.flavorGroupId) &&
-                m.name !== modObj.name) ||
-                (m.communityGroupId &&
-                String(m.communityGroupId) === String(modObj.communityGroupId) &&
-                m.name !== modObj.name);
-                
-              const isAddonOfTarget = m.hash && modObj.hash ? localSets.some((s: any) => 
-                (s.archetypes?.core === modObj.hash || s.archetypes?.twins?.includes(modObj.hash)) && 
-                s.archetypes?.addons?.includes(m.hash)
-              ) : false;
-                
-              if (
-                !isRival && !isAddonOfTarget &&
-                (m.relationshipType === "twin" ||
-                  m.relationshipType === "beta" ||
-                  m.relationshipType === "core" ||
-                  !m.relationshipType || isTwinMatch)
-              ) {
-                if (!(excludeBroken && (m.status === t("status_corrupted", "Corrupted") || m.status?.includes("BROKEN") || checkGhosted(m)))) {
-                  if (!deletedInPass.has(m.name)) {
-                     applyConflicts(m);
-                     addPathCleanly(m.name);
+        const addPathCleanly = (nameToAdd: string) => {
+          if (!nameToAdd) return;
+          const targetBase = normBaseName(nameToAdd);
+          if (targetBase) {
+            const existing = baseNameEntryMap.get(targetBase);
+            if (existing !== undefined && newMods.has(existing)) {
+              const strE =
+                typeof existing === "string"
+                  ? existing
+                  : existing?.name || existing?.path || "";
+              if (strE !== nameToAdd && stripTierPrefix(strE) === strE) {
+                unindexEntry(existing);
+                newMods.delete(existing);
+              }
+            }
+          }
+          newMods.add(nameToAdd);
+          indexEntry(nameToAdd);
+        };
+
+        const addWithFamily = (modObj: any) => {
+          if (!modObj || !modObj.name) return;
+          if (
+            excludeBroken &&
+            (modObj.status === t("status_corrupted", "Corrupted") ||
+              modObj.status?.includes("BROKEN") ||
+              checkGhosted(modObj))
+          ) {
+            setStatus(
+              t(
+                "critical_action",
+                "CRITICAL ACTION REQUIRED: Fatal conflicts require resolution before deployment"
+              )
+            );
+            return;
+          }
+          addPathCleanly(modObj.name);
+          applyConflicts(modObj);
+
+          if (currentRules.intercept !== false && modsWithConflicts.length > 0) {
+            const modObjClean = precomputedBaseNames.get(modObj.name) || "";
+            const modObjDispUpper = modObj.displayName?.toUpperCase() || "";
+            for (const activeM of modsWithConflicts) {
+              if (!activeM?.name || activeM.name === modObj.name || !hasInNewMods(activeM.name)) {
+                continue;
+              }
+              for (const c of activeM.conflicts) {
+                if (c.severity_rank == 4) {
+                  let isReverseMatch = false;
+                  if (c.enemy_id && String(modObj.dbId) === String(c.enemy_id)) {
+                    isReverseMatch = true;
+                  }
+                  if (!isReverseMatch && c.enemy_name) {
+                    const targetClean = c.enemy_name
+                      .replace(/\.[^/.]+$/i, "")
+                      .toUpperCase()
+                      .replace(/_SCRIPT(S)?$/i, "");
+                    if (modObjClean === targetClean || modObjDispUpper === targetClean) {
+                      isReverseMatch = true;
+                    }
+                  }
+                  if (isReverseMatch) {
+                    deepDelete(activeM.name, true);
+                    setStatus(
+                      `${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(activeM.displayName || activeM.name)} ${t("artifact_removed", "Will {Remove}")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`
+                    );
+                    break;
                   }
                 }
               }
             }
           }
-        });
-      };
-      if (isEquipping) {
-        if (targetMod.isVirtual) {
-          let validKids = kids;
-          if (excludeBroken) {
-            validKids = kids.filter((k) => {
-              if (k.status === t("status_corrupted", "Corrupted") || k.status?.includes("BROKEN") || checkGhosted(k)) {
-                return false;
-              }
-              return true;
-            });
+
+          const anchor = modObj.familyId || modObj.dbId;
+          const modBaseName = precomputedBaseNames.get(modObj.name) || "";
+          const candidateMods = new Set<any>();
+          if (anchor && currentRules.family !== false) {
+            const famCandidates = byFamilyOrDbId.get(String(anchor));
+            if (famCandidates) famCandidates.forEach((c) => candidateMods.add(c));
           }
-          if (isActuallyFlavorFolder) {
-            const coreFiles = validKids.filter((k) => k.flavorGroupId == null);
-            const flavorFiles = validKids.filter((k) => k.flavorGroupId != null);
-            coreFiles.forEach((k) => addWithFamily(k));
-            const groups = new Map<string, any[]>();
-            flavorFiles.forEach((f) => {
-              const gid = String(f.flavorGroupId);
-              if (!groups.has(gid)) groups.set(gid, []);
-              groups.get(gid)!.push(f);
-            });
-            groups.forEach((groupKids) => {
-              if (
-                !groupKids.some((f) => newMods.has(f.name)) &&
-                groupKids.length > 0
-              ) {
-                const sortedKids = [...groupKids].sort((a: any, b: any) => {
-                  const getRank = (m: any) => {
-                    if (m.relationshipType === 'core') return 1;
-                    if (m.relationshipType === 'twin') return 2;
-                    if (m.relationshipType === 'beta') return 3;
-                    if (!m.relationshipType) return 4;
-                    return 5;
-                  };
-                  return getRank(a) - getRank(b);
+          if (modBaseName) {
+            const baseCandidates = byParsedBaseName.get(modBaseName);
+            if (baseCandidates) baseCandidates.forEach((c) => candidateMods.add(c));
+          }
+
+          candidateMods.forEach((m) => {
+            let isTwinMatch = false;
+            const mBaseName = precomputedBaseNames.get(m.name) || "";
+            if (mBaseName && modBaseName && mBaseName === modBaseName && m.name !== modObj.name) {
+              isTwinMatch = true;
+            }
+
+            if (
+              (anchor &&
+                currentRules.family !== false &&
+                (String(m.familyId) === String(anchor) ||
+                  String(m.dbId) === String(anchor))) ||
+              isTwinMatch
+            ) {
+              if (m.name && !m.isVirtual) {
+                const objV = modObj.version;
+                const mV = m.version;
+                const sharesVersion =
+                  !objV ||
+                  !mV ||
+                  objV === "v.Local" ||
+                  mV === "v.Local" ||
+                  objV === mV;
+                if (!sharesVersion && !isTwinMatch) return;
+
+                const isRival =
+                  (m.flavorGroupId &&
+                    String(m.flavorGroupId) === String(modObj.flavorGroupId) &&
+                    m.name !== modObj.name) ||
+                  (m.communityGroupId &&
+                    String(m.communityGroupId) === String(modObj.communityGroupId) &&
+                    m.name !== modObj.name);
+
+                const isAddonOfTarget =
+                  m.hash && modObj.hash
+                    ? localSets.some(
+                        (s: any) =>
+                          (s.archetypes?.core === modObj.hash ||
+                            s.archetypes?.twins?.includes(modObj.hash)) &&
+                          s.archetypes?.addons?.includes(m.hash)
+                      )
+                    : false;
+
+                if (
+                  !isRival &&
+                  !isAddonOfTarget &&
+                  (m.relationshipType === "twin" ||
+                    m.relationshipType === "beta" ||
+                    m.relationshipType === "core" ||
+                    !m.relationshipType ||
+                    isTwinMatch)
+                ) {
+                  if (
+                    !(
+                      excludeBroken &&
+                      (m.status === t("status_corrupted", "Corrupted") ||
+                        m.status?.includes("BROKEN") ||
+                        checkGhosted(m))
+                    )
+                  ) {
+                    if (!deletedInPass.has(m.name) && !hasInNewMods(m.name)) {
+                      applyConflicts(m);
+                      addPathCleanly(m.name);
+                    }
+                  }
+                }
+              }
+            }
+          });
+        };
+
+        let didAnyEquip = false;
+        let didAnyUnequip = false;
+
+        for (const targetName of targetList) {
+          const targetMod =
+            modMap.get(targetName) ||
+            normRelToMod.get(normRelPath(targetName)) ||
+            normBaseToMod.get(normBaseName(targetName));
+
+          if (!targetMod) {
+            if (forceRemove) {
+              if (removeEntryByName(targetName)) {
+                didAnyUnequip = true;
+                setStatus(
+                  `${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(targetName)} ${t("artifact_removed", "Will {Remove}")}.`
+                );
+              }
+            }
+            continue;
+          }
+
+          const kids = targetMod.isVirtual
+            ? Array.from(
+                new Set([
+                  ...(byFamilyOrDbId.get(String(targetMod.dbId)) || []),
+                  ...(bySetId.get(String(targetMod.dbId)) || []),
+                  ...(Array.isArray(targetMod.flavors) ? targetMod.flavors : []),
+                ])
+              ).filter((m: any) => m && !m.isVirtual && m.name)
+            : [];
+          const isActuallyFlavorFolder =
+            targetMod.isVirtual && kids.some((k) => k.flavorGroupId != null);
+
+          let isEquipping = targetMod.isVirtual
+            ? !kids.some((k) => hasInNewMods(k.name))
+            : !hasInNewMods(targetMod.name || targetName);
+          if (forceRemove) isEquipping = false;
+          if (forceActive) isEquipping = true;
+
+          if (isEquipping) {
+            didAnyEquip = true;
+            if (targetMod.isVirtual) {
+              let validKids = kids;
+              if (excludeBroken) {
+                validKids = kids.filter((k) => {
+                  if (
+                    k.status === t("status_corrupted", "Corrupted") ||
+                    k.status?.includes("BROKEN") ||
+                    checkGhosted(k)
+                  ) {
+                    return false;
+                  }
+                  return true;
                 });
-                addWithFamily(sortedKids[0]);
               }
-            });
+              if (isActuallyFlavorFolder) {
+                const coreFiles = validKids.filter((k) => k.flavorGroupId == null);
+                const flavorFiles = validKids.filter((k) => k.flavorGroupId != null);
+                coreFiles.forEach((k) => addWithFamily(k));
+                const groups = new Map<string, any[]>();
+                flavorFiles.forEach((f) => {
+                  const gid = String(f.flavorGroupId);
+                  if (!groups.has(gid)) groups.set(gid, []);
+                  groups.get(gid)!.push(f);
+                });
+                groups.forEach((groupKids) => {
+                  if (
+                    !groupKids.some((f) => hasInNewMods(f.name)) &&
+                    groupKids.length > 0
+                  ) {
+                    const sortedKids = [...groupKids].sort((a: any, b: any) => {
+                      const getRank = (m: any) => {
+                        if (m.relationshipType === "core") return 1;
+                        if (m.relationshipType === "twin") return 2;
+                        if (m.relationshipType === "beta") return 3;
+                        if (!m.relationshipType) return 4;
+                        return 5;
+                      };
+                      return getRank(a) - getRank(b);
+                    });
+                    addWithFamily(sortedKids[0]);
+                  }
+                });
+              } else {
+                validKids.forEach((k) => addWithFamily(k));
+              }
+            } else {
+              addWithFamily(targetMod);
+            }
           } else {
-            validKids.forEach((k) => addWithFamily(k));
+            didAnyUnequip = true;
+            const familyAnchor = targetMod.familyId || targetMod.dbId;
+            const isMaster =
+              targetMod.dbId && String(targetMod.dbId) === String(familyAnchor);
+            const isArchetypeMember = localSets.some(
+              (s: any) =>
+                s.archetypes?.core === targetMod.hash ||
+                s.archetypes?.twins?.includes(targetMod.hash)
+            );
+
+            if (
+              targetMod.isVirtual ||
+              (currentRules.family !== false &&
+                (isMaster ||
+                  targetMod.relationshipType === "core" ||
+                  isArchetypeMember))
+            ) {
+              const famItems = new Set<any>([
+                ...(familyAnchor ? byFamilyOrDbId.get(String(familyAnchor)) || [] : []),
+                ...(targetMod.dbId ? bySetId.get(String(targetMod.dbId)) || [] : []),
+                ...(Array.isArray(targetMod.flavors) ? targetMod.flavors : []),
+              ]);
+              famItems.forEach((m: any) => {
+                if (m?.name && !m.isVirtual) deepDelete(m.name, true);
+              });
+            } else {
+              deepDelete(targetMod.name || targetName, true);
+            }
+            if (forceRemove && targetList.length === 1) {
+              setStatus(
+                `${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(targetMod.displayName || targetMod.name)} ${t("artifact_removed", "Will {Remove}")}.`
+              );
+            }
           }
-        } else {
-          addWithFamily(targetMod);
         }
-        if (currentRules.dependencies !== false) {
+
+        // Single pass for forward dependencies after equipping
+        if (didAnyEquip && currentRules.dependencies !== false && modsWithRequirements.length > 0) {
           let checkAgain = true;
           while (checkAgain) {
             checkAgain = false;
-            const snapshot = Array.from(newMods);
-            const currentEquipped = snapshot.map(n => modMap.get(n)).filter(Boolean);
-            for (const name of snapshot) {
-              if (!newMods.has(name)) continue;
-              const mData = modMap.get(name as string);
-              if (mData?.requirements) {
-                for (const req of mData.requirements) {
-                  const reqId = typeof req === 'string' ? req : req.id || req.dbId;
-                  const reqName = typeof req === 'string' ? req : req.name;
-                  const reqBaseName = precomputedBaseNames.get(reqName) || reqName?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), "").toUpperCase().replace(/_SCRIPT(S)?$/i, "") || "";
-                  const isReqNumeric = !isNaN(Number(reqName));
-                  
-                  const alreadySatisfied = currentEquipped.some((equipped: any) => {
-                    return equipped && (
-                      String(equipped.dbId) === String(reqId) ||
-                      (reqId && equipped.interchangeableIds && equipped.interchangeableIds.includes(String(reqId))) ||
-                      (!isReqNumeric && reqBaseName && equipped.displayName && equipped.displayName.toUpperCase().includes(reqBaseName))
-                    );
-                  });
-                  if (!alreadySatisfied) {
-                    let provider = null;
-                    if (reqId) {
-                        provider = byDbId.get(String(reqId)) || hashToMod.get(reqId) || byFamilyOrDbId.get(String(reqId))?.find((m: any) => !m.isVirtual);
-                        if (!provider) provider = modList.find((m: any) => m.interchangeableIds?.includes(String(reqId)));
-                    }
-                    if (!provider && !isReqNumeric && reqBaseName) {
-                        provider = namesAndDisplayNames.find(n => n.displayNameUpper.includes(reqBaseName))?.orig;
-                    }
-                    if (provider && !deletedInPass.has(typeof provider === 'string' ? provider : provider.name)) {
-                      const beforeSize = newMods.size;
-                      addWithFamily(provider);
-                      if (newMods.size > beforeSize) {
-                        checkAgain = true;
-                      }
+            const currentEquipped = Array.from(newMods)
+              .map((n) => modMap.get(typeof n === "string" ? n : n?.name || ""))
+              .filter(Boolean);
+            for (const mData of modsWithRequirements) {
+              if (!mData?.name || !hasInNewMods(mData.name)) continue;
+              for (const req of mData.requirements) {
+                const reqId = typeof req === "string" ? req : req.id || req.dbId;
+                const reqName = typeof req === "string" ? req : req.name;
+                const reqBaseName =
+                  precomputedBaseNames.get(reqName) ||
+                  reqName
+                    ?.split(/[\\/]/)
+                    .pop()
+                    ?.replace(getExtensionRegex(activeGameSchema), "")
+                    .toUpperCase()
+                    .replace(/_SCRIPT(S)?$/i, "") ||
+                  "";
+                const isReqNumeric = !isNaN(Number(reqName));
+
+                const alreadySatisfied = currentEquipped.some((equipped: any) => {
+                  return (
+                    equipped &&
+                    (String(equipped.dbId) === String(reqId) ||
+                      (reqId &&
+                        equipped.interchangeableIds &&
+                        equipped.interchangeableIds.includes(String(reqId))) ||
+                      (!isReqNumeric &&
+                        reqBaseName &&
+                        equipped.displayName &&
+                        equipped.displayName.toUpperCase().includes(reqBaseName)))
+                  );
+                });
+                if (!alreadySatisfied) {
+                  let provider = null;
+                  if (reqId) {
+                    provider =
+                      byDbId.get(String(reqId)) ||
+                      hashToMod.get(reqId) ||
+                      byFamilyOrDbId.get(String(reqId))?.find((m: any) => !m.isVirtual);
+                    if (!provider)
+                      provider = modList.find((m: any) =>
+                        m.interchangeableIds?.includes(String(reqId))
+                      );
+                  }
+                  if (!provider && !isReqNumeric && reqBaseName) {
+                    provider = namesAndDisplayNames.find((n) =>
+                      n.displayNameUpper.includes(reqBaseName)
+                    )?.orig;
+                  }
+                  if (
+                    provider &&
+                    !deletedInPass.has(
+                      typeof provider === "string" ? provider : provider.name
+                    )
+                  ) {
+                    const beforeSize = newMods.size;
+                    addWithFamily(provider);
+                    if (newMods.size > beforeSize) {
+                      checkAgain = true;
                     }
                   }
                 }
@@ -1398,62 +1682,104 @@ export function usePlaySetLogic() {
             }
           }
         }
-      } else {
-        const familyAnchor = targetMod.familyId || targetMod.dbId;
-        const isMaster =
-          targetMod.dbId && String(targetMod.dbId) === String(familyAnchor);
-        const isArchetypeMember = localSets.some((s: any) => 
-           s.archetypes?.core === targetMod.hash || s.archetypes?.twins?.includes(targetMod.hash)
+
+        // Single pass for reverse dependency cascade after unequipping
+        if (didAnyUnequip && currentRules.dependencies !== false && modsWithRequirements.length > 0) {
+          let checkDepsAgain = true;
+          while (checkDepsAgain) {
+            checkDepsAgain = false;
+            const currentEquipped = Array.from(newMods)
+              .map((n) => modMap.get(typeof n === "string" ? n : n?.name || ""))
+              .filter(Boolean);
+            for (const dep of modsWithRequirements) {
+              if (!dep?.name || !hasInNewMods(dep.name)) continue;
+              const isStillSatisfied = dep.requirements.every((r: any) => {
+                const reqId = typeof r === "string" ? r : r.id || r.dbId;
+                const reqName = typeof r === "string" ? r : r.name;
+                const reqBaseName =
+                  precomputedBaseNames.get(reqName) ||
+                  reqName
+                    ?.split(/[\\/]/)
+                    .pop()
+                    ?.replace(getExtensionRegex(activeGameSchema), "")
+                    .toUpperCase()
+                    .replace(/_SCRIPT(S)?$/i, "") ||
+                  "";
+                const isReqNumeric = !isNaN(Number(reqName));
+                return currentEquipped.some((equipped: any) => {
+                  return (
+                    equipped &&
+                    (String(equipped.dbId) === String(reqId) ||
+                      (reqId &&
+                        equipped.interchangeableIds &&
+                        equipped.interchangeableIds.includes(String(reqId))) ||
+                      (!isReqNumeric &&
+                        reqBaseName &&
+                        equipped.displayName &&
+                        equipped.displayName.toUpperCase().includes(reqBaseName)))
+                  );
+                });
+              });
+              if (!isStillSatisfied) {
+                deepDelete(dep.name, true);
+                checkDepsAgain = true;
+              }
+            }
+          }
+        }
+
+        const updatedSets = [...prevSets];
+
+        const dedupedNewMods = deduplicateBlueprintArtifacts(
+          Array.from(newMods),
+          activeGameSchema
         );
+        const nextModHashes: Record<string, string> = {};
+        dedupedNewMods.forEach((mName: string) => {
+          const mData =
+            modMap.get(mName) ||
+            modMap.get(stripPriorityTierPrefix(mName, activeGameSchema));
+          if (mData && mData.hash) {
+            nextModHashes[mName] = mData.hash;
+          } else if (currentSet.modHashes && currentSet.modHashes[mName]) {
+            nextModHashes[mName] = currentSet.modHashes[mName];
+          }
+        });
 
-        if (
-          targetMod.isVirtual ||
-          (currentRules.family !== false &&
-            (isMaster ||
-              targetMod.relationshipType === "core" || isArchetypeMember))
-        ) {
-          modList
-            .filter(
-              (m) =>
-                (String(m.familyId) === String(familyAnchor) ||
-                  String(m.dbId) === String(familyAnchor) ||
-                  String(m.setId) === String(targetMod.dbId)) &&
-                m.name &&
-                !m.isVirtual,
-            )
-            .forEach((m) => deepDelete(m.name));
-        } else {
-          deepDelete(targetName);
-        }
-        if (forceRemove) {
-           setStatus(`${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(targetMod.displayName || targetMod.name)} ${t("artifact_removed", "Will {Remove}")}.`);
-        }
-      }
-      const updatedSets = [...prevSets];
-      
-      const dedupedNewMods = deduplicateBlueprintArtifacts(Array.from(newMods), activeGameSchema);
-      const nextModHashes: Record<string, string> = {};
-      dedupedNewMods.forEach((mName: string) => {
-         const mData = modMap.get(mName) || modMap.get(stripPriorityTierPrefix(mName, activeGameSchema));
-         if (mData && mData.hash) {
-             nextModHashes[mName] = mData.hash;
-         } else if (currentSet.modHashes && currentSet.modHashes[mName]) {
-             nextModHashes[mName] = currentSet.modHashes[mName];
-         }
+        updatedSets[activePlaySetIndex] = {
+          ...currentSet,
+          mods: dedupedNewMods,
+          modHashes: nextModHashes,
+          modMeta: currentSet.modMeta,
+        };
+
+        console.timeEnd("PlaySetLogic: toggleInActiveSet");
+        return updatedSets;
       });
-
-      updatedSets[activePlaySetIndex] = {
-        ...currentSet,
-        mods: dedupedNewMods,
-        modHashes: nextModHashes,
-        modMeta: currentSet.modMeta
-      };
-
-
-      console.timeEnd("PlaySetLogic: toggleInActiveSet");
-      return updatedSets;
-    });
-  }, [setPlaySets, activePlaySetIndex, anarchyRules, activeGameSchema, modMap, hashToMod, baseToMod, byDbId, byFamilyOrDbId, byParsedBaseName, namesAndDisplayNames, precomputedBaseNames, modList]);
+    },
+    [
+      setPlaySets,
+      activePlaySetIndex,
+      anarchyRules,
+      activeGameSchema,
+      modMap,
+      hashToMod,
+      baseToMod,
+      byDbId,
+      byFamilyOrDbId,
+      bySetId,
+      byFlavorGroup,
+      byCommunityGroup,
+      byParsedBaseName,
+      normRelToMod,
+      normBaseToMod,
+      modsWithConflicts,
+      modsWithRequirements,
+      namesAndDisplayNames,
+      precomputedBaseNames,
+      modList,
+    ]
+  );
 
   function deletePlaySet(setName: string) {
     const updatedSets = playSets.filter((s) => s.name !== setName);

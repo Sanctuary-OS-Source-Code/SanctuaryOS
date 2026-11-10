@@ -170,7 +170,7 @@ export function SidePanelHeroCard({
   const hasBadges = Boolean(resolvedBadge || (badges && badges.length > 0));
   const totalBadges = (resolvedBadge ? 1 : 0) + (badges?.length || 0);
   const hasWideBadges =
-    totalBadges > 1 || (typeof resolvedBadge === "string" && resolvedBadge.length > 16);
+    totalBadges > 2 || (typeof resolvedBadge === "string" && resolvedBadge.length > 24);
 
   return (
     <div

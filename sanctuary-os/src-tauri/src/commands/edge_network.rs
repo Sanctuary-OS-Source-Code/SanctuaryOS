@@ -658,29 +658,47 @@ pub async fn export_edge_release(
 
     let mut mod_dir = dev_lane.join(&sandbox_mod_name);
     let mut base_lane = dev_lane.clone();
+    let mut is_from_mods_lane = false;
     if !mod_dir.exists() {
         let direct_path = PathBuf::from(&sandbox_mod_name);
         if direct_path.exists() {
             mod_dir = direct_path.clone();
-            if let Some(p) = direct_path.parent() {
+            if direct_path.starts_with(&mods_lane) {
+                is_from_mods_lane = true;
+            } else if let Some(p) = direct_path.parent() {
                 base_lane = p.to_path_buf();
             }
         } else {
             let vault_candidate = mods_lane.join(&sandbox_mod_name);
             if vault_candidate.exists() {
                 mod_dir = vault_candidate;
-                base_lane = mods_lane;
+                is_from_mods_lane = true;
             }
         }
     }
-    
+
     if !mod_dir.exists() {
-        return Err(format!("Mod directory not found: {}", mod_dir.display()));
+        let fallback_folder: String = manifest
+            .artifact
+            .name
+            .chars()
+            .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+            .collect();
+        let folder_name = if fallback_folder.trim_matches('_').is_empty() {
+            "nexus_export".to_string()
+        } else {
+            fallback_folder
+        };
+        let staged_dir = dev_lane.join(&folder_name);
+        if !staged_dir.exists() {
+            fs::create_dir_all(&staged_dir).map_err(|e| e.to_string())?;
+        }
+        mod_dir = staged_dir;
     }
 
     let mut target_file_for_hash = None;
 
-    // Fix flat layout: If it's a floating file, move it into a dedicated folder.
+    // Fix flat layout: If it's a floating file, stage or move it into a dedicated folder inside Dev/Sandbox.
     if mod_dir.is_file() {
         let file_stem = mod_dir.file_stem().unwrap_or_default().to_string_lossy().to_string();
         let new_mod_dir = base_lane.join(&file_stem);
@@ -690,7 +708,13 @@ pub async fn export_edge_release(
         }
         
         let new_file_path = new_mod_dir.join(mod_dir.file_name().unwrap());
-        fs::rename(&mod_dir, &new_file_path).map_err(|e| format!("Failed to move file to folder: {}", e))?;
+        if is_from_mods_lane {
+            fs::copy(&mod_dir, &new_file_path)
+                .map_err(|e| format!("Failed to stage file from Vault to Sandbox: {}", e))?;
+        } else {
+            fs::rename(&mod_dir, &new_file_path)
+                .map_err(|e| format!("Failed to move file to folder: {}", e))?;
+        }
         
         target_file_for_hash = Some(new_file_path);
         mod_dir = new_mod_dir;

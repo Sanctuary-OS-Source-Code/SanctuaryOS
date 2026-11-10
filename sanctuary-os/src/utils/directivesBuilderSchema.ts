@@ -3281,9 +3281,9 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "fork_m1_s2",
                   icon: t("icon_verified", "verified"),
-                  title: g("2. Automatic Founding Wayfinder Promotion"),
+                  title: g("2. Automatic Founding Wayfinder & Legacy Spoke Profile Relinking"),
                   desc: g(
-                    "The on_auth_user_created_spoke trigger in schema.sql detects when your standalone database has 0 Wayfinders and automatically promotes the very first registered user to Founding Wayfinder."
+                    "In federated mode, auth.users lives on the Hub while Spokes store public.profiles (username & role). When transitioning a severed Spoke to a Standalone Fork, on_auth_user_created_spoke promotes the first local auth.users signup to Wayfinder and automatically relinks any unclaimed Hub-origin Spoke profile, {Mason} studio, and {Blueprints} matching the registered username."
                   ),
                 },
                 {
