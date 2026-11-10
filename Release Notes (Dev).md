@@ -1,4 +1,4 @@
-# Pulse of the Foundry Version 0.6.0-Dev.10
+# Pulse of the Foundry Version 0.6.0-Dev.12
 ### WebGL2 Optical Glass, 9-Second 78 GB CoW Time Capsules, 1-Click Cross-Rig Blueprints, Touch ID / Companion Passkeys & Zero-PII 600k Security
 **Release Date:** 11/10/2026 | **Version:** 0.6.0-Dev.10 | **Platform:** Windows, MacOS, Linux & SteamOS
 
