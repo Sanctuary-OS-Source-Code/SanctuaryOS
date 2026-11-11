@@ -7,7 +7,6 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
-  StatTileCarousel,
   ActionButton,
   EmptyState,
   stripMarkdown,
@@ -53,9 +52,9 @@ const STANDALONE_MANUAL_SNIPPET = `export const SANCTUARY_CONFIG = {
   supabaseUrl: "https://YOUR_PROJECT_ID.supabase.co",
   supabaseAnonKey: "YOUR_SUPABASE_ANON_PUBLIC_KEY",
   standaloneWorkspace: {
-    id: "sims4",
-    name: "The Sims 4",
-    schema_id: "sims4",
+    id: "my_community",
+    name: "My Community Workspace",
+    schema_id: "universal",
     icon: "sports_esports",
   },
 };`;
@@ -79,7 +78,7 @@ export default function WebDocumentFeed({
   searchQuery?: string;
   moduleFilter?: string;
 } = {}) {
-  const { t } = useLexicon();
+  const { t, td } = useLexicon();
   const session = useStore((state: any) => state.session);
   const osRole = useStore((state: any) => state.osRole);
   const isKeeper =
@@ -259,7 +258,7 @@ export default function WebDocumentFeed({
             icon: t("icon_system_update_alt", "system_update_alt"),
             colorClass: "text-[var(--info)]",
             title: t("sd_guide_s2_c2_title", "{Mod} Updates Available (Blue State)"),
-            desc: t("sd_guide_s2_c2_desc", "Newer SHA-256 versions have been detected either via the Spoke Cloud Registry or decentralized {mason} manifest.json endpoints."),
+            desc: t("sd_guide_s2_c2_desc", "Newer SHA-256 versions have been detected either via the Spoke Cloud Registry or decentralized {mason} .sanctuary.manifest.json endpoints."),
           },
           {
             icon: t("icon_warning", "warning"),
@@ -288,16 +287,16 @@ export default function WebDocumentFeed({
             title: t("sd_guide_s3_c1_title", "Global Drop-Zone & DNA Match"),
             desc: t(
               "sd_guide_s3_c1_desc",
-              "Drag and drop .package, .ts4script, .zip, .rar, .7z, .tar.zst, or override.json files anywhere into Sanctuary OS. Duplicate SHA-256 hashes are automatically intercepted."
+              "Drag and drop {mod} modules, .zip, .rar, .7z, .tar.zst, or .sanctuary.override.json files anywhere into Sanctuary OS. Duplicate SHA-256 hashes are automatically intercepted."
             ),
           },
           {
             icon: t("icon_cloud_done", "cloud_done"),
             title: t(
               "sd_guide_s3_c2_title",
-              "Decentralized Static Edge (override.json)"
+              "Decentralized Static Edge (.sanctuary.override.json)"
             ),
-            desc: t("sd_guide_s3_c2_desc", "When a {mod} archive includes a {mason}'s override.json, Sanctuary binds its SHA-256 lineage to the {mason}'s static manifest.json URL for serverless update alerts and atomic rules."),
+            desc: t("sd_guide_s3_c2_desc", "When a {mod} archive includes a {mason}'s .sanctuary.override.json, Sanctuary binds its SHA-256 lineage to the {mason}'s static .sanctuary.manifest.json URL for serverless update alerts and atomic rules."),
           },
           {
             icon: t("icon_delete_sweep", "delete_sweep"),
@@ -426,7 +425,7 @@ export default function WebDocumentFeed({
             title: t("sd_guide_s6_c4_title", "Schema-Driven Deployment Strategies"),
             desc: t(
               "sd_guide_s6_c4_desc",
-              "Adapts per game schema: dynamic Resource.cfg multi-tier folders (Sims 4), ordered manifest lists (loadorder.txt / plugins.txt), numeric prefixes (001_), or timestamps."
+              "Adapts per game schema: dynamic manifest multi-tier folders, ordered manifest lists (loadorder.txt), numeric prefixes (001_), or timestamps."
             ),
           },
         ],
@@ -452,7 +451,7 @@ export default function WebDocumentFeed({
             title: t("sd_guide_s7_c2_title", "Hardware-Airgapped Lab Test Save"),
             desc: t(
               "sd_guide_s7_c2_desc",
-              "Swaps your live Saves folder with a dedicated Lab Test Save slot during testing so your legacy households can never be corrupted."
+              "Swaps your live user saves directories with a dedicated Lab Test Save slot during testing so your primary save slots can never be corrupted."
             ),
           },
           {
@@ -460,7 +459,7 @@ export default function WebDocumentFeed({
             title: t("sd_guide_s7_c3_title", "Real-Time Exception & Crash Monitor"),
             desc: t(
               "sd_guide_s7_c3_desc",
-              "Purges stale logs before launch and watches for LastException / engine crash output in real time, matching against community diagnostic signatures."
+              "Purges stale logs before launch and watches for engine exception and crash output in real time, matching against community diagnostic signatures."
             ),
           },
           {
@@ -486,7 +485,7 @@ export default function WebDocumentFeed({
             ),
             desc: t(
               "sd_guide_s8_c1_desc",
-              "Independently snapshot your Saves/Tray/Configs (World State) and your actual Game Installation Binaries (Engine Core) before patches hit."
+              "Independently snapshot your user saves, profiles, and configs (World State) and your actual Game Installation Binaries (Engine Core) before patches hit."
             ),
           },
           {
@@ -550,7 +549,7 @@ export default function WebDocumentFeed({
             ),
             desc: t(
               "sd_guide_s9_c3_desc",
-              "Combines Sanctuary Foundry Core Heuristics and Game Spoke Heuristics to inspect .zip, .ts4script, .package, .dll, .exe, and compiled Python .pyc bytecode before execution."
+              "Combines Sanctuary Foundry Core Heuristics and Game Spoke Heuristics to inspect archives, native {mod} modules, script bundles, .dll, .exe, and compiled Python .pyc bytecode before execution."
             ),
           },
           {
@@ -648,14 +647,14 @@ export default function WebDocumentFeed({
           {
             icon: t("icon_toggle_on", "toggle_on"),
             name: t("dir_walk_s3_c2_name", "Parent Suite Card & Equip Toggle"),
-            desc: t("dir_walk_s3_c2_desc", "Toggles symlinks in milliseconds. Multi-part {mod} suites (like MC Command Center) group into one Parent Card with an expandable Linked Modules drawer."),
+            desc: t("dir_walk_s3_c2_desc", "Toggles symlinks in milliseconds. Multi-part {mod} suites group into one Parent Card with an expandable Linked Modules drawer."),
           },
           {
             icon: t("icon_menu_book", "menu_book"),
             name: t("dir_walk_s3_c3_name", "{Mod} Dossier SidePanel"),
             desc: t(
               "dir_walk_s3_c3_desc",
-              "Click any card to open its right-hand Dossier: edit custom local names/URLs/tags, bind a static manifest.json URL, or inspect package files."
+              "Click any card to open its right-hand Dossier: edit custom local names/URLs/tags, bind a static .sanctuary.manifest.json URL, or inspect {mod} modules."
             ),
           },
         ],
@@ -702,7 +701,7 @@ export default function WebDocumentFeed({
           {
             icon: t("icon_emoji_events", "emoji_events"),
             name: t("dir_walk_s5_c1_name", "Casual Mode (Pick a Winner)"),
-            desc: t("dir_walk_s5_c1_desc", "Click 'Pick a Winner' on any Severity 3 Tuning Overlap to automatically route the winning {mod} into a higher priority tier and dynamic Resource.cfg."),
+            desc: t("dir_walk_s5_c1_desc", "Click 'Pick a Winner' on any Severity 3 Tuning Overlap to automatically route the winning {mod} into a higher priority tier and dynamic load-order manifest."),
           },
           {
             icon: t("icon_rule", "rule"),
@@ -715,7 +714,7 @@ export default function WebDocumentFeed({
           {
             icon: t("icon_science", "science"),
             name: t("dir_walk_s5_c3_name", "Homestead 100% Nuke & 1v1 Test"),
-            desc: t("dir_walk_s5_c3_desc", "Strips your main loadout and boots the game with only the test {mod} (or 2 conflicting {mods}) while harvesting lastException.txt logs."),
+            desc: t("dir_walk_s5_c3_desc", "Strips your main loadout and boots the game with only the test {mod} (or 2 conflicting {mods}) while harvesting engine crash and exception logs."),
           },
         ],
       },
@@ -878,7 +877,7 @@ export default function WebDocumentFeed({
           },
           {
             title: t("sd_roadmap_p12_m8_title", "Sanctuary V6 & Liquid Glass Engine"),
-            desc: t("sd_roadmap_p12_m8_desc", "4-layer 3D Refractive Liquid Glass Engine, revamped Default Themes + The Sims 4 ('Plumbob Crystal') Partner {Chameleon}, and Chameleon {Chameleon} Forge 2.0."),
+            desc: t("sd_roadmap_p12_m8_desc", "4-layer 3D Refractive Liquid Glass Engine, revamped Default Themes + Partner Spoke {Chameleon} themes, and Chameleon {Chameleon} Forge 2.0."),
             pending: true,
           },
           {
@@ -888,7 +887,7 @@ export default function WebDocumentFeed({
           },
           {
             title: t("sd_roadmap_p12_m9_title", "Website V2, Mobile PWA & Remote Queuing"),
-            desc: t("sd_roadmap_p12_m9_desc", "Unified single-codebase Web OS & PWA (sanctuaryos.net/sims4) with live Comm-Link, Nexus, Support Desk, Command Hubs, and Web-to-PC {Blueprint} queuing."),
+            desc: t("sd_roadmap_p12_m9_desc", "Unified single-codebase Web OS & PWA across game workspaces with live Comm-Link, Nexus, Support Desk, Command Hubs, and Web-to-PC {Blueprint} queuing."),
             pending: true,
           },
           {
@@ -922,11 +921,11 @@ export default function WebDocumentFeed({
           },
           {
             title: t("sd_roadmap_p11_m7_title", "The Agnostic Sprint & Master Schemas"),
-            desc: t("sd_roadmap_p11_m7_desc", "Extracted all hardcoded Sims 4 (.package / .ts4script) checks across 17 frontend modules and the Rust backend into dynamic Master JSON Schemas."),
+            desc: t("sd_roadmap_p11_m7_desc", "Extracted all hardcoded game-specific extension and path checks across frontend modules and the Rust backend into dynamic Master JSON Schemas."),
           },
           {
             title: t("sd_roadmap_p11_m8_title", "Integrated Side Browser & {Vault} Intercept"),
-            desc: t("sd_roadmap_p11_m8_desc", "Embedded multi-tab Side Browser that automatically intercepts .zip, .rar, .7z, .package, and .ts4script downloads straight into the {Vault}."),
+            desc: t("sd_roadmap_p11_m8_desc", "Embedded multi-tab Side Browser that automatically intercepts archive containers and schema-supported {mod} downloads straight into the {Vault}."),
           },
           {
             title: t("sd_roadmap_p11_m9_title", "Full-Stack Security & Forensic Audit"),
@@ -1023,7 +1022,7 @@ export default function WebDocumentFeed({
         milestones: [
           {
             title: t("sd_roadmap_p8_m5_title", "Rust 'Rip Protocol' & Auto-Sanitization"),
-            desc: t("sd_roadmap_p8_m5_desc", "Dynamic engine version recognition parsing Default.ini and PE headers in Rust, plus pre-launch purging of stale LastException and cache files."),
+            desc: t("sd_roadmap_p8_m5_desc", "Dynamic engine version recognition parsing config files and PE headers in Rust, plus pre-launch purging of stale crash logs and volatile cache files."),
           },
           {
             title: t("sd_roadmap_p8_m6_title", "Global Comm-Link Broadcast Feed"),
@@ -1095,7 +1094,7 @@ export default function WebDocumentFeed({
           },
           {
             title: t("sd_roadmap_p6_m8_title", "Automated Crash Log Harvester & Scrubber"),
-            desc: t("sd_roadmap_p6_m8_desc", "Captures lastException.txt crash logs automatically and scrubs local filesystem paths and PII (scrub_user_data_from_log) before sharing."),
+            desc: t("sd_roadmap_p6_m8_desc", "Captures engine exception and crash logs automatically and scrubs local filesystem paths and PII (scrub_user_data_from_log) before sharing."),
           },
         ],
       },
@@ -1114,7 +1113,7 @@ export default function WebDocumentFeed({
           },
           {
             title: t("sd_roadmap_p5_m6_title", "Dual-State {Backups} Architecture"),
-            desc: t("sd_roadmap_p5_m6_desc", "Independently snapshots World State (Saves, Tray & Settings) and Engine Core (Game Installation Binaries) before patches or {mod} tests."),
+            desc: t("sd_roadmap_p5_m6_desc", "Independently snapshots World State (User Saves, Profiles & Settings) and Engine Core (Game Installation Binaries) before patches or {mod} tests."),
           },
           {
             title: t("sd_roadmap_p5_m7_title", "Zero-Bloat OS Hardlink Snapshot Engine"),
@@ -1144,8 +1143,8 @@ export default function WebDocumentFeed({
             desc: t("sd_roadmap_p4_m6_desc", "Proactive conflict classifier distinguishing minor overlaps from Severity 3 Tuning Overlaps and Severity 4 Fatal Clashes."),
           },
           {
-            title: t("sd_roadmap_p4_m7_title", "Priority Tier Folders & Dynamic Resource.cfg"),
-            desc: t("sd_roadmap_p4_m7_desc", "Multi-tier override directories (Sanctuary1–Sanctuary3) paired with automated Resource.cfg priority depth compilation."),
+            title: t("sd_roadmap_p4_m7_title", "Priority Tier Folders & Dynamic Load Manifests"),
+            desc: t("sd_roadmap_p4_m7_desc", "Multi-tier override directories (Sanctuary1–Sanctuary3) paired with automated load-order manifest priority depth compilation."),
           },
           {
             title: t("sd_roadmap_p4_m8_title", "Architect Console & Crowd-Sourced Scout Queue"),
@@ -1171,7 +1170,7 @@ export default function WebDocumentFeed({
           },
           {
             title: t("sd_roadmap_p3_m6_title", "Atomic Logic Triumvirate"),
-            desc: t("sd_roadmap_p3_m6_desc", "Relational {mod} rules enforcing Highlander Flavor eviction, bidirectional .package/.ts4script Twin bonds, and Recursive Chain-Link Dependencies."),
+            desc: t("sd_roadmap_p3_m6_desc", "Relational {mod} rules enforcing Highlander Flavor eviction, bidirectional companion module/script Twin bonds, and Recursive Chain-Link Dependencies."),
           },
           {
             title: t("sd_roadmap_p3_m7_title", "Orphaned Addon Cascade Protection"),
@@ -1242,7 +1241,7 @@ export default function WebDocumentFeed({
           },
           {
             title: t("sd_roadmap_p1_m8_title", "Streaming SHA-256 DNA & Archive Inspector"),
-            desc: t("sd_roadmap_p1_m8_desc", "Multi-threaded Rust cryptographic hashing and in-memory DBPF/ZIP header inspection without extracting archives to disk."),
+            desc: t("sd_roadmap_p1_m8_desc", "Multi-threaded Rust cryptographic hashing and in-memory binary chunk/ZIP header inspection without extracting archives to disk."),
           },
         ],
       },
@@ -1483,59 +1482,60 @@ export default function WebDocumentFeed({
     const effectiveWalkStages = customWalkTab?.cards?.length
       ? customWalkTab.cards.map((c, idx) => ({
           num: idx + 1,
-          short: t("", c.badge || ""),
-          overline: t("", c.overline || ""),
+          short: td(c.badge || ""),
+          overline: td(c.overline || ""),
           icon: c.icon,
-          title: t("", c.title || ""),
-          sub: t("", c.footerMeta || ""),
-          desc: t("", c.desc || ""),
+          title: td(c.title || ""),
+          sub: td(c.footerMeta || ""),
+          desc: td(c.desc || ""),
           controls: (c.subCards || []).map((sc) => ({
             icon: sc.icon,
-            name: t("", sc.title || ""),
-            desc: t("", sc.desc || ""),
+            name: td(sc.title || ""),
+            desc: td(sc.desc || ""),
           })),
         }))
       : walkthroughStages;
 
     const effectiveCitizenSteps = customModTab?.cards?.length
       ? customModTab.cards.map((c) => ({
-          short: t("", c.badge || ""),
-          overline: t("", c.overline || ""),
-          title: t("", c.title || ""),
-          badge: t("", c.footerMeta || ""),
+          short: td(c.badge || ""),
+          overline: td(c.overline || ""),
+          title: td(c.title || ""),
+          badge: td(c.footerMeta || ""),
           icon: c.icon,
-          desc: t("", c.desc || ""),
-          tip: t("", c.tip || ""),
+          desc: td(c.desc || ""),
+          tip: td(c.tip || ""),
           cards: (c.subCards || []).map((sc) => ({
             icon: sc.icon,
-            title: t("", sc.title || ""),
-            desc: t("", sc.desc || ""),
+            title: td(sc.title || ""),
+            desc: td(sc.desc || ""),
           })),
         }))
       : citizenSteps;
 
     const effectiveRoles = customRoleTab?.cards?.length
       ? customRoleTab.cards.map((c) => ({
-          short: t("", c.title || ""),
+          short: td(c.title || ""),
           icon: c.icon,
-          title: t("", c.title || ""),
-          badge: t("", c.overline || c.footerMeta || ""),
-          desc: t("", c.desc || ""),
+          title: td(c.title || ""),
+          badge: td(c.overline || c.footerMeta || ""),
+          desc: td(c.desc || ""),
           requiresPasskey: c.status !== "citizen",
           subCards: (c.subCards || []).map((sc) => ({
             ...sc,
-            title: t("", sc.title || ""),
-            desc: t("", sc.desc || ""),
+            title: td(sc.title || ""),
+            desc: td(sc.desc || ""),
           })),
         }))
       : elevatedRoles;
 
     return (
       <div className="flex flex-col gap-6">
-        {/* 1x3 Top Tiles (Responsive SidePanel Carousel) */}
-        <StatTileCarousel innerClassName="px-0">
+        {/* 1x3 Top Tiles (Responsive SidePanel Filter Grid) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_play_circle", "play_circle")}
             label={`${effectiveWalkStages.length} ${t("dir_guide_stages_unit", "STAGES")}`}
             number={
@@ -1548,6 +1548,7 @@ export default function WebDocumentFeed({
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_explore", "explore")}
             label={`${effectiveCitizenSteps.length} ${t("dir_guide_modules_unit", "MODULES")}`}
             number={
@@ -1560,6 +1561,7 @@ export default function WebDocumentFeed({
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_admin_panel_settings", "admin_panel_settings")}
             label={`${effectiveRoles.length} ${t("dir_guide_tiers_unit", "TIERS")}`}
             number={customRoleTab?.value || t("dir_wt_t8_val", "Role Tiers")}
@@ -1567,7 +1569,7 @@ export default function WebDocumentFeed({
             isActive={guideMode === "roles"}
             onClick={() => setGuideMode("roles")}
           />
-        </StatTileCarousel>
+        </div>
 
         {/* Mode 1: 7-Stage Interactive UI Walkthrough (Single-Column Stacked Cards: Unselected Compact & Dimmed opacity-50, Active Expanded In-Place) */}
         {guideMode === "walkthrough" && (
@@ -2250,20 +2252,17 @@ export default function WebDocumentFeed({
                   : "completed";
             return {
               num: parsedNum,
-              code: t(
-                "",
-                c.overline || `Phase ${parsedNum}`
-              ),
-              title: t("", c.title || ""),
-              sub: t("", c.footerMeta || ""),
+              code: td(c.overline || `Phase ${parsedNum}`),
+              title: td(c.title || ""),
+              sub: td(c.footerMeta || ""),
               status: resolvedCardStatus,
               icon: c.icon || t("icon_rocket_launch", "rocket_launch"),
-              desc: t("", c.desc || ""),
+              desc: td(c.desc || ""),
               milestones: (c.subCards || []).map((sc) => {
                 const mStatus = resolveRoadmapSubCardStatus(sc);
                 return {
-                  title: t("", sc.title || ""),
-                  desc: t("", sc.desc || ""),
+                  title: td(sc.title || ""),
+                  desc: td(sc.desc || ""),
                   icon: sc.icon || "",
                   pending: mStatus === "in_progress",
                   roadmapStatus: mStatus,
@@ -2317,10 +2316,11 @@ export default function WebDocumentFeed({
 
     return (
       <div className="flex flex-col gap-6">
-        {/* 1x3 Interactive Filter Tabs (Responsive SidePanel Carousel) */}
-        <StatTileCarousel innerClassName="px-0">
+        {/* 1x3 Interactive Filter Tabs (Responsive SidePanel Filter Grid) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_timeline", "timeline")}
             label={`${effectivePhases.length} ${t("dir_roadmap_phases_unit", "Phases")}`}
             number={t("sd_roadmap_filter_all_val", "Full Timeline")}
@@ -2333,6 +2333,7 @@ export default function WebDocumentFeed({
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_rocket_launch", "rocket_launch")}
             label={t("dir_phase_tab_active_lbl", "Current Era")}
             number={`${t("dir_phase_word", "Phase")} ${topPhaseNum} ${t("active", "Active")}`}
@@ -2345,6 +2346,7 @@ export default function WebDocumentFeed({
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_check_circle", "check_circle")}
             label={t("dir_roadmap_tile_done", "Completed")}
             number={`${t("dir_roadmap_phases_unit", "Phases")} ${topCompletedPhaseNum} → 1`}
@@ -2355,7 +2357,7 @@ export default function WebDocumentFeed({
               setSelectedPhaseNum(topCompletedPhaseNum);
             }}
           />
-        </StatTileCarousel>
+        </div>
 
         {/* Single-Column Stacked Phase Cards (Unselected Compact & Dimmed opacity-50, Active Expanded In-Place) */}
         <div className="flex flex-col gap-3.5 w-full">
@@ -2522,7 +2524,7 @@ export default function WebDocumentFeed({
                                   </span>
                                   <h4 className="hidden sm:block text-sm font-bold text-[var(--text)] leading-snug m-0">
                                     {renderCleanInlineText(
-                                      m.title.replace(/^(✅|⏳|🧪)\s*/, "")
+                                      m.title.replace(/^(\u2705|\u23F3|\u{1F9EA})\s*/u, "")
                                     )}
                                   </h4>
                                 </div>
@@ -2537,7 +2539,7 @@ export default function WebDocumentFeed({
                               </div>
                               <h4 className="sm:hidden text-sm font-bold text-[var(--text)] leading-snug m-0">
                                 {renderCleanInlineText(
-                                  m.title.replace(/^(✅|⏳|🧪)\s*/, "")
+                                  m.title.replace(/^(\u2705|\u23F3|\u{1F9EA})\s*/u, "")
                                 )}
                               </h4>
                               <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed m-0">
@@ -2613,10 +2615,11 @@ export default function WebDocumentFeed({
 
     return (
       <div className="flex flex-col gap-6">
-        {/* 1x3 Top Tiles (Responsive SidePanel Carousel) */}
-        <StatTileCarousel innerClassName="px-0">
+        {/* 1x3 Top Tiles (Responsive SidePanel Filter Grid) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_hub", "hub")}
             label={t("dir_fk_t1_lbl", "STEP 1")}
             number={t("dir_fk_t1_val", "Spoke Setup")}
@@ -2626,6 +2629,7 @@ export default function WebDocumentFeed({
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_call_split", "call_split")}
             label={t("dir_fk_t2_lbl", "FORK MODES")}
             number={t("dir_fk_t2_val", "Standalone & Hub")}
@@ -2635,6 +2639,7 @@ export default function WebDocumentFeed({
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_database", "database")}
             label={t("dir_fk_t3_lbl", "STEP 3")}
             number={t("dir_fk_t3_val", "SQL Schemas")}
@@ -2642,7 +2647,7 @@ export default function WebDocumentFeed({
             isActive={forkTab === "sql"}
             onClick={() => setForkTab("sql")}
           />
-        </StatTileCarousel>
+        </div>
 
         {/* Tab 1: Official Partner Spoke Setup & Cut the Cord */}
         {forkTab === "spoke" && (
@@ -2803,25 +2808,25 @@ export default function WebDocumentFeed({
                       </div>
                       <div className="flex flex-col gap-0.5 min-w-0">
                         <span className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug text-[var(--accent)]">
-                          {t("", extraCard.overline || "")}
+                          {td(extraCard.overline || "")}
                         </span>
                         <h4 className="hidden sm:block text-base font-black text-[var(--text)] leading-snug m-0">
-                          {t("", extraCard.title || "")}
+                          {td(extraCard.title || "")}
                         </h4>
                       </div>
                     </div>
                     {extraCard.badge && (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
-                        <span>{t("", extraCard.badge)}</span>
+                        <span>{td(extraCard.badge)}</span>
                       </span>
                     )}
                   </div>
                   <h4 className="sm:hidden text-sm font-black text-[var(--text)] leading-snug m-0">
-                    {t("", extraCard.title || "")}
+                    {td(extraCard.title || "")}
                   </h4>
                 </div>
                 <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {t("", extraCard.desc || "")}
+                  {td(extraCard.desc || "")}
                 </p>
                 {(extraCard.subCards || []).length > 0 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
@@ -2835,11 +2840,11 @@ export default function WebDocumentFeed({
                             {sc.icon || t("icon_check_circle", "check_circle")}
                           </span>
                           <h5 className="text-xs font-bold text-[var(--text)] leading-snug m-0">
-                            {t("", sc.title || "")}
+                            {td(sc.title || "")}
                           </h5>
                         </div>
                         <p className="text-[11px] font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                          {t("", sc.desc || "")}
+                          {td(sc.desc || "")}
                         </p>
                       </div>
                     ))}
@@ -3298,10 +3303,10 @@ export default function WebDocumentFeed({
                                 : "text-[var(--subtext)]"
                             }`}
                           >
-                            {t("", extraCard.overline || "")}
+                            {td(extraCard.overline || "")}
                           </span>
                           <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                            {t("", extraCard.title || "")}
+                            {td(extraCard.title || "")}
                           </h3>
                         </div>
                       </div>
@@ -3309,18 +3314,18 @@ export default function WebDocumentFeed({
                         <span>
                           {isSelectedMode
                             ? t("active", "Active")
-                            : t("", extraCard.badge || "")}
+                            : td(extraCard.badge || "")}
                         </span>
                       </span>
                     </div>
                     <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                      {t("", extraCard.title || "")}
+                      {td(extraCard.title || "")}
                     </h3>
                   </div>
                   {isSelectedMode && (
                     <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                       <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
-                        {t("", extraCard.desc || "")}
+                        {td(extraCard.desc || "")}
                       </p>
                       {(extraCard.subCards || []).length > 0 && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -3335,11 +3340,11 @@ export default function WebDocumentFeed({
                                     t("icon_check_circle", "check_circle")}
                                 </span>
                                 <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                                  {t("", sc.title || "")}
+                                  {td(sc.title || "")}
                                 </h4>
                               </div>
                               <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                                {t("", sc.desc || "")}
+                                {td(sc.desc || "")}
                               </p>
                             </div>
                           ))}
@@ -3690,11 +3695,11 @@ export default function WebDocumentFeed({
             icon: t("icon_cloud_done", "cloud_done"),
             title: t(
               "sd_arch_vault_c3_title",
-              "Decentralized Static Edge Polling (manifest.json)"
+              "Decentralized Static Edge Polling (.sanctuary.manifest.json)"
             ),
             desc: t(
               "dir_arch_p2_b4",
-              "Decentralized Static Edge Polling (manifest.json & override.json) delivers creator updates and atomic_logic via direct HTTP GET without central DB lock-in"
+              "Decentralized Static Edge Polling (.sanctuary.manifest.json & .sanctuary.override.json) delivers creator updates and atomic_logic via direct HTTP GET without central DB lock-in"
             ),
           },
         ],
@@ -3727,7 +3732,7 @@ export default function WebDocumentFeed({
             ),
             desc: t(
               "dir_arch_p3_b2",
-              "Schema-Driven Load Order Compiler (folder_priority + dynamic Resource.cfg, manifest_list, numeric_prefix, timestamp) with topological cycle breaking"
+              "Schema-Driven Load Order Compiler (folder_priority + dynamic manifest, manifest_list, numeric_prefix, timestamp) with topological cycle breaking"
             ),
           },
           {
@@ -3768,23 +3773,24 @@ export default function WebDocumentFeed({
     const activePillar = customArchCard
       ? {
           icon: customArchCard.icon || defaultPillar.icon,
-          badge: t("", customArchCard.overline || defaultPillar.badge),
-          heading: t("", customArchCard.title || defaultPillar.heading),
-          summary: t("", customArchCard.desc || defaultPillar.summary),
+          badge: td(customArchCard.overline || defaultPillar.badge),
+          heading: td(customArchCard.title || defaultPillar.heading),
+          summary: td(customArchCard.desc || defaultPillar.summary),
           cards: (customArchCard.subCards || []).map((sc) => ({
             icon: sc.icon || defaultPillar.icon,
-            title: t("", sc.title || ""),
-            desc: t("", sc.desc || ""),
+            title: td(sc.title || ""),
+            desc: td(sc.desc || ""),
           })),
         }
       : defaultPillar;
 
     return (
       <div className="flex flex-col gap-6">
-        {/* 1x3 Top Tiles (Responsive SidePanel Carousel) */}
-        <StatTileCarousel innerClassName="px-0">
+        {/* 1x3 Top Tiles (Responsive SidePanel Filter Grid) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_memory", "memory")}
             label={t("dir_ar_t1_lbl", "PILLAR 1")}
             number={t("dir_ar_t1_val", "Core & Glass")}
@@ -3794,6 +3800,7 @@ export default function WebDocumentFeed({
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_hub", "hub")}
             label={t("dir_ar_t2_lbl", "PILLAR 2")}
             number={t("dir_ar_t2_val", "Hub & Spokes")}
@@ -3803,6 +3810,7 @@ export default function WebDocumentFeed({
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_shield", "shield")}
             label={t("dir_ar_t3_lbl", "PILLAR 3")}
             number={t("dir_ar_t3_val", "{Vault} & Lab")}
@@ -3810,7 +3818,7 @@ export default function WebDocumentFeed({
             isActive={archTab === "p3"}
             onClick={() => setArchTab("p3")}
           />
-        </StatTileCarousel>
+        </div>
 
         {/* Clean 3-Tier Hero Container Below 1x3 Tiles */}
         <div className="relative glass-panel rounded-2xl p-5 flex flex-col gap-4 border !border-[color-mix(in_srgb,var(--text)_22%,transparent)]">
@@ -3925,7 +3933,7 @@ export default function WebDocumentFeed({
         ),
         desc: t(
           "sd_proto_heuristics_desc",
-          "Combines global Core Heuristics (keeper_heuristic_signatures) and community Spoke Heuristics (heuristic_signatures) to inspect .zip, .package, .ts4script, .dll, .exe, and compiled Python .pyc bytecode before execution."
+          "Combines global Core Heuristics (keeper_heuristic_signatures) and community Spoke Heuristics (heuristic_signatures) to inspect archives, native {mod} modules, script bundles, .dll, .exe, and compiled Python .pyc bytecode before execution."
         ),
         colorClass:
           "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]",
@@ -4044,12 +4052,12 @@ export default function WebDocumentFeed({
               "sd_proto_d2_r2_title",
               "Decentralized Static Edge Polling"
             ),
-            desc: t("sd_proto_d2_r2_desc", "Binds a {mod}'s SHA-256 lineage in .sanctuary_cache.db and polls creator manifest.json & override.json endpoints directly via HTTP GET during Radar Sweeps."),
+            desc: t("sd_proto_d2_r2_desc", "Binds a {mod}'s SHA-256 lineage in .sanctuary_cache.db and polls creator .sanctuary.manifest.json & .sanctuary.override.json endpoints directly via HTTP GET during Radar Sweeps."),
           },
           {
             icon: t("icon_folder_open", "folder_open"),
             title: t("sd_proto_d2_r3_title", "{Mod} Suite Parent Grouping"),
-            desc: t("sd_proto_d2_r3_desc", "Automatically groups multi-file {mod} suites and .package + .ts4script companions into one clean Parent Card with an expandable Linked Modules drawer."),
+            desc: t("sd_proto_d2_r3_desc", "Automatically groups multi-file {mod} suites and companion module + script pairs into one clean Parent Card with an expandable Linked Modules drawer."),
           },
           {
             icon: t("icon_view_quilt", "view_quilt"),
@@ -4070,7 +4078,7 @@ export default function WebDocumentFeed({
               "sd_proto_d2_r6_title",
               "Integrated Side Browser Interception"
             ),
-            desc: t("sd_proto_d2_r6_desc", "Intercepts .zip, .rar, .7z, .package, .ts4script, and override.json downloads inside the built-in browser and routes them straight into the {Vault} scanner."),
+            desc: t("sd_proto_d2_r6_desc", "Intercepts archive containers, schema-supported {mod} modules, and .sanctuary.override.json downloads inside the built-in browser and routes them straight into the {Vault} scanner."),
           },
         ],
       },
@@ -4088,7 +4096,7 @@ export default function WebDocumentFeed({
             ),
             desc: t(
               "sd_proto_d3_r1_desc",
-              "Compiles priority via folder_priority (dynamic Resource.cfg + Sanctuary1–3 folders), manifest_list, numeric_prefix, or timestamp with DFS cycle breaking."
+              "Compiles priority via folder_priority (dynamic manifest + Sanctuary1–3 folders), manifest_list, numeric_prefix, or timestamp with DFS cycle breaking."
             ),
           },
           {
@@ -4110,7 +4118,7 @@ export default function WebDocumentFeed({
             ),
             desc: t(
               "sd_proto_d3_r3_desc",
-              "Automatically evicts rival Flavor files when equipping a chosen Flavor, and bidirectionally links companion .package and .ts4script Twins."
+              "Automatically evicts rival Flavor files when equipping a chosen Flavor, and bidirectionally links companion module and script Twins."
             ),
           },
           {
@@ -4219,11 +4227,11 @@ export default function WebDocumentFeed({
     const effectiveProtoRoles =
       customProtoRolesTab && customProtoRolesTab.cards.length > 0
         ? customProtoRolesTab.cards.map((c) => ({
-            short: t("", c.title || ""),
+            short: td(c.title || ""),
             icon: c.icon,
-            title: t("", c.title || ""),
-            badge: t("", c.overline || c.footerMeta || ""),
-            desc: t("", c.desc || ""),
+            title: td(c.title || ""),
+            badge: td(c.overline || c.footerMeta || ""),
+            desc: td(c.desc || ""),
             requiresPasskey: c.status !== "citizen",
           }))
         : elevatedRoles;
@@ -4231,14 +4239,14 @@ export default function WebDocumentFeed({
     const effectiveComplianceTiers =
       customProtoCompTab && customProtoCompTab.cards.length > 0
         ? customProtoCompTab.cards.map((c, idx) => ({
-            badge: t("", c.overline || c.badge || ""),
-            title: t("", c.title || ""),
-            desc: t("", c.desc || ""),
+            badge: td(c.overline || c.badge || ""),
+            title: td(c.title || ""),
+            desc: td(c.desc || ""),
             colorClass:
               complianceTiers[idx]?.colorClass ||
               "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]",
             textColor: complianceTiers[idx]?.textColor || "text-[var(--accent)]",
-            icon: c.icon || complianceTiers[idx]?.icon || "shield",
+            icon: c.icon || complianceTiers[idx]?.icon || t("icon_shield", "shield"),
           }))
         : complianceTiers;
 
@@ -4246,13 +4254,13 @@ export default function WebDocumentFeed({
       customProtoListTab && customProtoListTab.cards.length > 0
         ? customProtoListTab.cards.map((c) => ({
             icon: c.icon,
-            badge: t("", c.overline || c.badge || ""),
-            title: t("", c.title || ""),
-            desc: t("", c.desc || ""),
+            badge: td(c.overline || c.badge || ""),
+            title: td(c.title || ""),
+            desc: td(c.desc || ""),
             rules: (c.subCards || []).map((sc) => ({
               icon: sc.icon,
-              title: t("", sc.title || ""),
-              desc: t("", sc.desc || ""),
+              title: td(sc.title || ""),
+              desc: td(sc.desc || ""),
             })),
           }))
         : protocolDomains;
@@ -4264,10 +4272,11 @@ export default function WebDocumentFeed({
 
     return (
       <div className="flex flex-col gap-6">
-        {/* 1x3 Top Tiles (Responsive SidePanel Carousel) */}
-        <StatTileCarousel innerClassName="px-0">
+        {/* 1x3 Top Tiles (Responsive SidePanel Filter Grid) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_admin_panel_settings", "admin_panel_settings")}
             label={`${effectiveProtoRoles.length} ${t("dir_guide_tiers_unit", "TIERS")}`}
             number={t("dir_pr_t1_val", "Role Matrix")}
@@ -4277,6 +4286,7 @@ export default function WebDocumentFeed({
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_shield", "shield")}
             label={t("dir_pr_t2_lbl", "TIERS 0–5")}
             number={t("dir_pr_t2_val", "Safety & AV")}
@@ -4286,6 +4296,7 @@ export default function WebDocumentFeed({
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_policy", "policy")}
             label={`${totalProtoRules} ${t("dir_proto_rules_unit", "RULES")}`}
             number={t("dir_pr_t3_val", "OS Protocols")}
@@ -4293,7 +4304,7 @@ export default function WebDocumentFeed({
             isActive={protoTab === "list"}
             onClick={() => setProtoTab("list")}
           />
-        </StatTileCarousel>
+        </div>
 
         {/* Tab 1: 6-Tier Role Matrix (Single-Column Stacked Cards: Unselected Compact & Dimmed, Selected Expands In-Place) */}
         {protoTab === "roles" && (

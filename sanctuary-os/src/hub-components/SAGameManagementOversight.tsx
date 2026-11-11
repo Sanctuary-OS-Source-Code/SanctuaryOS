@@ -3,15 +3,12 @@ import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
-  SidePanel, CustomDropdown, EmptyState, loadDLCMap, PanelHeaderGroup, PanelHeaderButton
+  SidePanel, CustomDropdown, EmptyState, loadDLCMap, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS
 } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard } from "../components/universal/UniversalLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { openSanctuaryContextMenu } from "../ContextMenu";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 import { logArchitectAction } from "../lib/audit";
 
 export function GameManagementOversight() {
@@ -396,14 +393,14 @@ export function GameManagementOversight() {
                 t("panel_add_dlc", "Register DLC")
         }
         subtitle={sidePanelMode?.includes('version') ? t("panel_sub_version", "Game Version Registry") : t("dlc_registry", "DLC Registry")}
-        icon={sidePanelMode?.includes('version') ? "gamepad" : "extension"}
+        icon={sidePanelMode?.includes('version') ? t("icon_gamepad", "gamepad") : t("icon_extension", "extension")}
         iconColorClass="text-[var(--accent)]"
         widthClass="w-[90vw] md:w-[680px]"
         headerActions={
           <PanelHeaderGroup>
             {(sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && (
               <PanelHeaderButton
-                icon="delete"
+                icon={t("icon_delete", "delete")}
                 variant="danger"
                 tooltip={isPanelSubmitting ? t("ui_btn_processing", "Processing...") : t("purge", "Purge")}
                 disabled={!panelReason.trim() || isPanelSubmitting}
@@ -411,7 +408,7 @@ export function GameManagementOversight() {
               />
             )}
             <PanelHeaderButton
-              icon="save"
+              icon={t("icon_save", "save")}
               variant="accent"
               tooltip={isPanelSubmitting ? t("ui_btn_processing", "Processing...") : t("ui_btn_commit", "Commit")}
               disabled={isCommitDisabled}
@@ -422,7 +419,7 @@ export function GameManagementOversight() {
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard
-            icon={sidePanelMode?.includes('version') ? "gamepad" : "extension"}
+            icon={sidePanelMode?.includes('version') ? t("icon_gamepad", "gamepad") : t("icon_extension", "extension")}
             overline={sidePanelMode?.includes('version') ? t("sa_game_versions", "Game Versions") : t("dlc_registry", "DLC Registry")}
             title={
               (sidePanelMode === 'edit_version' || sidePanelMode === 'edit_dlc') && panelTarget
@@ -433,12 +430,12 @@ export function GameManagementOversight() {
             }
             description={t("game_management_subtitle", "Manage patches, versions, and DLCs")}
             badge={sidePanelMode?.includes('edit') ? t("ql_targeting", "Editing") : t("ql_add", "New Entry")}
-            badgeIcon={sidePanelMode?.includes('edit') ? "edit" : "add"}
+            badgeIcon={sidePanelMode?.includes('edit') ? t("icon_edit", "edit") : t("icon_add", "add")}
             variant="accent"
           />
 
           {(sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && (
-            <UniversalGroup title={t("sa_game_versions", "Version Details")} icon="gamepad">
+            <UniversalGroup title={t("sa_game_versions", "Version Details")} icon={t("icon_gamepad", "gamepad")}>
               <div className="flex flex-col gap-1.5 relative z-10">
                 <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("game_version", "Game Version")}</label>
                 <div className="relative">
@@ -446,7 +443,7 @@ export function GameManagementOversight() {
                   <input
                     value={panelInput1}
                     onChange={e => setPanelInput1(e.target.value)}
-                    placeholder={t("ph_game_version", "e.g. 1.108.318")}
+                    placeholder={t("ph_game_version", "e.g. 1.2.0")}
                     className="w-full glass-surface rounded-xl pl-10 pr-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all"
                   />
                 </div>
@@ -455,7 +452,7 @@ export function GameManagementOversight() {
           )}
 
           {(sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (
-            <UniversalGroup title={t("dlc_registry", "DLC Pack Configuration")} icon="extension">
+            <UniversalGroup title={t("dlc_registry", "DLC Pack Configuration")} icon={t("icon_extension", "extension")}>
               <div className="flex flex-col gap-1.5 relative z-50">
                 <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">{t("dlc_id_code", "DLC Pack Code")}</label>
                 <div className="relative">
@@ -463,7 +460,7 @@ export function GameManagementOversight() {
                   <input
                     value={panelInput1}
                     onChange={e => setPanelInput1(e.target.value)}
-                    placeholder={t("ph_pack_code", "e.g. EP01")}
+                    placeholder={t("ph_pack_code", "e.g. DLC01")}
                     className="w-full glass-surface rounded-xl pl-10 pr-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all uppercase"
                   />
                 </div>
@@ -491,7 +488,7 @@ export function GameManagementOversight() {
                   <input
                     value={panelInput4}
                     onChange={e => setPanelInput4(e.target.value.toUpperCase())}
-                    placeholder={t("ph_pack_type", "e.g. SP")}
+                    placeholder={t("ph_pack_type", "e.g. EXPANSION")}
                     className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all uppercase"
                   />
                 </div>
@@ -504,7 +501,7 @@ export function GameManagementOversight() {
                   <input
                     value={panelInput2}
                     onChange={e => setPanelInput2(e.target.value)}
-                    placeholder={t("ph_pack_name", "e.g. Get to Work")}
+                    placeholder={t("ph_pack_name", "e.g. Expansion Pack 1")}
                     className="w-full glass-surface rounded-xl pl-10 pr-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all"
                   />
                 </div>
@@ -514,7 +511,7 @@ export function GameManagementOversight() {
 
           <UniversalGroup
             title={t("audit_reason_req", "Audit Reason Required")}
-            icon="gavel"
+            icon={t("icon_gavel", "gavel")}
             headerColorClass="text-[var(--danger)]"
           >
             <UniversalTextArea

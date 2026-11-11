@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import {
   SidePanel,
   EmptyState,
@@ -39,13 +40,31 @@ export default function BlueprintSwapSidePanel({
     selectedVersion,
     session,
     setView,
-  } = useStore();
+  } = useStore(
+    useShallow((s) => ({
+      playSets: s.playSets,
+      activePlaySetIndex: s.activePlaySetIndex,
+      setActivePlaySetIndex: s.setActivePlaySetIndex,
+      activeGameSchema: s.activeGameSchema,
+      modList: s.modList,
+      selectedVersion: s.selectedVersion,
+      session: s.session,
+      setView: s.setView,
+    }))
+  );
   const {
     setStagingDraftMode,
     setStagingDraftName,
     setStagingTargetDesktopBlueprint,
     stagingTargetDesktopBlueprint,
-  } = useModalStore();
+  } = useModalStore(
+    useShallow((s) => ({
+      setStagingDraftMode: s.setStagingDraftMode,
+      setStagingDraftName: s.setStagingDraftName,
+      setStagingTargetDesktopBlueprint: s.setStagingTargetDesktopBlueprint,
+      stagingTargetDesktopBlueprint: s.stagingTargetDesktopBlueprint,
+    }))
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [stagingSetName, setStagingSetName] = useState<string | null>(null);
   const [stagedSuccessSetName, setStagedSuccessSetName] = useState<string | null>(null);

@@ -4,11 +4,25 @@ import { isDesktop, isLinuxDesktop } from "./envUtils";
 import {
   supabaseAuth,
   getActiveGameClient,
-  getSpokeClientById,
   RESOLVED_SANCTUARY_CONFIG,
 } from "../supabase";
 import { useStore } from "../store";
 import { triggerPwaWebPush } from "./webPushClient";
+import { resolveStagingVaultSecret } from "./stagingCrypto";
+
+function getViteDevToken(): string {
+  return typeof __SANCTUARY_DEV_TOKEN__ !== "undefined" ? __SANCTUARY_DEV_TOKEN__ : "";
+}
+
+function getViteDevHeaders(includeJson = false): Record<string, string> {
+  const headers: Record<string, string> = {
+    "x-sanctuary-dev-token": getViteDevToken(),
+  };
+  if (includeJson) {
+    headers["Content-Type"] = "application/json";
+  }
+  return headers;
+}
 
 export interface MfaSecurityState {
   passkeys: any[];
@@ -35,7 +49,8 @@ export function initDevPasskeyBridge(): void {
   }
   devBridgeInitialized = true;
   try {
-    const es = new EventSource("/__dev-webauthn/stream");
+    const devToken = encodeURIComponent(getViteDevToken());
+    const es = new EventSource(`/__dev-webauthn/stream?token=${devToken}`);
     es.onmessage = async (event) => {
       try {
         const { requestId, kind, options } = JSON.parse(event.data || "{}");
@@ -46,13 +61,13 @@ export function initDevPasskeyBridge(): void {
           const credential = await invoke(cmd, { options });
           await fetch("/__dev-webauthn/response", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getViteDevHeaders(true),
             body: JSON.stringify({ requestId, credential }),
           });
         } catch (err: any) {
           await fetch("/__dev-webauthn/response", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getViteDevHeaders(true),
             body: JSON.stringify({
               requestId,
               error: err?.message || String(err),
@@ -70,7 +85,7 @@ export async function syncDevSessionToVite(session: any): Promise<void> {
   try {
     await fetch("/__dev-session", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getViteDevHeaders(true),
       body: JSON.stringify({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
@@ -87,14 +102,19 @@ export async function clearDevSessionOnVite(): Promise<void> {
     if (typeof sessionStorage !== "undefined") {
       sessionStorage.setItem("sanctuary_dev_signed_out", "true");
     }
-    await fetch("/__dev-session", { method: "DELETE" });
+    await fetch("/__dev-session", {
+      method: "DELETE",
+      headers: getViteDevHeaders(false),
+    });
   } catch {}
 }
 
 export async function restoreDevSessionFromVite(): Promise<any | null> {
   if (!import.meta.env.DEV || !isLocalhostBrowser()) return null;
   try {
-    const res = await fetch("/__dev-session");
+    const res = await fetch("/__dev-session", {
+      headers: getViteDevHeaders(false),
+    });
     if (!res.ok) return null;
     const json = await res.json().catch(() => null);
     const devSession = json?.session;
@@ -125,7 +145,7 @@ async function requestDevDesktopWebAuthn(
   try {
     const res = await fetch("/__dev-webauthn/request", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getViteDevHeaders(true),
       body: JSON.stringify({ kind, options }),
     });
     if (res.status === 404) {
@@ -1848,7 +1868,14 @@ export async function authenticateFidoPasskey(
     }
 
     notifyMfaStateChanged();
-    return { data: verifyJson, error: null };
+    return {
+      data: {
+        ...(verifyJson || {}),
+        credential: serializedCredential,
+        challenge_id: optJson.challenge_id,
+      },
+      error: null,
+    };
   } catch (err: any) {
     return {
       data: null,
@@ -1915,6 +1942,15 @@ export async function deleteSecurityFactor(factor: {
 // ZERO-PII AES-256-GCM COMPANION PASSKEY HANDSHAKE (STEAM DECK / MACOS / RIGS)
 // ============================================================================
 
+export interface CompanionWebAuthnAssertionProof {
+  id: string;
+  rawId?: string;
+  authenticatorData: string;
+  clientDataJSON: string;
+  signature: string;
+  challengeId?: string;
+}
+
 export interface CompanionPasskeyHandshakePayload {
   handshakeId: string;
   handshakeCode: string;
@@ -1927,6 +1963,8 @@ export interface CompanionPasskeyHandshakePayload {
   approvedAt?: number;
   approverDevice?: string;
   approvalSignature?: string;
+  webauthnAssertion?: CompanionWebAuthnAssertionProof;
+  verifiedAccessToken?: string;
 }
 
 export interface ResolvedCompanionPasskeyHandshake {
@@ -1963,8 +2001,9 @@ export async function derivePasskeyHandshakeToken(
   userId: string,
   email?: string
 ): Promise<string> {
+  const vaultSecret = await resolveStagingVaultSecret(userId);
   return sha256Hex(
-    `sanctuary_citizen_passkey_handshake_v1:${userId}:${(email || "").trim().toLowerCase()}`
+    `sanctuary_citizen_passkey_handshake_v2:${userId}:${(email || "").trim().toLowerCase()}:${vaultSecret}`
   );
 }
 
@@ -1973,7 +2012,8 @@ async function deriveHandshakeAesKey(
   email: string | undefined,
   salt: Uint8Array
 ): Promise<CryptoKey> {
-  const passphrase = `${userId}::${(email || "").trim().toLowerCase()}::sanctuary_passkey_handshake_key_v1`;
+  const vaultSecret = await resolveStagingVaultSecret(userId);
+  const passphrase = `${userId}::${(email || "").trim().toLowerCase()}::${vaultSecret}::sanctuary_passkey_handshake_key_v2`;
   const keyMaterial = await window.crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(passphrase),
@@ -2072,14 +2112,55 @@ export function isLocallyInitiatedHandshake(handshakeId: string): boolean {
   }
 }
 
+function validateWebAuthnAssertionProof(
+  proof?: CompanionWebAuthnAssertionProof | null
+): boolean {
+  if (
+    !proof ||
+    typeof proof.id !== "string" ||
+    !proof.id.trim() ||
+    typeof proof.authenticatorData !== "string" ||
+    typeof proof.clientDataJSON !== "string" ||
+    typeof proof.signature !== "string"
+  ) {
+    return false;
+  }
+  try {
+    const authData = base64UrlToUint8Array(proof.authenticatorData);
+    // WebAuthn authenticatorData: 32-byte rpIdHash + 1-byte flags + 4-byte signCount = min 37 bytes
+    // Flag bit 0 (0x01) = User Present (UP) MUST be 1
+    if (authData.byteLength < 37 || (authData[32] & 0x01) === 0) {
+      return false;
+    }
+    const sigBytes = base64UrlToUint8Array(proof.signature);
+    if (sigBytes.byteLength < 32) {
+      return false;
+    }
+    const clientDataBytes = base64UrlToUint8Array(proof.clientDataJSON);
+    const clientData = JSON.parse(new TextDecoder().decode(clientDataBytes));
+    if (
+      !clientData ||
+      clientData.type !== "webauthn.get" ||
+      typeof clientData.challenge !== "string" ||
+      clientData.challenge.length < 16
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function computeHandshakeApprovalSignature(
   challengeNonce: string,
   handshakeId: string,
   handshakeCode: string,
-  userId: string
+  userId: string,
+  assertion: CompanionWebAuthnAssertionProof
 ): Promise<string> {
   return sha256Hex(
-    `${challengeNonce}:${handshakeId}:${handshakeCode}:${userId}:APPROVED_BY_LIVE_PASSKEY_V1`
+    `${challengeNonce}:${handshakeId}:${handshakeCode}:${userId}:${assertion.id}:${assertion.authenticatorData}:${assertion.signature}:APPROVED_BY_WEBAUTHN_ASSERTION_V2`
   );
 }
 
@@ -2101,12 +2182,6 @@ export async function getPasskeyHandshakeClients(): Promise<any[]> {
     const activeClient = getActiveGameClient();
     if (activeClient && !clients.includes(activeClient)) {
       clients.push(activeClient);
-    }
-  } catch {}
-  try {
-    const spokeClient = await getSpokeClientById("sims4");
-    if (spokeClient && !clients.includes(spokeClient)) {
-      clients.push(spokeClient);
     }
   } catch {}
   return clients;
@@ -2310,14 +2385,53 @@ export async function pollCompanionPasskeyHandshake(
         continue;
       }
 
-      if (decrypted.status === "approved" && decrypted.approvalSignature) {
+      if (
+        decrypted.status === "approved" &&
+        decrypted.approvalSignature &&
+        validateWebAuthnAssertionProof(decrypted.webauthnAssertion)
+      ) {
+        const assertion = decrypted.webauthnAssertion!;
         const expectedSig = await computeHandshakeApprovalSignature(
           expectedNonce,
           handshakeId,
           decrypted.handshakeCode,
-          user.id
+          user.id,
+          assertion
         );
+
+        let tokenVerified = true;
+        if (decrypted.verifiedAccessToken) {
+          const { data: verifiedUserData, error: verifyErr } =
+            await supabaseAuth.auth.getUser(decrypted.verifiedAccessToken);
+          tokenVerified = !verifyErr && verifiedUserData?.user?.id === user.id;
+        } else {
+          tokenVerified = false;
+        }
+
+        // Verify the assertion credential ID belongs to one of the user's registered passkeys when enumerable
+        let credentialRecognized = true;
+        if (tokenVerified) {
+          const registeredPasskeys = await fetchUserPasskeysViaRest();
+          if (registeredPasskeys.length > 0) {
+            const matchingCred = registeredPasskeys.some((pk: any) => {
+              const cid = String(
+                pk?.credential_id || pk?.credentialId || pk?.webauthn_credential_id || pk?.id || ""
+              );
+              return cid === assertion.id || cid === assertion.rawId;
+            });
+            // Only enforce ID match if Supabase GoTrue returned explicit credential_id fields
+            const hasExplicitCredIds = registeredPasskeys.some((pk: any) =>
+              Boolean(pk?.credential_id || pk?.credentialId || pk?.webauthn_credential_id)
+            );
+            if (hasExplicitCredIds && !matchingCred) {
+              credentialRecognized = false;
+            }
+          }
+        }
+
         if (
+          tokenVerified &&
+          credentialRecognized &&
           decrypted.approvalSignature === expectedSig &&
           decrypted.approvedAt &&
           Date.now() - decrypted.approvedAt < 180_000
@@ -2490,16 +2604,45 @@ export async function approveCompanionPasskeyHandshake(
       }
     }
 
-    // MANDATORY LIVE PASSKEY STEP-UP RIGHT THEN AND THERE
+    // MANDATORY LIVE PASSKEY STEP-UP RIGHT THEN AND THERE (real WebAuthn assertion required)
     const authRes = await authenticateFidoPasskey(undefined, {
       forceFreshCeremony: true,
     });
-    if (authRes.error || !authRes.data) {
+    const rawCred = authRes.data?.credential;
+    const webauthnAssertion: CompanionWebAuthnAssertionProof | undefined =
+      rawCred && rawCred.response
+        ? {
+            id: String(rawCred.id || ""),
+            rawId: rawCred.rawId ? String(rawCred.rawId) : undefined,
+            authenticatorData: String(rawCred.response.authenticatorData || ""),
+            clientDataJSON: String(rawCred.response.clientDataJSON || ""),
+            signature: String(rawCred.response.signature || ""),
+            challengeId: authRes.data?.challenge_id
+              ? String(authRes.data.challenge_id)
+              : undefined,
+          }
+        : undefined;
+
+    if (
+      authRes.error ||
+      !authRes.data ||
+      !validateWebAuthnAssertionProof(webauthnAssertion)
+    ) {
       return {
         success: false,
         error:
           authRes.error ||
-          new Error("Live FIDO2 Passkey verification was cancelled or failed."),
+          new Error("Live FIDO2 WebAuthn Passkey assertion is required to approve a handshake."),
+      };
+    }
+
+    const { data: currentSessData } = await supabaseAuth.auth.getSession();
+    const verifiedAccessToken =
+      authRes.data?.access_token || currentSessData?.session?.access_token || "";
+    if (!verifiedAccessToken) {
+      return {
+        success: false,
+        error: new Error("Verified session token missing after Passkey ceremony."),
       };
     }
 
@@ -2507,7 +2650,8 @@ export async function approveCompanionPasskeyHandshake(
       handshake.payload.challengeNonce,
       handshake.payload.handshakeId,
       handshake.payload.handshakeCode,
-      user.id
+      user.id,
+      webauthnAssertion!
     );
 
     const updatedPayload: CompanionPasskeyHandshakePayload = {
@@ -2516,6 +2660,8 @@ export async function approveCompanionPasskeyHandshake(
       approvedAt: Date.now(),
       approverDevice: getPasskeyDeviceLabel(),
       approvalSignature,
+      webauthnAssertion: webauthnAssertion!,
+      verifiedAccessToken,
     };
 
     const { encrypted_payload, iv, salt } = await encryptHandshakePayload(

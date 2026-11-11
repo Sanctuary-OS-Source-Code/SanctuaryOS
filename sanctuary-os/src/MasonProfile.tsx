@@ -410,12 +410,12 @@ export default function MasonProfile({
     try {
       const updateData: any = {};
       if (type === "mod") {
-        if (String(id).startsWith("ccset_")) {
-          updateData.pinned_ccset_id = id;
+        if (String(id).startsWith("collection_")) {
+          updateData.pinned_collection_id = id;
           updateData.pinned_mod_id = null;
         } else {
           updateData.pinned_mod_id = id;
-          updateData.pinned_ccset_id = null;
+          updateData.pinned_collection_id = null;
         }
       } else if (type === "blueprint") {
         updateData.pinned_blueprint_id = id;

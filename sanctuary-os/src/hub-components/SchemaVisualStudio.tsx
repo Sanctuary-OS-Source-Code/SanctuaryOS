@@ -590,34 +590,34 @@ export default function SchemaVisualStudio({
     },
     {
       id: "sims4",
-      label: t("schema_studio_preset_sims4", "The Sims 4 (DBPF + Python Script)"),
+      label: t("schema_studio_preset_sims4", "Life Simulation Engine (Binary Index + Script)"),
     },
     {
       id: "gtav",
-      label: t("schema_studio_preset_gtav", "Grand Theft Auto V (RAGE .rpf / .asi / ScriptHookV)"),
+      label: t("schema_studio_preset_gtav", "Open-World Action Engine (RAGE / Native Script)"),
     },
     {
       id: "wwe2k",
-      label: t("schema_studio_preset_wwe2k", "WWE 2K Series (Baked .cak / .pac / CakeTools)"),
+      label: t("schema_studio_preset_wwe2k", "Sports Simulation Engine (Baked Container)"),
     },
     {
       id: "skyrim",
-      label: t("schema_studio_preset_skyrim", "Skyrim / Creation Engine (.esp / .esm / .bsa / SKSE)"),
+      label: t("schema_studio_preset_skyrim", "Creation RPG Engine (Plugin Load Order + Extender)"),
     },
     {
       id: "cyberpunk2077",
       label: t(
         "schema_studio_preset_cyberpunk",
-        "Cyberpunk 2077 (REDengine .archive / REDmod / CET)"
+        "REDengine 4 (Archive Container / Script Framework)"
       ),
     },
     {
       id: "bg3",
-      label: t("schema_studio_preset_bg3", "Baldur's Gate 3 (Divinity .pak + Script Extender)"),
+      label: t("schema_studio_preset_bg3", "Divinity CRPG Engine (Container + Script Extender)"),
     },
     {
       id: "stardew",
-      label: t("schema_studio_preset_stardew", "Stardew Valley (SMAPI Folder Manifests)"),
+      label: t("schema_studio_preset_stardew", "SMAPI Indie Engine (Folder Manifests)"),
     },
   ];
 
@@ -744,7 +744,7 @@ export default function SchemaVisualStudio({
                   type="text"
                   value={parsedSchema.id ?? ""}
                   onChange={(e) => updateField("id", e.target.value)}
-                  placeholder="gtav"
+                  placeholder={t("ph_schema_id", "e.g. custom_engine")}
                   className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                 />
               </div>
@@ -757,7 +757,7 @@ export default function SchemaVisualStudio({
                   type="text"
                   value={parsedSchema.game_id ?? ""}
                   onChange={(e) => updateField("game_id", e.target.value)}
-                  placeholder="gtav"
+                  placeholder={t("ph_schema_id", "e.g. custom_engine")}
                   className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                 />
               </div>
@@ -776,7 +776,7 @@ export default function SchemaVisualStudio({
                       name: e.target.value,
                     })
                   }
-                  placeholder="Grand Theft Auto V"
+                  placeholder={t("ph_game_name", "e.g. My Community Game")}
                   className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                 />
               </div>
@@ -813,7 +813,7 @@ export default function SchemaVisualStudio({
                   type="text"
                   value={parsedSchema.steam_app_id ?? ""}
                   onChange={(e) => updateField("steam_app_id", e.target.value)}
-                  placeholder="1222670 / 271590 / 489830"
+                  placeholder={t("schema_studio_ph_steam_app_id", "e.g. 100000")}
                   className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                 />
               </div>
@@ -847,7 +847,7 @@ export default function SchemaVisualStudio({
                       : []
                   }
                   onChange={(next) => updateField("executable_names", next)}
-                  placeholder="e.g. GTA5.exe / SkyrimSE.exe / Cyberpunk2077.exe / TS4_x64.exe"
+                  placeholder={t("schema_studio_ph_exe_names", "e.g. GameLauncher.exe / ExampleGame.app")}
                   addButtonLabel={t("add", "Add")}
                 />
               </div>
@@ -863,7 +863,7 @@ export default function SchemaVisualStudio({
                     onChange={(e) =>
                       updateNestedField("paths", "executable_subdir", e.target.value)
                     }
-                    placeholder="e.g. Game/Bin or bin/x64 (Blank = Root)"
+                    placeholder={t("schema_studio_ph_exe_subdir", "e.g. bin/x64 (Blank = Root)")}
                     className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                   />
                 </div>
@@ -876,7 +876,7 @@ export default function SchemaVisualStudio({
                     type="text"
                     value={pathsObj.manifest_file ?? ""}
                     onChange={(e) => updateNestedField("paths", "manifest_file", e.target.value)}
-                    placeholder="Resource.cfg / plugins.txt / (Blank = None)"
+                    placeholder={t("schema_studio_ph_manifest_file", "load_manifest.cfg / loadorder.txt / (Blank = None)")}
                     className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                   />
                 </div>
@@ -1041,7 +1041,7 @@ export default function SchemaVisualStudio({
                 )}
                 description={t(
                   "schema_studio_shared_vanilla_desc",
-                  "Protects untouched vanilla game files when deploying to shared folders (e.g. Skyrim Data/, GTA V root, WWE 2K root)."
+                  "Protects untouched vanilla game files when deploying to shared engine or root folders."
                 )}
                 checked={Boolean(constraintsObj.mods_dir_is_shared_with_vanilla)}
                 onChange={(val) =>
@@ -1056,7 +1056,7 @@ export default function SchemaVisualStudio({
                 )}
                 description={t(
                   "schema_studio_preserve_folders_desc",
-                  "Keeps internal archive paths (e.g. meshes/, textures/, archive/pc/mod/, scripts/) intact on import."
+                  "Keeps internal archive paths (e.g. meshes/, textures/, plugins/, scripts/) intact on import."
                 )}
                 checked={Boolean(constraintsObj.preserve_archive_folder_structure)}
                 onChange={(val) =>
@@ -1149,7 +1149,7 @@ export default function SchemaVisualStudio({
                     onChange={(e) =>
                       updateNestedField("version_extraction", "relative_path", e.target.value)
                     }
-                    placeholder="e.g. Game/Bin/Default.ini"
+                    placeholder={t("schema_studio_ph_ver_rel_path", "e.g. bin/x64/EngineVersion.ini")}
                     className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
                   />
                 </div>
@@ -1197,7 +1197,7 @@ export default function SchemaVisualStudio({
                         : []
                     }
                     onChange={(next) => updateField("dlc_folder_prefixes", next)}
-                    placeholder="EP / GP / SP / mp"
+                    placeholder={t("schema_studio_ph_dlc_prefixes", "DLC_ / Expansion_")}
                     addButtonLabel={t("add", "Add")}
                   />
                 </div>
@@ -1212,7 +1212,7 @@ export default function SchemaVisualStudio({
                       Array.isArray(parsedSchema.dlc_subdirs) ? parsedSchema.dlc_subdirs : []
                     }
                     onChange={(next) => updateField("dlc_subdirs", next)}
-                    placeholder="Data / update/x64/dlcpacks"
+                    placeholder={t("schema_studio_ph_dlc_subdirs", "Data / addons / dlc")}
                     addButtonLabel={t("add", "Add")}
                   />
                 </div>
@@ -1228,7 +1228,7 @@ export default function SchemaVisualStudio({
                         : []
                     }
                     onChange={(next) => updateField("dlc_file_extensions", next)}
-                    placeholder=".esm / .rpf / .cak"
+                    placeholder={t("schema_studio_ph_dlc_exts", ".dlc / .dat")}
                     addButtonLabel={t("add", "Add")}
                   />
                 </div>
@@ -1256,7 +1256,7 @@ export default function SchemaVisualStudio({
                   <StringListBuilder
                     items={Array.isArray(extObj.supported) ? extObj.supported : []}
                     onChange={(next) => updateNestedField("extensions", "supported", next)}
-                    placeholder=".package / .rpf / .cak / .esp / .archive / .pak"
+                    placeholder={t("schema_studio_ph_supported_ext", ".bin / .dat / .dll / .lua / .ini")}
                     addButtonLabel={t("add", "Add")}
                   />
                 </div>
@@ -1268,7 +1268,7 @@ export default function SchemaVisualStudio({
                   <StringListBuilder
                     items={Array.isArray(extObj.vault_visible) ? extObj.vault_visible : []}
                     onChange={(next) => updateNestedField("extensions", "vault_visible", next)}
-                    placeholder=".package / .ini / .json"
+                    placeholder={t("schema_studio_ph_vault_ext", ".bin / .dll / .ini / .json")}
                     addButtonLabel={t("add", "Add")}
                   />
                 </div>
@@ -1316,7 +1316,7 @@ export default function SchemaVisualStudio({
                   layout="paths"
                   items={Array.isArray(extObj.cache_files) ? extObj.cache_files : []}
                   onChange={(next) => updateNestedField("extensions", "cache_files", next)}
-                  placeholder="localthumbcache.package"
+                  placeholder={t("schema_studio_ph_cache_files", "shader_cache.bin")}
                   addButtonLabel={t("add", "Add")}
                 />
               </div>
@@ -1328,8 +1328,8 @@ export default function SchemaVisualStudio({
                 <KeyValueMapBuilder
                   record={extObj.labels || {}}
                   onChange={(next) => updateNestedField("extensions", "labels", next)}
-                  keyPlaceholder="package / rpf"
-                  valPlaceholder="PACKAGE / RPF ARCHIVE"
+                  keyPlaceholder={t("schema_studio_ph_ext_key", "bin / dll")}
+                  valPlaceholder={t("schema_studio_ph_ext_val", "MODULE / PLUGIN")}
                 />
               </div>
             </div>
@@ -1343,7 +1343,7 @@ export default function SchemaVisualStudio({
                 variant="accent"
                 icon={t("icon_add", "add")}
                 onClick={() => {
-                  const defaultExt = (extObj.supported && extObj.supported[0]) || ".pak";
+                  const defaultExt = (extObj.supported && extObj.supported[0]) || ".bin";
                   const nextRoute = {
                     id: `route_${routesArr.length + 1}`,
                     label: "Custom Install Route",
@@ -1489,7 +1489,7 @@ export default function SchemaVisualStudio({
                         next[idx] = { ...route, folder_match: e.target.value };
                         updateField("install_routes", next);
                       }}
-                      placeholder="e.g. scripts / SKSE / movies"
+                      placeholder={t("schema_studio_ph_folder_match", "e.g. scripts / plugins / movies")}
                       className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
                     />
                   </div>
@@ -1505,7 +1505,7 @@ export default function SchemaVisualStudio({
                         next[idx] = { ...route, extensions: nextExts };
                         updateField("install_routes", next);
                       }}
-                      placeholder=".asi / .dll / .cak / .world"
+                      placeholder={t("schema_studio_ph_route_ext", ".asi / .dll / .bin / .lua")}
                       addButtonLabel={t("add", "Add")}
                     />
                   </div>
@@ -1598,12 +1598,12 @@ export default function SchemaVisualStudio({
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="w-8 h-8 rounded-xl glass-panel border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] flex items-center justify-center text-[var(--accent)] shrink-0">
                             <span className="material-symbols-outlined !text-[16px]">
-                              {cat.icon || "category"}
+                              {cat.icon ? t(`icon_${cat.icon}`, cat.icon) : t("icon_category", "category")}
                             </span>
                           </div>
                           <div className="flex flex-col min-w-0">
                             <span className="text-xs font-black text-[var(--text)] truncate">
-                              {cat.label || cat.id || "Category"}
+                              {cat.label || cat.id || t("category", "Category")}
                             </span>
                             <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75 truncate">
                               {`${cat.id || "id"} • ${cat.lexicon_key || `class_dd_${String(cat.id || "").toLowerCase()}`}`}
@@ -1784,7 +1784,7 @@ export default function SchemaVisualStudio({
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
                     {t("schema_studio_lo_strategy", "Load Order Strategy")}
                   </label>
-                  <CustomDropdown
+                    <CustomDropdown
                     disableTint={true}
                     value={loadOrderObj.strategy ?? "folder_priority"}
                     onChange={(v: string[]) => updateNestedField("load_order", "strategy", v[0])}
@@ -1793,14 +1793,14 @@ export default function SchemaVisualStudio({
                         id: "folder_priority",
                         label: t(
                           "schema_studio_lo_strat_folder",
-                          "Folder Priority (Resource.cfg / Tier Subfolders)"
+                          "Folder Priority (Manifest / Tier Subfolders)"
                         ),
                       },
                       {
                         id: "manifest_list",
                         label: t(
                           "schema_studio_lo_strat_manifest",
-                          "Manifest List (plugins.txt / modsettings.lsx)"
+                          "Manifest List (loadorder.txt / mod_manifest.json)"
                         ),
                       },
                       {
@@ -1861,7 +1861,7 @@ export default function SchemaVisualStudio({
                     onChange={(e) =>
                       updateNestedField("load_order", "manifest_file", e.target.value)
                     }
-                    placeholder="Resource.cfg / plugins.txt / (Blank)"
+                    placeholder={t("schema_studio_ph_manifest_file", "load_manifest.cfg / loadorder.txt / (Blank = None)")}
                     className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
                   />
                 </div>
@@ -1905,7 +1905,7 @@ export default function SchemaVisualStudio({
                   rows={4}
                   value={parsedSchema.manifest_content ?? ""}
                   onChange={(e) => updateField("manifest_content", e.target.value)}
-                  placeholder="Optional manifest file header or base Resource.cfg template..."
+                  placeholder={t("schema_studio_ph_manifest_content", "Optional manifest file header or base load-order template...")}
                   className="w-full glass-panel rounded-xl p-3.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                 />
               </div>
@@ -2106,7 +2106,7 @@ export default function SchemaVisualStudio({
                               };
                               updateField("exception_logs", next);
                             }}
-                            placeholder="lastexception"
+                            placeholder={t("schema_studio_ph_log_starts", "crash_report")}
                             className="h-10 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
                           />
                         </div>
@@ -2172,7 +2172,7 @@ export default function SchemaVisualStudio({
                     onChange={(next) =>
                       updateNestedField("time_capsule", "world_state_targets", next)
                     }
-                    namePlaceholder="Saves"
+                    namePlaceholder={t("schema_studio_ph_world_name", "User Saves")}
                     pathPlaceholder="saves"
                   />
                 </div>
@@ -2211,7 +2211,7 @@ export default function SchemaVisualStudio({
                     onChange={(next) =>
                       updateNestedField("time_capsule", "save_airgap_targets", next)
                     }
-                    placeholder="saves / Profiles / Saves"
+                    placeholder={t("schema_studio_ph_airgap_dirs", "saves / profiles")}
                     addButtonLabel={t("add", "Add")}
                   />
                 </div>
@@ -2225,7 +2225,7 @@ export default function SchemaVisualStudio({
                     onChange={(next) =>
                       updateNestedField("lab_verification", "save_extensions", next)
                     }
-                    placeholder=".save / .ess / .lsv / .dat / .sgta"
+                    placeholder={t("schema_studio_ph_save_exts", ".save / .dat / .sav")}
                     addButtonLabel={t("add", "Add")}
                   />
                 </div>

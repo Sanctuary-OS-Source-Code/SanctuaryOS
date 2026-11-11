@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLexicon } from '../LexiconContext';
 import { CustomDropdown, HoverTooltip } from '../shared';
+import { readDataPathValue } from './workbenchFormatUtils';
 
 interface WorkbenchVisualEditorProps {
    settings: any[];
@@ -90,7 +91,7 @@ export const isSettingModified = (setting: any, dataSource: any, parentPath = ""
    }
 
    if (setting.default === undefined) return false;
-   const val = dataPath.split('.').reduce((o: any, i: string) => o?.[i], dataSource);
+   const val = readDataPathValue(dataSource, dataPath);
    if (val === undefined) return false;
    return JSON.stringify(val) !== JSON.stringify(setting.default);
 };
@@ -121,8 +122,8 @@ export const isSettingEditedFromSaved = (setting: any, dataSource: any, savedDat
       return setting.settings.some((child: any) => isSettingEditedFromSaved(child, dataSource, savedDataSource, isVirt ? "" : dataPath, isVirt));
    }
 
-   const val = dataPath.split('.').reduce((o: any, i: string) => o?.[i], dataSource);
-   const savedVal = dataPath.split('.').reduce((o: any, i: string) => o?.[i], savedDataSource);
+   const val = readDataPathValue(dataSource, dataPath);
+   const savedVal = readDataPathValue(savedDataSource, dataPath);
    if (val === undefined && savedVal === undefined) return false;
    return JSON.stringify(val) !== JSON.stringify(savedVal);
 };
@@ -856,8 +857,8 @@ export const WorkbenchVisualEditor: React.FC<WorkbenchVisualEditorProps> = ({
          );
       }
 
-      const val = dataSource && dataPath ? dataPath.split('.').reduce((o: any, i: string) => o?.[i], dataSource) : undefined;
-      const savedVal = savedDataSource && dataPath ? dataPath.split('.').reduce((o: any, i: string) => o?.[i], savedDataSource) : undefined;
+      const val = dataSource && dataPath ? readDataPathValue(dataSource, dataPath) : undefined;
+      const savedVal = savedDataSource && dataPath ? readDataPathValue(savedDataSource, dataPath) : undefined;
 
       if (setting.type === "group") {
          return (
@@ -881,7 +882,7 @@ export const WorkbenchVisualEditor: React.FC<WorkbenchVisualEditorProps> = ({
          );
       }
 
-      const actualHighlightKey = highlightedKey ? highlightedKey.split('::')[0] : null;
+      const actualHighlightKey = highlightedKey ? highlightedKey.replace(/@ts:\d+$/, '') : null;
       const isHighlighted = actualHighlightKey === dataPath;
 
       return (

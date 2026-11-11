@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { EmptyState } from "./shared";
+import { EmptyState, VAULT_CHIP_CLASS } from "./shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "./components/layouts/ElevatedHubLayout";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
@@ -7,8 +7,6 @@ import TicketDossierSidePanel from './side-panels/TicketDossierSidePanel';
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
-
-const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?: string, onEditMetadata?: (hash: string) => void }) {
     const { t } = useLexicon();

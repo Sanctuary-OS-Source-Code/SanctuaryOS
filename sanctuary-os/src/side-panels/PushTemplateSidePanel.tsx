@@ -73,11 +73,15 @@ export function PushTemplateSidePanel({
         .single();
       if (mData && mData.name) authorName = mData.name;
 
+      const { escapePostgrestFilterValue } = await import("../utils/postgrestUtils");
+      const safeAuthorName = escapePostgrestFilterValue(authorName) || "Citizen";
+      const safeFallbackName = escapePostgrestFilterValue(fallbackName) || "Citizen";
+
       const { data } = await supabase
         .from("nexus_assets")
         .select("*")
         .or(
-          `author.ilike.%${authorName}%,author.ilike.%Citizen%,author.ilike.%Sanctuary%,author.ilike.%${fallbackName}%`
+          `author.ilike.%${safeAuthorName}%,author.ilike.%Citizen%,author.ilike.%Sanctuary%,author.ilike.%${safeFallbackName}%`
         )
         .eq("asset_type", "workbench_template");
       if (data) {
@@ -310,7 +314,7 @@ export function PushTemplateSidePanel({
                 type="text"
                 value={targetFile}
                 onChange={(e) => setTargetFile(e.target.value)}
-                placeholder={t("auto_e_g_mc_24", "e.g. mc_settings.cfg")}
+                placeholder={t("ph_file_name", "e.g. mod_settings.ini")}
                 className="w-full h-11 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[var(--accent)] rounded-xl px-4 text-xs font-mono text-[var(--text)] focus:outline-none transition-all"
               />
             </div>

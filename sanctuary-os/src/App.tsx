@@ -1,6 +1,7 @@
 import { TitleBar } from "./TitleBar";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -25,53 +26,54 @@ import { supabase, supabaseAuth, getActiveGameClient, isStandaloneFork, RESOLVED
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { check } from "@tauri-apps/plugin-updater";
-import ArchitectHub from "./ArchitectHub";
-import GlobalFeed from "./GlobalFeed";
-import Settings from "./SettingsTab";
 import { ModData, SidePanel, deriveHumanReadableVersion, loadDLCMap, getExtensionRegex, PixelSnapper } from "./shared";
-import ModDossier from "./ModDossier";
-import BlueprintArchitect from "./BlueprintArchitect";
-import Nexus from "./Nexus";
-import { DbpfScout } from "./DbpfScout";
 import { useLexicon } from "./LexiconContext";
-import WebLandingPage from "./WebLandingPage";
 import { isDesktop, isLinuxDesktop } from "./utils/envUtils";
 import { isRootDomain, getSubdomain } from "./utils/routingUtils";
 import { Sidebar } from "./Sidebar";
 import { MobileBottomNav } from "./MobileBottomNav";
-import NotificationSidebar from "./side-panels/NotificationSidebar";
-import CitizenTicketsSidePanel from "./side-panels/CitizenTicketsSidePanel";
 import { NexusUpdatesChecker } from "./NexusUpdatesChecker";
-import MasonHub from "./MasonHub";
-import MasonProfile from "./MasonProfile";
-import MasonPostViewer from "./side-panels/MasonPostViewer";
-import SupportHub from "./SupportHub";
 import CommandCenter from "./CommandCenter";
-import Blueprints from "./Blueprints";
-import StagingPayloadEditor from "./components/StagingPayloadEditor";
 import { DevBuildClearanceGate } from "./components/DevBuildClearanceGate";
 import { ElevatedPasskeyGate, CompanionPasskeyHandshakeApprover } from "./components/ElevatedPasskeyGate";
 import { getCitizenSecurityPolicy } from "./utils/passkeyUtils";
 import Vault from "./Vault";
-import Lab from "./Lab";
 import { scrubLogUserData, buildFormattedLabReportText, extractReportLoadoutFromLogAndContext } from "./utils/logScrubber";
 import { matchExceptionRules } from "./components/KnownErrorDiagnosisBanner";
 import { isUnrelatedGameBugLog, getExceptionRules } from "./components/KnownExceptionRules";
-import TimeCapsule from "./TimeCapsule";
-import Oversight from "./Oversight";
-import WayfinderHub from "./WayfinderHub";
-import KeepersCore from "./KeepersCore";
-import { UpdateSidePanel } from './side-panels/UpdateSidePanel';
-import { NexusUpdatesSidePanel } from './side-panels/NexusUpdatesSidePanel';
-import { SupporterCelebrationSidePanel } from './side-panels/SupporterCelebrationSidePanel';
 import { GlobalCommandPalette } from './side-panels/GlobalCommandPalette';
-import CitizensWorkbench from "./CitizensWorkbench";
 import { createPortal } from "react-dom";
 import { ContextMenu } from "./ContextMenu";
 import { GlobalTooltip } from "./GlobalTooltip";
 import { useTooltipStore } from "./store/tooltipStore";
 import { useTheme } from "./ThemeContext";
 import { SystemBackground } from "./SystemBackground";
+
+const ArchitectHub = React.lazy(() => import("./ArchitectHub"));
+const GlobalFeed = React.lazy(() => import("./GlobalFeed"));
+const Settings = React.lazy(() => import("./SettingsTab"));
+const ModDossier = React.lazy(() => import("./ModDossier"));
+const BlueprintArchitect = React.lazy(() => import("./BlueprintArchitect"));
+const Nexus = React.lazy(() => import("./Nexus"));
+const ArtifactScout = React.lazy(() => import("./ArtifactScout").then((m) => ({ default: m.ArtifactScout })));
+const WebLandingPage = React.lazy(() => import("./WebLandingPage"));
+const NotificationSidebar = React.lazy(() => import("./side-panels/NotificationSidebar"));
+const CitizenTicketsSidePanel = React.lazy(() => import("./side-panels/CitizenTicketsSidePanel"));
+const MasonHub = React.lazy(() => import("./MasonHub"));
+const MasonProfile = React.lazy(() => import("./MasonProfile"));
+const MasonPostViewer = React.lazy(() => import("./side-panels/MasonPostViewer"));
+const SupportHub = React.lazy(() => import("./SupportHub"));
+const Blueprints = React.lazy(() => import("./Blueprints"));
+const StagingPayloadEditor = React.lazy(() => import("./components/StagingPayloadEditor"));
+const Lab = React.lazy(() => import("./Lab"));
+const TimeCapsule = React.lazy(() => import("./TimeCapsule"));
+const Oversight = React.lazy(() => import("./Oversight"));
+const WayfinderHub = React.lazy(() => import("./WayfinderHub"));
+const KeepersCore = React.lazy(() => import("./KeepersCore"));
+const UpdateSidePanel = React.lazy(() => import("./side-panels/UpdateSidePanel").then((m) => ({ default: m.UpdateSidePanel })));
+const NexusUpdatesSidePanel = React.lazy(() => import("./side-panels/NexusUpdatesSidePanel").then((m) => ({ default: m.NexusUpdatesSidePanel })));
+const SupporterCelebrationSidePanel = React.lazy(() => import("./side-panels/SupporterCelebrationSidePanel").then((m) => ({ default: m.SupporterCelebrationSidePanel })));
+const CitizensWorkbench = React.lazy(() => import("./CitizensWorkbench"));
 import {
   dispatchSanctuaryNotification,
   getNotificationMode,
@@ -409,6 +411,18 @@ function App() {
   const [activeSandboxMod, setActiveSandboxMod] = useState<ModData | null>(null);
   const [testErrorFound, setTestErrorFound] = useState(false);
   const [logWatcher, setLogWatcher] = useState<any>(null);
+  const logWatcherRef = useRef<any>(null);
+  useEffect(() => {
+    logWatcherRef.current = logWatcher;
+  }, [logWatcher]);
+  useEffect(() => {
+    return () => {
+      if (logWatcherRef.current) {
+        clearInterval(logWatcherRef.current);
+        logWatcherRef.current = null;
+      }
+    };
+  }, []);
   const [testLogSnippet, setTestLogSnippet] = useState<string>("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [labSearchQuery, setLabSearchQuery] = useState("");
@@ -464,10 +478,15 @@ function App() {
       } else if (panel === "mod_dossier") {
         if (open) {
           const list = useStore.getState().modList || [];
+          const defaultExtRaw =
+            useStore.getState().activeGameSchema?.extensions?.supported?.[0] || ".mod";
+          const defaultExt = defaultExtRaw.startsWith(".")
+            ? defaultExtRaw
+            : `.${defaultExtRaw}`;
           const sampleMod =
             list.find((m: any) => !m.isVirtual && m.name) ||
             list[0] || {
-              name: "Sanctuary_Core_Module.package",
+              name: `Sanctuary_Core_Module${defaultExt}`,
               displayName: "Sanctuary Core Module",
               author: "Sanctuary Foundry",
               version: "1.0.0",
@@ -509,7 +528,11 @@ function App() {
         const last = (localStorage.getItem('sanctuary_last_active_workspace') || '').trim();
         if (last && last !== 'default_workspace' && last !== 'global') return last;
       } catch {}
-      return 'sims4';
+      const wsList = useStore.getState().workspaces || [];
+      const firstWs = wsList.find(
+        (w: any) => w?.id && w.id !== 'default_workspace' && w.id !== 'global'
+      );
+      return firstWs?.id || '';
     };
 
     if (typeof window !== 'undefined') {
@@ -520,8 +543,10 @@ function App() {
 
         if ((wantHandshake || wantNotifs) && !isDesktop() && isRootDomain()) {
           const targetSpoke = resolveDefaultWebSpoke();
-          window.location.replace(`/${targetSpoke}${window.location.search}${window.location.hash || ''}`);
-          return;
+          if (targetSpoke) {
+            window.location.replace(`/${targetSpoke}${window.location.search}${window.location.hash || ''}`);
+            return;
+          }
         }
 
         let cleaned = false;
@@ -728,6 +753,7 @@ function App() {
 
     let interval: any = null;
     let realtimeChannel: any = null;
+    let subscribedClient: any = null;
 
     const setupNetworkFeatures = async () => {
       fetchUnread();
@@ -735,44 +761,49 @@ function App() {
         interval = setInterval(fetchUnread, 30000);
       }
       if (session?.user?.id && !realtimeChannel && navigator.onLine && localStorage.getItem('sanctuary_local_only') !== 'true') {
-        realtimeChannel = supabase
-          .channel(`sanctuary_user_notifs_${session.user.id}`)
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'notifications',
-              filter: `user_id=eq.${session.user.id}`,
-            },
-            () => {
-              fetchUnread();
-            }
-          )
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'system_broadcasts',
-            },
-            (payload: any) => {
-              const row = payload?.new;
-              if (row?.id && row?.is_active) {
-                const isUrgent = Boolean(row.is_pinned) || String(row.category || '').includes('Alert');
-                dispatchSanctuaryNotification({
-                  uniqueId: isUrgent ? `urgent_broadcast:${row.id}` : `broadcast:${row.id}`,
-                  category: isUrgent ? 'alert_banner' : 'system_dispatch',
-                  spokeId: activeWorkspaceId || undefined,
-                  title: row.title || t('notify_system_dispatch', 'System Dispatch'),
-                  body: row.message || row.content || '',
-                  data: { broadcastId: row.id, type: 'system_broadcast' },
-                });
+        const spokeClient = getActiveGameClient();
+        const targetClient = spokeClient || (isStandaloneFork ? supabaseAuth : null);
+        if (targetClient) {
+          subscribedClient = targetClient;
+          realtimeChannel = targetClient
+            .channel(`sanctuary_user_notifs_${session.user.id}_${activeWorkspaceId || 'spoke'}`)
+            .on(
+              'postgres_changes',
+              {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'notifications',
+                filter: `user_id=eq.${session.user.id}`,
+              },
+              () => {
+                fetchUnread();
               }
-              fetchUnread();
-            }
-          )
-          .subscribe();
+            )
+            .on(
+              'postgres_changes',
+              {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'system_broadcasts',
+              },
+              (payload: any) => {
+                const row = payload?.new;
+                if (row?.id && row?.is_active) {
+                  const isUrgent = Boolean(row.is_pinned) || String(row.category || '').includes('Alert');
+                  dispatchSanctuaryNotification({
+                    uniqueId: isUrgent ? `urgent_broadcast:${row.id}` : `broadcast:${row.id}`,
+                    category: isUrgent ? 'alert_banner' : 'system_dispatch',
+                    spokeId: activeWorkspaceId || undefined,
+                    title: row.title || t('notify_system_dispatch', 'System Dispatch'),
+                    body: row.message || row.content || '',
+                    data: { broadcastId: row.id, type: 'system_broadcast' },
+                  });
+                }
+                fetchUnread();
+              }
+            )
+            .subscribe();
+        }
       }
     };
 
@@ -791,9 +822,13 @@ function App() {
 
     return () => {
       if (interval) clearInterval(interval);
-      if (realtimeChannel && typeof realtimeChannel.unsubscribe === 'function') {
+      if (realtimeChannel) {
         try {
-          realtimeChannel.unsubscribe();
+          if (subscribedClient && typeof subscribedClient.removeChannel === 'function') {
+            subscribedClient.removeChannel(realtimeChannel);
+          } else if (typeof realtimeChannel.unsubscribe === 'function') {
+            realtimeChannel.unsubscribe();
+          }
         } catch (e) {}
       }
       window.removeEventListener('refresh_notifications', fetchUnread);
@@ -820,11 +855,17 @@ function App() {
           if (await exists(fullPath)) {
             const contents = await readTextFile(fullPath);
             loadedSets = JSON.parse(contents);
+            try {
+              localStorage.removeItem(`sanctuary_${activeWorkspaceId}_playsets`);
+            } catch {}
           } else {
             const cached = localStorage.getItem(`sanctuary_${activeWorkspaceId}_playsets`);
             if (cached) {
               loadedSets = JSON.parse(cached);
               await writeTextFile(fullPath, JSON.stringify(loadedSets));
+              try {
+                localStorage.removeItem(`sanctuary_${activeWorkspaceId}_playsets`);
+              } catch {}
             }
           }
         } else {
@@ -1161,7 +1202,135 @@ function App() {
   const [tier2Hashes] = useState<string[]>([]);
   const { uploadBlueprintToCloud, syncBlueprintByCode, massIngestToCloud } = useCloudService(activeMasonProfileId, tier2Hashes);
 
-  const { snapshotModal, setSnapshotModal, snapshotName, setSnapshotName, bulkModal, setBulkModal, bulkName, setBulkName, isBulkMode, setIsBulkMode, selectedMods, setSelectedMods, renameModal, setRenameModal, renameTarget, setRenameTarget, nameInput, setNameInput, localFolderModal, setLocalFolderModal, localFolderType, setLocalFolderType, localFolderName, setLocalFolderName, missingImportMods, setMissingImportMods, pendingImportSet, setPendingImportSet, syncCode, setSyncCode, confirmDialog, setConfirmDialog, isDropzoneOpen, setIsDropzoneOpen, isDragging, setIsDragging, dropzoneState, setDropzoneState, droppedFiles, setDroppedFiles, showBrokenModal, setShowBrokenModal, showQuarantineModal, setShowQuarantineModal, isBackingUp, isRestoring, ingestProgress, setIngestProgress, isScanning, showDefconAlert, setShowDefconAlert, yeetConfirmPending, setYeetConfirmPending, dnaMatchQueue, setDnaMatchQueue, edgeOverrideQueue, setEdgeOverrideQueue, scoutQueue, setScoutQueue } = useModalStore();
+  const {
+    snapshotModal,
+    setSnapshotModal,
+    snapshotName,
+    setSnapshotName,
+    bulkModal,
+    setBulkModal,
+    bulkName,
+    setBulkName,
+    isBulkMode,
+    setIsBulkMode,
+    selectedMods,
+    setSelectedMods,
+    renameModal,
+    setRenameModal,
+    renameTarget,
+    setRenameTarget,
+    nameInput,
+    setNameInput,
+    localFolderModal,
+    setLocalFolderModal,
+    localFolderType,
+    setLocalFolderType,
+    localFolderName,
+    setLocalFolderName,
+    missingImportMods,
+    setMissingImportMods,
+    pendingImportSet,
+    setPendingImportSet,
+    syncCode,
+    setSyncCode,
+    confirmDialog,
+    setConfirmDialog,
+    isDropzoneOpen,
+    setIsDropzoneOpen,
+    isDragging,
+    setIsDragging,
+    dropzoneState,
+    setDropzoneState,
+    droppedFiles,
+    setDroppedFiles,
+    showBrokenModal,
+    setShowBrokenModal,
+    showQuarantineModal,
+    setShowQuarantineModal,
+    isBackingUp,
+    isRestoring,
+    ingestProgress,
+    setIngestProgress,
+    isScanning,
+    showDefconAlert,
+    setShowDefconAlert,
+    yeetConfirmPending,
+    setYeetConfirmPending,
+    dnaMatchQueue,
+    setDnaMatchQueue,
+    edgeOverrideQueue,
+    setEdgeOverrideQueue,
+    scoutQueue,
+    setScoutQueue,
+    isUpdatePanelOpen,
+    isNexusUpdatesPanelOpen,
+    isSupportPanelOpen,
+  } = useModalStore(
+    useShallow((s) => ({
+      snapshotModal: s.snapshotModal,
+      setSnapshotModal: s.setSnapshotModal,
+      snapshotName: s.snapshotName,
+      setSnapshotName: s.setSnapshotName,
+      bulkModal: s.bulkModal,
+      setBulkModal: s.setBulkModal,
+      bulkName: s.bulkName,
+      setBulkName: s.setBulkName,
+      isBulkMode: s.isBulkMode,
+      setIsBulkMode: s.setIsBulkMode,
+      selectedMods: s.selectedMods,
+      setSelectedMods: s.setSelectedMods,
+      renameModal: s.renameModal,
+      setRenameModal: s.setRenameModal,
+      renameTarget: s.renameTarget,
+      setRenameTarget: s.setRenameTarget,
+      nameInput: s.nameInput,
+      setNameInput: s.setNameInput,
+      localFolderModal: s.localFolderModal,
+      setLocalFolderModal: s.setLocalFolderModal,
+      localFolderType: s.localFolderType,
+      setLocalFolderType: s.setLocalFolderType,
+      localFolderName: s.localFolderName,
+      setLocalFolderName: s.setLocalFolderName,
+      missingImportMods: s.missingImportMods,
+      setMissingImportMods: s.setMissingImportMods,
+      pendingImportSet: s.pendingImportSet,
+      setPendingImportSet: s.setPendingImportSet,
+      syncCode: s.syncCode,
+      setSyncCode: s.setSyncCode,
+      confirmDialog: s.confirmDialog,
+      setConfirmDialog: s.setConfirmDialog,
+      isDropzoneOpen: s.isDropzoneOpen,
+      setIsDropzoneOpen: s.setIsDropzoneOpen,
+      isDragging: s.isDragging,
+      setIsDragging: s.setIsDragging,
+      dropzoneState: s.dropzoneState,
+      setDropzoneState: s.setDropzoneState,
+      droppedFiles: s.droppedFiles,
+      setDroppedFiles: s.setDroppedFiles,
+      showBrokenModal: s.showBrokenModal,
+      setShowBrokenModal: s.setShowBrokenModal,
+      showQuarantineModal: s.showQuarantineModal,
+      setShowQuarantineModal: s.setShowQuarantineModal,
+      isBackingUp: s.isBackingUp,
+      isRestoring: s.isRestoring,
+      ingestProgress: s.ingestProgress,
+      setIngestProgress: s.setIngestProgress,
+      isScanning: s.isScanning,
+      showDefconAlert: s.showDefconAlert,
+      setShowDefconAlert: s.setShowDefconAlert,
+      yeetConfirmPending: s.yeetConfirmPending,
+      setYeetConfirmPending: s.setYeetConfirmPending,
+      dnaMatchQueue: s.dnaMatchQueue,
+      setDnaMatchQueue: s.setDnaMatchQueue,
+      edgeOverrideQueue: s.edgeOverrideQueue,
+      setEdgeOverrideQueue: s.setEdgeOverrideQueue,
+      scoutQueue: s.scoutQueue,
+      setScoutQueue: s.setScoutQueue,
+      isUpdatePanelOpen: s.isUpdatePanelOpen,
+      isNexusUpdatesPanelOpen: s.isNexusUpdatesPanelOpen,
+      isSupportPanelOpen: s.isSupportPanelOpen,
+    }))
+  );
 
   const {
     createLocalFolder,
@@ -1180,25 +1349,12 @@ function App() {
   const ignoredHashesRef = useRef<Set<string>>(new Set());
   const networkCheckIdRef = useRef<number>(0);
   useEffect(() => {
-    let unlisten: any;
+    let unlistenEdge: (() => void) | null = null;
+    let unlistenMalware: (() => void) | null = null;
+    let cancelled = false;
     if (isDesktop()) {
-      if (isDesktop()) {
-        listen("dna_match_detected", (event: any) => {
-          const { hash, path } = event.payload;
-          if (hash && ignoredHashesRef.current.has(hash)) {
-            return;
-          }
-          if (!hash && ignoredHashesRef.current.has(path)) {
-            return;
-          }
-          setDnaMatchQueue((prev: any[]) => {
-            const isDuplicate = prev.some((m) => (hash ? m.hash === hash : m.path === path));
-            if (isDuplicate) return prev;
-            return [...prev, event.payload];
-          });
-        }).then((handler) => { unlisten = handler; });
-
-        listen("edge_override_detected", async (event: any) => {
+      listen("edge_override_detected", async (event: any) => {
+        if (cancelled) return;
           try {
             const payload = event.payload || {};
             const data = payload.override_json ? JSON.parse(payload.override_json) : {};
@@ -1328,7 +1484,8 @@ function App() {
               data.game_id ||
               embeddedManifest?.artifact?.game_id ||
               useStore.getState().activeGameSchema?.id ||
-              "sims4";
+              useStore.getState().activeWorkspaceId ||
+              "default_workspace";
             const activeVaultPath = useStore.getState().vaultPath || vaultPath;
 
             let fetchedManifest: any = embeddedManifest;
@@ -1459,14 +1616,13 @@ function App() {
           } catch (e) {
             console.error("Failed to process edge_override_detected payload", e);
           }
-        });
-      }
-    }
+      }).then((unlisten) => {
+        if (cancelled) unlisten();
+        else unlistenEdge = unlisten;
+      });
 
-    let unlistenMalware: () => void;
-    let isMounted = true;
-    if (isDesktop()) {
       listen("malware_detected", async (event: any) => {
+        if (cancelled) return;
         const debounceKey = `${event.payload.hash}`;
         if (!event.payload.hash || insertingHashes.current.has(debounceKey)) return;
         insertingHashes.current.add(debounceKey);
@@ -1508,15 +1664,15 @@ function App() {
             console.error("Malware Report Insert Exception (listen):", e);
           }
         }
-      }).then(unlisten => {
-        if (!isMounted) unlisten();
+      }).then((unlisten) => {
+        if (cancelled) unlisten();
         else unlistenMalware = unlisten;
       });
     }
 
     return () => {
-      isMounted = false;
-      if (unlisten) unlisten();
+      cancelled = true;
+      if (unlistenEdge) unlistenEdge();
       if (unlistenMalware) unlistenMalware();
     };
   }, []);
@@ -1661,6 +1817,7 @@ function App() {
         setLivePath(config?.live_path || "");
         setModsPath(config?.mods_path || "");
         setVaultPath(config?.vault_path || "");
+        useStore.getState().setDocsPath(config?.docs_path || config?.user_data_path || "");
 
         let resolvedWorkspaceId = globalConfig?.active_workspace_id;
         if (!resolvedWorkspaceId || resolvedWorkspaceId === 'default_workspace') {
@@ -1669,8 +1826,7 @@ function App() {
         if (!resolvedWorkspaceId || resolvedWorkspaceId === 'default_workspace') {
           const w = useStore.getState().workspaces;
           if (w && w.length > 0) {
-            const sims4 = w.find(ws => ws.id === 'sims4');
-            resolvedWorkspaceId = sims4 ? sims4.id : w[0].id;
+            resolvedWorkspaceId = w[0].id;
           }
           else resolvedWorkspaceId = 'default_workspace';
         }
@@ -1755,41 +1911,40 @@ function App() {
     }
   }, [view]);
   useEffect(() => {
-    const unlisten = isDesktop() ? listen("vault_changed", () => fetchBackups()) : Promise.resolve(() => { });
     const handleRefresh = () => runRadarSweep(true);
     window.addEventListener("refreshVault", handleRefresh);
     return () => {
-      unlisten.then((f) => f());
       window.removeEventListener("refreshVault", handleRefresh);
     };
   }, []);
 
   useEffect(() => {
-    let unlisten: any;
+    let unlisten: (() => void) | null = null;
+    let cancelled = false;
 
     if (!activeGameSchema?.extensions?.supported) return;
 
     if (isDesktop()) {
-      // Start the Rust downloads watcher
-      if (isDesktop()) {
-        invoke("start_downloads_watch", {
-          extensions: activeGameSchema.extensions.supported
-        }).catch(console.warn);
+      invoke("start_downloads_watch", {
+        extensions: activeGameSchema.extensions.supported
+      }).catch(console.warn);
 
-        listen("download_intercepted", (event: any) => {
-          useModalStore.getState().setDownloadsQueue((prev: string[]) => {
-            if (!prev.includes(event.payload.path)) {
-              return [...prev, event.payload.path];
-            }
-            return prev;
-          });
-        }).then((handler) => {
-          unlisten = handler;
+      listen("download_intercepted", (event: any) => {
+        if (cancelled) return;
+        useModalStore.getState().setDownloadsQueue((prev: string[]) => {
+          if (!prev.includes(event.payload.path)) {
+            return [...prev, event.payload.path];
+          }
+          return prev;
         });
-      }
+      }).then((handler) => {
+        if (cancelled) handler();
+        else unlisten = handler;
+      });
     }
 
     return () => {
+      cancelled = true;
       if (unlisten) unlisten();
       if (isDesktop()) if (isDesktop()) invoke("stop_downloads_watch").catch(console.warn);
     };
@@ -2014,6 +2169,7 @@ function App() {
           setLivePath(config.live_path);
           setModsPath(config.mods_path);
           setVaultPath(config.vault_path);
+          useStore.getState().setDocsPath(config.docs_path || config.user_data_path || "");
 
           const currentSchema = useStore.getState().activeGameSchema;
           if (currentSchema) {
@@ -2026,11 +2182,13 @@ function App() {
             fetchCloudLabQueue();
           }, 20);
           invoke("initialize_vault_watch").catch(console.warn);
-          const docsBase = config.mods_path.replace(/[\\/]Mods[\\/]?$/i, "");
-          invoke("initialize_airgap_watch", {
-            docsPath: docsBase,
-            vaultPath: config.vault_path,
-          }).catch(console.warn);
+          const docsBase = String(config.docs_path || config.user_data_path || "").trim();
+          if (docsBase) {
+            invoke("initialize_airgap_watch", {
+              docsPath: docsBase,
+              vaultPath: config.vault_path,
+            }).catch(console.warn);
+          }
 
           invoke("initialize_settings_watch", {
             modsPath: config.mods_path,
@@ -2047,7 +2205,7 @@ function App() {
   }, []);
 
 
-  async function checkNetworkUpdates(currentModList: ModData[]) {
+  async function checkNetworkUpdates(currentModList: ModData[], isManualSweep: boolean = false) {
     const currentCheckId = ++networkCheckIdRef.current;
     try {
       const syncedMods = currentModList.filter(
@@ -2092,8 +2250,18 @@ function App() {
         await Promise.all(queryPromises);
       }
 
-      // --- DECENTRALIZED STATIC EDGE MANIFEST POLLING ---
-      const edgeBindings = new Map<string, { artifactId?: string; hashes: Set<string>; masonId?: string }>();
+      // --- DECENTRALIZED STATIC EDGE MANIFEST POLLING (V2 BATCHED) ---
+      type EdgeBindingEntry = {
+        bindingKey: string;
+        manifestUrl: string;
+        artifactId: string;
+        hashes: Set<string>;
+        masonId?: string;
+        localHash?: string;
+        localVersion?: string;
+      };
+      const edgeBindings = new Map<string, EdgeBindingEntry>();
+      const hashToBindingKey = new Map<string, string>();
       let localOvrMap: Record<string, any> = {};
       let edgeLogicMap: Record<string, any> = {};
       try {
@@ -2103,25 +2271,69 @@ function App() {
         edgeLogicMap = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
       } catch (e) {}
 
-      const addEdgeBinding = (url: string | undefined, hash?: string, artifactId?: string, masonId?: string) => {
-        if (!url || !/^https?:\/\//i.test(url.trim())) return;
+      const addEdgeBinding = (
+        url: string | undefined,
+        hash?: string,
+        artifactId?: string,
+        masonId?: string,
+        localVersion?: string,
+      ) => {
+        if (!url) return;
         const cleanUrl = url.trim();
-        if (!edgeBindings.has(cleanUrl)) {
-          edgeBindings.set(cleanUrl, { artifactId, hashes: new Set<string>(), masonId });
+        if (
+          !/^https:\/\//i.test(cleanUrl) ||
+          cleanUrl.includes("your-domain.com") ||
+          cleanUrl.includes("example.com")
+        ) {
+          return;
         }
-        const entry = edgeBindings.get(cleanUrl)!;
-        if (artifactId && !entry.artifactId) entry.artifactId = artifactId;
+        const cleanHash = hash ? String(hash).trim() : "";
+        const hashLookupKey = cleanHash ? `${cleanUrl}::${cleanHash.toLowerCase()}` : "";
+        const existingKeyForHash = hashLookupKey ? hashToBindingKey.get(hashLookupKey) : undefined;
+
+        const normArtifactId = String(artifactId || cleanHash || cleanUrl).trim();
+        const compositeKey = existingKeyForHash || `${cleanUrl}::${normArtifactId.toLowerCase()}`;
+
+        if (!edgeBindings.has(compositeKey)) {
+          edgeBindings.set(compositeKey, {
+            bindingKey: compositeKey,
+            manifestUrl: cleanUrl,
+            artifactId: normArtifactId,
+            hashes: new Set<string>(),
+            masonId,
+            localHash: cleanHash || undefined,
+            localVersion: localVersion || undefined,
+          });
+        }
+        const entry = edgeBindings.get(compositeKey)!;
+        if (artifactId && (!entry.artifactId || entry.artifactId === entry.localHash)) {
+          entry.artifactId = String(artifactId).trim();
+        }
         if (masonId && !entry.masonId) entry.masonId = masonId;
-        if (hash) entry.hashes.add(hash);
+        if (cleanHash) {
+          entry.hashes.add(cleanHash);
+          if (!entry.localHash) entry.localHash = cleanHash;
+          hashToBindingKey.set(hashLookupKey, compositeKey);
+        }
+        if (localVersion && !entry.localVersion) {
+          entry.localVersion = localVersion;
+        }
       };
 
-      const currentVaultPath = useStore.getState().vaultPath || vaultPath;
+      const storeSnapshot = useStore.getState();
+      const currentVaultPath = storeSnapshot.vaultPath || vaultPath;
+      const activeGameId = String(
+        storeSnapshot.activeWorkspaceId || storeSnapshot.activeGameSchema?.id || "",
+      ).trim();
       let edgeLogicDirty = false;
       let localOvrDirty = false;
 
       if (isDesktop() && currentVaultPath) {
         try {
-          const sqliteRows = await invoke<any[]>("get_all_edge_manifests", { vaultPath: currentVaultPath });
+          const sqliteRows = await invoke<any[]>("get_all_edge_manifests", {
+            vaultPath: currentVaultPath,
+            gameId: activeGameId || null,
+          });
           for (const row of sqliteRows || []) {
             addEdgeBinding(row.manifest_url, row.target_hash, row.artifact_id, row.mason_id);
             const rowHashes = [
@@ -2167,26 +2379,27 @@ function App() {
       }
 
       Object.entries(localOvrMap).forEach(([h, ovr]: [string, any]) => {
-        if (ovr?.manifest_url) addEdgeBinding(ovr.manifest_url, h, ovr.displayName, ovr.author);
-        else if (typeof ovr?.url === "string" && /\.json(\?.*)?$/i.test(ovr.url.trim())) {
-          addEdgeBinding(ovr.url.trim(), h, ovr.displayName, ovr.author);
+        if (ovr?.manifest_url) {
+          addEdgeBinding(ovr.manifest_url, h, ovr.artifact_id || ovr.displayName, ovr.author, ovr.version);
+        } else if (typeof ovr?.url === "string" && /\.json(\?.*)?$/i.test(ovr.url.trim())) {
+          addEdgeBinding(ovr.url.trim(), h, ovr.artifact_id || ovr.displayName, ovr.author, ovr.version);
         }
       });
       Object.entries(edgeLogicMap).forEach(([h, logic]: [string, any]) => {
         if (logic?.manifest_url) {
-          addEdgeBinding(logic.manifest_url, h, logic.artifact_id || logic.name, logic.author);
+          addEdgeBinding(logic.manifest_url, h, logic.artifact_id || logic.name, logic.author, logic.version);
         }
       });
       syncedMods.forEach((m: any) => {
         if (m.manifest_url && m.hash) {
-          addEdgeBinding(m.manifest_url, m.hash, m.displayName || m.name, m.author);
+          addEdgeBinding(m.manifest_url, m.hash, m.artifact_id || m.displayName || m.name, m.author, m.version);
         } else if (
           m.hash &&
           typeof m.url === "string" &&
           /\.json(\?.*)?$/i.test(m.url.trim()) &&
           (Number(m.compliance_tier || 0) >= 1 || !m.dbId || String(m.status || "").toLowerCase() === "unverified")
         ) {
-          addEdgeBinding(m.url.trim(), m.hash, m.displayName || m.name, m.author);
+          addEdgeBinding(m.url.trim(), m.hash, m.artifact_id || m.displayName || m.name, m.author, m.version);
         }
       });
 
@@ -2197,48 +2410,45 @@ function App() {
 
       let debugLog = "";
 
-      if (edgeBindings.size > 0 && navigator.onLine) {
-        for (const [manifestUrl, binding] of edgeBindings.entries()) {
-          if (
-            manifestUrl.includes("your-domain.com") ||
-            manifestUrl.includes("example.com")
-          ) {
-            continue;
+      if (edgeBindings.size > 0 && navigator.onLine && isDesktop() && currentVaultPath) {
+        const bindingList = Array.from(edgeBindings.values());
+        const urlBindingCounts = new Map<string, number>();
+        for (const b of bindingList) {
+          urlBindingCounts.set(b.manifestUrl, (urlBindingCounts.get(b.manifestUrl) || 0) + 1);
+        }
+
+        const targets = bindingList.map((b) => ({
+          artifact_id: b.artifactId,
+          manifest_url: b.manifestUrl,
+          local_hash: b.localHash || Array.from(b.hashes)[0] || null,
+          local_version: b.localVersion || null,
+        }));
+
+        try {
+          const pollResults = await invoke<any[]>("poll_edge_manifests_batch", {
+            vaultPath: currentVaultPath,
+            gameId: activeGameId,
+            targets,
+            force: Boolean(isManualSweep),
+          });
+
+          const resultsByKey = new Map<string, any>();
+          for (const item of pollResults || []) {
+            if (item?.manifest_url && item?.artifact_id) {
+              resultsByKey.set(
+                `${String(item.manifest_url).trim()}::${String(item.artifact_id).trim().toLowerCase()}`,
+                item,
+              );
+            }
           }
-          try {
-            let manifest: any = null;
-            if (isDesktop() && currentVaultPath && binding.artifactId) {
-              try {
-                manifest = await invoke<any>("fetch_and_sync_edge_manifest", {
-                  vaultPath: currentVaultPath,
-                  artifactId: binding.artifactId,
-                });
-              } catch (e) {}
-            }
-            if (!manifest) {
-              const resp = await fetch(manifestUrl);
-              if (resp.ok) {
-                const rawJson = await resp.json();
-                const candidates = Array.isArray(rawJson)
-                  ? rawJson
-                  : Array.isArray(rawJson?.artifacts)
-                    ? rawJson.artifacts
-                    : Array.isArray(rawJson?.manifests)
-                      ? rawJson.manifests
-                      : null;
-                if (candidates) {
-                  const needle = String(binding.artifactId || "").toLowerCase();
-                  manifest =
-                    candidates.find(
-                      (c: any) =>
-                        String(c?.artifact?.id || "").toLowerCase() === needle ||
-                        String(c?.artifact?.name || "").toLowerCase() === needle,
-                    ) || candidates[0];
-                } else {
-                  manifest = rawJson;
-                }
-              }
-            }
+
+          for (let idx = 0; idx < bindingList.length; idx++) {
+            const binding = bindingList[idx];
+            const manifestUrl = binding.manifestUrl;
+            const itemResult =
+              resultsByKey.get(`${manifestUrl}::${binding.artifactId.toLowerCase()}`) ||
+              pollResults?.[idx];
+            const manifest = itemResult?.manifest;
             if (!manifest || !manifest.artifact) continue;
 
             const currentReleaseHashes = new Set<string>(
@@ -2272,13 +2482,23 @@ function App() {
               ].filter(Boolean),
             );
 
-            const lowerFamilyHashes = new Set<string>(Array.from(allFamilyHashes).map((h) => h.toLowerCase()));
-            const matchedLocalMods = syncedMods.filter(
-              (m: any) =>
-                (m.hash && lowerFamilyHashes.has(String(m.hash).toLowerCase())) ||
-                m.manifest_url === manifestUrl ||
-                (m.hash && localOvrMap[m.hash]?.manifest_url === manifestUrl),
+            const lowerFamilyHashes = new Set<string>(
+              Array.from(allFamilyHashes).map((h) => h.toLowerCase()),
             );
+            const isSharedUrl = (urlBindingCounts.get(manifestUrl) || 0) > 1;
+            const matchedLocalMods = syncedMods.filter((m: any) => {
+              const mHashLower = m.hash ? String(m.hash).toLowerCase() : "";
+              if (mHashLower && lowerFamilyHashes.has(mHashLower)) return true;
+              if (!isSharedUrl) {
+                return (
+                  m.manifest_url === manifestUrl ||
+                  (m.hash && localOvrMap[m.hash]?.manifest_url === manifestUrl)
+                );
+              }
+              const needle = String(manifest.artifact?.id || binding.artifactId || "").toLowerCase();
+              const mNameLower = String(m.displayName || m.name || "").toLowerCase();
+              return Boolean(needle && mNameLower && mNameLower === needle);
+            });
 
             matchedLocalMods.forEach((m: any) => {
               if (m.hash) allFamilyHashes.add(m.hash);
@@ -2332,7 +2552,7 @@ function App() {
                 manifest.artifact?.status ||
                   manifest.status ||
                   manifest.atomic_logic?.status ||
-                  ""
+                  "",
               )
                 .toLowerCase()
                 .trim();
@@ -2360,7 +2580,7 @@ function App() {
                   cleanLocalVer !== "local" &&
                   cleanLocalVer !== ".local" &&
                   cleanEdgeVer !== cleanLocalVer &&
-                  !isInCurrentRelease
+                  !isInCurrentRelease,
                 );
 
                 if (hashDiffers || versionDiffers) {
@@ -2377,9 +2597,9 @@ function App() {
                 }
               }
             }
-          } catch (edgeErr) {
-            console.warn("Edge manifest poll failed for", manifestUrl, edgeErr);
           }
+        } catch (edgeErr) {
+          console.warn("Edge manifest batch poll failed", edgeErr);
         }
       }
 
@@ -2974,7 +3194,13 @@ function App() {
   const { handleQuickLaunch } = useLaunchLogic(askCustom, triggerPrePatchSnapshot, equipPlaySet);
 
   useDefconRadar(t, askCustom, triggerPrePatchSnapshot, triggerFullEngineBackup);
-  useGlobalListeners(fetchBackups, askCustom, t, triggerPrePatchSnapshot, triggerFullEngineBackup);
+  useGlobalListeners(fetchBackups, askCustom, t, triggerPrePatchSnapshot, triggerFullEngineBackup, ignoredHashesRef);
+
+  const resolveUserDataDir = (config: any): string =>
+    useStore.getState().docsPath ||
+    config?.docs_path ||
+    config?.user_data_path ||
+    String(config?.mods_path || "").replace(/[\\/][^\\/]+[\\/]?$/, "");
 
   async function executeHotSwap() {
     if (!activeLabMod) return;
@@ -2988,7 +3214,7 @@ function App() {
       setStatus(t("status_injecting", "Injecting..."));
       await invoke("move_to_lab", { filename: activeLabMod.physical_path || activeLabMod.name });
       const config: any = await invoke("get_saved_coordinates");
-      const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
+      const dPath = resolveUserDataDir(config);
       setStatus(t("status_purging_logs", "Deleting Logs..."));
       await invoke("airgap_saves", { docsPath: dPath, enable: true });
       await invoke("clear_old_logs", { docsPath: dPath });
@@ -3002,6 +3228,9 @@ function App() {
       await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
       setTestErrorFound(false);
       setTestLogSnippet("");
+      if (logWatcherRef.current) {
+        clearInterval(logWatcherRef.current);
+      }
       const interval = setInterval(async () => {
         const res = await invoke<string>("scan_game_logs", { docsPath: dPath });
         if (res !== "Clean" && !isUnrelatedGameBugLog(res, useStore.getState().activeGameSchema)) {
@@ -3009,9 +3238,11 @@ function App() {
           setTestLogSnippet(res);
           setStatus(`${t("status_fatal_error", "Fatal:")} ${res.substring(0, 50)}...`);
           clearInterval(interval);
+          logWatcherRef.current = null;
           setLogWatcher(null);
         }
       }, 5000);
+      logWatcherRef.current = interval;
       setLogWatcher(interval);
     } catch (err) {
       const errStr = typeof err === "string" ? err : (err as any)?.message || String(err);
@@ -3216,13 +3447,17 @@ function App() {
     if (!targetMod) return false;
     const isError = errorFoundOverride !== undefined ? errorFoundOverride : testErrorFound;
     setStatus(t("status_evaluating", "Evaluating Test Results..."));
+    if (logWatcherRef.current) {
+      clearInterval(logWatcherRef.current);
+      logWatcherRef.current = null;
+    }
     if (logWatcher) {
       clearInterval(logWatcher);
       setLogWatcher(null);
     }
     try {
       const config: any = await invoke("get_saved_coordinates");
-      const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
+      const dPath = resolveUserDataDir(config);
       await invoke("stop_lab_verification_session");
       await invoke("airgap_saves", { docsPath: dPath, enable: false });
     } catch (e) { }
@@ -3647,7 +3882,7 @@ function App() {
       setShelterActive(true);
       fetchVault();
 
-      const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
+      const dPath = resolveUserDataDir(config);
       setStatus(t("status_purging_logs", "Deleting Logs..."));
       await invoke("airgap_saves", { docsPath: dPath, enable: true });
       await invoke("clear_old_logs", { docsPath: dPath });
@@ -3676,6 +3911,9 @@ function App() {
 
       setTestErrorFound(false);
       setTestLogSnippet("");
+      if (logWatcherRef.current) {
+        clearInterval(logWatcherRef.current);
+      }
       const interval = setInterval(async () => {
         const res = await invoke<string>("scan_game_logs", { docsPath: dPath });
         if (res !== "Clean") {
@@ -3684,11 +3922,13 @@ function App() {
           setTestLogSnippet(scrubbedRes);
           setStatus(`${t("status_fatal_error", "Fatal:")} ${scrubbedRes.substring(0, 50)}...`);
           clearInterval(interval);
+          logWatcherRef.current = null;
           setLogWatcher(null);
           // Do NOT disable save airgap while the game/tool is still running!
           // Airgap remains engaged until concludeTest() or repopulate_from_shelter().
         }
       }, 5000);
+      logWatcherRef.current = interval;
       setLogWatcher(interval as any);
     } catch (err) {
       const errStr = typeof err === "string" ? err : (err as any)?.message || String(err);
@@ -3806,7 +4046,7 @@ function App() {
           >
             <div className="relative z-10 w-full min-h-full pb-[100px] max-md:pb-[40px]">
               {isGlobalConfigLoaded && (
-                <>
+                <Suspense fallback={null}>
                   {(view === "landing" || ((!isConfigured || (!isDesktop() && isRootDomain())) && view !== "settings" && view !== "KeepersCore")) ? (
                     <WebLandingPage />
                   ) : (
@@ -3819,7 +4059,7 @@ function App() {
                       roleLabelKey="auth_citizen_lockdown_role_label"
                       roleLabelFallback="{Citizen} Account Lockdown"
                     >
-                      {(view === "dashboard" || view === "BlueprintArchitect") && (
+                      {view === "dashboard" && (
                         <div style={{ width: '100%', height: '100%' }}>
                           <ErrorBoundary moduleName="Command Center">
                             <CommandCenter
@@ -4036,7 +4276,7 @@ function App() {
                         ) && (
                           <ErrorBoundary moduleName="Architect Hub">
                             <ElevatedPasskeyGate requirePasskey={true} roleLabelKey="passkey_gate_role_architect" roleLabelFallback="Architect">
-                              <ArchitectHub key={activeWorkspaceId || 'no-workspace'} userRole={userRole} equipPlaySet={equipPlaySet} modList={modList} setStatus={setStatus} />
+                              <ArchitectHub key={activeWorkspaceId || 'no-workspace'} userRole={userRole} equipPlaySet={equipPlaySet} modList={modList} setStatus={setStatus} onOpenDossier={setActiveDossier} onOpenMasonProfile={handleOpenMasonProfile} />
                             </ElevatedPasskeyGate>
                           </ErrorBoundary>
                         )}
@@ -4064,7 +4304,7 @@ function App() {
                             </ElevatedPasskeyGate>
                           </ErrorBoundary>
                         )}
-                      {view === "DbpfScout" && <DbpfScout key={activeWorkspaceId || 'no-workspace'} />}
+                      {view === "ArtifactScout" && <ArtifactScout key={activeWorkspaceId || 'no-workspace'} />}
                       {view === "CitizensWorkbench" && <CitizensWorkbench key={activeWorkspaceId || 'no-workspace'} onOpenMasonProfile={handleOpenMasonProfile} />}
                       {view === "settings" && (
                         <ErrorBoundary moduleName="Settings">
@@ -4085,35 +4325,38 @@ function App() {
                       )}
                     </ElevatedPasskeyGate>
                   )}
-                </>
+                </Suspense>
               )}
             </div>
           </main>
           {isMasonProfilePanelOpen && activeMasonProfileId && (
             <ErrorBoundary moduleName="Mason Profile SidePanel">
-              <MasonProfile
-                isSidePanel={true}
-                isOpen={isMasonProfilePanelOpen}
-                onClose={() => setIsMasonProfilePanelOpen(false)}
-                onOpenFullProfile={() => {
-                  setIsMasonProfilePanelOpen(false);
-                  setView("MasonProfile");
-                }}
-                backdropZ={masonProfileAboveDossier ? "z-[121000]" : "z-[118000]"}
-                panelZ={masonProfileAboveDossier ? "z-[121001]" : "z-[118001]"}
-                masonId={activeMasonProfileId}
-                initialPostId={activeMasonPostId}
-                onModClick={(mod: any) => {
-                  setMasonProfileAboveDossier(false);
-                  setActiveDossier(mod);
-                }}
-                syncBlueprintByCode={syncBlueprintByCode}
-              />
+              <Suspense fallback={null}>
+                <MasonProfile
+                  isSidePanel={true}
+                  isOpen={isMasonProfilePanelOpen}
+                  onClose={() => setIsMasonProfilePanelOpen(false)}
+                  onOpenFullProfile={() => {
+                    setIsMasonProfilePanelOpen(false);
+                    setView("MasonProfile");
+                  }}
+                  backdropZ={masonProfileAboveDossier ? "z-[121000]" : "z-[118000]"}
+                  panelZ={masonProfileAboveDossier ? "z-[121001]" : "z-[118001]"}
+                  masonId={activeMasonProfileId}
+                  initialPostId={activeMasonPostId}
+                  onModClick={(mod: any) => {
+                    setMasonProfileAboveDossier(false);
+                    setActiveDossier(mod);
+                  }}
+                  syncBlueprintByCode={syncBlueprintByCode}
+                />
+              </Suspense>
             </ErrorBoundary>
           )}
           {activeDossier && (
             <ErrorBoundary moduleName="ModDossier">
-              <ModDossier
+              <Suspense fallback={null}>
+                <ModDossier
                 mod={activeDossier}
                 modList={modList}
                 ownedDLC={ownedDLC}
@@ -4196,6 +4439,7 @@ function App() {
                   }
                 }}
               />
+              </Suspense>
             </ErrorBoundary>
           )}
           <AppModals
@@ -4315,23 +4559,28 @@ function App() {
             statusLog={statusLog}
             clearStatusLog={clearStatusLog}
           />
-          {isNotificationSidebarOpen && (
-            <NotificationSidebar
-              onClose={() => setIsNotificationSidebarOpen(false)}
-              onOpenPost={setGlobalViewingPost}
-            />
-          )}
+          <Suspense fallback={null}>
+            {isNotificationSidebarOpen && (
+              <NotificationSidebar
+                onClose={() => setIsNotificationSidebarOpen(false)}
+                onOpenPost={setGlobalViewingPost}
+              />
+            )}
+          </Suspense>
           <NexusUpdatesChecker />
-          {globalViewingPost && (
-            <MasonPostViewer
-              post={globalViewingPost}
-              onClose={() => setGlobalViewingPost(null)}
-              onOpenMasonProfile={handleOpenMasonProfile}
-              userId={session?.user?.id}
-            />
-          )}
-
-          <CitizenTicketsSidePanel isOpen={isCitizenTicketsOpen} onClose={() => setIsCitizenTicketsOpen(false)} userId={session?.user?.id} />
+          <Suspense fallback={null}>
+            {globalViewingPost && (
+              <MasonPostViewer
+                post={globalViewingPost}
+                onClose={() => setGlobalViewingPost(null)}
+                onOpenMasonProfile={handleOpenMasonProfile}
+                userId={session?.user?.id}
+              />
+            )}
+            {isCitizenTicketsOpen && (
+              <CitizenTicketsSidePanel isOpen={isCitizenTicketsOpen} onClose={() => setIsCitizenTicketsOpen(false)} userId={session?.user?.id} />
+            )}
+          </Suspense>
           <GlobalCommandPalette
             onInspectMod={(mod) => {
               window.dispatchEvent(new CustomEvent("sanctuary-open-dossier", { detail: mod }));
@@ -4372,10 +4621,12 @@ function App() {
             }}
           />
           <DevBuildClearanceGate />
-          <UpdateSidePanel />
-          <SupporterCelebrationSidePanel />
-          <NexusUpdatesSidePanel />
-          <SupportHub />
+          <Suspense fallback={null}>
+            {isUpdatePanelOpen && <UpdateSidePanel />}
+            <SupporterCelebrationSidePanel />
+            {isNexusUpdatesPanelOpen && <NexusUpdatesSidePanel />}
+            {isSupportPanelOpen && <SupportHub />}
+          </Suspense>
           <ContextMenu />
           <GlobalTooltip />
           <PixelSnapper />

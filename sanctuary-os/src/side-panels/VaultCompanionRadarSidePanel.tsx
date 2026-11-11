@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useShallow } from "zustand/react/shallow";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
@@ -8,17 +9,15 @@ import {
   DashboardStatTile,
   EmptyState,
   SidePanel,
+  VAULT_CHIP_CLASS,
   cleanSearchName,
-   getModIcon,
+  getModIcon,
 } from "../shared";
 import { SidePanelHeroCard, UniversalGroup } from "../components/layouts/ElevatedHubLayout";
 import {
   VaultCompanionSnapshot,
   resolvePayloadDependencies,
 } from "../utils/stagingCrypto";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 function resolveKnownAuthor(mod: any, fallbackText: string): string {
   const explicit = String(mod?.master_author || mod?.author || "").trim();
@@ -31,24 +30,6 @@ function resolveKnownAuthor(mod: any, fallbackText: string): string {
   ) {
     return explicit;
   }
-  const n = String(mod?.name || mod?.displayName || "").toLowerCase();
-  if (n.includes("mc command") || n.startsWith("mc ") || n.startsWith("mc_") || n.includes("mccc"))
-    return "Deaderpool";
-  if (n.includes("wickedwhims") || n.includes("wonderfulwhims") || n.startsWith("ww_"))
-    return "TURBODRIVER";
-  if (n.includes("ui cheats") || n.includes("ui_cheats")) return "weerbesu";
-  if (n.includes("xml injector") || n.includes("xmlinjector")) return "Scumbumbo";
-  if (n.includes("basemental")) return "Basemental";
-  if (n.includes("lumpinou") || n.includes("rpo_") || n.includes("relationship & pregnancy"))
-    return "Lumpinou";
-  if (n.includes("littlemssam") || n.startsWith("lms_")) return "LittleMsSam";
-  if (n.includes("twistedmexi") || n.includes("betterbuildbuy") || n.includes("tool mod"))
-    return "TwistedMexi";
-  if (n.includes("kawaiistacie")) return "KawaiiStacie";
-  if (n.includes("adeepindigo")) return "adeepindigo";
-  if (n.includes("kiarasims")) return "KiaraSims4Mods";
-  if (n.includes("lot51") || n.includes("lot 51")) return "Lot 51";
-  if (n.includes("pandasama")) return "PandaSama";
   return fallbackText;
 }
 
@@ -80,7 +61,18 @@ export default function VaultCompanionRadarSidePanel({
     setStagingDraftMode,
     setStagingDraftName,
     setStagingTargetDesktopBlueprint,
-  } = useModalStore();
+  } = useModalStore(
+    useShallow((s) => ({
+      stagingDraftItems: s.stagingDraftItems,
+      setStagingDraftItems: s.setStagingDraftItems,
+      stagingDraftRemovedItems: s.stagingDraftRemovedItems,
+      toggleModInStagingDraft: s.toggleModInStagingDraft,
+      toggleRemoveModInStagingDraft: s.toggleRemoveModInStagingDraft,
+      setStagingDraftMode: s.setStagingDraftMode,
+      setStagingDraftName: s.setStagingDraftName,
+      setStagingTargetDesktopBlueprint: s.setStagingTargetDesktopBlueprint,
+    }))
+  );
 
   const [filterMode, setFilterMode] = useState<
     "ISSUES" | "CRITICAL" | "ALERTS" | "UPDATES" | "ALL"

@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useMemo, useCallback } from "react";
@@ -52,7 +53,7 @@ export function compileLoadOrder(
       ? "001_<file>"
       : strategy === "timestamp"
       ? "mtime"
-      : loadOrderCfg.manifest_file || (strategy === "manifest_list" ? "loadorder.txt" : "Resource.cfg");
+      : loadOrderCfg.manifest_file || (strategy === "manifest_list" ? "loadorder.txt" : "");
   const prefixFormat = loadOrderCfg.prefix_format || "{index:03}_";
   const priorityTiers: { id: string; label: string; folder: string; priority: number }[] =
     Array.isArray(loadOrderCfg.priority_tiers) && loadOrderCfg.priority_tiers.length > 0
@@ -711,8 +712,9 @@ export async function precomputeBlueprintConflicts(
   if (!scopeName) return null;
   try {
     let vaultPath = vaultPathOverride;
+    let config: any = null;
     if (!vaultPath) {
-      const config: any = await invoke("get_saved_coordinates");
+      config = await invoke("get_saved_coordinates");
       vaultPath = config?.vault_path;
     }
     if (!vaultPath) return null;
@@ -725,10 +727,11 @@ export async function precomputeBlueprintConflicts(
       .map((m: any) => (typeof m === "string" ? m : m?.name || m?.path || ""))
       .filter(Boolean);
 
-    const targetPath = `${vaultPath}/Mods`;
+    const targetPath = state.modsPath || config?.mods_path || vaultPath;
     const report = await invoke<any>("run_conflict_radar", {
       modsPath: targetPath,
       targetFiles,
+      gameSchema: state.activeGameSchema,
     });
 
     const isClone = (modA: string, modB: string) => {
@@ -739,7 +742,7 @@ export async function precomputeBlueprintConflicts(
         const ext = extMatch ? extMatch[1].toLowerCase() : "";
         const cleaned = file
           .toLowerCase()
-          .replace(/(_hq|_nonhq|_v\d+|_alt|_remake|remake|\.[a-zA-Z0-9]+)/g, "")
+          .replace(/(_v\d+|_alt|_remake|remake|\.[a-zA-Z0-9]+)/g, "")
           .replace(/[^a-z0-9]/g, "");
         return cleaned + "_" + ext;
       };
@@ -844,10 +847,245 @@ export async function precomputeBlueprintConflicts(
   }
 }
 
+interface ModIndicesBundle {
+  modMap: Map<string, any>;
+  hashToMod: Map<string, any>;
+  baseToMod: Map<string, any>;
+  byDbId: Map<string, any>;
+  byFamilyOrDbId: Map<string, any[]>;
+  bySetId: Map<string, any[]>;
+  byFlavorGroup: Map<string, any[]>;
+  byCommunityGroup: Map<string, any[]>;
+  byParsedBaseName: Map<string, any[]>;
+  normRelToMod: Map<string, any>;
+  normBaseToMod: Map<string, any>;
+  modsWithConflicts: any[];
+  modsWithRequirements: any[];
+  namesAndDisplayNames: {
+    name: string;
+    displayNameUpper: string;
+    displayNameSpaced: string;
+    orig: any;
+  }[];
+  precomputedBaseNames: Map<string, string>;
+}
+
+let cachedModIndicesListRef: any = null;
+let cachedModIndicesSchemaRef: any = null;
+let cachedModIndicesResult: ModIndicesBundle | null = null;
+
+function executeConflictOverride(
+  activeGameSchema: any,
+  setPlaySets: any,
+  setIgnoredGlobal: any,
+  winnerName: string,
+  modPair: string,
+  currentScopeName: string,
+  targetTierFolder?: string,
+  loserName?: string
+): boolean {
+  try {
+    const schemaTiers = activeGameSchema?.load_order?.priority_tiers || [];
+    const firstOverrideTier =
+      targetTierFolder ||
+      schemaTiers.find((pt: any) => pt.folder && pt.folder.length > 0)?.folder ||
+      "Sanctuary";
+    const knownFoldersLower = new Set(
+      ["sanctuary", "sanctuary2", "sanctuary3", ...schemaTiers.map((pt: any) => (pt.folder || "").toLowerCase())].filter(Boolean)
+    );
+
+    setPlaySets((prevSets: any[]) => {
+      const playSetIndex = prevSets.findIndex((p: any) => p.name.toLowerCase() === currentScopeName.toLowerCase());
+      if (playSetIndex !== -1) {
+        const updatedSets = [...prevSets];
+        const currentSet = { ...updatedSets[playSetIndex] };
+        const newMods = [...currentSet.mods];
+        const rawWinnerStr = typeof winnerName === "string" ? winnerName : (winnerName as any)?.name || "";
+        const cleanWinnerFile = rawWinnerStr.split(/[\\/]/).pop() || rawWinnerStr;
+        const cleanWinner = cleanWinnerFile.replace(getExtensionRegex(activeGameSchema), "").toLowerCase();
+
+        const index = newMods.findIndex((m: any) => {
+          const strM = typeof m === "string" ? m : m.name || m.path || "";
+          const cleanM = (strM.split(/[\\/]/).pop() || strM)
+            .replace(getExtensionRegex(activeGameSchema), "")
+            .toLowerCase();
+          return cleanM === cleanWinner;
+        });
+
+        let canonicalWinnerFile = cleanWinnerFile;
+        if (index !== -1) {
+          const strM = typeof newMods[index] === "string" ? newMods[index] : newMods[index].name || newMods[index].path || "";
+          const segs = strM.replace(/\\/g, "/").split("/");
+          if (segs.length > 1 && knownFoldersLower.has(segs[0].toLowerCase())) {
+            segs.shift();
+          }
+          const baseRel = segs.join("/");
+          canonicalWinnerFile = baseRel.split("/").pop() || cleanWinnerFile;
+          const nextPath = firstOverrideTier ? `${firstOverrideTier}/${baseRel}` : baseRel;
+          if (typeof newMods[index] === "string") {
+            newMods[index] = nextPath;
+          } else {
+            newMods[index] = { ...newMods[index], name: nextPath, path: nextPath };
+          }
+        } else if (cleanWinnerFile) {
+          newMods.push(firstOverrideTier ? `${firstOverrideTier}/${cleanWinnerFile}` : cleanWinnerFile);
+        }
+
+        const nextModTiers = { ...(currentSet.modTiers || {}) };
+        if (canonicalWinnerFile) {
+          nextModTiers[canonicalWinnerFile] = firstOverrideTier;
+        }
+
+        let nextLoadRules: LoadOrderRule[] = Array.isArray(currentSet.loadRules) ? [...currentSet.loadRules] : [];
+        const resolvedLoser =
+          loserName ||
+          (modPair && modPair.includes("::")
+            ? modPair
+                .split("::")
+                .find((part) => !cleanWinner.includes(part.toLowerCase()) && !part.toLowerCase().includes(cleanWinner))
+            : undefined);
+        if (canonicalWinnerFile && resolvedLoser) {
+          const rawLoserFile = resolvedLoser.split(/[\\/]/).pop() || resolvedLoser;
+          const cleanLoserNoExt = rawLoserFile.replace(getExtensionRegex(activeGameSchema), "").toLowerCase();
+          let canonicalLoserFile = rawLoserFile;
+          const loserIdx = newMods.findIndex((m: any) => {
+            const strM = typeof m === "string" ? m : m.name || m.path || "";
+            const cleanM = (strM.split(/[\\/]/).pop() || strM)
+              .replace(getExtensionRegex(activeGameSchema), "")
+              .toLowerCase();
+            return cleanM === cleanLoserNoExt;
+          });
+          if (loserIdx !== -1) {
+            const strL = typeof newMods[loserIdx] === "string" ? newMods[loserIdx] : newMods[loserIdx].name || newMods[loserIdx].path || "";
+            canonicalLoserFile = strL.split(/[\\/]/).pop() || rawLoserFile;
+          }
+          const wLow = canonicalWinnerFile.toLowerCase();
+          const lLow = canonicalLoserFile.toLowerCase();
+          const wNoExt = wLow.replace(getExtensionRegex(activeGameSchema), "");
+          const lNoExt = lLow.replace(getExtensionRegex(activeGameSchema), "");
+          nextLoadRules = nextLoadRules.filter((r) => {
+            const rA = (r.modA || "").toLowerCase();
+            const rB = (r.modB || "").toLowerCase();
+            const rANoExt = rA.replace(getExtensionRegex(activeGameSchema), "");
+            const rBNoExt = rB.replace(getExtensionRegex(activeGameSchema), "");
+            return !(
+              ((rA === wLow || rANoExt === wNoExt) && (rB === lLow || rBNoExt === lNoExt)) ||
+              ((rA === lLow || rANoExt === lNoExt) && (rB === wLow || rBNoExt === wNoExt))
+            );
+          });
+          nextLoadRules.push({
+            id: `rule_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            modA: canonicalWinnerFile,
+            modB: canonicalLoserFile,
+            type: "after",
+          });
+        }
+
+        const prevIgnoredSet: string[] = Array.isArray(currentSet.ignoredConflicts)
+          ? currentSet.ignoredConflicts
+          : [];
+        const nextIgnoredSet =
+          modPair && !prevIgnoredSet.includes(modPair)
+            ? [...prevIgnoredSet, modPair]
+            : prevIgnoredSet;
+
+        currentSet.mods = deduplicateBlueprintArtifacts(newMods, activeGameSchema);
+        currentSet.modTiers = nextModTiers;
+        currentSet.loadRules = nextLoadRules;
+        currentSet.ignoredConflicts = nextIgnoredSet;
+        updatedSets[playSetIndex] = currentSet;
+        return updatedSets;
+      }
+      return prevSets;
+    });
+
+    setIgnoredGlobal((prevIgnored: string[]) => {
+      if (!prevIgnored.includes(modPair)) {
+        const updatedIgnored = [...prevIgnored, modPair];
+        localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(updatedIgnored));
+        window.dispatchEvent(new Event("storage"));
+        return updatedIgnored;
+      }
+      return prevIgnored;
+    });
+
+    return true;
+  } catch (err) {
+    console.error(`Error applying override: ${err}`);
+    return false;
+  }
+}
+
+export function useConflictOverride() {
+  const { activeGameSchema, setPlaySets, setIgnoredGlobal } = useStore(
+    useShallow((s) => ({
+      activeGameSchema: s.activeGameSchema,
+      setPlaySets: s.setPlaySets,
+      setIgnoredGlobal: s.setIgnoredGlobal,
+    }))
+  );
+
+  return useCallback(
+    (
+      winnerName: string,
+      modPair: string,
+      currentScopeName: string,
+      targetTierFolder?: string,
+      loserName?: string
+    ) =>
+      executeConflictOverride(
+        activeGameSchema,
+        setPlaySets,
+        setIgnoredGlobal,
+        winnerName,
+        modPair,
+        currentScopeName,
+        targetTierFolder,
+        loserName
+      ),
+    [activeGameSchema, setPlaySets, setIgnoredGlobal]
+  );
+}
+
 export function usePlaySetLogic() {
-  const { playSets, setPlaySets, activePlaySetIndex, setActivePlaySetIndex, activeSetName, setActiveSetName, anarchyRules, modList, activeGameSchema, setStatus, ownedDLC, maskedDLC, setIgnoredGlobal } = useStore();
+  const {
+    playSets,
+    setPlaySets,
+    activePlaySetIndex,
+    setActivePlaySetIndex,
+    activeSetName,
+    setActiveSetName,
+    anarchyRules,
+    modList,
+    activeGameSchema,
+    setStatus,
+    ownedDLC,
+    maskedDLC,
+    setIgnoredGlobal,
+  } = useStore(
+    useShallow((s) => ({
+      playSets: s.playSets,
+      setPlaySets: s.setPlaySets,
+      activePlaySetIndex: s.activePlaySetIndex,
+      setActivePlaySetIndex: s.setActivePlaySetIndex,
+      activeSetName: s.activeSetName,
+      setActiveSetName: s.setActiveSetName,
+      anarchyRules: s.anarchyRules,
+      modList: s.modList,
+      activeGameSchema: s.activeGameSchema,
+      setStatus: s.setStatus,
+      ownedDLC: s.ownedDLC,
+      maskedDLC: s.maskedDLC,
+      setIgnoredGlobal: s.setIgnoredGlobal,
+    }))
+  );
   const { t } = useLexicon();
-  const { setPendingImportSet, setMissingImportMods } = useModalStore();
+  const { setPendingImportSet, setMissingImportMods } = useModalStore(
+    useShallow((s) => ({
+      setPendingImportSet: s.setPendingImportSet,
+      setMissingImportMods: s.setMissingImportMods,
+    }))
+  );
 
   const {
     modMap,
@@ -866,6 +1104,13 @@ export function usePlaySetLogic() {
     namesAndDisplayNames,
     precomputedBaseNames,
   } = useMemo(() => {
+    if (
+      cachedModIndicesResult &&
+      cachedModIndicesListRef === modList &&
+      cachedModIndicesSchemaRef === activeGameSchema
+    ) {
+      return cachedModIndicesResult;
+    }
     const extRegex = getExtensionRegex(activeGameSchema);
     const m1 = new Map<string, any>();
     const m2 = new Map<string, any>();
@@ -942,7 +1187,7 @@ export function usePlaySetLogic() {
       if (parsedBase) pushToMap(byParsedBaseName, parsedBase, m);
     });
 
-    return {
+    const computedResult = {
       modMap: m1,
       hashToMod: m2,
       baseToMod: m3,
@@ -959,6 +1204,10 @@ export function usePlaySetLogic() {
       namesAndDisplayNames,
       precomputedBaseNames,
     };
+    cachedModIndicesListRef = modList;
+    cachedModIndicesSchemaRef = activeGameSchema;
+    cachedModIndicesResult = computedResult;
+    return computedResult;
   }, [modList, activeGameSchema]);
 
   const toggleInActiveSet = useCallback(
@@ -2342,144 +2591,26 @@ export function usePlaySetLogic() {
     });
   };
 
-  const applyConflictOverride = (
-    winnerName: string,
-    modPair: string,
-    currentScopeName: string,
-    targetTierFolder?: string,
-    loserName?: string
-  ) => {
-    try {
-      const schemaTiers = activeGameSchema?.load_order?.priority_tiers || [];
-      const firstOverrideTier =
-        targetTierFolder ||
-        schemaTiers.find((pt: any) => pt.folder && pt.folder.length > 0)?.folder ||
-        "Sanctuary";
-      const knownFoldersLower = new Set(
-        ["sanctuary", "sanctuary2", "sanctuary3", ...schemaTiers.map((pt: any) => (pt.folder || "").toLowerCase())].filter(Boolean)
-      );
-
-      setPlaySets((prevSets: any[]) => {
-        const playSetIndex = prevSets.findIndex((p: any) => p.name.toLowerCase() === currentScopeName.toLowerCase());
-        if (playSetIndex !== -1) {
-          const updatedSets = [...prevSets];
-          const currentSet = { ...updatedSets[playSetIndex] };
-          const newMods = [...currentSet.mods];
-          const rawWinnerStr = typeof winnerName === "string" ? winnerName : (winnerName as any)?.name || "";
-          const cleanWinnerFile = rawWinnerStr.split(/[\\/]/).pop() || rawWinnerStr;
-          const cleanWinner = cleanWinnerFile.replace(getExtensionRegex(activeGameSchema), "").toLowerCase();
-
-          const index = newMods.findIndex((m: any) => {
-            const strM = typeof m === "string" ? m : m.name || m.path || "";
-            const cleanM = (strM.split(/[\\/]/).pop() || strM)
-              .replace(getExtensionRegex(activeGameSchema), "")
-              .toLowerCase();
-            return cleanM === cleanWinner;
-          });
-
-          let canonicalWinnerFile = cleanWinnerFile;
-          if (index !== -1) {
-            const strM = typeof newMods[index] === "string" ? newMods[index] : newMods[index].name || newMods[index].path || "";
-            const segs = strM.replace(/\\/g, "/").split("/");
-            if (segs.length > 1 && knownFoldersLower.has(segs[0].toLowerCase())) {
-              segs.shift();
-            }
-            const baseRel = segs.join("/");
-            canonicalWinnerFile = baseRel.split("/").pop() || cleanWinnerFile;
-            const nextPath = firstOverrideTier ? `${firstOverrideTier}/${baseRel}` : baseRel;
-            if (typeof newMods[index] === "string") {
-              newMods[index] = nextPath;
-            } else {
-              newMods[index] = { ...newMods[index], name: nextPath, path: nextPath };
-            }
-          } else if (cleanWinnerFile) {
-            newMods.push(firstOverrideTier ? `${firstOverrideTier}/${cleanWinnerFile}` : cleanWinnerFile);
-          }
-
-          const nextModTiers = { ...(currentSet.modTiers || {}) };
-          if (canonicalWinnerFile) {
-            nextModTiers[canonicalWinnerFile] = firstOverrideTier;
-          }
-
-          let nextLoadRules: LoadOrderRule[] = Array.isArray(currentSet.loadRules) ? [...currentSet.loadRules] : [];
-          const resolvedLoser =
-            loserName ||
-            (modPair && modPair.includes("::")
-              ? modPair
-                  .split("::")
-                  .find((part) => !cleanWinner.includes(part.toLowerCase()) && !part.toLowerCase().includes(cleanWinner))
-              : undefined);
-          if (canonicalWinnerFile && resolvedLoser) {
-            const rawLoserFile = resolvedLoser.split(/[\\/]/).pop() || resolvedLoser;
-            const cleanLoserNoExt = rawLoserFile.replace(getExtensionRegex(activeGameSchema), "").toLowerCase();
-            let canonicalLoserFile = rawLoserFile;
-            const loserIdx = newMods.findIndex((m: any) => {
-              const strM = typeof m === "string" ? m : m.name || m.path || "";
-              const cleanM = (strM.split(/[\\/]/).pop() || strM)
-                .replace(getExtensionRegex(activeGameSchema), "")
-                .toLowerCase();
-              return cleanM === cleanLoserNoExt;
-            });
-            if (loserIdx !== -1) {
-              const strL = typeof newMods[loserIdx] === "string" ? newMods[loserIdx] : newMods[loserIdx].name || newMods[loserIdx].path || "";
-              canonicalLoserFile = strL.split(/[\\/]/).pop() || rawLoserFile;
-            }
-            const wLow = canonicalWinnerFile.toLowerCase();
-            const lLow = canonicalLoserFile.toLowerCase();
-            const wNoExt = wLow.replace(getExtensionRegex(activeGameSchema), "");
-            const lNoExt = lLow.replace(getExtensionRegex(activeGameSchema), "");
-            nextLoadRules = nextLoadRules.filter((r) => {
-              const rA = (r.modA || "").toLowerCase();
-              const rB = (r.modB || "").toLowerCase();
-              const rANoExt = rA.replace(getExtensionRegex(activeGameSchema), "");
-              const rBNoExt = rB.replace(getExtensionRegex(activeGameSchema), "");
-              return !(
-                ((rA === wLow || rANoExt === wNoExt) && (rB === lLow || rBNoExt === lNoExt)) ||
-                ((rA === lLow || rANoExt === lNoExt) && (rB === wLow || rBNoExt === wNoExt))
-              );
-            });
-            nextLoadRules.push({
-              id: `rule_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-              modA: canonicalWinnerFile,
-              modB: canonicalLoserFile,
-              type: "after",
-            });
-          }
-
-          const prevIgnoredSet: string[] = Array.isArray(currentSet.ignoredConflicts)
-            ? currentSet.ignoredConflicts
-            : [];
-          const nextIgnoredSet =
-            modPair && !prevIgnoredSet.includes(modPair)
-              ? [...prevIgnoredSet, modPair]
-              : prevIgnoredSet;
-
-          currentSet.mods = deduplicateBlueprintArtifacts(newMods, activeGameSchema);
-          currentSet.modTiers = nextModTiers;
-          currentSet.loadRules = nextLoadRules;
-          currentSet.ignoredConflicts = nextIgnoredSet;
-          updatedSets[playSetIndex] = currentSet;
-          return updatedSets;
-        }
-        return prevSets;
-      });
-
-      setIgnoredGlobal((prevIgnored: string[]) => {
-        if (!prevIgnored.includes(modPair)) {
-          const updatedIgnored = [...prevIgnored, modPair];
-          localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(updatedIgnored));
-          window.dispatchEvent(new Event("storage"));
-          return updatedIgnored;
-        }
-        return prevIgnored;
-      });
-
-      return true;
-    } catch (err) {
-      console.error(`Error applying override: ${err}`);
-      return false;
-    }
-  };
+  const applyConflictOverride = useCallback(
+    (
+      winnerName: string,
+      modPair: string,
+      currentScopeName: string,
+      targetTierFolder?: string,
+      loserName?: string
+    ) =>
+      executeConflictOverride(
+        activeGameSchema,
+        setPlaySets,
+        setIgnoredGlobal,
+        winnerName,
+        modPair,
+        currentScopeName,
+        targetTierFolder,
+        loserName
+      ),
+    [activeGameSchema, setPlaySets, setIgnoredGlobal]
+  );
 
   const setModPriorityTier = useCallback(
     (setName: string, modName: string | string[], tierFolder: string) => {

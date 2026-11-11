@@ -3,14 +3,11 @@ import { useStore } from "../store";
 import React, { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
-import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
-
-const VAULT_CHIP_CLASS =
-    "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 interface CustomField {
     id: string;
@@ -328,7 +325,7 @@ export default function SASupportSettings({
                                 {source.search_path === '%MODS_DIR%'
                                     ? t("mods_folder", "{Mods} Folder")
                                     : source.search_path === '%DOC_DIR%'
-                                      ? t("docs_folder", "Sims 4 Documents")
+                                      ? t("docs_folder", "Game Documents")
                                       : source.search_path}
                             </span>
                         </div>
@@ -431,7 +428,7 @@ export default function SASupportSettings({
         <ElevatedHubLayout
             headerTitle={t("tab_support", "Support Settings") || "Support Settings"}
             headerSubtitle={t("support_subtitle", "Configure support categories and telemetry") || "Configure support categories and telemetry"}
-            headerIcon="support_agent"
+            headerIcon={t("icon_support_agent", "support_agent")}
             headerIconColorClass="theme-text-accent"
             search={searchQuery}
             onSearchChange={setSearchQuery}
@@ -440,11 +437,11 @@ export default function SASupportSettings({
             activeTab={activeTab}
             onTabChange={setActiveTab as any}
             tabs={[
-                { id: 'overview', label: t("overview", "Overview") || "Overview", icon: "dashboard", number: (categories.length + telemetrySources.length).toString() },
-                { id: 'active_categories', label: t("active_categories", "Active Categories") || "Active Categories", icon: "category", number: categories.filter(c => c.is_active).length.toString() },
-                { id: 'active_log_sources', label: t("active_log_sources", "Active Log Sources") || "Active Log Sources", icon: "description", number: telemetrySources.filter(s => s.is_active).length.toString() },
-                { id: 'inactive_categories', label: t("inactive_categories", "Inactive Categories") || "Inactive Categories", icon: "block", number: categories.filter(c => !c.is_active).length.toString() },
-                { id: 'inactive_log_sources', label: t("inactive_log_sources", "Inactive Log Sources") || "Inactive Log Sources", icon: "cancel", number: telemetrySources.filter(s => !s.is_active).length.toString() }
+                { id: 'overview', label: t("overview", "Overview") || "Overview", icon: t("icon_dashboard", "dashboard"), number: (categories.length + telemetrySources.length).toString() },
+                { id: 'active_categories', label: t("active_categories", "Active Categories") || "Active Categories", icon: t("icon_category", "category"), number: categories.filter(c => c.is_active).length.toString() },
+                { id: 'active_log_sources', label: t("active_log_sources", "Active Log Sources") || "Active Log Sources", icon: t("icon_description", "description"), number: telemetrySources.filter(s => s.is_active).length.toString() },
+                { id: 'inactive_categories', label: t("inactive_categories", "Inactive Categories") || "Inactive Categories", icon: t("icon_block", "block"), number: categories.filter(c => !c.is_active).length.toString() },
+                { id: 'inactive_log_sources', label: t("inactive_log_sources", "Inactive Log Sources") || "Inactive Log Sources", icon: t("icon_cancel", "cancel"), number: telemetrySources.filter(s => !s.is_active).length.toString() }
             ]}
             actions={
                 activeTab !== 'overview' ? [
@@ -460,21 +457,21 @@ export default function SASupportSettings({
             {activeTab === 'overview' && (
                 <HubOverviewLanding>
                     <HubOverviewSection
-                        icon="category"
+                        icon={t("icon_category", "category")}
                         iconColorClass="text-[var(--accent)]"
                         title={t("active_categories", "Active Categories") || "Active Categories"}
                         isEmpty={categories.filter(c => c.is_active).length === 0}
-                        emptyIcon="category"
+                        emptyIcon={t("icon_category", "category")}
                         emptyTitle={t("support_no_cats", "No categories found") || "No Active Categories"}
                     >
                         {categories.filter(c => c.is_active).slice(0, 4).map(renderCategoryCard)}
                     </HubOverviewSection>
                     <HubOverviewSection
-                        icon="description"
+                        icon={t("icon_description", "description")}
                         iconColorClass="text-[var(--success)]"
                         title={t("active_log_sources", "Active Log Sources") || "Active Log Sources"}
                         isEmpty={telemetrySources.filter(s => s.is_active).length === 0}
-                        emptyIcon="description"
+                        emptyIcon={t("icon_description", "description")}
                         emptyTitle={t("telemetry_no_sources", "No log sources found") || "No Active Log Sources"}
                     >
                         {telemetrySources.filter(s => s.is_active).slice(0, 4).map(renderSourceCard)}
@@ -614,9 +611,9 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
             headerActions={
                 <PanelHeaderGroup>
                     {draft.id && (
-                        <PanelHeaderButton icon="delete" variant="danger" tooltip={t("purge", "Delete")} onClick={handleDelete} disabled={isSaving || !actionReason} />
+                        <PanelHeaderButton icon={t("icon_delete", "delete")} variant="danger" tooltip={t("purge", "Delete")} onClick={handleDelete} disabled={isSaving || !actionReason} />
                     )}
-                    <PanelHeaderButton icon="check" variant="success" tooltip={isSaving ? "..." : t("save", "Save")} onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name || !actionReason} />
+                    <PanelHeaderButton icon={t("icon_check", "check")} variant="success" tooltip={isSaving ? t("btn_saving", "Saving...") : t("save", "Save")} onClick={save} disabled={isSaving || !draft.category_code || !draft.category_name || !actionReason} />
                 </PanelHeaderGroup>
             }
         >
@@ -662,7 +659,7 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
 
                 <SidePanelPillToggle
                     label={t("support_active_status", "Category Active")}
-                    icon="category"
+                    icon={t("icon_category", "category")}
                     checked={draft.is_active}
                     onChange={val => setDraft({ ...draft, is_active: val })}
                 />
@@ -685,10 +682,10 @@ function CategoryEditorPanel({ cat, isOpen, onClose, onSaved, telemetrySources }
                             value={draft.ticket_destination || 'architect'}
                             onChange={(val: string[]) => setDraft({ ...draft, ticket_destination: val[0] as any })}
                             options={[
-                                { id: "mod_author", label: "Mod Author" },
-                                { id: "architect", label: "Architect" },
-                                { id: "oversight", label: "Oversight" },
-                                { id: "wayfinder", label: "Wayfinder" }
+                                { id: "mod_author", label: t("role_mason", "{Mason}") },
+                                { id: "architect", label: t("role_architect", "Architect") },
+                                { id: "oversight", label: t("role_oversight", "Oversight") },
+                                { id: "wayfinder", label: t("role_wayfinder", "Wayfinder") }
                             ]}
                         />
                     </div>
@@ -984,9 +981,9 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
             headerActions={
                 <PanelHeaderGroup>
                     {draft.id && (
-                        <PanelHeaderButton icon="delete" variant="danger" tooltip={t("purge", "Delete")} onClick={deleteSource} disabled={isSaving} />
+                        <PanelHeaderButton icon={t("icon_delete", "delete")} variant="danger" tooltip={t("purge", "Delete")} onClick={deleteSource} disabled={isSaving} />
                     )}
-                    <PanelHeaderButton icon="check" variant="success" tooltip={isSaving ? t("btn_saving", "Saving...") : t("save", "Save")} onClick={save} disabled={isSaving} />
+                    <PanelHeaderButton icon={t("icon_check", "check")} variant="success" tooltip={isSaving ? t("btn_saving", "Saving...") : t("save", "Save")} onClick={save} disabled={isSaving} />
                 </PanelHeaderGroup>
             }
         >
@@ -1009,17 +1006,17 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                         className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-xs font-bold focus:outline-none focus:border-[var(--warning)] transition-all border border-[color-mix(in_srgb,var(--warning)_35%,transparent)]"
                     />
                 </UniversalGroup>
-                <UniversalGroup title="SOURCE DETAILS" icon="info" headerColorClass="theme-text-accent">
+                <UniversalGroup title={t("source_details", "Source Details")} icon={t("icon_info", "info")} headerColorClass="theme-text-accent">
                     <UniversalInput 
                         label={t("telemetry_label", "Source Label")} 
                         value={draft.label} 
                         onChange={val => setDraft({ ...draft, label: val })} 
-                        placeholder={t("telemetry_label_ph", "e.g. MCCC Exception Logs")} 
+                        placeholder={t("telemetry_label_ph", "e.g. Engine Crash & Exception Logs")} 
                     />
 
                     <div className="flex flex-col gap-2 relative z-50">
                         <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("telemetry_type", "Category Type")}</label>
-                        <CustomDropdown disableTint={true} value={draft.type} onChange={(v: string[]) => setDraft({ ...draft, type: v[0] as any })} options={[{ id: 'MOD', label: 'MOD' }, { id: 'OS', label: 'OS' }]} />
+                        <CustomDropdown disableTint={true} value={draft.type} onChange={(v: string[]) => setDraft({ ...draft, type: v[0] as any })} options={[{ id: 'MOD', label: t("term_mod", "{Mod}") }, { id: 'OS', label: t("os_label", "OS") }]} />
                     </div>
 
                     {draft.type !== 'OS' && (
@@ -1033,9 +1030,9 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                                         value={['%MODS_DIR%', '%DOC_DIR%'].includes(draft.search_path) ? draft.search_path : 'CUSTOM'}
                                         onChange={(v: string[]) => setDraft({ ...draft, search_path: v[0] === 'CUSTOM' ? '' : v[0] })}
                                         options={[
-                                            { id: '%MODS_DIR%', label: 'Mods Folder' },
-                                            { id: '%DOC_DIR%', label: 'Sims 4 Documents Folder' },
-                                            { id: 'CUSTOM', label: 'Custom Path...' }
+                                            { id: '%MODS_DIR%', label: t("mods_folder", "{Mods} Folder") },
+                                            { id: '%DOC_DIR%', label: t("docs_folder", "Game Documents") },
+                                            { id: 'CUSTOM', label: t("auto_custom_path", "Custom Path...") }
                                         ]}
                                     />
                                 </div>
@@ -1055,7 +1052,7 @@ function TelemetrySourceEditorPanel({ source, isOpen, onClose, onSaved }: { sour
                                 label={t("telemetry_pattern", "File Pattern")} 
                                 value={draft.file_pattern} 
                                 onChange={val => setDraft({ ...draft, file_pattern: val })} 
-                                placeholder={t("telemetry_pattern_ph", "e.g. lastexception*.txt; MCCC/mc_lastexception.html")} 
+                                placeholder={t("telemetry_pattern_ph", "e.g. crash_*.log; logs/engine_error.txt")} 
                                 className="font-mono"
                             />
                         </>

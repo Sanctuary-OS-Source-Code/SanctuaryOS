@@ -6,6 +6,7 @@ export interface UniversalCardProps {
   isActive?: boolean;
   isGhosted?: boolean;
   isDisabled?: boolean;
+  status?: string;
   statusColor?: string; // Tailwind class, e.g., 'border-emerald-500' or hex color if needed. We'll stick to classes mostly, or explicit hex.
 
   // Media
@@ -43,6 +44,7 @@ export function UniversalCard({
   isActive = false,
   isGhosted = false,
   isDisabled = false,
+  status,
   statusColor,
   image,
   icon,

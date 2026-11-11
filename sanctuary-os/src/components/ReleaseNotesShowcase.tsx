@@ -12,7 +12,6 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
-  StatTileCarousel,
   StatBox,
   HoverTooltip,
   LinkAssetSidePanel,
@@ -53,8 +52,7 @@ const DEV_POST_BROADCAST_TITLE = "[KEEPERS_RELEASE_POST_DEV]";
 export const PUBLIC_CHANGELOG_BROADCAST_CATEGORY = "ReleaseChangelog_Public";
 export const DEV_CHANGELOG_BROADCAST_CATEGORY = "ReleaseChangelog_Dev";
 
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { VAULT_CHIP_CLASS } from "../shared-components/constants";
 
 const GITHUB_RELEASES_WEB_URL =
   "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases";
@@ -3361,8 +3359,8 @@ export function ReleaseNotesShowcase({
         }
       >
         <div className="flex flex-col gap-6 pb-12 w-full">
-          {/* StatTile Navigation: Top line "View", Bottom line "Post" / "Changelog" / "On GitHub" */}
-          <StatTileCarousel innerClassName="px-0">
+          {/* StatTile Filter Grid inside SidePanel */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -3393,7 +3391,7 @@ export function ReleaseNotesShowcase({
               isActive={false}
               onClick={() => handleOpenUrl(activeGitHubUrl)}
             />
-          </StatTileCarousel>
+          </div>
 
           <SidePanelHeroCard
             title={activeTitle}

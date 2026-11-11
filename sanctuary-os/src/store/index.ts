@@ -3,8 +3,10 @@ import { isDesktop } from "../utils/envUtils";
 import { supabase, hasActiveGameDatabase } from '../supabase';
 import { invoke } from '@tauri-apps/api/core';
 import { getSubdomain } from '../utils/routingUtils';
-import { resolvePresetForGameId, isSims4SchemaId } from '../utils/gameArchitecturePresets';
+import { resolvePresetForGameId } from '../utils/gameArchitecturePresets';
 import { scrubLogUserData } from '../utils/logScrubber';
+import enDefaultLexicon from '../lexicons/en-default.json';
+import enSanctuaryLexicon from '../lexicons/en-sanctuary.json';
 import {
   SanctuaryDateFormat,
   DATE_FORMAT_STORAGE_KEY,
@@ -14,18 +16,48 @@ import {
 
 installGlobalDateFormatPatch();
 
+function translateStoreStatus(key: string, fallback: string): string {
+  try {
+    const activeLexId =
+      (typeof localStorage !== 'undefined' &&
+        (localStorage.getItem('sanctuary_active_lexicon') ||
+          localStorage.getItem('sanctuary_lexicon'))) ||
+      'en-default';
+    const dict: Record<string, any> =
+      activeLexId === 'en-sanctuary'
+        ? (enSanctuaryLexicon as Record<string, any>)
+        : (enDefaultLexicon as Record<string, any>);
+    const val = dict?.[key];
+    if (typeof val === 'string' && val.trim().length > 0) {
+      return val;
+    }
+  } catch {}
+  return fallback;
+}
+
 export const getSafeSchema = (raw: any, fallbackId: string) => {
-  const safe = { ...raw };
-  if (!safe.id) safe.id = fallbackId;
+  const safe = { ...(raw || {}) };
+  if (!safe.id) safe.id = fallbackId || 'default_schema';
   if (!safe.game_id) safe.game_id = safe.id;
   const preset = resolvePresetForGameId(safe.game_id || safe.id || fallbackId);
-  const isSims4 = isSims4SchemaId(safe.game_id || safe.id || fallbackId);
 
-  if (!safe.name) safe.name = preset.display_name || safe.id.replace(/_/g, ' ').toUpperCase();
+  if (!safe.name) safe.name = preset.display_name || String(safe.id).replace(/_/g, ' ').toUpperCase();
   if (!safe.display_name) safe.display_name = safe.name;
   if (!safe.schema_version) safe.schema_version = preset.schema_version || 1;
-  if (!safe.executable_names || (isSims4 && safe.executable_names.length === 0)) {
+  if (!Array.isArray(safe.executable_names)) {
     safe.executable_names = [...(preset.executable_names || [])];
+  }
+  if (!Array.isArray(safe.archive_containers) && Array.isArray(preset.archive_containers)) {
+    safe.archive_containers = [...preset.archive_containers];
+  }
+  if (!Array.isArray(safe.dlc_catalog) && Array.isArray(preset.dlc_catalog)) {
+    safe.dlc_catalog = [...preset.dlc_catalog];
+  }
+  if (safe.magic_bytes === undefined && preset.magic_bytes !== undefined) {
+    safe.magic_bytes = preset.magic_bytes;
+  }
+  if (safe.external_tools === undefined && preset.external_tools !== undefined) {
+    safe.external_tools = preset.external_tools;
   }
   if (!safe.paths) {
     safe.paths = { ...preset.paths };
@@ -50,13 +82,8 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
       ...safe.extensions,
       supported: [...(preset.extensions?.supported || [])],
       labels: { ...(preset.extensions?.labels || {}), ...(safe.extensions.labels || {}) },
+      parsers: safe.extensions.parsers ?? preset.extensions?.parsers,
     };
-  }
-  if (safe.extensions && 'parsers' in safe.extensions) {
-    delete safe.extensions.parsers;
-  }
-  if ('magic_bytes' in safe) {
-    delete safe.magic_bytes;
   }
   if (!safe.constraints) {
     safe.constraints = { ...(preset.constraints || {}) };
@@ -65,11 +92,6 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
   }
   if (!Array.isArray(safe.install_routes)) {
     safe.install_routes = [...(preset.install_routes || [])];
-  } else if (isSims4 && safe.install_routes.length === 0 && raw?.install_routes === undefined) {
-    safe.install_routes = [...(preset.install_routes || [])];
-  }
-  if ('external_tools' in safe) {
-    delete safe.external_tools;
   }
   if (!safe.lab_verification) {
     safe.lab_verification = {
@@ -86,7 +108,7 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
       },
     };
   }
-  if (!Array.isArray(safe.exception_rules) || (isSims4 && safe.exception_rules.length === 0 && raw?.exception_rules === undefined)) {
+  if (!Array.isArray(safe.exception_rules)) {
     let cachedRules: any[] | null = null;
     try {
       const rawRules = localStorage.getItem(`sanctuary_exception_rules_${safe.id}`);
@@ -101,10 +123,10 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
     safe.time_capsule = {
       world_state_targets: [...(preset.time_capsule?.world_state_targets || [])],
       engine_state_targets: [...(preset.time_capsule?.engine_state_targets || [])],
-      save_airgap_targets: [...(preset.time_capsule?.save_airgap_targets || ["saves"])],
+      save_airgap_targets: [...(preset.time_capsule?.save_airgap_targets || [])],
     };
   } else if (!safe.time_capsule.save_airgap_targets) {
-    safe.time_capsule.save_airgap_targets = [...(preset.time_capsule?.save_airgap_targets || ["saves"])];
+    safe.time_capsule.save_airgap_targets = [...(preset.time_capsule?.save_airgap_targets || [])];
   }
   if (!safe.load_order) {
     safe.load_order = {
@@ -118,14 +140,22 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
   }
   const presetCategories: any[] = Array.isArray(preset.mod_categories)
     ? preset.mod_categories
-    : [];
-  if (!Array.isArray(safe.mod_categories) || safe.mod_categories.length === 0) {
+    : Array.isArray(preset.taxonomy?.categories)
+      ? preset.taxonomy.categories
+      : [];
+  const rawSchemaCategories: any[] =
+    Array.isArray(safe.mod_categories) && safe.mod_categories.length > 0
+      ? safe.mod_categories
+      : Array.isArray(safe.taxonomy?.categories) && safe.taxonomy.categories.length > 0
+        ? safe.taxonomy.categories
+        : [];
+  if (rawSchemaCategories.length === 0) {
     safe.mod_categories = presetCategories.map((c: any) => ({
       ...c,
       subcategories: Array.isArray(c.subcategories) ? [...c.subcategories] : undefined,
     }));
   } else {
-    safe.mod_categories = safe.mod_categories.map((cat: any) => {
+    safe.mod_categories = rawSchemaCategories.map((cat: any) => {
       const match = presetCategories.find(
         (p: any) => String(p.id || "").toLowerCase() === String(cat?.id || "").toLowerCase()
       );
@@ -137,6 +167,11 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
       };
     });
   }
+  safe.taxonomy = {
+    ...(preset.taxonomy || {}),
+    ...(safe.taxonomy || {}),
+    categories: safe.mod_categories,
+  };
 
   // Coerce numeric fields so Rust's GameSchema (u32 / u64 / i32) never rejects stringified numbers (e.g. "5")
   const toOptU32 = (v: any, fallback?: number): number | undefined => {
@@ -266,9 +301,7 @@ const loadCwActiveTab = (wsId: string) => {
 
 const loadNetworkUpdates = (wsId: string) => {
   try {
-    const cached =
-      localStorage.getItem(`sanctuary_${wsId}_network_updates`) ||
-      (isSims4SchemaId(wsId) ? localStorage.getItem('sanctuary_network_updates') : null);
+    const cached = wsId ? localStorage.getItem(`sanctuary_${wsId}_network_updates`) : null;
     if (cached) return JSON.parse(cached);
   } catch (e) {}
   return { broken: [], obsolete: [], updated: [] };
@@ -336,7 +369,6 @@ const loadMaskedDLC = (wsId: string) => {
 
 const workspaceHasDatabaseConfig = (wsId: string): boolean => {
   if (!wsId) return false;
-  if (isSims4SchemaId(wsId)) return true;
   try {
     const rawGames = localStorage.getItem('sanctuary_cached_game_dbs_v1');
     if (rawGames) {
@@ -415,7 +447,35 @@ const loadActiveSet = (wsId: string) => {
   return localStorage.getItem(`sanctuary_${wsId}_active_set`);
 };
 
-const purgeBloatedLocalStorage = () => {
+const compactPlaySetsForLocalStorage = (sets: any[], stripLargeInlineMedia = false) => {
+  if (!Array.isArray(sets)) return [];
+  return sets.map((s: any) => {
+    if (!s || typeof s !== 'object') return s;
+    const next: Record<string, any> = { ...s };
+    if (stripLargeInlineMedia) {
+      for (const mediaKey of ['cover_url', 'banner_url', 'image_url', 'thumbnail']) {
+        const val = next[mediaKey];
+        if (typeof val === 'string' && val.startsWith('data:') && val.length > 32768) {
+          delete next[mediaKey];
+        }
+      }
+    }
+    if (Array.isArray(next.mods)) {
+      next.mods = next.mods.map((m: any) => {
+        if (typeof m === 'string') return m;
+        if (!m || typeof m !== 'object') return m;
+        const compactMod: Record<string, any> = {};
+        for (const k of ['name', 'path', 'enabled', 'folder', 'hash', 'id', 'dbId', 'displayName', 'version']) {
+          if (m[k] !== undefined) compactMod[k] = m[k];
+        }
+        return Object.keys(compactMod).length > 0 ? compactMod : m;
+      });
+    }
+    return next;
+  });
+};
+
+const purgeBloatedLocalStorage = (aggressive = false) => {
   try {
     const builtinLexicons = new Set(['en-default', 'en-sanctuary', 'en-sims', 'Simlish']);
     for (let i = localStorage.length - 1; i >= 0; i--) {
@@ -439,22 +499,48 @@ const purgeBloatedLocalStorage = () => {
         } catch {
           localStorage.removeItem(k);
         }
+        continue;
+      }
+      // On Desktop, full PlaySets live in Tauri AppData FS (`sanctuary_<ws>_playsets.json`),
+      // so oversized localStorage duplicates starve critical keys like `sanctuary_cached_game_dbs_v1`.
+      if (isDesktop() && /^sanctuary_.*_playsets$/.test(k)) {
+        const raw = localStorage.getItem(k);
+        if (raw && (aggressive || raw.length > 250_000)) {
+          localStorage.removeItem(k);
+          continue;
+        }
+      }
+      if (
+        aggressive &&
+        (k.startsWith('sanctuary_radar_cache_') ||
+          k.endsWith('_network_updates') ||
+          k === 'sanctuary_network_updates' ||
+          k === 'sanctuary_os_status_log_v1')
+      ) {
+        localStorage.removeItem(k);
       }
     }
   } catch {}
 };
 
-purgeBloatedLocalStorage();
+purgeBloatedLocalStorage(false);
 
 const safeLocalStorageSetItem = (key: string, value: string) => {
   try {
     localStorage.setItem(key, value);
   } catch {
-    purgeBloatedLocalStorage();
+    purgeBloatedLocalStorage(true);
     try {
       localStorage.removeItem(key);
       localStorage.setItem(key, value);
     } catch (retryErr) {
+      if (!isDesktop() && /^sanctuary_.*_playsets$/.test(key)) {
+        try {
+          const parsed = JSON.parse(value);
+          localStorage.setItem(key, JSON.stringify(compactPlaySetsForLocalStorage(parsed, true)));
+          return;
+        } catch {}
+      }
       console.warn(`Could not persist ${key} to localStorage (quota exceeded):`, retryErr);
     }
   }
@@ -742,7 +828,9 @@ const mergeGamesWithLocalWorkspaces = (games: any[], localWorkspaces: any[] = []
       supabase_anon_key: g.supabase_anon_key,
       live_path: existing?.live_path ?? g.live_path,
       mods_path: existing?.mods_path ?? g.mods_path,
-      vault_path: existing?.vault_path ?? g.vault_path
+      vault_path: existing?.vault_path ?? g.vault_path,
+      docs_path: existing?.docs_path ?? existing?.user_data_path ?? g.docs_path ?? g.user_data_path,
+      user_data_path: existing?.user_data_path ?? existing?.docs_path ?? g.user_data_path ?? g.docs_path,
     };
   });
 };
@@ -772,6 +860,8 @@ interface GlobalState {
   setModsPath: (modsPath: string) => void;
   vaultPath: string;
   setVaultPath: (vaultPath: string) => void;
+  docsPath: string;
+  setDocsPath: (docsPath: string) => void;
   isGlobalConfigLoaded: boolean;
   setIsGlobalConfigLoaded: (loaded: boolean) => void;
   workspaces: any[];
@@ -852,8 +942,8 @@ interface GlobalState {
   setCloudIdeActiveFileIndex: (index: number) => void;
   cwUnsavedEdits: Record<string, string>;
   setCwUnsavedEdits: (edits: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
-  cwSelectedFile: {name: string, path: string} | null;
-  setCwSelectedFile: (file: {name: string, path: string} | null) => void;
+  cwSelectedFile: {name: string, path: string, isTemplate?: boolean} | null;
+  setCwSelectedFile: (file: {name: string, path: string, isTemplate?: boolean} | null) => void;
   cwActiveTab: "visual" | "raw" | "dual";
   setCwActiveTab: (tab: "visual" | "raw" | "dual") => void;
   masonActiveTab: string;
@@ -886,9 +976,13 @@ interface GlobalState {
 
 const initialBootWorkspaceId = (() => {
   try {
-    return localStorage.getItem("sanctuary_last_active_workspace") || localStorage.getItem("sanctuary_active_workspace") || "sims4";
+    return (
+      localStorage.getItem("sanctuary_last_active_workspace") ||
+      localStorage.getItem("sanctuary_active_workspace") ||
+      ""
+    );
   } catch {
-    return "sims4";
+    return "";
   }
 })();
 
@@ -897,7 +991,10 @@ export const useStore = create<GlobalState>((set) => ({
   setActiveGameSchema: (activeGameSchema) =>
     set({
       activeGameSchema: activeGameSchema
-        ? getSafeSchema(activeGameSchema, activeGameSchema.id || activeGameSchema.game_id || "sims4")
+        ? getSafeSchema(
+            activeGameSchema,
+            activeGameSchema.id || activeGameSchema.game_id || "default_schema"
+          )
         : activeGameSchema,
     }),
   isMobileMenuOpen: false,
@@ -946,7 +1043,7 @@ export const useStore = create<GlobalState>((set) => ({
       nexusAvailableUpdates: [],
       nexusUpdateTabs: [],
       marketSearchQuery: '',
-      status: 'STANDING BY',
+      status: translateStoreStatus('status_standing_by', 'Standing By'),
       cloudIdeOpenFiles: [],
       cloudIdeActiveFileIndex: -1,
     });
@@ -955,19 +1052,19 @@ export const useStore = create<GlobalState>((set) => ({
   setView: (view) => set({ view }),
   isAlertsOpen: false,
   setIsAlertsOpen: (isOpen) => set({ isAlertsOpen: isOpen }),
-  status: 'STANDING BY',
+  status: translateStoreStatus('status_standing_by', 'Standing By'),
   setStatus: (rawStatus) => set((state) => {
     if ((window as any)._statusTimeout) clearTimeout((window as any)._statusTimeout);
 
     if (!rawStatus || rawStatus.trim() === '') {
-      return { status: rawStatus || 'STANDING BY...' };
+      return { status: rawStatus || translateStoreStatus('status_standing_by', 'Standing By') };
     }
     const status = scrubLogUserData(rawStatus);
     const type = inferStatusLogType(status, 'info');
 
     const durationMs = type === 'error' ? 4500 : 2500;
     (window as any)._statusTimeout = setTimeout(() => {
-      useStore.setState({ status: 'STANDING BY...' });
+      useStore.setState({ status: translateStoreStatus('status_standing_by', 'Standing By') });
     }, durationMs);
 
     const nextLog = buildUpdatedStatusLog(
@@ -994,14 +1091,14 @@ export const useStore = create<GlobalState>((set) => ({
     if ((window as any)._statusTimeout) clearTimeout((window as any)._statusTimeout);
 
     if (!rawMessage || rawMessage.trim() === '') {
-      return { status: rawMessage || 'STANDING BY...' };
+      return { status: rawMessage || translateStoreStatus('status_standing_by', 'Standing By') };
     }
     const message = scrubLogUserData(rawMessage);
     const finalType = inferStatusLogType(message, type);
 
     const durationMs = finalType === 'error' ? 4500 : 2500;
     (window as any)._statusTimeout = setTimeout(() => {
-      useStore.setState({ status: 'STANDING BY...' });
+      useStore.setState({ status: translateStoreStatus('status_standing_by', 'Standing By') });
     }, durationMs);
 
     const nextLog = buildUpdatedStatusLog(
@@ -1038,6 +1135,8 @@ export const useStore = create<GlobalState>((set) => ({
   setModsPath: (modsPath) => set({ modsPath }),
   vaultPath: "",
   setVaultPath: (vaultPath) => set({ vaultPath }),
+  docsPath: "",
+  setDocsPath: (docsPath) => set({ docsPath }),
   isGlobalConfigLoaded: false,
   setIsGlobalConfigLoaded: (loaded) => set({ isGlobalConfigLoaded: loaded }),
   workspaces: loadCachedGameDatabases(),
@@ -1050,12 +1149,16 @@ export const useStore = create<GlobalState>((set) => ({
   setPlaySets: (playSets) => set((state) => {
     const nextSets = typeof playSets === 'function' ? playSets(state.playSets) : playSets;
     const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
-    if (wsId && Array.isArray(nextSets)) {
-      debouncedLocalStorageSetJson(`sanctuary_${wsId}_playsets`, nextSets, 250);
+    if (wsId && Array.isArray(nextSets) && !isDesktop()) {
+      debouncedLocalStorageSetJson(
+        `sanctuary_${wsId}_playsets`,
+        compactPlaySetsForLocalStorage(nextSets, false),
+        250
+      );
     }
     return { playSets: nextSets };
   }),
-  playsetsLoaded: loadPlaySets(initialBootWorkspaceId).length > 0,
+  playsetsLoaded: !isDesktop() && loadPlaySets(initialBootWorkspaceId).length > 0,
   setPlaysetsLoaded: (loaded) => set({ playsetsLoaded: loaded }),
   activeSetName: loadActiveSet(initialBootWorkspaceId),
   setActiveSetName: (activeSetName) => set((state) => {
@@ -1142,16 +1245,28 @@ export const useStore = create<GlobalState>((set) => ({
         return;
       }
 
+      if (config?.docs_path || config?.user_data_path) {
+        set({ docsPath: String(config.docs_path || config.user_data_path) });
+      }
+
       const rawRipped = await invoke<string>("rip_game_version", {
         livePath: config.live_path,
+        gameSchema: useStore.getState().activeGameSchema,
       });
-      const cleanVersion = rawRipped.replace(/[^0-9.]/g, "");
+      const cleanVersion = String(rawRipped || "")
+        .trim()
+        .replace(/^v(?=\d)/i, "")
+        .replace(/[^0-9A-Za-z.+-]/g, "");
       set((state) => {
         const wsId = state.activeWorkspaceId || initialBootWorkspaceId;
         if (wsId && cleanVersion) {
           safeLocalStorageSetItem(`sanctuary_${wsId}_selected_version`, cleanVersion);
         }
-        return { selectedVersion: cleanVersion, status: `STANDING BY |  v${cleanVersion}` };
+        const standByLabel = translateStoreStatus('status_standing_by', 'Standing By');
+        return {
+          selectedVersion: cleanVersion,
+          status: cleanVersion ? `${standByLabel} | v${cleanVersion}` : standByLabel,
+        };
       });
     } catch (err) {
       console.warn("Version detection failed:", err);
@@ -1219,7 +1334,13 @@ export const useStore = create<GlobalState>((set) => ({
   backupProgress: null,
   setBackupProgress: (backupProgress) => set((state: any) => {
     if (backupProgress === null || backupProgress === undefined) {
-        return { backupProgress: { current: 0, total: 100, action: "ERROR: NULL RECEIVED" } };
+        return {
+          backupProgress: {
+            current: 0,
+            total: 100,
+            action: translateStoreStatus('status_backup_null_error', 'Backup status unavailable'),
+          },
+        };
     }
     
     let payload = backupProgress;
@@ -1402,7 +1523,8 @@ export const syncGameDatabases = async (preloadedLocalWorkspaces?: any[]) => {
         .neq('is_active', false);
 
       if (error) {
-        useStore.getState().pushStatus(`HUB DB ERROR: ${error.message}`, "error");
+        const hubErrPrefix = translateStoreStatus('status_hub_db_error', 'Hub Database Error');
+        useStore.getState().pushStatus(`${hubErrPrefix}: ${error.message}`, "error");
       }
 
       if (Array.isArray(games)) {

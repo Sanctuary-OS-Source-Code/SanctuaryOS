@@ -1,8 +1,7 @@
 /// <reference path="../deno.d.ts" />
 // Supabase Edge Function: keeper-email-dispatch
 // Official In-App Outbound Email Dispatcher for Keepers Core
-// Supports custom sender email identity (from_name, from_email, reply_to), Resend API, custom SMTP/Webhook relays,
-// and logs all outbound transmissions to public.keeper_email_dispatches and keeper_tickets metadata.
+// Enforces authenticated Keeper/Core-Dev/Admin authorization and server-side secret isolation.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -10,7 +9,10 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+const ALLOWED_DISPATCH_ROLES = new Set(["keeper", "admin", "core_dev"]);
 
 function escapeHtml(raw: string): string {
   return String(raw || "")
@@ -19,6 +21,34 @@ function escapeHtml(raw: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function isSafeHttpsRelayUrl(rawUrl: string): boolean {
+  if (!rawUrl) return false;
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "https:") return false;
+    const host = parsed.hostname.toLowerCase();
+    if (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "0.0.0.0" ||
+      host === "::1" ||
+      host === "[::1]" ||
+      host.endsWith(".local") ||
+      host.endsWith(".internal") ||
+      /^10\./.test(host) ||
+      /^127\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function buildSanctuaryEmailHtml(params: {
@@ -85,30 +115,133 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Verify caller identity if Authorization header is present
-    const authHeader = req.headers.get("Authorization") || "";
-    let senderUserId: string | null = null;
-    if (authHeader && supabaseAnonKey) {
-      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const {
-        data: { user },
-      } = await userClient.auth.getUser();
-      if (user?.id) {
-        senderUserId = user.id;
-      }
+    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Server configuration incomplete" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
-    const body = await req.json();
+    // Strict authentication: require valid Hub JWT
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader.toLowerCase().startsWith("bearer ")) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Authentication required" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { headers: { Authorization: authHeader } },
+    });
+    const {
+      data: { user },
+      error: authErr,
+    } = await userClient.auth.getUser();
+
+    if (authErr || !user?.id) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Invalid or expired session token" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
+    const { data: callerProfile } = await adminClient
+      .from("profiles")
+      .select("id, role, is_banned")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const callerRole = String(callerProfile?.role || "").toLowerCase();
+    if (
+      !callerProfile ||
+      callerProfile.is_banned ||
+      !ALLOWED_DISPATCH_ROLES.has(callerRole)
+    ) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: "Forbidden: Keepers Core clearance required",
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const body = await req.json().catch(() => ({}));
+
+    // Optional Keeper-only action to rotate/store outbound email relay secrets server-side
+    if (body.action === "save_email_secrets") {
+      if (callerRole !== "keeper") {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            error: "Forbidden: Only Keepers can configure email relay secrets",
+          }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      if (body.support_email_api_key !== undefined) {
+        await adminClient.rpc("internal_set_runtime_secret", {
+          p_key: "support_email_api_key",
+          p_value: String(body.support_email_api_key || "").trim(),
+        });
+      }
+      if (body.support_email_webhook_url !== undefined) {
+        const candidateUrl = String(body.support_email_webhook_url || "").trim();
+        if (candidateUrl && !isSafeHttpsRelayUrl(candidateUrl)) {
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              error:
+                "Invalid webhook relay URL: must be a public https:// endpoint",
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+        await adminClient.rpc("internal_set_runtime_secret", {
+          p_key: "support_email_webhook_url",
+          p_value: candidateUrl,
+        });
+      }
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const toEmail = String(body.to_email || "").trim();
     const subject = String(body.subject || "").trim();
     const bodyText = String(body.body_text || "").trim();
     const ticketId = body.ticket_id ? String(body.ticket_id).trim() : null;
 
-    if (!toEmail || !toEmail.includes("@") || !subject || !bodyText) {
+    if (
+      !toEmail ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail) ||
+      !subject ||
+      !bodyText
+    ) {
       return new Response(
         JSON.stringify({
           ok: false,
@@ -121,7 +254,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Load saved Keepers Core PipelineConfig from Hub if custom sender fields or API keys aren't in payload
+    // Load non-sensitive sender display metadata from PipelineConfig
     let pipelineCfg: Record<string, any> = {};
     try {
       const { data: cfgRow } = await adminClient
@@ -159,24 +292,36 @@ Deno.serve(async (req: Request) => {
 
     const replyTo =
       String(
-        body.reply_to ||
-          pipelineCfg.support_reply_to_email ||
-          fromEmail
+        body.reply_to || pipelineCfg.support_reply_to_email || fromEmail
       ).trim() || fromEmail;
 
+    // Resolve relay credentials strictly from Edge environment or private runtime_secrets vault (never untrusted request body)
+    let vaultApiKey = "";
+    let vaultWebhookUrl = "";
+    try {
+      const [{ data: secretKey }, { data: secretWebhook }] = await Promise.all([
+        adminClient.rpc("internal_get_runtime_secret", {
+          p_key: "support_email_api_key",
+        }),
+        adminClient.rpc("internal_get_runtime_secret", {
+          p_key: "support_email_webhook_url",
+        }),
+      ]);
+      if (typeof secretKey === "string") vaultApiKey = secretKey.trim();
+      if (typeof secretWebhook === "string") vaultWebhookUrl = secretWebhook.trim();
+    } catch {
+      // ignore if vault empty
+    }
+
     const resendApiKey = String(
-      body.api_key ||
-        pipelineCfg.support_email_api_key ||
-        Deno.env.get("RESEND_API_KEY") ||
+      Deno.env.get("RESEND_API_KEY") ||
         Deno.env.get("KEEPER_EMAIL_API_KEY") ||
+        vaultApiKey ||
         ""
     ).trim();
 
     const webhookUrl = String(
-      body.webhook_url ||
-        pipelineCfg.support_email_webhook_url ||
-        Deno.env.get("KEEPER_EMAIL_WEBHOOK_URL") ||
-        ""
+      Deno.env.get("KEEPER_EMAIL_WEBHOOK_URL") || vaultWebhookUrl || ""
     ).trim();
 
     const htmlBody = buildSanctuaryEmailHtml({
@@ -225,12 +370,13 @@ Deno.serve(async (req: Request) => {
         dispatchStatus = "LOGGED_RELAY_WARN";
         errorMessage = e?.message || "Resend network error";
       }
-    } else if (webhookUrl && webhookUrl.startsWith("http")) {
+    } else if (webhookUrl && isSafeHttpsRelayUrl(webhookUrl)) {
       providerUsed = "CUSTOM_WEBHOOK";
       try {
         const whRes = await fetch(webhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          redirect: "error",
           body: JSON.stringify({
             from_name: fromName,
             from_email: fromEmail,
@@ -257,12 +403,11 @@ Deno.serve(async (req: Request) => {
       providerMessageId = `keeper_mail_${crypto.randomUUID().slice(0, 12)}`;
     }
 
-    // Record in public.keeper_email_dispatches
-    const { data: insertedRow, error: dbErr } = await adminClient
+    const { data: insertedRow } = await adminClient
       .from("keeper_email_dispatches")
       .insert({
         ticket_id: ticketId || null,
-        sender_user_id: senderUserId,
+        sender_user_id: user.id,
         from_name: fromName,
         from_email: fromEmail,
         reply_to: replyTo,
@@ -278,7 +423,6 @@ Deno.serve(async (req: Request) => {
       .select("*")
       .maybeSingle();
 
-    // If linked to a keeper_tickets row, also append to ticket metadata.email_dispatches
     if (ticketId) {
       try {
         const { data: existingTicket } = await adminClient
@@ -351,4 +495,3 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
-

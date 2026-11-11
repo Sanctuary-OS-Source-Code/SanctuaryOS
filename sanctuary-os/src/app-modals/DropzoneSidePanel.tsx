@@ -8,6 +8,7 @@ import {
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
+import { useStore } from "../store";
 
 export function DropzoneSidePanel({
   isDropzoneOpen,
@@ -22,6 +23,12 @@ export function DropzoneSidePanel({
   handleDroppedFiles,
 }: any) {
   const { t } = useLexicon();
+  const activeGameSchema = useStore((s) => s.activeGameSchema);
+  const schemaExts = Array.isArray(activeGameSchema?.extensions?.supported)
+    ? activeGameSchema.extensions.supported.filter(Boolean).slice(0, 2)
+    : [];
+  const primaryExtLabel = schemaExts[0] || t("term_mod", "{Mod}");
+  const secondaryExtLabel = schemaExts[1] || ".7z";
 
   const safeFiles: string[] = Array.isArray(droppedFiles) ? droppedFiles : [];
 
@@ -48,11 +55,11 @@ export function DropzoneSidePanel({
           <>
             {t("awaiting_desc1", "Drop ")}
             <span className="text-[var(--text)]">
-              {t("auto_package", ".package")}
+              {primaryExtLabel}
             </span>
             {t("awaiting_desc2", ", ")}
             <span className="text-[var(--text)]">
-              {t("auto_ts4script", ".ts4script")}
+              {secondaryExtLabel}
             </span>
             {t("awaiting_desc3", ", or ")}
             <span className="text-[var(--text)]">{t("auto_zip", ".zip")}</span>

@@ -15,6 +15,7 @@ import {
   PanelHeaderButton,
   ActionButton,
   ActionPill,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
@@ -24,9 +25,6 @@ import {
   HubOverviewSection,
 } from "../components/layouts/ElevatedHubLayout";
 import { parseAuditLogEntry, isCoreOnlyAuditRow } from "../lib/audit";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 const PAGE_SIZE = 24;
 
@@ -1552,7 +1550,7 @@ export function AuditLogViewer({
       hideHeader={false}
       headerTitle={t("audit_logs", "Audit Logs")}
       headerSubtitle={t("audit_logs_desc", "System and user activity logs")}
-      headerIcon="history"
+      headerIcon={t("icon_history", "history")}
       headerIconColorClass="theme-text-accent"
       search={search}
       onSearchChange={setSearch}
@@ -1587,7 +1585,7 @@ export function AuditLogViewer({
       primaryPopover={
         filterAction !== "overview"
           ? {
-              icon: "tune",
+              icon: t("icon_tune", "tune"),
               label: t("filters", "Filters"),
               content: (
                 <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">

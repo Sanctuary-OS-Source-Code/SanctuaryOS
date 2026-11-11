@@ -10,13 +10,11 @@ import WayfinderKeeperSidePanel from "../../side-panels/WayfinderKeeperSidePanel
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
-import { openModDossier } from "../../shared";
-
-const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { openModDossier, VAULT_CHIP_CLASS } from "../../shared";
 
 export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMasonProfile }: any) {
   const { t } = useLexicon();
-  const { session } = useStore();
+  const session = useStore((state) => state.session);
   const workspaces = useStore((state: any) => state.workspaces);
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
   const [defconOpen, setDefconOpen] = useState(false);
@@ -175,10 +173,13 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
         }
       }
       setCurrentAudience(audienceStr);
+      const { escapePostgrestFilterValue } = await import('../../utils/postgrestUtils');
+      const safeAudienceToken = escapePostgrestFilterValue(audienceStr.replace(/ /g, '_')) || 'Wayfinders';
+      const broadcastOrFilter = `target_audience.ilike.%All%,target_audience.ilike.%${safeAudienceToken}%`;
 
       const { data: broadcastsData, error: bErr } = await supabase.from('keeper_system_broadcasts')
         .select('*')
-        .or(`target_audience.ilike.%All%,target_audience.ilike.%${audienceStr.replace(/ /g, '_')}%`)
+        .or(broadcastOrFilter)
         .in('category', ['Update', 'Information', 'Event', 'System'])
         .order('created_at', { ascending: false })
         .limit(3);
@@ -189,7 +190,7 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
         .select('*')
         .eq('is_active', true)
         .in('is_pinned', ["true", "True", true])
-        .or(`target_audience.ilike.%All%,target_audience.ilike.%${audienceStr.replace(/ /g, '_')}%`)
+        .or(broadcastOrFilter)
         .order('created_at', { ascending: false })
         .limit(1);
       if (uErr) console.error("Urgent Fetch Error", uErr);
@@ -251,7 +252,7 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
       <CommandScreenBody>
         <CommandScreenMain>
           <div className="flex flex-col gap-4 w-full">
-            <CommandScreenSectionHeading title={t("wf_comms_title", "Latest Dispatch")} icon="history" />
+            <CommandScreenSectionHeading title={t("wf_comms_title", "Latest Dispatch")} icon={t("icon_history", "history")} />
             <div className="w-full">
               <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
             </div>
@@ -259,7 +260,7 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
 
           {recentSupport.length > 0 && (
             <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("wf_tab_tickets", "Support")} icon="local_activity" />
+              <CommandScreenSectionHeading title={t("wf_tab_tickets", "Support")} icon={t("icon_local_activity", "local_activity")} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                   {recentSupport.map((item: any) => (
                       <UniversalCard 
@@ -318,7 +319,7 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
 
           {recentMalware.length > 0 && (
             <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("rating_malware", "Malware")} icon="coronavirus" />
+              <CommandScreenSectionHeading title={t("rating_malware", "Malware")} icon={t("icon_coronavirus", "coronavirus")} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                   {recentMalware.map((item: any) => (
                       <UniversalCard 
@@ -377,7 +378,7 @@ export function WayfinderCommandScreen({ setTab, setComplianceFilter, onOpenMaso
 
           {recentCompliance.length > 0 && (
             <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("tab_compliance", "Compliance")} icon="policy" />
+              <CommandScreenSectionHeading title={t("tab_compliance", "Compliance")} icon={t("icon_policy", "policy")} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                   {recentCompliance.map((item: any) => (
                       <UniversalCard 

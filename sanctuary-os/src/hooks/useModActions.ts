@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
@@ -12,8 +13,13 @@ export function useModActions(
   equipPlaySet: (setName: string) => Promise<void>,
   setShelterActive: (active: boolean) => void
 ) {
-  const { setStatus, activeGameSchema } = useStore();
-  const { setConfirmDialog } = useModalStore();
+  const { setStatus, activeGameSchema } = useStore(
+    useShallow((s) => ({
+      setStatus: s.setStatus,
+      activeGameSchema: s.activeGameSchema,
+    }))
+  );
+  const setConfirmDialog = useModalStore((s) => s.setConfirmDialog);
   const { t } = useLexicon();
 
   function handleSmartSearch(mod: ModData) {

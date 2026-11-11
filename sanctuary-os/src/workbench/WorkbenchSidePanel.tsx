@@ -10,6 +10,7 @@ import { WorkbenchTemplateTools } from './WorkbenchTemplateTools';
 import { WorkbenchTemplateBuilder } from './WorkbenchTemplateBuilder';
 import { useTheme } from '../ThemeContext';
 import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from '../utils/monacoTheme';
+import { isSanctuaryTemplateFile, detectMonacoLanguage, writeDataPathValue } from './workbenchFormatUtils';
 
 const resolveCategoryIcon = (
    cat: any,
@@ -23,22 +24,22 @@ const resolveCategoryIcon = (
       return t(`icon_${rawIcon}`, rawIcon);
    }
    if (key.includes("general") || key.includes("core") || key.includes("main")) return t("icon_tune", "tune");
-   if (key.includes("appear") || key.includes("cas") || key.includes("body") || key.includes("face")) return t("icon_face", "face");
+   if (key.includes("appear") || key.includes("character") || key.includes("avatar") || key.includes("body") || key.includes("face")) return t("icon_face", "face");
    if (key.includes("autosave") || key.includes("save") || key.includes("backup")) return t("icon_save", "save");
-   if (key.includes("bb") || key.includes("build") || key.includes("buy") || key.includes("lot")) return t("icon_home_work", "home_work");
-   if (key.includes("bill") || key.includes("money") || key.includes("finance") || key.includes("pay")) return t("icon_receipt_long", "receipt_long");
+   if (key.includes("structure") || key.includes("housing") || key.includes("arch") || key.includes("zone")) return t("icon_home_work", "home_work");
+   if (key.includes("bill") || key.includes("money") || key.includes("finance") || key.includes("economy") || key.includes("pay")) return t("icon_receipt_long", "receipt_long");
    if (key.includes("career") || key.includes("work") || key.includes("job") || key.includes("school")) return t("icon_work", "work");
-   if (key.includes("clean")) return t("icon_cleaning_services", "cleaning_services");
-   if (key.includes("club") || key.includes("group") || key.includes("social")) return t("icon_groups", "groups");
-   if (key.includes("dress") || key.includes("outfit") || key.includes("cloth")) return t("icon_checkroom", "checkroom");
+   if (key.includes("clean") || key.includes("maint")) return t("icon_cleaning_services", "cleaning_services");
+   if (key.includes("club") || key.includes("group") || key.includes("social") || key.includes("faction")) return t("icon_groups", "groups");
+   if (key.includes("dress") || key.includes("outfit") || key.includes("cloth") || key.includes("gear")) return t("icon_checkroom", "checkroom");
    if (key.includes("marri") || key.includes("romance") || key.includes("love")) return t("icon_favorite", "favorite");
-   if (key.includes("occult") || key.includes("magic") || key.includes("alien") || key.includes("vampire")) return t("icon_auto_fix_high", "auto_fix_high");
-   if (key.includes("populat") || key.includes("world") || key.includes("neighborhood")) return t("icon_public", "public");
-   if (key.includes("pregnan") || key.includes("baby") || key.includes("child") || key.includes("offspring")) return t("icon_child_care", "child_care");
-   if (key.includes("relation") || key.includes("friend")) return t("icon_handshake", "handshake");
+   if (key.includes("magic") || key.includes("power") || key.includes("ability")) return t("icon_auto_fix_high", "auto_fix_high");
+   if (key.includes("populat") || key.includes("world") || key.includes("map") || key.includes("region")) return t("icon_public", "public");
+   if (key.includes("graphics") || key.includes("video") || key.includes("display") || key.includes("render")) return t("icon_display_settings", "display_settings");
+   if (key.includes("audio") || key.includes("sound") || key.includes("music")) return t("icon_volume_up", "volume_up");
+   if (key.includes("relation") || key.includes("friend") || key.includes("ally")) return t("icon_handshake", "handshake");
    if (key.includes("notif") || key.includes("show") || key.includes("alert") || key.includes("ui")) return t("icon_notifications", "notifications");
-   if (key.includes("tuner") || key.includes("autonom") || key.includes("interac")) return t("icon_build", "build");
-   if (key.includes("woohoo") || key.includes("intima")) return t("icon_volunteer_activism", "volunteer_activism");
+   if (key.includes("tuner") || key.includes("autonom") || key.includes("interac") || key.includes("gameplay")) return t("icon_build", "build");
    return t("icon_category", "category");
 };
 
@@ -231,7 +232,7 @@ export function WorkbenchSidePanel({
       return tr;
    };
 
-   const isTemplateMode = selectedFile?.name.toLowerCase().endsWith('.json');
+   const isTemplateMode = isSanctuaryTemplateFile(selectedFile, editorState.parsedData);
    const currentVisualTemplate = React.useMemo(() => {
       const candidate = (selectedTemplatePath && selectedTemplatePath !== "built_in" && customAppliedTemplate)
          ? customAppliedTemplate
@@ -269,13 +270,7 @@ export function WorkbenchSidePanel({
    const handlePreviewVisualChange = (dataPath: string, value: any) => {
       setPreviewSandboxData((prev: any) => {
          const next = JSON.parse(JSON.stringify(prev || {}));
-         const parts = dataPath.split('.');
-         let curr = next;
-         for (let i = 0; i < parts.length - 1; i++) {
-            if (!curr[parts[i]]) curr[parts[i]] = {};
-            curr = curr[parts[i]];
-         }
-         curr[parts[parts.length - 1]] = value;
+         writeDataPathValue(next, dataPath, value);
          return next;
       });
    };
@@ -718,7 +713,7 @@ export function WorkbenchSidePanel({
                         <WorkbenchRawEditor
                            value={editorState.rawText}
                            onChange={editorState.handleRawChange}
-                           language={selectedFile?.name.endsWith('.json') || (editorState.rawText && (editorState.rawText.trim().startsWith('{') || editorState.rawText.trim().startsWith('['))) ? 'json' : 'ini'}
+                           language={detectMonacoLanguage(selectedFile?.name, editorState.rawText)}
                            isLight={layoutState.isLight}
                            problemsList={editorState.problemsList}
                            setProblemsList={editorState.setProblemsList}
@@ -923,7 +918,7 @@ export function WorkbenchSidePanel({
                                     <div className="monaco-wrapper h-full w-full glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                                        <Editor
                                           height="100%"
-                                          language={templatePreviewObject?.target_file?.endsWith('.json') ? 'json' : 'ini'}
+                                          language={detectMonacoLanguage(templatePreviewObject?.target_file, editorState.targetFileContent)}
                                           theme={layoutState.isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
                                           beforeMount={(monaco) => defineSanctuaryMonacoThemes(monaco, currentTheme)}
                                           value={editorState.targetFileContent}

@@ -791,7 +791,7 @@ export function ChameleonSandboxPreview({
                       {t('icon_sports_esports', 'sports_esports')}
                     </span>
                     <span className="text-[8.5px] font-black text-[var(--text)] whitespace-nowrap">
-                      {t('theme_name_sims4', 'The Sims 4')}
+                      {t('theme_name_sims4', 'Plumbob Crystal')}
                     </span>
                   </div>
                   <span

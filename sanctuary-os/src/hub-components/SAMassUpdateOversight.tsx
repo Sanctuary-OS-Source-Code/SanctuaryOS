@@ -4,15 +4,13 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
   SidePanel, CustomDropdown, GameVersionMultiSelect, ModSearchDropdown, EmptyState,
-  fetchAllPaginated, PanelHeaderGroup, PanelHeaderButton,
+  fetchAllPaginated, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS,
 } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard, StatBox } from "../components/universal/UniversalLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import { DynamicArtifactPreviewBanner } from "../chameleon-components/ThemeCard";
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 import { logArchitectAction } from "../lib/audit";
 
 export function MassUpdateOversight() {
@@ -177,9 +175,9 @@ export function MassUpdateOversight() {
   const hasAnyAction = !!(massStatus || massCategory || massCompliance || massGameVersions.length > 0 || massConflictId);
 
   const tabs = [
-    { id: "overview", label: t("overview", "Overview"), icon: "dashboard" },
-    { id: "mass_select", label: t("mass_update_apply", "Mass Select"), icon: "checklist" },
-    { id: "recent", label: t("tab_recent", "Recent Changes"), icon: "history" }
+    { id: "overview", label: t("overview", "Overview"), icon: t("icon_dashboard", "dashboard") },
+    { id: "mass_select", label: t("mass_update_apply", "Mass Select"), icon: t("icon_checklist", "checklist") },
+    { id: "recent", label: t("tab_recent", "Recent Changes"), icon: t("icon_history", "history") }
   ];
 
   const renderModCard = (m: any, onCardClick: () => void) => {
@@ -359,7 +357,7 @@ export function MassUpdateOversight() {
     <ElevatedHubLayout
       headerTitle={t("mass_update_apply", "Mass Update")}
       headerSubtitle={t("mass_update_subtitle", "Select {mods} to perform batch operations")}
-      headerIcon="batch_prediction"
+      headerIcon={t("icon_batch_prediction", "batch_prediction")}
       headerIconColorClass="theme-text-accent"
       search={searchQuery}
       onSearchChange={setSearchQuery}
@@ -371,27 +369,27 @@ export function MassUpdateOversight() {
       actions={activeTab === 'mass_select' ? [
         {
           id: "toggleSelected",
-          icon: "checklist",
+          icon: t("icon_checklist", "checklist"),
           label: showOnlySelected ? t("artifacts_selected", "{Mods} Selected") : t("mass_update_apply", "Selected Only"),
           activeClassName: showOnlySelected ? "!text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_16%,transparent)] bg-[color-mix(in_srgb,var(--text)_6%,transparent)]" : "",
           onClick: () => setShowOnlySelected(!showOnlySelected)
         },
         {
           id: "selectAll",
-          icon: "done_all",
+          icon: t("icon_done_all", "done_all"),
           label: t("auto_toggle_all_visible", "Toggle All Visible") as string,
           onClick: handleSelectAllFiltered
         },
         ...(selectedIds.size > 0 ? [{
           id: "applyMassUpdate",
-          icon: "tune",
+          icon: t("icon_tune", "tune"),
           label: `${t("mass_update_apply", "Mass Update")} (${selectedIds.size})`,
           activeClassName: "!text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_16%,transparent)] bg-[color-mix(in_srgb,var(--text)_6%,transparent)]",
           onClick: () => setIsActionPanelOpen(true)
         }] : [])
       ] : undefined}
       primaryPopover={activeTab === 'mass_select' ? {
-        icon: "tune",
+        icon: t("icon_tune", "tune"),
         label: t("filters", "Filters"),
         content: (
           <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
@@ -428,21 +426,21 @@ export function MassUpdateOversight() {
         ) : activeTab === 'overview' ? (
           <HubOverviewLanding>
             <HubOverviewSection
-              icon="inventory_2"
+              icon={t("icon_inventory_2", "inventory_2")}
               iconColorClass="text-[var(--accent)]"
               title={t("term_mods", "Artifact Registry")}
               isEmpty={mods.length === 0}
-              emptyIcon="inventory_2"
+              emptyIcon={t("icon_inventory_2", "inventory_2")}
               emptyTitle={t("no_artifacts", "Creator No {Mods}")}
             >
               {mods.slice(0, 4).map(mod => renderModCard(mod, () => setActiveTab('mass_select')))}
             </HubOverviewSection>
             <HubOverviewSection
-              icon="history"
+              icon={t("icon_history", "history")}
               iconColorClass="text-[var(--success)]"
               title={t("recent_activity", "Recent Batch Updates")}
               isEmpty={recentChanges.length === 0}
-              emptyIcon="history"
+              emptyIcon={t("icon_history", "history")}
               emptyTitle={t("no_logs", "No Recent Updates")}
             >
               {recentChanges.slice(0, 4).map(renderBatchLogCard)}
@@ -485,14 +483,14 @@ export function MassUpdateOversight() {
         onClose={() => setIsActionPanelOpen(false)}
         title={t("mass_update_apply", "Mass Update")}
         subtitle={`${selectedIds.size} ${t("artifacts_selected", "{Mods} Selected")}`}
-        icon="batch_prediction"
+        icon={t("icon_batch_prediction", "batch_prediction")}
         iconColorClass="text-[var(--accent)]"
         widthClass="w-[90vw] md:w-[680px]"
         keepMounted={true}
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
-              icon="done_all"
+              icon={t("icon_done_all", "done_all")}
               variant="success"
               tooltip={isUpdating ? t("ui_btn_processing", "Executing...") : t("mass_update_apply", "Initiate Mass Update")}
               disabled={isUpdating || selectedIds.size === 0 || !hasAnyAction || !editReason.trim()}
@@ -503,31 +501,31 @@ export function MassUpdateOversight() {
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard
-            icon="batch_prediction"
+            icon={t("icon_batch_prediction", "batch_prediction")}
             overline={t("mass_update_apply", "Mass Update")}
             title={`${selectedIds.size} ${t("artifacts_selected", "{Mods} Selected")}`}
             description={t("mass_update_subtitle", "Select {mods} to perform batch operations")}
             badge={`${selectedIds.size} ${t("term_mods", "Items")}`}
-            badgeIcon="checklist"
+            badgeIcon={t("icon_checklist", "checklist")}
             variant="accent"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <StatBox
                 label={t("artifacts_selected", "{Mods} Selected")}
                 value={selectedIds.size}
-                icon="checklist"
+                icon={t("icon_checklist", "checklist")}
                 iconColorClass="text-[var(--accent)]"
               />
               <StatBox
                 label={t("mass_status_protocol", "Status Protocol")}
                 value={massStatus ? massStatus.toUpperCase() : t("leave_unchanged", "-- Leave Unchanged --")}
-                icon="policy"
+                icon={t("icon_policy", "policy")}
                 iconColorClass={massStatus ? "text-[var(--success)]" : "text-[var(--subtext)]"}
               />
             </div>
           </SidePanelHeroCard>
 
-          <UniversalGroup title={t("mass_status_protocol", "Status & Classification Protocol")} icon="policy">
+          <UniversalGroup title={t("mass_status_protocol", "Status & Classification Protocol")} icon={t("icon_policy", "policy")}>
             <div className="flex flex-col gap-1.5 relative z-50">
               <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
                 {t("mass_status_protocol", "Status Protocol")}
@@ -582,7 +580,7 @@ export function MassUpdateOversight() {
             </div>
           </UniversalGroup>
 
-          <UniversalGroup title={t("sa_game_versions", "Compatibility & Conflict Assignment")} icon="videogame_asset">
+          <UniversalGroup title={t("sa_game_versions", "Compatibility & Conflict Assignment")} icon={t("icon_videogame_asset", "videogame_asset")}>
             <div className="flex flex-col gap-1.5 relative z-20">
               <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
                 {t("auto_replace_game_versions", "Replace Game Versions")}
@@ -606,7 +604,7 @@ export function MassUpdateOversight() {
 
           <UniversalGroup
             title={t("batch_reason_req", "Audit Justification")}
-            icon="gavel"
+            icon={t("icon_gavel", "gavel")}
             headerColorClass="text-[var(--danger)]"
           >
             <UniversalTextArea

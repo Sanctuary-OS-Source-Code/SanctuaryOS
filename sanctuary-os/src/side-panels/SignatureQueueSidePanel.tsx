@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { writeTextFile, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { supabase } from "../supabase";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
@@ -70,7 +71,21 @@ export function SignatureQueueSidePanel({
     useInternalBrowser,
     setIsSideBrowserOpen,
     setNexusPreviewAsset,
-  } = useModalStore();
+  } = useModalStore(
+    useShallow((s) => ({
+      volatileSignatureQueue: s.volatileSignatureQueue,
+      setVolatileSignatureQueue: s.setVolatileSignatureQueue,
+      volatileSignatureQueues: s.volatileSignatureQueues,
+      setVolatileSignatureQueues: s.setVolatileSignatureQueues,
+      activeSignatureQueueIndex: s.activeSignatureQueueIndex,
+      setActiveSignatureQueueIndex: s.setActiveSignatureQueueIndex,
+      isSignatureQueueOpen: s.isSignatureQueueOpen,
+      setIsSignatureQueueOpen: s.setIsSignatureQueueOpen,
+      useInternalBrowser: s.useInternalBrowser,
+      setIsSideBrowserOpen: s.setIsSideBrowserOpen,
+      setNexusPreviewAsset: s.setNexusPreviewAsset,
+    }))
+  );
 
   const [filterTab, setFilterTab] = useState<"CHANGES" | "MISSING" | "ALL">("CHANGES");
   const [searchQuery, setSearchQuery] = useState("");

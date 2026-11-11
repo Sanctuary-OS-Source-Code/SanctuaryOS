@@ -1074,9 +1074,9 @@ export function GlobalCommandPalette({
           badgeLabel: viewsBadge,
           badgeIcon: t("icon_track_changes", "track_changes"),
           icon: t("icon_track_changes", "track_changes"),
-          keywords: "conflict radar duplicates collisions dbpf scout scanner",
-          isActive: view === "DbpfScout",
-          onSelect: () => navigateToView("DbpfScout"),
+          keywords: "conflict radar duplicates collisions artifact scout scanner",
+          isActive: view === "ArtifactScout",
+          onSelect: () => navigateToView("ArtifactScout"),
         },
         {
           id: "view_lab",

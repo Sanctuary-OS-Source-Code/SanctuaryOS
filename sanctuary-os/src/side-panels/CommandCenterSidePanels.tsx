@@ -19,6 +19,7 @@ import {
   StatBox,
   UniversalGroup,
   VAULT_CHIP_CLASS,
+  isScriptExtension,
   openModDossier,
 } from "../shared";
 import {
@@ -47,11 +48,6 @@ export function groupUpdateMods(rawList: any[]): any[] {
     }
   }
 
-  const mcCount = rawList.filter((u) => {
-    const label = formatDisplayName(u?.displayName || u?.name || "").trim();
-    return /^mc[\s_-]/i.test(label) || /mc\s*command\s*center/i.test(label);
-  }).length;
-
   const grouped = new Map<string, any>();
 
   for (const item of rawList) {
@@ -67,17 +63,12 @@ export function groupUpdateMods(rawList: any[]): any[] {
       : null;
 
     const rawTitle = formatDisplayName(item?.displayName || item?.name || "").trim();
-    const isMc =
-      mcCount > 1 && (/^mc[\s_-]/i.test(rawTitle) || /mc\s*command\s*center/i.test(rawTitle));
     const twinNormalized = normalizeModGroupTitle(rawTitle) || rawTitle;
 
     let groupKey: string;
     let displayTitle = twinNormalized;
 
-    if (isMc) {
-      groupKey = "__suite_mc_command_center__";
-      displayTitle = "MC Command Center";
-    } else if (hasRealFamily) {
+    if (hasRealFamily) {
       groupKey = `__family_${famIdRaw}__`;
       const canonicalParentTitle = familyParent
         ? formatDisplayName(familyParent.displayName || familyParent.name || "").trim()
@@ -207,11 +198,11 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
 
   const validCreator = extractValidCreator(update, ...groupedMods);
   const hasScriptFile = groupedMods.some((gm) =>
-    /\.ts4script$/i.test(String(gm?.name || gm?._originalSetName || ""))
+    isScriptExtension(String(gm?.name || gm?._originalSetName || ""), activeGameSchema)
   );
   const fallbackTypeLabel = hasScriptFile
     ? t("type_script", "Script")
-    : t("type_package", "Package");
+    : t("type_package", "Module");
 
   const openUpdateTarget = (e?: React.MouseEvent) => {
     if (e) {
@@ -375,7 +366,7 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
         </div>
       </div>
 
-      {/* Compact Recessed Linked Modules Tray */}
+      {/* Compact Recessed Linked Modules Drawer */}
       {isExpanded && groupedMods.length > 1 && (
         <div
           onClick={(e) => e.stopPropagation()}
@@ -387,8 +378,9 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
               const gmName =
                 formatAddonModuleName(gm, activeGameSchema) ||
                 formatDisplayName(gm.displayName || gm.name);
-              const isScript = /\.ts4script$/i.test(
-                String(gm?.name || gm?._originalSetName || "")
+              const isScript = isScriptExtension(
+                String(gm?.name || gm?._originalSetName || ""),
+                activeGameSchema
               );
               return (
                 <div

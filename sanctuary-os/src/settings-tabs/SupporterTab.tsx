@@ -131,7 +131,7 @@ export default function SupporterTab() {
   const session = useStore((state) => state.session);
   const vaultPath = useStore((state) => state.vaultPath);
   const workspaces = useStore((state) => state.workspaces);
-  const { setIsUpdatePanelOpen } = useModalStore();
+  const setIsUpdatePanelOpen = useModalStore((s) => s.setIsUpdatePanelOpen);
 
   const [supporterState, setSupporterState] =
     useState<LocalSupporterStatePayload>({

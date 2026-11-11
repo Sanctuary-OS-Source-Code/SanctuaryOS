@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatDisplayName, getExtensionRegex, EmptyState, AccordionDrawer, stripPriorityTierPrefix, ActionPill } from '../../shared';
+import { formatDisplayName, getExtensionRegex, isScriptExtension, EmptyState, AccordionDrawer, stripPriorityTierPrefix, ActionPill } from '../../shared';
 import { ModCard } from '../../ModCard';
 
 function DrawerFilterSection({ title, options, value, onChange, t }: any) {
@@ -39,7 +39,7 @@ function DrawerFilterSection({ title, options, value, onChange, t }: any) {
 }
 
 export function VaultGrid(props: any) {
-  const { vaultLayout = "standard", paginatedMods, t, playSets, activePlaySetIndex, activeGameSchema, anarchyRules, isBulkMode, selectedMods, setDrawerConfirmHash, toggleInActiveSet, isVersionMatch, selectedVersion, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, setActiveDossier, drawerConfirmHash, currentPage, setCurrentPage, totalPages, equippedDisplayMods, modListIndex, dependencyGraph, uppercaseEquippedMods, localConflictsMemo, ownedDLC, maskedDLC, displayModList, supabase, setMetaUrlInput, applyConflictOverride, setActiveTier3Conflict, expandedFolder, setExpandedFolder, hideGhostCards, hasActiveFilters, onResetFilters, setSelectedMods } = props;
+  const { vaultLayout = "standard", paginatedMods, t, playSets, activePlaySetIndex, activeGameSchema, anarchyRules, isBulkMode, selectedMods, setDrawerConfirmHash, toggleInActiveSet, isVersionMatch, selectedVersion, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, setActiveDossier, drawerConfirmHash, currentPage, setCurrentPage, totalPages, equippedDisplayMods, modListIndex, dependencyGraph, uppercaseEquippedMods, localConflictsMemo = [], ownedDLC, maskedDLC, displayModList, supabase, setMetaUrlInput, applyConflictOverride, setActiveTier3Conflict, expandedFolder, setExpandedFolder, hideGhostCards, hasActiveFilters, onResetFilters, setSelectedMods } = props;
   const localSets = Array.isArray(playSets) ? playSets : [];
   const [drawerSearchQuery, setDrawerSearchQuery] = React.useState("");
   const deferredDrawerSearch = React.useDeferredValue(drawerSearchQuery);
@@ -183,8 +183,9 @@ export function VaultGrid(props: any) {
     });
   }, [uppercaseEquippedMods, localConflictsMemo, areArchetypes]);
 
-  const cardComputations = React.useMemo(() => {
+  const { cardComputations, missingReqsByMod } = React.useMemo(() => {
     const map = new Map();
+    const reqsByMod = new WeakMap<object, any[]>();
 
     paginatedMods.forEach((mod: any) => {
       const isEquipped = mod.isParent
@@ -327,20 +328,23 @@ export function VaultGrid(props: any) {
 
       const missingReqs: any[] = [];
       const checkModDeps = (m: any) => {
-        if (m.missingReqs !== undefined) {
-          m.missingReqs.forEach((r: any) => {
+        if (!m || typeof m !== "object") return;
+        const cachedModReqs = reqsByMod.get(m);
+        if (cachedModReqs !== undefined) {
+          cachedModReqs.forEach((r: any) => {
             if (!missingReqs.some(existing => existing.id === r.id)) missingReqs.push(r);
           });
           return;
         }
 
-        m.missingReqs = [];
+        const modReqs: any[] = [];
+        reqsByMod.set(m, modReqs);
         const pushMissing = (reqOrStr: any, fallbackUrl?: string) => {
           const isObj = typeof reqOrStr === 'object';
           const id = isObj ? (reqOrStr.name || reqOrStr.id) : reqOrStr;
           const finalUrl = isObj ? (reqOrStr.url || reqOrStr.link) : fallbackUrl;
           if (!missingReqs.some(r => r.id === id)) missingReqs.push({ id, url: finalUrl });
-          if (!m.missingReqs.some((r: any) => r.id === id)) m.missingReqs.push({ id, url: finalUrl });
+          if (!modReqs.some((r: any) => r.id === id)) modReqs.push({ id, url: finalUrl });
         };
 
 
@@ -401,7 +405,7 @@ export function VaultGrid(props: any) {
       });
     });
     
-    return map;
+    return { cardComputations: map, missingReqsByMod: reqsByMod };
   }, [
     paginatedMods,
     playSets,
@@ -413,7 +417,6 @@ export function VaultGrid(props: any) {
     anarchyRules,
     uppercaseEquippedMods,
     localConflictsMemo,
-    activeGameSchema,
     activeGameSchema
   ]);
 
@@ -435,15 +438,15 @@ export function VaultGrid(props: any) {
     ).trim();
     if (
       explicitCat &&
-      !/^(package|script|collection|folder|local|unknown|mod)$/i.test(explicitCat)
+      !/^(package|script|collection|folder|local|unknown|mod|module|artifact)$/i.test(explicitCat)
     ) {
       return explicitCat;
     }
-    if (/\.ts4script$/i.test(String(flavor?.name || flavor?.file_extension || ""))) {
+    if (isScriptExtension(String(flavor?.name || flavor?.file_extension || ""), activeGameSchema)) {
       return "Script";
     }
-    return explicitCat || "Package";
-  }, []);
+    return explicitCat || "Module";
+  }, [activeGameSchema]);
 
   const availableDrawerCategories = React.useMemo(() => {
     const flavors = expandedModEntry?.mod?.flavors || [];
@@ -767,7 +770,9 @@ export function VaultGrid(props: any) {
         const baseCode = p.split(' ')[0].toUpperCase().trim();
         return !ownedDLC.includes(baseCode) || maskedDLC.includes(baseCode);
       });
-      const hasMissingDeps = (flavor.missingReqs && flavor.missingReqs.length > 0) || (mod.missingReqs && mod.missingReqs.length > 0);
+      const flavorMissingReqs = (flavor && typeof flavor === "object" ? missingReqsByMod.get(flavor) : undefined) ?? flavor?.missingReqs;
+      const modMissingReqs = (mod && typeof mod === "object" ? missingReqsByMod.get(mod) : undefined) ?? mod?.missingReqs;
+      const hasMissingDeps = Boolean((flavorMissingReqs && flavorMissingReqs.length > 0) || (modMissingReqs && modMissingReqs.length > 0));
 
       const flavorVersionMismatch = Boolean(
         (flavor.compatible_versions && flavor.compatible_versions.length > 0 && selectedVersion && selectedVersion !== "" && !isVersionMatch(flavor.compatible_versions, selectedVersion)) ||
@@ -801,7 +806,7 @@ export function VaultGrid(props: any) {
       <div id="vault-grid-container" className={`${gridLayoutClass} gap-6 pb-24 pl-2 pr-6 relative`}>
         {paginatedMods.length === 0 ? (
           <EmptyState
-            icon="search_off"
+            icon={t("icon_search_off", "search_off")}
             title={t("registry_no_mods", "No {Mods} Found")}
             subtitle={t("vault_no_results_sub", "Try adjusting your search criteria or filters.")}
             action={
@@ -1056,7 +1061,9 @@ export function VaultGrid(props: any) {
                             const comp = drawerComputations.get(flavor.hash || flavor.name) || { isFlavorEquipped: cleanedActiveSet.has(flavor.name), drawerCasualties: [], flavorTier3: [], isSwappedState: false, isBetaSwap: false, missingPacks: [], hasMissingDeps: false, flavorVersionMismatch: false, flavorGhostReason: null, isFlavorGhosted: false };
                             const { isFlavorEquipped, drawerCasualties, flavorTier3, isSwappedState, isBetaSwap, missingPacks, hasMissingDeps, flavorGhostReason, isFlavorGhosted } = comp;
 
-                            const combinedMissingDeps = [...(flavor.missingReqs || []), ...(mod.missingReqs || [])].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                            const flavorMissingReqs = (flavor && typeof flavor === "object" ? missingReqsByMod.get(flavor) : undefined) ?? flavor?.missingReqs ?? [];
+                            const modMissingReqs = (mod && typeof mod === "object" ? missingReqsByMod.get(mod) : undefined) ?? mod?.missingReqs ?? [];
+                            const combinedMissingDeps = [...flavorMissingReqs, ...modMissingReqs].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
 
                             return (
                               <ModCard

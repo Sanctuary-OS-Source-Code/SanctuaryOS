@@ -24,6 +24,7 @@ import {
   openModDossier,
   deduplicateBlueprintArtifacts,
   stripPriorityTierPrefix,
+  isScriptExtension,
 } from "../shared";
 import {
   formatCleanModTitle,
@@ -146,10 +147,10 @@ export function NexusFlagResolutionCard({
 
   const renderViolationCard = (v: BlueprintComplianceViolation, vIdx: number) => {
     const activeSchema = useStore.getState().activeGameSchema;
-    const isScript = /\.ts4script$/i.test(v.cleanName || v.name);
+    const isScript = isScriptExtension(v.cleanName || v.name, activeSchema);
     const typeLabel = isScript
       ? t("type_script", "Script")
-      : t("type_package", "Package");
+      : t("type_package", "Module");
     const displayTitle =
       formatCleanModTitle(formatDisplayName(v.cleanName, undefined, activeSchema)) || v.cleanName;
     const isDangerReason =
@@ -1801,7 +1802,7 @@ export function BlueprintInspectorModCard({
   const validCreator = extractValidCreator(mod, ...groupedMods);
 
   const hasScriptFile = groupedMods.some((gm) =>
-    /\.ts4script$/i.test(String(gm?._cleanFilePart || gm?.name || ""))
+    isScriptExtension(String(gm?._cleanFilePart || gm?.name || ""), activeGameSchema)
   );
   const typeLabel = mod.isCollection
     ? t("collection", "Collection")
@@ -1809,7 +1810,7 @@ export function BlueprintInspectorModCard({
       ? t("suite_label", "Suite")
       : hasScriptFile
         ? t("type_script", "Script")
-        : t("type_package", "Package");
+        : t("type_package", "Module");
 
   const hasRealVersion = Boolean(
     mod.version &&
@@ -2011,7 +2012,7 @@ export function BlueprintInspectorModCard({
         </div>
       </div>
 
-      {/* Recessed Linked Modules Tray */}
+      {/* Recessed Linked Modules Drawer */}
       {isExpanded && groupedMods.length > 1 && (
         <div
           onClick={(e) => e.stopPropagation()}
@@ -2030,8 +2031,9 @@ export function BlueprintInspectorModCard({
                       activeGameSchema
                     )
                   );
-                const gmIsScript = /\.ts4script$/i.test(
-                  String(gm?._cleanFilePart || gm?.name || "")
+                const gmIsScript = isScriptExtension(
+                  String(gm?._cleanFilePart || gm?.name || ""),
+                  activeGameSchema
                 );
                 const gmOwned = Boolean(gm._isOwned);
 
@@ -2211,7 +2213,7 @@ export function MarketBlueprintPanel({
       filtered = filtered.filter((f: any) => {
         const gMods = Array.isArray(f._groupedMods) && f._groupedMods.length > 0 ? f._groupedMods : [f];
         const hasScript = gMods.some((gm: any) =>
-          /\.ts4script$/i.test(String(gm?._cleanFilePart || gm?.name || ""))
+          isScriptExtension(String(gm?._cleanFilePart || gm?.name || ""), activeGameSchema)
         );
         const isSuite = Boolean(f.isCollection || gMods.length > 1);
         if (typeFilter === "SUITE") return isSuite;

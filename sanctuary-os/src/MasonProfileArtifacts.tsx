@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getModIcon, AccordionDrawer, DeferredRender, formatDisplayName, EmptyState, HoverTooltip, stripMarkdown } from './shared';
+import { getModIcon, getExtensionRegex, AccordionDrawer, DeferredRender, formatDisplayName, EmptyState, HoverTooltip, stripMarkdown } from './shared';
 import { UniversalCard } from './components/universal/UniversalCard';
 import { DynamicArtifactPreviewBanner } from './chameleon-components/ThemeCard';
 import { useStore } from './store';
@@ -12,7 +12,8 @@ const formatModCardTitle = (mod: any) => {
       .pop() || "";
   return (
     raw
-      .replace(/\.(package|ts4script|zip|rar|7z|json|dll|asi|lua|reds|csx)$/i, "")
+      .replace(getExtensionRegex(useStore.getState().activeGameSchema), "")
+      .replace(/\.(zip|rar|7z|tar|gz|json|toml|yaml|yml|xml|cfg|ini|dll|asi|so|dylib|lua)$/i, "")
       .replace(/_/g, " ")
       .trim() ||
     mod?.name ||
@@ -26,8 +27,8 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
   const showImages = useStore((state: any) => state.showImages);
 
   const sortedMods = [...(filteredMods || [])].sort((a: any, b: any) => {
-    const aPin = mason?.pinned_mod_id === a?.id || mason?.pinned_ccset_id === a?.id ? 1 : 0;
-    const bPin = mason?.pinned_mod_id === b?.id || mason?.pinned_ccset_id === b?.id ? 1 : 0;
+    const aPin = mason?.pinned_mod_id === a?.id || mason?.pinned_collection_id === a?.id ? 1 : 0;
+    const bPin = mason?.pinned_mod_id === b?.id || mason?.pinned_collection_id === b?.id ? 1 : 0;
     if (bPin !== aPin) return bPin - aPin;
     return 0;
   });
@@ -45,7 +46,7 @@ export default function MasonProfileArtifacts({ filteredMods, onModClick, mason,
         {sortedMods.map((mod: any, index: number) => {
           const mainKey = mod.id || mod.hash || mod.name || String(index);
           const isFolder = mod.isVirtual || mod.isParent || mod.familyCount > 1;
-          const isPinned = Boolean(mason?.pinned_mod_id === mod.id || mason?.pinned_ccset_id === mod.id);
+          const isPinned = Boolean(mason?.pinned_mod_id === mod.id || mason?.pinned_collection_id === mod.id);
           const cleanedTitle = formatModCardTitle(mod);
           const enrichedMod = {
             ...mod,

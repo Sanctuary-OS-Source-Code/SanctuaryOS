@@ -372,32 +372,19 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     if (!error) {
       if (!editingPostId && newPostId) {
         const { data: authUser } = await supabase.auth.getUser();
-        if (authUser.user) {
-          const { data: followers } = await supabase.from('mason_followers').select('user_id').eq('mason_id', masonId);
-          if (followers && followers.length > 0) {
-            const notifications = followers.map(f => ({
-              id: crypto.randomUUID(),
-              user_id: f.user_id,
-              actor_id: authUser.user!.id,
-              type: 'new_post',
-              reference_id: newPostId,
-              message: `${masonName || 'A Mason you follow'} has broadcast a new Transmission.`
-            }));
-
-            try {
-              await Promise.all(notifications.map(notif =>
-                supabase.rpc('secure_upsert_cloud_file', {
-                  p_target: 'notifications',
-                  p_payload: notif,
-                  p_token: useStore.getState().session?.access_token || ''
-                }).then(res => {
-                  if (res.error) console.error("Notification insert error:", res.error);
-                })
-              ));
-              window.dispatchEvent(new CustomEvent('refresh_notifications'));
-            } catch (e) {
-              console.error("Failed to insert notifications:", e);
-            }
+        if (authUser.user && masonId) {
+          try {
+            const res = await supabase.rpc('dispatch_follower_notifications', {
+              p_mason_id: masonId,
+              p_type: 'new_post',
+              p_reference_id: newPostId,
+              p_message: `${masonName || 'A Creator you follow'} has broadcast a new Transmission.`,
+              p_token: useStore.getState().session?.access_token || '',
+            });
+            if (res.error) console.error("Follower notification dispatch error:", res.error);
+            window.dispatchEvent(new CustomEvent('refresh_notifications'));
+          } catch (e) {
+            console.error("Failed to dispatch follower notifications:", e);
           }
         }
       }

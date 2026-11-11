@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, ActionButton } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, ActionButton, openModDossier } from "./shared";
 import ArchitectSupportTickets from "./hub-components/ArchitectSupportTickets";
 import { useLexicon } from "./LexiconContext";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
@@ -174,23 +174,39 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
         {activeTab === "command_center" && (
           <ArchitectCommandScreen setStatus={setStatus} onNavigate={handleNavigate} setViewingPost={setViewingPost} />
         )}
-        <ArchitectRegistry
-          setStatus={setStatus}
-          isActiveTab={activeTab === "registry"}
-          initialSearch={registrySearch}
-          onClearSearch={() => setRegistrySearch("")}
-          initialActiveMod={registryTargetMod || inspectMod}
-          onClearActiveMod={() => {
-            setRegistryTargetMod(null);
-            setInspectMod(null);
-          }}
-          modList={tier0ModList}
-        />
+        {activeTab === "registry" && (
+          <ArchitectRegistry
+            setStatus={setStatus}
+            isActiveTab={true}
+            initialSearch={registrySearch}
+            onClearSearch={() => setRegistrySearch("")}
+            initialActiveMod={registryTargetMod || inspectMod}
+            onClearActiveMod={() => {
+              setRegistryTargetMod(null);
+              setInspectMod(null);
+            }}
+            modList={tier0ModList}
+          />
+        )}
         {activeTab === "collections" && <CollectionForge setStatus={setStatus} />}
         {activeTab === "queue" && <ScoutQueue modList={tier0ModList} setStatus={setStatus} />}
         {activeTab === "mason_queue" && <MasonQueue modList={tier0ModList} setStatus={setStatus} />}
         {activeTab === "template_oversight" && <ArchitectTemplateOversight />}
-        {activeTab === "nexus_reports" && <NexusReportsViewer onOpenDossier={onOpenDossier} />}
+        {activeTab === "nexus_reports" && (
+          <NexusReportsViewer
+            onOpenDossier={
+              onOpenDossier ||
+              ((report: any) => {
+                const target = report?.metadata?.asset_full || report?.target_id || report;
+                if (target) {
+                  openModDossier(
+                    typeof target === "object" ? { ...target, isNexusView: true } : target
+                  );
+                }
+              })
+            }
+          />
+        )}
         {activeTab === "support_tickets" && (
           <ArchitectSupportTickets
             setStatus={setStatus}

@@ -7,6 +7,7 @@ import {
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
@@ -50,7 +51,30 @@ export function SystemQueuesSidePanel({
     setIsSideBrowserOpen,
     pendingPasskeyHandshakes,
     setIsPasskeyHandshakePanelOpen,
-  } = useModalStore();
+  } = useModalStore(
+    useShallow((s) => ({
+      updatePayload: s.updatePayload,
+      setIsUpdatePanelOpen: s.setIsUpdatePanelOpen,
+      dnaMatchQueue: s.dnaMatchQueue,
+      setIsDnaModalOpen: s.setIsDnaModalOpen,
+      volatileSignatureQueue: s.volatileSignatureQueue,
+      setVolatileSignatureQueue: s.setVolatileSignatureQueue,
+      setActiveSignatureQueueIndex: s.setActiveSignatureQueueIndex,
+      setIsSignatureQueueOpen: s.setIsSignatureQueueOpen,
+      stagingDraftItems: s.stagingDraftItems,
+      scoutQueue: s.scoutQueue,
+      setIsScoutPanelOpen: s.setIsScoutPanelOpen,
+      setIsNexusUpdatesPanelOpen: s.setIsNexusUpdatesPanelOpen,
+      setIsConflictRadarOpen: s.setIsConflictRadarOpen,
+      setIsBlueprintSwapOpen: s.setIsBlueprintSwapOpen,
+      setIsSystemStatusOpen: s.setIsSystemStatusOpen,
+      setIsLogExpanded: s.setIsLogExpanded,
+      useInternalBrowser: s.useInternalBrowser,
+      setIsSideBrowserOpen: s.setIsSideBrowserOpen,
+      pendingPasskeyHandshakes: s.pendingPasskeyHandshakes,
+      setIsPasskeyHandshakePanelOpen: s.setIsPasskeyHandshakePanelOpen,
+    }))
+  );
 
   const quarantineCount = Array.isArray(quarantineList)
     ? quarantineList.length

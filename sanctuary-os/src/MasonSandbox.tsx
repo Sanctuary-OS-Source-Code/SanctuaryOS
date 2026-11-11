@@ -15,6 +15,8 @@ import {
   EmptyState,
   PanelHeaderGroup,
   PanelHeaderButton,
+  isScriptExtension,
+  isModBinaryExtension,
 } from "./shared";
 import {
   ElevatedHubLayout,
@@ -336,7 +338,7 @@ export function MasonSandbox({
             extensions: [
               ...(useStore.getState().activeGameSchema?.extensions?.supported?.map((e: string) =>
                 e.replace(".", "")
-              ) || ["package", "ts4script"]),
+              ) || []),
               "zip",
               "txt",
               "js",
@@ -455,14 +457,17 @@ export function MasonSandbox({
         artifact: {
           id: activeMod.id || safeNameSlug || "unknown",
           name: ((activeMod.name || "Unknown Mod").split(/[\\/]/).pop() || "Unknown Mod").replace(
-            /\.(package|ts4script|zip)$/i,
+            /\.[^/.]+$/,
             ""
           ),
           author: masonName || masonId || "Unknown Author",
           version: versionStr,
           game_version: activeMod.compatible_versions?.[0] || "",
           release_date: new Date().toISOString(),
-          game_id: useStore.getState().activeGameSchema?.id || "sims4",
+          game_id:
+            useStore.getState().activeGameSchema?.id ||
+            useStore.getState().activeWorkspaceId ||
+            "universal",
         },
         payload: {
           download_url: customDownloadUrl,
@@ -594,7 +599,7 @@ export function MasonSandbox({
       }
 
       useStore.getState().pushStatus(
-        `${t("edge_export_release_success", "Exported manifest.json, override.json, and release .zip to:")} ${releaseDir}`,
+        `${t("edge_export_release_success", "Exported .sanctuary.manifest.json, .sanctuary.override.json, and release .zip to:")} ${releaseDir}`,
         "success"
       );
     } catch (err: any) {
@@ -655,7 +660,7 @@ export function MasonSandbox({
   const handleSyncToNetwork = async () => {
     if (!isVerifiedMason) {
       useStore.getState().pushStatus(
-        t("sandbox_verified_upload_only_err", "Nexus {Mod} Queue uploads are restricted to Verified {Masons}. Use Export Release to generate your local manifest.json, override.json, and release archive."),
+        t("sandbox_verified_upload_only_err", "Nexus {Mod} Queue uploads are restricted to Verified {Masons}. Use Export Release to generate your local .sanctuary.manifest.json, .sanctuary.override.json, and release archive."),
         "error"
       );
       return;
@@ -980,15 +985,18 @@ export function MasonSandbox({
     const standalone: any[] = [];
 
     for (const [stem, members] of stemGroups.entries()) {
+      const activeSchema = useStore.getState().activeGameSchema;
       const sortedMembers = [...members].sort((a, b) => {
-        const aPkg = String(a.name).toLowerCase().endsWith(".package") ? 0 : 1;
-        const bPkg = String(b.name).toLowerCase().endsWith(".package") ? 0 : 1;
-        return aPkg - bPkg;
+        const aName = String(a.name || "");
+        const bName = String(b.name || "");
+        const aCore = !isScriptExtension(aName, activeSchema) && isModBinaryExtension(aName, activeSchema) ? 0 : 1;
+        const bCore = !isScriptExtension(bName, activeSchema) && isModBinaryExtension(bName, activeSchema) ? 0 : 1;
+        return aCore - bCore;
       });
       const coreMod = sortedMembers[0];
       const stemSiblings = sortedMembers.slice(1).map((sib) => ({
         ...sib,
-        _familyRole: String(sib.name).toLowerCase().endsWith(".ts4script") ? "twin" : "addon",
+        _familyRole: isScriptExtension(String(sib.name || ""), activeSchema) ? "twin" : "addon",
       }));
       const explicitKids = explicitChildrenByParent.get(coreMod.hash) || [];
       const allModules = [...stemSiblings, ...explicitKids];
@@ -1107,13 +1115,13 @@ export function MasonSandbox({
     {
       id: "overview",
       label: t("overview", "Overview"),
-      icon: "dashboard",
+      icon: t("icon_dashboard", "dashboard"),
       number: String(filteredSandboxMods.length + (isVerifiedMason ? filteredNexusMods.length : 0)),
     },
     {
       id: "sandbox",
       label: t("mason_mods_tab_sandbox", "Sandbox (Local)"),
-      icon: "science",
+      icon: t("icon_science", "science"),
       number: String(filteredSandboxMods.length),
     },
     ...(isVerifiedMason
@@ -1121,13 +1129,13 @@ export function MasonSandbox({
           {
             id: "nexus",
             label: t("mason_mods_tab_nexus", "Nexus Uploads"),
-            icon: "cloud_done",
+            icon: t("icon_cloud_done", "cloud_done"),
             number: String(filteredNexusMods.length),
           },
           {
             id: "flagged",
             label: t("mason_mods_tab_flagged", "Flagged & Issues"),
-            icon: "warning",
+            icon: t("icon_warning", "warning"),
             number: String(flaggedMods.length),
           },
         ]
@@ -1139,8 +1147,13 @@ export function MasonSandbox({
     const savedAll = JSON.parse(localStorage.getItem("sanctuary_sandbox_configs") || "{}");
     const savedLocal = savedAll[mod.hash] || {};
     const cleanName = (savedLocal.name || mod.name || "").split(/[\\/]/).pop() || mod.name;
+    const activeSchema = useStore.getState().activeGameSchema;
+    const fallbackPrimaryExt =
+      activeSchema?.extensions?.packages?.[0] ||
+      activeSchema?.extensions?.supported?.[0] ||
+      ".bin";
     const extMatch = String(mod.name || "").match(/\.[a-z0-9]+$/i);
-    const ext = mod.file_extension || (extMatch ? extMatch[0].toLowerCase() : ".package");
+    const ext = mod.file_extension || (extMatch ? extMatch[0].toLowerCase() : fallbackPrimaryExt);
     const versionCount = (mod._olderVersions?.length || 0) + 1;
     const childCount =
       typeof mod._familyChildrenCount === "number"
@@ -1162,7 +1175,7 @@ export function MasonSandbox({
       category_override:
         savedLocal.category_override ||
         mod.category_override ||
-        (ext === ".ts4script" ? "Script" : "Package"),
+        (isScriptExtension(ext, activeSchema) ? "Script" : "Module"),
       mod_versions: versionCount > 1 ? Array.from({ length: versionCount }) : [],
     };
 
@@ -1255,7 +1268,7 @@ export function MasonSandbox({
   return (
     <ElevatedHubLayout
       headerTitle={t("term_mods", "Mods & Artifacts")}
-      headerIcon="deployed_code"
+      headerIcon={t("icon_deployed_code", "deployed_code")}
       search={searchTerm}
       onSearchChange={setSearchTerm}
       searchPlaceholder={t("search_ph", "Search {mods}...") as string}
@@ -1272,7 +1285,7 @@ export function MasonSandbox({
         },
         {
           id: "toggle_group_families",
-          icon: groupFamilies ? "account_tree" : "view_module",
+          icon: groupFamilies ? t("icon_account_tree", "account_tree") : t("icon_view_module", "view_module"),
           label: groupFamilies
             ? t("studio_group_families", "Group {Mod} Families")
             : t("studio_flat_list", "Flat List"),
@@ -1286,7 +1299,7 @@ export function MasonSandbox({
                   <span
                     className={`material-symbols-outlined !text-[20px] ${isImporting ? "animate-spin" : ""}`}
                   >
-                    {isImporting ? "refresh" : "download"}
+                    {isImporting ? t("icon_refresh", "refresh") : t("icon_download", "download")}
                   </span>
                 ),
                 label: (isImporting
@@ -1302,7 +1315,7 @@ export function MasonSandbox({
       primaryPopover={
         hubTab === "nexus" || hubTab === "flagged"
           ? {
-              icon: "tune",
+              icon: t("icon_tune", "tune"),
               label: t("filters", "Filters"),
               content: (
                 <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
@@ -1395,7 +1408,7 @@ export function MasonSandbox({
               ? `UUID: ${activeMod?.id}`
               : `${t("hash_prefix", "HASH:")} ${formatDisplayHash(activeMod?.hash)}`
           }
-          icon={editorMode === "registry" ? "inventory_2" : "settings"}
+          icon={editorMode === "registry" ? t("icon_inventory_2", "inventory_2") : t("icon_settings", "settings")}
           widthClass="w-[94vw] max-w-[1280px]"
           backdropZ="z-[50000]"
           panelZ="z-[50001]"
@@ -1620,14 +1633,14 @@ export function MasonSandbox({
                     checked={activeMod.is_paid || false}
                     onChange={(checked) => setActiveMod({ ...activeMod, is_paid: checked })}
                     label={t("label_is_paid", "Paid {Mod}")}
-                    icon="monetization_on"
+                    icon={t("icon_monetization_on", "monetization_on")}
                     variant="warning"
                   />
                   <SidePanelPillToggle
                     checked={activeMod.is_early_access || false}
                     onChange={(checked) => setActiveMod({ ...activeMod, is_early_access: checked })}
                     label={t("badge_early_access", "Early Access")}
-                    icon="science"
+                    icon={t("icon_science", "science")}
                     variant="accent"
                   />
                 </div>

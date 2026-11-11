@@ -1,16 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useTooltipStore } from "../store/tooltipStore";
-import { supabase, supabaseAuth } from "../supabase";
-import { hashString } from "../lib/cryptoUtils";
+import { supabase } from "../supabase";
 import { isDesktop } from "../utils/envUtils";
 import {
-  authenticateFidoPasskey,
-  checkAccountRecoveryMethod,
   clearPasskeySessionVerified,
   fetchMfaSecurityState,
   isLocalhostBrowser,
@@ -18,6 +14,14 @@ import {
   signInWithZeroKnowledgeFallback,
   syncDevSessionToVite,
 } from "../utils/passkeyUtils";
+import {
+  classifyAuthStatusMessage,
+  enforceLoginClearanceAndBanCheck,
+  prepareMfaChallengeData,
+  sendPasswordResetWithBlindGuard,
+  verifyPasskeyMfaAndFetchSession,
+  verifyTotpMfaAndFetchSession,
+} from "../utils/authHelpers";
 import {
   ActionButton,
   DashboardStatTile,
@@ -269,25 +273,17 @@ export function DevBuildClearanceGate() {
   }, [isLocked]);
 
   const prepareMfaChallengeFromState = async (): Promise<boolean> => {
-    const state = await fetchMfaSecurityState();
-    const { passkeys, totpFactors } = state;
-
-    if (passkeys.length === 0 && totpFactors.length === 0) {
+    const prepared = await prepareMfaChallengeData(false);
+    if (!prepared.hasAny) {
       return false;
     }
 
-    setMfaPasskeys(passkeys);
-    setMfaTotpFactors(totpFactors);
-
-    if (passkeys.length > 0) {
-      setSelectedPasskeyId(passkeys[0].id);
-      setMfaMode("passkey");
-    } else {
-      setMfaMode("totp");
-    }
-
-    if (totpFactors.length > 0) {
-      setMfaFactorId(totpFactors[0].id);
+    setMfaPasskeys(prepared.passkeys);
+    setMfaTotpFactors(prepared.totpFactors);
+    setSelectedPasskeyId(prepared.defaultPasskeyId);
+    setMfaMode(prepared.defaultMode);
+    if (prepared.defaultTotpFactorId) {
+      setMfaFactorId(prepared.defaultTotpFactorId);
     }
 
     setShowMfaChallenge(true);
@@ -295,74 +291,7 @@ export function DevBuildClearanceGate() {
   };
 
   const finalizeLogin = async (user: any) => {
-    try {
-      let rawHwid = "";
-      if (isDesktop()) {
-        try {
-          rawHwid = await invoke<string>("get_hardware_id");
-        } catch {}
-      }
-      if (
-        rawHwid &&
-        rawHwid !== "UNKNOWN_HWID" &&
-        rawHwid !== "WEB_BROWSER_HWID"
-      ) {
-        const hwid = await hashString(rawHwid);
-        const fetchBanPromise = supabaseAuth
-          .from("hardware_bans")
-          .select("hwid_hash")
-          .eq("hwid_hash", hwid)
-          .limit(1);
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Timeout")), 3000),
-        );
-        const res = (await Promise.race([fetchBanPromise, timeoutPromise])) as any;
-
-        if (res.data && res.data.length > 0) {
-          await supabaseAuth
-            .from("profiles")
-            .update({ is_banned: true })
-            .eq("id", user.id);
-          localStorage.setItem("sanctuary_blacklisted", "true");
-          await supabase.auth.signOut();
-          throw new Error(
-            t(
-              "err_hwid_blacklisted",
-              "Hardware ban detected. Account has been permanently blacklisted.",
-            ),
-          );
-        }
-      }
-    } catch (e: any) {
-      if (e.message?.includes("blacklisted")) throw e;
-    }
-
-    let profile = null;
-    try {
-      const fetchPromise = supabaseAuth
-        .from("profiles")
-        .select("is_banned, role")
-        .eq("id", user.id)
-        .maybeSingle();
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Timeout")), 3000),
-      );
-      const res = (await Promise.race([fetchPromise, timeoutPromise])) as any;
-      profile = res.data;
-    } catch {}
-
-    if (profile?.is_banned || profile?.role === "blacklisted") {
-      await supabase.auth.signOut();
-      localStorage.setItem("sanctuary_blacklisted", "true");
-      throw new Error(
-        t(
-          "err_account_blacklisted",
-          "Account has been permanently blacklisted.",
-        ),
-      );
-    } else {
-      localStorage.removeItem("sanctuary_blacklisted");
-    }
+    await enforceLoginClearanceAndBanCheck(user, t);
   };
 
   const completeAuthenticatedTransition = async (newSession: any) => {
@@ -387,16 +316,13 @@ export function DevBuildClearanceGate() {
       ),
     );
     try {
-      const { error } = await authenticateFidoPasskey(targetFactorId);
-      if (error) throw error;
-
+      const { user, session: verifiedSession } =
+        await verifyPasskeyMfaAndFetchSession(targetFactorId);
       setAuthStatus(t("status_authenticating", "Authenticating..."));
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user) {
-        await finalizeLogin(userData.user);
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session) {
-          await completeAuthenticatedTransition(sessionData.session);
+      if (user) {
+        await finalizeLogin(user);
+        if (verifiedSession) {
+          await completeAuthenticatedTransition(verifiedSession);
         }
       }
     } catch (err: any) {
@@ -414,30 +340,18 @@ export function DevBuildClearanceGate() {
       t("auth_mfa_verifying_challenge", "Starting 2FA verification challenge..."),
     );
     try {
-      const challenge = await supabase.auth.mfa.challenge({
-        factorId: mfaFactorId,
-      });
-      if (challenge.error) throw challenge.error;
-
-      setAuthStatus(
-        t("auth_mfa_verifying_code", "Verifying authenticator code..."),
-      );
-      const verify = await supabase.auth.mfa.verify({
-        factorId: mfaFactorId,
-        challengeId: challenge.data.id,
-        code: mfaCode,
-      });
-      if (verify.error) throw verify.error;
-
-      clearPasskeySessionVerified();
+      const { user, session: verifiedSession } =
+        await verifyTotpMfaAndFetchSession(mfaFactorId, mfaCode, () =>
+          setAuthStatus(
+            t("auth_mfa_verifying_code", "Verifying authenticator code..."),
+          ),
+        );
 
       setAuthStatus(t("status_authenticating", "Authenticating..."));
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user) {
-        await finalizeLogin(userData.user);
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData.session) {
-          await completeAuthenticatedTransition(sessionData.session);
+      if (user) {
+        await finalizeLogin(user);
+        if (verifiedSession) {
+          await completeAuthenticatedTransition(verifiedSession);
         }
       }
     } catch (err: any) {
@@ -458,24 +372,12 @@ export function DevBuildClearanceGate() {
       setIsProcessing(true);
       setAuthStatus(t("status_authenticating", "Authenticating..."));
       try {
-        const recoveryCheck = await checkAccountRecoveryMethod(email);
-        if (recoveryCheck.isBlindedAccount && !recoveryCheck.hasPlainEmail) {
-          setAuthStatus(
-            t(
-              "auth_reset_blinded_email_notice",
-              "This account uses Zero-PII Blinded Email (Subpoena Shield), so no personal email is stored on the server to send a reset link. Use FIDO2 Passkey Recovery below or sign in with your 256-Bit Sovereign Recovery Key.",
-            ),
-          );
-          return;
-        }
-        const redirectTo =
-          typeof window !== "undefined" ? window.location.origin : undefined;
-        const { error } = await supabase.auth.resetPasswordForEmail(
-          email.trim(),
-          redirectTo ? { redirectTo } : undefined,
+        const res = await sendPasswordResetWithBlindGuard(
+          email,
+          t,
+          "This account uses Zero-PII Blinded Email (Subpoena Shield), so no personal email is stored on the server to send a reset link. Use FIDO2 Passkey Recovery below or sign in with your 256-Bit Sovereign Recovery Key.",
         );
-        if (error) throw error;
-        setAuthStatus(t("status_reset_sent", "Password reset email sent!"));
+        setAuthStatus(res.message);
       } catch (err: any) {
         setAuthStatus(`${t("err_validation", "Error: ")}${err.message}`);
       } finally {
@@ -562,20 +464,8 @@ export function DevBuildClearanceGate() {
   const isUnauthenticated =
     clearance.reason === "unauthenticated" || !session?.user?.id;
 
-  const isStatusError =
-    Boolean(authStatus) &&
-    (authStatus.toLowerCase().includes("error") ||
-      authStatus.toLowerCase().includes("missing") ||
-      authStatus.toLowerCase().includes("not match") ||
-      authStatus.toLowerCase().includes("least 8") ||
-      authStatus.toLowerCase().includes("failed") ||
-      authStatus.toLowerCase().includes("invalid"));
-
-  const isStatusSuccess =
-    Boolean(authStatus) &&
-    (authStatus.toLowerCase().includes("sent") ||
-      authStatus.toLowerCase().includes("success") ||
-      authStatus.toLowerCase().includes("registered"));
+  const { isError: isStatusError, isSuccess: isStatusSuccess } =
+    classifyAuthStatusMessage(authStatus);
 
   const panelTitle = showMfaChallenge
     ? t("auth_mfa_required_title", "Two-Factor Verification")

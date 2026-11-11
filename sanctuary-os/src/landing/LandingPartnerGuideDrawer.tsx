@@ -130,7 +130,7 @@ export function LandingPartnerGuideDrawer({
           ),
           desc: t(
             'landing_partners_setup_p2',
-            "Define your game's supported {Mod} file extensions (.package, .ts4script, .pak, .esp, .rpf, .asi), installation target folders, load-order rules, and conflict radar heuristics inside your Master Schema JSON."
+            "Define your game's supported {Mod} file extensions (.dll, .lua, .ini, .json, .zip), installation target folders, load-order rules, and conflict radar heuristics inside your Master Schema JSON."
           ),
         },
         {

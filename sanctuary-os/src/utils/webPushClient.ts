@@ -153,9 +153,6 @@ export async function syncPwaWebPushSubscription(): Promise<boolean> {
             .filter((id: string) => id && id !== "default_workspace")
         )
       );
-      if (allSpokeIds.length === 0) {
-        allSpokeIds.push("sims4");
-      }
       const allowedSpokes = getAllowedCrossWorkspaceSpokes(allSpokeIds);
       const activeWsId = String(state.activeWorkspaceId || "").trim();
       const subscribedSpokes = Array.from(
@@ -176,7 +173,7 @@ export async function syncPwaWebPushSubscription(): Promise<boolean> {
           ? activeWsId
           : lastActiveWs && lastActiveWs !== "default_workspace" && lastActiveWs !== "global"
             ? lastActiveWs
-            : "sims4";
+            : allowedSpokes[0] || "global";
 
       const rowPayload = {
         endpoint,
@@ -193,15 +190,14 @@ export async function syncPwaWebPushSubscription(): Promise<boolean> {
         updated_at: new Date().toISOString(),
       };
 
-      await supabaseAuth
-        .from("pwa_push_subscriptions")
-        .upsert(rowPayload, { onConflict: "endpoint" });
+      await supabaseAuth.rpc("upsert_pwa_push_subscription", {
+        p_payload: rowPayload,
+      });
 
       const spokeClient = getActiveGameClient();
       if (spokeClient && spokeClient !== (supabaseAuth as any)) {
         spokeClient
-          .from("pwa_push_subscriptions")
-          .upsert(rowPayload, { onConflict: "endpoint" })
+          .rpc("upsert_pwa_push_subscription", { p_payload: rowPayload })
           .then(() => {});
       }
 

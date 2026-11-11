@@ -10,6 +10,7 @@ import {
   VAULT_CHIP_CLASS,
   formatDisplayName,
   getModIcon,
+  isScriptExtension,
   getHighestVersion,
   openModDossier,
 } from "../../shared";
@@ -96,7 +97,7 @@ export function VaultModals(props: any) {
         ? t("unknown", "Unknown")
         : String(rawAuthor).trim();
     const isScript =
-      /\.(ts4script|script)$/i.test(targetFile) ||
+      isScriptExtension(targetFile, activeGameSchema) ||
       String(matchedMod?.type || "").toLowerCase().includes("script");
     const typeLabel = isScript
       ? t("type_script", "Script")

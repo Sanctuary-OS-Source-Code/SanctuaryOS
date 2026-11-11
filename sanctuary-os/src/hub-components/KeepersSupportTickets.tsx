@@ -12,6 +12,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   ActionButton,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { openSanctuaryContextMenu } from "../ContextMenu";
@@ -50,8 +51,6 @@ type KeepersSupportTab =
   | "pending"
   | "closed"
   | "settings";
-
-const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 function classifyKeeperTicket(t: Ticket): "bugs" | "feedback" | "contact" | "partner_apps" {
   const typeStr = String(t.ticket_type || t.category || "").toLowerCase();
@@ -125,6 +124,7 @@ export default function KeepersSupportTickets({
   const [supportReplyToInput, setSupportReplyToInput] = useState("support@sanctuaryos.gg");
   const [supportEmailProvider, setSupportEmailProvider] = useState<"resend" | "webhook">("resend");
   const [supportEmailApiKey, setSupportEmailApiKey] = useState("");
+  const [hasSavedEmailSecret, setHasSavedEmailSecret] = useState(false);
   const [supportEmailWebhookUrl, setSupportEmailWebhookUrl] = useState("");
   const [isSavingEmail, setIsSavingEmail] = useState(false);
 
@@ -148,7 +148,6 @@ export default function KeepersSupportTickets({
             : "resend"
         );
       }
-      if (cfg?.support_email_api_key) setSupportEmailApiKey(cfg.support_email_api_key);
       if (cfg?.support_email_webhook_url) setSupportEmailWebhookUrl(cfg.support_email_webhook_url);
     } catch {
       // ignore
@@ -177,12 +176,32 @@ export default function KeepersSupportTickets({
       const cleanedSender = supportSenderNameInput.trim() || "Sanctuary OS Keepers Core";
       const cleanedEmail = supportEmailInput.trim() || "support@sanctuaryos.gg";
       const cleanedReply = supportReplyToInput.trim() || cleanedEmail;
+      const trimmedApiKey = supportEmailApiKey.trim();
+
+      if (trimmedApiKey) {
+        const { data: secretRes, error: secretErr } = await supabaseAuth.functions.invoke(
+          "keeper-email-dispatch",
+          {
+            body: {
+              action: "save_email_secrets",
+              api_key: trimmedApiKey,
+              support_email_api_key: trimmedApiKey,
+            },
+          }
+        );
+        if (secretErr || secretRes?.ok === false) {
+          throw new Error(secretErr?.message || secretRes?.error || "Failed to save email secret");
+        }
+        setSupportEmailApiKey("");
+        setHasSavedEmailSecret(true);
+      }
+
       await saveKeepersPipelineConfig({
         support_sender_name: cleanedSender,
         support_contact_email: cleanedEmail,
         support_reply_to_email: cleanedReply,
         support_email_provider: supportEmailProvider,
-        support_email_api_key: supportEmailApiKey.trim(),
+        support_email_api_key: undefined,
         support_email_webhook_url: supportEmailWebhookUrl.trim(),
       });
       setSupportSenderNameInput(cleanedSender);
@@ -268,7 +287,7 @@ export default function KeepersSupportTickets({
     if (data && !error) {
       const fetchedTickets = data as Ticket[];
       const authorIds = [...new Set(fetchedTickets.map(t => t.author_id))];
-      const { data: profiles } = await supabase.from('profiles').select('id, username').in('id', authorIds);
+      const { data: profiles } = await supabaseAuth.from('profiles').select('id, username').in('id', authorIds);
       const { data: masons } = await supabase.from('masons').select('id, name').in('id', authorIds);
       const profileMap: Record<string, string> = {};
       profiles?.forEach(p => profileMap[p.id] = p.username);
@@ -1034,10 +1053,14 @@ export default function KeepersSupportTickets({
                 label={t("keepers_email_api_key_label", "Resend API Key (re_...)")}
                 value={supportEmailApiKey}
                 onChange={setSupportEmailApiKey}
-                placeholder={t(
-                  "keepers_email_api_key_placeholder",
-                  "re_... (or configured in Edge Function Secrets)"
-                )}
+                placeholder={
+                  hasSavedEmailSecret
+                    ? `•••••••• (${t("keepers_email_api_key_placeholder", "re_... (or configured in Edge Function Secrets)")})`
+                    : t(
+                        "keepers_email_api_key_placeholder",
+                        "re_... (or configured in Edge Function Secrets)"
+                      )
+                }
               />
             ) : (
               <UniversalInput

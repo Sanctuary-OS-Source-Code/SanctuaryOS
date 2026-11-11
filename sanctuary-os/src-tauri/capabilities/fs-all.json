@@ -6,77 +6,226 @@
     "lab-overlay",
     "lab-hud-overlay"
   ],
+  "webviews": [
+    "main",
+    "lab-overlay",
+    "lab-hud-overlay"
+  ],
   "permissions": [
     {
       "identifier": "fs:allow-exists",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$HOME/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$PICTURE/**" },
+        { "path": "$APPDATA/**" },
+        { "path": "$LOCALAPPDATA/**" },
+        { "path": "$CONFIG/**" },
+        { "path": "$DATA/**" },
+        { "path": "$CACHE/**" },
+        { "path": "$TEMP/**" }
+      ],
+      "deny": [
+        { "path": "$HOME/.ssh/**" },
+        { "path": "$HOME/.gnupg/**" },
+        { "path": "$HOME/.aws/**" },
+        { "path": "$HOME/.kube/**" },
+        { "path": "$APPDATA/Microsoft/Windows/Start Menu/Programs/Startup/**" },
+        { "path": "$HOME/.config/autostart/**" }
       ]
     },
     {
       "identifier": "fs:allow-mkdir",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$HOME/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$PICTURE/**" },
+        { "path": "$APPDATA/**" },
+        { "path": "$LOCALAPPDATA/**" },
+        { "path": "$CONFIG/**" },
+        { "path": "$DATA/**" },
+        { "path": "$CACHE/**" },
+        { "path": "$TEMP/**" }
+      ],
+      "deny": [
+        { "path": "$HOME/.ssh/**" },
+        { "path": "$HOME/.gnupg/**" },
+        { "path": "$HOME/.aws/**" },
+        { "path": "$HOME/.kube/**" },
+        { "path": "$APPDATA/Microsoft/Windows/Start Menu/Programs/Startup/**" },
+        { "path": "$HOME/.config/autostart/**" }
       ]
     },
     {
       "identifier": "fs:allow-read-dir",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$HOME/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$PICTURE/**" },
+        { "path": "$APPDATA/**" },
+        { "path": "$LOCALAPPDATA/**" },
+        { "path": "$CONFIG/**" },
+        { "path": "$DATA/**" },
+        { "path": "$CACHE/**" },
+        { "path": "$TEMP/**" }
+      ],
+      "deny": [
+        { "path": "$HOME/.ssh/**" },
+        { "path": "$HOME/.gnupg/**" },
+        { "path": "$HOME/.aws/**" },
+        { "path": "$HOME/.kube/**" },
+        { "path": "$APPDATA/Microsoft/Windows/Start Menu/Programs/Startup/**" },
+        { "path": "$HOME/.config/autostart/**" }
       ]
     },
     {
       "identifier": "fs:allow-read-text-file",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$HOME/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$PICTURE/**" },
+        { "path": "$APPDATA/**" },
+        { "path": "$LOCALAPPDATA/**" },
+        { "path": "$CONFIG/**" },
+        { "path": "$DATA/**" },
+        { "path": "$CACHE/**" },
+        { "path": "$TEMP/**" }
+      ],
+      "deny": [
+        { "path": "$HOME/.ssh/**" },
+        { "path": "$HOME/.gnupg/**" },
+        { "path": "$HOME/.aws/**" },
+        { "path": "$HOME/.kube/**" },
+        { "path": "$APPDATA/Microsoft/Windows/Start Menu/Programs/Startup/**" },
+        { "path": "$HOME/.config/autostart/**" }
       ]
     },
     {
       "identifier": "fs:allow-write-text-file",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$HOME/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$PICTURE/**" },
+        { "path": "$APPDATA/**" },
+        { "path": "$LOCALAPPDATA/**" },
+        { "path": "$CONFIG/**" },
+        { "path": "$DATA/**" },
+        { "path": "$CACHE/**" },
+        { "path": "$TEMP/**" }
+      ],
+      "deny": [
+        { "path": "$HOME/.ssh/**" },
+        { "path": "$HOME/.gnupg/**" },
+        { "path": "$HOME/.aws/**" },
+        { "path": "$HOME/.kube/**" },
+        { "path": "$APPDATA/Microsoft/Windows/Start Menu/Programs/Startup/**" },
+        { "path": "$HOME/.config/autostart/**" }
       ]
     },
     {
       "identifier": "fs:allow-remove",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$HOME/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$PICTURE/**" },
+        { "path": "$APPDATA/**" },
+        { "path": "$LOCALAPPDATA/**" },
+        { "path": "$CONFIG/**" },
+        { "path": "$DATA/**" },
+        { "path": "$CACHE/**" },
+        { "path": "$TEMP/**" }
+      ],
+      "deny": [
+        { "path": "$HOME/.ssh/**" },
+        { "path": "$HOME/.gnupg/**" },
+        { "path": "$HOME/.aws/**" },
+        { "path": "$HOME/.kube/**" },
+        { "path": "$APPDATA/Microsoft/Windows/Start Menu/Programs/Startup/**" },
+        { "path": "$HOME/.config/autostart/**" }
       ]
     },
     {
       "identifier": "fs:allow-read-file",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$HOME/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$PICTURE/**" },
+        { "path": "$APPDATA/**" },
+        { "path": "$LOCALAPPDATA/**" },
+        { "path": "$CONFIG/**" },
+        { "path": "$DATA/**" },
+        { "path": "$CACHE/**" },
+        { "path": "$TEMP/**" }
+      ],
+      "deny": [
+        { "path": "$HOME/.ssh/**" },
+        { "path": "$HOME/.gnupg/**" },
+        { "path": "$HOME/.aws/**" },
+        { "path": "$HOME/.kube/**" },
+        { "path": "$APPDATA/Microsoft/Windows/Start Menu/Programs/Startup/**" },
+        { "path": "$HOME/.config/autostart/**" }
       ]
     },
     {
       "identifier": "fs:allow-write-file",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$HOME/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$PICTURE/**" },
+        { "path": "$APPDATA/**" },
+        { "path": "$LOCALAPPDATA/**" },
+        { "path": "$CONFIG/**" },
+        { "path": "$DATA/**" },
+        { "path": "$CACHE/**" },
+        { "path": "$TEMP/**" }
+      ],
+      "deny": [
+        { "path": "$HOME/.ssh/**" },
+        { "path": "$HOME/.gnupg/**" },
+        { "path": "$HOME/.aws/**" },
+        { "path": "$HOME/.kube/**" },
+        { "path": "$APPDATA/Microsoft/Windows/Start Menu/Programs/Startup/**" },
+        { "path": "$HOME/.config/autostart/**" }
       ]
     },
     {
       "identifier": "fs:allow-copy-file",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$HOME/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$PICTURE/**" },
+        { "path": "$APPDATA/**" },
+        { "path": "$LOCALAPPDATA/**" },
+        { "path": "$CONFIG/**" },
+        { "path": "$DATA/**" },
+        { "path": "$CACHE/**" },
+        { "path": "$TEMP/**" }
+      ],
+      "deny": [
+        { "path": "$HOME/.ssh/**" },
+        { "path": "$HOME/.gnupg/**" },
+        { "path": "$HOME/.aws/**" },
+        { "path": "$HOME/.kube/**" },
+        { "path": "$APPDATA/Microsoft/Windows/Start Menu/Programs/Startup/**" },
+        { "path": "$HOME/.config/autostart/**" }
       ]
     }
   ]

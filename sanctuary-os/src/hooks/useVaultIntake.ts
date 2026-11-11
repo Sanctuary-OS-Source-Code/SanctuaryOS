@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { tauriBridge } from "../lib/tauri-bridge";
+import { useState, useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
@@ -8,8 +8,13 @@ import { invoke } from "@tauri-apps/api/core";
 export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: boolean) => void) {
   const [isDropzoneOpen, setIsDropzoneOpen] = useState(false);
   const [dropzoneState, setDropzoneState] = useState<"awaiting" | "received" | "ingesting">("awaiting");
-  const { setStatus, activeGameSchema } = useStore();
-  const { setIngestProgress } = useModalStore();
+  const { setStatus, activeGameSchema } = useStore(
+    useShallow((s) => ({
+      setStatus: s.setStatus,
+      activeGameSchema: s.activeGameSchema,
+    }))
+  );
+  const setIngestProgress = useModalStore((s) => s.setIngestProgress);
   const { t } = useLexicon();
   const [isDragging] = useState(false);
   const [droppedFiles, setDroppedFiles] = useState<string[]>([]);
@@ -112,39 +117,6 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
   };
 
 
-
-  useEffect(() => {
-    let unlisten: any;
-    tauriBridge.listenToDnaMatch((payload: any) => {
-      if (payload.hash && ignoredHashesRef.current.has(payload.hash)) {
-        if (payload.path) {
-          invoke("resolve_dna_match", {
-            path: payload.path,
-            existingName: payload.existing_name || "",
-            action: "ignore",
-            moveOriginal: false,
-          }).catch(() => {});
-        }
-        return;
-      }
-      setDnaMatchQueue((prev: any[]) => {
-        if (prev.some(m => (m.hash && m.hash === payload.hash) || m.path === payload.path)) return prev;
-        return [...prev, payload];
-      });
-    }).then((handler: any) => { unlisten = handler; });
-    
-    let unlistenEdge: any;
-    tauriBridge.listenToEdgeOverride((payload: any) => {
-      setDnaMatchQueue((prev: any[]) => {
-        return [...prev, { ...payload, reason: "EDGE_OVERRIDE" }];
-      });
-    }).then((handler: any) => { unlistenEdge = handler; });
-
-    return () => { 
-      if (unlisten) unlisten(); 
-      if (unlistenEdge) unlistenEdge();
-    };
-  }, []);
 
   return {
     handleDroppedFiles,

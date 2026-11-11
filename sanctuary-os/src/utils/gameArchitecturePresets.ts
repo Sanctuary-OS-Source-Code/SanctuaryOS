@@ -1,15 +1,64 @@
-export const isSims4SchemaId = (id?: string | null): boolean => {
-  const clean = String(id || "").toLowerCase().trim();
-  return (
-    !clean ||
-    clean === "sims4" ||
-    clean === "the-sims-4" ||
-    clean === "the_sims_4" ||
-    clean === "ts4" ||
-    clean === "default" ||
-    clean === "default_schema"
-  );
-};
+const SIMS4_DLC_CATALOG = [
+  { id: "EP01", code: "EP01", name: "Get to Work", type: "Expansion Pack" },
+  { id: "EP02", code: "EP02", name: "Get Together", type: "Expansion Pack" },
+  { id: "EP03", code: "EP03", name: "City Living", type: "Expansion Pack" },
+  { id: "EP04", code: "EP04", name: "Cats & Dogs", type: "Expansion Pack" },
+  { id: "EP05", code: "EP05", name: "Seasons", type: "Expansion Pack" },
+  { id: "EP06", code: "EP06", name: "Get Famous", type: "Expansion Pack" },
+  { id: "EP07", code: "EP07", name: "Island Living", type: "Expansion Pack" },
+  { id: "EP08", code: "EP08", name: "Discover University", type: "Expansion Pack" },
+  { id: "EP09", code: "EP09", name: "Eco Lifestyle", type: "Expansion Pack" },
+  { id: "EP10", code: "EP10", name: "Snowy Escape", type: "Expansion Pack" },
+  { id: "EP11", code: "EP11", name: "Cottage Living", type: "Expansion Pack" },
+  { id: "EP12", code: "EP12", name: "High School Years", type: "Expansion Pack" },
+  { id: "EP13", code: "EP13", name: "Growing Together", type: "Expansion Pack" },
+  { id: "EP14", code: "EP14", name: "Horse Ranch", type: "Expansion Pack" },
+  { id: "EP15", code: "EP15", name: "For Rent", type: "Expansion Pack" },
+  { id: "EP16", code: "EP16", name: "Lovestruck", type: "Expansion Pack" },
+  { id: "EP17", code: "EP17", name: "Life & Death", type: "Expansion Pack" },
+  { id: "GP01", code: "GP01", name: "Outdoor Retreat", type: "Game Pack" },
+  { id: "GP02", code: "GP02", name: "Spa Day", type: "Game Pack" },
+  { id: "GP03", code: "GP03", name: "Dine Out", type: "Game Pack" },
+  { id: "GP04", code: "GP04", name: "Vampires", type: "Game Pack" },
+  { id: "GP05", code: "GP05", name: "Parenthood", type: "Game Pack" },
+  { id: "GP06", code: "GP06", name: "Jungle Adventure", type: "Game Pack" },
+  { id: "GP07", code: "GP07", name: "StrangerVille", type: "Game Pack" },
+  { id: "GP08", code: "GP08", name: "Realm of Magic", type: "Game Pack" },
+  { id: "GP09", code: "GP09", name: "Star Wars: Journey to Batuu", type: "Game Pack" },
+  { id: "GP10", code: "GP10", name: "Dream Home Decorator", type: "Game Pack" },
+  { id: "GP11", code: "GP11", name: "My Wedding Stories", type: "Game Pack" },
+  { id: "GP12", code: "GP12", name: "Werewolves", type: "Game Pack" },
+  { id: "SP01", code: "SP01", name: "Luxury Party", type: "Stuff Pack" },
+  { id: "SP02", code: "SP02", name: "Perfect Patio", type: "Stuff Pack" },
+  { id: "SP03", code: "SP03", name: "Cool Kitchen", type: "Stuff Pack" },
+  { id: "SP04", code: "SP04", name: "Spooky Stuff", type: "Stuff Pack" },
+  { id: "SP05", code: "SP05", name: "Movie Hangout", type: "Stuff Pack" },
+  { id: "SP06", code: "SP06", name: "Romantic Garden", type: "Stuff Pack" },
+  { id: "SP07", code: "SP07", name: "Kids Room", type: "Stuff Pack" },
+  { id: "SP08", code: "SP08", name: "Backyard Stuff", type: "Stuff Pack" },
+  { id: "SP09", code: "SP09", name: "Vintage Glamour", type: "Stuff Pack" },
+  { id: "SP10", code: "SP10", name: "Bowling Night", type: "Stuff Pack" },
+  { id: "SP11", code: "SP11", name: "Fitness Stuff", type: "Stuff Pack" },
+  { id: "SP12", code: "SP12", name: "Toddler Stuff", type: "Stuff Pack" },
+  { id: "SP13", code: "SP13", name: "Laundry Day", type: "Stuff Pack" },
+  { id: "SP14", code: "SP14", name: "First Pet", type: "Stuff Pack" },
+  { id: "SP15", code: "SP15", name: "Moschino", type: "Stuff Pack" },
+  { id: "SP16", code: "SP16", name: "Tiny Living", type: "Stuff Pack" },
+  { id: "SP17", code: "SP17", name: "Nifty Knitting", type: "Stuff Pack" },
+  { id: "SP18", code: "SP18", name: "Paranormal", type: "Stuff Pack" },
+  { id: "SP22", code: "SP22", name: "Throwback Fit Kit", type: "Kit" },
+  { id: "SP23", code: "SP23", name: "Country Kitchen Kit", type: "Kit" },
+  { id: "SP24", code: "SP24", name: "Bust the Dust Kit", type: "Kit" },
+  { id: "SP46", code: "SP46", name: "Home Chef Hustle", type: "Stuff Pack" },
+  { id: "SP47", code: "SP47", name: "Crystal Creations", type: "Stuff Pack" },
+  { id: "SP64", code: "SP64", name: "Riviera Retreat Kit", type: "Kit" },
+  { id: "SP65", code: "SP65", name: "Cozy Bistro Kit", type: "Kit" },
+  { id: "SP68", code: "SP68", name: "SpongeBob's House Kit", type: "Kit" },
+  { id: "SP70", code: "SP70", name: "SpongeBob Kid's Room Kit", type: "Kit" },
+  { id: "SP75", code: "SP75", name: "Wonderland Playroom Set", type: "Kit" },
+  { id: "SP81", code: "SP81", name: "Prairie Dreams Set", type: "Kit" },
+  { id: "SP82", code: "SP82", name: "Yard Charm Kit", type: "Kit" },
+];
 
 export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
   sims4: {
@@ -20,6 +69,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     default_lexicon: "en-sims",
     schema_version: 10,
     min_scout_submissions: 5,
+    dlc_catalog: SIMS4_DLC_CATALOG,
     executable_names: [
       "TS4_x64.exe",
       "TS4.exe",
@@ -205,6 +255,19 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
         resolution:
           "If this occurred on the Main Menu and live gameplay UI works normally, it is often a benign EA Store telemetry quirk (you can toggle 'Ignore During Timed Lab Verification' on this rule if desired). If UI panels are broken in live mode, ensure UI Cheats Extension (.package + .ts4script) and Main Menu overrides match your current game patch.",
         ignore_in_lab: false,
+        enabled: true,
+      },
+      {
+        id: "ts4_vanilla_milestone_tracker",
+        title: "Vanilla Milestone / Infant Tracker Desync (Base Game Bug)",
+        pattern: "developmental_milestone_tracker | milestone_tracker",
+        file_hint: "lastException.txt",
+        severity: "unrelated",
+        diagnosis:
+          "Normal EA Base Game bug in developmental_milestone_tracker when switching households or loading lots with infants/toddlers whose milestone state became desynchronized in an unmodded save.",
+        resolution:
+          "Not caused by a custom mod. Marked as Unrelated (Normal Game Bug) so it will not auto-fail Lab Proving Runs.",
+        ignore_in_lab: true,
         enabled: true,
       },
       {
@@ -1073,7 +1136,12 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       direction: "higher_wins",
       manifest_file: "modsettings.lsx",
       prefix_format: "{index:03}_",
-      line_template: "{file}",
+      document_header:
+        '<?xml version="1.0" encoding="UTF-8"?>\n<save>\n  <version major="4" minor="7" revision="1" build="3" />\n  <region id="ModuleSettings">\n    <node id="root">\n      <children>\n        <node id="ModOrder">\n          <children>\n',
+      line_template:
+        '            <node id="Module"><attribute id="UUID" value="{uuid}" type="FixedString" /></node>\n            <node id="ModuleShortDesc"><attribute id="Folder" value="{folder}" type="LSString" /><attribute id="MD5" value="{md5}" type="LSString" /><attribute id="Name" value="{name}" type="LSString" /><attribute id="PublishHandle" value="0" type="uint64" /><attribute id="UUID" value="{uuid}" type="guid" /><attribute id="Version64" value="{version64}" type="int64" /></node>',
+      document_footer:
+        '          </children>\n        </node>\n      </children>\n    </node>\n  </region>\n</save>\n',
       priority_tiers: [
         { id: "default", label: "Standard (Mods/)", priority: 500, folder: "" },
         { id: "tier_1", label: "Late Override Tier", priority: 1000, folder: "Sanctuary" },
@@ -1272,6 +1340,8 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     schema_version: 2,
     min_scout_submissions: 3,
     executable_names: [],
+    archive_containers: [".zip", ".7z", ".rar"],
+    dlc_catalog: [],
     paths: {
       executable_subdir: "",
       default_mod_dir_windows: "",
@@ -1286,20 +1356,17 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       auto_scan_paths_linux: [],
     },
     extensions: {
-      supported: [".pak", ".archive", ".zip"],
-      vault_visible: [".pak", ".archive", ".zip", ".ini", ".cfg", ".json", ".toml", ".yaml", ".xml"],
-      ignore_unidentified: [".txt", ".md", ".jpg", ".png"],
-      config_extensions: [".ini", ".cfg", ".json", ".toml", ".yaml", ".xml"],
+      supported: [],
+      vault_visible: [],
+      ignore_unidentified: [],
+      config_extensions: [".ini", ".cfg", ".json", ".jsonc", ".toml", ".yaml", ".yml", ".xml"],
       cache_files: [],
-      labels: {
-        pak: "ARCHIVE",
-        archive: "ARCHIVE",
-      },
+      labels: {},
     },
     constraints: {
       max_folder_depth: 8,
       requires_script_unzipping: false,
-      mods_dir_is_shared_with_vanilla: true,
+      mods_dir_is_shared_with_vanilla: false,
       preserve_archive_folder_structure: true,
       wrap_loose_files_in_folders: false,
     },
@@ -1334,7 +1401,7 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       require_save_checkpoint: false,
       seed_sandbox_from_latest_save: true,
       enable_hotkey_pause_detection: false,
-      save_extensions: [".save", ".sav", ".dat"],
+      save_extensions: [],
       world_load_signature: {
         stabilize_boot_seconds: 8,
         min_disk_read_mb: 75,
@@ -1346,9 +1413,9 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     exception_logs: [],
     exception_rules: [],
     time_capsule: {
-      world_state_targets: [{ name: "Saves", path: "saves" }],
-      engine_state_targets: [{ name: "Data", path: "Data" }],
-      save_airgap_targets: ["saves"],
+      world_state_targets: [],
+      engine_state_targets: [],
+      save_airgap_targets: [],
     },
     mod_categories: [
       { id: "Core", label: "Core Library", icon: "memory", lexicon_key: "class_dd_core", icon_key: "ui_icon_core" },
@@ -1367,8 +1434,20 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
 };
 
 export const resolvePresetForGameId = (id?: string | null): Record<string, any> => {
-  const clean = String(id || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  if (!clean || isSims4SchemaId(id)) return GAME_ARCHITECTURE_PRESETS.sims4;
+  const raw = String(id || "").trim().toLowerCase();
+  if (
+    !raw ||
+    raw === "default" ||
+    raw === "default_schema" ||
+    raw === "default_workspace" ||
+    raw === "universal"
+  ) {
+    return GAME_ARCHITECTURE_PRESETS.universal;
+  }
+  const clean = raw.replace(/[^a-z0-9]/g, "");
+  if (clean === "sims4" || clean === "thesims4" || clean === "ts4") {
+    return GAME_ARCHITECTURE_PRESETS.sims4;
+  }
   if (clean.includes("gtav") || clean.includes("gta5") || clean.includes("grandtheftauto")) {
     return GAME_ARCHITECTURE_PRESETS.gtav;
   }

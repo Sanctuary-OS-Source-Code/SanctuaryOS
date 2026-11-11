@@ -13,6 +13,7 @@ import {
   UniversalGroup,
   fetchAllPaginated,
   openModDossier,
+  VAULT_CHIP_CLASS,
 } from "./shared";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 import {
@@ -603,7 +604,7 @@ export function HomesteadDiagnostics({
                             normalize(
                               node.name
                                 .replace(getExtensionRegex(activeGameSchema), "")
-                                .replace(/\.(package|ts4script|cfg|ini|json|toml|yaml)$/i, "")
+                                .replace(/\.(cfg|ini|json|toml|yaml|yml|xml)$/i, "")
                             ) === normalize(targetName)
                           )
                             return nodePath;
@@ -649,7 +650,7 @@ export function HomesteadDiagnostics({
                       .split(/[\\/]/)
                       .pop()
                       ?.replace(getExtensionRegex(activeGameSchema), "")
-                      .replace(/\.(package|ts4script|cfg|ini|json|toml|yaml)$/i, "") || ""
+                      .replace(/\.(cfg|ini|json|toml|yaml|yml|xml)$/i, "") || ""
                   );
                   return m.flavors.some((f: any) => {
                     const cleanF = normalize(
@@ -657,7 +658,7 @@ export function HomesteadDiagnostics({
                         .split(/[\\/]/)
                         .pop()
                         ?.replace(getExtensionRegex(activeGameSchema), "")
-                        .replace(/\.(package|ts4script|cfg|ini|json|toml|yaml)$/i, "") || ""
+                        .replace(/\.(cfg|ini|json|toml|yaml|yml|xml)$/i, "") || ""
                     );
                     return cleanF === targetBaseName;
                   });
@@ -768,9 +769,6 @@ export function HomesteadDiagnostics({
       number: getExceptionRules(activeGameSchema).length.toString(),
     },
   ];
-
-  const VAULT_CHIP_CLASS =
-    "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
   const renderDiagnosticCard = (mod: any) => {
     const isVerified = mod.status === "verified";

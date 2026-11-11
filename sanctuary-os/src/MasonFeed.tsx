@@ -41,6 +41,10 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
       setLoading(false);
     };
     fetchPosts();
+    window.addEventListener('sanctuary-games-updated', fetchPosts);
+    return () => {
+      window.removeEventListener('sanctuary-games-updated', fetchPosts);
+    };
   }, [activeWorkspaceId, workspaces]);
 
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {

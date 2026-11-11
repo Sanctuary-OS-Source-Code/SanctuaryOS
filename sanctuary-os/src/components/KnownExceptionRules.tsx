@@ -4,7 +4,6 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { supabase, hasActiveGameDatabase } from "../supabase";
 import { isDesktop } from "../utils/envUtils";
-import { isSims4SchemaId } from "../utils/gameArchitecturePresets";
 import {
   SidePanel,
   CustomDropdown,
@@ -21,9 +20,7 @@ import {
 } from "./universal/UniversalLayout";
 import { scrubLogUserData, formatHumanReadableLogText } from "../utils/logScrubber";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { VAULT_CHIP_CLASS } from "../shared-components/constants";
 
 export type NormalizedRuleSeverity = "corrupted" | "unstable" | "unrelated";
 
@@ -57,139 +54,35 @@ export function normalizeRuleSeverity(rule: Partial<SchemaExceptionRule>): Norma
   return "unstable";
 }
 
-export const DEFAULT_SIMS4_EXCEPTION_RULES: SchemaExceptionRule[] = [
-  {
-    id: "ts4_store_utils_wallet_ui",
-    title: "StoreUtils / VirtualCurrencyWallet UI Desync (Error #1006)",
-    pattern: "StoreUtils/StoreDisabledByFeatureParameter | VirtualCurrencyWallet | TryGetValueAsBoolean",
-    file_hint: "lastUIException.txt",
-    raw_log: `<?xml version="1.0" ?><root>
-<report><version>2</version><sessionid>000000000000000000000000</sessionid><type>desync</type><sku>ea.maxis.sims4_64.15.pc</sku><createtime>2026-10-17 23:47:58</createtime><buildsignature>Local.Unknown.Unknown.1.128.90.1030-1.200.000.718.Release</buildsignature><categoryid>(AS)widgets.shared.utils::StoreUtils</categoryid><desyncid>000000000000000000000000</desyncid><systemconfig/><screenshot/><desyncdata>TypeError: Error #1006: TryGetValueAsBoolean is not a function.
-	at widgets.shared.utils::StoreUtils/StoreDisabledByFeatureParameter()
-	at widgets.Engagement.controls::VirtualCurrencyWallet/UpdateConnectivityStatus()
-	at olympus.controls::GUIComponent/ConfigUI()
-	at olympus.controls::GUIComponent/OnAddedToStage()
-	at olympus.core::LayoutManager/LoadWidgetCompleteHandler()
-</desyncdata></report>
-</root>`,
-    severity: "unstable",
-    diagnosis:
-      "ActionScript UI exception in widgets.shared.utils::StoreUtils / VirtualCurrencyWallet. Triggered when an outdated UI overhaul mod conflicts with current game patch UI widgets or when EA Store feature parameters fail to initialize.",
-    resolution:
-      "If UI panels are broken in live mode, update UI Cheats Extension (.package + .ts4script), Better BuildBuy / T.O.O.L., or More Columns in CAS for your current game patch. If this occurred on the Main Menu with no UI issues, you can change its Issue Classification to Unrelated.",
-    ignore_in_lab: false,
-    enabled: true,
-  },
-  {
-    id: "ts4_vanilla_milestone_tracker",
-    title: "Vanilla Milestone / Infant Tracker Desync (Base Game Bug)",
-    pattern: "developmental_milestone_tracker | milestone_tracker",
-    file_hint: "lastException.txt",
-    raw_log: `<report><version>2</version><type>desync</type><categoryid>developmental_milestones.developmental_milestone_tracker.py:1109</categoryid><desyncdata>Exception in Sim Timeline: Exception running Element (AttributeError: 'NoneType' object has no attribute 'add_developmental_milestone')
-  File "T:\\InGame\\Gameplay\\Scripts\\Server\\developmental_milestones\\developmental_milestone_tracker.py", line 1109, in load_milestones_info_from_proto
-</desyncdata></report>`,
-    severity: "unrelated",
-    diagnosis:
-      "Normal EA Base Game bug in developmental_milestone_tracker when switching households or loading lots with infants/toddlers whose milestone state became desynchronized in an unmodded save.",
-    resolution:
-      "Not caused by a custom mod. Marked as Unrelated (Normal Game Bug) so it will not auto-fail Lab Proving Runs.",
-    ignore_in_lab: true,
-    enabled: true,
-  },
-  {
-    id: "ts4_python_attr_or_import",
-    title: "Python Script Tuning Mismatch or Missing Core Library",
-    pattern: "AttributeError | ModuleNotFoundError | ImportError",
-    file_hint: "lastException.txt",
-    raw_log: `<report><version>2</version><type>desync</type><categoryid>sims4.tuning.instance_manager.py:567</categoryid><desyncdata>Failure: 'custom_mod_script' (ModuleNotFoundError: No module named 'lot51_core')
-  File "T:\\InGame\\Gameplay\\Scripts\\Core\\sims4\\importer\\custom_import.py", line 196, in load_module
-</desyncdata></report>`,
-    severity: "corrupted",
-    diagnosis:
-      "A Python script (.ts4script) attempted to call a game engine attribute or import a module that changed in a recent game patch or requires an external core library (such as Lot51 Core Library, XML Injector, or S4CL).",
-    resolution:
-      "Verify that all required dependency libraries are installed in your Mods folder and that the mod's .ts4script is updated for your current game patch.",
-    ignore_in_lab: false,
-    enabled: true,
-  },
-  {
-    id: "ts4_posture_routing_graph",
-    title: "Posture Graph / Sim Routing Autonomy Exception",
-    pattern: "posture_graph | routing_service | PostureGraphService",
-    file_hint: "lastException.txt",
-    raw_log: `<report><version>2</version><type>desync</type><categoryid>postures.posture_graph.py:4912</categoryid><desyncdata>Exception in Sim Timeline: Exception running Element (RuntimeError: Posture graph failed to find validsegmented path)
-  File "T:\\InGame\\Gameplay\\Scripts\\Server\\postures\\posture_graph.py", line 4912, in get_segmented_paths
-</desyncdata></report>`,
-    severity: "unstable",
-    diagnosis:
-      "A Sim attempted to route to or interact with an object whose footprint, slot, or posture tuning failed validation during live autonomy, causing Sim resets or random interaction bugs.",
-    resolution:
-      "Check custom furniture/object overrides on the active lot or custom interaction mods that modify Sim posture tuning.",
-    ignore_in_lab: false,
-    enabled: true,
-  },
-];
-
-function upgradeLegacyDefaultRules(
-  rules: SchemaExceptionRule[],
-  isSims4 = true
-): SchemaExceptionRule[] {
-  const defaultById = new Map(DEFAULT_SIMS4_EXCEPTION_RULES.map((d) => [d.id, d]));
-  let needsStoreUtilsMigration = false;
-  try {
-    if (isSims4 && !localStorage.getItem("sanctuary_exc_rules_storeutils_fixed_v1")) {
-      needsStoreUtilsMigration = true;
-      localStorage.setItem("sanctuary_exc_rules_storeutils_fixed_v1", "1");
+function resolveDefaultExceptionFileHint(schema?: any): string {
+  const firstRuleHint = schema?.exception_rules?.find((r: any) => r?.file_hint)?.file_hint;
+  if (firstRuleHint) return String(firstRuleHint);
+  const firstLog = schema?.exception_logs?.[0];
+  if (firstLog) {
+    if (typeof firstLog === "string") return firstLog;
+    if (firstLog.exact) return String(firstLog.exact);
+    if (firstLog.starts_with || firstLog.ends_with) {
+      return `${firstLog.starts_with || "exception"}${firstLog.ends_with || ".log"}`;
     }
-  } catch {}
+  }
+  return "exception.log";
+}
 
-  let updated: SchemaExceptionRule[] = rules.map((r) => {
-    const def = defaultById.get(r.id);
-    let effectiveRule = r;
-    if (needsStoreUtilsMigration && r.id === "ts4_store_utils_wallet_ui") {
-      effectiveRule = {
-        ...r,
-        severity: "unstable",
-        ignore_in_lab: false,
-      };
-    }
-    const normSev = normalizeRuleSeverity(effectiveRule);
+function normalizeSchemaRulesList(rules: SchemaExceptionRule[]): SchemaExceptionRule[] {
+  return rules.map((r) => {
+    const normSev = normalizeRuleSeverity(r);
     return {
-      ...effectiveRule,
-      raw_log: effectiveRule.raw_log || def?.raw_log || "",
+      ...r,
+      raw_log: r.raw_log || "",
       severity: normSev,
-      ignore_in_lab: normSev === "unrelated",
+      ignore_in_lab: normSev === "unrelated" ? true : Boolean(r.ignore_in_lab),
     };
   });
-
-  if (needsStoreUtilsMigration) {
-    try {
-      for (const key of ["sanctuary_exception_rules_ts4", "sanctuary_exception_rules_sims4", "sanctuary_exception_rules_default_schema"]) {
-        if (localStorage.getItem(key)) {
-          localStorage.setItem(key, JSON.stringify(updated));
-        }
-      }
-    } catch {}
-  }
-
-  if (isSims4 && !updated.some((r) => r.id === "ts4_vanilla_milestone_tracker")) {
-    const vanillaRule = DEFAULT_SIMS4_EXCEPTION_RULES.find(
-      (d) => d.id === "ts4_vanilla_milestone_tracker"
-    );
-    if (vanillaRule) {
-      updated = [
-        updated[0] || vanillaRule,
-        vanillaRule,
-        ...updated.slice(1),
-      ];
-    }
-  }
-  return updated;
 }
 
 export function getExceptionRules(activeGameSchema?: any): SchemaExceptionRule[] {
   if (Array.isArray(activeGameSchema)) {
-    return activeGameSchema.length > 0 ? upgradeLegacyDefaultRules(activeGameSchema, false) : [];
+    return activeGameSchema.length > 0 ? normalizeSchemaRulesList(activeGameSchema) : [];
   }
   const storeState = useStore.getState();
   const schema =
@@ -202,32 +95,26 @@ export function getExceptionRules(activeGameSchema?: any): SchemaExceptionRule[]
     schema?.id ||
     schema?.game_id ||
     "default_schema";
-  const isSims4 = isSims4SchemaId(schemaId);
 
-  if (!isSims4 && !hasActiveGameDatabase()) {
-    return [];
+  if (Array.isArray(schema?.exception_rules) && schema.exception_rules.length > 0) {
+    return normalizeSchemaRulesList(schema.exception_rules);
   }
 
-  if (Array.isArray(schema?.exception_rules)) {
-    if (schema.exception_rules.length > 0) {
-      return upgradeLegacyDefaultRules(schema.exception_rules, isSims4);
-    }
-    if (!isSims4) {
-      return [];
-    }
+  if (!hasActiveGameDatabase() && (!schemaId || schemaId === "default_schema" || schemaId === "default")) {
+    return [];
   }
 
   try {
     const cached = localStorage.getItem(`sanctuary_exception_rules_${schemaId}`);
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed)) {
-        return parsed.length > 0 ? upgradeLegacyDefaultRules(parsed, isSims4) : [];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return normalizeSchemaRulesList(parsed);
       }
     }
-  } catch (e) {}
+  } catch {}
 
-  return isSims4 ? DEFAULT_SIMS4_EXCEPTION_RULES : [];
+  return [];
 }
 
 export function matchExceptionRules(
@@ -266,13 +153,18 @@ export function isUnrelatedGameBugLog(
   );
 }
 
-export function extractSuggestedPatternFromLog(logText?: string | null): {
+export function extractSuggestedPatternFromLog(
+  logText?: string | null,
+  activeGameSchema?: any
+): {
   pattern: string;
   title: string;
   fileHint: string;
 } {
+  const schema = activeGameSchema || useStore.getState().activeGameSchema;
+  const defaultHint = resolveDefaultExceptionFileHint(schema);
   if (!logText) {
-    return { pattern: "", title: "", fileHint: "lastException.txt" };
+    return { pattern: "", title: "", fileHint: defaultHint };
   }
 
   const catMatch = logText.match(/<categoryid>([^<]+)<\/categoryid>/i);
@@ -302,6 +194,13 @@ export function extractSuggestedPatternFromLog(logText?: string | null): {
     logText.includes("olympus.") ||
     logText.includes("(AS)");
 
+  const uiLogEntry = schema?.exception_logs?.find((e: any) =>
+    String(e?.starts_with || e?.exact || "").toLowerCase().includes("ui")
+  );
+  const resolvedUiHint = uiLogEntry
+    ? uiLogEntry.exact || `${uiLogEntry.starts_with || "ui_exception"}${uiLogEntry.ends_with || ".log"}`
+    : defaultHint;
+
   if (catMatch && catMatch[1]) {
     const cleanCat = catMatch[1].replace(/^\(AS\)/i, "").trim();
     return {
@@ -309,7 +208,7 @@ export function extractSuggestedPatternFromLog(logText?: string | null): {
       title: firstErrorLine
         ? `${cleanCat.split("::").pop() || cleanCat} (${firstErrorLine.slice(0, 48)})`
         : cleanCat,
-      fileHint: isUiException ? "lastUIException.txt" : "lastException.txt",
+      fileHint: isUiException ? resolvedUiHint : defaultHint,
     };
   }
 
@@ -317,14 +216,14 @@ export function extractSuggestedPatternFromLog(logText?: string | null): {
     return {
       pattern: firstErrorLine.slice(0, 80),
       title: firstErrorLine.slice(0, 60),
-      fileHint: isUiException ? "lastUIException.txt" : "lastException.txt",
+      fileHint: isUiException ? resolvedUiHint : defaultHint,
     };
   }
 
   return {
     pattern: "",
     title: "",
-    fileHint: isUiException ? "lastUIException.txt" : "lastException.txt",
+    fileHint: isUiException ? resolvedUiHint : defaultHint,
   };
 }
 
@@ -649,11 +548,13 @@ export function KnownErrorRuleEditorSidePanel({
   const activeGameSchema = useStore((s) => s.activeGameSchema);
   const pushStatus = useStore((s) => s.pushStatus);
 
+  const defaultFileHint = resolveDefaultExceptionFileHint(activeGameSchema);
+
   const [rule, setRule] = useState<SchemaExceptionRule>({
     id: "",
     title: "",
     pattern: "",
-    file_hint: "lastException.txt",
+    file_hint: defaultFileHint,
     raw_log: "",
     severity: "unstable",
     diagnosis: "",
@@ -667,8 +568,7 @@ export function KnownErrorRuleEditorSidePanel({
   useEffect(() => {
     if (initialRule) {
       const normSev = normalizeRuleSeverity(initialRule);
-      const def = DEFAULT_SIMS4_EXCEPTION_RULES.find((d) => d.id === initialRule.id);
-      const rawLogText = initialRule.raw_log || def?.raw_log || "";
+      const rawLogText = initialRule.raw_log || "";
       setRule({
         ...initialRule,
         raw_log: rawLogText ? formatHumanReadableLogText(rawLogText) : "",
@@ -680,7 +580,7 @@ export function KnownErrorRuleEditorSidePanel({
         id: `rule_${Date.now()}`,
         title: "",
         pattern: "",
-        file_hint: "lastException.txt",
+        file_hint: defaultFileHint,
         raw_log: "",
         severity: defaultAsGameBug ? "unrelated" : "unstable",
         diagnosis: "",
@@ -689,7 +589,7 @@ export function KnownErrorRuleEditorSidePanel({
         enabled: true,
       });
     }
-  }, [initialRule, isOpen, defaultAsGameBug]);
+  }, [initialRule, isOpen, defaultAsGameBug, defaultFileHint]);
 
   if (!isOpen) return null;
 
@@ -699,7 +599,7 @@ export function KnownErrorRuleEditorSidePanel({
   const handleExtractFromRawLog = () => {
     const raw = scrubLogUserData((rule.raw_log || "").trim());
     if (!raw) return;
-    const suggested = extractSuggestedPatternFromLog(raw);
+    const suggested = extractSuggestedPatternFromLog(raw, activeGameSchema);
     setRule((prev) => ({
       ...prev,
       raw_log: formatHumanReadableLogText(raw),
@@ -835,7 +735,7 @@ export function KnownErrorRuleEditorSidePanel({
                 )
               : t("exc_rules_editor_subtitle", "Define how Sanctuary OS explains or filters known game & {mod} exceptions for this community")
           }
-          label={rule.file_hint || "lastException.txt"}
+          label={rule.file_hint || defaultFileHint}
           icon={sevIcon}
           variant={isCrit ? "danger" : isBenign ? "success" : "warning"}
           badges={[
@@ -893,7 +793,7 @@ export function KnownErrorRuleEditorSidePanel({
                 icon={t("icon_description", "description")}
                 iconColorClass="text-[var(--accent)]"
                 label={t("exc_rules_col_log_source", "Log File Source")}
-                value={rule.file_hint || "lastException.txt"}
+                value={rule.file_hint || defaultFileHint}
               />
               <StatBox
                 icon={
@@ -956,7 +856,7 @@ export function KnownErrorRuleEditorSidePanel({
                   placeholder={
                     t(
                       "exc_rules_field_file_hint_ph",
-                      "lastUIException.txt or lastException.txt"
+                      defaultFileHint
                     ) as string
                   }
                   className="w-full h-10 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
@@ -1175,7 +1075,7 @@ export function KnownErrorRuleEditorSidePanel({
                 placeholder={
                   t(
                     "exc_rules_paste_log_ph",
-                    "Paste a raw lastException.txt or lastUIException.txt snippet here to auto-extract its signature..."
+                    "Paste a raw exception or crash log snippet here to auto-extract its signature..."
                   ) as string
                 }
                 className="w-full p-4 bg-transparent font-mono text-[11px] text-[var(--text)] leading-relaxed focus:outline-none resize-y overflow-y-auto min-h-[160px] custom-scrollbar"

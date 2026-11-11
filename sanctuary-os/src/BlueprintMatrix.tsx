@@ -14,8 +14,10 @@ import {
   EmptyState,
   HoverTooltip,
   getNormalizedArtifactName,
+  isScriptExtension,
   openModDossier,
 } from "./shared";
+import { useShallow } from "zustand/react/shallow";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { createPortal } from "react-dom";
@@ -24,9 +26,7 @@ import { useModalStore } from "./store/modalStore";
 import { packageBlueprintLoadOrder } from "./hooks/usePlaySetLogic";
 import { stageFullBlueprintToRigQueue } from "./utils/stagingCrypto";
 import { formatCleanModTitle } from "./side-panels/CommandIncompatiblePanel";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { VAULT_CHIP_CLASS } from "./shared-components/constants";
 
 const matrixNormCache = new Map<string, string>();
 function getCachedNormalizedName(raw: string): string {
@@ -109,7 +109,13 @@ export default function BlueprintMatrix({
   onUpdatePlaySet,
 }: any) {
   const { t } = useLexicon();
-  const { session, activeGameSchema, selectedVersion } = useStore();
+  const { session, activeGameSchema, selectedVersion } = useStore(
+    useShallow((s) => ({
+      session: s.session,
+      activeGameSchema: s.activeGameSchema,
+      selectedVersion: s.selectedVersion,
+    }))
+  );
   const [isPublic, setIsPublic] = useState(true);
   const [isLocked, setIsLocked] = useState(false);
   const [isMarketListed, setIsMarketListed] = useState(false);
@@ -626,10 +632,10 @@ export default function BlueprintMatrix({
           formatDisplayName(entry.targetDisplayName || entry.modB)
         }`
       : (() => {
-          const isScript = /\.ts4script$/i.test(String(entry.name || entry.cleanName || ""));
+          const isScript = isScriptExtension(String(entry.name || entry.cleanName || ""), activeGameSchema);
           const typeLabel = isScript
             ? t("type_script", "Script")
-            : t("type_package", "Package");
+            : t("type_package", "Module");
           const hasAuthor =
             entry.author &&
             String(entry.author).trim() !== "" &&
@@ -724,10 +730,10 @@ export default function BlueprintMatrix({
     const cleanTitle =
       formatCleanModTitle(formatDisplayName(mod.displayName || mod.cleanName || mod.name)) ||
       formatDisplayName(mod.cleanName || mod.name);
-    const isScript = /\.ts4script$/i.test(String(mod.name || ""));
+    const isScript = isScriptExtension(String(mod.name || ""), activeGameSchema);
     const typeLabel = isScript
       ? t("type_script", "Script")
-      : t("type_package", "Package");
+      : t("type_package", "Module");
     const hasAuthor =
       mod.author &&
       String(mod.author).trim() !== "" &&

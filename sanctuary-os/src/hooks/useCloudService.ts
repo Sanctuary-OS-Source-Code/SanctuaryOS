@@ -1,5 +1,6 @@
 import { getExtensionRegex, deduplicateBlueprintArtifacts } from "../shared";
 import { supabase } from "../supabase";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
@@ -8,10 +9,25 @@ import { packageBlueprintLoadOrder, unpackBlueprintLoadOrder } from "./usePlaySe
 
 export function useCloudService(activeMasonProfileId: string | null, tier2Hashes: string[]) {
   const { t } = useLexicon();
-  const { playSets, setPlaySets, setStatus, modList, session, selectedVersion , activeGameSchema } = useStore();
-  const { 
-    setSyncCode, setPendingImportSet, setMissingImportMods, setIngestProgress 
-  } = useModalStore();
+  const { playSets, setPlaySets, setStatus, modList, session, selectedVersion, activeGameSchema } = useStore(
+    useShallow((s) => ({
+      playSets: s.playSets,
+      setPlaySets: s.setPlaySets,
+      setStatus: s.setStatus,
+      modList: s.modList,
+      session: s.session,
+      selectedVersion: s.selectedVersion,
+      activeGameSchema: s.activeGameSchema,
+    }))
+  );
+  const { setSyncCode, setPendingImportSet, setMissingImportMods, setIngestProgress } = useModalStore(
+    useShallow((s) => ({
+      setSyncCode: s.setSyncCode,
+      setPendingImportSet: s.setPendingImportSet,
+      setMissingImportMods: s.setMissingImportMods,
+      setIngestProgress: s.setIngestProgress,
+    }))
+  );
 
   async function uploadBlueprintToCloud(setName: string, isPublic: boolean = true, isLocked: boolean = false, allowedMods?: any[], isMarketListed: boolean = false) {
     if (!session) {
@@ -364,47 +380,41 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       `${t("status_mass_ingestion_prefix", "MASS INGESTION: Unifying")}${ghosts.length}${t("status_mass_ingestion_suffix", "unique identities...")}`,
     );
     let successCount = 0;
-    for (let i = 0; i < ghosts.length; i++) {
-      const ghost = ghosts[i];
-      const cleanName = (ghost.displayName || ghost.name).trim();
+    const CHUNK_SIZE = 200;
+    for (let offset = 0; offset < ghosts.length; offset += CHUNK_SIZE) {
+      const chunk = ghosts.slice(offset, offset + CHUNK_SIZE);
+      const batchItems = chunk.map((ghost: any) => ({
+        name: String(ghost.displayName || ghost.name || "").trim(),
+        dna_hash: ghost.hash || undefined,
+        version_label: ghost.version || "v.System",
+        status: "unverified",
+        author: ghost.author || undefined,
+        url: ghost.url || undefined,
+        file_extension: ghost.file_extension || undefined,
+      }));
       try {
-        let { data: existingMod } = await supabase
-          .from("mods")
-          .select("id")
-          .eq("name", cleanName)
-          .single();
-
-        if (!existingMod) {
-          const { data: newMod, error } = await supabase
-            .from("mods")
-            .insert([{ name: cleanName, status: "unverified" }])
-            .select()
-            .single();
-          if (error) throw error;
-          existingMod = newMod;
-        }
-
-        if (existingMod && ghost.hash) {
-          await supabase.from("mod_versions").upsert(
-            [
-              {
-                mod_id: existingMod.id,
-                dna_hash: ghost.hash,
-                version_label: "v.System",
-              },
-            ],
-            { onConflict: "dna_hash" },
-          );
-        }
-        successCount++;
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc("bulk_ingest_vault_mods", {
+          p_items: batchItems,
+        });
+        if (rpcErr) throw rpcErr;
+        const payload = rpcRes?.data ?? rpcRes;
+        const processed =
+          typeof payload?.processed === "number"
+            ? payload.processed
+            : batchItems.length;
+        successCount += processed;
       } catch (err) {
-        console.warn(`Failed to ingest ${cleanName}:`, err);
+        console.warn("Failed to bulk-ingest vault mod batch:", err);
       }
-      setIngestProgress({ current: i + 1, total: ghosts.length, active: true });
+      setIngestProgress({
+        current: Math.min(offset + chunk.length, ghosts.length),
+        total: ghosts.length,
+        active: true,
+      });
     }
     setIngestProgress(null);
     setStatus(
-      `${t("icon_check_circle", "check_circle")} Ingested ${successCount}/${ghosts.length} unknowns to the Network.`,
+      `${t("status_ingested_prefix", "Ingested")} ${successCount}/${ghosts.length} ${t("status_ingested_suffix", "unknown {mods} to the Network.")}`,
     );
   }
 

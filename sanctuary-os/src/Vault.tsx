@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { ViewHeader, formatDisplayName, isVersionMatch, getHighestVersion, getExtensionRegex, getModIcon, isSupportedExtension, stripPriorityTierPrefix, deduplicateBlueprintArtifacts } from "./shared";
+import { ViewHeader, formatDisplayName, isVersionMatch, getHighestVersion, getExtensionRegex, getModIcon, isScriptExtension, isSupportedExtension, stripPriorityTierPrefix, deduplicateBlueprintArtifacts } from "./shared";
 import { formatCleanModTitle } from "./side-panels/CommandIncompatiblePanel";
 import { useLexicon } from './LexiconContext';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSectionHeading, CommandScreenSidebar, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
@@ -21,7 +21,7 @@ import {
   groupModVersionPoolItems,
   matchVersionGroupsForMod,
 } from './side-panels/VaultSidePanels';
-import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
+import { useConflictOverride } from "./hooks/usePlaySetLogic";
 import { supabase } from "./supabase";
 
 
@@ -34,7 +34,7 @@ const Vault = React.memo(function Vault(props: any) {
 
 
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
-  const { applyConflictOverride } = usePlaySetLogic();
+  const applyConflictOverride = useConflictOverride();
   const { isBulkMode, setIsBulkMode, selectedMods, setSelectedMods, setStatus, runRadarSweep, setIsDropzoneOpen, setLocalFolderModal, playSets, setPlaySets, equipPlaySet, equipFilter, setEquipFilter, searchQuery, setSearchQuery, filterStatus, setFilterStatus, activeCategory, setActiveCategory, activeSubType, setActiveSubType, visibleMods, displayModList, activePlaySetIndex, toggleInActiveSet, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaUrlInput, setActiveDossier, setDrawerConfirmHash, ownedDLC, maskedDLC, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, expandedFolder, setExpandedFolder, drawerConfirmHash, modList, anarchyRules, setBulkModal } = props;
   const { t } = useLexicon();
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
@@ -210,21 +210,6 @@ const Vault = React.memo(function Vault(props: any) {
     return ids;
   }, [displayModList]);
 
-  const localConflictsMemo = React.useMemo(() => {
-    try {
-      const stored = null;
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return parsed.map((lc: any) => ({
-          ...lc,
-          modAUpper: String(lc.modA || lc.mod_a || "").toUpperCase(),
-          modBUpper: String(lc.modB || lc.mod_b || "").toUpperCase()
-        }));
-      }
-    } catch (e) { }
-    return [];
-  }, []);
-
   const uppercaseEquippedMods = React.useMemo(() => {
     return equippedDisplayMods.map((mData: any) => {
       const nameRaw = String(mData.name || "").toUpperCase();
@@ -248,9 +233,6 @@ const Vault = React.memo(function Vault(props: any) {
     const byName = new Map();
     const namesAndDisplayNames: { name: string, displayNameUpper: string, displayNameSpaced: string, orig: any, hash: string }[] = [];
 
-    let hasMcCmdPkg = false;
-    let hasMcCmdScript = false;
-
     modList.forEach((ml: any) => {
       if (!ml.isVirtual) {
         if (ml.dbId) byDbId.set(String(ml.dbId), ml);
@@ -271,14 +253,9 @@ const Vault = React.memo(function Vault(props: any) {
           orig: ml
         });
       }
-
-      if (ml.name?.toLowerCase().includes("mc_cmd_center")) {
-        if (ml.name.toLowerCase().endsWith(".package")) hasMcCmdPkg = true;
-        if (ml.name.toLowerCase().endsWith(".ts4script")) hasMcCmdScript = true;
-      }
     });
 
-    return { byDbId, byHash, byInterchangeableId, byName, namesAndDisplayNames, mcCmdCenter: { hasPkg: hasMcCmdPkg, hasScript: hasMcCmdScript } };
+    return { byDbId, byHash, byInterchangeableId, byName, namesAndDisplayNames };
   }, [modList]);
 
 
@@ -825,7 +802,7 @@ const Vault = React.memo(function Vault(props: any) {
                         return { label: t("badge_local", "Unlinked"), icon: t("icon_science", "science"), iconColor: "text-[var(--accent)]" };
                       })();
                       const rawFileName = String(item?.file_extension || item?.name || "").toLowerCase();
-                      const isScript = rawFileName.includes("ts4script") || String(item?.type || "").toLowerCase().includes("script");
+                      const isScript = isScriptExtension(rawFileName, activeGameSchema) || String(item?.type || "").toLowerCase().includes("script");
                       const typeLabel = item?.isCollection
                         ? t("tab_cc", "Collection")
                         : isScript
@@ -911,7 +888,7 @@ const Vault = React.memo(function Vault(props: any) {
                 </div>
               </CommandScreenMain>
 
-              <CommandScreenSidebar title={t("quick_actions", "Quick Actions")} icon="bolt">
+              <CommandScreenSidebar title={t("quick_actions", "Quick Actions")} icon={t("icon_bolt", "bolt")}>
                 <div className="flex flex-col gap-4">
                   <CommandScreenQuickLink
                     icon={t("icon_warning", "warning")}
@@ -1038,7 +1015,6 @@ const Vault = React.memo(function Vault(props: any) {
             modListIndex={modListIndex}
             dependencyGraph={dependencyGraph}
             uppercaseEquippedMods={uppercaseEquippedMods}
-            localConflictsMemo={localConflictsMemo}
             ownedDLC={ownedDLC}
             maskedDLC={maskedDLC}
             displayModList={displayModList}

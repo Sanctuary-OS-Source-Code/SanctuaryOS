@@ -1,8 +1,8 @@
 /// <reference path="../deno.d.ts" />
 // Supabase Edge Function: partner-donation-webhook
 // Non-Custodial Partner & Keepers Core Payment Processor Webhook Bridge
-// Cryptographically verifies Stripe (Stripe-Signature HMAC-SHA256 + 300s replay window) and Ko-fi (verification_token)
-// Fail-closed: rejects any unverified request if secrets or signatures are missing.
+// Cryptographically verifies Stripe (Stripe-Signature HMAC-SHA256 + 300s replay window) and Ko-fi (verification_token).
+// Credits only verified paid amounts (`session.amount_total`) and records monthly ledgers atomically via Postgres row locks.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -10,6 +10,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, stripe-signature, x-partner-secret",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 const MAX_STRIPE_TIMESTAMP_DRIFT_SECONDS = 300;
@@ -94,7 +95,9 @@ Deno.serve(async (req: Request) => {
     const kofiVerificationToken = (Deno.env.get("KOFI_VERIFICATION_TOKEN") ?? "").trim();
     const partnerSharedSecret = (Deno.env.get("PARTNER_WEBHOOK_SECRET") ?? "").trim();
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
 
     const reqUrl = new URL(req.url);
     let targetId = (
@@ -114,7 +117,6 @@ Deno.serve(async (req: Request) => {
     let txNonce = "";
 
     if (contentType.includes("application/x-www-form-urlencoded")) {
-      // Ko-fi webhook payload (form-urlencoded `data` JSON field) — fail-closed
       if (!kofiVerificationToken) {
         return new Response(
           JSON.stringify({ ok: false, error: "Ko-fi webhook verification is not configured" }),
@@ -148,11 +150,20 @@ Deno.serve(async (req: Request) => {
           },
         );
       }
-      email = kofi.email || "";
-      amountCents = Math.round(parseFloat(kofi.amount || "0") * 100);
-      txNonce = `kofi_${kofi.kofi_transaction_id || kofi.message_id || Date.now()}`;
+      const kofiId = String(kofi.kofi_transaction_id || kofi.message_id || "").trim();
+      if (!kofiId) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Missing Ko-fi transaction identifier" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      email = String(kofi.email || "").trim();
+      amountCents = Math.max(0, Math.round(parseFloat(kofi.amount || "0") * 100));
+      txNonce = `kofi_${kofiId}`;
     } else {
-      // Fail-closed verification: require either valid Stripe HMAC signature OR valid Partner shared secret
       const stripeSig = req.headers.get("stripe-signature") || "";
       const headerSecret = req.headers.get("x-partner-secret") || "";
 
@@ -181,6 +192,20 @@ Deno.serve(async (req: Request) => {
 
       if (body.type === "checkout.session.completed" && body.data?.object) {
         const session = body.data.object;
+        if (session.payment_status !== "paid") {
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              skipped: true,
+              reason: `payment_status_${session.payment_status || "unpaid"}`,
+            }),
+            {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+
         const rawRef = String(
           session.client_reference_id ||
             session.metadata?.sanctuary_user_id ||
@@ -200,25 +225,11 @@ Deno.serve(async (req: Request) => {
         }
         email =
           session.customer_details?.email || session.customer_email || "";
-        const amountTotal = Number(session.amount_total || 0);
-        const amountSubtotal = Number(session.amount_subtotal || 0);
-        const amountDiscount = Number(
-          session.total_details?.amount_discount || 0,
-        );
-        amountCents = Math.max(
-          amountTotal,
-          amountSubtotal,
-          amountTotal + amountDiscount,
-        );
-        if (
-          amountCents <= 0 &&
-          (session.payment_status === "no_payment_required" ||
-            session.payment_status === "paid" ||
-            session.status === "complete")
-        ) {
-          amountCents = 500;
-        }
-        txNonce = `stripe_${session.id || session.payment_intent}`;
+
+        // Strictly credit only the actual paid amount (`session.amount_total`), never pre-discount subtotals or $0 coupons
+        amountCents = Math.max(0, Math.floor(Number(session.amount_total || 0)));
+        const sessionId = String(session.id || session.payment_intent || "").trim();
+        txNonce = sessionId ? `stripe_${sessionId}` : "";
       } else if (
         (body.type === "payment_intent.succeeded" ||
           body.type === "charge.succeeded") &&
@@ -234,19 +245,53 @@ Deno.serve(async (req: Request) => {
           obj.billing_details?.email ||
           obj.metadata?.email ||
           "";
-        amountCents = Number(obj.amount_received || obj.amount || 0);
-        txNonce = `stripe_${obj.id}`;
+        amountCents = Math.max(
+          0,
+          Math.floor(Number(obj.amount_received ?? obj.amount ?? 0)),
+        );
+        const objId = String(obj.id || "").trim();
+        txNonce = objId ? `stripe_${objId}` : "";
       } else {
-        userId = body.user_id || body.client_reference_id || "";
-        email = body.email || "";
-        amountCents =
-          Number(body.amount_cents || 0) ||
-          Math.round(Number(body.amount_usd || 0) * 100);
-        txNonce = body.tx_nonce || body.transaction_id || `tx_${Date.now()}`;
+        userId = String(body.user_id || body.client_reference_id || "").trim();
+        email = String(body.email || "").trim();
+        amountCents = Math.max(
+          0,
+          Math.floor(
+            Number(body.amount_cents || 0) ||
+              Math.round(Number(body.amount_usd || 0) * 100),
+          ),
+        );
+        txNonce = String(body.tx_nonce || body.transaction_id || "").trim();
       }
     }
 
-    // Resolve user_id by email if client_reference_id was not present (e.g. Ko-fi)
+    if (amountCents <= 0) {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          skipped: true,
+          reason: "zero_amount_paid",
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (!txNonce) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: "Missing verified transaction identifier",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     if (!userId && email) {
       const { data: userLookup } = await supabase
         .from("profiles")
@@ -258,102 +303,34 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (amountCents <= 0 || !txNonce) {
-      return new Response(
-        JSON.stringify({
-          ok: false,
-          error: "Missing amount_cents or tx_nonce",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
-    // Automatically tally this verified donation into the current UTC month's ledger (YYYY-MM) for targetId
     const now = new Date();
     const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-    const normTarget = (targetId || "keepers_core")
-      .replace(/[^a-z0-9_-]/gi, "")
-      .toLowerCase() || "keepers_core";
-    const ledgerTitle = `LEDGER_${monthKey}_${normTarget.toUpperCase()}`;
+    const normTarget =
+      (targetId || "keepers_core")
+        .replace(/[^a-z0-9_-]/gi, "")
+        .toLowerCase() || "keepers_core";
 
+    const estTxFeeCents = txNonce.startsWith("stripe_")
+      ? Math.round(amountCents * 0.029) + 30
+      : 0;
+
+    let ledgerResult: any = null;
     try {
-      const { data: existingLedger } = await supabase
-        .from("keeper_system_broadcasts")
-        .select("id, description, message")
-        .eq("category", "MonthlyDonationLedger")
-        .eq("title", ledgerTitle)
-        .limit(1)
-        .maybeSingle();
-
-      let prevCents = 0;
-      let prevFeeCents = 0;
-      let nonces: string[] = [];
-      if (existingLedger) {
-        try {
-          const parsed = JSON.parse(
-            existingLedger.description || existingLedger.message || "{}",
-          );
-          if (parsed.month_key === monthKey) {
-            prevCents = Math.max(0, Number(parsed.covered_cents || 0));
-            prevFeeCents = Math.max(0, Number(parsed.stripe_fees_cents || 0));
-            if (Array.isArray(parsed.tx_nonces)) {
-              nonces = parsed.tx_nonces;
-            }
-          }
-        } catch {
-          // ignore
-        }
-      }
-
-      if (!nonces.includes(txNonce)) {
-        const nextNonces = [...nonces.slice(-199), txNonce];
-        const nextCents = prevCents + amountCents;
-        const estTxFeeCents = txNonce.startsWith("stripe_")
-          ? Math.round(amountCents * 0.029) + 30
-          : 0;
-        const nextFeeCents = prevFeeCents + estTxFeeCents;
-        const ledgerPayload = JSON.stringify({
-          month_key: monthKey,
-          target_id: normTarget,
-          covered_cents: nextCents,
-          stripe_fees_cents: nextFeeCents,
-          net_received_cents: Math.max(0, nextCents - nextFeeCents),
-          tx_nonces: nextNonces,
-          updated_at: now.toISOString(),
-        });
-
-        if (existingLedger?.id) {
-          await supabase
-            .from("keeper_system_broadcasts")
-            .update({
-              description: ledgerPayload,
-              message: ledgerPayload,
-              target_audience: "Internal_Pipeline",
-              is_active: true,
-            })
-            .eq("id", existingLedger.id);
-        } else {
-          await supabase.from("keeper_system_broadcasts").insert([
-            {
-              title: ledgerTitle,
-              category: "MonthlyDonationLedger",
-              description: ledgerPayload,
-              message: ledgerPayload,
-              target_audience: "Internal_Pipeline",
-              is_active: true,
-              is_pinned: false,
-            },
-          ]);
-        }
-      }
+      const { data: ledgerData } = await supabase.rpc(
+        "record_monthly_donation_ledger",
+        {
+          p_month_key: monthKey,
+          p_target_id: normTarget,
+          p_amount_cents: amountCents,
+          p_fee_cents: estTxFeeCents,
+          p_tx_nonce: txNonce,
+        },
+      );
+      ledgerResult = ledgerData;
     } catch {
-      // Non-fatal if broadcast ledger table is unreachable
+      // Non-fatal if ledger RPC is unavailable
     }
 
-    // If donor has a resolved Sanctuary user_id, also stack +30 days per $5 onto their account
     let rpcResult: any = null;
     if (userId) {
       const { data, error } = await supabase.rpc(
@@ -376,6 +353,7 @@ Deno.serve(async (req: Request) => {
         target_id: normTarget,
         month_key: monthKey,
         amount_cents: amountCents,
+        ledger: ledgerResult,
         result: rpcResult,
       }),
       {

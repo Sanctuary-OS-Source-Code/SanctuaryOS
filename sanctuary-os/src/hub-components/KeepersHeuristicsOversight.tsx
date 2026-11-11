@@ -6,10 +6,7 @@ import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../co
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard, SidePanelTitleInput, SidePanelPillToggle } from "../components/universal/UniversalLayout";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
-import { SidePanel, PanelHeaderGroup, PanelHeaderButton, CustomDropdown, EmptyState } from "../shared";
+import { SidePanel, PanelHeaderGroup, PanelHeaderButton, CustomDropdown, EmptyState, VAULT_CHIP_CLASS } from "../shared";
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "../utils/envUtils";
 import { logArchitectAction } from "../lib/audit";
@@ -402,7 +399,7 @@ export default function KeepersHeuristicsOversight() {
             title={newSig || (editingId ? t("edit_core_heuristic", "Edit Core Heuristic") : t("btn_add_heuristic", "Add Heuristic"))}
             description={t("keepers_heuristics_subtitle", "System-Wide Elevated Threat Definitions")}
             badge={enabled ? t("comp_enabled", "Enabled") : t("comp_disabled", "Disabled")}
-            badgeIcon={enabled ? "shield_lock" : "science"}
+            badgeIcon={enabled ? t("icon_shield_lock", "shield_lock") : t("icon_science", "science")}
             variant={enabled ? "danger" : "warning"}
           />
 
@@ -450,7 +447,7 @@ export default function KeepersHeuristicsOversight() {
                 label={enabled ? t("comp_enabled", "Enabled") : t("comp_disabled", "Disabled")}
                 checked={enabled}
                 onChange={setEnabled}
-                icon={enabled ? "shield_lock" : "science"}
+                icon={enabled ? t("icon_shield_lock", "shield_lock") : t("icon_science", "science")}
                 variant={enabled ? "danger" : "warning"}
               />
             </div>

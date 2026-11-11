@@ -16,7 +16,7 @@ export function SystemStatusBar({
 }: any) {
   const { t } = useLexicon();
   const scanProgress = useStore((state: any) => state.scanProgress);
-  const { isSideBrowserOpen } = useModalStore();
+  const isSideBrowserOpen = useModalStore((s) => s.isSideBrowserOpen);
 
   const isStandby =
     typeof status === "string" &&

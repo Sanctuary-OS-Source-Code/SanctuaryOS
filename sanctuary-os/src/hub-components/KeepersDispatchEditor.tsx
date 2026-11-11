@@ -179,12 +179,12 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       if (authorId === 'system') {
         setWayfinderName("SYSTEM");
       } else {
-        const { data: profileData } = await supabase.from('profiles').select('username').eq('id', authorId).maybeSingle();
+        const { data: profileData } = await supabaseAuth.from('profiles').select('username').eq('id', authorId).maybeSingle();
         if (profileData?.username) setWayfinderName(profileData.username);
       }
     }
 
-    const { data: gamesData } = await supabase.from('sanctuary_games').select('name').not('is_active', 'eq', false);
+    const { data: gamesData } = await supabaseAuth.from('sanctuary_games').select('name').not('is_active', 'eq', false);
     if (gamesData) {
       setCommunityOptions(gamesData.map(g => `${g.name} Wayfinders`));
     }
@@ -430,45 +430,49 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
       if (!editingPostId && newPostId) {
         const { data: authUser } = await supabase.auth.getUser();
         if (authUser.user) {
-          const { data: followers } = await supabase.from('profiles').select("id");
-          if (followers && followers.length > 0) {
-            let teamName = "Sanctuary Foundry";
+          const teamName = "Sanctuary Foundry";
+          let actionWord = "a new System Dispatch";
+          if (payload.category === "Alert" || payload.category.includes("Alert")) {
+            actionWord = payload.is_pinned ? "an Urgent Alert" : "a new Alert";
+          } else if (payload.category === "Maintenance") {
+            actionWord = "a Maintenance Notice";
+          } else if (payload.category === "Update") {
+            actionWord = "a new Update";
+          } else if (payload.category === "Community") {
+            actionWord = "a Community Announcement";
+          }
+          const broadcastMessage = `${teamName} has posted ${actionWord}: ${payload.title}`;
+          const token = useStore.getState().session?.access_token || '';
 
-            const notifications = followers.map(f => {
-              let actionWord = "a new System Dispatch";
-              if (payload.category === "Alert" || payload.category.includes("Alert")) {
-                actionWord = payload.is_pinned ? "an Urgent Alert" : "a new Alert";
-              } else if (payload.category === "Maintenance") {
-                actionWord = "a Maintenance Notice";
-              } else if (payload.category === "Update") {
-                actionWord = "a new Update";
-              } else if (payload.category === "Community") {
-                actionWord = "a Community Announcement";
-              }
-              
-              return {
-                id: crypto.randomUUID(),
-                user_id: f.id,
-                actor_id: authUser.user!.id,
-                type: 'system_broadcast',
-                reference_id: newPostId,
-                message: `${teamName} has posted ${actionWord}: ${payload.title}`
-              };
-            });
-            try {
-              await Promise.all(notifications.map(notif =>
-                supabase.rpc('secure_upsert_cloud_file', {
-                  p_target: 'notifications',
-                  p_payload: notif,
-                  p_token: useStore.getState().session?.access_token || ''
-                }).then(res => {
-                  if (res.error) console.error("Notification insert error:", res.error);
-                })
-              ));
-              window.dispatchEvent(new CustomEvent('refresh_notifications'));
-            } catch (e) {
-              console.error("Failed to insert notifications:", e);
+          try {
+            const { data: activeGames } = await supabaseAuth
+              .from('sanctuary_games')
+              .select('id')
+              .not('is_active', 'eq', false);
+            const spokeIds = (activeGames || []).map((g: any) => g.id).filter(Boolean);
+            if (spokeIds.length > 0) {
+              await Promise.allSettled(
+                spokeIds.map((gid: string) =>
+                  supabase.rpc('dispatch_broadcast_notifications', {
+                    p_game_id: gid,
+                    p_type: 'system_broadcast',
+                    p_reference_id: newPostId,
+                    p_message: broadcastMessage,
+                    p_token: token,
+                  }),
+                ),
+              );
+            } else {
+              await supabase.rpc('dispatch_broadcast_notifications', {
+                p_type: 'system_broadcast',
+                p_reference_id: newPostId,
+                p_message: broadcastMessage,
+                p_token: token,
+              });
             }
+            window.dispatchEvent(new CustomEvent('refresh_notifications'));
+          } catch (e) {
+            console.error("Failed to dispatch broadcast notifications:", e);
           }
         }
       }

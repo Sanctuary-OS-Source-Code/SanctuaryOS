@@ -102,7 +102,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     const parts = trimmed.split(/[\\/]/);
     if (parts.length <= 1) return trimmed;
     const lastSeg = parts[parts.length - 1].toLowerCase();
-    const knownSchemas = new Set<string>(['sims4']);
+    const knownSchemas = new Set<string>();
     if (Array.isArray(workspacesList)) {
       workspacesList.forEach((w: any) => {
         if (w?.schema_id && String(w.schema_id).toLowerCase() !== 'default_schema') {
@@ -133,7 +133,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
   const refreshConfig = async () => {
     try {
       if (!isDesktop()) {
-        const dummyConfig = { id: 'web', vault_path: 'web', master_vault_path: 'web', mods_path: 'web', live_path: 'web' };
+        const dummyConfig = { id: 'web', vault_path: 'web', master_vault_path: 'web', mods_path: 'web', live_path: 'web', docs_path: 'web' };
         setConfig(dummyConfig);
         setGlobalConfig({ workspaces: [dummyConfig], active_workspace_id: 'web', vault_path: 'web' });
         return;
@@ -143,7 +143,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       const fallbackWorkspaceId =
         storeState.activeWorkspaceId ||
         localStorage.getItem('sanctuary_last_active_workspace') ||
-        'sims4';
+        'default_workspace';
       const activeId =
         gConf?.active_workspace_id && gConf.active_workspace_id !== 'default_workspace'
           ? gConf.active_workspace_id
@@ -170,16 +170,16 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
             String(w.id || '').toLowerCase() === String(activeId || '').toLowerCase() ||
             String(w.schema_id || '').toLowerCase() === String(activeId || '').toLowerCase()
         );
-        const resolvedId = storeMatch?.id || activeId || 'sims4';
+        const resolvedId = storeMatch?.id || activeId || 'default_workspace';
         const resolvedSchema = storeMatch?.schema_id || resolvedId;
         activeW = {
           id: resolvedId,
-          name:
-            storeMatch?.name ||
-            (String(resolvedId).toLowerCase() === 'sims4' ? 'The Sims 4' : resolvedId),
+          name: storeMatch?.name || resolvedId,
           schema_id: resolvedSchema,
           live_path: storeState.livePath || '',
           mods_path: storeState.modsPath || '',
+          docs_path: storeState.docsPath || '',
+          user_data_path: storeState.docsPath || '',
           master_vault_path: masterVault,
           vault_path:
             masterVault ? `${masterVault}${sep}${resolvedSchema}` : (storeState.vaultPath || ''),
@@ -187,6 +187,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       } else {
         activeW = {
           ...activeW,
+          docs_path: activeW.docs_path || activeW.user_data_path || storeState.docsPath || '',
           master_vault_path: masterVault || activeW.master_vault_path,
         };
       }
@@ -248,7 +249,7 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       cleanBase.id ||
       useStore.getState().activeWorkspaceId ||
       localStorage.getItem('sanctuary_last_active_workspace') ||
-      'sims4';
+      'default_workspace';
     const resolvedSchema = cleanBase.schema_id || resolvedId;
 
     let universalMasterVault = resolveUniversalMasterVaultPath(
@@ -276,12 +277,14 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
           : universalMasterVault;
     }
 
+    if (typeof parsedPatch.docs_path === 'string') {
+      parsedPatch.user_data_path = parsedPatch.docs_path;
+    }
+
     const newConfig = {
       ...cleanBase,
       id: resolvedId,
-      name:
-        cleanBase.name ||
-        (String(resolvedId).toLowerCase() === 'sims4' ? 'The Sims 4' : resolvedId),
+      name: cleanBase.name || resolvedId,
       schema_id: resolvedSchema,
       ...(universalMasterVault ? { master_vault_path: universalMasterVault } : {}),
       ...parsedPatch,
@@ -333,9 +336,10 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     const storeState = useStore.getState();
     if (typeof newConfig.live_path === 'string') storeState.setLivePath(newConfig.live_path);
     if (typeof newConfig.mods_path === 'string') storeState.setModsPath(newConfig.mods_path);
+    if (typeof newConfig.docs_path === 'string') storeState.setDocsPath(newConfig.docs_path);
     if (typeof newConfig.vault_path === 'string') storeState.setVaultPath(newConfig.vault_path);
     storeState.setWorkspaces(existingList);
-    if (newConfig.mods_path || newConfig.vault_path || newConfig.live_path) {
+    if (newConfig.mods_path || newConfig.vault_path || newConfig.live_path || newConfig.docs_path) {
       storeState.setIsConfigured(true);
     }
 
@@ -397,7 +401,13 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       label: t("setup_btn_bin", "Select Bin Folder") || "Live Path",
       value: config.live_path,
       icon: t("icon_push_pin", "push_pin") || "push_pin",
-    }
+    },
+    {
+      rustKey: 'docs_path',
+      label: t("user_data_path_label", "User Data & Saves Folder") || "User Data & Saves Folder",
+      value: config.docs_path || config.user_data_path || "",
+      icon: t("icon_save", "save") || "save",
+    },
   ];
 
   let TABS = [

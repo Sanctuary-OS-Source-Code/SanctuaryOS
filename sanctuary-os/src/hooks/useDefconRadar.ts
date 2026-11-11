@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { supabaseServices } from "../lib/supabase-services";
 import { tauriBridge } from "../lib/tauri-bridge";
 import { useModalStore } from "../store/modalStore";
@@ -11,8 +12,21 @@ import {
 } from "../utils/notificationHelper";
 
 export function useDefconRadar(t: (key: string, fallback?: string) => string, askCustom: any, triggerPrePatchSnapshot: any, triggerFullEngineBackup: any) {
-  const { isPatchDetected, setIsPatchDetected, defconLevel, setDefconLevel, activeWorkspaceId } = useStore();
-  const { showDefconAlert, setShowDefconAlert } = useModalStore();
+  const { isPatchDetected, setIsPatchDetected, defconLevel, setDefconLevel, activeWorkspaceId } = useStore(
+    useShallow((s) => ({
+      isPatchDetected: s.isPatchDetected,
+      setIsPatchDetected: s.setIsPatchDetected,
+      defconLevel: s.defconLevel,
+      setDefconLevel: s.setDefconLevel,
+      activeWorkspaceId: s.activeWorkspaceId,
+    }))
+  );
+  const { showDefconAlert, setShowDefconAlert } = useModalStore(
+    useShallow((s) => ({
+      showDefconAlert: s.showDefconAlert,
+      setShowDefconAlert: s.setShowDefconAlert,
+    }))
+  );
 
   useEffect(() => {
     const defconUniqueId = `defcon:${activeWorkspaceId || 'global'}:level_1`;

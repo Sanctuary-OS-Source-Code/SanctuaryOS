@@ -7,9 +7,7 @@ import { useStore } from '../../store';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
-import { openModDossier } from "../../shared";
-
-const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { openModDossier, VAULT_CHIP_CLASS } from "../../shared";
 
 export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
   const { t } = useLexicon();
@@ -259,7 +257,7 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
       <CommandScreenBody>
         <CommandScreenMain>
           <div className="flex flex-col gap-4 w-full">
-            <CommandScreenSectionHeading title={t("wf_comms_title", "Latest Dispatch")} icon="history" />
+            <CommandScreenSectionHeading title={t("wf_comms_title", "Latest Dispatch")} icon={t("icon_history", "history")} />
             <div className="w-full">
               <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
             </div>
@@ -267,7 +265,7 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
 
           {recentScout.length > 0 && (
             <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("reviewing", "Scanner Queue")} icon="search" />
+              <CommandScreenSectionHeading title={t("reviewing", "Scanner Queue")} icon={t("icon_search", "search")} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                   {recentScout.map((item: any) => (
                       <UniversalCard 
@@ -326,7 +324,7 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
 
           {recentMason.length > 0 && (
             <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("mason_queue", "{Mason} Queue")} icon="handyman" />
+              <CommandScreenSectionHeading title={t("mason_queue", "{Mason} Queue")} icon={t("icon_handyman", "handyman")} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                   {recentMason.map((item: any) => (
                       <UniversalCard 
@@ -390,7 +388,7 @@ export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
 
           {recentReports.length > 0 && (
             <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("title_reports", "Reports Queue")} icon="flag" />
+              <CommandScreenSectionHeading title={t("title_reports", "Reports Queue")} icon={t("icon_flag", "flag")} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                   {recentReports.map((report: any) => (
                       <UniversalCard 

@@ -5,6 +5,12 @@ import { listen } from '@tauri-apps/api/event';
 import { useStore } from '../../store';
 import { supabaseServices } from '../../lib/supabase-services';
 import { useLexicon } from '../../LexiconContext';
+import {
+   isSanctuaryTemplateFile,
+   isSanctuaryTemplateFileName,
+   isSanctuaryTemplateObject,
+   stripJsonCommentsAndTrailingCommas
+} from '../workbenchFormatUtils';
 
 import workbenchTemplates from '../../data/workbench_templates.json';
 
@@ -13,16 +19,24 @@ interface UseWorkbenchFilesProps {
    mainSearchQuery: string;
 }
 
+export interface WorkbenchFileItem {
+   name: string;
+   path: string;
+   isTemplate?: boolean;
+}
+
 export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFilesProps) {
    const { t } = useLexicon();
    const vaultPath = useStore(state => state.vaultPath);
+   const modsPath = useStore(state => state.modsPath);
+   const activeGameSchema = useStore(state => state.activeGameSchema);
    const pushStatus = useStore(state => state.pushStatus);
    const selectedFile = useStore(state => state.cwSelectedFile);
    const setSelectedFile = useStore(state => state.setCwSelectedFile);
    const communityDefaultsRefreshTrigger = useStore(state => state.communityDefaultsRefreshTrigger);
    const setUnsavedEdits = useStore(state => state.setCwUnsavedEdits);
 
-   const [files, setFiles] = useState<{ name: string, path: string }[]>([]);
+   const [files, setFiles] = useState<WorkbenchFileItem[]>([]);
    const [communityDefaults, setCommunityDefaults] = useState<any[]>([]);
    const [refreshTrigger, setRefreshTrigger] = useState(0);
    const [renamingFile, setRenamingFile] = useState<string | null>(null);
@@ -33,14 +47,14 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
    const [availableTemplates, setAvailableTemplates] = useState<any[]>([]);
 
    const filteredMainFiles = files.filter(f => {
-      const isTmpl = f.name.toLowerCase().endsWith('.json');
+      const isTmpl = isSanctuaryTemplateFile(f);
       if (mainTab === "CONFIGS" && isTmpl) return false;
       if (mainTab === "TEMPLATES" && !isTmpl) return false;
       if (mainSearchQuery && !f.name.toLowerCase().includes(mainSearchQuery.toLowerCase())) return false;
       return true;
    });
 
-   const isTemplateMode = selectedFile?.name.toLowerCase().endsWith('.json');
+   const isTemplateMode = isSanctuaryTemplateFile(selectedFile);
 
    useEffect(() => {
       const fetchDefaults = async () => {
@@ -59,18 +73,43 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
 
    useEffect(() => {
       const loadFiles = async () => {
-         if (!vaultPath) return;
+         if (!vaultPath && !modsPath) return;
          try {
-            if (!(await exists(vaultPath))) return;
+            const targetCheckPath = vaultPath || modsPath;
+            if (!targetCheckPath || !(await exists(targetCheckPath))) return;
 
-            let validFiles: any[] = [];
+            let validFiles: WorkbenchFileItem[] = [];
             try {
-               const results: string[] = await invoke("get_workbench_files", { vaultPath });
-               validFiles = results.map(r => {
-                  const sep = r.includes('\\') ? '\\' : '/';
-                  const parts = r.split(sep);
-                  return { name: parts[parts.length - 1], path: r };
+               const results: string[] = await invoke("get_workbench_files", {
+                  vaultPath: vaultPath || "",
+                  modsPath: modsPath || "",
+                  gameSchema: activeGameSchema
                });
+               const unsavedSnapshot = useStore.getState().cwUnsavedEdits || {};
+               validFiles = await Promise.all(
+                  results.map(async (r) => {
+                     const sep = r.includes('\\') ? '\\' : '/';
+                     const parts = r.split(sep);
+                     const name = parts[parts.length - 1];
+                     if (isSanctuaryTemplateFileName(name)) {
+                        return { name, path: r, isTemplate: true };
+                     }
+                     if (name.toLowerCase().endsWith('.json')) {
+                        try {
+                           const rawContent = unsavedSnapshot[r] !== undefined
+                              ? unsavedSnapshot[r]
+                              : await readTextFile(r);
+                           const parsed = JSON.parse(stripJsonCommentsAndTrailingCommas(rawContent));
+                           if (isSanctuaryTemplateObject(parsed)) {
+                              return { name, path: r, isTemplate: true };
+                           }
+                        } catch {
+                           // Standard or malformed JSON config -> classify under CONFIGS
+                        }
+                     }
+                     return { name, path: r, isTemplate: false };
+                  })
+               );
             } catch (e) {
                console.error("Native scanner failed:", e);
             }
@@ -82,7 +121,7 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
          }
       };
       loadFiles();
-   }, [vaultPath, refreshTrigger]);
+   }, [vaultPath, modsPath, activeGameSchema, refreshTrigger]);
 
    useEffect(() => {
       let unlisten: (() => void) | undefined;
@@ -123,16 +162,13 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
                const commTmpl = communityDefaults.find((d: any) => {
                   const tData = Array.isArray(d.template_data) ? d.template_data[0] : d.template_data;
                   const targetFile = tData?.target_file || d.name;
-                  return targetFile?.toLowerCase() === selectedFile.name.toLowerCase() ||
-                     (d.name?.toLowerCase() === 'mc settings' && selectedFile.name.toLowerCase() === 'mc_settings.cfg');
+                  return targetFile?.toLowerCase() === selectedFile.name.toLowerCase();
                });
                if (commTmpl) {
                   const rawCommData = Array.isArray(commTmpl.template_data) ? commTmpl.template_data[0] : commTmpl.template_data;
                   const useBuiltInUpgrade = builtInMatch && builtInMatch.template_version === "2.0.0" && rawCommData?.template_version !== "2.0.0";
                   const tData = useBuiltInUpgrade ? builtInMatch : rawCommData;
-                  const rawLabel = commTmpl.name && commTmpl.name.toLowerCase() !== "mc settings"
-                     ? commTmpl.name
-                     : t("template_builtin", "Sanctuary Default");
+                  const rawLabel = commTmpl.name || t("template_builtin", "Sanctuary Default");
                   matches.push({
                      id: commTmpl.id,
                      label: rawLabel,
@@ -148,7 +184,7 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
                matches.push({ id: "built_in", label: t("template_builtin", "Sanctuary Default"), data: builtInMatch });
             }
 
-            for (const f of files.filter(f => f.name.toLowerCase().endsWith('.json'))) {
+            for (const f of files.filter(f => isSanctuaryTemplateFile(f))) {
                try {
                   const unsaved = useStore.getState().cwUnsavedEdits;
                   let content = '';
@@ -158,7 +194,7 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
                      content = await readTextFile(f.path);
                   }
 
-                  const parsed = JSON.parse(content);
+                  const parsed = JSON.parse(stripJsonCommentsAndTrailingCommas(content));
                   const tData = Array.isArray(parsed) ? parsed[0] : parsed;
                   if (tData?.target_file?.toLowerCase() === selectedFile.name.toLowerCase()) {
                      matches.push({ id: f.path, label: f.name, data: tData });
@@ -178,11 +214,13 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
       if (!vaultPath) return;
       try {
          const shortId = Math.random().toString(36).substring(2, 6).toUpperCase();
-         const targetFileName = targetFileOverride || (selectedFile && !isTemplateMode ? selectedFile.name : "my_mod_settings.cfg");
+         const targetFileName = targetFileOverride || (selectedFile && !isTemplateMode ? selectedFile.name : "mod_config.json");
          const baseTargetStem = targetFileOverride
             ? targetFileOverride.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_")
             : `TEMPLATE_${shortId}`;
-         const newFileName = targetFileOverride ? `${baseTargetStem}_template_${shortId}.json` : `TEMPLATE_${shortId}.json`;
+         const newFileName = targetFileOverride
+            ? `${baseTargetStem}_${shortId}.sanctuary.template.json`
+            : `TEMPLATE_${shortId}.sanctuary.template.json`;
          const sep = vaultPath.includes('\\') ? '\\' : '/';
          const tmplPath = vaultPath.endsWith(sep) ? `${vaultPath}Data${sep}Templates` : `${vaultPath}${sep}Data${sep}Templates`;
 
@@ -190,12 +228,23 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
             await mkdir(tmplPath, { recursive: true });
          }
          const newFilePath = `${tmplPath}${sep}${newFileName}`;
+         const lowerTarget = targetFileName.toLowerCase();
+         const inferredParser = lowerTarget.endsWith('.json') || lowerTarget.endsWith('.jsonc')
+            ? 'json'
+            : lowerTarget.endsWith('.toml')
+               ? 'toml'
+               : lowerTarget.endsWith('.yaml') || lowerTarget.endsWith('.yml')
+                  ? 'yaml'
+                  : lowerTarget.endsWith('.xml') || lowerTarget.endsWith('.lsx')
+                     ? 'xml'
+                     : 'ini';
+
          const defaultContent = {
             "template_id": "custom_template_" + shortId.toLowerCase(),
             "schema_version": 2,
             "supported_mod_versions": ["1.0.0"],
             "target_file": targetFileName,
-            "parser_type": "json",
+            "parser_type": inferredParser,
             "write_scope": "active_mod_folder",
             "mod_author": "Unknown",
             "template_author": "Sanctuary OS Citizen",
@@ -250,7 +299,7 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
             ]
          };
          await writeTextFile(newFilePath, JSON.stringify(defaultContent, null, 2));
-         const createdFile = { name: newFileName, path: newFilePath };
+         const createdFile: WorkbenchFileItem = { name: newFileName, path: newFilePath, isTemplate: true };
          setFiles(prev => [...prev, createdFile].sort((a, b) => a.name.localeCompare(b.name)));
          setRefreshTrigger(prev => prev + 1);
          pushStatus(t("msg_template_created", "New template created."), "success");
@@ -276,15 +325,21 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
    }, [t]);
 
    const handleRenameSubmit = useCallback(async (oldPath: string, oldName: string) => {
-      const lastDot = oldName.lastIndexOf('.');
-      const ext = lastDot > 0 ? oldName.substring(lastDot) : '.json';
-      const baseOldName = lastDot > 0 ? oldName.substring(0, lastDot) : oldName;
+      const isSanctuaryTmpl = isSanctuaryTemplateFileName(oldName);
+      const ext = isSanctuaryTmpl
+         ? '.sanctuary.template.json'
+         : (oldName.lastIndexOf('.') > 0 ? oldName.substring(oldName.lastIndexOf('.')) : '.sanctuary.template.json');
+      const baseOldName = isSanctuaryTmpl
+         ? oldName.slice(0, -'.sanctuary.template.json'.length)
+         : (oldName.lastIndexOf('.') > 0 ? oldName.substring(0, oldName.lastIndexOf('.')) : oldName);
+
       if (!renameInput.trim() || renameInput === baseOldName) {
          setRenamingFile(null);
          return;
       }
       try {
-         let newName = renameInput.trim() + ext;
+         const trimmedInput = renameInput.trim();
+         const newName = trimmedInput.toLowerCase().endsWith(ext.toLowerCase()) ? trimmedInput : trimmedInput + ext;
          const sep = oldPath.includes('\\') ? '\\' : '/';
          const dirPath = oldPath.substring(0, oldPath.lastIndexOf(sep));
          const newPath = `${dirPath}${sep}${newName}`;
@@ -292,7 +347,11 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
          await writeTextFile(newPath, oldContent);
          await remove(oldPath);
          if (useStore.getState().cwSelectedFile?.path === oldPath) {
-            useStore.getState().setCwSelectedFile({ name: newName, path: newPath });
+            useStore.getState().setCwSelectedFile({
+               name: newName,
+               path: newPath,
+               isTemplate: useStore.getState().cwSelectedFile?.isTemplate ?? true
+            });
          }
          setRenamingFile(null);
          setRefreshTrigger(prev => prev + 1);
@@ -303,10 +362,10 @@ export function useWorkbenchFiles({ mainTab, mainSearchQuery }: UseWorkbenchFile
       }
    }, [renameInput, t]);
 
-   const openFile = useCallback(async (file: { name: string, path: string }) => {
+   const openFile = useCallback(async (file: WorkbenchFileItem) => {
       try {
          useStore.getState().setCwSelectedFile(file);
-         if (!file.name.toLowerCase().endsWith('.json')) {
+         if (!isSanctuaryTemplateFile(file)) {
             useStore.getState().setCwActiveTab("visual");
          }
       } catch (e) {

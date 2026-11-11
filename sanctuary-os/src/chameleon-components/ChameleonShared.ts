@@ -167,8 +167,36 @@ export const sampleWallpaperOpticalMetrics = async (themeObj: any): Promise<Wall
     };
   }
 
-  const rawBgImage = typeof themeObj?.bgImage === 'string' ? themeObj.bgImage.trim() : '';
-  if (rawBgImage && rawBgImage !== 'none' && typeof document !== 'undefined') {
+  const candidateBg = typeof themeObj?.bgImage === 'string' ? themeObj.bgImage.trim().replace(/[\r\n\0]/g, '') : '';
+  const isAllowedWallpaperUrl = (() => {
+    if (!candidateBg || candidateBg === 'none' || candidateBg === 'transparent') return false;
+    if (/^\/themes\/[A-Za-z0-9._/?=&-]+$/.test(candidateBg) && !candidateBg.includes('..')) return true;
+    if (/^data:image\/(?:png|jpeg|jpg|webp|gif|avif);base64,[A-Za-z0-9+/=\s]+$/i.test(candidateBg)) return true;
+    if (/^asset:\/\/[A-Za-z0-9._~:/?#[\]@!$&'()*+,;=%-]+$/i.test(candidateBg)) return true;
+    try {
+      const u = new URL(candidateBg);
+      const h = u.hostname.toLowerCase();
+      if ((u.protocol === 'http:' || u.protocol === 'https:') && h === 'asset.localhost') return true;
+      if (u.protocol !== 'https:') return false;
+      if (
+        h === 'localhost' ||
+        h === '127.0.0.1' ||
+        h === '[::1]' ||
+        h === '0.0.0.0' ||
+        h.endsWith('.local') ||
+        h.endsWith('.internal') ||
+        h.endsWith('.lan') ||
+        /^(?:10\.|127\.|0\.|192\.168\.|169\.254\.|172\.(?:1[6-9]|2\d|3[01])\.)/.test(h)
+      ) {
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  const rawBgImage = isAllowedWallpaperUrl ? candidateBg : '';
+  if (rawBgImage && typeof document !== 'undefined') {
     const sampled = await new Promise<WallpaperOpticalMetrics | null>((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';

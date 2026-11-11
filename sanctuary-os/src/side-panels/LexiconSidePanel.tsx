@@ -105,7 +105,7 @@ export default function LexiconSidePanel({
         community:
           simsMeta?.badge && simsMeta.badge !== "Sanctuary"
             ? simsMeta.badge
-            : activeGameSchema?.display_name || "The Sims 4",
+            : activeGameSchema?.display_name || t("badge_community", "Community"),
         language: simsMeta?.lang || "English",
         name: simsMeta?.name || cleanName(t("lang_sims", "Simlish")),
       };

@@ -2,16 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { CustomDropdown, CustomComplianceDropdown, SidePanel, PanelHeaderGroup, PanelHeaderButton, ActionButton, SidePanelHeroCard, StatBox, EmptyState } from '../shared';
+import { CustomDropdown, CustomComplianceDropdown, SidePanel, PanelHeaderGroup, PanelHeaderButton, ActionButton, SidePanelHeroCard, StatBox, EmptyState, VAULT_CHIP_CLASS } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { openSanctuaryContextMenu } from '../ContextMenu';
 import { DynamicArtifactPreviewBanner } from '../chameleon-components/ThemeCard';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid, SidePanelTitleInput, UniversalGroup, UniversalTextArea } from '../components/layouts/ElevatedHubLayout';
 import { logArchitectAction } from '../lib/audit';
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export default function SAComplianceOversight({ initialFilter, setInitialFilter, onOpenManualFlag }: any) {
   const { t } = useLexicon();
@@ -201,12 +198,12 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     {
       id: "overview",
       label: t("overview", "Overview"),
-      icon: "dashboard",
+      icon: t("icon_dashboard", "dashboard"),
       number: (pendingCount + activeCount + inactiveCount).toString(),
     },
-    { id: 'pending', label: t("pending", "Pending"), icon: 'policy', number: pendingCount.toString(), colorClass: 'text-[var(--danger)]' },
-    { id: 'active', label: t("status_active", "Active"), icon: 'verified', number: activeCount.toString(), colorClass: 'text-[var(--success)]' },
-    { id: 'inactive', label: t("tab_inactive", "Inactive"), icon: 'block', number: inactiveCount.toString(), colorClass: 'text-[var(--warning)]' }
+    { id: 'pending', label: t("pending", "Pending"), icon: t("icon_policy", "policy"), number: pendingCount.toString(), colorClass: 'text-[var(--danger)]' },
+    { id: 'active', label: t("status_active", "Active"), icon: t("icon_verified", "verified"), number: activeCount.toString(), colorClass: 'text-[var(--success)]' },
+    { id: 'inactive', label: t("tab_inactive", "Inactive"), icon: t("icon_block", "block"), number: inactiveCount.toString(), colorClass: 'text-[var(--warning)]' }
   ];
 
   const renderModCard = (mod: any) => {
@@ -335,7 +332,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     <ElevatedHubLayout
       headerTitle={t("hub_compliance", "Compliance Oversight")}
       headerSubtitle={t("hub_compliance_subtitle", "Manage and review system compliance and {mod} safety")}
-      headerIcon="gavel"
+      headerIcon={t("icon_gavel", "gavel")}
       headerIconColorClass="text-[var(--danger)]"
       search={search}
       onSearchChange={setSearch}
@@ -345,7 +342,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       onTabChange={(id) => setFilterStatus(id as any)}
       tabs={tabs}
       primaryPopover={filterStatus !== 'overview' ? {
-        icon: "tune",
+        icon: t("icon_tune", "tune"),
         label: t("filters", "Filters"),
         content: (
           <div className="flex flex-col w-[300px] p-4 text-left">
@@ -409,14 +406,14 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
             {(selectedMod?.status === 'pending' || selectedMod?.status === 'under_review') ? (
               <>
                 <PanelHeaderButton
-                  icon="check_circle"
+                  icon={t("icon_check_circle", "check_circle")}
                   tooltip={t("btn_clear_flag", "Clear Flag")}
                   variant="success"
                   disabled={isSubmitting || !editReason.trim()}
                   onClick={(e: React.MouseEvent) => { e.preventDefault(); handleClearFlag(e, selectedMod); setSelectedMod(null); }}
                 />
                 <PanelHeaderButton
-                  icon="flag"
+                  icon={t("icon_flag", "flag")}
                   tooltip={t("btn_set_flag", "Set Flag")}
                   variant="error"
                   disabled={isSubmitting || !editReason.trim()}
@@ -425,7 +422,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
               </>
             ) : (
               <PanelHeaderButton
-                icon="save"
+                icon={t("icon_save", "save")}
                 tooltip={isSubmitting ? t("identities_updating", "Updating...") : t("ui_btn_commit", "Commit")}
                 variant="accent"
                 disabled={isSubmitting || !editReason.trim()}
@@ -442,20 +439,20 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
             title={selectedMod?.name || t("comp_edit_tier", "Compliance Enforcement")}
             description={t("hub_compliance_subtitle", "Manage and review system compliance and {mod} safety")}
             badge={getTierDetails(editTier).label}
-            badgeIcon="policy"
+            badgeIcon={t("icon_policy", "policy")}
             variant={editTier >= 3 ? "danger" : editTier >= 1 ? "warning" : "success"}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <StatBox
                 label={t("mason", "{Mason}")}
                 value={selectedMod?.master_author || t("unknown_mason", "Unknown {Mason}")}
-                icon="person"
+                icon={t("icon_person", "person")}
                 iconColorClass="text-[var(--accent)]"
               />
               <StatBox
                 label={t("status", "Status")}
                 value={(selectedMod?.status || t("pending", "Pending")).replace(/_/g, " ")}
-                icon="verified_user"
+                icon={t("icon_verified_user", "verified_user")}
                 iconColorClass="text-[var(--warning)]"
               />
             </div>

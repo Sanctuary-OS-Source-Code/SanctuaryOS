@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
@@ -8,8 +9,57 @@ import { packageBlueprintLoadOrder } from "./usePlaySetLogic";
 
 export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, activeMasonProfileId: string | null, tier2Hashes: string[], fetchBackups: () => void) {
   const { t } = useLexicon();
-  const { playSets, setPlaySets, activePlaySetIndex, setActivePlaySetIndex, setStatus, modList } = useStore();
-  const { localFolderName, localFolderType, setLocalFolderModal, setLocalFolderName, setIsBulkMode, setSelectedMods, selectedMods, bulkName, setBulkModal, setBulkName, snapshotName, setSnapshotModal, setSnapshotName, renameModal, setRenameModal, renameTarget, setRenameTarget, nameInput } = useModalStore();
+  const { playSets, setPlaySets, activePlaySetIndex, setActivePlaySetIndex, setStatus, modList } = useStore(
+    useShallow((s) => ({
+      playSets: s.playSets,
+      setPlaySets: s.setPlaySets,
+      activePlaySetIndex: s.activePlaySetIndex,
+      setActivePlaySetIndex: s.setActivePlaySetIndex,
+      setStatus: s.setStatus,
+      modList: s.modList,
+    }))
+  );
+  const {
+    localFolderName,
+    localFolderType,
+    setLocalFolderModal,
+    setLocalFolderName,
+    setIsBulkMode,
+    setSelectedMods,
+    selectedMods,
+    bulkName,
+    setBulkModal,
+    setBulkName,
+    snapshotName,
+    setSnapshotModal,
+    setSnapshotName,
+    renameModal,
+    setRenameModal,
+    renameTarget,
+    setRenameTarget,
+    nameInput,
+  } = useModalStore(
+    useShallow((s) => ({
+      localFolderName: s.localFolderName,
+      localFolderType: s.localFolderType,
+      setLocalFolderModal: s.setLocalFolderModal,
+      setLocalFolderName: s.setLocalFolderName,
+      setIsBulkMode: s.setIsBulkMode,
+      setSelectedMods: s.setSelectedMods,
+      selectedMods: s.selectedMods,
+      bulkName: s.bulkName,
+      setBulkModal: s.setBulkModal,
+      setBulkName: s.setBulkName,
+      snapshotName: s.snapshotName,
+      setSnapshotModal: s.setSnapshotModal,
+      setSnapshotName: s.setSnapshotName,
+      renameModal: s.renameModal,
+      setRenameModal: s.setRenameModal,
+      renameTarget: s.renameTarget,
+      setRenameTarget: s.setRenameTarget,
+      nameInput: s.nameInput,
+    }))
+  );
 
   function createLocalFolder() {
     const folderName = localFolderName.trim();
@@ -23,11 +73,11 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
       const existing = localSts[existingIndex];
       const newHashes = Array.from(new Set([...existing.items, ...hashes]));
       localSts[existingIndex] = { ...existing, items: newHashes };
-      setStatus(`Added ${hashes.length} items to ${folderName}`);
+      setStatus(`${t("status_local_folder_added_prefix", "Added")} ${hashes.length} ${t("term_mods", "items")} → ${folderName}`);
     } else {
       const newId = "local_" + Date.now();
-      localSts.push({ id: newId, name: folderName, items: hashes, isCollection: localFolderType === "CC_SET" });
-      setStatus(`${t("status_virtual_folder_created", "Virtual Folder Created:")}${folderName}`);
+      localSts.push({ id: newId, name: folderName, items: hashes, isCollection: localFolderType === "COLLECTION" });
+      setStatus(`${t("status_virtual_folder_created", "Virtual Folder Created:")} ${folderName}`);
     }
     
     localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`, JSON.stringify(localSts));

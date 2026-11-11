@@ -103,18 +103,47 @@ pub fn shred_external_file(
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default()
     });
-    clear_volatile_original_path(state, hash_str, fname_str.clone());
 
     let p = std::path::PathBuf::from(&file_path);
     if !crate::utils::is_safe_user_file_path(&p) {
         return Err("Refusing to purge protected or unsafe path.".into());
     }
-    let config = get_saved_coordinates();
-    let norm_p = p.to_string_lossy().replace('\\', "/").to_lowercase();
-    let norm_vault = config.vault_path.replace('\\', "/").to_lowercase();
-    if !norm_vault.is_empty() && norm_p.starts_with(&norm_vault) {
-        return Err("Refusing to purge Vault internal path as external file.".into());
+
+    // Build strict allowed roots for external quarantine shredding:
+    // standard user drop roots (Downloads, Desktop, Documents) + any volatile origin parent recorded by ingest.
+    let mut allowed_external_roots: Vec<PathBuf> = [
+        dirs::download_dir(),
+        dirs::desktop_dir(),
+        dirs::document_dir(),
+        dirs::home_dir(),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    if let Ok(map) = state.volatile_original_paths.lock() {
+        for v in map.values() {
+            if let Some(parent) = Path::new(v).parent() {
+                if !parent.as_os_str().is_empty() {
+                    allowed_external_roots.push(parent.to_path_buf());
+                }
+            }
+        }
     }
+
+    let resolved_p = crate::utils::ensure_strict_descendant_of_roots(&p, &allowed_external_roots)?;
+
+    let config = get_saved_coordinates();
+    if !config.vault_path.trim().is_empty() {
+        let vault_root = crate::utils::get_vault_root_dir(&config.vault_path);
+        if let Ok(canon_vault) = crate::utils::resolve_canonical_target(&vault_root) {
+            if crate::utils::path_is_within_root(&resolved_p, &canon_vault) {
+                return Err("Refusing to purge Vault internal path as external file.".into());
+            }
+        }
+    }
+
+    clear_volatile_original_path(state, hash_str, fname_str.clone());
+
     let safe_filename = std::path::Path::new(&fname_str)
         .file_name()
         .and_then(|n| n.to_str())
@@ -124,18 +153,22 @@ pub fn shred_external_file(
         .join("Quarantine")
         .join(format!("{}.manifest.json", safe_filename));
 
-    if p.exists() {
+    if resolved_p.exists() {
         tauri::async_runtime::spawn_blocking(move || {
-            if p.is_dir() {
-                for entry in walkdir::WalkDir::new(&p).into_iter().filter_map(|e| e.ok()) {
+            if resolved_p.is_dir() {
+                for entry in walkdir::WalkDir::new(&resolved_p)
+                    .follow_links(false)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
                     let ep = entry.path();
-                    if ep.is_file() {
+                    if entry.file_type().is_file() {
                         zero_fill_and_remove_file(ep, 32 * 1024 * 1024);
                     }
                 }
-                let _ = std::fs::remove_dir_all(&p);
+                let _ = std::fs::remove_dir_all(&resolved_p);
             } else {
-                zero_fill_and_remove_file(&p, 100 * 1024 * 1024);
+                zero_fill_and_remove_file(&resolved_p, 100 * 1024 * 1024);
             }
 
             if let Ok(content) = std::fs::read_to_string(&manifest_path) {
@@ -143,7 +176,7 @@ pub fn shred_external_file(
                     manifest.original_shredded = true;
                     manifest.original_exists = false;
                     if let Ok(json) = serde_json::to_string_pretty(&manifest) {
-                        let _ = std::fs::write(&manifest_path, json);
+                        let _ = crate::utils::atomic_write_bytes(&manifest_path, json.as_bytes());
                     }
                 }
             }
@@ -193,26 +226,12 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
         let mut moved = 0;
         let mut exorcised = 0;
 
-        // Clean up any spurious Resource/Resource.cfg folder in mods or vault
-        let spurious_mods_res = mods_dir.join("Resource");
-        if spurious_mods_res.is_dir() {
-            let _ = fs::remove_dir_all(&spurious_mods_res);
-        }
-        let spurious_vault_res = vault_mods_lane.join("Resource");
-        if spurious_vault_res.is_dir() {
-            let _ = fs::remove_dir_all(&spurious_vault_res);
-        }
+        let manifest_leaf = crate::game_logic::resolve_manifest_leaf_lower(&game_schema);
 
         items.sort_by_key(|p| p.to_string_lossy().len());
         items.reverse();
 
         for path in items {
-            let manifest_name = game_schema
-                .as_ref()
-                .map(|s| s.paths.manifest_file.clone())
-                .filter(|m| !m.is_empty())
-                .unwrap_or_else(|| "Resource.cfg".to_string());
-
             let is_symlink_or_junction = fs::read_link(&path).is_ok()
                 || fs::symlink_metadata(&path)
                     .map(|m| m.file_type().is_symlink())
@@ -220,10 +239,11 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
 
             if !is_symlink_or_junction
                 && path.parent() == Some(mods_dir.as_path())
-                && path.file_name().and_then(|n| n.to_str()).map_or(false, |n| {
-                    n.eq_ignore_ascii_case(&manifest_name)
-                        || n.eq_ignore_ascii_case("Resource.cfg")
-                })
+                && !manifest_leaf.is_empty()
+                && path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .map_or(false, |n| n.eq_ignore_ascii_case(&manifest_leaf))
             {
                 continue;
             }
@@ -236,10 +256,12 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
                     }
                 } else if path.is_dir() {
                     let _ = fs::remove_dir(&path);
-                } else if path.file_name().and_then(|n| n.to_str()).map_or(false, |n| {
-                    n.eq_ignore_ascii_case(&manifest_name)
-                        || n.eq_ignore_ascii_case("Resource.cfg")
-                }) {
+                } else if !manifest_leaf.is_empty()
+                    && path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .map_or(false, |n| n.eq_ignore_ascii_case(&manifest_leaf))
+                {
                     let _ = fs::remove_file(&path);
                 } else {
                     if let Some(parent) = dest.parent() {
@@ -352,32 +374,56 @@ pub async fn restore_quarantined_file(filename: String) -> String {
             return "Error: Invalid filename".into();
         }
         let config = get_saved_coordinates();
+        if config.vault_path.trim().is_empty() {
+            return "Error: Vault not configured".into();
+        }
+        let vault_root = crate::utils::get_vault_root_dir(&config.vault_path);
         let q_dir = PathBuf::from(&config.vault_path).join("Quarantine");
         let sq_dir = PathBuf::from(&config.vault_path).join(".sanctuary_quarantine");
         let sq_path = sq_dir.join(&filename);
         let legacy_q_path = q_dir.join(&filename);
         let manifest_path = q_dir.join(format!("{}.manifest.json", filename));
         let q_path = q_dir.join(format!("{}.json", filename));
-        let m_path = crate::utils::get_vault_mods_lane(&config.vault_path).join(&filename);
+        let mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
+        let _ = fs::create_dir_all(&mods_lane);
+        let m_path = mods_lane.join(&filename);
+
+        let allowed_roots = vec![vault_root.clone(), mods_lane.clone(), q_dir.clone(), sq_dir.clone()];
+        if crate::utils::ensure_strict_descendant_of_roots(&m_path, &allowed_roots).is_err() {
+            return "Error: Blocked unsafe target path".into();
+        }
 
         let mut moved = false;
 
-        let conn = get_db_conn(&config.vault_path);
-        remove_cache_entry(&conn, &sq_path.to_string_lossy());
-        remove_cache_entry(&conn, &legacy_q_path.to_string_lossy());
+        if let Ok(db) = open_db_conn(&config.vault_path) {
+            if let Ok(conn) = db.lock() {
+                remove_cache_entry(&conn, &sq_path.to_string_lossy());
+                remove_cache_entry(&conn, &legacy_q_path.to_string_lossy());
+            }
+        }
 
-        if sq_path.exists() {
+        if sq_path.exists()
+            && crate::utils::ensure_strict_descendant_of_roots(&sq_path, &allowed_roots).is_ok()
+        {
             let _ = fs::rename(&sq_path, &m_path);
             moved = true;
-        } else if legacy_q_path.exists() {
+        } else if legacy_q_path.exists()
+            && crate::utils::ensure_strict_descendant_of_roots(&legacy_q_path, &allowed_roots)
+                .is_ok()
+        {
             let _ = fs::rename(&legacy_q_path, &m_path);
             moved = true;
         }
 
-        if manifest_path.exists() {
+        if manifest_path.exists()
+            && crate::utils::ensure_strict_descendant_of_roots(&manifest_path, &allowed_roots)
+                .is_ok()
+        {
             let _ = fs::remove_file(&manifest_path);
         }
-        if q_path.exists() {
+        if q_path.exists()
+            && crate::utils::ensure_strict_descendant_of_roots(&q_path, &allowed_roots).is_ok()
+        {
             let _ = fs::remove_file(&q_path);
         }
 
@@ -394,34 +440,56 @@ pub async fn restore_quarantined_file(filename: String) -> String {
 #[tauri::command]
 pub async fn purge_quarantined_file(filename: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        if filename.trim().is_empty() || filename.contains('\0') {
+            return Err("Invalid filename.".into());
+        }
         let config = get_saved_coordinates();
-        let conn = get_db_conn(&config.vault_path);
+        if config.vault_path.trim().is_empty() {
+            return Err("Vault path is not configured.".into());
+        }
+
+        let vault_root = crate::utils::get_vault_root_dir(&config.vault_path);
+        let q_dir = PathBuf::from(&config.vault_path).join("Quarantine");
+        let sq_dir = PathBuf::from(&config.vault_path).join(".sanctuary_quarantine");
+        let mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
+        let allowed_roots = vec![
+            q_dir.clone(),
+            sq_dir.clone(),
+            mods_lane.clone(),
+            vault_root.clone(),
+        ];
 
         let base_name = Path::new(&filename)
             .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| filename.clone());
+            .and_then(|n| n.to_str())
+            .filter(|n| crate::utils::is_safe_single_filename(n))
+            .ok_or_else(|| "Invalid or unsafe quarantine filename.".to_string())?
+            .to_string();
 
         let mut paths_to_check = vec![
-            PathBuf::from(&config.vault_path)
-                .join("Quarantine")
-                .join(&base_name),
-            PathBuf::from(&config.vault_path)
-                .join(".sanctuary_quarantine")
-                .join(&base_name),
-            PathBuf::from(&config.vault_path)
-                .join("Quarantine")
-                .join(format!("{}.json", base_name)),
+            q_dir.join(&base_name),
+            sq_dir.join(&base_name),
+            q_dir.join(format!("{}.json", base_name)),
         ];
 
-        let mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
-        let direct_mod_path = mods_lane.join(&filename);
-        if direct_mod_path.exists() && direct_mod_path.is_file() {
-            paths_to_check.push(direct_mod_path);
-        } else if !base_name.is_empty() {
-            for entry in walkdir::WalkDir::new(&mods_lane).into_iter().filter_map(|e| e.ok()) {
+        let rel_candidate = Path::new(filename.trim().trim_start_matches(&['/', '\\'][..]));
+        if rel_candidate
+            .components()
+            .all(|c| matches!(c, std::path::Component::Normal(_)))
+        {
+            let direct_mod_path = mods_lane.join(rel_candidate);
+            if direct_mod_path.exists() && direct_mod_path.is_file() {
+                paths_to_check.push(direct_mod_path);
+            }
+        }
+        if !base_name.is_empty() && mods_lane.exists() {
+            for entry in walkdir::WalkDir::new(&mods_lane)
+                .follow_links(false)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
                 let ep = entry.path();
-                if ep.is_file() {
+                if entry.file_type().is_file() {
                     if let Some(fname) = ep.file_name().and_then(|n| n.to_str()) {
                         if fname.eq_ignore_ascii_case(&base_name) {
                             paths_to_check.push(ep.to_path_buf());
@@ -431,36 +499,53 @@ pub async fn purge_quarantined_file(filename: String) -> Result<String, String> 
             }
         }
 
-        for q_path in paths_to_check {
-            let path_str = q_path.to_string_lossy().to_string();
-            remove_cache_entry(&conn, &path_str);
+        let db_opt = open_db_conn(&config.vault_path).ok();
 
-            if q_path.exists() {
-                let orig_file_name = q_path
+        for q_path in paths_to_check {
+            let Ok(resolved_q_path) =
+                crate::utils::ensure_strict_descendant_of_roots(&q_path, &allowed_roots)
+            else {
+                continue;
+            };
+            let path_str = q_path.to_string_lossy().to_string();
+            if let Some(ref db) = db_opt {
+                if let Ok(conn) = db.lock() {
+                    remove_cache_entry(&conn, &path_str);
+                }
+            }
+
+            if resolved_q_path.exists() && resolved_q_path.is_file() {
+                let orig_file_name = resolved_q_path
                     .file_name()
                     .unwrap_or_default()
                     .to_string_lossy()
                     .to_string();
-                let now_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
-                let shred_path = q_path.with_file_name(format!(".shredding_{}_{}", now_ms, orig_file_name));
-                let active_shred_path = if std::fs::rename(&q_path, &shred_path).is_ok() {
+                let now_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis())
+                    .unwrap_or(0);
+                let shred_path = resolved_q_path
+                    .with_file_name(format!(".shredding_{}_{}", now_ms, orig_file_name));
+                let active_shred_path = if std::fs::rename(&resolved_q_path, &shred_path).is_ok() {
                     shred_path
                 } else {
-                    q_path.clone()
+                    resolved_q_path
                 };
                 let q_path_clone = active_shred_path;
-                let vault_root = PathBuf::from(&config.vault_path);
+                let vault_root_for_manifest = PathBuf::from(&config.vault_path);
                 tauri::async_runtime::spawn_blocking(move || {
                     zero_fill_and_remove_file(&q_path_clone, 4 * 1024 * 1024);
 
-                    let manifest_path = vault_root
+                    let manifest_path = vault_root_for_manifest
                         .join("Quarantine")
                         .join(format!("{}.manifest.json", orig_file_name));
                     if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-                        if let Ok(mut manifest) = serde_json::from_str::<QuarantineManifest>(&content) {
+                        if let Ok(mut manifest) = serde_json::from_str::<QuarantineManifest>(&content)
+                        {
                             manifest.quarantined_file_shredded = true;
                             if let Ok(json) = serde_json::to_string_pretty(&manifest) {
-                                let _ = std::fs::write(&manifest_path, json);
+                                let _ =
+                                    crate::utils::atomic_write_bytes(&manifest_path, json.as_bytes());
                             }
                         }
                     }

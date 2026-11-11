@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "../utils/envUtils";
+import { useShallow } from "zustand/react/shallow";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { supabase, supabaseAuth } from "../supabase";
@@ -42,7 +43,14 @@ import {
 
 export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
   const { t } = useLexicon();
-  const { session, userRole, osRole, activeWorkspaceId } = useStore();
+  const { session, userRole, osRole, activeWorkspaceId } = useStore(
+    useShallow((s) => ({
+      session: s.session,
+      userRole: s.userRole,
+      osRole: s.osRole,
+      activeWorkspaceId: s.activeWorkspaceId,
+    }))
+  );
   const [emailInput, setEmailInput] = useState("");
   const [blindEmailOnSave, setBlindEmailOnSave] = useState<boolean>(() =>
     Boolean(session?.user?.email && isBlindedEmailAddress(session.user.email))
@@ -577,10 +585,14 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
 
   const handleAutoDetect = async () => {
     try {
-      const detected: any = await invoke("auto_detect_paths");
+      const activeGameSchema = useStore.getState().activeGameSchema;
+      const detected: any = await invoke("auto_detect_paths", { gameSchema: activeGameSchema });
       const patch: Record<string, string> = {};
       if (detected?.live_path) patch.live_path = detected.live_path;
       if (detected?.mods_path) patch.mods_path = detected.mods_path;
+      if (detected?.docs_path || detected?.user_data_path) {
+        patch.docs_path = detected.docs_path || detected.user_data_path;
+      }
       const currentVaultVal = pathMap?.find((p: any) => p.rustKey === "vault_path")?.value;
       if (detected?.vault_path && (!currentVaultVal || currentVaultVal === "web")) {
         patch.vault_path = detected.vault_path;
@@ -588,7 +600,7 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
       if (Object.keys(patch).length > 0) {
         await updateConfig(patch);
       }
-      if (detected?.live_path || detected?.mods_path) {
+      if (detected?.live_path || detected?.mods_path || detected?.docs_path || detected?.user_data_path) {
         useStore.getState().pushStatus(
           t("settings_auto_detect_success", "Paths Auto-Detected Successfully!"),
           "success"

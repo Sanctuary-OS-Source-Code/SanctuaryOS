@@ -8,6 +8,8 @@ import {
   HoverTooltip,
   ActionButton,
   getModIcon,
+  getExtensionRegex,
+  isScriptExtension,
   ActionPill,
   PanelHeaderGroup,
   PanelHeaderButton,
@@ -190,7 +192,7 @@ export function VaultLocalFolderEditorSidePanel({
   displayModList,
 }: any) {
   const { t } = useLexicon();
-  const { activeGameSchema } = useStore();
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
   const setIsLocalFolderEditorOpen = (val: boolean) => {
     if (!val) {
       runRadarSweep(true);
@@ -985,7 +987,9 @@ export function groupModVersionPoolItems(
       versions.find((v: any) => v.is_active) || versions[0] || null;
     const relPath = String(activeVersion?.rel_path || versions[0].rel_path || key);
     const fileName = relPath.split(/[\\/]/).pop() || relPath;
-    const isScript = /\.(ts4script|script)$/i.test(fileName);
+    const isScript =
+      isScriptExtension(fileName, useStore.getState().activeGameSchema) ||
+      /\.script$/i.test(fileName);
     const typeLabel = isScript
       ? t("type_script", "Script")
       : t("type_package", "Package");
@@ -1053,6 +1057,7 @@ export function matchVersionGroupsForMod(
   const names = new Set<string>();
   const baseStems = new Set<string>();
   const hashes = new Set<string>();
+  const extRegex = getExtensionRegex(useStore.getState().activeGameSchema);
   const addCandidate = (m: any) => {
     if (!m) return;
     const raw = String(m.name || m.file || "").replace(/\\/g, "/").toLowerCase();
@@ -1063,7 +1068,8 @@ export function matchVersionGroupsForMod(
         if (base) {
           names.add(base);
           const stem = base
-            .replace(/\.(package|ts4script|script|zip|rar|7z)$/i, "")
+            .replace(extRegex, "")
+            .replace(/\.(script|zip|rar|7z|tar|gz)$/i, "")
             .replace(/[_-]+/g, " ")
             .trim();
           if (stem.length >= 3) baseStems.add(stem);
@@ -1072,7 +1078,8 @@ export function matchVersionGroupsForMod(
     }
     const disp = String(m.displayName || "")
       .replace(/^(folder_|set_|local_set_|virtual_)/i, "")
-      .replace(/\.(package|ts4script|script|zip|rar|7z)$/i, "")
+      .replace(extRegex, "")
+      .replace(/\.(script|zip|rar|7z|tar|gz)$/i, "")
       .replace(/[_-]+/g, " ")
       .trim()
       .toLowerCase();
@@ -1092,7 +1099,8 @@ export function matchVersionGroupsForMod(
     const rel = String(g.relPath || "").replace(/\\/g, "/").toLowerCase();
     const base = rel.split("/").pop() || rel;
     const stem = base
-      .replace(/\.(package|ts4script|script|zip|rar|7z)$/i, "")
+      .replace(extRegex, "")
+      .replace(/\.(script|zip|rar|7z|tar|gz)$/i, "")
       .replace(/[_-]+/g, " ")
       .trim();
     if (names.has(rel) || names.has(base)) return true;
@@ -1138,30 +1146,7 @@ export function groupBinaryGroupsIntoFamilies(
     }
   }
 
-  // Tier 2: Group remaining MC Command Center modules together if multiple mc_* binaries exist
-  const unassignedAfterSuites = allGroups.filter((g) => !assignedKeys.has(g.key));
-  const mcccCandidates = unassignedAfterSuites.filter((g) =>
-    /^mc_(cmd_center|career|cas|cheats|cleaner|clubs|control|dresser|gedcom|occult|population|pregnancy|tuner|woohoo)\b/i.test(
-      g.fileName
-    )
-  );
-  if (mcccCandidates.length >= 2) {
-    mcccCandidates.forEach((g) => assignedKeys.add(g.key));
-    const existingMccc = rawBuckets.find((b) =>
-      /mc\s*(cmd|command)\s*center/i.test(b.title)
-    );
-    if (existingMccc) {
-      existingMccc.groups.push(...mcccCandidates);
-    } else {
-      rawBuckets.push({
-        key: "suite_mc_command_center",
-        title: "MC Command Center",
-        groups: mcccCandidates,
-      });
-    }
-  }
-
-  // Tier 3: Group remaining binaries that share the exact same clean displayTitle (e.g. .package + .ts4script pair)
+  // Tier 2: Group remaining binaries that share the exact same clean displayTitle (e.g. binary module + script companion pair)
   const byCleanTitle = new Map<string, ModVersionBinaryGroup[]>();
   for (const g of allGroups) {
     if (assignedKeys.has(g.key)) continue;

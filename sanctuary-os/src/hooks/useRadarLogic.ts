@@ -1,4 +1,5 @@
 import { isDesktop } from "../utils/envUtils";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
@@ -24,9 +25,37 @@ export function markQuarantineFileShredded(filename: string) {
   }, 3000);
 }
 
-export function useRadarLogic(checkNetworkUpdates: (currentModList: any[]) => Promise<void>) {
-  const { setQuarantineList, setShelterContents, ownedDLC, setOwnedDLC, maskedDLC, setMaskedDLC, setModList, activeGameSchema, session, selectedVersion, setStatus, setScanProgress } = useStore();
-  const { setScoutQueue } = useModalStore();
+export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isManualSweep?: boolean) => Promise<void>) {
+  const {
+    setQuarantineList,
+    setShelterContents,
+    ownedDLC,
+    setOwnedDLC,
+    maskedDLC,
+    setMaskedDLC,
+    setModList,
+    activeGameSchema,
+    session,
+    selectedVersion,
+    setStatus,
+    setScanProgress,
+  } = useStore(
+    useShallow((s) => ({
+      setQuarantineList: s.setQuarantineList,
+      setShelterContents: s.setShelterContents,
+      ownedDLC: s.ownedDLC,
+      setOwnedDLC: s.setOwnedDLC,
+      maskedDLC: s.maskedDLC,
+      setMaskedDLC: s.setMaskedDLC,
+      setModList: s.setModList,
+      activeGameSchema: s.activeGameSchema,
+      session: s.session,
+      selectedVersion: s.selectedVersion,
+      setStatus: s.setStatus,
+      setScanProgress: s.setScanProgress,
+    }))
+  );
+  const setScoutQueue = useModalStore((s) => s.setScoutQueue);
     const [malwareAlert, setMalwareAlert] = useState<any[]>([]);
   const { t } = useLexicon();
 
@@ -66,8 +95,12 @@ async function fetchVault() {
               const cleanVaultRoot = vaultPath
                 .replace(/[\\/]+$/, "")
                 .replace(/[\\/]Mods$/i, "");
-              const manifestPath = `${cleanVaultRoot}${sep}Quarantine${sep}${q}.manifest.json`;
-              const rawJson = await invoke<string>("read_config_file", { path: manifestPath });
+              const primaryManifestPath = `${cleanVaultRoot}${sep}Quarantine${sep}${q}.sanctuary.manifest.json`;
+              const legacyManifestPath = `${cleanVaultRoot}${sep}Quarantine${sep}${q}.manifest.json`;
+              let rawJson = await invoke<string>("read_config_file", { path: primaryManifestPath }).catch(() => "");
+              if (!rawJson) {
+                rawJson = await invoke<string>("read_config_file", { path: legacyManifestPath });
+              }
               if (rawJson) {
                 const parsed = JSON.parse(rawJson);
                 if (!volatileOrig && parsed.detected_hash) {
@@ -211,18 +244,6 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         console.error("Failed to sanitize vault during radar sweep:", e);
       }
 
-      // Start global metadata + security signature refresh in parallel with disk scan
-      const globalMetadataPromise = !isOfflineMode
-        ? Promise.all([
-            supabase.from("collection_members").select("set_id, mod_id"),
-            supabase.from("collections").select("*, masons(name)"),
-            supabase.from("logical_conflicts").select("*"),
-          ]).catch((err) => {
-            console.error("Global metadata prefetch error:", err);
-            return [{ data: [] }, { data: [] }, { data: [] }];
-          })
-        : Promise.resolve([{ data: [] }, { data: [] }, { data: [] }]);
-
       const backgroundMaintenancePromise = (async () => {
         if (quickScan) return;
         try {
@@ -258,17 +279,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
 
         if (!isOfflineMode) {
           try {
-            const cachedVerified: string[] = JSON.parse(localStorage.getItem("sanctuary_verified_hashes") || "[]");
-            const [{ data: malwareData }, { data: coreHeuristics }, { data: spokeHeuristics }] = await Promise.all([
-              supabase.from("mod_versions").select("dna_hash, mods!inner(compliance_tier)").eq("mods.compliance_tier", 5),
+            const [{ data: coreHeuristics }, { data: spokeHeuristics }] = await Promise.all([
               supabaseAuth.from("keeper_heuristic_signatures").select("*"),
               supabase.from("heuristic_signatures").select("*"),
             ]);
-            if (malwareData) {
-              const malwareHashes = malwareData.map((d: any) => d.dna_hash).filter(Boolean);
-              localStorage.setItem("sanctuary_malware_hashes", JSON.stringify(malwareHashes));
-              await invoke("sync_security_definitions", { malware: malwareHashes, tier2: cachedVerified });
-            }
             const mergedMap = new Map<string, any>();
             (coreHeuristics || []).forEach((s: any) => mergedMap.set(`core_${s.id}`, { ...s, source: s.source || "keepers_core" }));
             (spokeHeuristics || []).forEach((s: any) => mergedMap.set(`spoke_${s.id}`, { ...s, source: s.source || "spoke_oversight" }));
@@ -279,7 +293,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               });
             }
           } catch (err) {
-            console.error("Malware sync failed", err);
+            console.error("Heuristic signature sync failed", err);
           }
         }
       })();
@@ -479,10 +493,43 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       try {
         if (!isOfflineMode) {
           updateProgress(78, t("scan_fetching", "FETCHING METADATA..."));
-          const [membersRes, setsRes, conflictsRes] = await globalMetadataPromise;
-          setMembership = membersRes?.data || [];
-          collectionsMetadata = setsRes?.data || [];
-          globalConflicts = conflictsRes?.data || [];
+          if (identifiedIds.length > 0) {
+            const conflictById = new Map<string, any>();
+            await runInBatches(identifiedIds, 200, 0, async (chunk) => {
+              const [cmRes, cfARes, cfBRes] = await Promise.all([
+                supabase.from("collection_members").select("set_id, mod_id").in("mod_id", chunk),
+                supabase.from("logical_conflicts").select("*").in("mod_a_id", chunk),
+                supabase.from("logical_conflicts").select("*").in("mod_b_id", chunk),
+              ]);
+              if (cmRes.data) setMembership.push(...cmRes.data);
+              for (const cRow of [...(cfARes.data || []), ...(cfBRes.data || [])]) {
+                const cKey = String(cRow.id ?? `${cRow.mod_a_id}_${cRow.mod_b_id}`);
+                conflictById.set(cKey, cRow);
+              }
+            });
+            globalConflicts = Array.from(conflictById.values());
+
+            const uniqueSetIds = [
+              ...new Set(setMembership.map((m: any) => m.set_id).filter(Boolean)),
+            ];
+            if (uniqueSetIds.length > 0) {
+              const fullSetMembershipMap = new Map<string, any>();
+              setMembership.forEach((m: any) =>
+                fullSetMembershipMap.set(`${m.set_id}_${m.mod_id}`, m),
+              );
+              await runInBatches(uniqueSetIds, 200, 0, async (setChunk) => {
+                const [setsRes, fullMembersRes] = await Promise.all([
+                  supabase.from("collections").select("*, masons(name)").in("id", setChunk),
+                  supabase.from("collection_members").select("set_id, mod_id").in("set_id", setChunk),
+                ]);
+                if (setsRes.data) collectionsMetadata.push(...setsRes.data);
+                for (const fm of fullMembersRes.data || []) {
+                  fullSetMembershipMap.set(`${fm.set_id}_${fm.mod_id}`, fm);
+                }
+              });
+              setMembership = Array.from(fullSetMembershipMap.values());
+            }
+          }
           if (hashes.length > 0) {
             const uniqueGroupIds = [
               ...new Set(flavorData.map((f) => f.group_id)),
@@ -864,7 +911,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             }
           }
 
-          // Ensure at most one active entry per .package / .ts4script filename in localMods
+          // Ensure at most one active entry per schema-supported module filename in localMods
+          const extRegex = getExtensionRegex(activeGameSchema);
           const byFileName = new Map<string, any>();
           const dedupedLocalMods: any[] = [];
           for (const lm of localMods) {
@@ -876,12 +924,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               .split(/[\\/]/)
               .pop()
               ?.toLowerCase() || "";
-            if (
-              rawFName &&
-              /\.(package|ts4script|world|dll|asi|rpf|cak|pac|esp|esm|esl|bsa|ba2|archive|pak|lua|xl|reds|tweak|jar|litemod|xnb|tmx|tbin|csx)$/i.test(
-                rawFName,
-              )
-            ) {
+            if (rawFName && extRegex.test(rawFName)) {
               const prev = byFileName.get(rawFName);
               if (!prev) {
                 byFileName.set(rawFName, lm);
@@ -2011,7 +2054,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           console.warn("Cache save failed:", cacheErr);
         }
         await yieldToMain();
-        await checkNetworkUpdates(finalMasterList);
+        await checkNetworkUpdates(finalMasterList, !isSilent);
         await yieldToMain();
         const stateSnap = useStore.getState();
         const activeBpName = stateSnap.activeSetName || stateSnap.playSets?.[stateSnap.activePlaySetIndex]?.name || stateSnap.playSets?.[0]?.name;

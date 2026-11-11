@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { SidePanel, SidePanelHeroCard, UniversalGroup, StatBox } from "../shared";
 import { useModalStore } from "../store/modalStore";
 import { useStore } from "../store";
@@ -47,8 +48,14 @@ export function SystemStatusPanel({
   onClose: () => void;
 }) {
   const { t } = useLexicon();
-  const { selectedVersion } = useStore();
-  const { updatePayload, setIsUpdatePanelOpen, setUpdatePayload } = useModalStore();
+  const selectedVersion = useStore((state) => state.selectedVersion);
+  const { updatePayload, setIsUpdatePanelOpen, setUpdatePayload } = useModalStore(
+    useShallow((s) => ({
+      updatePayload: s.updatePayload,
+      setIsUpdatePanelOpen: s.setIsUpdatePanelOpen,
+      setUpdatePayload: s.setUpdatePayload,
+    }))
+  );
   const [telemetry, setTelemetry] = useState<any>(null);
   const [vaultSize, setVaultSize] = useState<number | null>(null);
   const [artifactsSize, setArtifactsSize] = useState<number | null>(null);

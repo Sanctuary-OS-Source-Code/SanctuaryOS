@@ -24,6 +24,119 @@ const DIRECTIVE_FILE_MAP: Record<string, string> = {
   changelog_dev: "changelog.md",
 };
 
+function generateSanctuaryDevToken(): string {
+  const bytes = new Uint8Array(32);
+  const webCrypto = (globalThis as any).crypto;
+  if (webCrypto && typeof webCrypto.getRandomValues === "function") {
+    webCrypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+const SANCTUARY_DEV_TOKEN = generateSanctuaryDevToken();
+
+function constantTimeTokenMatch(provided: string, expected: string): boolean {
+  if (!provided || !expected || provided.length !== expected.length) {
+    return false;
+  }
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) {
+    diff |= provided.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+function isLoopbackRemoteAddress(addr: string): boolean {
+  const normalized = String(addr || "").trim().toLowerCase();
+  return (
+    normalized === "127.0.0.1" ||
+    normalized === "::1" ||
+    normalized === "::ffff:127.0.0.1"
+  );
+}
+
+function isAllowedDevHost(hostHeader: string): boolean {
+  const raw = String(hostHeader || "").trim().toLowerCase();
+  if (!raw) return false;
+  const withoutPort = raw.startsWith("[")
+    ? raw.replace(/\]:\d+$/, "]")
+    : raw.replace(/:\d+$/, "");
+  return (
+    withoutPort === "localhost" ||
+    withoutPort === "127.0.0.1" ||
+    withoutPort === "[::1]"
+  );
+}
+
+function isAllowedDevOrigin(originHeader: string | undefined): boolean {
+  if (!originHeader) return true;
+  const raw = String(originHeader).trim().toLowerCase();
+  if (raw === "tauri://localhost") return true;
+  const match = raw.match(/^https?:\/\/(\[[0-9a-f:]+\]|[^/:]+)(?::\d+)?$/i);
+  if (!match) return false;
+  const hostname = match[1].toLowerCase();
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "[::1]" ||
+    hostname === "tauri.localhost"
+  );
+}
+
+function extractQueryToken(urlStr: string | undefined): string {
+  if (!urlStr) return "";
+  const qIdx = urlStr.indexOf("?");
+  if (qIdx === -1) return "";
+  const query = urlStr.slice(qIdx + 1);
+  for (const part of query.split("&")) {
+    const [k, v] = part.split("=");
+    if (k === "token" && v) {
+      try {
+        return decodeURIComponent(v);
+      } catch {
+        return v;
+      }
+    }
+  }
+  return "";
+}
+
+function verifyDevMiddlewareRequest(
+  req: any,
+  res: any,
+  allowQueryToken = false
+): boolean {
+  const remoteAddr =
+    req?.socket?.remoteAddress || req?.connection?.remoteAddress || "";
+  const hostHeader = req?.headers?.host || "";
+  const originHeader = req?.headers?.origin;
+  const headerToken =
+    typeof req?.headers?.["x-sanctuary-dev-token"] === "string"
+      ? req.headers["x-sanctuary-dev-token"]
+      : "";
+  const providedToken =
+    headerToken || (allowQueryToken ? extractQueryToken(req?.url) : "");
+
+  if (
+    !isLoopbackRemoteAddress(remoteAddr) ||
+    !isAllowedDevHost(hostHeader) ||
+    !isAllowedDevOrigin(originHeader) ||
+    !constantTimeTokenMatch(providedToken, SANCTUARY_DEV_TOKEN)
+  ) {
+    res.statusCode = 403;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ error: "Forbidden" }));
+    return false;
+  }
+  return true;
+}
+
 function devLexiconSyncPlugin() {
   let cachedDevSession: {
     access_token: string;
@@ -38,6 +151,7 @@ function devLexiconSyncPlugin() {
     name: 'dev-lexicon-sync',
     configureServer(server: any) {
       server.middlewares.use('/__dev-session', (req: any, res: any) => {
+        if (!verifyDevMiddlewareRequest(req, res)) return;
         res.setHeader('Content-Type', 'application/json');
         if (req.method === 'GET') {
           res.statusCode = 200;
@@ -78,6 +192,7 @@ function devLexiconSyncPlugin() {
       });
 
       server.middlewares.use('/__dev-webauthn/stream', (req: any, res: any) => {
+        if (!verifyDevMiddlewareRequest(req, res, true)) return;
         res.writeHead(200, {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
@@ -91,6 +206,7 @@ function devLexiconSyncPlugin() {
       });
 
       server.middlewares.use('/__dev-webauthn/request', (req: any, res: any) => {
+        if (!verifyDevMiddlewareRequest(req, res)) return;
         if (req.method !== 'POST') {
           res.statusCode = 405;
           res.end();
@@ -130,6 +246,7 @@ function devLexiconSyncPlugin() {
       });
 
       server.middlewares.use('/__dev-webauthn/response', (req: any, res: any) => {
+        if (!verifyDevMiddlewareRequest(req, res)) return;
         if (req.method !== 'POST') {
           res.statusCode = 405;
           res.end();
@@ -160,6 +277,7 @@ function devLexiconSyncPlugin() {
       });
 
       server.middlewares.use('/__update-lexicon', (req: any, res: any) => {
+        if (!verifyDevMiddlewareRequest(req, res)) return;
         if (req.method === 'POST') {
           let body = '';
           req.on('data', (chunk: any) => { body += chunk; });
@@ -168,9 +286,15 @@ function devLexiconSyncPlugin() {
               const data = JSON.parse(body);
               const id = String(data.id || data.file || "").trim();
               const { content } = data;
-              if (id.match(/^[a-z]{2}-.+\.json$/i) || id.match(/^[a-z0-9_-]+$/i)) {
+              if (id.match(/^[a-z]{2}-[a-z0-9_-]+\.json$/i) || id.match(/^[a-z0-9_-]+$/i)) {
                  const fileName = id.endsWith('.json') ? id : `${id}.json`;
-                 const filePath = path.resolve(__dirname, 'src/lexicons', fileName);
+                 const lexiconsRoot = path.resolve(__dirname, 'src/lexicons');
+                 const filePath = path.resolve(lexiconsRoot, fileName);
+                 if (!filePath.startsWith(lexiconsRoot + path.sep)) {
+                   res.statusCode = 403;
+                   res.end('Forbidden');
+                   return;
+                 }
                  const newContentStr = JSON.stringify(content, null, 2);
                  let shouldWrite = true;
                  if (fs.existsSync(filePath)) {
@@ -190,10 +314,14 @@ function devLexiconSyncPlugin() {
               res.end('Error');
             }
           });
+          return;
         }
+        res.statusCode = 405;
+        res.end('Method not allowed');
       });
 
       server.middlewares.use('/__sync-directives', (req: any, res: any) => {
+        if (!verifyDevMiddlewareRequest(req, res)) return;
         if (req.method === 'GET') {
           try {
             const snapshots: any[] = [];
@@ -240,6 +368,9 @@ function devLexiconSyncPlugin() {
               res.end(JSON.stringify({ error: e?.message || 'Failed to write directive' }));
             }
           });
+        } else {
+          res.statusCode = 405;
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
         }
       });
     }
@@ -249,6 +380,9 @@ function devLexiconSyncPlugin() {
 
 export default defineConfig(async () => ({
   plugins: [react(), devLexiconSyncPlugin()],
+  define: {
+    __SANCTUARY_DEV_TOKEN__: JSON.stringify(SANCTUARY_DEV_TOKEN),
+  },
 
   clearScreen: false,
   server: {
@@ -266,19 +400,64 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
     fs: {
-      allow: [".."],
+      allow: [
+        ".",
+        ...Object.values(DIRECTIVE_FILE_MAP).map((fileName) =>
+          path.resolve(__dirname, "..", fileName)
+        ),
+        path.resolve(__dirname, "..", "schema.sql"),
+        path.resolve(__dirname, "..", "schema_os.sql"),
+      ],
     },
   },
   build: {
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          supabase: ['@supabase/supabase-js'],
-          tauri: ['@tauri-apps/api', '@tauri-apps/plugin-dialog', '@tauri-apps/plugin-opener']
-        }
-      }
-    }
-  }
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("monaco-editor") || id.includes("@monaco-editor")) {
+            return "monaco";
+          }
+          if (
+            id.includes("@tiptap") ||
+            id.includes("prosemirror") ||
+            id.includes("tiptap-markdown")
+          ) {
+            return "tiptap";
+          }
+          if (id.includes("@supabase")) {
+            return "supabase";
+          }
+          if (
+            id.includes("react-markdown") ||
+            id.includes("remark-") ||
+            id.includes("rehype-") ||
+            id.includes("unified") ||
+            id.includes("micromark") ||
+            id.includes("mdast-") ||
+            id.includes("hast-") ||
+            id.includes("dompurify")
+          ) {
+            return "markdown";
+          }
+          if (id.includes("@tauri-apps")) {
+            return "tauri";
+          }
+          if (
+            id.includes("/react/") ||
+            id.includes("\\react\\") ||
+            id.includes("/react-dom/") ||
+            id.includes("\\react-dom\\") ||
+            id.includes("/scheduler/") ||
+            id.includes("\\scheduler\\") ||
+            id.includes("zustand")
+          ) {
+            return "vendor";
+          }
+          return undefined;
+        },
+      },
+    },
+  },
 }));

@@ -111,9 +111,15 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
           setManualSearchResults([]);
         }
       } else {
+        const { escapePostgrestFilterValue } = await import('../utils/postgrestUtils');
+        const safeQ = escapePostgrestFilterValue(q);
+        if (!safeQ) {
+          setManualSearchResults([]);
+          return;
+        }
         const orCondition = isValidUUID 
-          ? `name.ilike.%${q}%,id.eq.${q}`
-          : `name.ilike.%${q}%`;
+          ? `name.ilike.%${safeQ}%,id.eq.${safeQ}`
+          : `name.ilike.%${safeQ}%`;
 
         const { data } = await supabase
           .from('mods')

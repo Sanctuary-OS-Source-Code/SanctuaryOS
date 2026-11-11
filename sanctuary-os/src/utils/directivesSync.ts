@@ -330,7 +330,12 @@ export async function readAllLocalDocSnapshots(): Promise<
 
   if (import.meta.env.DEV) {
     try {
-      const res = await fetch("/__sync-directives");
+      const res = await fetch("/__sync-directives", {
+        headers: {
+          "x-sanctuary-dev-token":
+            typeof __SANCTUARY_DEV_TOKEN__ !== "undefined" ? __SANCTUARY_DEV_TOKEN__ : "",
+        },
+      });
       if (res.ok) {
         const snapshots: LocalDirectiveSnapshot[] = await res.json();
         if (Array.isArray(snapshots)) {
@@ -377,7 +382,11 @@ export async function writeLocalDirectiveFile(
     try {
       const res = await fetch("/__sync-directives", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-sanctuary-dev-token":
+            typeof __SANCTUARY_DEV_TOKEN__ !== "undefined" ? __SANCTUARY_DEV_TOKEN__ : "",
+        },
         body: JSON.stringify({ slug, content }),
       });
       return res.ok;

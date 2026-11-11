@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { WayfinderCommandScreen } from "./hub-components/CommandScreens";
-import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidebarFooterButton, EmptyState } from './shared';
+import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidebarFooterButton, EmptyState, openModDossier } from './shared';
 import ArchitectSupportTickets from './hub-components/ArchitectSupportTickets';
 import { DefconSidePanel } from './hub-components/SADefcon';
 import WayfinderMasterSchemas from './hub-components/WayfinderMasterSchemas';
@@ -12,12 +12,14 @@ import { IdentityMatrix } from './IdentityMatrix';
 import { WayfinderPostsEditor } from './hub-components/WayfinderPostsEditor';
 import { WayfinderChameleons } from './hub-components/WayfinderChameleons';
 import { NexusReportsViewer } from './side-panels/NexusReportsViewer';
+import { useModalStore } from './store/modalStore';
 import { FileVerificationSidePanel } from './side-panels/ArchitectSidePanels';
 import ComplianceManualFlagSidePanel from './side-panels/ComplianceManualFlagSidePanel';
 
 export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfile?: (id: string) => void }) {
   const { t } = useLexicon();
-  const { session } = useStore();
+  const session = useStore((state) => state.session);
+  const setNexusPreviewAsset = useModalStore((state) => state.setNexusPreviewAsset);
   const activeTab = useStore(state => state.wayfinderActiveTab);
   const setActiveTab = useStore(state => state.setWayfinderActiveTab);
   const [complianceFilter, setComplianceFilter] = useState("ALL");
@@ -79,7 +81,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
 
       <div className="md:hidden">
         <HoverTabDrawer 
-          title="Wayfinder Navigation" 
+          title={t("wf_hub_title", "Wayfinder Operations")} 
           activeTab={activeTab} 
           setTab={setActiveTab}
           hideMobilePills={true}
@@ -93,7 +95,7 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
                 onClick={() => setIsVerifyPanelOpen(true)}
               />
               <SidebarFooterButton
-                icon={defconLevel === 1 ? "warning" : "security"}
+                icon={defconLevel === 1 ? t("icon_warning", "warning") : t("icon_security", "security")}
                 label={<span className="truncate">{t("defcon_title", "Lockdown Override").replace("🚨 ", "").replace("⚠️ ", "")}</span>}
                 variant={defconLevel === 1 ? "danger" : "glass"}
                 className={`w-full ${defconLevel === 1 ? 'animate-pulse' : ''}`}
@@ -129,7 +131,24 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
           if (sig) setInitialHeuristicEdit(sig);
           setShowManualFlagModal(true);
         }} />}
-        {activeTab === "reports" && <NexusReportsViewer onOpenDossier={(report: any) => { }} />}
+        {activeTab === "reports" && (
+          <NexusReportsViewer
+            onOpenDossier={(report: any) => {
+              if (!report) return;
+              if (report.source === "nexus" && (report.metadata?.asset_full?.id || report.target_id)) {
+                setNexusPreviewAsset({
+                  id: String(report.metadata?.asset_full?.id || report.target_id),
+                  type: String(report.metadata?.asset_full?.asset_type || report.metadata?.asset_subtype || "lexicon"),
+                });
+                return;
+              }
+              const target = report?.metadata?.asset_full || report?.target_id || report;
+              openModDossier(
+                typeof target === "object" ? { ...target, isNexusView: true } : target
+              );
+            }}
+          />
+        )}
         {(activeTab === "sanctuary_tickets" || activeTab === "support_settings") && (
           <ArchitectSupportTickets
             userRole="wayfinder"

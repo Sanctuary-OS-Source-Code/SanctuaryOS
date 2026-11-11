@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
+import { useStore } from "../store";
 import {
   SidePanel,
   GameVersionMultiSelect,
@@ -35,6 +36,7 @@ export function SharedMetadataEditorSidePanel({
   isOversight?: boolean;
 }) {
   const { t } = useLexicon();
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
   const [modForm, setModForm] = useState<any>(null);
   const [originalMod, setOriginalMod] = useState<any>(null);
   const [isCommitting, setIsCommitting] = useState(false);
@@ -249,7 +251,7 @@ export function SharedMetadataEditorSidePanel({
                       setModForm({ ...modForm, file_extension: e.target.value })
                     }
                     className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-                    placeholder={t("ph_file_ext", ".package")}
+                    placeholder={activeGameSchema?.extensions?.supported?.[0] || t("ph_file_ext", "e.g. .bin, .dll")}
                   />
                 </div>
 

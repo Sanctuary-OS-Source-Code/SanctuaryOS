@@ -192,28 +192,6 @@ fn ensure_linux_desktop_integration() {
         }
     }
 
-    // Configure KDE Plasma / Dolphin (SteamOS Desktop Mode) to execute .AppImage and .desktop
-    // launchers directly without the "Are you sure you want to execute this file?" prompt.
-    let kiorc_path = format!("{}/.config/kiorc", home);
-    let existing_kiorc = std::fs::read_to_string(&kiorc_path).unwrap_or_default();
-    if !existing_kiorc.contains("behaviourOnLaunch=execute") {
-        let updated_kiorc = if existing_kiorc.contains("[Executable scripts]") {
-            existing_kiorc.replace(
-                "[Executable scripts]",
-                "[Executable scripts]\nbehaviourOnLaunch=execute",
-            )
-        } else if existing_kiorc.is_empty() {
-            "[Executable scripts]\nbehaviourOnLaunch=execute\n".to_string()
-        } else {
-            format!(
-                "{}\n[Executable scripts]\nbehaviourOnLaunch=execute\n",
-                existing_kiorc.trim_end()
-            )
-        };
-        let _ = std::fs::create_dir_all(format!("{}/.config", home));
-        let _ = std::fs::write(&kiorc_path, updated_kiorc);
-    }
-
     let _ = std::process::Command::new("update-desktop-database")
         .arg(&apps_dir)
         .output();
@@ -493,6 +471,7 @@ fn main() {
             diff_backup,
             register_edge_override,
             fetch_and_sync_edge_manifest,
+            poll_edge_manifests_batch,
             get_all_edge_manifests,
             export_edge_release,
             push_static_edge_manifest,

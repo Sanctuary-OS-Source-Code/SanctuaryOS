@@ -1,1 +1,102 @@
-{"message":"Secret API key required","hint":"Only secret API keys can be used for this endpoint."}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schema_version": 2,
+  "id": "",
+  "game_id": "",
+  "steam_app_id": null,
+  "display_name": "",
+  "default_lexicon": "en-default",
+  "min_scout_submissions": 3,
+  "executable_names": [],
+  "paths": {
+    "default_mod_dir_windows": "",
+    "default_mod_dir_mac": "",
+    "default_mod_dir_linux": "",
+    "manifest_file": "",
+    "auto_scan_paths_windows": [],
+    "auto_scan_paths_mac": [],
+    "auto_scan_paths_linux": [],
+    "executable_subdir": null,
+    "user_data_dir_windows": null,
+    "user_data_dir_mac": null,
+    "user_data_dir_linux": null
+  },
+  "extensions": {
+    "supported": [],
+    "vault_visible": [],
+    "ignore_unidentified": [],
+    "labels": {},
+    "cache_files": [],
+    "config_extensions": [],
+    "script_extensions": [],
+    "twin_extensions": [],
+    "parsers": {},
+    "magic_bytes": {},
+    "archive_containers": [],
+    "preserve_auxiliary_assets": true,
+    "relative_root_anchors": [],
+    "editable_config_formats": []
+  },
+  "constraints": {
+    "max_folder_depth": null,
+    "requires_script_unzipping": false,
+    "mods_dir_is_shared_with_vanilla": false,
+    "preserve_archive_folder_structure": true,
+    "wrap_loose_files_in_folders": false
+  },
+  "taxonomy": null,
+  "mod_categories": null,
+  "external_tools": [],
+  "dlc_catalog": {},
+  "conflict_analyzers": [],
+  "time_capsule": {
+    "world_state_targets": [],
+    "engine_state_targets": [],
+    "save_airgap_targets": []
+  },
+  "exception_logs": [],
+  "exception_rules": [],
+  "version_extraction": {
+    "method": null,
+    "relative_path": "",
+    "line_prefix": "",
+    "json_key": null
+  },
+  "dlc_folder_prefixes": [],
+  "dlc_file_extensions": [],
+  "dlc_subdirs": [],
+  "launch_args_dlc_mask_template": null,
+  "manifest_content": null,
+  "load_order": {
+    "strategy": null,
+    "direction": null,
+    "manifest_file": null,
+    "prefix_format": null,
+    "prefix_separator": null,
+    "line_template": null,
+    "document_header": null,
+    "document_footer": null,
+    "priority_tiers": []
+  },
+  "install_routes": [],
+  "lab_verification": {
+    "require_for_mason_publish": false,
+    "require_for_scout_approval": false,
+    "required_active_seconds": 120,
+    "max_idle_seconds": 8,
+    "require_focus": true,
+    "require_save_checkpoint": false,
+    "seed_sandbox_from_latest_save": false,
+    "save_extensions": [],
+    "world_load_signature": {
+      "stabilize_boot_seconds": 14,
+      "min_disk_read_mb": 75,
+      "min_ram_step_percent": 20,
+      "warm_cache_ram_step_percent": 35,
+      "scratch_activity_subdirs": []
+    },
+    "enable_hotkey_pause_detection": false,
+    "pause_key_vk_codes": [],
+    "resume_key_vk_codes": []
+  }
+}

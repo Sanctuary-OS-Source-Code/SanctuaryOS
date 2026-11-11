@@ -3,10 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from './utils/envUtils';
 import { isRootDomain } from './utils/routingUtils';
 import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
-import enSanctuary from './lexicons/en-sanctuary.json';
 import enDefault from './lexicons/en-default.json';
-import enSimlish from './lexicons/Simlish.json';
-import enSimsJson from './lexicons/en-sims.json';
 import { supabase, supabaseAuth } from './supabase';
 import { useStore } from './store';
 import {
@@ -18,10 +15,66 @@ import {
   translatePostedTextAsync,
 } from './utils/translationEngine';
 
-const enSims: Record<string, any> = { ...enSimlish, ...enSimsJson };
 const STATIC_BASE_DEFAULT: Record<string, any> = { ...enDefault };
-const STATIC_BASE_SANCTUARY: Record<string, any> = { ...STATIC_BASE_DEFAULT, ...enSanctuary };
-const STATIC_BASE_SIMS: Record<string, any> = { ...STATIC_BASE_DEFAULT, ...enSims };
+
+let loadedEnSanctuary: Record<string, any> | null = null;
+let loadedEnSims: Record<string, any> | null = null;
+let loadedSimlish: Record<string, any> | null = null;
+
+let enSanctuaryPromise: Promise<Record<string, any>> | null = null;
+let enSimsPromise: Promise<Record<string, any>> | null = null;
+let simlishPromise: Promise<Record<string, any>> | null = null;
+
+export function getLoadedBuiltinLexicon(id: string): Record<string, any> | null {
+  if (id === 'en-default') return STATIC_BASE_DEFAULT;
+  if (id === 'en-sanctuary') return loadedEnSanctuary;
+  if (id === 'en-sims') return loadedEnSims;
+  if (id === 'Simlish') return loadedSimlish;
+  return null;
+}
+
+export async function loadBuiltinLexiconAsync(id: string): Promise<Record<string, any>> {
+  if (id === 'en-default') {
+    return STATIC_BASE_DEFAULT;
+  }
+  if (id === 'en-sanctuary') {
+    if (loadedEnSanctuary) return loadedEnSanctuary;
+    if (!enSanctuaryPromise) {
+      enSanctuaryPromise = import('./lexicons/en-sanctuary.json').then((mod: any) => {
+        loadedEnSanctuary = (mod?.default || mod || {}) as Record<string, any>;
+        return loadedEnSanctuary;
+      });
+    }
+    return enSanctuaryPromise;
+  }
+  if (id === 'Simlish') {
+    if (loadedSimlish) return loadedSimlish;
+    if (!simlishPromise) {
+      simlishPromise = import('./lexicons/Simlish.json').then((mod: any) => {
+        loadedSimlish = (mod?.default || mod || {}) as Record<string, any>;
+        return loadedSimlish;
+      });
+    }
+    return simlishPromise;
+  }
+  if (id === 'en-sims') {
+    if (loadedEnSims) return loadedEnSims;
+    if (!enSimsPromise) {
+      enSimsPromise = Promise.all([
+        import('./lexicons/Simlish.json'),
+        import('./lexicons/en-sims.json'),
+      ]).then(([simlishMod, simsMod]: [any, any]) => {
+        const simlishObj = (simlishMod?.default || simlishMod || {}) as Record<string, any>;
+        const simsObj = (simsMod?.default || simsMod || {}) as Record<string, any>;
+        if (!loadedSimlish) loadedSimlish = simlishObj;
+        loadedEnSims = { ...simlishObj, ...simsObj };
+        return loadedEnSims;
+      });
+    }
+    return enSimsPromise;
+  }
+  return {};
+}
 
 function buildActiveDictionary(
   lang: string,
@@ -34,12 +87,15 @@ function buildActiveDictionary(
     return baseDefault;
   }
   const sancOvr = builtinOverrides['en-sanctuary'];
-  const baseSanctuary =
-    (defOvr && Object.keys(defOvr).length > 0) || (sancOvr && Object.keys(sancOvr).length > 0)
-      ? { ...baseDefault, ...enSanctuary, ...(sancOvr || {}) }
-      : STATIC_BASE_SANCTUARY;
   if (lang === 'en-sanctuary') {
-    return baseSanctuary;
+    if (!loadedEnSanctuary && (!sancOvr || Object.keys(sancOvr).length === 0)) {
+      return baseDefault;
+    }
+    return {
+      ...baseDefault,
+      ...(loadedEnSanctuary || {}),
+      ...(sancOvr || {}),
+    };
   }
   if (lang === 'en-sims' || lang === 'Simlish') {
     const cleanSpokeOverrides: Record<string, any> = {};
@@ -49,16 +105,13 @@ function buildActiveDictionary(
       }
     }
     const simsOvr = builtinOverrides[lang];
-    if (
-      (!defOvr || Object.keys(defOvr).length === 0) &&
-      (!simsOvr || Object.keys(simsOvr).length === 0) &&
-      Object.keys(cleanSpokeOverrides).length === 0
-    ) {
-      return STATIC_BASE_SIMS;
-    }
+    const baseSimsData =
+      lang === 'Simlish'
+        ? { ...(loadedEnSims || {}), ...(loadedSimlish || {}) }
+        : (loadedEnSims || {});
     return {
       ...baseDefault,
-      ...enSims,
+      ...baseSimsData,
       ...(simsOvr || {}),
       ...cleanSpokeOverrides,
     };
@@ -76,7 +129,7 @@ function buildActiveDictionary(
       ...nonEmptyCustom,
     };
   }
-  return baseSanctuary;
+  return baseDefault;
 }
 
 export interface GlossaryTermDefinition {
@@ -492,7 +545,7 @@ export const LexiconProvider = ({ children }: any) => {
             localStorage.setItem(key, cleanedStr);
             localStorage.setItem('sanctuary_global_lexicon_registry', cleanedStr);
           }
-        } catch {}
+        } catch { }
       }
       return parsed;
     } catch {
@@ -512,7 +565,7 @@ export const LexiconProvider = ({ children }: any) => {
       try {
         localStorage.removeItem(key);
         localStorage.removeItem('sanctuary_global_lexicon_registry');
-      } catch {}
+      } catch { }
       return;
     }
     const serialized = JSON.stringify(customOnly);
@@ -557,15 +610,37 @@ export const LexiconProvider = ({ children }: any) => {
   } | null>(null);
   const [activeLangState, setActiveLangState] = useState(() => {
     const defaultLang = resolveGameDefaultLexicon(activeGameSchema, lexiconMeta);
-    
+
     if (localStorage.getItem('sanctuary_use_global_lexicon') === 'true') {
       return localStorage.getItem('sanctuary_global_lang') || "en-sanctuary";
     }
     return localStorage.getItem(`sanctuary_${wsId}_lang`) || defaultLang;
   });
+  const [builtinLoadTick, setBuiltinLoadTick] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (
+      activeLangState === 'en-sanctuary' ||
+      activeLangState === 'en-sims' ||
+      activeLangState === 'Simlish'
+    ) {
+      if (!getLoadedBuiltinLexicon(activeLangState)) {
+        loadBuiltinLexiconAsync(activeLangState)
+          .then(() => {
+            if (!cancelled) setBuiltinLoadTick((v) => v + 1);
+          })
+          .catch(() => { });
+      }
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [activeLangState]);
+
   const dictionary = useMemo(
     () => buildActiveDictionary(activeLangState, registry, builtinOverrides),
-    [activeLangState, registry, builtinOverrides]
+    [activeLangState, registry, builtinOverrides, builtinLoadTick]
   );
 
   const startLexiconPreview = useCallback(
@@ -581,7 +656,7 @@ export const LexiconProvider = ({ children }: any) => {
       if (parsed && typeof parsed.json_data === 'string') {
         try {
           parsed = JSON.parse(parsed.json_data);
-        } catch {}
+        } catch { }
       } else if (parsed && parsed.json_data && typeof parsed.json_data === 'object') {
         parsed = parsed.json_data;
       } else if (parsed && parsed.lexicon_data && typeof parsed.lexicon_data === 'object') {
@@ -607,18 +682,18 @@ export const LexiconProvider = ({ children }: any) => {
     setPreviewLexiconState(null);
   }, []);
 
-  const setUseGlobalLexicon = (val: boolean) => {
+  const setUseGlobalLexicon = useCallback((val: boolean) => {
     setUseGlobalLexiconState(val);
-    try { localStorage.setItem('sanctuary_use_global_lexicon', String(val)); } catch {}
+    try { localStorage.setItem('sanctuary_use_global_lexicon', String(val)); } catch { }
     if (val) {
       setActiveLangState(localStorage.getItem('sanctuary_global_lang') || "en-sanctuary");
     } else {
       const defaultLang = resolveGameDefaultLexicon(activeGameSchema, lexiconMeta);
       setActiveLangState(localStorage.getItem(`sanctuary_${wsId}_lang`) || defaultLang);
     }
-  };
+  }, [activeGameSchema, lexiconMeta, wsId]);
 
-  const setActiveLang = (lang: string) => {
+  const setActiveLang = useCallback((lang: string) => {
     setPreviewLexiconState(null);
     setActiveLangState(lang);
     try {
@@ -627,8 +702,8 @@ export const LexiconProvider = ({ children }: any) => {
       } else {
         localStorage.setItem(`sanctuary_${wsId}_lang`, lang);
       }
-    } catch {}
-  };
+    } catch { }
+  }, [useGlobalLexiconState, wsId]);
 
   // When workspace changes, hydrate from local storage
   useEffect(() => {
@@ -711,13 +786,13 @@ export const LexiconProvider = ({ children }: any) => {
           };
           setTitleAreaConfig((prev) =>
             JSON.stringify({ ...prev, updatedAt: undefined }) ===
-            JSON.stringify({ ...nextConfig, updatedAt: undefined })
+              JSON.stringify({ ...nextConfig, updatedAt: undefined })
               ? prev
               : nextConfig
           );
           try {
             localStorage.setItem(CORE_TITLE_AREA_STORAGE_KEY, JSON.stringify(nextConfig));
-          } catch {}
+          } catch { }
         }
       } catch {
         // Fallback to cached/default Title Area config
@@ -737,7 +812,7 @@ export const LexiconProvider = ({ children }: any) => {
     return () => window.removeEventListener('sanctuary-title-area-updated', handleTitleAreaEvent);
   }, []);
 
-  const saveTitleAreaConfig = async (updates: Partial<CoreTitleAreaConfig>): Promise<CoreTitleAreaConfig> => {
+  const saveTitleAreaConfig = useCallback(async (updates: Partial<CoreTitleAreaConfig>): Promise<CoreTitleAreaConfig> => {
     const current = readCoreTitleAreaConfig();
     const cleanedSubtitles = Array.isArray(updates.subtitles)
       ? updates.subtitles.map((s) => String(s || '').trim()).filter(Boolean)
@@ -753,7 +828,7 @@ export const LexiconProvider = ({ children }: any) => {
     setTitleAreaConfig(nextConfig);
     try {
       localStorage.setItem(CORE_TITLE_AREA_STORAGE_KEY, JSON.stringify(nextConfig));
-    } catch {}
+    } catch { }
     window.dispatchEvent(new CustomEvent('sanctuary-title-area-updated', { detail: nextConfig }));
 
     try {
@@ -794,7 +869,7 @@ export const LexiconProvider = ({ children }: any) => {
     }
 
     return nextConfig;
-  };
+  }, []);
 
 
   useEffect(() => {
@@ -823,8 +898,8 @@ export const LexiconProvider = ({ children }: any) => {
               localUpdates[langCode] = parsed;
               hasLocalUpdates = true;
               if (candidateDir !== lexiconsDir) {
-                await mkdir(lexiconsDir, { recursive: true }).catch(() => {});
-                await writeTextFile(`${lexiconsDir}\\${entry.name}`, JSON.stringify(parsed, null, 2)).catch(() => {});
+                await mkdir(lexiconsDir, { recursive: true }).catch(() => { });
+                await writeTextFile(`${lexiconsDir}\\${entry.name}`, JSON.stringify(parsed, null, 2)).catch(() => { });
               }
             }
           }
@@ -853,18 +928,18 @@ export const LexiconProvider = ({ children }: any) => {
         const osRole = useStore.getState().osRole;
         const hasOSAccess = ["keeper", "admin", "core_dev"].includes(osRole);
         let osRes: { data: any[] | null, error: any } = { data: [], error: null };
-        
+
         if (hasOSAccess) {
-            osRes = await supabaseAuth.from('sanctuary_lexicons').select('id, name, badge, version, lexicon_data');
+          osRes = await supabaseAuth.from('sanctuary_lexicons').select('id, name, badge, version, lexicon_data');
         }
-        
+
         // Fetch Community Lexicons (via proxy to current game DB)
         const gamePromise = supabase.from('sanctuary_lexicons').select('id, name, badge, version, lexicon_data');
 
         const gameRes = await gamePromise;
         if (hasOSAccess && osRes.error) throw osRes.error;
         if (gameRes.error && gameRes.error.code !== '42P01') console.error("Game lexicons error:", gameRes.error); // Ignore if table doesn't exist yet
-        
+
         // Merge them, prioritizing Game Database over OS Database if there are conflicts, OR maybe OS takes priority?
         // Actually, OS lexicons (en-sanctuary, en-default) should take priority.
         const mergedData = [...(gameRes.data || []), ...(osRes.data || [])];
@@ -875,8 +950,9 @@ export const LexiconProvider = ({ children }: any) => {
           for (let row of data) {
             let localData: any = {};
             if (row.id === 'en-default') localData = enDefault;
-            if (row.id === 'en-sanctuary') localData = enSanctuary;
-            if (row.id === 'en-sims' || row.id === 'Simlish') localData = enSims;
+            if (row.id === 'en-sanctuary' || row.id === 'en-sims' || row.id === 'Simlish') {
+              localData = await loadBuiltinLexiconAsync(row.id);
+            }
 
             if (Object.keys(localData).length > 0) {
               let hasChanges = false;
@@ -945,7 +1021,7 @@ export const LexiconProvider = ({ children }: any) => {
           }));
           try {
             localStorage.setItem(`sanctuary_${wsId}_lexicon_meta`, JSON.stringify(meta));
-          } catch {}
+          } catch { }
           setLexiconMeta((prev) => (JSON.stringify(prev) === JSON.stringify(meta) ? prev : meta));
 
           if (!useGlobalLexiconState && !localStorage.getItem(`sanctuary_${wsId}_lang`)) {
@@ -1049,10 +1125,10 @@ export const LexiconProvider = ({ children }: any) => {
       val = (enDefault as any)[key];
     }
     if (val === undefined || val === "") {
-      val = (enSanctuary as any)[key];
+      val = loadedEnSanctuary?.[key];
     }
     if (val === undefined || val === "") {
-      val = (enSims as any)[key];
+      val = loadedEnSims?.[key];
     }
 
     if (val !== undefined && val !== "") {
@@ -1113,11 +1189,13 @@ export const LexiconProvider = ({ children }: any) => {
     return res;
   }, [tCache, effectiveDictionary, schemaFallbackMap, effectiveLangState, titleAreaConfig, previewSubtitleText]);
 
-  const importLexicon = (json: any, langCode: string) => {
+  const importLexicon = useCallback((json: any, langCode: string) => {
     setPreviewLexiconState(null);
-    const updated = { ...registry, [langCode]: json };
-    setRegistry(updated);
-    saveRegistryToStorage(wsId, updated);
+    setRegistry((prev: any) => {
+      const updated = { ...prev, [langCode]: json };
+      saveRegistryToStorage(wsId, updated);
+      return updated;
+    });
     setActiveLang(langCode);
 
     (async () => {
@@ -1131,12 +1209,14 @@ export const LexiconProvider = ({ children }: any) => {
         }
       } catch (err) { console.error("Failed to save lexicon to vault:", err); }
     })();
-  };
+  }, [wsId, setActiveLang]);
 
-  const deleteLexicon = (langCode: string) => {
-    const { [langCode]: removed, ...remaining } = registry;
-    setRegistry(remaining);
-    saveRegistryToStorage(wsId, remaining);
+  const deleteLexicon = useCallback((langCode: string) => {
+    setRegistry((prev: any) => {
+      const { [langCode]: removed, ...remaining } = prev;
+      saveRegistryToStorage(wsId, remaining);
+      return remaining;
+    });
     if (activeLangState === langCode) setActiveLang("en-sanctuary");
 
     (async () => {
@@ -1149,7 +1229,7 @@ export const LexiconProvider = ({ children }: any) => {
         }
       } catch (err) { console.error("Failed to delete lexicon from vault:", err); }
     })();
-  };
+  }, [wsId, activeLangState, setActiveLang]);
 
   const rawLogoUrl = titleAreaConfig.logoUrl || '/icon.png';
   const osLogoUrl =
@@ -1159,7 +1239,7 @@ export const LexiconProvider = ({ children }: any) => {
   const [autoTranslateDynamic, setAutoTranslateDynamicState] = useState<boolean>(() =>
     getAutoTranslateDynamicPref()
   );
-  const [, setTranslationTick] = useState(0);
+  const [translationTick, setTranslationTick] = useState(0);
 
   useEffect(() => {
     const onTranslationReady = () => {
@@ -1169,20 +1249,32 @@ export const LexiconProvider = ({ children }: any) => {
     return () => window.removeEventListener('sanctuary-dynamic-translation-ready', onTranslationReady);
   }, []);
 
-  const setAutoTranslateDynamic = (val: boolean) => {
+  const setAutoTranslateDynamic = useCallback((val: boolean) => {
     setAutoTranslateDynamicState(val);
     setAutoTranslateDynamicPref(val);
-  };
+  }, []);
 
-  const td = (
+  const tdCache = useMemo(
+    () => new Map<string, string>(),
+    [effectiveDictionary, effectiveLangState, autoTranslateDynamic, lexiconMeta, translationTick]
+  );
+
+  const td = useCallback((
     rawText: string,
     options?: { forceTranslate?: boolean; targetIso?: string }
   ): string => {
     if (!rawText || typeof rawText !== 'string') return rawText;
+    const cacheKey = `${options?.forceTranslate ? '1' : '0'}\x00${options?.targetIso || ''}\x00${rawText}`;
+    const hit = tdCache.get(cacheKey);
+    if (hit !== undefined) return hit;
+
     const interpolated = interpolateGlossaryTokens(rawText, effectiveDictionary, effectiveLangState);
     const adapted = applyThematicGlossaryToProse(interpolated, effectiveDictionary, effectiveLangState);
     const shouldCloudTranslate = Boolean(options?.forceTranslate || autoTranslateDynamic);
-    if (!shouldCloudTranslate) return adapted;
+    if (!shouldCloudTranslate) {
+      if (tdCache.size < 10000) tdCache.set(cacheKey, adapted);
+      return adapted;
+    }
 
     const targetIso =
       options?.targetIso ||
@@ -1194,19 +1286,22 @@ export const LexiconProvider = ({ children }: any) => {
       );
 
     if (!targetIso || targetIso === 'en') {
+      if (tdCache.size < 10000) tdCache.set(cacheKey, adapted);
       return adapted;
     }
 
     const cached = getCachedDynamicTranslation(adapted, targetIso);
     if (cached !== null) {
+      if (tdCache.size < 10000) tdCache.set(cacheKey, cached);
       return cached;
     }
 
     translatePostedTextAsync(adapted, targetIso);
+    if (tdCache.size < 10000) tdCache.set(cacheKey, adapted);
     return adapted;
-  };
+  }, [tdCache, effectiveDictionary, effectiveLangState, autoTranslateDynamic, lexiconMeta]);
 
-  const translateDynamicAsync = async (
+  const translateDynamicAsync = useCallback(async (
     rawText: string,
     targetIso?: string
   ): Promise<string> => {
@@ -1217,35 +1312,63 @@ export const LexiconProvider = ({ children }: any) => {
       targetIso || resolveTargetLanguageIso(effectiveLangState, effectiveDictionary, lexiconMeta, true);
     if (!resolvedIso || resolvedIso === 'en') return adapted;
     return translatePostedTextAsync(adapted, resolvedIso);
-  };
+  }, [effectiveDictionary, effectiveLangState, lexiconMeta]);
+
+  const previewLexiconId = previewLexiconState?.id || null;
+  const previewLexiconName = previewLexiconState?.name || null;
+
+  const lexiconContextValue = useMemo(
+    () => ({
+      t,
+      td,
+      translateDynamicAsync,
+      autoTranslateDynamic,
+      setAutoTranslateDynamic,
+      activeLang: activeLangState,
+      setActiveLang,
+      importLexicon,
+      deleteLexicon,
+      registry,
+      lexiconMeta,
+      useGlobalLexicon: useGlobalLexiconState,
+      setUseGlobalLexicon,
+      osLogoUrl,
+      titleAreaConfig,
+      saveTitleAreaConfig,
+      previewSubtitleText,
+      setPreviewSubtitleText,
+      previewLexiconId,
+      previewLexiconName,
+      startLexiconPreview,
+      stopLexiconPreview,
+    }),
+    [
+      t,
+      td,
+      translateDynamicAsync,
+      autoTranslateDynamic,
+      setAutoTranslateDynamic,
+      activeLangState,
+      setActiveLang,
+      importLexicon,
+      deleteLexicon,
+      registry,
+      lexiconMeta,
+      useGlobalLexiconState,
+      setUseGlobalLexicon,
+      osLogoUrl,
+      titleAreaConfig,
+      saveTitleAreaConfig,
+      previewSubtitleText,
+      previewLexiconId,
+      previewLexiconName,
+      startLexiconPreview,
+      stopLexiconPreview,
+    ]
+  );
 
   return (
-    <LexiconContext.Provider
-      value={{
-        t,
-        td,
-        translateDynamicAsync,
-        autoTranslateDynamic,
-        setAutoTranslateDynamic,
-        activeLang: activeLangState,
-        setActiveLang,
-        importLexicon,
-        deleteLexicon,
-        registry,
-        lexiconMeta,
-        useGlobalLexicon: useGlobalLexiconState,
-        setUseGlobalLexicon,
-        osLogoUrl,
-        titleAreaConfig,
-        saveTitleAreaConfig,
-        previewSubtitleText,
-        setPreviewSubtitleText,
-        previewLexiconId: previewLexiconState?.id || null,
-        previewLexiconName: previewLexiconState?.name || null,
-        startLexiconPreview,
-        stopLexiconPreview,
-      }}
-    >
+    <LexiconContext.Provider value={lexiconContextValue}>
       {children}
     </LexiconContext.Provider>
   );
@@ -1254,42 +1377,43 @@ export const LexiconProvider = ({ children }: any) => {
 export const useLexicon = () => {
   const ctx = useContext(LexiconContext);
   if (!ctx) {
+    const fallbackDict = loadedEnSanctuary || STATIC_BASE_DEFAULT;
     return {
       t: (key: string, fallback?: string) => {
         if (!key) {
           return fallback
-            ? interpolateGlossaryTokens(fallback, enSanctuary, 'en-sanctuary')
+            ? interpolateGlossaryTokens(fallback, fallbackDict, 'en-sanctuary')
             : '';
         }
         const raw =
-          (enSanctuary as any)[key] ||
+          fallbackDict[key] ||
           (enDefault as any)[key] ||
           fallback ||
           (key.startsWith('icon_') ? key.slice(5) : key.replace(/_/g, ' '));
         return typeof raw === 'string'
-          ? interpolateGlossaryTokens(raw, enSanctuary, 'en-sanctuary')
+          ? interpolateGlossaryTokens(raw, fallbackDict, 'en-sanctuary')
           : raw;
       },
       td: (rawText: string) =>
         typeof rawText === 'string'
-          ? interpolateGlossaryTokens(rawText, enSanctuary, 'en-sanctuary')
+          ? interpolateGlossaryTokens(rawText, fallbackDict, 'en-sanctuary')
           : rawText,
       translateDynamicAsync: async (rawText: string) => rawText,
       autoTranslateDynamic: true,
-      setAutoTranslateDynamic: () => {},
+      setAutoTranslateDynamic: () => { },
       activeLang: 'en-sanctuary',
-      setActiveLang: () => {},
-      importLexicon: () => {},
-      deleteLexicon: () => {},
+      setActiveLang: () => { },
+      importLexicon: () => { },
+      deleteLexicon: () => { },
       registry: {},
       lexiconMeta: [],
       useGlobalLexicon: false,
-      setUseGlobalLexicon: () => {},
+      setUseGlobalLexicon: () => { },
       osLogoUrl: '/icon.png',
       titleAreaConfig: DEFAULT_CORE_TITLE_AREA_CONFIG,
       saveTitleAreaConfig: async () => DEFAULT_CORE_TITLE_AREA_CONFIG,
       previewSubtitleText: null,
-      setPreviewSubtitleText: () => {},
+      setPreviewSubtitleText: () => { },
     };
   }
   return ctx;

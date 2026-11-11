@@ -718,12 +718,34 @@ export function ElevatedPasskeyGate({
   const [currentPasswordInput, setCurrentPasswordInput] = useState("");
   const [removingFactor, setRemovingFactor] = useState(false);
 
-  const isOffline =
-    typeof navigator !== "undefined" &&
-    (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true");
+  const [networkOnline, setNetworkOnline] = useState<boolean>(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleOnline = () => setNetworkOnline(true);
+    const handleOffline = () => setNetworkOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  const isLocalOnlyMode =
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("sanctuary_local_only") === "true";
+  const isOffline = !networkOnline || isLocalOnlyMode;
 
   const refreshState = useCallback(async () => {
-    if (!session?.user?.id || !requirePasskey || isOffline) {
+    if (!requirePasskey) {
+      setLoading(false);
+      return;
+    }
+    if (isOffline || !session?.user?.id) {
+      setMfaState(null);
       setLoading(false);
       return;
     }
@@ -751,12 +773,10 @@ export function ElevatedPasskeyGate({
 
   const hasPasskey = Boolean(mfaState?.hasPasskey);
   const hasPendingMfaChallenge = hasPasskey && !mfaState?.isPasskeyVerified;
+  const isOfflineOrUnauthenticated = requirePasskey && (isOffline || !session?.user?.id);
   const isHubLocked =
     requirePasskey &&
-    !isOffline &&
-    Boolean(session?.user?.id) &&
-    !loading &&
-    (!hasPasskey || hasPendingMfaChallenge);
+    (isOfflineOrUnauthenticated || (!loading && (!hasPasskey || hasPendingMfaChallenge)));
 
   useEffect(() => {
     if (!isHubLocked) {
@@ -776,11 +796,18 @@ export function ElevatedPasskeyGate({
 
     const handleMouseMove = (e: MouseEvent) => {
       useTooltipStore.getState().setTooltip({
-        title: t("passkey_gate_hover_locked_title", "Hub Locked — FIDO2 Passkey Required"),
-        subtitle: t(
-          "passkey_gate_hover_locked_desc",
-          "Complete FIDO2 Passkey setup in the side panel to unlock this hub, or use the Sidebar to switch sections."
-        ),
+        title: isOfflineOrUnauthenticated
+          ? t("passkey_gate_offline_locked_title", "Hub Locked — Online Passkey Verification Required")
+          : t("passkey_gate_hover_locked_title", "Hub Locked — FIDO2 Passkey Required"),
+        subtitle: isOfflineOrUnauthenticated
+          ? t(
+              "passkey_gate_offline_locked_desc",
+              "Elevated governance and cloud hubs remain locked while offline, in Local-Only mode, or signed out."
+            )
+          : t(
+              "passkey_gate_hover_locked_desc",
+              "Complete FIDO2 Passkey setup in the side panel to unlock this hub, or use the Sidebar to switch sections."
+            ),
         variant: "warning",
         icon: t("icon_block", "block"),
         x: e.clientX,
@@ -811,17 +838,17 @@ export function ElevatedPasskeyGate({
       mainEl.removeEventListener("click", handleBlockedClick, true);
       useTooltipStore.getState().clearTooltip();
     };
-  }, [isHubLocked, t]);
+  }, [isHubLocked, isOfflineOrUnauthenticated, t]);
 
-  if (!requirePasskey || isOffline || !session?.user?.id) {
+  if (!requirePasskey) {
     return <>{children}</>;
   }
 
-  if (loading && !mfaState) {
+  if (loading && !mfaState && !isOfflineOrUnauthenticated) {
     return <LoadingScreen title={t("status_loading_security", "Loading Security Status...")} />;
   }
 
-  if (hasPasskey && !hasPendingMfaChallenge) {
+  if (!isOfflineOrUnauthenticated && hasPasskey && !hasPendingMfaChallenge) {
     return <>{children}</>;
   }
 
@@ -1077,16 +1104,114 @@ export function ElevatedPasskeyGate({
     }
   };
 
+  const lockedSkeletonBackdrop = (
+    <div
+      className="w-full h-full relative cursor-passkey-locked p-6 flex flex-col gap-5 pointer-events-none select-none opacity-45 overflow-hidden"
+      aria-hidden="true"
+    >
+      <div className="glass-panel rounded-2xl p-6 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] flex items-center justify-center text-[var(--warning)]">
+            <span className="material-symbols-outlined !text-[24px]">
+              {t("icon_lock", "lock")}
+            </span>
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="h-4 w-56 rounded-lg bg-[color-mix(in_srgb,var(--text)_14%,transparent)]" />
+            <div className="h-3 w-80 rounded-lg bg-[color-mix(in_srgb,var(--text)_8%,transparent)]" />
+          </div>
+        </div>
+        <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-transparent border border-[var(--warning)] text-[var(--warning)] flex items-center gap-1.5">
+          <span className="material-symbols-outlined !text-[13px]">
+            {t("icon_shield_lock", "shield_lock")}
+          </span>
+          {t("passkey_gate_badge_locked", "Clearance Locked")}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[0, 1, 2].map((idx) => (
+          <div
+            key={idx}
+            className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-3"
+          >
+            <div className="h-3 w-24 rounded bg-[color-mix(in_srgb,var(--text)_12%,transparent)]" />
+            <div className="h-7 w-16 rounded-lg bg-[color-mix(in_srgb,var(--text)_16%,transparent)]" />
+            <div className="h-2.5 w-full rounded bg-[color-mix(in_srgb,var(--text)_8%,transparent)]" />
+          </div>
+        ))}
+      </div>
+      <div className="glass-panel rounded-2xl p-6 flex-1 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-4">
+        <div className="h-4 w-48 rounded bg-[color-mix(in_srgb,var(--text)_12%,transparent)]" />
+        <div className="h-24 w-full rounded-xl bg-[color-mix(in_srgb,var(--text)_6%,transparent)]" />
+        <div className="h-24 w-full rounded-xl bg-[color-mix(in_srgb,var(--text)_6%,transparent)]" />
+      </div>
+    </div>
+  );
+
+  if (isOfflineOrUnauthenticated) {
+    return (
+      <>
+        {lockedSkeletonBackdrop}
+        <SidePanel
+          isOpen={true}
+          onClose={handleExitLockedHub}
+          hideCloseButton={false}
+          passthroughBackdrop={true}
+          noBackdropDim={true}
+          title={t("passkey_gate_offline_locked_title", "Hub Locked — Online Passkey Verification Required")}
+          subtitle={t("auth_passkey_2fa_subtitle", "Manage FIDO2 Passkeys and Authenticator Apps")}
+          icon={t("icon_cloud_off", "cloud_off")}
+          iconColorClass="text-[var(--warning)]"
+        >
+          <div
+            className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8"
+            onMouseEnter={() => useTooltipStore.getState().clearTooltip()}
+          >
+            <SidePanelHeroCard
+              icon={t("icon_shield_lock", "shield_lock")}
+              overline={roleTitle}
+              title={t(
+                "passkey_gate_offline_locked_title",
+                "Hub Locked — Online Passkey Verification Required"
+              )}
+              description={t(
+                "passkey_gate_offline_locked_desc",
+                "Elevated governance and cloud hubs remain locked while offline, in Local-Only mode, or signed out."
+              )}
+              variant="warning"
+            >
+              <div className="pt-2 flex flex-col gap-2.5">
+                {isLocalOnlyMode && (
+                  <ActionButton
+                    onClick={() => {
+                      localStorage.removeItem("sanctuary_local_only");
+                      setNetworkOnline(typeof navigator !== "undefined" ? navigator.onLine : true);
+                      refreshState();
+                    }}
+                    variant="accent"
+                    icon={t("icon_cloud_sync", "cloud_sync")}
+                    label={t("passkey_gate_disable_local_only", "Reconnect Cloud & Verify Passkey")}
+                    className="w-full !py-2.5"
+                  />
+                )}
+                <ActionButton
+                  onClick={handleExitLockedHub}
+                  variant="glass"
+                  icon={t("icon_arrow_back", "arrow_back")}
+                  label={t("back", "Back")}
+                  className="w-full !py-2.5"
+                />
+              </div>
+            </SidePanelHeroCard>
+          </div>
+        </SidePanel>
+      </>
+    );
+  }
+
   return (
     <>
-      <div className="w-full h-full relative cursor-passkey-locked">
-        <div
-          className="w-full h-full pointer-events-none select-none opacity-40 blur-[2px] transition-all duration-300"
-          inert
-        >
-          {children}
-        </div>
-      </div>
+      {lockedSkeletonBackdrop}
 
       <SidePanel
         isOpen={true}

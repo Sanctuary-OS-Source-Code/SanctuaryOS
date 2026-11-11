@@ -11,7 +11,6 @@ pub fn update_active_game_schema(
     Ok(())
 }
 
-#[tauri::command]
 fn resolve_spoke_vault_subdir(master_root: &std::path::Path, schema_id: &str) -> std::path::PathBuf {
     let trimmed = schema_id.trim();
     if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("default_schema") {
@@ -48,7 +47,7 @@ fn strip_spoke_suffix_from_master_vault(
                 || (!w.id.trim().is_empty()
                     && !w.id.eq_ignore_ascii_case("default_workspace")
                     && w.id.eq_ignore_ascii_case(last_seg))
-        }) || last_seg.eq_ignore_ascii_case("sims4");
+        });
         if matches_workspace {
             if let Some(parent) = path.parent() {
                 let parent_str = parent.to_string_lossy().to_string();
@@ -61,7 +60,7 @@ fn strip_spoke_suffix_from_master_vault(
     trimmed.to_string()
 }
 
-fn normalize_solder_config(config: &mut SolderConfig) -> bool {
+fn normalize_solder_config(config: &mut SolderConfig, create_dirs: bool) -> bool {
     let mut healed = false;
 
     let raw_master = config
@@ -89,8 +88,10 @@ fn normalize_solder_config(config: &mut SolderConfig) -> bool {
                 healed = true;
             }
             let mv_path = std::path::PathBuf::from(&mv_trimmed);
-            let _ = std::fs::create_dir_all(mv_path.join("Data").join("Themes"));
-            let _ = std::fs::create_dir_all(mv_path.join("Data").join("Lexicons"));
+            if create_dirs {
+                let _ = std::fs::create_dir_all(mv_path.join("Data").join("Themes"));
+                let _ = std::fs::create_dir_all(mv_path.join("Data").join("Lexicons"));
+            }
 
             for ws in config.workspaces.iter_mut() {
                 if ws.master_vault_path.as_deref() != Some(mv_trimmed.as_str()) {
@@ -124,6 +125,7 @@ fn normalize_solder_config(config: &mut SolderConfig) -> bool {
         let first_schema = config.workspaces[0].schema_id.to_lowercase();
         let first_live = config.workspaces[0].live_path.clone();
         let first_mods = config.workspaces[0].mods_path.clone();
+        let first_docs = config.workspaces[0].docs_path.clone();
         for ws in config.workspaces.iter_mut().skip(1) {
             if ws.schema_id.to_lowercase() != first_schema {
                 if !first_live.is_empty() && ws.live_path == first_live {
@@ -132,6 +134,10 @@ fn normalize_solder_config(config: &mut SolderConfig) -> bool {
                 }
                 if !first_mods.is_empty() && ws.mods_path == first_mods {
                     ws.mods_path.clear();
+                    healed = true;
+                }
+                if first_docs.is_some() && ws.docs_path == first_docs {
+                    ws.docs_path = None;
                     healed = true;
                 }
             }
@@ -148,11 +154,7 @@ pub fn get_global_config() -> SolderConfig {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) {
             if let Ok(mut config) = serde_json::from_value::<SolderConfig>(v.clone()) {
                 if !config.workspaces.is_empty() {
-                    if normalize_solder_config(&mut config) {
-                        if let Ok(healed_json) = serde_json::to_string_pretty(&config) {
-                            let _ = fs::write(&path, healed_json);
-                        }
-                    }
+                    let _ = normalize_solder_config(&mut config, false);
                     return config;
                 }
             }
@@ -163,15 +165,26 @@ pub fn get_global_config() -> SolderConfig {
                 .unwrap_or("")
                 .to_string();
             let mods_path = v["mods_path"].as_str().unwrap_or("").to_string();
+            let docs_path = v["docs_path"]
+                .as_str()
+                .or(v["user_data_path"].as_str())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty());
             let vault_path = v["vault_path"].as_str().unwrap_or("").to_string();
+            let schema_id = v["schema_id"]
+                .as_str()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "default_schema".to_string());
 
             if !live_path.is_empty() || !mods_path.is_empty() || !vault_path.is_empty() {
                 let default_workspace = WorkspaceConfig {
                     id: "default_workspace".to_string(),
                     name: "Default Game".to_string(),
-                    schema_id: "sims4".to_string(),
+                    schema_id,
                     live_path,
                     mods_path,
+                    docs_path: docs_path.clone(),
                     vault_path: vault_path.clone(),
                     master_vault_path: Some(vault_path.clone()),
                     engine_agency_level: v["engine_agency_level"].as_u64().map(|n| n as u32),
@@ -198,6 +211,7 @@ pub fn get_global_config() -> SolderConfig {
                     workspaces: vec![default_workspace],
                     live_path: None,
                     mods_path: None,
+                    docs_path,
                     vault_path: Some(vault_path),
                 };
             }
@@ -232,6 +246,7 @@ pub fn get_saved_coordinates() -> WorkspaceConfig {
                     schema_id: trimmed_id.to_string(),
                     live_path: String::new(),
                     mods_path: String::new(),
+                    docs_path: None,
                     vault_path: String::new(),
                     ..WorkspaceConfig::default()
                 });
@@ -246,15 +261,10 @@ pub fn get_saved_coordinates() -> WorkspaceConfig {
     }
 
     if let Some(mut workspace) = active_workspace {
-        // Enforce Master OS Vault Architecture dynamically:
-        // Shared Themes & Lexicons live in <MasterVault>/Data/{Themes,Lexicons} (one level above spokes),
-        // while each Spoke workspace lives in <MasterVault>/<schema_id>.
         if let Some(mv) = master_vault {
             if !mv.is_empty() {
                 workspace.master_vault_path = Some(mv.clone());
                 let mv_path = std::path::PathBuf::from(&mv);
-                let _ = std::fs::create_dir_all(mv_path.join("Data").join("Themes"));
-                let _ = std::fs::create_dir_all(mv_path.join("Data").join("Lexicons"));
                 let new_path = resolve_spoke_vault_subdir(&mv_path, &workspace.schema_id);
                 workspace.vault_path = new_path.to_string_lossy().to_string();
             }
@@ -266,6 +276,13 @@ pub fn get_saved_coordinates() -> WorkspaceConfig {
             );
             workspace.master_vault_path = Some(resolved_master);
         }
+        if workspace.docs_path.as_ref().map_or(true, |d| d.trim().is_empty()) {
+            workspace.docs_path = global_config
+                .docs_path
+                .as_ref()
+                .map(|d| d.trim().to_string())
+                .filter(|d| !d.is_empty());
+        }
         return workspace;
     }
 
@@ -274,136 +291,105 @@ pub fn get_saved_coordinates() -> WorkspaceConfig {
 
 #[tauri::command]
 pub fn save_coordinates(mut config: SolderConfig) -> Result<String, String> {
-    normalize_solder_config(&mut config);
+    normalize_solder_config(&mut config, true);
     let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
 
     let config_path = get_config_path();
-    if let Some(parent) = config_path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-
-    fs::write(config_path, json).map_err(|e| e.to_string())?;
+    crate::utils::atomic_write_bytes(&config_path, json.as_bytes())?;
     Ok("backend_locked".into())
 }
 
 #[tauri::command]
-pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value {
-    let mut live_path = String::new();
-    let mut mods_path = String::new();
-    let mut vault_path = String::new();
-    let game_schema = state.active_schema.lock().unwrap().clone();
+pub async fn auto_detect_paths(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let game_schema = state
+        .active_schema
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
 
-    let mut search_paths = if let Some(schema) = &game_schema {
-        if cfg!(target_os = "linux") {
-            let mut list = schema.paths.auto_scan_paths_linux.clone();
-            for wp in &schema.paths.auto_scan_paths_windows {
-                if !list.contains(wp) {
-                    list.push(wp.clone());
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut live_path = String::new();
+        let mut mods_path = String::new();
+        let mut docs_path = String::new();
+        let mut vault_path = String::new();
+
+        let mut search_paths = if let Some(schema) = &game_schema {
+            if cfg!(target_os = "linux") {
+                let mut list = schema.paths.auto_scan_paths_linux.clone();
+                for wp in &schema.paths.auto_scan_paths_windows {
+                    if !list.contains(wp) {
+                        list.push(wp.clone());
+                    }
                 }
-            }
-            list
-        } else if cfg!(target_os = "macos") {
-            let mut list = schema.paths.auto_scan_paths_mac.clone();
-            for wp in &schema.paths.auto_scan_paths_windows {
-                if !list.contains(wp) {
-                    list.push(wp.clone());
+                list
+            } else if cfg!(target_os = "macos") {
+                let mut list = schema.paths.auto_scan_paths_mac.clone();
+                for wp in &schema.paths.auto_scan_paths_windows {
+                    if !list.contains(wp) {
+                        list.push(wp.clone());
+                    }
                 }
+                list
+            } else {
+                schema.paths.auto_scan_paths_windows.clone()
             }
-            list
         } else {
-            schema.paths.auto_scan_paths_windows.clone()
-        }
-    } else {
-        vec![]
-    };
+            vec![]
+        };
 
-    if crate::game_logic::is_sims4_schema(&game_schema) && search_paths.is_empty() {
-        search_paths.extend([
-            "~/.local/share/Steam/steamapps/common/The Sims 4".to_string(),
-            "~/.steam/steam/steamapps/common/The Sims 4".to_string(),
-            "C:\\Program Files\\EA Games\\The Sims 4".to_string(),
-            "C:\\Program Files (x86)\\Steam\\steamapps\\common\\The Sims 4".to_string(),
-            "C:\\Program Files (x86)\\Origin Games\\The Sims 4".to_string(),
-        ]);
-    }
-
-    // Resolve Steam libraryfolders.vdf & Proton compatdata prefix across Windows, macOS, Linux & SteamOS
-    let steam_resolution =
-        crate::game_logic::resolve_steam_app_and_proton_prefix(&game_schema, None);
-    if let Some(ref res) = steam_resolution {
-        if let Some(ref install_dir) = res.install_dir {
-            let install_str = install_dir.to_string_lossy().to_string();
-            if !search_paths.contains(&install_str) {
-                search_paths.insert(0, install_str);
+        // Resolve Steam libraryfolders.vdf & Proton compatdata prefix across Windows, macOS, Linux & SteamOS
+        let steam_resolution =
+            crate::game_logic::resolve_steam_app_and_proton_prefix(&game_schema, None);
+        if let Some(ref res) = steam_resolution {
+            if let Some(ref install_dir) = res.install_dir {
+                let install_str = install_dir.to_string_lossy().to_string();
+                if !search_paths.contains(&install_str) {
+                    search_paths.insert(0, install_str);
+                }
             }
         }
-    }
 
-    // Expand Steam library roots from libraryfolders.vdf for any steamapps/common/<Folder> targets
-    let steam_libs = crate::game_logic::discover_steam_libraries();
-    if !steam_libs.is_empty() {
-        let mut extra_steam_paths = Vec::new();
-        for raw_p in &search_paths {
-            let norm = raw_p.replace('\\', "/");
-            if let Some(idx) = norm.to_lowercase().find("steamapps/common/") {
-                let rel_after_common = &norm[idx + "steamapps/common/".len()..];
-                if !rel_after_common.is_empty() {
-                    for lib in &steam_libs {
-                        let candidate = lib
-                            .join("steamapps")
-                            .join("common")
-                            .join(rel_after_common)
-                            .to_string_lossy()
-                            .to_string();
-                        if !search_paths.contains(&candidate)
-                            && !extra_steam_paths.contains(&candidate)
-                        {
-                            extra_steam_paths.push(candidate);
+        // Expand Steam library roots from libraryfolders.vdf for any steamapps/common/<Folder> targets
+        let steam_libs = crate::game_logic::discover_steam_libraries();
+        if !steam_libs.is_empty() {
+            let mut extra_steam_paths = Vec::new();
+            for raw_p in &search_paths {
+                let norm = raw_p.replace('\\', "/");
+                if let Some(idx) = norm.to_lowercase().find("steamapps/common/") {
+                    let rel_after_common = &norm[idx + "steamapps/common/".len()..];
+                    if !rel_after_common.is_empty() {
+                        for lib in &steam_libs {
+                            let candidate = lib
+                                .join("steamapps")
+                                .join("common")
+                                .join(rel_after_common)
+                                .to_string_lossy()
+                                .to_string();
+                            if !search_paths.contains(&candidate)
+                                && !extra_steam_paths.contains(&candidate)
+                            {
+                                extra_steam_paths.push(candidate);
+                            }
                         }
                     }
                 }
             }
+            search_paths.extend(extra_steam_paths);
         }
-        search_paths.extend(extra_steam_paths);
-    }
 
-    if cfg!(target_os = "macos") {
-        if crate::game_logic::is_sims4_schema(&game_schema) {
-            for default_mac_p in [
-                "/Applications/The Sims 4.app",
-                "~/Applications/The Sims 4.app",
-                "/Applications/EA Games/The Sims 4.app",
-                "~/Applications/EA Games/The Sims 4.app",
-                "~/Library/Application Support/Steam/steamapps/common/The Sims 4",
-            ] {
-                if !search_paths.iter().any(|p| p == default_mac_p) {
-                    search_paths.push(default_mac_p.to_string());
-                }
-            }
-        }
-        if let Ok(volumes) = std::fs::read_dir("/Volumes") {
-            for vol in volumes.flatten() {
-                let vol_path = vol.path();
-                if vol_path.is_dir() {
-                    if crate::game_logic::is_sims4_schema(&game_schema) {
-                        for rel in [
-                            "The Sims 4.app",
-                            "Applications/The Sims 4.app",
-                            "EA Games/The Sims 4.app",
-                            "SteamLibrary/steamapps/common/The Sims 4",
-                        ] {
-                            let candidate = vol_path.join(rel).to_string_lossy().to_string();
-                            if !search_paths.contains(&candidate) {
-                                search_paths.push(candidate);
-                            }
-                        }
-                    } else if let Some(schema) = &game_schema {
-                        for exe_name in &schema.executable_names {
-                            if exe_name.ends_with(".app") {
-                                let candidate =
-                                    vol_path.join(exe_name).to_string_lossy().to_string();
-                                if !search_paths.contains(&candidate) {
-                                    search_paths.push(candidate);
+        if cfg!(target_os = "macos") {
+            if let Some(schema) = &game_schema {
+                if let Ok(volumes) = std::fs::read_dir("/Volumes") {
+                    for vol in volumes.flatten() {
+                        let vol_path = vol.path();
+                        if vol_path.is_dir() {
+                            for exe_name in &schema.executable_names {
+                                if exe_name.ends_with(".app") {
+                                    let candidate =
+                                        vol_path.join(exe_name).to_string_lossy().to_string();
+                                    if !search_paths.contains(&candidate) {
+                                        search_paths.push(candidate);
+                                    }
                                 }
                             }
                         }
@@ -411,170 +397,200 @@ pub fn auto_detect_paths(state: tauri::State<'_, AppState>) -> serde_json::Value
                 }
             }
         }
-    }
 
-    for raw_p in search_paths {
-        let expanded_p = crate::game_logic::expand_schema_path_for_os(&raw_p, &game_schema, None);
-        let p_path = std::path::Path::new(&expanded_p);
-        if p_path.exists() {
-            let has_exe = game_schema
-                .as_ref()
-                .map(|s| {
-                    s.executable_names.is_empty()
-                        || crate::game_logic::resolve_executable_path(&expanded_p, &game_schema)
-                            .is_some()
-                })
-                .unwrap_or(true);
-            if has_exe {
-                live_path = expanded_p;
-                break;
+        for raw_p in search_paths {
+            let expanded_p =
+                crate::game_logic::expand_schema_path_for_os(&raw_p, &game_schema, None);
+            let p_path = std::path::Path::new(&expanded_p);
+            if p_path.exists() {
+                let has_exe = game_schema
+                    .as_ref()
+                    .map(|s| {
+                        s.executable_names.is_empty()
+                            || crate::game_logic::resolve_executable_path(&expanded_p, &game_schema)
+                                .is_some()
+                    })
+                    .unwrap_or(true);
+                if has_exe {
+                    live_path = expanded_p;
+                    break;
+                }
             }
         }
-    }
 
-    if let Some(default_mods) = crate::game_logic::get_default_mods_folder(&game_schema) {
-        if default_mods.exists() {
-            mods_path = default_mods.to_string_lossy().to_string();
-        }
-    }
-
-    let default_mod_raw = game_schema
-        .as_ref()
-        .map(|s| crate::game_logic::select_os_default_mod_dir(&s.paths).to_string())
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| {
-            if crate::game_logic::is_sims4_schema(&game_schema) {
-                "Documents/Electronic Arts/The Sims 4/Mods".to_string()
-            } else {
-                String::new()
+        if let Some(default_mods) = crate::game_logic::get_default_mods_folder(&game_schema) {
+            if default_mods.exists() {
+                mods_path = default_mods.to_string_lossy().to_string();
             }
-        });
+        }
 
-    if mods_path.is_empty() && !default_mod_raw.is_empty() {
-        let expanded_mod = crate::game_logic::expand_schema_path_for_os(
-            &default_mod_raw,
-            &game_schema,
-            if live_path.is_empty() {
-                None
-            } else {
-                Some(&live_path)
-            },
-        );
-        let exp_path = std::path::Path::new(&expanded_mod);
-        if exp_path.is_absolute() && exp_path.exists() {
-            mods_path = exp_path.to_string_lossy().to_string();
-        } else if cfg!(target_os = "linux") {
-            if let Some(ref res) = steam_resolution {
-                if let Some(ref pfx_user) = res.compatdata_pfx_user_dir {
-                    let rel_mod = default_mod_raw
-                        .replace('\\', "/")
-                        .trim_start_matches('/')
-                        .to_string();
-                    let candidate = if rel_mod.to_lowercase().starts_with("documents/") {
-                        pfx_user.join(&rel_mod)
-                    } else {
-                        pfx_user.join("Documents").join(&rel_mod)
-                    };
-                    if candidate.exists() || std::fs::create_dir_all(&candidate).is_ok() {
-                        mods_path = candidate.to_string_lossy().to_string();
+        let default_mod_raw = game_schema
+            .as_ref()
+            .map(|s| crate::game_logic::select_os_default_mod_dir(&s.paths).to_string())
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_default();
+
+        if mods_path.is_empty() && !default_mod_raw.is_empty() {
+            let expanded_mod = crate::game_logic::expand_schema_path_for_os(
+                &default_mod_raw,
+                &game_schema,
+                if live_path.is_empty() {
+                    None
+                } else {
+                    Some(&live_path)
+                },
+            );
+            let exp_path = std::path::Path::new(&expanded_mod);
+            if exp_path.is_absolute() && exp_path.exists() {
+                mods_path = exp_path.to_string_lossy().to_string();
+            } else if cfg!(target_os = "linux") {
+                if let Some(ref res) = steam_resolution {
+                    if let Some(ref pfx_user) = res.compatdata_pfx_user_dir {
+                        let rel_mod = default_mod_raw
+                            .replace('\\', "/")
+                            .trim_start_matches('/')
+                            .to_string();
+                        let candidate = if rel_mod.to_lowercase().starts_with("documents/") {
+                            pfx_user.join(&rel_mod)
+                        } else {
+                            pfx_user.join("Documents").join(&rel_mod)
+                        };
+                        if candidate.exists() || std::fs::create_dir_all(&candidate).is_ok() {
+                            mods_path = candidate.to_string_lossy().to_string();
+                        }
+                    }
+                }
+            }
+            if mods_path.is_empty() {
+                if let Ok(profile) =
+                    std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
+                {
+                    let docs = std::path::Path::new(&profile);
+                    let user_mods = docs.join(&expanded_mod);
+                    if user_mods.exists() {
+                        mods_path = user_mods.to_string_lossy().to_string();
+                    }
+                }
+            }
+            if mods_path.is_empty() && !live_path.is_empty() {
+                let engine_root =
+                    crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
+                if default_mod_raw == "." {
+                    mods_path = engine_root.to_string_lossy().to_string();
+                } else {
+                    let engine_mods = engine_root.join(&expanded_mod);
+                    if engine_mods.exists() {
+                        mods_path = engine_mods.to_string_lossy().to_string();
                     }
                 }
             }
         }
-        if mods_path.is_empty() {
-            if let Ok(profile) =
-                std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME"))
-            {
-                let docs = std::path::Path::new(&profile);
-                let user_mods = docs.join(&expanded_mod);
-                if user_mods.exists() {
-                    mods_path = user_mods.to_string_lossy().to_string();
-                }
-            }
-        }
-        if mods_path.is_empty() && !live_path.is_empty() {
-            let engine_root =
-                crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
-            if default_mod_raw == "." {
-                mods_path = engine_root.to_string_lossy().to_string();
-            } else {
-                let engine_mods = engine_root.join(&expanded_mod);
-                if engine_mods.exists() {
-                    mods_path = engine_mods.to_string_lossy().to_string();
-                }
-            }
-        }
-    }
 
-    // Populate a default Vault path if none is configured yet
-    let global_cfg = get_global_config();
-    let schema_folder = game_schema
-        .as_ref()
-        .and_then(|s| {
-            let gid = s.game_id.trim();
-            if !gid.is_empty() && gid != "default_schema" {
-                Some(gid.to_string())
-            } else {
-                s.id.clone().filter(|id| !id.trim().is_empty() && id != "default_schema")
-            }
-        })
-        .or_else(|| global_cfg.active_workspace_id.clone())
-        .unwrap_or_else(|| "sims4".to_string());
-
-    if let Some(ref master_vault) = global_cfg.vault_path {
-        let cleaned = strip_spoke_suffix_from_master_vault(master_vault, &global_cfg.workspaces);
-        if !cleaned.is_empty() {
-            vault_path = cleaned;
-        }
-    }
-    if vault_path.is_empty() {
-        if let Some(existing_ws) = global_cfg.workspaces.iter().find(|w| {
-            w.id.eq_ignore_ascii_case(&schema_folder)
-                || w.schema_id.eq_ignore_ascii_case(&schema_folder)
-        }) {
-            if let Some(ref mv) = existing_ws.master_vault_path {
-                let cleaned = strip_spoke_suffix_from_master_vault(mv, &global_cfg.workspaces);
-                if !cleaned.is_empty() {
-                    vault_path = cleaned;
-                }
-            }
-            if vault_path.is_empty() && !existing_ws.vault_path.trim().is_empty() {
-                vault_path = strip_spoke_suffix_from_master_vault(
-                    &existing_ws.vault_path,
-                    &global_cfg.workspaces,
+        if let Some(schema) = &game_schema {
+            if let Some(raw_user_data) = crate::game_logic::select_os_user_data_dir(&schema.paths) {
+                let expanded_ud = crate::game_logic::expand_schema_path_for_os(
+                    raw_user_data,
+                    &game_schema,
+                    if !live_path.is_empty() {
+                        Some(&live_path)
+                    } else if !mods_path.is_empty() {
+                        Some(&mods_path)
+                    } else {
+                        None
+                    },
                 );
+                let mut ud_path = std::path::PathBuf::from(&expanded_ud);
+                if ud_path.is_relative() {
+                    if let Some(home) = std::env::var("USERPROFILE")
+                        .or_else(|_| std::env::var("HOME"))
+                        .ok()
+                        .map(std::path::PathBuf::from)
+                        .or_else(dirs::home_dir)
+                    {
+                        ud_path = home.join(ud_path);
+                    }
+                }
+                if ud_path.exists() {
+                    docs_path = ud_path.to_string_lossy().to_string();
+                }
             }
         }
-    }
-    if vault_path.is_empty() {
-        if let Some(home) = std::env::var("HOME")
-            .ok()
-            .map(std::path::PathBuf::from)
-            .or_else(dirs::home_dir)
-        {
-            let default_master = home.join("SanctuaryVault");
-            let default_spoke = default_master.join(&schema_folder);
-            let _ = std::fs::create_dir_all(&default_spoke);
-            vault_path = default_master.to_string_lossy().to_string();
+
+        // Populate a default Vault path if none is configured yet
+        let global_cfg = get_global_config();
+        let schema_folder = game_schema
+            .as_ref()
+            .and_then(|s| {
+                let gid = s.game_id.trim();
+                if !gid.is_empty() && gid != "default_schema" {
+                    Some(gid.to_string())
+                } else {
+                    s.id.clone()
+                        .filter(|id| !id.trim().is_empty() && id != "default_schema")
+                }
+            })
+            .or_else(|| global_cfg.active_workspace_id.clone())
+            .unwrap_or_else(|| "default_workspace".to_string());
+
+        if let Some(ref master_vault) = global_cfg.vault_path {
+            let cleaned =
+                strip_spoke_suffix_from_master_vault(master_vault, &global_cfg.workspaces);
+            if !cleaned.is_empty() {
+                vault_path = cleaned;
+            }
         }
-    }
+        if vault_path.is_empty() {
+            if let Some(existing_ws) = global_cfg.workspaces.iter().find(|w| {
+                w.id.eq_ignore_ascii_case(&schema_folder)
+                    || w.schema_id.eq_ignore_ascii_case(&schema_folder)
+            }) {
+                if let Some(ref mv) = existing_ws.master_vault_path {
+                    let cleaned = strip_spoke_suffix_from_master_vault(mv, &global_cfg.workspaces);
+                    if !cleaned.is_empty() {
+                        vault_path = cleaned;
+                    }
+                }
+                if vault_path.is_empty() && !existing_ws.vault_path.trim().is_empty() {
+                    vault_path = strip_spoke_suffix_from_master_vault(
+                        &existing_ws.vault_path,
+                        &global_cfg.workspaces,
+                    );
+                }
+            }
+        }
+        if vault_path.is_empty() {
+            if let Some(home) = std::env::var("HOME")
+                .ok()
+                .map(std::path::PathBuf::from)
+                .or_else(dirs::home_dir)
+            {
+                let default_master = home.join("SanctuaryVault");
+                let default_spoke = default_master.join(&schema_folder);
+                let _ = std::fs::create_dir_all(&default_spoke);
+                vault_path = default_master.to_string_lossy().to_string();
+            }
+        }
 
-    let steam_app_id = steam_resolution
-        .as_ref()
-        .map(|r| r.app_id.clone())
-        .or_else(|| crate::game_logic::default_steam_app_id(&game_schema))
-        .unwrap_or_default();
-    let proton_prefix = steam_resolution
-        .and_then(|r| r.compatdata_pfx_user_dir)
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_default();
+        let steam_app_id = steam_resolution
+            .as_ref()
+            .map(|r| r.app_id.clone())
+            .or_else(|| crate::game_logic::default_steam_app_id(&game_schema))
+            .unwrap_or_default();
+        let proton_prefix = steam_resolution
+            .and_then(|r| r.compatdata_pfx_user_dir)
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
 
-    serde_json::json!({
-        "live_path": live_path,
-        "mods_path": mods_path,
-        "vault_path": vault_path,
-        "master_vault_path": vault_path,
-        "steam_app_id": steam_app_id,
-        "proton_prefix": proton_prefix
+        Ok(serde_json::json!({
+            "live_path": live_path,
+            "mods_path": mods_path,
+            "docs_path": docs_path,
+            "vault_path": vault_path,
+            "master_vault_path": vault_path,
+            "steam_app_id": steam_app_id,
+            "proton_prefix": proton_prefix
+        }))
     })
+    .await
+    .map_err(|e| e.to_string())?
 }

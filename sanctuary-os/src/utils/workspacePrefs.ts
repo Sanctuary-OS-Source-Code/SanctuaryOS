@@ -221,7 +221,7 @@ export function isWorkspaceSetupConfigured(
     return false;
   }
 
-  // Web / PWA: workspace is active/setup if it has a live Supabase endpoint or is the primary Sims 4 workspace
+  // Web / PWA: workspace is active/setup if it has a live Supabase endpoint
   const url = String(
     game?.supabase_url || matchedWs?.supabase_url || ''
   ).trim();
@@ -229,9 +229,6 @@ export function isWorkspaceSetupConfigured(
     game?.supabase_anon_key || matchedWs?.supabase_anon_key || ''
   ).trim();
   if (/^https?:\/\//i.test(url) && anonKey.length > 0) {
-    return true;
-  }
-  if (candidates.includes('sims4')) {
     return true;
   }
   return false;

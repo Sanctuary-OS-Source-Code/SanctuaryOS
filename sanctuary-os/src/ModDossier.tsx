@@ -4,6 +4,7 @@ import { isDesktop } from "./utils/envUtils";
 import { resolvePayloadDependencies } from "./utils/stagingCrypto";
 import { useLexicon } from "./LexiconContext";
 import { supabase, submitThreatManifestToSpoke } from "./supabase";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import {
@@ -37,6 +38,8 @@ import {
   VAULT_CHIP_CLASS,
   stripPriorityTierPrefix,
   ActionPill,
+  isScriptExtension,
+  isModBinaryExtension,
 } from "./shared";
 import {
   normalizeModGroupTitle,
@@ -61,7 +64,7 @@ function extractCleanUuid(...vals: any[]): string {
     if (!v) continue;
     const cleaned = String(v)
       .trim()
-      .replace(/^(FOLDER_|SET_|LOCAL_SET_|CCSET_|FLAVOR_|virtual_)/i, "")
+      .replace(/^(FOLDER_|SET_|LOCAL_SET_|COLLECTION_|FLAVOR_|virtual_)/i, "")
       .split("@")[0]
       .trim();
     if (UUID_REGEX.test(cleaned)) return cleaned;
@@ -975,16 +978,17 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
 
   const validCreator = pickFirstValidAuthor(t, item, ...groupedMods);
 
+  const activeSchemaRef = useStore.getState().activeGameSchema;
   const hasScriptFile = groupedMods.some((gm: any) =>
-    /\.ts4script$/i.test(
-      String(gm?.name || gm?.file_extension || gm?._originalSetName || "")
+    isScriptExtension(
+      String(gm?.name || gm?.file_extension || gm?._originalSetName || ""),
+      activeSchemaRef
     )
   );
-  const hasPackageFile = groupedMods.some((gm: any) =>
-    /\.package$/i.test(
-      String(gm?.name || gm?.file_extension || gm?._originalSetName || "")
-    )
-  );
+  const hasPackageFile = groupedMods.some((gm: any) => {
+    const rawTarget = String(gm?.name || gm?.file_extension || gm?._originalSetName || "");
+    return !isScriptExtension(rawTarget, activeSchemaRef) && isModBinaryExtension(rawTarget, activeSchemaRef);
+  });
 
   const typeLabel = hasScriptFile
     ? t("type_script", "Script")
@@ -1326,7 +1330,7 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
                 rawChildFile.replace(/_/g, " ").replace(/\.[^/.]+$/, "")
               ) || rawChildFile;
             const childEquipped = Boolean(gm?.name && checkEquipped(gm.name));
-            const isChildScript = /\.ts4script$/i.test(rawChildFile);
+            const isChildScript = isScriptExtension(rawChildFile, activeGameSchema);
 
             return (
               <div
@@ -1813,7 +1817,13 @@ export default function ModDossier({
     stagingDraftItems,
     setStagingDraftItems,
     toggleModInStagingDraft,
-  } = useModalStore();
+  } = useModalStore(
+    useShallow((s) => ({
+      stagingDraftItems: s.stagingDraftItems,
+      setStagingDraftItems: s.setStagingDraftItems,
+      toggleModInStagingDraft: s.toggleModInStagingDraft,
+    }))
+  );
 
   useEffect(() => {
     if (!mod) {
@@ -2153,8 +2163,9 @@ export default function ModDossier({
       return explicitCat;
     }
     const hasScript = gMods.some((gm: any) =>
-      /\.ts4script$/i.test(
-        String(gm?.name || gm?.file_extension || gm?._originalSetName || "")
+      isScriptExtension(
+        String(gm?.name || gm?.file_extension || gm?._originalSetName || ""),
+        useStore.getState().activeGameSchema
       )
     );
     if (hasScript) return "Script";
@@ -3576,7 +3587,7 @@ export default function ModDossier({
         mod.manifest_url ||
         (mod.hash && localOvr[mod.hash]?.manifest_url) ||
         (mod.hash && edgeLogic[mod.hash]?.manifest_url) ||
-        "https://your-domain.com/manifest.json";
+        "https://your-domain.com/.sanctuary.manifest.json";
 
       const cleanModName = (
         mod.displayName ||
@@ -3615,7 +3626,10 @@ export default function ModDossier({
             useStore.getState().selectedVersion ||
             "Any",
           release_date: new Date().toISOString(),
-          game_id: useStore.getState().activeWorkspaceId || "sims4",
+          game_id:
+            useStore.getState().activeWorkspaceId ||
+            useStore.getState().activeGameSchema?.id ||
+            "universal",
         },
         payload: {
           download_url: (
@@ -3676,7 +3690,7 @@ export default function ModDossier({
       useStore
         .getState()
         .pushStatus(
-          t("msg_export_release_success", "Exported manifest.json, override.json, and release .zip to {mod} folder!")
+          t("msg_export_release_success", "Exported .sanctuary.manifest.json, .sanctuary.override.json, and release .zip to {mod} folder!")
         );
     } catch (err: any) {
       console.error("Failed to export edge release from Dossier:", err);
@@ -3797,7 +3811,7 @@ export default function ModDossier({
           getFileLabel(mod.name || "", activeGameSchema) === "PACKAGE"
             ? "Package"
             : getFileLabel(mod.name || "", activeGameSchema) === "SCRIPT"
-              ? "ts4Script"
+              ? "Script"
               : null,
         suggested_game_versions:
           localCompatibleVersions.length > 0 ? localCompatibleVersions : null,
@@ -4625,7 +4639,7 @@ export default function ModDossier({
                     <label className="text-[10px] font-black text-[var(--accent)] uppercase tracking-wider px-1">
                       {t(
                         "edge_manifest_url_label",
-                        "Static Edge Manifest URL (manifest.json)"
+                        "Static Edge Manifest URL (.sanctuary.manifest.json)"
                       )}
                     </label>
                     <input
@@ -4637,7 +4651,7 @@ export default function ModDossier({
                       className="w-full h-11 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[var(--accent)] rounded-xl px-4 text-xs font-mono text-[var(--text)] focus:outline-none transition-all"
                       placeholder={t(
                         "placeholder_static_manifest_url",
-                        "https://your-domain.com/manifest.json"
+                        "https://your-domain.com/.sanctuary.manifest.json"
                       )}
                     />
                   </div>
@@ -4986,7 +5000,10 @@ export default function ModDossier({
             kidToRender.status_reason || `${cleanKidTitle} • ${kidAuthor}`;
 
           const hasScriptKid = kidModules.some((km: any) =>
-            /\.ts4script$/i.test(String(km?.name || km?.file_extension || ""))
+            isScriptExtension(
+              String(km?.name || km?.file_extension || ""),
+              activeGameSchema
+            )
           );
           const kidCategoryLabel =
             kidToRender.category_override ||

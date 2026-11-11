@@ -3,43 +3,231 @@ use crate::state::*;
 use crate::utils::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tauri::Manager;
 
+pub fn purge_stale_caches_in_docs(
+    root: &Path,
+    game_schema: &Option<crate::schema::GameSchema>,
+) {
+    if !root.exists() || !root.is_dir() || !crate::utils::is_safe_user_file_path(root) {
+        return;
+    }
+
+    let allowed = [root.to_path_buf()];
+    let mut dirs_to_remove: Vec<PathBuf> = Vec::new();
+
+    let walker = walkdir::WalkDir::new(root)
+        .max_depth(4)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|e| {
+            if e.depth() == 0 {
+                return true;
+            }
+            let lower = e.file_name().to_string_lossy().to_lowercase();
+            if e.file_type().is_dir() && (lower.starts_with(".sanctuary") || lower == ".git") {
+                return false;
+            }
+            true
+        });
+
+    for entry in walker.flatten() {
+        if entry.depth() == 0 {
+            continue;
+        }
+        let full_path = entry.path().to_path_buf();
+        let rel_str = full_path
+            .strip_prefix(root)
+            .unwrap_or(&full_path)
+            .to_string_lossy()
+            .replace('\\', "/");
+
+        if entry.file_type().is_file() {
+            if crate::game_logic::is_exception_log(game_schema, &rel_str)
+                || crate::game_logic::is_cache_file(game_schema, &rel_str)
+            {
+                if crate::utils::ensure_strict_descendant_of_roots(&full_path, &allowed).is_ok() {
+                    let _ = std::fs::remove_file(&full_path);
+                }
+            }
+        } else if entry.file_type().is_dir()
+            && crate::game_logic::is_cache_file(game_schema, &rel_str)
+            && crate::utils::ensure_strict_descendant_of_roots(&full_path, &allowed).is_ok()
+        {
+            dirs_to_remove.push(full_path);
+        }
+    }
+
+    for cache_dir in dirs_to_remove {
+        let _ = std::fs::remove_dir_all(cache_dir);
+    }
+}
+
+fn resolve_custom_script_extender_exe(
+    live_root: &Path,
+    default_exe: &Path,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Option<(PathBuf, Vec<String>)> {
+    let tools = game_schema.as_ref()?.external_tools.as_ref()?;
+    for tool_val in tools {
+        let Some(obj) = tool_val.as_object() else {
+            continue;
+        };
+        let role = obj
+            .get("role")
+            .or_else(|| obj.get("type"))
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_lowercase();
+        let auto_launch = obj
+            .get("auto_launch")
+            .or_else(|| obj.get("use_as_launcher"))
+            .or_else(|| obj.get("is_script_extender"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        if role != "script_extender" && !auto_launch {
+            continue;
+        }
+
+        let rel_or_exe = obj
+            .get("executable")
+            .or_else(|| obj.get("exe"))
+            .or_else(|| obj.get("path"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())?;
+
+        let extra_args: Vec<String> = obj
+            .get("args")
+            .or_else(|| obj.get("launch_args"))
+            .and_then(|v| {
+                if let Some(arr) = v.as_array() {
+                    Some(
+                        arr.iter()
+                            .filter_map(|x| x.as_str().map(|s| s.trim().to_string()))
+                            .filter(|s| !s.is_empty())
+                            .collect(),
+                    )
+                } else {
+                    v.as_str().map(|s| {
+                        s.split_whitespace()
+                            .map(|tok| tok.to_string())
+                            .collect::<Vec<_>>()
+                    })
+                }
+            })
+            .unwrap_or_default();
+
+        let mut candidates = vec![live_root.join(rel_or_exe)];
+        if let Some(exe_parent) = default_exe.parent() {
+            candidates.push(exe_parent.join(rel_or_exe));
+        }
+        let direct = PathBuf::from(rel_or_exe);
+        if direct.is_absolute() {
+            candidates.push(direct);
+        }
+
+        for cand in candidates {
+            if cand.is_file() {
+                return Some((cand, extra_args));
+            }
+        }
+    }
+    None
+}
+
+fn build_dlc_mask_launch_args(
+    disabled_dlc: Option<Vec<String>>,
+    vault_path: &str,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Vec<String> {
+    let Some(template) = game_schema
+        .as_ref()
+        .and_then(|s| s.launch_args_dlc_mask_template.as_deref())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    else {
+        return Vec::new();
+    };
+
+    let codes: Vec<String> = disabled_dlc
+        .or_else(|| {
+            if vault_path.trim().is_empty() {
+                return None;
+            }
+            let (raw, _) = crate::utils::get_vault_kv(vault_path, "disabled_dlc")?;
+            serde_json::from_str::<Vec<String>>(&raw).ok()
+        })
+        .unwrap_or_default()
+        .into_iter()
+        .map(|c| c.trim().to_string())
+        .filter(|c| !c.is_empty() && c.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'))
+        .collect();
+
+    if codes.is_empty() {
+        return Vec::new();
+    }
+
+    let joined = codes.join(",");
+    let formatted = template
+        .replace("{dlc_list}", &joined)
+        .replace("{packs}", &joined)
+        .replace("{dlc}", &joined);
+
+    formatted
+        .split_whitespace()
+        .map(|s| s.to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
 #[tauri::command]
 pub fn launch_game(
     live_path: String,
     mods_path: String,
+    disabled_dlc: Option<Vec<String>>,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     let game_schema = &state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
-    let doc_dir = crate::game_logic::resolve_user_data_root(&mods_path, game_schema);
-
-    let check_and_delete = |dir: &std::path::Path| {
-        if dir.exists() && dir.is_dir() {
-            if let Ok(entries) = std::fs::read_dir(dir) {
-                for entry in entries.flatten() {
-                    let name = entry.file_name().to_string_lossy().to_lowercase();
-                    if crate::game_logic::is_exception_log(game_schema, &name)
-                        || crate::game_logic::is_cache_file(game_schema, &name)
-                    {
-                        let _ = std::fs::remove_file(entry.path());
-                    }
-                }
-            }
-        }
+    let saved_coords = get_saved_coordinates();
+    let doc_dir = if let Some(explicit_docs) = saved_coords
+        .docs_path
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        PathBuf::from(explicit_docs)
+    } else {
+        crate::game_logic::resolve_user_data_root(&mods_path, game_schema)
     };
 
-    check_and_delete(&doc_dir);
-    check_and_delete(std::path::Path::new(&mods_path));
+    purge_stale_caches_in_docs(&doc_dir, game_schema);
+    purge_stale_caches_in_docs(std::path::Path::new(&mods_path), game_schema);
 
-    let exe_path = match crate::game_logic::resolve_executable_path(&live_path, game_schema) {
+    let default_exe_path = match crate::game_logic::resolve_executable_path(&live_path, game_schema) {
         Some(p) => p,
         None => return Err("backend_exe_not_found".to_string()),
     };
+    let live_root = crate::game_logic::resolve_game_engine_root(&live_path, game_schema);
+
+    let (exe_path, mut launch_args) =
+        if let Some((extender_exe, extender_args)) =
+            resolve_custom_script_extender_exe(&live_root, &default_exe_path, game_schema)
+        {
+            (extender_exe, extender_args)
+        } else {
+            (default_exe_path, Vec::new())
+        };
+
+    launch_args.extend(build_dlc_mask_launch_args(
+        disabled_dlc,
+        &saved_coords.vault_path,
+        game_schema,
+    ));
 
     if cfg!(target_os = "macos")
         && exe_path
@@ -47,11 +235,12 @@ pub fn launch_game(
             .and_then(|e| e.to_str())
             .map_or(false, |e| e.eq_ignore_ascii_case("app"))
     {
-        return match std::process::Command::new("open")
-            .arg("-a")
-            .arg(&exe_path)
-            .spawn()
-        {
+        let mut open_cmd = std::process::Command::new("open");
+        open_cmd.arg("-a").arg(&exe_path);
+        if !launch_args.is_empty() {
+            open_cmd.arg("--args").args(&launch_args);
+        }
+        return match open_cmd.spawn() {
             Ok(_) => Ok("backend_ignition_started".to_string()),
             Err(e) => Err(e.to_string()),
         };
@@ -77,24 +266,26 @@ pub fn launch_game(
             .or_else(|| crate::game_logic::default_steam_app_id(game_schema));
 
         if let Some(app_id) = steam_app_id {
-            if std::process::Command::new("steam")
-                .args(["-applaunch", &app_id])
-                .spawn()
-                .is_ok()
-            {
+            let mut steam_cmd = std::process::Command::new("steam");
+            steam_cmd.args(["-applaunch", &app_id]);
+            if !launch_args.is_empty() {
+                steam_cmd.args(&launch_args);
+            }
+            if steam_cmd.spawn().is_ok() {
                 return Ok("backend_ignition_started".to_string());
             }
-            if std::process::Command::new("xdg-open")
-                .arg(format!("steam://rungameid/{}", app_id))
-                .spawn()
-                .is_ok()
+            if launch_args.is_empty()
+                && std::process::Command::new("xdg-open")
+                    .arg(format!("steam://rungameid/{}", app_id))
+                    .spawn()
+                    .is_ok()
             {
                 return Ok("backend_ignition_started".to_string());
             }
         }
 
         let mut wine_cmd = std::process::Command::new("wine");
-        wine_cmd.arg(&exe_path).current_dir(&parent_dir);
+        wine_cmd.arg(&exe_path).args(&launch_args).current_dir(&parent_dir);
         if let Some(pfx_user) = resolved_steam
             .and_then(|r| r.compatdata_pfx_user_dir)
             .or_else(|| crate::game_logic::extract_proton_user_dir_from_path(&mods_path))
@@ -111,6 +302,7 @@ pub fn launch_game(
     }
 
     match std::process::Command::new(&exe_path)
+        .args(&launch_args)
         .current_dir(parent_dir)
         .spawn()
     {
@@ -155,7 +347,87 @@ fn resolve_save_extensions(game_schema: &Option<crate::schema::GameSchema>) -> V
         .as_ref()
         .and_then(|s| s.lab_verification.as_ref())
         .and_then(|lv| lv.save_extensions.clone())
-        .unwrap_or_else(|| vec![".save".to_string()])
+        .unwrap_or_default()
+}
+
+fn is_directory_save_mode(save_exts: &[String]) -> bool {
+    save_exts.is_empty()
+        || save_exts.iter().any(|e| {
+            matches!(
+                e.trim().to_lowercase().as_str(),
+                "/" | "dir" | "directory" | "folder"
+            )
+        })
+}
+
+fn compute_dir_save_slot_stats(slot_dir: &Path) -> Option<(u64, u64)> {
+    let mut total_bytes: u64 = 0;
+    let mut max_mtime: u64 = 0;
+    let mut has_file = false;
+    for entry in walkdir::WalkDir::new(slot_dir)
+        .max_depth(4)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let fname = entry.file_name().to_string_lossy();
+        if fname.starts_with(".sanctuary") {
+            continue;
+        }
+        if let Ok(meta) = entry.metadata() {
+            if meta.len() > 0 {
+                has_file = true;
+                total_bytes = total_bytes.saturating_add(meta.len());
+                let mtime_secs = meta
+                    .modified()
+                    .ok()
+                    .and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                if mtime_secs > max_mtime {
+                    max_mtime = mtime_secs;
+                }
+            }
+        }
+    }
+    if has_file {
+        Some((max_mtime, (total_bytes / 1024).max(1)))
+    } else {
+        None
+    }
+}
+
+fn copy_save_directory_recursive(src: &Path, dst: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(dst).map_err(|e| e.to_string())?;
+    for entry in walkdir::WalkDir::new(src)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let p = entry.path();
+        let Ok(rel) = p.strip_prefix(src) else {
+            continue;
+        };
+        if rel.as_os_str().is_empty() {
+            continue;
+        }
+        let out = dst.join(rel);
+        if entry.file_type().is_dir() {
+            std::fs::create_dir_all(&out).map_err(|e| e.to_string())?;
+        } else if entry.file_type().is_file() {
+            if let Some(parent) = out.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+            std::fs::copy(p, &out).map_err(|e| e.to_string())?;
+            if let Ok(meta) = std::fs::metadata(&out) {
+                let mut perms = meta.permissions();
+                perms.set_readonly(false);
+                let _ = std::fs::set_permissions(&out, perms);
+            }
+        }
+    }
+    Ok(())
 }
 
 fn list_saves_in_dir(dir: &Path, save_exts: &[String]) -> Vec<LabSaveFileInfo> {
@@ -163,40 +435,73 @@ fn list_saves_in_dir(dir: &Path, save_exts: &[String]) -> Vec<LabSaveFileInfo> {
     if !dir.exists() {
         return list;
     }
-    for entry in walkdir::WalkDir::new(dir)
-        .max_depth(2)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        if !entry.file_type().is_file() {
-            continue;
-        }
-        let fname = entry.file_name().to_string_lossy().to_string();
-        let name_lower = fname.to_lowercase();
-        let matches_ext = save_exts
-            .iter()
-            .any(|ext| name_lower.ends_with(&ext.to_lowercase()));
-        if !matches_ext {
-            continue;
-        }
-        if let Ok(meta) = entry.metadata() {
-            let size_bytes = meta.len();
-            if size_bytes == 0 {
+
+    let file_exts: Vec<String> = save_exts
+        .iter()
+        .map(|e| e.trim().to_lowercase())
+        .filter(|e| !e.is_empty() && !matches!(e.as_str(), "/" | "dir" | "directory" | "folder"))
+        .collect();
+    let allow_dir_slots = is_directory_save_mode(save_exts);
+
+    if !file_exts.is_empty() {
+        for entry in walkdir::WalkDir::new(dir)
+            .max_depth(2)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !entry.file_type().is_file() {
                 continue;
             }
-            let modified_epoch = meta
-                .modified()
-                .ok()
-                .and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
-            list.push(LabSaveFileInfo {
-                file_name: fname,
-                modified_epoch,
-                size_kb: (size_bytes / 1024).max(1),
-            });
+            let fname = entry.file_name().to_string_lossy().to_string();
+            let name_lower = fname.to_lowercase();
+            let matches_ext = file_exts.iter().any(|ext| name_lower.ends_with(ext));
+            if !matches_ext {
+                continue;
+            }
+            if let Ok(meta) = entry.metadata() {
+                let size_bytes = meta.len();
+                if size_bytes == 0 {
+                    continue;
+                }
+                let modified_epoch = meta
+                    .modified()
+                    .ok()
+                    .and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                list.push(LabSaveFileInfo {
+                    file_name: fname,
+                    modified_epoch,
+                    size_kb: (size_bytes / 1024).max(1),
+                });
+            }
         }
     }
+
+    if allow_dir_slots {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if !path.is_dir() {
+                    continue;
+                }
+                let dname = entry.file_name().to_string_lossy().to_string();
+                if dname.starts_with('.') {
+                    continue;
+                }
+                if let Some((modified_epoch, size_kb)) = compute_dir_save_slot_stats(&path) {
+                    if !list.iter().any(|s| s.file_name.eq_ignore_ascii_case(&dname)) {
+                        list.push(LabSaveFileInfo {
+                            file_name: dname,
+                            modified_epoch,
+                            size_kb,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
     list.sort_by(|a, b| b.modified_epoch.cmp(&a.modified_epoch));
     list
 }
@@ -206,10 +511,15 @@ fn compute_lab_test_save_status(
     game_schema: &Option<crate::schema::GameSchema>,
 ) -> LabTestSaveStatus {
     let targets = resolve_save_airgap_targets(game_schema);
-    let primary_save_rel = targets
-        .first()
-        .cloned()
-        .unwrap_or_else(|| "saves".to_string());
+    let Some(primary_save_rel) = targets.first().cloned() else {
+        return LabTestSaveStatus {
+            has_test_save: false,
+            active_test_save: None,
+            sandbox_saves: Vec::new(),
+            available_live_saves: Vec::new(),
+            airgap_active: false,
+        };
+    };
     let save_exts = resolve_save_extensions(game_schema);
 
     let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
@@ -261,24 +571,31 @@ fn resolve_save_airgap_targets(game_schema: &Option<crate::schema::GameSchema>) 
     if let Some(s) = game_schema {
         if let Some(tc) = &s.time_capsule {
             if let Some(targets) = &tc.save_airgap_targets {
-                if !targets.is_empty() {
-                    return targets.clone();
+                let non_empty: Vec<String> = targets
+                    .iter()
+                    .map(|t| t.trim().to_string())
+                    .filter(|t| !t.is_empty())
+                    .collect();
+                if !non_empty.is_empty() {
+                    return non_empty;
                 }
             }
             let save_targets: Vec<String> = tc
                 .world_state_targets
                 .iter()
                 .filter(|t| {
-                    t.path.to_lowercase().contains("save") || t.name.to_lowercase().contains("save")
+                    !t.path.trim().is_empty()
+                        && (t.path.to_lowercase().contains("save")
+                            || t.name.to_lowercase().contains("save"))
                 })
-                .map(|t| t.path.clone())
+                .map(|t| t.path.trim().to_string())
                 .collect();
             if !save_targets.is_empty() {
                 return save_targets;
             }
         }
     }
-    vec!["saves".to_string()]
+    Vec::new()
 }
 
 fn resolve_docs_root(
@@ -286,12 +603,10 @@ fn resolve_docs_root(
     game_schema: &Option<crate::schema::GameSchema>,
 ) -> PathBuf {
     let config = get_saved_coordinates();
-    let candidate = if docs_or_mods_path.trim().is_empty() {
-        config.mods_path
-    } else {
-        docs_or_mods_path.to_string()
-    };
-    crate::game_logic::resolve_user_data_root(&candidate, game_schema)
+    if docs_or_mods_path.trim().is_empty() {
+        return PathBuf::from(crate::utils::resolve_effective_docs_path(&config, game_schema));
+    }
+    crate::game_logic::resolve_user_data_root(docs_or_mods_path, game_schema)
 }
 
 fn set_tree_readonly(dir: &Path, readonly: bool) {
@@ -469,8 +784,14 @@ pub async fn configure_lab_test_save(
         let primary_save_rel = targets
             .first()
             .cloned()
-            .unwrap_or_else(|| "saves".to_string());
+            .ok_or_else(|| "No save airgap target configured in active GameSchema.".to_string())?;
         let save_exts = resolve_save_extensions(&game_schema);
+        let allow_dir_slots = is_directory_save_mode(&save_exts);
+        let file_exts: Vec<String> = save_exts
+            .iter()
+            .map(|e| e.trim().to_lowercase())
+            .filter(|e| !e.is_empty() && !matches!(e.as_str(), "/" | "dir" | "directory" | "folder"))
+            .collect();
 
         let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
         let sandbox_root = docs_dir.join(".sanctuary_lab_sandbox");
@@ -492,9 +813,10 @@ pub async fn configure_lab_test_save(
         let _ = std::fs::create_dir_all(&sandbox_saves_dir);
         set_tree_readonly(&sandbox_saves_dir, false);
         let seeded_marker = sandbox_saves_dir.join(".sanctuary_seeded_save");
+        let sandbox_allowed = [sandbox_saves_dir.clone()];
 
-        match mode.as_str() {
-            "reset_for_fresh_save" => {
+        let clear_sandbox_saves = || {
+            if !file_exts.is_empty() {
                 for entry in walkdir::WalkDir::new(&sandbox_saves_dir)
                     .max_depth(2)
                     .into_iter()
@@ -502,14 +824,41 @@ pub async fn configure_lab_test_save(
                 {
                     if entry.file_type().is_file() {
                         let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
-                        let matches_save_ext = save_exts
-                            .iter()
-                            .any(|ext| fname_lower.ends_with(&ext.to_lowercase()));
-                        if matches_save_ext || fname_lower == ".sanctuary_seeded_save" {
+                        let matches_save_ext =
+                            file_exts.iter().any(|ext| fname_lower.ends_with(ext));
+                        if (matches_save_ext || fname_lower == ".sanctuary_seeded_save")
+                            && crate::utils::ensure_strict_descendant_of_roots(
+                                entry.path(),
+                                &sandbox_allowed,
+                            )
+                            .is_ok()
+                        {
                             let _ = std::fs::remove_file(entry.path());
                         }
                     }
                 }
+            }
+            if allow_dir_slots {
+                if let Ok(entries) = std::fs::read_dir(&sandbox_saves_dir) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        if p.is_dir()
+                            && !name.starts_with('.')
+                            && crate::utils::ensure_strict_descendant_of_roots(&p, &sandbox_allowed)
+                                .is_ok()
+                        {
+                            set_tree_readonly(&p, false);
+                            let _ = std::fs::remove_dir_all(&p);
+                        }
+                    }
+                }
+            }
+        };
+
+        match mode.as_str() {
+            "reset_for_fresh_save" => {
+                clear_sandbox_saves();
                 let _ = std::fs::remove_file(&seeded_marker);
             }
             "select_sandbox_save" => {
@@ -525,47 +874,49 @@ pub async fn configure_lab_test_save(
                             .first()
                             .map(|s| s.file_name.clone())
                     })
-                    .ok_or_else(|| "No save file selected or available in live saves.".to_string())?;
+                    .ok_or_else(|| "No save slot selected or available in live saves.".to_string())?;
 
                 let mut found_src: Option<PathBuf> = None;
                 if live_saves_dir.exists() {
-                    for entry in walkdir::WalkDir::new(&live_saves_dir)
-                        .max_depth(2)
-                        .into_iter()
-                        .filter_map(|e| e.ok())
-                    {
-                        if entry.file_type().is_file()
-                            && entry
-                                .file_name()
-                                .to_string_lossy()
-                                .eq_ignore_ascii_case(&target_name)
+                    if allow_dir_slots {
+                        if let Ok(entries) = std::fs::read_dir(&live_saves_dir) {
+                            for entry in entries.flatten() {
+                                if entry.path().is_dir()
+                                    && entry
+                                        .file_name()
+                                        .to_string_lossy()
+                                        .eq_ignore_ascii_case(&target_name)
+                                {
+                                    found_src = Some(entry.path());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if found_src.is_none() {
+                        for entry in walkdir::WalkDir::new(&live_saves_dir)
+                            .max_depth(2)
+                            .into_iter()
+                            .filter_map(|e| e.ok())
                         {
-                            found_src = Some(entry.path().to_path_buf());
-                            break;
+                            if entry.file_type().is_file()
+                                && entry
+                                    .file_name()
+                                    .to_string_lossy()
+                                    .eq_ignore_ascii_case(&target_name)
+                            {
+                                found_src = Some(entry.path().to_path_buf());
+                                break;
+                            }
                         }
                     }
                 }
 
                 let src_path = found_src.ok_or_else(|| {
-                    format!("Could not locate save file '{}' in live saves.", target_name)
+                    format!("Could not locate save '{}' in live saves.", target_name)
                 })?;
 
-                // Remove old save files in sandbox so only the selected dedicated test save is active
-                for entry in walkdir::WalkDir::new(&sandbox_saves_dir)
-                    .max_depth(2)
-                    .into_iter()
-                    .filter_map(|e| e.ok())
-                {
-                    if entry.file_type().is_file() {
-                        let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
-                        let matches_save_ext = save_exts
-                            .iter()
-                            .any(|ext| fname_lower.ends_with(&ext.to_lowercase()));
-                        if matches_save_ext {
-                            let _ = std::fs::remove_file(entry.path());
-                        }
-                    }
-                }
+                clear_sandbox_saves();
 
                 let clean_fname = src_path
                     .file_name()
@@ -573,11 +924,17 @@ pub async fn configure_lab_test_save(
                     .unwrap_or(&target_name)
                     .to_string();
                 let dst_path = sandbox_saves_dir.join(&clean_fname);
-                std::fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
-                if let Ok(meta) = std::fs::metadata(&dst_path) {
-                    let mut perms = meta.permissions();
-                    perms.set_readonly(false);
-                    let _ = std::fs::set_permissions(&dst_path, perms);
+                crate::utils::ensure_strict_descendant_of_roots(&dst_path, &sandbox_allowed)?;
+
+                if src_path.is_dir() {
+                    copy_save_directory_recursive(&src_path, &dst_path)?;
+                } else {
+                    std::fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
+                    if let Ok(meta) = std::fs::metadata(&dst_path) {
+                        let mut perms = meta.permissions();
+                        perms.set_readonly(false);
+                        let _ = std::fs::set_permissions(&dst_path, perms);
+                    }
                 }
                 let _ = std::fs::write(&seeded_marker, clean_fname.as_bytes());
             }
@@ -810,14 +1167,14 @@ pub fn cleanup_routed_links(vault_path: &str) {
     }
 }
 
-pub fn route_file_if_matched(
+pub fn resolve_route_for_file(
     source: &Path,
     rel_hint: &str,
     routes: &[crate::schema::SchemaInstallRoute],
     live_root: &Path,
     docs_root: &Path,
     mods_dir: &Path,
-) -> Option<RoutedFileRecord> {
+) -> Option<(PathBuf, PathBuf, bool)> {
     if source.is_dir() || routes.is_empty() {
         return None;
     }
@@ -826,7 +1183,9 @@ pub fn route_file_if_matched(
         .and_then(|e| e.to_str())
         .map(|s| format!(".{}", s.to_lowercase()))
         .unwrap_or_default();
-    let rel_lower = rel_hint.replace("\\", "/").to_lowercase();
+    let rel_norm = rel_hint.replace('\\', "/");
+    let rel_trimmed = rel_norm.trim_matches('/');
+    let rel_lower = rel_trimmed.to_lowercase();
 
     for route in routes {
         let ext_matched = !route.extensions.is_empty()
@@ -839,17 +1198,43 @@ pub fn route_file_if_matched(
                 clean == ext
             });
 
-        let folder_matched = route
+        let mut matched_subpath: Option<String> = None;
+        let folder_matched = if let Some(fm) = route
             .folder_match
-            .as_ref()
-            .filter(|fm| !fm.trim().is_empty())
-            .map(|fm| rel_lower.contains(&fm.to_lowercase()))
-            .unwrap_or(false);
+            .as_deref()
+            .map(|s| s.trim().trim_matches('/').replace('\\', "/"))
+            .filter(|s| !s.is_empty())
+        {
+            let fm_lower = fm.to_lowercase();
+            let segs: Vec<&str> = rel_trimmed.split('/').filter(|s| !s.is_empty()).collect();
+            let fm_segs: Vec<&str> = fm_lower.split('/').filter(|s| !s.is_empty()).collect();
+            let mut found_after: Option<String> = None;
+            if !fm_segs.is_empty() && segs.len() > fm_segs.len() {
+                for start in 0..=(segs.len() - fm_segs.len() - 1) {
+                    let window_matches = segs[start..start + fm_segs.len()]
+                        .iter()
+                        .zip(fm_segs.iter())
+                        .all(|(a, b)| a.eq_ignore_ascii_case(b));
+                    if window_matches {
+                        found_after = Some(segs[start + fm_segs.len()..].join("/"));
+                        break;
+                    }
+                }
+            }
+            if let Some(after) = found_after {
+                matched_subpath = Some(after);
+                true
+            } else {
+                rel_lower.contains(&fm_lower)
+            }
+        } else {
+            false
+        };
 
         if ext_matched || folder_matched {
             let base_root = match route.target_root.to_lowercase().as_str() {
                 "live_path" | "engine" | "game" => live_root,
-                "docs_path" | "documents" | "docs" => docs_root,
+                "docs_path" | "documents" | "docs" | "user_data" => docs_root,
                 _ => mods_dir,
             };
             if base_root.as_os_str().is_empty() {
@@ -860,55 +1245,127 @@ pub fn route_file_if_matched(
             } else {
                 crate::utils::resolve_case_insensitive_path(base_root, &route.target_subdir)
             };
-            let file_name = source.file_name()?;
-            let target_file = crate::utils::resolve_case_insensitive_path(
-                &target_dir,
-                &file_name.to_string_lossy(),
-            );
-            let _ = std::fs::create_dir_all(&target_dir);
 
-            let bak_path = PathBuf::from(format!(
-                "{}.sanctuary_vanilla_bak",
-                target_file.to_string_lossy()
+            let rel_dest = if let Some(sub) = matched_subpath.filter(|s| !s.is_empty()) {
+                sub
+            } else {
+                source.file_name()?.to_string_lossy().to_string()
+            };
+            let rel_dest_path = Path::new(&rel_dest);
+            if !rel_dest_path
+                .components()
+                .all(|c| matches!(c, std::path::Component::Normal(_)))
+            {
+                continue;
+            }
+
+            let target_file = crate::utils::resolve_case_insensitive_path(&target_dir, &rel_dest);
+            let allowed_roots = [base_root.to_path_buf()];
+            if crate::utils::ensure_strict_descendant_of_roots(&target_file, &allowed_roots)
+                .is_err()
+                || !crate::utils::is_safe_user_file_path(&target_file)
+            {
+                continue;
+            }
+
+            return Some((
+                target_file,
+                base_root.to_path_buf(),
+                route.preserve_vanilla.unwrap_or(true),
             ));
-            let mut recorded_bak: Option<String> = None;
-
-            if target_file.exists() || std::fs::symlink_metadata(&target_file).is_ok() {
-                let is_symlink = std::fs::read_link(&target_file).is_ok()
-                    || std::fs::symlink_metadata(&target_file)
-                        .map(|m| m.file_type().is_symlink())
-                        .unwrap_or(false);
-
-                if route.preserve_vanilla.unwrap_or(true) && !is_symlink && !bak_path.exists() {
-                    if std::fs::rename(&target_file, &bak_path).is_ok() {
-                        recorded_bak = Some(bak_path.to_string_lossy().to_string());
-                    } else {
-                        let _ = std::fs::remove_file(&target_file);
-                    }
-                } else {
-                    let _ = std::fs::remove_file(&target_file);
-                    if bak_path.exists() {
-                        recorded_bak = Some(bak_path.to_string_lossy().to_string());
-                    }
-                }
-            } else if bak_path.exists() {
-                recorded_bak = Some(bak_path.to_string_lossy().to_string());
-            }
-
-            let linked = create_symlink_file(source, &target_file)
-                .or_else(|_| std::fs::hard_link(source, &target_file))
-                .or_else(|_| std::fs::copy(source, &target_file).map(|_| ()));
-
-            if linked.is_ok() {
-                return Some(RoutedFileRecord {
-                    target_path: target_file.to_string_lossy().to_string(),
-                    backup_path: recorded_bak,
-                    source_path: source.to_string_lossy().to_string(),
-                });
-            }
         }
     }
     None
+}
+
+pub fn route_file_if_matched(
+    source: &Path,
+    rel_hint: &str,
+    routes: &[crate::schema::SchemaInstallRoute],
+    live_root: &Path,
+    docs_root: &Path,
+    mods_dir: &Path,
+) -> Option<RoutedFileRecord> {
+    let (target_file, _base_root, preserve_vanilla) = resolve_route_for_file(
+        source,
+        rel_hint,
+        routes,
+        live_root,
+        docs_root,
+        mods_dir,
+    )?;
+
+    if let Some(parent_dir) = target_file.parent() {
+        let _ = std::fs::create_dir_all(parent_dir);
+    }
+
+    let bak_path = PathBuf::from(format!(
+        "{}.sanctuary_vanilla_bak",
+        target_file.to_string_lossy()
+    ));
+    let mut recorded_bak: Option<String> = None;
+
+    if target_file.exists() || std::fs::symlink_metadata(&target_file).is_ok() {
+        let is_symlink = std::fs::read_link(&target_file).is_ok()
+            || std::fs::symlink_metadata(&target_file)
+                .map(|m| m.file_type().is_symlink())
+                .unwrap_or(false);
+
+        if preserve_vanilla && !is_symlink && !bak_path.exists() {
+            if std::fs::rename(&target_file, &bak_path).is_ok() {
+                recorded_bak = Some(bak_path.to_string_lossy().to_string());
+            } else {
+                let _ = std::fs::remove_file(&target_file);
+            }
+        } else {
+            let _ = std::fs::remove_file(&target_file);
+            if bak_path.exists() {
+                recorded_bak = Some(bak_path.to_string_lossy().to_string());
+            }
+        }
+    } else if bak_path.exists() {
+        recorded_bak = Some(bak_path.to_string_lossy().to_string());
+    }
+
+    let linked = create_symlink_file(source, &target_file)
+        .or_else(|_| std::fs::hard_link(source, &target_file))
+        .or_else(|_| std::fs::copy(source, &target_file).map(|_| ()));
+
+    if linked.is_ok() {
+        return Some(RoutedFileRecord {
+            target_path: target_file.to_string_lossy().to_string(),
+            backup_path: recorded_bak,
+            source_path: source.to_string_lossy().to_string(),
+        });
+    }
+    None
+}
+
+fn is_internal_sanctuary_or_archive_skip(
+    file_name_lower: &str,
+    ext_lower: &str,
+    manifest_lower: &str,
+    supported_exts_lower: &[String],
+) -> bool {
+    if file_name_lower.starts_with(".sanctuary")
+        || file_name_lower.starts_with("._")
+        || file_name_lower == SANCTUARY_EDGE_MANIFEST_FILE
+        || file_name_lower == SANCTUARY_EDGE_OVERRIDE_FILE
+        || file_name_lower == "desktop.ini"
+        || file_name_lower == ".ds_store"
+        || file_name_lower == "thumbs.db"
+        || (!manifest_lower.is_empty() && file_name_lower == manifest_lower)
+    {
+        return true;
+    }
+
+    if matches!(ext_lower, "zip" | "rar" | "7z")
+        && !supported_exts_lower.iter().any(|s| s == ext_lower)
+    {
+        return true;
+    }
+
+    false
 }
 
 struct DeployGuard {
@@ -936,13 +1393,24 @@ pub async fn deploy_playset_bulk(
 
     let is_deploying = state.inner().is_deploying.clone();
     let last_deploy_epoch_ms = state.inner().last_deploy_epoch_ms.clone();
-    is_deploying.store(true, std::sync::atomic::Ordering::SeqCst);
+    if is_deploying
+        .compare_exchange(
+            false,
+            true,
+            std::sync::atomic::Ordering::SeqCst,
+            std::sync::atomic::Ordering::SeqCst,
+        )
+        .is_err()
+    {
+        return Err("Deployment or scan already in progress.".into());
+    }
+    let guard = DeployGuard {
+        flag: is_deploying,
+        last_deploy_epoch_ms,
+    };
 
     tauri::async_runtime::spawn_blocking(move || {
-        let _guard = DeployGuard {
-            flag: is_deploying,
-            last_deploy_epoch_ms,
-        };
+        let _guard = guard;
 
         let mods_dir = PathBuf::from(&mods_path);
         let vault_dir = PathBuf::from(&vault_path);
@@ -967,7 +1435,17 @@ pub async fn deploy_playset_bulk(
         let load_strategy = crate::game_logic::get_load_order_strategy(&game_schema);
         let install_routes = crate::game_logic::get_install_routes(&game_schema);
         let config_exts = crate::game_logic::get_config_extensions(&game_schema);
-        crate::utils::deduplicate_vault_root_configs(&vault_mods_lane, &config_exts);
+        let preserve_aux = crate::game_logic::should_preserve_auxiliary_assets(&game_schema);
+        let supported_exts_lower: Vec<String> =
+            crate::game_logic::get_supported_extensions(&game_schema)
+                .into_iter()
+                .map(|e| e.trim_start_matches('.').to_lowercase())
+                .collect();
+        let manifest_lower = crate::game_logic::resolve_manifest_filename(&game_schema)
+            .unwrap_or_default()
+            .to_lowercase();
+
+        crate::utils::deduplicate_vault_root_configs(&vault_mods_lane, &config_exts, &game_schema);
         let saved_coords = get_saved_coordinates();
         if let Ok(live_ver) = crate::commands::game_info::rip_game_version_with_schema(
             &saved_coords.live_path,
@@ -977,7 +1455,10 @@ pub async fn deploy_playset_bulk(
         }
         let live_root =
             crate::game_logic::resolve_game_engine_root(&saved_coords.live_path, &game_schema);
-        let docs_root = crate::game_logic::resolve_user_data_root(&mods_path, &game_schema);
+        let docs_root = PathBuf::from(crate::utils::resolve_effective_docs_path(
+            &saved_coords,
+            &game_schema,
+        ));
         let routed_records: std::sync::Mutex<Vec<RoutedFileRecord>> =
             std::sync::Mutex::new(Vec::new());
         let deployed_links: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
@@ -1010,6 +1491,16 @@ pub async fn deploy_playset_bulk(
         }
 
         let mods_for_manifest = mods.clone();
+        let mods_allowed_roots = [mods_dir.clone()];
+
+        let record_deployed_path = |p: &Path| {
+            if let Ok(mut dl) = deployed_links.lock() {
+                let p_str = p.to_string_lossy().to_string();
+                if !dl.contains(&p_str) {
+                    dl.push(p_str);
+                }
+            }
+        };
 
         use rayon::prelude::*;
         let count: usize = mods
@@ -1074,14 +1565,13 @@ pub async fn deploy_playset_bulk(
                             source = p.clone();
                             found = true;
                         } else {
-                            let exts = crate::game_logic::get_supported_extensions(&game_schema);
                             let stem_lower = search_name
                                 .file_stem()
                                 .and_then(|n| n.to_str())
                                 .unwrap_or("")
                                 .to_lowercase();
-                            for ext in exts {
-                                let test_name = format!("{}.{}", stem_lower, ext.to_lowercase());
+                            for ext in &supported_exts_lower {
+                                let test_name = format!("{}.{}", stem_lower, ext);
                                 if let Some(p) = vault_index.get(&test_name) {
                                     source = p.clone();
                                     found = true;
@@ -1100,15 +1590,14 @@ pub async fn deploy_playset_bulk(
                             vault_mods_lane.join(f).join(search_name)
                         };
 
-                        let exts = crate::game_logic::get_supported_extensions(&game_schema);
-                        if base_test.is_file() {
+                        if base_test.is_file() || base_test.is_dir() {
                             source = base_test;
                             found = true;
                             break;
                         } else {
-                            for ext in exts {
-                                if base_test.with_extension(&ext).is_file() {
-                                    source = base_test.with_extension(&ext);
+                            for ext in &supported_exts_lower {
+                                if base_test.with_extension(ext).is_file() {
+                                    source = base_test.with_extension(ext);
                                     found = true;
                                     break;
                                 }
@@ -1134,11 +1623,9 @@ pub async fn deploy_playset_bulk(
                                 found = true;
                                 search_name = Path::new(file_name_only);
                             } else {
-                                let exts =
-                                    crate::game_logic::get_supported_extensions(&game_schema);
-                                for ext in exts {
-                                    if flat_test.with_extension(&ext).is_file() {
-                                        source = flat_test.with_extension(&ext);
+                                for ext in &supported_exts_lower {
+                                    if flat_test.with_extension(ext).is_file() {
+                                        source = flat_test.with_extension(ext);
                                         found = true;
                                         search_name = Path::new(file_name_only);
                                         break;
@@ -1149,20 +1636,27 @@ pub async fn deploy_playset_bulk(
                     }
                 }
 
-                if !found {
-                    return 0;
-                }
-
-                let path_parts: Vec<_> = Path::new(&m.path).components().collect();
-                if path_parts.len() < 1 {
+                if !found || Path::new(&m.path).components().count() == 0 {
                     return 0;
                 }
 
                 if !source.is_dir() {
-                    if let Some(file_name_str) = source.file_name().and_then(|n| n.to_str()) {
-                        if file_name_str.eq_ignore_ascii_case("desktop.ini") {
-                            return 0;
-                        }
+                    let fname_lower = source
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_lowercase())
+                        .unwrap_or_default();
+                    let ext_lower = source
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .map(|e| e.to_lowercase())
+                        .unwrap_or_default();
+                    if is_internal_sanctuary_or_archive_skip(
+                        &fname_lower,
+                        &ext_lower,
+                        &manifest_lower,
+                        &supported_exts_lower,
+                    ) {
+                        return 0;
                     }
 
                     if let Some(rec) = route_file_if_matched(
@@ -1217,21 +1711,29 @@ pub async fn deploy_playset_bulk(
                 } else if load_strategy == "numeric_prefix" {
                     if let Some(order_idx) = m.load_order_index {
                         if let Some(fname) = target.file_name().and_then(|n| n.to_str()) {
+                            let sep = game_schema
+                                .as_ref()
+                                .and_then(|s| s.load_order.as_ref())
+                                .and_then(|lo| lo.prefix_separator.as_deref())
+                                .unwrap_or("_");
                             let prefix_fmt = game_schema
                                 .as_ref()
                                 .and_then(|s| s.load_order.as_ref())
                                 .and_then(|lo| lo.prefix_format.as_deref())
-                                .filter(|f| !f.is_empty())
-                                .unwrap_or("{index:03}_");
+                                .filter(|f| !f.is_empty());
                             let idx_num = order_idx + 1;
-                            let formatted_prefix = if prefix_fmt.contains("{index:03}") {
-                                prefix_fmt.replace("{index:03}", &format!("{:03}", idx_num))
-                            } else if prefix_fmt.contains("{index:02}") {
-                                prefix_fmt.replace("{index:02}", &format!("{:02}", idx_num))
-                            } else if prefix_fmt.contains("{index}") {
-                                prefix_fmt.replace("{index}", &idx_num.to_string())
+                            let formatted_prefix = if let Some(fmt_str) = prefix_fmt {
+                                if fmt_str.contains("{index:03}") {
+                                    fmt_str.replace("{index:03}", &format!("{:03}", idx_num))
+                                } else if fmt_str.contains("{index:02}") {
+                                    fmt_str.replace("{index:02}", &format!("{:02}", idx_num))
+                                } else if fmt_str.contains("{index}") {
+                                    fmt_str.replace("{index}", &idx_num.to_string())
+                                } else {
+                                    format!("{:03}{}", idx_num, sep)
+                                }
                             } else {
-                                format!("{:03}_", idx_num)
+                                format!("{:03}{}", idx_num, sep)
                             };
                             let prefixed_name = format!("{}{}", formatted_prefix, fname);
                             target = target.with_file_name(prefixed_name);
@@ -1239,90 +1741,149 @@ pub async fn deploy_playset_bulk(
                     }
                 }
 
-                if let Some(parent) = target.parent() {
-                    let _ = std::fs::create_dir_all(parent);
-                    if parent != mods_dir.as_path() {
-                        if let Ok(mut dl) = deployed_links.lock() {
-                            let p_str = parent.to_string_lossy().to_string();
-                            if !dl.contains(&p_str) {
-                                dl.push(p_str);
+                if crate::utils::ensure_strict_descendant_of_roots(&target, &mods_allowed_roots)
+                    .is_err()
+                {
+                    return 0;
+                }
+
+                // Directory-rooted mod unit: deploy full nested tree preserving relative subpaths
+                if source.is_dir() {
+                    let mut dir_linked = 0usize;
+                    for entry in walkdir::WalkDir::new(&source)
+                        .into_iter()
+                        .filter_map(|e| e.ok())
+                    {
+                        if !entry.file_type().is_file() {
+                            continue;
+                        }
+                        let file_path = entry.path();
+                        let Ok(rel_in_mod) = file_path.strip_prefix(&source) else {
+                            continue;
+                        };
+                        let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
+                        let ext_lower = file_path
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .map(|e| e.to_lowercase())
+                            .unwrap_or_default();
+                        if is_internal_sanctuary_or_archive_skip(
+                            &fname_lower,
+                            &ext_lower,
+                            &manifest_lower,
+                            &supported_exts_lower,
+                        ) {
+                            continue;
+                        }
+
+                        let rel_route_hint = format!(
+                            "{}/{}",
+                            m.path.trim_matches('/'),
+                            rel_in_mod.to_string_lossy().replace('\\', "/")
+                        );
+                        if let Some(rec) = route_file_if_matched(
+                            file_path,
+                            &rel_route_hint,
+                            &install_routes,
+                            &live_root,
+                            &docs_root,
+                            &mods_dir,
+                        ) {
+                            if let Ok(mut guard) = routed_records.lock() {
+                                if !guard.iter().any(|r| r.target_path == rec.target_path) {
+                                    guard.push(rec);
+                                }
+                            }
+                            dir_linked += 1;
+                            continue;
+                        }
+
+                        let dest = target.join(rel_in_mod);
+                        if crate::utils::ensure_strict_descendant_of_roots(
+                            &dest,
+                            &mods_allowed_roots,
+                        )
+                        .is_err()
+                        {
+                            continue;
+                        }
+                        if let Some(parent) = dest.parent() {
+                            let _ = std::fs::create_dir_all(parent);
+                            let mut cur = Some(parent);
+                            while let Some(dir_anc) = cur {
+                                if dir_anc == mods_dir.as_path() || !dir_anc.starts_with(&mods_dir)
+                                {
+                                    break;
+                                }
+                                record_deployed_path(dir_anc);
+                                cur = dir_anc.parent();
                             }
                         }
-                    }
-                }
-
-                if !source.is_dir() {
-                    let _ = create_symlink_file(&source, &target)
-                        .or_else(|_| std::fs::hard_link(&source, &target))
-                        .or_else(|_| std::fs::copy(&source, &target).map(|_| ()));
-                }
-
-                if !source.is_dir() {
-                    if let Ok(mut dl) = deployed_links.lock() {
-                        let t_str = target.to_string_lossy().to_string();
-                        if !dl.contains(&t_str) {
-                            dl.push(t_str);
+                        if create_symlink_file(file_path, &dest)
+                            .or_else(|_| std::fs::hard_link(file_path, &dest))
+                            .or_else(|_| std::fs::copy(file_path, &dest).map(|_| ()))
+                            .is_ok()
+                        {
+                            record_deployed_path(&dest);
+                            dir_linked += 1;
                         }
                     }
+                    return usize::from(dir_linked > 0);
                 }
 
-                if !source.is_dir() {
-                    if let Some(ext) = source.extension().and_then(|e| e.to_str()) {
-                        let ext_clean = ext.trim_start_matches('.').to_lowercase();
-                        let mut twin_exts: Vec<String> = Vec::new();
-                        if let Some(ref s) = game_schema {
-                            if let Some(ref groups) = s.extensions.twin_extensions {
-                                for group in groups {
-                                    let cleaned_group: Vec<String> = group
-                                        .iter()
-                                        .map(|g| g.trim_start_matches('.').to_lowercase())
-                                        .filter(|g| !g.is_empty())
-                                        .collect();
-                                    if cleaned_group.contains(&ext_clean) {
-                                        for sibling in cleaned_group {
-                                            if sibling != ext_clean && !twin_exts.contains(&sibling)
-                                            {
-                                                twin_exts.push(sibling);
-                                            }
+                if let Some(parent) = target.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                    let mut cur = Some(parent);
+                    while let Some(dir_anc) = cur {
+                        if dir_anc == mods_dir.as_path() || !dir_anc.starts_with(&mods_dir) {
+                            break;
+                        }
+                        record_deployed_path(dir_anc);
+                        cur = dir_anc.parent();
+                    }
+                }
+
+                let _ = create_symlink_file(&source, &target)
+                    .or_else(|_| std::fs::hard_link(&source, &target))
+                    .or_else(|_| std::fs::copy(&source, &target).map(|_| ()));
+                record_deployed_path(&target);
+
+                // Schema-configured twin extensions only (zero game-specific fallbacks)
+                if let Some(ext) = source.extension().and_then(|e| e.to_str()) {
+                    let ext_clean = ext.trim_start_matches('.').to_lowercase();
+                    let mut twin_exts: Vec<String> = Vec::new();
+                    if let Some(ref s) = game_schema {
+                        if let Some(ref groups) = s.extensions.twin_extensions {
+                            for group in groups {
+                                let cleaned_group: Vec<String> = group
+                                    .iter()
+                                    .map(|g| g.trim_start_matches('.').to_lowercase())
+                                    .filter(|g| !g.is_empty())
+                                    .collect();
+                                if cleaned_group.contains(&ext_clean) {
+                                    for sibling in cleaned_group {
+                                        if sibling != ext_clean && !twin_exts.contains(&sibling) {
+                                            twin_exts.push(sibling);
                                         }
                                     }
                                 }
                             }
                         }
-                        if twin_exts.is_empty()
-                            && crate::game_logic::is_sims4_schema(&game_schema)
-                        {
-                            let schema_exts =
-                                crate::game_logic::get_supported_extensions(&game_schema);
-                            if schema_exts.len() >= 2 {
-                                if ext.eq_ignore_ascii_case(&schema_exts[0]) {
-                                    twin_exts.push(schema_exts[1].clone());
-                                } else if ext.eq_ignore_ascii_case(&schema_exts[1]) {
-                                    twin_exts.push(schema_exts[0].clone());
-                                }
-                            }
-                        }
+                    }
 
-                        for other_ext in twin_exts {
-                            let twin_source = source.with_extension(&other_ext);
-                            if twin_source.exists() {
-                                let twin_target = target.with_extension(&other_ext);
-                                let _ = create_symlink_file(&twin_source, &twin_target)
-                                    .or_else(|_| std::fs::hard_link(&twin_source, &twin_target))
-                                    .or_else(|_| {
-                                        std::fs::copy(&twin_source, &twin_target).map(|_| ())
-                                    });
-                                if let Ok(mut dl) = deployed_links.lock() {
-                                    let tt_str = twin_target.to_string_lossy().to_string();
-                                    if !dl.contains(&tt_str) {
-                                        dl.push(tt_str);
-                                    }
-                                }
-                            }
+                    for other_ext in twin_exts {
+                        let twin_source = source.with_extension(&other_ext);
+                        if twin_source.exists() {
+                            let twin_target = target.with_extension(&other_ext);
+                            let _ = create_symlink_file(&twin_source, &twin_target)
+                                .or_else(|_| std::fs::hard_link(&twin_source, &twin_target))
+                                .or_else(|_| std::fs::copy(&twin_source, &twin_target).map(|_| ()));
+                            record_deployed_path(&twin_target);
                         }
                     }
                 }
 
+                // Preserve companion configs AND full nested auxiliary asset subtrees inside mod folders
                 if let Some(source_parent) = source.parent() {
                     if let Some(target_parent) = target.parent() {
                         let mut is_top_level = source_parent == vault_mods_lane.as_path();
@@ -1336,72 +1897,98 @@ pub async fn deploy_playset_bulk(
                             }
                         }
                         if !is_top_level {
-                            if let Ok(entries) = std::fs::read_dir(source_parent) {
-                                for entry in entries.flatten() {
-                                    let path = entry.path();
-                                    if path.is_file() {
-                                        if let Some(file_name) =
-                                            path.file_name().and_then(|n| n.to_str())
-                                        {
-                                            if !file_name.eq_ignore_ascii_case("desktop.ini")
-                                                && !file_name.eq_ignore_ascii_case("Default.ini")
-                                                && !file_name
-                                                    .eq_ignore_ascii_case(".sanctuary_cache.json")
-                                            {
-                                                if path != source {
-                                                    if let Some(rec) = route_file_if_matched(
-                                                        &path,
-                                                        file_name,
-                                                        &install_routes,
-                                                        &live_root,
-                                                        &docs_root,
-                                                        &mods_dir,
-                                                    ) {
-                                                        if let Ok(mut guard) = routed_records.lock()
-                                                        {
-                                                            if !guard.iter().any(|r| {
-                                                                r.target_path == rec.target_path
-                                                            }) {
-                                                                guard.push(rec);
-                                                            }
-                                                        }
-                                                        continue;
-                                                    }
-                                                }
+                            let max_aux_depth = if preserve_aux { 16 } else { 1 };
+                            for entry in walkdir::WalkDir::new(source_parent)
+                                .max_depth(max_aux_depth)
+                                .into_iter()
+                                .filter_map(|e| e.ok())
+                            {
+                                if !entry.file_type().is_file() {
+                                    continue;
+                                }
+                                let path = entry.path();
+                                if path == source {
+                                    continue;
+                                }
+                                let Ok(rel_sub) = path.strip_prefix(source_parent) else {
+                                    continue;
+                                };
+                                let fname_lower =
+                                    entry.file_name().to_string_lossy().to_lowercase();
+                                let ext_lower = path
+                                    .extension()
+                                    .and_then(|e| e.to_str())
+                                    .map(|e| e.to_lowercase())
+                                    .unwrap_or_default();
+                                if is_internal_sanctuary_or_archive_skip(
+                                    &fname_lower,
+                                    &ext_lower,
+                                    &manifest_lower,
+                                    &supported_exts_lower,
+                                ) {
+                                    continue;
+                                }
 
-                                                if let Some(ext) =
-                                                    path.extension().and_then(|e| e.to_str())
-                                                {
-                                                    let ext_lower = ext.to_lowercase();
-                                                    if config_exts.contains(&ext_lower) {
-                                                        let dest = target_parent.join(file_name);
-                                                        if !dest.exists() {
-                                                            let _ =
-                                                                create_symlink_file(&path, &dest)
-                                                                    .or_else(|_| {
-                                                                        std::fs::hard_link(
-                                                                            &path, &dest,
-                                                                        )
-                                                                    })
-                                                                    .or_else(|_| {
-                                                                        std::fs::copy(&path, &dest)
-                                                                            .map(|_| ())
-                                                                    });
-                                                            if let Ok(mut dl) =
-                                                                deployed_links.lock()
-                                                            {
-                                                                let d_str = dest
-                                                                    .to_string_lossy()
-                                                                    .to_string();
-                                                                if !dl.contains(&d_str) {
-                                                                    dl.push(d_str);
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                // Do not auto-pull disabled primary mod modules unless they are configs or auxiliary assets
+                                if !preserve_aux && !config_exts.contains(&ext_lower) {
+                                    continue;
+                                }
+
+                                let rel_sub_str = rel_sub.to_string_lossy().replace('\\', "/");
+                                if let Some(rec) = route_file_if_matched(
+                                    path,
+                                    &rel_sub_str,
+                                    &install_routes,
+                                    &live_root,
+                                    &docs_root,
+                                    &mods_dir,
+                                ) {
+                                    if let Ok(mut guard) = routed_records.lock() {
+                                        if !guard.iter().any(|r| r.target_path == rec.target_path) {
+                                            guard.push(rec);
                                         }
+                                    }
+                                    continue;
+                                }
+
+                                // Skip sibling primary mod binaries in the same folder that were NOT in the active playset,
+                                // while deploying all auxiliary assets (.dds, .nif, .pex, .wem, .json, configs, subfolders, etc.)
+                                let is_separate_primary_mod_binary = !supported_exts_lower.is_empty()
+                                    && supported_exts_lower.contains(&ext_lower)
+                                    && !config_exts.contains(&ext_lower);
+                                if is_separate_primary_mod_binary {
+                                    continue;
+                                }
+
+                                let dest = target_parent.join(rel_sub);
+                                if crate::utils::ensure_strict_descendant_of_roots(
+                                    &dest,
+                                    &mods_allowed_roots,
+                                )
+                                .is_err()
+                                {
+                                    continue;
+                                }
+                                if !dest.exists() && std::fs::symlink_metadata(&dest).is_err() {
+                                    if let Some(dest_parent) = dest.parent() {
+                                        let _ = std::fs::create_dir_all(dest_parent);
+                                        let mut cur = Some(dest_parent);
+                                        while let Some(dir_anc) = cur {
+                                            if dir_anc == mods_dir.as_path()
+                                                || !dir_anc.starts_with(&mods_dir)
+                                            {
+                                                break;
+                                            }
+                                            record_deployed_path(dir_anc);
+                                            cur = dir_anc.parent();
+                                        }
+                                    }
+                                    if create_symlink_file(path, &dest)
+                                        .or_else(|_| std::fs::hard_link(path, &dest))
+                                        .or_else(|_| std::fs::copy(path, &dest).map(|_| ()))
+                                        .is_ok()
+                                    {
+                                        record_deployed_path(&dest);
                                     }
                                 }
                             }
@@ -1446,48 +2033,43 @@ pub async fn deploy_playset_bulk(
                 let path = entry.path();
                 if path.is_file() {
                     if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                        let fname_lower = file_name.to_lowercase();
+                        let ext_lower = path
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .map(|e| e.to_lowercase())
+                            .unwrap_or_default();
                         if file_name.starts_with('.')
-                            || file_name.starts_with("._")
-                            || file_name.eq_ignore_ascii_case("desktop.ini")
-                            || file_name.eq_ignore_ascii_case("Default.ini")
-                            || file_name.eq_ignore_ascii_case("Resource.cfg")
-                            || file_name.eq_ignore_ascii_case(".DS_Store")
-                            || file_name.eq_ignore_ascii_case(".sanctuary_cache.json")
-                            || file_name.eq_ignore_ascii_case(".sanctuary_deployed_links.json")
+                            || is_internal_sanctuary_or_archive_skip(
+                                &fname_lower,
+                                &ext_lower,
+                                &manifest_lower,
+                                &supported_exts_lower,
+                            )
                         {
                             continue;
                         }
-                        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                            let ext_lower = ext.to_lowercase();
-                            if config_exts.contains(&ext_lower) {
-                                let dest = mods_dir.join(file_name);
-                                let already_deployed_by_subfolder = deployed_links
-                                    .lock()
-                                    .map(|dl| {
-                                        dl.iter().any(|existing| {
-                                            Path::new(existing)
-                                                .file_name()
-                                                .and_then(|n| n.to_str())
-                                                .map_or(false, |n| {
-                                                    n.eq_ignore_ascii_case(file_name)
-                                                })
-                                        })
+                        if config_exts.contains(&ext_lower) {
+                            let dest = mods_dir.join(file_name);
+                            let already_deployed_by_subfolder = deployed_links
+                                .lock()
+                                .map(|dl| {
+                                    dl.iter().any(|existing| {
+                                        Path::new(existing)
+                                            .file_name()
+                                            .and_then(|n| n.to_str())
+                                            .map_or(false, |n| n.eq_ignore_ascii_case(file_name))
                                     })
-                                    .unwrap_or(false);
-                                if !already_deployed_by_subfolder
-                                    && !dest.exists()
-                                    && std::fs::symlink_metadata(&dest).is_err()
-                                {
-                                    let _ = create_symlink_file(&path, &dest)
-                                        .or_else(|_| std::fs::hard_link(&path, &dest))
-                                        .or_else(|_| std::fs::copy(&path, &dest).map(|_| ()));
-                                    if let Ok(mut dl) = deployed_links.lock() {
-                                        let d_str = dest.to_string_lossy().to_string();
-                                        if !dl.contains(&d_str) {
-                                            dl.push(d_str);
-                                        }
-                                    }
-                                }
+                                })
+                                .unwrap_or(false);
+                            if !already_deployed_by_subfolder
+                                && !dest.exists()
+                                && std::fs::symlink_metadata(&dest).is_err()
+                            {
+                                let _ = create_symlink_file(&path, &dest)
+                                    .or_else(|_| std::fs::hard_link(&path, &dest))
+                                    .or_else(|_| std::fs::copy(&path, &dest).map(|_| ()));
+                                record_deployed_path(&dest);
                             }
                         }
                     }
@@ -1498,7 +2080,10 @@ pub async fn deploy_playset_bulk(
         if let Ok(dl) = deployed_links.lock() {
             if !dl.is_empty() {
                 if let Ok(json) = serde_json::to_string_pretty(&*dl) {
-                    let _ = std::fs::write(mods_dir.join(".sanctuary_deployed_links.json"), &json);
+                    let _ = crate::utils::atomic_write_bytes(
+                        &mods_dir.join(".sanctuary_deployed_links.json"),
+                        json.as_bytes(),
+                    );
                     crate::utils::set_vault_kv(&vault_path, "deployed_links", &json);
                 }
             }
@@ -1661,14 +2246,25 @@ fn start_windows_pause_key_watcher(game_schema: &Option<crate::schema::GameSchem
         .as_ref()
         .and_then(|s| s.lab_verification.as_ref())
         .and_then(|lv| lv.enable_hotkey_pause_detection)
-        .unwrap_or_else(|| crate::game_logic::is_sims4_schema(game_schema));
+        .unwrap_or(false);
+
+    let pause_vks = game_schema
+        .as_ref()
+        .and_then(|s| s.lab_verification.as_ref())
+        .and_then(|lv| lv.pause_key_vk_codes.clone())
+        .filter(|v| !v.is_empty());
+    let resume_vks = game_schema
+        .as_ref()
+        .and_then(|s| s.lab_verification.as_ref())
+        .and_then(|lv| lv.resume_key_vk_codes.clone())
+        .filter(|v| !v.is_empty());
 
     let watch = get_lab_input_watch().clone();
     watch.game_paused.store(false, Ordering::SeqCst);
-    if !hotkey_enabled {
+    let Some(pause_vks) = pause_vks.filter(|_| hotkey_enabled) else {
         watch.running.store(false, Ordering::SeqCst);
         return;
-    }
+    };
 
     if watch
         .running
@@ -1678,25 +2274,10 @@ fn start_windows_pause_key_watcher(game_schema: &Option<crate::schema::GameSchem
         return;
     }
 
-    let custom_pause_vks = game_schema
-        .as_ref()
-        .and_then(|s| s.lab_verification.as_ref())
-        .and_then(|lv| lv.pause_key_vk_codes.clone())
-        .filter(|v| !v.is_empty());
-    let custom_resume_vks = game_schema
-        .as_ref()
-        .and_then(|s| s.lab_verification.as_ref())
-        .and_then(|lv| lv.resume_key_vk_codes.clone())
-        .filter(|v| !v.is_empty());
-
     std::thread::Builder::new()
         .name("sanctuary-lab-key-watcher".to_string())
         .spawn(move || {
-            let mut was_esc = false;
-            let mut was_p = false;
-            let mut was_zero = false;
-            let mut was_tilde = false;
-            let mut was_custom_pause = false;
+            let mut was_pause_down = false;
 
             while watch.running.load(Ordering::SeqCst) {
                 let pid = watch.target_pid.load(Ordering::SeqCst);
@@ -1720,58 +2301,21 @@ fn start_windows_pause_key_watcher(game_schema: &Option<crate::schema::GameSchem
                             (GetAsyncKeyState(vk) as u16 & 0x8000) != 0
                         };
 
-                        if let Some(ref pause_vks) = custom_pause_vks {
-                            let any_pause = pause_vks.iter().any(|&vk| is_down(vk as i32));
-                            if any_pause && !was_custom_pause {
-                                let cur = watch.game_paused.load(Ordering::SeqCst);
-                                watch.game_paused.store(!cur, Ordering::SeqCst);
-                            }
-                            was_custom_pause = any_pause;
+                        let any_pause = pause_vks.iter().any(|&vk| is_down(vk as i32));
+                        if any_pause && !was_pause_down {
+                            let cur = watch.game_paused.load(Ordering::SeqCst);
+                            watch.game_paused.store(!cur, Ordering::SeqCst);
+                        }
+                        was_pause_down = any_pause;
 
-                            if let Some(ref resume_vks) = custom_resume_vks {
-                                if resume_vks.iter().any(|&vk| is_down(vk as i32)) {
-                                    watch.game_paused.store(false, Ordering::SeqCst);
-                                }
-                            }
-                        } else {
-                            let esc_down = is_down(0x1B); // VK_ESCAPE (Pause/Options menu)
-                            let p_down = is_down(0x50); // 'P' key (Pause toggle)
-                            let zero_down = is_down(0x30) || is_down(0x60); // '0' or Numpad 0 (Sim speed 0 / Pause)
-                            let tilde_down = is_down(0xC0); // '~' / '`' key (Sim speed pause)
-                            let speed_resume = is_down(0x31)
-                                || is_down(0x32)
-                                || is_down(0x33)
-                                || is_down(0x61)
-                                || is_down(0x62)
-                                || is_down(0x63); // '1', '2', '3' live speed keys
-
-                            if esc_down && !was_esc {
-                                let cur = watch.game_paused.load(Ordering::SeqCst);
-                                watch.game_paused.store(!cur, Ordering::SeqCst);
-                            }
-                            if p_down && !was_p {
-                                let cur = watch.game_paused.load(Ordering::SeqCst);
-                                watch.game_paused.store(!cur, Ordering::SeqCst);
-                            }
-                            if (zero_down && !was_zero) || (tilde_down && !was_tilde) {
-                                watch.game_paused.store(true, Ordering::SeqCst);
-                            }
-                            if speed_resume {
+                        if let Some(ref resume_list) = resume_vks {
+                            if resume_list.iter().any(|&vk| is_down(vk as i32)) {
                                 watch.game_paused.store(false, Ordering::SeqCst);
                             }
-
-                            was_esc = esc_down;
-                            was_p = p_down;
-                            was_zero = zero_down;
-                            was_tilde = tilde_down;
                         }
                     }
                 } else {
-                    was_esc = false;
-                    was_p = false;
-                    was_zero = false;
-                    was_tilde = false;
-                    was_custom_pause = false;
+                    was_pause_down = false;
                 }
 
                 std::thread::sleep(std::time::Duration::from_millis(60));
@@ -1867,33 +2411,50 @@ fn snapshot_save_mtimes(
     save_extensions: &[String],
 ) -> HashMap<PathBuf, u64> {
     let mut map = HashMap::new();
-    let targets: Vec<String> = if save_targets.is_empty() {
-        vec!["saves".to_string()]
-    } else {
-        save_targets.to_vec()
-    };
-    for rel in targets {
-        let saves_dir = docs_dir.join(&rel);
+    if save_targets.is_empty() {
+        return map;
+    }
+    let file_exts: Vec<String> = save_extensions
+        .iter()
+        .map(|e| e.trim().to_lowercase())
+        .filter(|e| !e.is_empty() && !matches!(e.as_str(), "/" | "dir" | "directory" | "folder"))
+        .collect();
+    let allow_dir_slots = is_directory_save_mode(save_extensions);
+
+    for rel in save_targets {
+        let saves_dir = docs_dir.join(rel);
         if !saves_dir.exists() {
             continue;
         }
-        for entry in walkdir::WalkDir::new(&saves_dir)
-            .max_depth(3)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if !entry.file_type().is_file() {
-                continue;
-            }
-            let name_lower = entry.file_name().to_string_lossy().to_lowercase();
-            if save_extensions
-                .iter()
-                .any(|ext| name_lower.ends_with(&ext.to_lowercase()))
+        if !file_exts.is_empty() {
+            for entry in walkdir::WalkDir::new(&saves_dir)
+                .max_depth(3)
+                .into_iter()
+                .filter_map(|e| e.ok())
             {
-                if let Ok(meta) = entry.metadata() {
-                    if let Ok(mtime) = meta.modified() {
-                        if let Ok(dur) = mtime.duration_since(std::time::UNIX_EPOCH) {
-                            map.insert(entry.path().to_path_buf(), dur.as_secs());
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+                let name_lower = entry.file_name().to_string_lossy().to_lowercase();
+                if file_exts.iter().any(|ext| name_lower.ends_with(ext)) {
+                    if let Ok(meta) = entry.metadata() {
+                        if let Ok(mtime) = meta.modified() {
+                            if let Ok(dur) = mtime.duration_since(std::time::UNIX_EPOCH) {
+                                map.insert(entry.path().to_path_buf(), dur.as_secs());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if allow_dir_slots {
+            if let Ok(entries) = std::fs::read_dir(&saves_dir) {
+                for entry in entries.flatten() {
+                    let slot_path = entry.path();
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    if slot_path.is_dir() && !name.starts_with('.') {
+                        if let Some((slot_mtime, _)) = compute_dir_save_slot_stats(&slot_path) {
+                            map.insert(slot_path, slot_mtime);
                         }
                     }
                 }
@@ -1934,46 +2495,70 @@ fn detect_new_save_file(
     initial_mtimes: &HashMap<PathBuf, u64>,
     min_epoch: u64,
 ) -> Option<String> {
-    let targets: Vec<String> = if save_targets.is_empty() {
-        vec!["saves".to_string()]
-    } else {
-        save_targets.to_vec()
-    };
-    for rel in targets {
-        let saves_dir = docs_dir.join(&rel);
+    if save_targets.is_empty() {
+        return None;
+    }
+    let file_exts: Vec<String> = save_extensions
+        .iter()
+        .map(|e| e.trim().to_lowercase())
+        .filter(|e| !e.is_empty() && !matches!(e.as_str(), "/" | "dir" | "directory" | "folder"))
+        .collect();
+    let allow_dir_slots = is_directory_save_mode(save_extensions);
+
+    for rel in save_targets {
+        let saves_dir = docs_dir.join(rel);
         if !saves_dir.exists() {
             continue;
         }
-        for entry in walkdir::WalkDir::new(&saves_dir)
-            .max_depth(3)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            if !entry.file_type().is_file() {
-                continue;
-            }
-            let fname = entry.file_name().to_string_lossy().to_string();
-            let name_lower = fname.to_lowercase();
-            if !save_extensions
-                .iter()
-                .any(|ext| name_lower.ends_with(&ext.to_lowercase()))
+        if !file_exts.is_empty() {
+            for entry in walkdir::WalkDir::new(&saves_dir)
+                .max_depth(3)
+                .into_iter()
+                .filter_map(|e| e.ok())
             {
-                continue;
-            }
-            if let Ok(meta) = entry.metadata() {
-                if meta.len() == 0 {
+                if !entry.file_type().is_file() {
                     continue;
                 }
-                if let Ok(mtime) = meta.modified() {
-                    if let Ok(dur) = mtime.duration_since(std::time::UNIX_EPOCH) {
-                        let secs = dur.as_secs();
-                        let prev = initial_mtimes.get(entry.path()).copied().unwrap_or(0);
-                        if secs > prev && secs >= min_epoch {
-                            let _ = std::fs::write(
-                                saves_dir.join(".sanctuary_seeded_save"),
-                                fname.as_bytes(),
-                            );
-                            return Some(fname);
+                let fname = entry.file_name().to_string_lossy().to_string();
+                let name_lower = fname.to_lowercase();
+                if !file_exts.iter().any(|ext| name_lower.ends_with(ext)) {
+                    continue;
+                }
+                if let Ok(meta) = entry.metadata() {
+                    if meta.len() == 0 {
+                        continue;
+                    }
+                    if let Ok(mtime) = meta.modified() {
+                        if let Ok(dur) = mtime.duration_since(std::time::UNIX_EPOCH) {
+                            let secs = dur.as_secs();
+                            let prev = initial_mtimes.get(entry.path()).copied().unwrap_or(0);
+                            if secs > prev && secs >= min_epoch {
+                                let _ = std::fs::write(
+                                    saves_dir.join(".sanctuary_seeded_save"),
+                                    fname.as_bytes(),
+                                );
+                                return Some(fname);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if allow_dir_slots {
+            if let Ok(entries) = std::fs::read_dir(&saves_dir) {
+                for entry in entries.flatten() {
+                    let slot_path = entry.path();
+                    let dname = entry.file_name().to_string_lossy().to_string();
+                    if slot_path.is_dir() && !dname.starts_with('.') {
+                        if let Some((secs, _)) = compute_dir_save_slot_stats(&slot_path) {
+                            let prev = initial_mtimes.get(&slot_path).copied().unwrap_or(0);
+                            if secs > prev && secs >= min_epoch {
+                                let _ = std::fs::write(
+                                    saves_dir.join(".sanctuary_seeded_save"),
+                                    dname.as_bytes(),
+                                );
+                                return Some(dname);
+                            }
                         }
                     }
                 }
@@ -2070,7 +2655,12 @@ fn persist_certificate_to_vault(vault_path: &str, cert: &LabVerificationCertific
     if vault_path.trim().is_empty() {
         return;
     }
-    let conn = crate::utils::get_db_conn(vault_path);
+    let Ok(conn_arc) = crate::utils::open_db_conn(vault_path) else {
+        return;
+    };
+    let Ok(conn) = conn_arc.lock() else {
+        return;
+    };
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -2084,27 +2674,51 @@ fn persist_certificate_to_vault(vault_path: &str, cert: &LabVerificationCertific
 }
 
 fn scan_logs_sync(docs_dir: &Path, game_schema: &Option<crate::schema::GameSchema>) -> Option<String> {
+    if !docs_dir.exists() {
+        return None;
+    }
     let mut exceptions = Vec::new();
     let mut has_crash = false;
 
-    if let Ok(entries) = fs::read_dir(docs_dir) {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().into_owned();
-            if crate::game_logic::is_exception_log(game_schema, &name) {
-                if name.to_lowercase().contains("crash") {
-                    has_crash = true;
-                }
-                if let Ok(meta) = entry.metadata() {
-                    if let Ok(mtime) = meta.modified() {
-                        exceptions.push((mtime, entry.path()));
-                    }
+    let walker = walkdir::WalkDir::new(docs_dir)
+        .max_depth(4)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|e| {
+            if e.depth() == 0 {
+                return true;
+            }
+            let lower = e.file_name().to_string_lossy().to_lowercase();
+            if e.file_type().is_dir() && (lower.starts_with(".sanctuary") || lower == ".git") {
+                return false;
+            }
+            true
+        });
+
+    for entry in walker.flatten() {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let full_path = entry.path().to_path_buf();
+        let rel_str = full_path
+            .strip_prefix(docs_dir)
+            .unwrap_or(&full_path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        if crate::game_logic::is_exception_log(game_schema, &rel_str) {
+            if rel_str.to_lowercase().contains("crash") {
+                has_crash = true;
+            }
+            if let Ok(meta) = entry.metadata() {
+                if let Ok(mtime) = meta.modified() {
+                    exceptions.push((mtime, rel_str, full_path));
                 }
             }
         }
     }
 
     if has_crash {
-        for (_mtime, log_path) in &exceptions {
+        for (_mtime, _rel, log_path) in &exceptions {
             let _ = crate::commands::logs::read_and_scrub_exception_file(log_path);
         }
         return Some("crash_detected".to_string());
@@ -2113,13 +2727,9 @@ fn scan_logs_sync(docs_dir: &Path, game_schema: &Option<crate::schema::GameSchem
         return None;
     }
     exceptions.sort_by(|a, b| b.0.cmp(&a.0));
-    for (_mtime, log_path) in &exceptions {
-        let file_name = log_path
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_default();
+    for (_mtime, rel_str, log_path) in &exceptions {
         if let Some(scrubbed) = crate::commands::logs::read_and_scrub_exception_file(log_path) {
-            if crate::game_logic::is_ignored_lab_exception(game_schema, &file_name, &scrubbed) {
+            if crate::game_logic::is_ignored_lab_exception(game_schema, rel_str, &scrubbed) {
                 continue;
             }
             return Some(format!("EXCEPTION DETECTED: {}", scrubbed));
@@ -2175,12 +2785,24 @@ fn build_session_status(s: &ActiveLabSession) -> LabVerificationStatus {
     }
 }
 
-fn normalize_mod_lookup_key(s: &str) -> String {
+fn normalize_mod_lookup_key(
+    s: &str,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> String {
     let trimmed = s.trim();
     let without_ext = if let Some((stem, ext)) = trimmed.rsplit_once('.') {
         let ext_lower = ext.to_lowercase();
-        if crate::utils::is_mod_binary_extension(&ext_lower)
-            || matches!(ext_lower.as_str(), "zip" | "7z" | "rar" | "cfg" | "ini" | "json" | "toml")
+        let is_schema_ext = crate::game_logic::get_supported_extensions(game_schema)
+            .iter()
+            .any(|e| e.trim_start_matches('.').eq_ignore_ascii_case(&ext_lower))
+            || crate::game_logic::get_config_extensions(game_schema)
+                .iter()
+                .any(|e| e.trim_start_matches('.').eq_ignore_ascii_case(&ext_lower));
+        if is_schema_ext
+            || matches!(
+                ext_lower.as_str(),
+                "zip" | "7z" | "rar" | "jar" | "cfg" | "ini" | "json" | "toml" | "yaml" | "yml" | "xml"
+            )
         {
             stem
         } else {
@@ -2204,6 +2826,7 @@ fn resolve_single_mod_target(
     vault_mods_lane: &Path,
     priority_folders: &[String],
     vault_path: &str,
+    game_schema: &Option<crate::schema::GameSchema>,
 ) -> Option<PathBuf> {
     let clean_query = query.trim().replace("\\", "/");
     if clean_query.is_empty() {
@@ -2220,7 +2843,7 @@ fn resolve_single_mod_target(
         .and_then(|n| n.to_str())
         .unwrap_or(&clean_query)
         .to_lowercase();
-    let query_norm = normalize_mod_lookup_key(&query_file_name);
+    let query_norm = normalize_mod_lookup_key(&query_file_name, game_schema);
 
     let mut source_target: Option<PathBuf> = None;
 
@@ -2242,7 +2865,7 @@ fn resolve_single_mod_target(
                 for entry in entries.flatten() {
                     let p = entry.path();
                     let ename = entry.file_name().to_string_lossy().to_lowercase();
-                    let enorm = normalize_mod_lookup_key(&ename);
+                    let enorm = normalize_mod_lookup_key(&ename, game_schema);
                     if ename == query_file_name
                         || ename == query_stem
                         || ename == query_first_seg.to_lowercase()
@@ -2339,7 +2962,7 @@ fn resolve_single_mod_target(
                     .and_then(|s| s.to_str())
                     .unwrap_or_default()
                     .to_lowercase();
-                let fnorm = normalize_mod_lookup_key(&fname);
+                let fnorm = normalize_mod_lookup_key(&fname, game_schema);
                 if (!query_file_name.is_empty() && fname == query_file_name)
                     || (!query_stem.is_empty() && fstem == query_stem)
                     || (!query_norm.is_empty() && fnorm == query_norm)
@@ -2393,14 +3016,6 @@ pub fn deploy_single_mod_to_live_sync(
         vault_dir.join("Dev").join("Sandbox")
     };
 
-    // Clean up any accidental Resource folder in Vault or Live Mods
-    for lane in [&vault_mods_lane, &mods_dir] {
-        let bogus_res = lane.join("Resource");
-        if bogus_res.is_dir() {
-            let _ = std::fs::remove_dir_all(&bogus_res);
-        }
-    }
-
     cleanup_routed_links(vault_path);
     safe_wipe_mods_dir(&mods_dir, game_schema);
     crate::game_logic::generate_manifest_if_needed(game_schema, &mods_dir);
@@ -2416,6 +3031,7 @@ pub fn deploy_single_mod_to_live_sync(
         &vault_mods_lane,
         &priority_folders,
         vault_path,
+        game_schema,
     ) {
         resolved_targets.push(primary);
     }
@@ -2429,6 +3045,7 @@ pub fn deploy_single_mod_to_live_sync(
             &vault_mods_lane,
             &priority_folders,
             vault_path,
+            game_schema,
         ) {
             if !resolved_targets.contains(&extra_path) {
                 resolved_targets.push(extra_path);
@@ -2436,8 +3053,7 @@ pub fn deploy_single_mod_to_live_sync(
         }
     }
 
-    // Automatically include companion script/package twin folders in Vault/Mods
-    // (e.g. UI_Cheats_Extension_Scripts <-> UI_Cheats_Extension)
+    // Automatically include companion script/module twin folders in Vault/Mods
     if vault_mods_lane.exists() {
         let mut companion_targets: Vec<PathBuf> = Vec::new();
         for target in &resolved_targets {
@@ -2446,7 +3062,7 @@ pub fn deploy_single_mod_to_live_sync(
                 .or_else(|| target.file_name())
                 .and_then(|n| n.to_str())
                 .unwrap_or_default();
-            let norm = normalize_mod_lookup_key(base_name);
+            let norm = normalize_mod_lookup_key(base_name, game_schema);
             if norm.is_empty() {
                 continue;
             }
@@ -2462,7 +3078,7 @@ pub fn deploy_single_mod_to_live_sync(
                 for entry in entries.flatten() {
                     let p = entry.path();
                     let ename = entry.file_name().to_string_lossy().to_string();
-                    let enorm = normalize_mod_lookup_key(&ename);
+                    let enorm = normalize_mod_lookup_key(&ename, game_schema);
                     if !enorm.is_empty()
                         && (enorm == stripped_norm
                             || enorm == scripts_norm
@@ -2485,11 +3101,41 @@ pub fn deploy_single_mod_to_live_sync(
         ));
     }
 
-    let mut files_to_link: Vec<PathBuf> = Vec::new();
+    // Collect (lane_root_or_mod_parent, src_file) pairs so relative subpaths are preserved
+    let mut files_to_link: Vec<(PathBuf, PathBuf)> = Vec::new();
+
+    let compute_anchor_root = |target_dir_or_file: &Path| -> PathBuf {
+        if target_dir_or_file.starts_with(&dev_lane) {
+            return dev_lane.clone();
+        }
+        for pf in &priority_folders {
+            if !pf.is_empty() {
+                let tier_root = vault_mods_lane.join(pf);
+                if target_dir_or_file.starts_with(&tier_root) {
+                    return tier_root;
+                }
+            }
+        }
+        if target_dir_or_file.starts_with(&vault_mods_lane) {
+            return vault_mods_lane.clone();
+        }
+        target_dir_or_file
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| target_dir_or_file.to_path_buf())
+    };
 
     for mut resolved in resolved_targets {
-        // 5. If resolved is a .zip file or contains .zip files, extract them in place first!
-        if resolved.is_file()
+        // 5. If resolved is a .zip file or contains .zip files, extract them in place first
+        let supported_exts_lower: Vec<String> =
+            crate::game_logic::get_supported_extensions(game_schema)
+                .into_iter()
+                .map(|e| e.trim_start_matches('.').to_lowercase())
+                .collect();
+        let zip_is_native_mod = supported_exts_lower.iter().any(|e| e == "zip");
+
+        if !zip_is_native_mod
+            && resolved.is_file()
             && resolved
                 .extension()
                 .and_then(|e| e.to_str())
@@ -2514,7 +3160,7 @@ pub fn deploy_single_mod_to_live_sync(
                 let _ = std::fs::remove_file(&resolved);
                 resolved = extract_dir;
             }
-        } else if resolved.is_dir() {
+        } else if !zip_is_native_mod && resolved.is_dir() {
             let mut zips = Vec::new();
             for entry in walkdir::WalkDir::new(&resolved)
                 .max_depth(2)
@@ -2543,7 +3189,8 @@ pub fn deploy_single_mod_to_live_sync(
             }
         }
 
-        // 6. Collect all deployable files from resolved
+        // 6. Collect all deployable files from resolved while retaining their lane anchor root
+        let anchor_root = compute_anchor_root(&resolved);
         if resolved.is_dir() {
             for entry in walkdir::WalkDir::new(&resolved)
                 .into_iter()
@@ -2551,8 +3198,8 @@ pub fn deploy_single_mod_to_live_sync(
             {
                 if entry.file_type().is_file() {
                     let p = entry.path().to_path_buf();
-                    if !files_to_link.contains(&p) {
-                        files_to_link.push(p);
+                    if !files_to_link.iter().any(|(_, existing)| existing == &p) {
+                        files_to_link.push((anchor_root.clone(), p));
                     }
                 }
             }
@@ -2570,16 +3217,16 @@ pub fn deploy_single_mod_to_live_sync(
                     {
                         if entry.file_type().is_file() {
                             let p = entry.path().to_path_buf();
-                            if !files_to_link.contains(&p) {
-                                files_to_link.push(p);
+                            if !files_to_link.iter().any(|(_, existing)| existing == &p) {
+                                files_to_link.push((anchor_root.clone(), p));
                             }
                         }
                     }
-                } else if !files_to_link.contains(&resolved) {
-                    files_to_link.push(resolved);
+                } else if !files_to_link.iter().any(|(_, existing)| existing == &resolved) {
+                    files_to_link.push((anchor_root, resolved));
                 }
-            } else if !files_to_link.contains(&resolved) {
-                files_to_link.push(resolved);
+            } else if !files_to_link.iter().any(|(_, existing)| existing == &resolved) {
+                files_to_link.push((anchor_root, resolved));
             }
         }
     }
@@ -2588,59 +3235,118 @@ pub fn deploy_single_mod_to_live_sync(
     let saved_coords = get_saved_coordinates();
     let live_root =
         crate::game_logic::resolve_game_engine_root(&saved_coords.live_path, game_schema);
-    let docs_root = crate::game_logic::resolve_user_data_root(mods_path, game_schema);
+    let docs_root = PathBuf::from(crate::utils::resolve_effective_docs_path(
+        &saved_coords,
+        game_schema,
+    ));
+    let supported_exts_lower: Vec<String> =
+        crate::game_logic::get_supported_extensions(game_schema)
+            .into_iter()
+            .map(|e| e.trim_start_matches('.').to_lowercase())
+            .collect();
+    let manifest_lower = crate::game_logic::resolve_manifest_filename(game_schema)
+        .unwrap_or_default()
+        .to_lowercase();
+    let max_folder_depth = game_schema
+        .as_ref()
+        .and_then(|s| s.constraints.as_ref())
+        .and_then(|c| c.max_folder_depth);
+
     let mut routed_records: Vec<RoutedFileRecord> = Vec::new();
     let mut linked_names: Vec<String> = Vec::new();
     let mut deployed_links: Vec<String> = Vec::new();
+    let mods_allowed_roots = [mods_dir.clone()];
 
-    let spurious_res_dir = mods_dir.join("Resource");
-    if spurious_res_dir.is_dir() {
-        let _ = std::fs::remove_dir_all(&spurious_res_dir);
-    }
-
-    for src_file in files_to_link {
+    for (anchor_root, src_file) in files_to_link {
         let fname = match src_file.file_name().and_then(|n| n.to_str()) {
             Some(n) => n.to_string(),
             None => continue,
         };
         let fname_lower = fname.to_lowercase();
-        let is_edge_manifest = fname_lower == "manifest.json"
-            && std::fs::read_to_string(&src_file)
-                .map_or(false, |c| crate::commands::library::is_sanctuary_edge_manifest_json(&c));
-        if fname_lower.starts_with('.')
-            || fname_lower == "desktop.ini"
-            || fname_lower == "default.ini"
-            || fname_lower == "resource.cfg"
-            || fname_lower == "override.json"
-            || is_edge_manifest
-        {
-            continue;
-        }
         let ext_lower = src_file
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or_default()
             .to_lowercase();
-        if ext_lower == "zip" || ext_lower == "rar" || ext_lower == "7z" {
+
+        if fname_lower.starts_with('.')
+            || is_internal_sanctuary_or_archive_skip(
+                &fname_lower,
+                &ext_lower,
+                &manifest_lower,
+                &supported_exts_lower,
+            )
+        {
             continue;
         }
 
+        let rel_sub = src_file
+            .strip_prefix(&anchor_root)
+            .map(|r| r.to_path_buf())
+            .unwrap_or_else(|_| PathBuf::from(&fname));
+        let rel_hint_str = rel_sub.to_string_lossy().replace('\\', "/");
+
         if let Some(rec) = route_file_if_matched(
             &src_file,
-            &fname,
+            &rel_hint_str,
             &install_routes,
             &live_root,
             &docs_root,
             &mods_dir,
         ) {
             routed_records.push(rec);
-            linked_names.push(format!("{} (Routed)", fname));
+            linked_names.push(format!("{} (Routed)", rel_hint_str));
             continue;
         }
 
-        // Symlink directly into the root of mods_dir (matching equipPlaySet) so .ts4script and .package
-        // files are immediately visible in Explorer and guaranteed to load in the game engine.
-        let dest_file = mods_dir.join(&fname);
+        // Preserve relative subpath within mod folder while respecting schema max_folder_depth if set
+        let effective_rel: PathBuf = if let Some(max_d) = max_folder_depth {
+            let comps: Vec<_> = rel_sub
+                .components()
+                .filter_map(|c| match c {
+                    std::path::Component::Normal(os) => Some(os.to_os_string()),
+                    _ => None,
+                })
+                .collect();
+            let folder_depth = comps.len().saturating_sub(1);
+            if folder_depth > max_d as usize {
+                if max_d == 0 {
+                    PathBuf::from(&fname)
+                } else {
+                    let mut capped = PathBuf::new();
+                    for seg in comps.iter().take(max_d as usize) {
+                        capped.push(seg);
+                    }
+                    capped.push(&fname);
+                    capped
+                }
+            } else {
+                rel_sub
+            }
+        } else {
+            rel_sub
+        };
+
+        let dest_file = mods_dir.join(&effective_rel);
+        if crate::utils::ensure_strict_descendant_of_roots(&dest_file, &mods_allowed_roots).is_err()
+        {
+            continue;
+        }
+        if let Some(parent_dir) = dest_file.parent() {
+            let _ = std::fs::create_dir_all(parent_dir);
+            let mut cur = Some(parent_dir);
+            while let Some(dir_anc) = cur {
+                if dir_anc == mods_dir.as_path() || !dir_anc.starts_with(&mods_dir) {
+                    break;
+                }
+                let dir_str = dir_anc.to_string_lossy().to_string();
+                if !deployed_links.contains(&dir_str) {
+                    deployed_links.push(dir_str);
+                }
+                cur = dir_anc.parent();
+            }
+        }
+
         if dest_file.exists() || std::fs::symlink_metadata(&dest_file).is_ok() {
             let _ = std::fs::remove_file(&dest_file);
         }
@@ -2655,15 +3361,19 @@ pub fn deploy_single_mod_to_live_sync(
             if !deployed_links.contains(&dest_str) {
                 deployed_links.push(dest_str);
             }
-            if !linked_names.contains(&fname) {
-                linked_names.push(fname);
+            let display_rel = effective_rel.to_string_lossy().replace('\\', "/");
+            if !linked_names.contains(&display_rel) {
+                linked_names.push(display_rel);
             }
         }
     }
 
     if !deployed_links.is_empty() {
         if let Ok(json) = serde_json::to_string_pretty(&deployed_links) {
-            let _ = std::fs::write(mods_dir.join(".sanctuary_deployed_links.json"), &json);
+            let _ = crate::utils::atomic_write_bytes(
+                &mods_dir.join(".sanctuary_deployed_links.json"),
+                json.as_bytes(),
+            );
             crate::utils::set_vault_kv(vault_path, "deployed_links", &json);
         }
     }
@@ -2697,13 +3407,24 @@ pub async fn deploy_mod_for_lab_test(
     let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let is_deploying = state.inner().is_deploying.clone();
     let last_deploy_epoch_ms = state.inner().last_deploy_epoch_ms.clone();
-    is_deploying.store(true, std::sync::atomic::Ordering::SeqCst);
+    if is_deploying
+        .compare_exchange(
+            false,
+            true,
+            std::sync::atomic::Ordering::SeqCst,
+            std::sync::atomic::Ordering::SeqCst,
+        )
+        .is_err()
+    {
+        return Err("Deployment or scan already in progress.".into());
+    }
+    let guard = DeployGuard {
+        flag: is_deploying,
+        last_deploy_epoch_ms,
+    };
 
     tauri::async_runtime::spawn_blocking(move || {
-        let _guard = DeployGuard {
-            flag: is_deploying,
-            last_deploy_epoch_ms,
-        };
+        let _guard = guard;
         let extra = additional_mods.unwrap_or_default();
         deploy_single_mod_to_live_sync(
             &mod_path_or_name,
@@ -2757,7 +3478,7 @@ pub async fn start_lab_verification_session(
         let save_extensions = lv
             .as_ref()
             .and_then(|l| l.save_extensions.clone())
-            .unwrap_or_else(|| vec![".save".to_string()]);
+            .unwrap_or_default();
 
         let stabilize_boot_seconds = wls
             .as_ref()
@@ -2776,13 +3497,7 @@ pub async fn start_lab_verification_session(
         let scratch_subdirs = wls
             .as_ref()
             .and_then(|w| w.scratch_activity_subdirs.clone())
-            .unwrap_or_else(|| {
-                if crate::game_logic::is_sims4_schema(&game_schema) {
-                    vec!["saves/scratch".to_string()]
-                } else {
-                    Vec::new()
-                }
-            });
+            .unwrap_or_default();
 
         let seeded_save_present = save_targets
             .iter()
@@ -3210,7 +3925,7 @@ pub async fn poll_lab_verification_session(
                             save_file_verified: session
                                 .verified_save_name
                                 .clone()
-                                .unwrap_or_else(|| "Slot_Verified.save".to_string()),
+                                .unwrap_or_else(|| "checkpoint_verified".to_string()),
                         };
                         persist_certificate_to_vault(&session.vault_path, &cert);
                         session.certificate = Some(cert);
@@ -3253,7 +3968,10 @@ pub fn get_lab_certificates(vault_path: String) -> Result<Vec<LabVerificationCer
     if vault_path.trim().is_empty() {
         return Ok(Vec::new());
     }
-    let conn = crate::utils::get_db_conn(&vault_path);
+    let conn_arc = crate::utils::open_db_conn(&vault_path)?;
+    let conn = conn_arc
+        .lock()
+        .map_err(|_| "Failed to lock Vault SQLite connection.".to_string())?;
     let mut certs = Vec::new();
     if let Ok(mut stmt) = conn.prepare("SELECT cert_json FROM lab_certificates ORDER BY verified_at DESC") {
         if let Ok(rows) = stmt.query_map([], |row| row.get::<_, String>(0)) {

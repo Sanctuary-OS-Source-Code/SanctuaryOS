@@ -26,9 +26,9 @@ export const SANCTUARY_CONFIG = {
 
     // Standalone Workspace Definition (Used automatically when mode === "standalone")
     standaloneWorkspace: {
-        id: (import.meta as any).env?.VITE_STANDALONE_WORKSPACE_ID || "sims4",
-        name: (import.meta as any).env?.VITE_STANDALONE_WORKSPACE_NAME || "The Sims 4",
-        schema_id: (import.meta as any).env?.VITE_STANDALONE_SCHEMA_ID || "sims4",
+        id: (import.meta as any).env?.VITE_STANDALONE_WORKSPACE_ID || "standalone",
+        name: (import.meta as any).env?.VITE_STANDALONE_WORKSPACE_NAME || "Community Workspace",
+        schema_id: (import.meta as any).env?.VITE_STANDALONE_SCHEMA_ID || "universal",
         icon: (import.meta as any).env?.VITE_STANDALONE_ICON || "sports_esports",
     },
 };
@@ -41,7 +41,7 @@ function resolveSanctuaryConfig() {
             const b64 = bundle.replace("SANCTUARY-UPLINK://", "").trim();
             const parsed = JSON.parse(atob(b64));
             if (parsed.supabase_url && parsed.supabase_anon_key) {
-                const schemaId = (parsed.schema_id || SANCTUARY_CONFIG.standaloneWorkspace.schema_id || "sims4").trim();
+                const schemaId = (parsed.schema_id || SANCTUARY_CONFIG.standaloneWorkspace.schema_id || "universal").trim();
                 return {
                     mode: "standalone" as const,
                     supabaseUrl: parsed.supabase_url.trim(),
@@ -176,10 +176,10 @@ export const supabaseAuth: SupabaseClient = new Proxy(rawAuthClient, {
                     return target.from('dispatch_poll_votes');
                 }
                 if (table === 'keeper_tickets') {
-                    return target.from('support_tickets');
+                    return target.from('sanctuary_tickets');
                 }
                 if (table === 'keeper_support_categories') {
-                    return target.from('support_categories');
+                    return target.from('sanctuary_support_categories');
                 }
                 return target.from(table);
             };
@@ -193,6 +193,8 @@ export const supabaseAuth: SupabaseClient = new Proxy(rawAuthClient, {
 let currentGameClient: SupabaseClient | null = null;
 let currentGameId = "";
 let currentToken = "";
+let currentSpokeUrl = "";
+let currentSpokeKey = "";
 const spokeClientCache = new Map<string, SupabaseClient>();
 
 export function getActiveGameClient(): SupabaseClient {
@@ -219,19 +221,29 @@ export function getActiveGameClient(): SupabaseClient {
         return null as unknown as SupabaseClient; // Handled by proxy traps
     }
 
-    // Only instantiate a new client if the workspace has changed or token changed
-    if (currentGameId !== activeWs.id || currentToken !== token) {
+    const cleanSpokeUrl = activeWs.supabase_url.trim().replace(/\/+$/, '');
+    const cleanSpokeKey = activeWs.supabase_anon_key.trim();
+
+    // Re-instantiate or swap client whenever workspace ID, token, Spoke URL, or Spoke publishable/anon key changes
+    if (
+        currentGameId !== activeWs.id ||
+        currentToken !== token ||
+        currentSpokeUrl !== cleanSpokeUrl ||
+        currentSpokeKey !== cleanSpokeKey ||
+        !currentGameClient
+    ) {
         currentGameId = activeWs.id;
         currentToken = token;
+        currentSpokeUrl = cleanSpokeUrl;
+        currentSpokeKey = cleanSpokeKey;
 
-        const cleanSpokeUrl = activeWs.supabase_url.trim().replace(/\/+$/, '');
         // If the Spoke URL matches the Hub URL, reuse rawAuthClient so session JWTs work seamlessly
         if (cleanSpokeUrl === authUrl.trim().replace(/\/+$/, '')) {
             currentGameClient = rawAuthClient;
             return currentGameClient;
         }
 
-        const cacheKey = `${cleanSpokeUrl}::${activeWs.supabase_anon_key.slice(0, 16)}`;
+        const cacheKey = `${cleanSpokeUrl}::${cleanSpokeKey}`;
         if (spokeClientCache.has(cacheKey)) {
             currentGameClient = spokeClientCache.get(cacheKey)!;
             return currentGameClient;
@@ -248,7 +260,7 @@ export function getActiveGameClient(): SupabaseClient {
 
         // In Hub-and-Spoke mode, we DO NOT inject the Hub JWT token into external Spoke clients
         // because external Spoke databases have their own JWT secrets.
-        currentGameClient = createClient(cleanSpokeUrl, activeWs.supabase_anon_key.trim(), clientOptions);
+        currentGameClient = createClient(cleanSpokeUrl, cleanSpokeKey, clientOptions);
         spokeClientCache.set(cacheKey, currentGameClient);
     }
 
@@ -316,7 +328,7 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
         }
 
         if (fnName === 'secure_verify_and_bootstrap_spoke') {
-            const requiredTables = ['mods', 'mod_versions', 'masons', 'blueprints', 'conflicts', 'profiles', 'system_broadcasts', 'dispatch_poll_votes', 'heuristic_signatures', 'global_network_status', 'audit_logs'];
+            const requiredTables = ['mods', 'mod_versions', 'masons', 'blueprints', 'logical_conflicts', 'profiles', 'system_broadcasts', 'dispatch_poll_votes', 'heuristic_signatures', 'global_network_status', 'audit_logs'];
             const verifiedTables: string[] = [];
             const missingTables: string[] = [];
             for (const tbl of requiredTables) {
@@ -446,11 +458,296 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
             return { data, error };
         }
 
+        if (fnName === 'bulk_ingest_vault_mods') {
+            return await rawAuthClient.rpc('bulk_ingest_vault_mods', {
+                p_items: args?.p_items || args?.items || [],
+            });
+        }
+
+        if (fnName === 'dispatch_follower_notifications') {
+            return await rawAuthClient.rpc('dispatch_follower_notifications', {
+                p_mason_id: args?.p_mason_id || args?.mason_id,
+                p_type: args?.p_type || args?.type || 'new_post',
+                p_reference_id: args?.p_reference_id || args?.reference_id,
+                p_message: args?.p_message || args?.message || '',
+            });
+        }
+
+        if (fnName === 'dispatch_broadcast_notifications') {
+            const masonId = args?.p_mason_id || args?.mason_id;
+            if (masonId) {
+                return await rawAuthClient.rpc('dispatch_follower_notifications', {
+                    p_mason_id: masonId,
+                    p_type: args?.p_type || args?.type || 'new_post',
+                    p_reference_id: args?.p_reference_id || args?.reference_id,
+                    p_message: args?.p_message || args?.message || '',
+                });
+            }
+            if (!user) return { data: null, error: new Error('Not authenticated') as any };
+            const { data: recipients, error: recErr } = await rawAuthClient
+                .from('profiles')
+                .select('id')
+                .or('is_banned.is.null,is_banned.eq.false');
+            if (recErr) return { data: null, error: recErr };
+            const excludeSelf = args?.p_exclude_self !== false;
+            const rows = (recipients || [])
+                .filter((r: any) => r?.id && (!excludeSelf || r.id !== user.id))
+                .map((r: any) => ({
+                    user_id: r.id,
+                    actor_id: user.id,
+                    type: args?.p_type || args?.type || 'system_broadcast',
+                    reference_id: args?.p_reference_id || args?.reference_id,
+                    message: args?.p_message || args?.message || '',
+                }));
+            let dispatched = 0;
+            for (let i = 0; i < rows.length; i += 500) {
+                const chunk = rows.slice(i, i + 500);
+                const { error: insErr } = await rawAuthClient.from('notifications').insert(chunk);
+                if (insErr) return { data: null, error: insErr };
+                dispatched += chunk.length;
+            }
+            return { data: { success: true, dispatched }, error: null };
+        }
+
         return await rawAuthClient.rpc(fnName, args);
     } catch (err: any) {
         console.error(`Standalone RPC Error (${fnName}):`, err);
         return { data: null, error: err };
     }
+}
+
+const RESTRICTED_SPOKE_SELECT_TABLES = new Set([
+    'sanctuary_tickets',
+    'blueprint_reports',
+    'nexus_reports',
+    'content_flags',
+    'malware_reports',
+    'notifications',
+    'pwa_push_subscriptions',
+]);
+
+function createSpokeGatewayQuery(
+    table: string,
+    op: 'select' | 'insert' | 'update' | 'upsert' | 'delete',
+    initialSpec: Record<string, any> = {}
+) {
+    const spec: any = {
+        table,
+        op,
+        selectColumns: initialSpec.selectColumns ?? '*',
+        selectOpts: initialSpec.selectOpts ?? undefined,
+        values: initialSpec.values ?? undefined,
+        upsertOpts: initialSpec.upsertOpts ?? undefined,
+        returnSelect: initialSpec.returnSelect ?? null,
+        filters: [] as Array<{ method: string; args: any[] }>,
+        orders: [] as Array<{ column: string; options?: any }>,
+        limit: undefined as number | undefined,
+        range: undefined as [number, number] | undefined,
+        singleMode: null as 'single' | 'maybeSingle' | null,
+    };
+
+    let executionPromise: Promise<any> | null = null;
+
+    const execute = async () => {
+        const state = useStore.getState();
+        let token = state.session?.access_token || '';
+        if (!token) {
+            try {
+                const { data } = await rawAuthClient.auth.getSession();
+                token = data?.session?.access_token || '';
+            } catch {}
+        }
+
+        if (!token) {
+            if (op === 'select') {
+                return {
+                    data: spec.singleMode ? null : [],
+                    error: null,
+                    count: 0,
+                    status: 200,
+                    statusText: 'OK',
+                };
+            }
+            return {
+                data: null,
+                error: { message: 'Authentication required for Spoke mutation' },
+                count: null,
+                status: 401,
+                statusText: 'Unauthorized',
+            };
+        }
+
+        const activeWsId = state.activeWorkspaceId;
+        const workspaces = state.workspaces || [];
+        const activeWs = workspaces.find((w: any) => w.id === activeWsId);
+        const targetGameId = activeWs?.game_id || activeWs?.schema_id || activeWs?.id || activeWsId;
+
+        if (!targetGameId || targetGameId === 'default_workspace') {
+            return {
+                data: op === 'select' && !spec.singleMode ? [] : null,
+                error: null,
+                count: 0,
+                status: 200,
+                statusText: 'OK',
+            };
+        }
+
+        try {
+            const res = await supabaseAuth.functions.invoke('game-gateway', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                body: {
+                    game_id: targetGameId,
+                    action: 'spoke_query',
+                    payload: spec,
+                },
+            });
+
+            if (res.error) {
+                return {
+                    data: null,
+                    error: res.error,
+                    count: null,
+                    status: 500,
+                    statusText: 'Gateway Error',
+                };
+            }
+            if (res.data?.error) {
+                return {
+                    data: null,
+                    error: { message: res.data.error, details: res.data.original_error },
+                    count: null,
+                    status: 403,
+                    statusText: 'Forbidden',
+                };
+            }
+            if (res.data && res.data.__spoke_query_v1) {
+                return {
+                    data: res.data.data ?? null,
+                    error: null,
+                    count: res.data.count ?? null,
+                    status: 200,
+                    statusText: 'OK',
+                };
+            }
+            return {
+                data: res.data ?? null,
+                error: null,
+                count: Array.isArray(res.data) ? res.data.length : null,
+                status: 200,
+                statusText: 'OK',
+            };
+        } catch (err: any) {
+            return {
+                data: null,
+                error: { message: err?.message || 'Spoke gateway query failed' },
+                count: null,
+                status: 500,
+                statusText: 'Internal Error',
+            };
+        }
+    };
+
+    const getPromise = () => {
+        if (!executionPromise) {
+            executionPromise = execute();
+        }
+        return executionPromise;
+    };
+
+    const filterMethods = [
+        'eq',
+        'neq',
+        'gt',
+        'gte',
+        'lt',
+        'lte',
+        'like',
+        'ilike',
+        'is',
+        'in',
+        'contains',
+        'containedBy',
+        'overlaps',
+        'not',
+        'or',
+        'match',
+        'filter',
+        'textSearch',
+    ];
+
+    const builder: any = {
+        select: (cols = '*', opts?: any) => {
+            if (op === 'select') {
+                spec.selectColumns = cols || '*';
+                if (opts) spec.selectOpts = opts;
+            } else {
+                spec.returnSelect = cols || '*';
+            }
+            return builder;
+        },
+        order: (column: string, options?: any) => {
+            spec.orders.push({ column, options });
+            return builder;
+        },
+        limit: (n: number) => {
+            spec.limit = n;
+            return builder;
+        },
+        range: (from: number, to: number) => {
+            spec.range = [from, to];
+            return builder;
+        },
+        abortSignal: () => builder,
+        csv: () => builder,
+        single: () => {
+            spec.singleMode = 'single';
+            return builder;
+        },
+        maybeSingle: () => {
+            spec.singleMode = 'maybeSingle';
+            return builder;
+        },
+        then: (onfulfilled?: any, onrejected?: any) => getPromise().then(onfulfilled, onrejected),
+        catch: (onrejected?: any) => getPromise().catch(onrejected),
+        finally: (onfinally?: any) => getPromise().finally(onfinally),
+    };
+
+    for (const m of filterMethods) {
+        builder[m] = (...args: any[]) => {
+            spec.filters.push({ method: m, args });
+            return builder;
+        };
+    }
+
+    return builder;
+}
+
+function createSpokeTableRouter(table: string, client: SupabaseClient) {
+    if (table === 'citizen_staging_queue' || client === rawAuthClient) {
+        return client.from(table);
+    }
+
+    return {
+        select: (columns = '*', options?: any) => {
+            if (RESTRICTED_SPOKE_SELECT_TABLES.has(table)) {
+                return createSpokeGatewayQuery(table, 'select', {
+                    selectColumns: columns || '*',
+                    selectOpts: options,
+                });
+            }
+            return (client.from(table) as any).select(columns, options);
+        },
+        insert: (values: any, _options?: any) =>
+            createSpokeGatewayQuery(table, 'insert', { values }),
+        upsert: (values: any, options?: any) =>
+            createSpokeGatewayQuery(table, 'upsert', { values, upsertOpts: options }),
+        update: (values: any, _options?: any) =>
+            createSpokeGatewayQuery(table, 'update', { values }),
+        delete: (_options?: any) =>
+            createSpokeGatewayQuery(table, 'delete', {}),
+    } as any;
 }
 
 // 2. Create the Magic Proxy Client
@@ -479,20 +776,12 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     'hardware_bans'
                 ];
 
-                const state = useStore.getState();
-                const view = state.view;
-
-                // When in Keepers Core, Audit Logs, Schemas, Lexicons, and Profiles must route to the Core Hub Database
-                if (view === 'KeepersCore' && (table === 'audit_logs' || table === 'profiles' || table === 'sanctuary_lexicons' || table === 'sanctuary_schemas' || table === 'master_tags')) {
-                    return supabaseAuth.from(table);
-                }
-
                 // Route OS-level tables to the Main OS Database
                 if (osTables.includes(table)) {
                     return supabaseAuth.from(table);
                 }
 
-                // Route Game-level tables (including Spoke profiles) to the Game Database
+                // Route Game-level tables (including Spoke profiles, audit_logs, schemas, lexicons, master_tags) to the Game Database
                 const client = getActiveGameClient();
                 if (!client) {
                     if (table === 'profiles') {
@@ -500,7 +789,7 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     }
                     return createMockPostgrestBuilder();
                 }
-                return client.from(table);
+                return createSpokeTableRouter(table, client);
             };
         }
 
@@ -522,7 +811,10 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     'secure_mark_notifications_read',
                     'secure_delete_notifications',
                     'secure_mark_all_notifications_read',
-                    'secure_delete_all_notifications'
+                    'secure_delete_all_notifications',
+                    'bulk_ingest_vault_mods',
+                    'dispatch_follower_notifications',
+                    'dispatch_broadcast_notifications'
                 ].includes(fnName);
 
                 if (isStandaloneFork && isInterceptedRpc) {
@@ -535,7 +827,6 @@ export const supabase = new Proxy({} as SupabaseClient, {
                 const activeWs = workspaces.find((w: any) => w.id === activeWsId);
 
                 if (isInterceptedRpc) {
-                    const view = state.view;
                     const token = args?.p_token || state.session?.access_token || '';
 
                     if (fnName === 'secure_sync_hub_ban_to_spokes') {
@@ -562,16 +853,6 @@ export const supabase = new Proxy({} as SupabaseClient, {
                         });
                     }
 
-                    if (view === 'KeepersCore' && fnName !== 'secure_sync_spoke_profile' && fnName !== 'secure_update_spoke_profile' && fnName !== 'secure_sever_spoke_cord' && fnName !== 'secure_update_spoke_uplink') {
-                        if (fnName.includes('notifications')) {
-                            if (!args?.p_game_id && (activeWsId === 'default_workspace' || !activeWs)) {
-                                return { data: [], error: null };
-                            }
-                        } else {
-                            return supabaseAuth.rpc(fnName, args);
-                        }
-                    }
-
                     let targetGameId = args?.p_game_id || activeWs?.game_id || activeWs?.schema_id || activeWs?.id || activeWsId;
 
                     // If on the dummy default workspace or a workspace with no configured database, return empty mock response
@@ -592,7 +873,10 @@ export const supabase = new Proxy({} as SupabaseClient, {
                         'secure_mark_notifications_read': 'mark_notifications_read',
                         'secure_delete_notifications': 'delete_notifications',
                         'secure_mark_all_notifications_read': 'mark_all_notifications_read',
-                        'secure_delete_all_notifications': 'delete_all_notifications'
+                        'secure_delete_all_notifications': 'delete_all_notifications',
+                        'bulk_ingest_vault_mods': 'bulk_ingest_vault_mods',
+                        'dispatch_follower_notifications': 'dispatch_broadcast_notifications',
+                        'dispatch_broadcast_notifications': 'dispatch_broadcast_notifications'
                     };
 
                     let payload: any = {};
@@ -612,6 +896,16 @@ export const supabase = new Proxy({} as SupabaseClient, {
                         payload = { notification_id: args?.p_id };
                     } else if (fnName === 'secure_delete_notifications') {
                         payload = { notification_id: args?.p_id };
+                    } else if (fnName === 'bulk_ingest_vault_mods') {
+                        payload = { items: args?.p_items || args?.items || [] };
+                    } else if (fnName === 'dispatch_follower_notifications' || fnName === 'dispatch_broadcast_notifications') {
+                        payload = {
+                            mason_id: args?.p_mason_id || args?.mason_id || undefined,
+                            type: args?.p_type || args?.type || 'system_broadcast',
+                            reference_id: args?.p_reference_id || args?.reference_id,
+                            message: args?.p_message || args?.message || '',
+                            exclude_self: args?.p_exclude_self ?? true,
+                        };
                     }
 
                     const res = await supabaseAuth.functions.invoke('game-gateway', {
@@ -647,8 +941,12 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     return rawAuthClient.channel(name, opts);
                 }
 
-                // Determine if this is an OS channel (e.g. notifications)
-                if (name.includes('notifications') || name.includes('system_broadcasts') || (useStore.getState().view === 'KeepersCore' && name.includes('audit_logs')) || name.includes('sanctuary_games')) {
+                // Route Core Hub-only channels explicitly; Spoke channels (notifications, system_broadcasts, etc.) route to the active Spoke client
+                if (
+                    name.includes('keeper_') ||
+                    name.includes('sanctuary_games') ||
+                    name.includes('system_directives')
+                ) {
                     return supabaseAuth.channel(name, opts);
                 }
 
@@ -670,7 +968,10 @@ export const supabase = new Proxy({} as SupabaseClient, {
                 try {
                     const client = getActiveGameClient();
                     if (client && typeof client.removeChannel === 'function') {
-                        return await client.removeChannel(ch);
+                        await client.removeChannel(ch).catch(() => {});
+                    }
+                    if (typeof supabaseAuth.removeChannel === 'function') {
+                        await supabaseAuth.removeChannel(ch).catch(() => {});
                     }
                     if (ch && typeof ch.unsubscribe === 'function') {
                         return ch.unsubscribe();
@@ -690,6 +991,11 @@ export const supabase = new Proxy({} as SupabaseClient, {
 });
 
 const spokeCredentialsCache = new Map<string, { id: string; schema_id: string; supabase_url: string; supabase_anon_key: string }>();
+if (typeof window !== 'undefined') {
+    window.addEventListener('sanctuary-games-updated', () => {
+        spokeCredentialsCache.clear();
+    });
+}
 
 export async function getSpokeClientById(targetSpokeId?: string): Promise<SupabaseClient | null> {
     if (isStandaloneFork) {
@@ -743,14 +1049,15 @@ export async function getSpokeClientById(targetSpokeId?: string): Promise<Supaba
 
         if (creds?.supabase_url && creds?.supabase_anon_key) {
             const cleanUrl = String(creds.supabase_url).trim().replace(/\/+$/, '');
+            const cleanKey = String(creds.supabase_anon_key).trim();
             if (cleanUrl === authUrl.trim().replace(/\/+$/, '')) {
                 return rawAuthClient;
             }
-            const cacheKey = `${cleanUrl}::${String(creds.supabase_anon_key).slice(0, 16)}`;
+            const cacheKey = `${cleanUrl}::${cleanKey}`;
             if (spokeClientCache.has(cacheKey)) {
                 return spokeClientCache.get(cacheKey)!;
             }
-            const client = createClient(cleanUrl, String(creds.supabase_anon_key).trim(), {
+            const client = createClient(cleanUrl, cleanKey, {
                 auth: {
                     persistSession: false,
                     autoRefreshToken: false,
@@ -785,7 +1092,14 @@ export async function submitThreatManifestToSpoke(
             }
         }
         const state = useStore.getState();
-        const wsId = state.activeWorkspaceId || localStorage.getItem('sanctuary_active_workspace') || 'sims4';
+        const wsId = String(
+            state.activeWorkspaceId ||
+            (typeof localStorage !== 'undefined' ? localStorage.getItem('sanctuary_active_workspace') : '') ||
+            ''
+        ).trim();
+        if (!wsId || wsId === 'default_workspace') {
+            return { data: null, error: null, skipped: true };
+        }
         const detectedHash = String(item?.detected_hash || item?.hash || 'unknown-hash').trim();
         const artifactName = String(
             item?.artifact_name || item?.displayName || item?.name || item?.filename || 'Unknown'

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { CustomDropdown, HoverTooltip } from "./shared";
+import { useStore } from "./store";
+import { CustomDropdown, HoverTooltip, getExtensionRegex, isScriptExtension } from "./shared";
 
 export interface StructureNode {
   id: string;
@@ -43,26 +44,34 @@ const ROOT_MODS_ID = "__root_mods__";
 const isFolderNode = (n: any): boolean =>
   n?.type === "folder" || n?.node_type === "folder" || Array.isArray(n?.children);
 
-function resolveModFileName(m: any): { fileName: string; ext: string; rawModName: string } {
+function resolveModFileName(
+  m: any,
+  activeGameSchema?: any
+): { fileName: string; ext: string; rawModName: string } {
+  const defaultPrimaryExt =
+    activeGameSchema?.extensions?.packages?.[0] ||
+    activeGameSchema?.extensions?.supported?.[0] ||
+    ".bin";
+  const defaultScriptExt = activeGameSchema?.extensions?.scripts?.[0] || defaultPrimaryExt;
   const rawModName = String(m?.file_name || m?.name || "")
     .split(/[\\/]/)
     .pop()
     ?.trim() || "";
-  if (!rawModName) return { fileName: "", ext: ".package", rawModName: "" };
+  if (!rawModName) return { fileName: "", ext: defaultPrimaryExt, rawModName: "" };
 
-  const hasKnownExt = /\.(package|ts4script|cfg|ini|json|xml|txt|dat|log)$/i.test(rawModName);
+  const hasKnownExt = /\.[a-z0-9]{2,12}$/i.test(rawModName);
   if (hasKnownExt) {
     const dotIdx = rawModName.lastIndexOf(".");
-    const ext = dotIdx !== -1 ? rawModName.slice(dotIdx).toLowerCase() : ".package";
+    const ext = dotIdx !== -1 ? rawModName.slice(dotIdx).toLowerCase() : defaultPrimaryExt;
     return { fileName: rawModName, ext, rawModName };
   }
 
   const rawExt = String(
-    m?.file_extension || (m?.is_script ? ".ts4script" : ".package")
+    m?.file_extension || (m?.is_script ? defaultScriptExt : defaultPrimaryExt)
   )
     .trim()
     .toLowerCase();
-  const ext = rawExt ? (rawExt.startsWith(".") ? rawExt : `.${rawExt}`) : ".package";
+  const ext = rawExt ? (rawExt.startsWith(".") ? rawExt : `.${rawExt}`) : defaultPrimaryExt;
   return {
     fileName: `${rawModName}${ext}`,
     ext,
@@ -85,6 +94,7 @@ export default function ModStructureBuilder({
   childRels = [],
 }: ModStructureBuilderProps) {
   const { t } = useLexicon();
+  const activeGameSchema = useStore((s) => s.activeGameSchema);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
   const [addingChildToFolderId, setAddingChildToFolderId] = useState<string | null>(null);
@@ -112,10 +122,16 @@ export default function ModStructureBuilder({
       rawRef?: any
     ) => {
       if (!modObj) return;
-      const { fileName, ext, rawModName } = resolveModFileName(modObj);
+      const { fileName, ext, rawModName } = resolveModFileName(modObj, activeGameSchema);
       if (!fileName) return;
       const lower = fileName.toLowerCase();
-      if (lower === "manifest.json" || lower === "override.json" || lower === "resource.cfg") return;
+      const manifestFile = String(activeGameSchema?.load_order?.manifest_file || "").toLowerCase();
+      if (
+        lower === ".sanctuary.manifest.json" ||
+        lower === ".sanctuary.override.json" ||
+        (manifestFile && lower === manifestFile)
+      )
+        return;
       const modId = modObj.id ? String(modObj.id) : undefined;
       if (modId && seenModIds.has(modId)) return;
       if (seenNames.has(lower)) return;
@@ -178,11 +194,15 @@ export default function ModStructureBuilder({
               (item.rawModName && item.rawModName.toLowerCase() === rawNodeName.toLowerCase())
           );
           if (!matchedExisting) {
+            const fallbackExt =
+              activeGameSchema?.extensions?.packages?.[0] ||
+              activeGameSchema?.extensions?.supported?.[0] ||
+              undefined;
             pushModItem(
               {
                 id: n.assignedModId,
                 name: rawNodeName,
-                file_extension: /\.[a-z0-9]+$/i.test(rawNodeName) ? undefined : ".package",
+                file_extension: /\.[a-z0-9]+$/i.test(rawNodeName) ? undefined : fallbackExt,
               },
               "addon",
               n
@@ -211,14 +231,15 @@ export default function ModStructureBuilder({
         const byExact = modFiles.find((f) => f.name.toLowerCase() === nNameLower);
         if (byExact) return byExact;
       }
+      const extRegex = getExtensionRegex(activeGameSchema);
       const nBaseLower = String(n?.assignedModName || n?.name || "")
-        .replace(/\.(package|ts4script)$/i, "")
+        .replace(extRegex, "")
         .trim()
         .toLowerCase();
       if (nBaseLower) {
         const candidates = modFiles.filter(
           (f) =>
-            (f.rawModName || f.name.replace(/\.(package|ts4script)$/i, ""))
+            (f.rawModName || f.name.replace(extRegex, ""))
               .trim()
               .toLowerCase() === nBaseLower
         );
@@ -325,12 +346,24 @@ export default function ModStructureBuilder({
     }
   }, [modFiles]);
 
+  const rootModsLabel = useMemo(() => {
+    const rawSubdir = String(
+      activeGameSchema?.paths?.mods_subdir ||
+        activeGameSchema?.paths?.default_relative_mods ||
+        ""
+    )
+      .replace(/\\/g, "/")
+      .replace(/^\/+|\/+$/g, "");
+    const leaf = rawSubdir ? rawSubdir.split("/").pop() || rawSubdir : t("term_mods", "Mods");
+    return `${leaf}/`;
+  }, [activeGameSchema, t]);
+
   const allFolders = useMemo(() => {
     const list: Array<{ id: string; name: string; path: string }> = [
       {
         id: ROOT_MODS_ID,
-        name: "Mods/",
-        path: "Mods/",
+        name: rootModsLabel,
+        path: rootModsLabel,
       },
     ];
     const walk = (nodes: StructureNode[], prefix: string) => {
@@ -342,9 +375,9 @@ export default function ModStructureBuilder({
         }
       }
     };
-    walk(structure || [], "Mods/");
+    walk(structure || [], rootModsLabel);
     return list;
-  }, [structure]);
+  }, [structure, rootModsLabel]);
 
   const fileFolderLocationMap = useMemo(() => {
     const map = new Map<string, { folderId: string; folderPath: string }>();
@@ -357,9 +390,9 @@ export default function ModStructureBuilder({
         }
       }
     };
-    walk(structure || [], ROOT_MODS_ID, "Mods/");
+    walk(structure || [], ROOT_MODS_ID, rootModsLabel);
     return map;
-  }, [structure]);
+  }, [structure, rootModsLabel]);
 
   const moveFileToFolder = (fileName: string, targetFolderId: string) => {
     const lower = fileName.toLowerCase();
@@ -492,18 +525,18 @@ export default function ModStructureBuilder({
   const renderFileRow = (file: ModFileItem) => {
     const loc = fileFolderLocationMap.get(file.name.toLowerCase()) || {
       folderId: ROOT_MODS_ID,
-      folderPath: "Mods/",
+      folderPath: rootModsLabel,
     };
     const isCore = file.role === "core";
     const isConfig = file.role === "config";
 
     const iconName = isCore
-      ? "deployed_code"
+      ? t("icon_deployed_code", "deployed_code")
       : isConfig
-        ? "tune"
-        : file.ext === ".ts4script"
-          ? "terminal"
-          : "extension";
+        ? t("icon_tune", "tune")
+        : isScriptExtension(file.ext, activeGameSchema)
+          ? t("icon_terminal", "terminal")
+          : t("icon_extension", "extension");
 
     const roleLabel =
       file.role === "core"
@@ -795,14 +828,14 @@ export default function ModStructureBuilder({
 
   return (
     <div className="w-full rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] overflow-hidden flex flex-col">
-      {/* Root Directory Bar: Mods/ */}
+      {/* Root Directory Bar */}
       <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <span className="material-symbols-outlined !text-[20px] text-[var(--accent)]">
             {t("icon_folder_open", "folder_open")}
           </span>
           <span className="text-xs font-black font-mono tracking-wider text-[var(--text)]">
-            Mods/
+            {rootModsLabel}
           </span>
           <span className="text-[11px] font-semibold text-[var(--subtext)] opacity-75">
             ({modFiles.length} {t("modal_files", "Files")} • {allFolders.length - 1}{" "}
@@ -851,7 +884,7 @@ export default function ModStructureBuilder({
               className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-xs font-bold text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                create_new_folder
+                {t("icon_create_new_folder", "create_new_folder")}
               </span>
               {t("context_new_folder", "New Folder")}
             </button>
@@ -861,7 +894,7 @@ export default function ModStructureBuilder({
 
       {/* Directory Tree Contents */}
       <div className="p-4 flex flex-col gap-2 max-h-[320px] overflow-y-auto custom-scrollbar">
-        {renderFolderTree(structure || [], "Mods/")}
+        {renderFolderTree(structure || [], rootModsLabel)}
       </div>
     </div>
   );

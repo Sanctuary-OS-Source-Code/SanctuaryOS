@@ -32,10 +32,6 @@ if (typeof window !== "undefined") {
     }
   };
 }
-window.confirm = (msg) => {
-  useStore.getState().pushStatus(msg + " (Auto-Confirmed)", "warning");
-  return true;
-};
 import { LexiconProvider } from "./LexiconContext"; 
 import { ThemeProvider } from "./ThemeContext";
 import AuthWrapper from "./AuthWrapper";

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { isDesktop } from "./utils/envUtils";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
@@ -8,17 +9,17 @@ import { useModalStore } from "./store/modalStore";
 import MasonFeed from "./MasonFeed";
 import { dispatchSanctuaryNotification } from "./utils/notificationHelper";
 
-import CommandAlertsPanel from "./side-panels/CommandAlertsPanel";
-import VaultCompanionRadarSidePanel from "./side-panels/VaultCompanionRadarSidePanel";
 import { fetchEncryptedVaultCompanionSnapshots, syncDesktopCompanionRadarSnapshot, VaultCompanionSnapshot, VaultCompanionArtifact } from "./utils/stagingCrypto";
-import { AuditLogViewer } from "./side-panels/SAAuditLogViewer";
 import { groupUpdateMods } from './side-panels/CommandCenterSidePanels';
 import { evaluateModIssues, groupBrokenMods } from "./side-panels/CommandIncompatiblePanel";
-import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { CommandScreenStats, CommandScreenSectionHeading, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
-import { SanctuaryAlertsSidePanel } from "./side-panels/SanctuaryAlertsSidePanel";
-import { CommunitySupportSidePanel } from "./side-panels/CommunitySupportSidePanel";
 import { extractDispatchMetadata, formatDispatchCategory } from "./components/universal/DispatchPollAndMeta";
+
+const CommandAlertsPanel = React.lazy(() => import("./side-panels/CommandAlertsPanel"));
+const VaultCompanionRadarSidePanel = React.lazy(() => import("./side-panels/VaultCompanionRadarSidePanel"));
+const AuditLogViewer = React.lazy(() => import("./side-panels/SAAuditLogViewer").then((m) => ({ default: m.AuditLogViewer })));
+const MasonPostViewer = React.lazy(() => import("./side-panels/MasonPostViewer"));
+const CommunitySupportSidePanel = React.lazy(() => import("./side-panels/CommunitySupportSidePanel").then((m) => ({ default: m.CommunitySupportSidePanel })));
 export default function CommandCenter({
   isScanning, modsPath, isConfigured, toggleInActiveSet,
   modList, quarantineList, shelterContents, shelterActive, runRadarSweep, runSanitization, massIngestToCloud, triggerShelter, setView, setFilterStatus, setShowBrokenModal, setShowQuarantineModal, handleOpenMasonProfile, networkUpdates, setIsSupportDeskOpen, setIsCitizenTicketsOpen, equipPlaySet, onOpenDossier
@@ -39,12 +40,17 @@ export default function CommandCenter({
     setShowUpdatesModal,
     setIsConflictRadarOpen,
     setIsBlueprintSwapOpen,
-  } = useModalStore();
+  } = useModalStore(
+    useShallow((s) => ({
+      setShowUpdatesModal: s.setShowUpdatesModal,
+      setIsConflictRadarOpen: s.setIsConflictRadarOpen,
+      setIsBlueprintSwapOpen: s.setIsBlueprintSwapOpen,
+    }))
+  );
   const [hasSymlinkPerms, setHasSymlinkPerms] = useState<boolean | null>(null);
 
   const [isAuditLogsOpen, setIsAuditLogsOpen] = useState(false);
   const [isSupportPanelOpen, setIsSupportPanelOpen] = useState(false);
-  const isAlertsOpen = useStore((state) => state.isAlertsOpen);
   const setIsAlertsOpen = useStore((state) => state.setIsAlertsOpen);
   const [alertsPanelMode, setAlertsPanelMode] = useState<"critical" | "alert" | null>(null);
   const [viewingPost, setViewingPost] = useState<any>(null);
@@ -205,82 +211,120 @@ export default function CommandCenter({
     checkPerms();
     if (activeWorkspaceId === 'default_workspace' || !workspaces || workspaces.length === 0) return;
 
-    import('./supabase').then(async ({ supabase }) => {
-      if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
+    let cancelled = false;
 
-      const fetchUrgent = async () => {
-        const { data } = await supabase.from('system_broadcasts').select('*').eq('is_active', true).eq('is_pinned', true).or('target_audience.ilike.%All%,target_audience.eq.Citizens,target_audience.ilike."Citizens,%",target_audience.ilike."%,Citizens,%",target_audience.ilike."%,Citizens"').order('created_at', { ascending: false }).limit(1);
-        if (data && data.length > 0) {
-          setUrgentBroadcast((prev: any) => {
-            if (!prev || prev.id !== data[0].id) {
-              if (localStorage.getItem("sanctuary_dismissed_alert_id") !== String(data[0].id)) {
-                dispatchSanctuaryNotification({
-                  uniqueId: `urgent_broadcast:${data[0].id}`,
-                  category: 'alert_banner',
-                  title: data[0].title || t('notify_alert_banner', 'Urgent Global Alert'),
-                  body: data[0].message || data[0].content || '',
-                  data: { broadcastId: data[0].id, type: 'urgent_broadcast' },
-                });
+    const refreshCommandStats = () => {
+      import('./supabase').then(async ({ supabase, supabaseAuth }) => {
+        if (cancelled || !navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
+
+        const fetchUrgent = async () => {
+          const { data } = await supabase.from('system_broadcasts').select('*').eq('is_active', true).eq('is_pinned', true).or('target_audience.ilike.%All%,target_audience.eq.Citizens,target_audience.ilike."Citizens,%",target_audience.ilike."%,Citizens,%",target_audience.ilike."%,Citizens"').order('created_at', { ascending: false }).limit(1);
+          if (cancelled) return;
+          if (data && data.length > 0) {
+            setUrgentBroadcast((prev: any) => {
+              if (!prev || prev.id !== data[0].id) {
+                if (localStorage.getItem("sanctuary_dismissed_alert_id") !== String(data[0].id)) {
+                  dispatchSanctuaryNotification({
+                    uniqueId: `urgent_broadcast:${data[0].id}`,
+                    category: 'alert_banner',
+                    title: data[0].title || t('notify_alert_banner', 'Urgent Global Alert'),
+                    body: data[0].message || data[0].content || '',
+                    data: { broadcastId: data[0].id, type: 'urgent_broadcast' },
+                  });
+                }
               }
+              return data[0];
+            });
+          } else {
+            setUrgentBroadcast(null);
+          }
+        };
+
+        try {
+          const [assetsRes, modsRes, bpRes] = await Promise.all([
+            supabase
+              .from('nexus_assets')
+              .select('id', { count: 'exact', head: true })
+              .in('asset_type', ['lexicon', 'chameleon', 'workbench_template'])
+              .or('is_public.eq.true,is_public.is.null'),
+            supabase
+              .from('mods')
+              .select('id', { count: 'exact', head: true })
+              .eq('compliance_tier', 0)
+              .in('status', ['stable', 'verified', 'unstable', 'corrupted', 'pending']),
+            supabase
+              .from('blueprints')
+              .select('id', { count: 'exact', head: true })
+              .eq('is_public', true)
+              .eq('is_market_listed', true)
+              .eq('compliance_tier', 0)
+          ]);
+
+          if (!cancelled) {
+            let total = 0;
+            let anySucceeded = false;
+            if (!assetsRes.error && typeof assetsRes.count === 'number') {
+              total += assetsRes.count;
+              anySucceeded = true;
             }
-            return data[0];
-          });
-        } else {
-          setUrgentBroadcast(null);
-        }
-      };
+            if (!modsRes.error && typeof modsRes.count === 'number') {
+              total += modsRes.count;
+              anySucceeded = true;
+            }
+            if (!bpRes.error && typeof bpRes.count === 'number') {
+              total += bpRes.count;
+              anySucceeded = true;
+            }
 
-      try {
-        const [assetsRes, modsRes, bpRes] = await Promise.all([
-          supabase
-            .from('nexus_assets')
-            .select('id', { count: 'exact', head: true })
-            .in('asset_type', ['lexicon', 'chameleon', 'workbench_template'])
-            .or('is_public.eq.true,is_public.is.null'),
-          supabase
-            .from('mods')
-            .select('id', { count: 'exact', head: true })
-            .eq('compliance_tier', 0)
-            .in('status', ['stable', 'verified', 'unstable', 'corrupted', 'pending']),
-          supabase
-            .from('blueprints')
-            .select('id', { count: 'exact', head: true })
-            .eq('is_public', true)
-            .eq('is_market_listed', true)
-            .eq('compliance_tier', 0)
-        ]);
+            if (assetsRes.error || modsRes.error || bpRes.error) {
+              console.warn("Partial or failed Nexus stat count query:", {
+                nexus_assets: assetsRes.error,
+                mods: modsRes.error,
+                blueprints: bpRes.error,
+              });
+            }
 
+            setNexusCount(anySucceeded ? total : "-");
+          }
 
-        let total = 0;
-        let errors = [];
-        if (assetsRes.error) errors.push(assetsRes.error);
-        if (modsRes.error) errors.push(modsRes.error);
-        if (bpRes.error) errors.push(bpRes.error);
-
-        if (errors.length > 0) {
-          setNexusCount(errors[0].message as any);
-        } else {
-          if (assetsRes.count != null) total += assetsRes.count;
-          if (modsRes.count != null) total += modsRes.count;
-          if (bpRes.count != null) total += bpRes.count;
-          setNexusCount(total);
+          fetchUrgent();
+        } catch (err: any) {
+          console.warn("Failed to fetch total nexus count", err);
+          if (!cancelled) setNexusCount("-");
         }
 
-        fetchUrgent();
-      } catch (err: any) {
-        console.error("Failed to fetch total nexus count", err);
-        setNexusCount(err.message || "EXCEPTION THROWN");
-      }
-
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session?.user?.id) {
-          supabase.from('sanctuary_tickets').select('id', { count: 'exact', head: true }).eq('author_id', data.session.user.id).then(({ count }) => {
-            if (count !== null) setTicketCount(count);
-          });
+        try {
+          const uid =
+            session?.user?.id ||
+            (await supabaseAuth.auth.getSession()).data.session?.user?.id;
+          if (!uid) {
+            if (!cancelled) setTicketCount("-");
+            return;
+          }
+          const { count, error } = await supabase
+            .from('sanctuary_tickets')
+            .select('id', { count: 'exact', head: true })
+            .eq('author_id', uid);
+          if (!cancelled) {
+            if (!error && typeof count === 'number') {
+              setTicketCount(count);
+            } else {
+              setTicketCount(0);
+            }
+          }
+        } catch {
+          if (!cancelled) setTicketCount("-");
         }
       });
-    });
-  }, [activeWorkspaceId, workspaces]);
+    };
+
+    refreshCommandStats();
+    window.addEventListener('sanctuary-games-updated', refreshCommandStats);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('sanctuary-games-updated', refreshCommandStats);
+    };
+  }, [activeWorkspaceId, workspaces, session?.user?.id]);
 
   useEffect(() => {
     if (hasSymlinkPerms === true || hasSymlinkPerms === null) return;
@@ -1110,63 +1154,64 @@ export default function CommandCenter({
         </div>
       </div>
 
-      <CommunitySupportSidePanel
-        isOpen={isSupportPanelOpen}
-        onClose={() => setIsSupportPanelOpen(false)}
-        onNavigateSettings={() => {
-          setIsSupportPanelOpen(false);
-          localStorage.setItem("sanctuary_settings_tab", "SUPPORTER");
-          if (setView) setView("settings");
-          setTimeout(() => {
-            window.dispatchEvent(
-              new CustomEvent("navigateSettings", {
-                detail: { tab: "SUPPORTER" },
-              }),
-            );
-          }, 50);
-        }}
-      />
+      <Suspense fallback={null}>
+        {isSupportPanelOpen && (
+          <CommunitySupportSidePanel
+            isOpen={isSupportPanelOpen}
+            onClose={() => setIsSupportPanelOpen(false)}
+            onNavigateSettings={() => {
+              setIsSupportPanelOpen(false);
+              localStorage.setItem("sanctuary_settings_tab", "SUPPORTER");
+              if (setView) setView("settings");
+              setTimeout(() => {
+                window.dispatchEvent(
+                  new CustomEvent("navigateSettings", {
+                    detail: { tab: "SUPPORTER" },
+                  }),
+                );
+              }, 50);
+            }}
+          />
+        )}
 
-      <AuditLogViewer
-        isSidePanel={true}
-        isOpen={isAuditLogsOpen}
-        onClose={() => setIsAuditLogsOpen(false)}
-        hideEditIdentity={true}
-      />
+        {isAuditLogsOpen && (
+          <AuditLogViewer
+            isSidePanel={true}
+            isOpen={isAuditLogsOpen}
+            onClose={() => setIsAuditLogsOpen(false)}
+            hideEditIdentity={true}
+          />
+        )}
 
-      <SanctuaryAlertsSidePanel
-        isOpen={isAlertsOpen}
-        onClose={() => setIsAlertsOpen(false)}
-        audience="Citizens"
-        tableName="system_broadcasts"
-      />
+        {viewingPost && <MasonPostViewer post={viewingPost} onClose={() => setViewingPost(null)} userId={session?.user?.id || null} />}
 
-      {viewingPost && <MasonPostViewer post={viewingPost} onClose={() => setViewingPost(null)} userId={session?.user?.id || null} />}
+        {alertsPanelMode !== null && (
+          <CommandAlertsPanel
+            isOpen={alertsPanelMode !== null}
+            onClose={() => setAlertsPanelMode(null)}
+            mode={alertsPanelMode || 'critical'}
+            playSet={activePlaySet}
+            modList={modList}
+            allow_write={hasSymlinkPerms !== false}
+            vaultPath={modsPath}
+            toggleInActiveSet={toggleInActiveSet}
+          />
+        )}
 
-      <CommandAlertsPanel
-        isOpen={alertsPanelMode !== null}
-        onClose={() => setAlertsPanelMode(null)}
-        mode={alertsPanelMode || 'critical'}
-        playSet={activePlaySet}
-        modList={modList}
-        allow_write={hasSymlinkPerms !== false}
-        vaultPath={modsPath}
-        toggleInActiveSet={toggleInActiveSet}
-      />
-
-      {!isDesktop() && (
-        <VaultCompanionRadarSidePanel
-          isOpen={isCompanionRadarOpen}
-          onClose={() => setIsCompanionRadarOpen(false)}
-          snapshot={activeCompanionSnapshot}
-          enrichedArtifacts={enrichedCompanionArtifacts}
-          initialFilter={companionRadarInitialFilter}
-          onOpenDossier={onOpenDossier}
-          onNavigateToBlueprints={() => {
-            if (setView) setView("playsets");
-          }}
-        />
-      )}
+        {!isDesktop() && isCompanionRadarOpen && (
+          <VaultCompanionRadarSidePanel
+            isOpen={isCompanionRadarOpen}
+            onClose={() => setIsCompanionRadarOpen(false)}
+            snapshot={activeCompanionSnapshot}
+            enrichedArtifacts={enrichedCompanionArtifacts}
+            initialFilter={companionRadarInitialFilter}
+            onOpenDossier={onOpenDossier}
+            onNavigateToBlueprints={() => {
+              if (setView) setView("playsets");
+            }}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

@@ -128,8 +128,8 @@ const CORE_TOUR_STEPS: TourTargetStep[] = [
     iconFallback: "satellite_alt",
   },
   {
-    id: "DbpfScout",
-    view: "DbpfScout",
+    id: "ArtifactScout",
+    view: "ArtifactScout",
     fileSlug: "06_Conflict_Radar",
     labelKey: "radar_title",
     labelFallback: "Conflict Radar",

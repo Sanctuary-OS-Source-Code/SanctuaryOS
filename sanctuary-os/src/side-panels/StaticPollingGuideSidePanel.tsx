@@ -32,9 +32,19 @@ export function StaticPollingGuideSidePanel({
   const [activeTab, setActiveTab] = useState<GuideTabId>("workflow");
   const [copiedKey, setCopiedKey] = useState<"manifest" | "catalog" | null>(null);
 
+  const activeGameSchema = useStore((s) => s.activeGameSchema);
+  const samplePrimaryExt =
+    activeGameSchema?.extensions?.packages?.[0] ||
+    activeGameSchema?.extensions?.supported?.[0] ||
+    ".bin";
+  const sampleDlcCode = useMemo(() => {
+    const keys = Object.keys(activeGameSchema?.dlc_catalog || {});
+    return keys[0] || "DLC_01";
+  }, [activeGameSchema?.dlc_catalog]);
+
   const cleanModName = useMemo(() => {
     const raw = (mod?.name || "MyAwesomeMod").split(/[\\/]/).pop() || "MyAwesomeMod";
-    return raw.replace(/\.(package|ts4script|zip)$/i, "");
+    return raw.replace(/\.[^/.]+$/, "");
   }, [mod?.name]);
 
   const artifactId = useMemo(() => {
@@ -54,7 +64,7 @@ export function StaticPollingGuideSidePanel({
     const authorStr = masonName || mod?.master_author || "CreatorName";
     const manifestUrl =
       mod?.static_manifest_url ||
-      `https://raw.githubusercontent.com/author/manifests/main/${artifactId}/manifest.json`;
+      `https://raw.githubusercontent.com/author/manifests/main/${artifactId}/.sanctuary.manifest.json`;
     const downloadUrl =
       mod?.url || `https://patreon.com/posts/${artifactId}-${versionStr}`;
 
@@ -63,9 +73,9 @@ export function StaticPollingGuideSidePanel({
         ? dependencies.map((d) => ({
             id: d.mod?.id || d.dependency_id || undefined,
             hash: d.mod?.hash || undefined,
-            name: d.mod?.name || d.dependency_name || "XML Injector",
+            name: d.mod?.name || d.dependency_name || "Core Framework",
           }))
-        : [{ name: "XML Injector" }];
+        : [{ name: "Core Framework" }];
 
     const confList =
       conflicts.length > 0
@@ -80,7 +90,7 @@ export function StaticPollingGuideSidePanel({
             {
               name: "ExampleConflictingMod",
               severity: 4,
-              description: "Edits the same core tuning resources",
+              description: "Edits the same core engine resources",
             },
           ];
 
@@ -109,7 +119,7 @@ export function StaticPollingGuideSidePanel({
       current_hashes: [sampleHash],
       modules: [
         {
-          name: `${cleanModName}.package`,
+          name: `${cleanModName}${samplePrimaryExt}`,
           sha256: sampleHash,
           role: "core",
         },
@@ -121,12 +131,12 @@ export function StaticPollingGuideSidePanel({
         min_engine_version:
           Array.isArray(mod?.compatible_versions) && mod.compatible_versions.length > 0
             ? mod.compatible_versions[0]
-            : "1.110.294",
+            : "1.0.0",
         tested_engine_versions:
           Array.isArray(mod?.compatible_versions) && mod.compatible_versions.length > 0
             ? mod.compatible_versions
-            : ["1.110.294"],
-        required_dlc: activeDlcIds.length > 0 ? activeDlcIds : ["EP01"],
+            : ["1.0.0"],
+        required_dlc: activeDlcIds.length > 0 ? activeDlcIds : [sampleDlcCode],
       },
       atomic_logic: {
         dependencies: depList,
@@ -141,7 +151,7 @@ export function StaticPollingGuideSidePanel({
     };
 
     return JSON.stringify(obj, null, 2);
-  }, [mod, masonName, cleanModName, artifactId, activeDlcIds, dependencies, conflicts]);
+  }, [mod, masonName, cleanModName, artifactId, activeDlcIds, dependencies, conflicts, samplePrimaryExt, sampleDlcCode]);
 
   const multiCatalogJson = useMemo(() => {
     const parsedSingle = JSON.parse(singleManifestJson);
@@ -171,7 +181,7 @@ export function StaticPollingGuideSidePanel({
       title: t("edge_guide_step1_title", "Stage Your {Mod} in the Sandbox"),
       desc: t(
         "edge_guide_step1_desc",
-        "Drop your .package, .ts4script, and optional .cfg/.ini files into Dev/Sandbox (or click Import in the {Mason} Workshop). Open the {mod} card and configure its Details & Versions (Name, {Mason} Version, Safety Tier 0–4, Game Versions), Files & Folders (Twin scripts, Add-on modules, Folder Structure), and Rules & Upload (Required DLC, Dependencies, and Severity 3–4 Conflicts)."
+        "Drop your {mod} binaries, scripts, and optional .cfg/.ini/.json/.toml files into Dev/Sandbox (or click Import in the {Mason} Workshop). Open the {mod} card and configure its Details & Versions (Name, {Mason} Version, Safety Tier 0–4, Game Versions), Files & Folders (Twin scripts, Add-on modules, Folder Structure), and Rules & Upload (Required Add-Ons / DLC, Dependencies, and Severity 3–4 Conflicts)."
       ),
       accentClass: "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]",
     },
@@ -181,7 +191,7 @@ export function StaticPollingGuideSidePanel({
       title: t("edge_guide_step2_title", "Set Your $0 Static Manifest URL"),
       desc: t(
         "edge_guide_step2_desc",
-        "Paste the raw URL where your manifest.json (single {mod}) or catalog.json (all your {mods} in one file) will live—such as GitHub Raw, Cloudflare Pages, GitLab Raw, or your own website. Sanctuary OS embeds this URL directly into both manifest.json and override.json inside your release .zip."
+        "Paste the raw URL where your .sanctuary.manifest.json (single {mod}) or catalog.json (all your {mods} in one file) will live—such as GitHub Raw, Cloudflare Pages, GitLab Raw, or your own website. Sanctuary OS embeds this URL directly into both .sanctuary.manifest.json and .sanctuary.override.json inside your release .zip."
       ),
       accentClass: "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]",
     },
@@ -191,7 +201,7 @@ export function StaticPollingGuideSidePanel({
       title: t("edge_guide_step3_title", "Export Release (.zip) & Upload"),
       desc: t(
         "edge_guide_step3_desc",
-        "Click Export Static Manifest (.zip) in Rules & Upload (or the top-right inbox icon). Sanctuary OS computes the SHA-256 hash of every file in your release, writes manifest.json and override.json into your Sandbox folder, and bundles {ModName}_v{Version}_SanctuaryRelease.zip. Upload the .zip to your download page (Patreon, Itch.io, CurseForge, SFS) and push manifest.json to your static URL."
+        "Click Export Static Manifest (.zip) in Rules & Upload (or the top-right inbox icon). Sanctuary OS computes the SHA-256 hash of every file in your release, writes .sanctuary.manifest.json and .sanctuary.override.json into your Sandbox folder, and bundles {ModName}_v{Version}_SanctuaryRelease.zip. Upload the .zip to your download page (Patreon, Itch.io, CurseForge, Nexus) and push .sanctuary.manifest.json to your static URL."
       ),
       accentClass: "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)]",
     },
@@ -201,7 +211,7 @@ export function StaticPollingGuideSidePanel({
       title: t("edge_guide_step4_title", "Pushing Updates (Automatic Lineage Hash Rollover)"),
       desc: t(
         "edge_guide_step4_desc",
-        "When releasing v1.1.0+, place the updated .package/.ts4script files into the same Sandbox folder, bump the {Mason} Version field, and click Export Static Manifest (.zip) again. Sanctuary OS automatically reads your previous manifest.json and SQLite history, rolls the old v1.0.0 SHA-256 hashes into previous_hashes (archive_hashes), and records the new hashes as current_hashes. Replace manifest.json on your static host—every {Citizen} on v1.0.0 will automatically get an Update Available alert!"
+        "When releasing v1.1.0+, place the updated {mod} files into the same Sandbox folder, bump the {Mason} Version field, and click Export Static Manifest (.zip) again. Sanctuary OS automatically reads your previous .sanctuary.manifest.json and SQLite history, rolls the old v1.0.0 SHA-256 hashes into previous_hashes (archive_hashes), and records the new hashes as current_hashes. Replace .sanctuary.manifest.json on your static host—every {Citizen} on v1.0.0 will automatically get an Update Available alert!"
       ),
       accentClass: "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_35%,transparent)]",
     },
@@ -211,7 +221,7 @@ export function StaticPollingGuideSidePanel({
       title: t("edge_guide_step5_title", "What {Citizens} Experience (Zero Popups)"),
       desc: t(
         "edge_guide_step5_desc",
-        "A {Citizen} drags your release .zip into Sanctuary OS once. With zero confirmation popups, Sanctuary OS registers your manifest_url and lineage hashes in SQLite, marks the {mod} STABLE, groups multi-file suites into a single parent card, enforces your DLC/Dependency/Conflict rules, alerts them when you update manifest.json, and replaces old files in-place (even if renamed) when they drop the new .zip."
+        "A {Citizen} drags your release .zip into Sanctuary OS once. With zero confirmation popups, Sanctuary OS registers your manifest_url and lineage hashes in SQLite, marks the {mod} STABLE, groups multi-file suites into a single parent card, enforces your Add-On/Dependency/Conflict rules, alerts them when you update .sanctuary.manifest.json, and replaces old files in-place (even if renamed) when they drop the new .zip."
       ),
       accentClass: "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)]",
     },
@@ -227,7 +237,7 @@ export function StaticPollingGuideSidePanel({
       ),
       desc: t(
         "edge_guide_autopush_desc",
-        "Want Sanctuary OS to push your updated manifest.json or catalog.json directly from the Sandbox without opening a browser? Select an Auto-Push Provider in Rules & Upload! Your scoped token stays 100% local on your PC, and clicking Export & Auto-Push (.zip) automatically rolls old hashes into previous_hashes, updates your live manifest.json or merges into catalog.json, stamps the live URL into your release .zip, and triggers update pings for all {Citizens}."
+        "Want Sanctuary OS to push your updated .sanctuary.manifest.json or catalog.json directly from the Sandbox without opening a browser? Select an Auto-Push Provider in Rules & Upload! Your scoped token stays 100% local on your PC, and clicking Export & Auto-Push (.zip) automatically rolls old hashes into previous_hashes, updates your live .sanctuary.manifest.json or merges into catalog.json, stamps the live URL into your release .zip, and triggers update pings for all {Citizens}."
       ),
     },
     {
@@ -236,7 +246,7 @@ export function StaticPollingGuideSidePanel({
       title: t("edge_guide_host_github_title", "Option A: GitHub Raw (Free, 2-Minute Setup)"),
       desc: t(
         "edge_guide_host_github_desc",
-        "1. Create a free public GitHub repository (e.g., my-sims-manifests). 2. Upload your exported manifest.json (or a single catalog.json for all your {mods}). 3. Click the file on GitHub and click 'Raw' to copy the raw.githubusercontent.com URL. 4. Paste that URL into Static Polling Manifest URL before exporting your release .zip."
+        "1. Create a free public GitHub repository (e.g., my-mod-manifests). 2. Upload your exported .sanctuary.manifest.json (or a single catalog.json for all your {mods}). 3. Click the file on GitHub and click 'Raw' to copy the raw.githubusercontent.com URL. 4. Paste that URL into Static Polling Manifest URL before exporting your release .zip."
       ),
     },
     {
@@ -248,7 +258,7 @@ export function StaticPollingGuideSidePanel({
       ),
       desc: t(
         "edge_guide_host_cf_desc",
-        "Connect your GitHub repository to Cloudflare Pages (or upload manifest.json to your existing web host). Every git push automatically deploys your updated manifest.json globally with zero bandwidth fees."
+        "Connect your GitHub repository to Cloudflare Pages (or upload .sanctuary.manifest.json to your existing web host). Every git push automatically deploys your updated .sanctuary.manifest.json globally with zero bandwidth fees."
       ),
     },
     {
@@ -260,7 +270,7 @@ export function StaticPollingGuideSidePanel({
       ),
       desc: t(
         "edge_guide_host_catalog_desc",
-        "Instead of managing separate manifest.json URLs for 20+ {mods}, you can point all of your {mods} to a single https://.../catalog.json URL containing an 'artifacts' array. Sanctuary OS automatically matches each installed {mod} inside catalog.json by artifact_id, name, current_hashes, or previous_hashes."
+        "Instead of managing separate .sanctuary.manifest.json URLs for 20+ {mods}, you can point all of your {mods} to a single https://.../catalog.json URL containing an 'artifacts' array. Sanctuary OS automatically matches each installed {mod} inside catalog.json by artifact_id, name, current_hashes, or previous_hashes."
       ),
     },
   ];
@@ -274,7 +284,7 @@ export function StaticPollingGuideSidePanel({
       ),
       desc: t(
         "edge_guide_lineage_layer1_desc",
-        "Records the primary .package hash plus every sibling .package and .ts4script module in the current release. All sibling modules in a multi-file suite (like MCCC) are recognized as current and grouped under a single parent folder card."
+        "Records the primary {mod} hash plus every sibling binary and script module in the current release. All sibling modules in a multi-file suite are recognized as current and grouped under a single parent folder card."
       ),
     },
     {
@@ -285,15 +295,15 @@ export function StaticPollingGuideSidePanel({
       ),
       desc: t(
         "edge_guide_lineage_layer2_desc",
-        "Every time you click Export Static Manifest (.zip) over an existing Sandbox folder (or add historical hashes in Details & Versions), prior release hashes are rolled into previous_hashes. When Sanctuary OS polls your remote manifest.json, any {Citizen} whose installed file matches a hash in previous_hashes immediately receives an Update Available badge."
+        "Every time you click Export Static Manifest (.zip) over an existing Sandbox folder (or add historical hashes in Details & Versions), prior release hashes are rolled into previous_hashes. When Sanctuary OS polls your remote .sanctuary.manifest.json, any {Citizen} whose installed file matches a hash in previous_hashes immediately receives an Update Available badge."
       ),
     },
     {
-      icon: t("icon_Autorenew", "autorenew"),
+      icon: t("icon_autorenew", "autorenew"),
       title: t("edge_guide_lineage_layer3_title", "3. In-Place Upgrade Replacement on Drop"),
       desc: t(
         "edge_guide_lineage_layer3_desc",
-        "When a {Citizen} drops your new v1.1.0 .zip into Sanctuary OS, the ingestion engine checks their installed {Vault} against previous_hashes. Even if you renamed MyMod_v1.0.package to MyMod_v1.1.package, Sanctuary OS finds the old v1.0 file by its lineage hash and replaces it in-place inside the exact same subfolder—preventing duplicate {mod} collisions."
+        "When a {Citizen} drops your new v1.1.0 .zip into Sanctuary OS, the ingestion engine checks their installed {Vault} against previous_hashes. Even if you renamed MyMod_v1.0 to MyMod_v1.1, Sanctuary OS finds the old v1.0 file by its lineage hash and replaces it in-place inside the exact same subfolder—preventing duplicate {mod} collisions."
       ),
     },
     {
@@ -304,7 +314,7 @@ export function StaticPollingGuideSidePanel({
       ),
       desc: t(
         "edge_guide_lineage_rules_desc",
-        "In Rules & Upload, dependencies and conflicts can reference other {mods} by SHA-256 hash, Registry UUID, or plain {mod} name (e.g., 'XML Injector'). Sanctuary OS resolves both object rules and plain string names automatically."
+        "In Rules & Upload, dependencies and conflicts can reference other {mods} by SHA-256 hash, Registry UUID, or plain {mod} name (e.g., 'Core Framework'). Sanctuary OS resolves both object rules and plain string names automatically."
       ),
     },
   ];
@@ -468,7 +478,7 @@ export function StaticPollingGuideSidePanel({
               <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed px-1">
                 {t(
                   "edge_guide_lineage_how_desc",
-                  "Sanctuary OS identifies {mods} by cryptographic SHA-256 DNA rather than fragile filenames. Every exported manifest.json tracks three hash layers so updates and multi-file suites never break:"
+                  "Sanctuary OS identifies {mods} by cryptographic SHA-256 DNA rather than fragile filenames. Every exported .sanctuary.manifest.json tracks three hash layers so updates and multi-file suites never break:"
                 )}
               </p>
               {lineageLayers.map((layer, idx) => (
@@ -499,7 +509,7 @@ export function StaticPollingGuideSidePanel({
         {activeTab === "templates" && (
           <div className="flex flex-col gap-5">
             <UniversalGroup
-              title={t("edge_guide_tpl_single_title", "Single-{Mod} manifest.json Template")}
+              title={t("edge_guide_tpl_single_title", "Single-{Mod} .sanctuary.manifest.json Template")}
               icon={t("icon_data_object", "data_object")}
             >
               <div className="flex flex-col gap-3">
@@ -507,7 +517,7 @@ export function StaticPollingGuideSidePanel({
                   <p className="text-xs font-semibold text-[var(--subtext)]">
                     {t(
                       "edge_guide_tpl_single_sub",
-                      "Pre-filled with your active Sandbox {mod} settings (or standard defaults). Save as manifest.json."
+                      "Pre-filled with your active Sandbox {mod} settings (or standard defaults). Save as .sanctuary.manifest.json."
                     )}
                   </p>
                   <button
@@ -522,9 +532,9 @@ export function StaticPollingGuideSidePanel({
                     </span>
                     {copiedKey === "manifest"
                       ? t("copied", "Copied!")
-                      : t("edge_guide_btn_copy_manifest", "Copy manifest.json")}
+                      : t("edge_guide_btn_copy_manifest", "Copy .sanctuary.manifest.json")}
                     <HoverTooltip
-                      title={t("edge_guide_btn_copy_manifest", "Copy manifest.json")}
+                      title={t("edge_guide_btn_copy_manifest", "Copy .sanctuary.manifest.json")}
                     />
                   </button>
                 </div>

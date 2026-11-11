@@ -6,6 +6,76 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+pub const SANCTUARY_EDGE_MANIFEST_FILE: &str = ".sanctuary.manifest.json";
+pub const SANCTUARY_EDGE_OVERRIDE_FILE: &str = ".sanctuary.override.json";
+
+pub const MAX_ARCHIVE_ENTRY_BYTES: u64 = 1024 * 1024 * 1024; // 1 GiB per file
+pub const MAX_ARCHIVE_TOTAL_BYTES: u64 = 4 * 1024 * 1024 * 1024; // 4 GiB total archive
+pub const MAX_ARCHIVE_ENTRIES: usize = 25_000;
+
+/// Atomically writes `bytes` to `path` via a sibling temporary file + `fsync` + `rename`.
+pub fn atomic_write_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent)
+        .map_err(|e| format!("Failed to create parent directory {:?}: {}", parent, e))?;
+
+    let pid = std::process::id();
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let base_name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("sanctuary_atomic");
+    let tmp_path = parent.join(format!(".{}.tmp.{}.{}", base_name, pid, nanos));
+
+    let write_res = (|| -> std::io::Result<()> {
+        use std::io::Write;
+        let mut f = fs::File::create(&tmp_path)?;
+        f.write_all(bytes)?;
+        f.sync_all()?;
+        Ok(())
+    })();
+
+    if let Err(e) = write_res {
+        let _ = fs::remove_file(&tmp_path);
+        return Err(format!("Failed writing temporary file {:?}: {}", tmp_path, e));
+    }
+
+    if path.exists() {
+        if let Ok(meta) = fs::metadata(path) {
+            if meta.permissions().readonly() {
+                let mut perms = meta.permissions();
+                perms.set_readonly(false);
+                let _ = fs::set_permissions(path, perms);
+            }
+        }
+    }
+
+    if let Err(rename_err) = fs::rename(&tmp_path, path) {
+        #[cfg(target_os = "windows")]
+        {
+            if path.exists() {
+                let _ = fs::remove_file(path);
+                if fs::rename(&tmp_path, path).is_ok() {
+                    return Ok(());
+                }
+            }
+        }
+        let _ = fs::remove_file(&tmp_path);
+        return Err(format!(
+            "Failed to atomically replace {:?}: {}",
+            path, rename_err
+        ));
+    }
+
+    Ok(())
+}
+
 pub fn process_structure_nodes(
     schema: &Option<crate::schema::GameSchema>,
     nodes: &[StructureNode],
@@ -138,6 +208,15 @@ pub fn get_vault_mods_lane(vault_path: &str) -> PathBuf {
     }
 }
 
+pub fn get_vault_root_dir(vault_path: &str) -> PathBuf {
+    let p = PathBuf::from(vault_path);
+    if is_mods_dir(&p) {
+        p.parent().unwrap_or(&p).to_path_buf()
+    } else {
+        p
+    }
+}
+
 pub fn mark_path_hidden(path: &Path) {
     #[cfg(target_os = "windows")]
     {
@@ -203,236 +282,284 @@ pub fn get_cache_path(vault_path: &str) -> PathBuf {
     Path::new(vault_path).join(".sanctuary_cache.db")
 }
 
-static INITIALIZED_DB_PATHS: std::sync::OnceLock<
-    std::sync::Mutex<std::collections::HashSet<PathBuf>>,
+static DB_CONNECTION_POOL: std::sync::OnceLock<
+    std::sync::Mutex<HashMap<PathBuf, std::sync::Arc<std::sync::Mutex<Connection>>>>,
 > = std::sync::OnceLock::new();
 
-pub fn get_db_conn(vault_path: &str) -> Connection {
-    let path = get_cache_path(vault_path);
-    let conn = Connection::open(&path).unwrap_or_else(|_| Connection::open_in_memory().unwrap());
+fn initialize_vault_sqlite_schema(conn: &Connection, db_path: &Path, vault_path: &str) {
     let _ = conn.pragma_update(None, "journal_mode", "WAL");
     let _ = conn.pragma_update(None, "synchronous", "NORMAL");
     let _ = conn.busy_timeout(std::time::Duration::from_millis(5000));
 
-    let initialized =
-        INITIALIZED_DB_PATHS.get_or_init(|| std::sync::Mutex::new(std::collections::HashSet::new()));
-    let needs_init = initialized
-        .lock()
-        .map(|mut set| set.insert(path.clone()))
-        .unwrap_or(true);
+    mark_path_hidden(db_path);
+    mark_path_hidden(&PathBuf::from(format!("{}-wal", db_path.to_string_lossy())));
+    mark_path_hidden(&PathBuf::from(format!("{}-shm", db_path.to_string_lossy())));
 
-    if needs_init {
-        mark_path_hidden(&path);
-        mark_path_hidden(&PathBuf::from(format!("{}-wal", path.to_string_lossy())));
-        mark_path_hidden(&PathBuf::from(format!("{}-shm", path.to_string_lossy())));
-        let _ = conn.execute(
-            "CREATE TABLE IF NOT EXISTS cache (
-                path TEXT PRIMARY KEY,
-                mtime INTEGER NOT NULL,
-                dna_hash TEXT NOT NULL,
-                explicitly_local INTEGER NOT NULL,
-                quarantined INTEGER NOT NULL,
-                heuristic_malware_sig TEXT,
-                heuristic_sigs_mtime INTEGER NOT NULL DEFAULT 0
-            )",
-            [],
-        );
-        let _ = conn.execute(
-            "ALTER TABLE cache ADD COLUMN heuristic_malware_sig TEXT",
-            [],
-        );
-        let _ = conn.execute(
-            "ALTER TABLE cache ADD COLUMN heuristic_sigs_mtime INTEGER NOT NULL DEFAULT 0",
-            [],
-        );
-        let _ = conn.execute(
-            "CREATE TABLE IF NOT EXISTS edge_manifests (
-                artifact_id TEXT PRIMARY KEY,
-                mason_id TEXT NOT NULL,
-                manifest_url TEXT NOT NULL,
-                target_hash TEXT DEFAULT '',
-                archive_hashes TEXT DEFAULT '[]',
-                game_id TEXT DEFAULT '',
-                last_fetched_hash TEXT,
-                last_fetched_metadata TEXT,
-                created_at INTEGER NOT NULL
-            )",
-            [],
-        );
-        let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN target_hash TEXT DEFAULT ''", []);
-        let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN archive_hashes TEXT DEFAULT '[]'", []);
-        let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN game_id TEXT DEFAULT ''", []);
-        let _ = conn.execute(
-            "CREATE TABLE IF NOT EXISTS local_mason_follows (
-                mason_id TEXT PRIMARY KEY,
-                mason_name TEXT NOT NULL DEFAULT '',
-                avatar_url TEXT DEFAULT '',
-                workspace_id TEXT DEFAULT '',
-                notify_alerts INTEGER NOT NULL DEFAULT 1,
-                followed_at INTEGER NOT NULL
-            )",
-            [],
-        );
-        let _ = conn.execute(
-            "CREATE TABLE IF NOT EXISTS local_mason_supporters (
-                mason_id TEXT PRIMARY KEY,
-                mason_name TEXT NOT NULL DEFAULT '',
-                provider TEXT NOT NULL DEFAULT 'patreon',
-                tier_name TEXT DEFAULT 'Supporter',
-                pledge_cents INTEGER NOT NULL DEFAULT 500,
-                patreon_campaign_id TEXT DEFAULT '',
-                access_token TEXT DEFAULT '',
-                cryptographic_pass TEXT NOT NULL DEFAULT '',
-                expedited_support INTEGER NOT NULL DEFAULT 1,
-                early_access INTEGER NOT NULL DEFAULT 1,
-                verified_at INTEGER NOT NULL,
-                expires_at INTEGER NOT NULL
-            )",
-            [],
-        );
-        let _ = conn.execute(
-            "CREATE TABLE IF NOT EXISTS local_dev_build_status (
-                user_id TEXT PRIMARY KEY,
-                dev_build_until INTEGER NOT NULL DEFAULT 0,
-                donation_credit_cents INTEGER NOT NULL DEFAULT 0,
-                total_months_unlocked INTEGER NOT NULL DEFAULT 0,
-                channel_enabled INTEGER NOT NULL DEFAULT 0,
-                updated_at INTEGER NOT NULL
-            )",
-            [],
-        );
-        let _ = conn.execute(
-            "CREATE TABLE IF NOT EXISTS lab_certificates (
-                dna_hash TEXT PRIMARY KEY,
-                cert_json TEXT NOT NULL,
-                verified_at INTEGER NOT NULL DEFAULT 0
-            )",
-            [],
-        );
-        let _ = conn.execute(
-            "CREATE TABLE IF NOT EXISTS vault_kv_store (
-                cache_key TEXT PRIMARY KEY,
-                payload_json TEXT NOT NULL,
-                updated_at INTEGER NOT NULL DEFAULT 0
-            )",
-            [],
-        );
-        let _ = conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_cache_hash ON cache (dna_hash)",
-            [],
-        );
+    let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS cache (
+            path TEXT PRIMARY KEY,
+            mtime INTEGER NOT NULL,
+            dna_hash TEXT NOT NULL,
+            explicitly_local INTEGER NOT NULL,
+            quarantined INTEGER NOT NULL,
+            heuristic_malware_sig TEXT,
+            heuristic_sigs_mtime INTEGER NOT NULL DEFAULT 0
+        )",
+        [],
+    );
+    let _ = conn.execute("ALTER TABLE cache ADD COLUMN heuristic_malware_sig TEXT", []);
+    let _ = conn.execute(
+        "ALTER TABLE cache ADD COLUMN heuristic_sigs_mtime INTEGER NOT NULL DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS edge_manifests (
+            artifact_id TEXT PRIMARY KEY,
+            mason_id TEXT NOT NULL,
+            manifest_url TEXT NOT NULL,
+            target_hash TEXT DEFAULT '',
+            archive_hashes TEXT DEFAULT '[]',
+            game_id TEXT DEFAULT '',
+            last_fetched_hash TEXT,
+            last_fetched_metadata TEXT,
+            created_at INTEGER NOT NULL,
+            etag TEXT,
+            last_modified TEXT,
+            last_polled_at INTEGER,
+            last_http_status INTEGER
+        )",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE edge_manifests ADD COLUMN target_hash TEXT DEFAULT ''",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE edge_manifests ADD COLUMN archive_hashes TEXT DEFAULT '[]'",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE edge_manifests ADD COLUMN game_id TEXT DEFAULT ''",
+        [],
+    );
+    let _ = conn.execute("ALTER TABLE edge_manifests ADD COLUMN etag TEXT", []);
+    let _ = conn.execute(
+        "ALTER TABLE edge_manifests ADD COLUMN last_modified TEXT",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE edge_manifests ADD COLUMN last_polled_at INTEGER",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE edge_manifests ADD COLUMN last_http_status INTEGER",
+        [],
+    );
 
-        // Automatic migration of legacy loose JSON state files into SQLite (.sanctuary_cache.db)
-        if !vault_path.trim().is_empty() {
-            let v_root = Path::new(vault_path);
-            let now_secs = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64)
-                .unwrap_or(0);
+    let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS local_mason_follows (
+            mason_id TEXT PRIMARY KEY,
+            mason_name TEXT NOT NULL DEFAULT '',
+            avatar_url TEXT DEFAULT '',
+            workspace_id TEXT DEFAULT '',
+            notify_alerts INTEGER NOT NULL DEFAULT 1,
+            followed_at INTEGER NOT NULL
+        )",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS local_mason_supporters (
+            mason_id TEXT PRIMARY KEY,
+            mason_name TEXT NOT NULL DEFAULT '',
+            provider TEXT NOT NULL DEFAULT 'patreon',
+            tier_name TEXT DEFAULT 'Supporter',
+            pledge_cents INTEGER NOT NULL DEFAULT 500,
+            patreon_campaign_id TEXT DEFAULT '',
+            access_token TEXT DEFAULT '',
+            cryptographic_pass TEXT NOT NULL DEFAULT '',
+            expedited_support INTEGER NOT NULL DEFAULT 1,
+            early_access INTEGER NOT NULL DEFAULT 1,
+            verified_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL
+        )",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS local_dev_build_status (
+            user_id TEXT PRIMARY KEY,
+            dev_build_until INTEGER NOT NULL DEFAULT 0,
+            donation_credit_cents INTEGER NOT NULL DEFAULT 0,
+            total_months_unlocked INTEGER NOT NULL DEFAULT 0,
+            channel_enabled INTEGER NOT NULL DEFAULT 0,
+            updated_at INTEGER NOT NULL
+        )",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS lab_certificates (
+            dna_hash TEXT PRIMARY KEY,
+            cert_json TEXT NOT NULL,
+            verified_at INTEGER NOT NULL DEFAULT 0
+        )",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE TABLE IF NOT EXISTS vault_kv_store (
+            cache_key TEXT PRIMARY KEY,
+            payload_json TEXT NOT NULL,
+            updated_at INTEGER NOT NULL DEFAULT 0
+        )",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_cache_hash ON cache (dna_hash)",
+        [],
+    );
 
-            // 1. .sanctuary_lab_certificates.json -> lab_certificates
-            let legacy_certs = v_root.join(".sanctuary_lab_certificates.json");
-            if legacy_certs.exists() {
-                if let Ok(raw) = fs::read_to_string(&legacy_certs) {
-                    if let Ok(arr) = serde_json::from_str::<Vec<serde_json::Value>>(&raw) {
-                        for item in arr {
-                            if let Some(hash) = item.get("dna_hash").and_then(|h| h.as_str()) {
-                                if !hash.is_empty() {
-                                    let c_str = serde_json::to_string(&item).unwrap_or_default();
-                                    let _ = conn.execute(
-                                        "INSERT OR REPLACE INTO lab_certificates (dna_hash, cert_json, verified_at) VALUES (?1, ?2, ?3)",
-                                        params![hash, c_str, now_secs],
-                                    );
-                                }
+    // Automatic migration of legacy loose JSON state files into SQLite (.sanctuary_cache.db)
+    if !vault_path.trim().is_empty() {
+        let v_root = Path::new(vault_path);
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+
+        let legacy_certs = v_root.join(".sanctuary_lab_certificates.json");
+        if legacy_certs.exists() {
+            if let Ok(raw) = fs::read_to_string(&legacy_certs) {
+                if let Ok(arr) = serde_json::from_str::<Vec<serde_json::Value>>(&raw) {
+                    for item in arr {
+                        if let Some(hash) = item.get("dna_hash").and_then(|h| h.as_str()) {
+                            if !hash.is_empty() {
+                                let c_str = serde_json::to_string(&item).unwrap_or_default();
+                                let _ = conn.execute(
+                                    "INSERT OR REPLACE INTO lab_certificates (dna_hash, cert_json, verified_at) VALUES (?1, ?2, ?3)",
+                                    params![hash, c_str, now_secs],
+                                );
                             }
                         }
                     }
-                    let _ = fs::remove_file(&legacy_certs);
                 }
+                let _ = fs::remove_file(&legacy_certs);
             }
+        }
 
-            // 2. .sanctuary_routed_links.json -> vault_kv_store('routed_links')
-            let legacy_routed = v_root.join(".sanctuary_routed_links.json");
-            if legacy_routed.exists() {
-                if let Ok(raw) = fs::read_to_string(&legacy_routed) {
-                    let _ = conn.execute(
-                        "INSERT OR REPLACE INTO vault_kv_store (cache_key, payload_json, updated_at) VALUES ('routed_links', ?1, ?2)",
-                        params![raw, now_secs],
-                    );
-                    let _ = fs::remove_file(&legacy_routed);
-                }
+        let legacy_routed = v_root.join(".sanctuary_routed_links.json");
+        if legacy_routed.exists() {
+            if let Ok(raw) = fs::read_to_string(&legacy_routed) {
+                let _ = conn.execute(
+                    "INSERT OR REPLACE INTO vault_kv_store (cache_key, payload_json, updated_at) VALUES ('routed_links', ?1, ?2)",
+                    params![raw, now_secs],
+                );
+                let _ = fs::remove_file(&legacy_routed);
             }
+        }
 
-            // 3. .sanctuary_deployed_links.json (in Vault) -> vault_kv_store('deployed_links')
-            let legacy_deployed = v_root.join(".sanctuary_deployed_links.json");
-            if legacy_deployed.exists() {
-                if let Ok(raw) = fs::read_to_string(&legacy_deployed) {
-                    let _ = conn.execute(
-                        "INSERT OR REPLACE INTO vault_kv_store (cache_key, payload_json, updated_at) VALUES ('deployed_links', ?1, ?2)",
-                        params![raw, now_secs],
-                    );
-                    let _ = fs::remove_file(&legacy_deployed);
-                }
+        let legacy_deployed = v_root.join(".sanctuary_deployed_links.json");
+        if legacy_deployed.exists() {
+            if let Ok(raw) = fs::read_to_string(&legacy_deployed) {
+                let _ = conn.execute(
+                    "INSERT OR REPLACE INTO vault_kv_store (cache_key, payload_json, updated_at) VALUES ('deployed_links', ?1, ?2)",
+                    params![raw, now_secs],
+                );
+                let _ = fs::remove_file(&legacy_deployed);
             }
+        }
 
-            // 4. Data/.sanctuary_master_cache.json -> vault_kv_store('master_registry_cache')
-            let legacy_master = v_root.join("Data").join(".sanctuary_master_cache.json");
-            if legacy_master.exists() {
-                if let Ok(raw) = fs::read_to_string(&legacy_master) {
-                    let _ = conn.execute(
-                        "INSERT OR REPLACE INTO vault_kv_store (cache_key, payload_json, updated_at) VALUES ('master_registry_cache', ?1, ?2)",
-                        params![raw, now_secs],
-                    );
-                    let _ = fs::remove_file(&legacy_master);
-                }
+        let legacy_master = v_root.join("Data").join(".sanctuary_master_cache.json");
+        if legacy_master.exists() {
+            if let Ok(raw) = fs::read_to_string(&legacy_master) {
+                let _ = conn.execute(
+                    "INSERT OR REPLACE INTO vault_kv_store (cache_key, payload_json, updated_at) VALUES ('master_registry_cache', ?1, ?2)",
+                    params![raw, now_secs],
+                );
+                let _ = fs::remove_file(&legacy_master);
             }
+        }
 
-            // 5. Data/.malware_signatures.json -> vault_kv_store('malware_signatures')
-            let legacy_sigs = v_root.join("Data").join(".malware_signatures.json");
-            if legacy_sigs.exists() {
-                if let Ok(raw) = fs::read_to_string(&legacy_sigs) {
-                    let _ = conn.execute(
-                        "INSERT OR REPLACE INTO vault_kv_store (cache_key, payload_json, updated_at) VALUES ('malware_signatures', ?1, ?2)",
-                        params![raw, now_secs],
-                    );
-                    let _ = fs::remove_file(&legacy_sigs);
-                }
+        let legacy_sigs = v_root.join("Data").join(".malware_signatures.json");
+        if legacy_sigs.exists() {
+            if let Ok(raw) = fs::read_to_string(&legacy_sigs) {
+                let _ = conn.execute(
+                    "INSERT OR REPLACE INTO vault_kv_store (cache_key, payload_json, updated_at) VALUES ('malware_signatures', ?1, ?2)",
+                    params![raw, now_secs],
+                );
+                let _ = fs::remove_file(&legacy_sigs);
             }
+        }
 
-            // 6. Keep actual quarantined binaries isolated inside hidden .sanctuary_quarantine, while Quarantine holds only .manifest.json reports
-            let hidden_q = v_root.join(".sanctuary_quarantine");
-            let reports_q = v_root.join("Quarantine");
-            if hidden_q.is_dir() {
-                mark_path_hidden(&hidden_q);
-            }
-            if reports_q.is_dir() {
-                if let Ok(entries) = fs::read_dir(&reports_q) {
-                    for entry in entries.flatten() {
-                        let src = entry.path();
-                        if src.is_file() {
-                            let fname = entry.file_name().to_string_lossy().to_lowercase();
-                            if !fname.ends_with(".json") {
-                                let _ = fs::create_dir_all(&hidden_q);
-                                mark_path_hidden(&hidden_q);
-                                let dst = hidden_q.join(entry.file_name());
-                                let _ = fs::rename(&src, &dst).or_else(|_| {
-                                    fs::copy(&src, &dst).and_then(|_| fs::remove_file(&src))
-                                });
-                            }
+        // Keep actual quarantined binaries isolated inside hidden .sanctuary_quarantine, while Quarantine holds JSON reports
+        let hidden_q = v_root.join(".sanctuary_quarantine");
+        let reports_q = v_root.join("Quarantine");
+        if hidden_q.is_dir() {
+            mark_path_hidden(&hidden_q);
+        }
+        if reports_q.is_dir() {
+            if let Ok(entries) = fs::read_dir(&reports_q) {
+                for entry in entries.flatten() {
+                    let src = entry.path();
+                    if src.is_file() {
+                        let fname = entry.file_name().to_string_lossy().to_lowercase();
+                        if !fname.ends_with(".json") {
+                            let _ = fs::create_dir_all(&hidden_q);
+                            mark_path_hidden(&hidden_q);
+                            let dst = hidden_q.join(entry.file_name());
+                            let _ = fs::rename(&src, &dst).or_else(|_| {
+                                fs::copy(&src, &dst).and_then(|_| fs::remove_file(&src))
+                            });
                         }
                     }
                 }
             }
         }
     }
-    conn
+}
+
+pub fn open_db_conn(
+    vault_path: &str,
+) -> Result<std::sync::Arc<std::sync::Mutex<Connection>>, String> {
+    if vault_path.trim().is_empty() {
+        return Err("Vault path is not configured.".to_string());
+    }
+    let path = get_cache_path(vault_path);
+    let pool = DB_CONNECTION_POOL.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
+
+    {
+        let map = pool
+            .lock()
+            .map_err(|_| "SQLite connection pool lock poisoned.".to_string())?;
+        if path.exists() {
+            if let Some(existing) = map.get(&path) {
+                return Ok(existing.clone());
+            }
+        }
+    }
+
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() && !parent.exists() {
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create Vault directory {:?}: {}", parent, e))?;
+        }
+    }
+
+    let conn = Connection::open(&path)
+        .map_err(|e| format!("Failed to open Vault database {:?}: {}", path, e))?;
+    initialize_vault_sqlite_schema(&conn, &path, vault_path);
+
+    let arc_conn = std::sync::Arc::new(std::sync::Mutex::new(conn));
+    let mut map = pool
+        .lock()
+        .map_err(|_| "SQLite connection pool lock poisoned.".to_string())?;
+    let entry = map.entry(path).or_insert_with(|| arc_conn.clone());
+    Ok(entry.clone())
 }
 
 pub fn get_vault_kv(vault_path: &str, key: &str) -> Option<(String, u64)> {
     if vault_path.trim().is_empty() {
         return None;
     }
-    let conn = get_db_conn(vault_path);
+    let db = open_db_conn(vault_path).ok()?;
+    let conn = db.lock().ok()?;
     conn.query_row(
         "SELECT payload_json, updated_at FROM vault_kv_store WHERE cache_key = ?1",
         params![key],
@@ -449,7 +576,12 @@ pub fn set_vault_kv(vault_path: &str, key: &str, payload_json: &str) {
     if vault_path.trim().is_empty() {
         return;
     }
-    let conn = get_db_conn(vault_path);
+    let Ok(db) = open_db_conn(vault_path) else {
+        return;
+    };
+    let Ok(conn) = db.lock() else {
+        return;
+    };
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -465,7 +597,12 @@ pub fn delete_vault_kv(vault_path: &str, key: &str) {
     if vault_path.trim().is_empty() {
         return;
     }
-    let conn = get_db_conn(vault_path);
+    let Ok(db) = open_db_conn(vault_path) else {
+        return;
+    };
+    let Ok(conn) = db.lock() else {
+        return;
+    };
     let _ = conn.execute("DELETE FROM vault_kv_store WHERE cache_key = ?1", params![key]);
 }
 
@@ -527,7 +664,12 @@ fn load_cache_from_conn(conn: &Connection) -> BunkerCache {
 }
 
 pub fn load_cache(vault_path: &str) -> BunkerCache {
-    let conn = get_db_conn(vault_path);
+    let Ok(db) = open_db_conn(vault_path) else {
+        return HashMap::new();
+    };
+    let Ok(conn) = db.lock() else {
+        return HashMap::new();
+    };
     load_cache_from_conn(&conn)
 }
 
@@ -563,8 +705,36 @@ pub fn remove_cache_entry(conn: &Connection, path: &str) {
     }
 }
 
+pub fn save_cache_entries_batch(vault_path: &str, entries: &[(String, CacheEntry)]) {
+    if entries.is_empty() {
+        return;
+    }
+    let Ok(db) = open_db_conn(vault_path) else {
+        return;
+    };
+    let Ok(mut conn) = db.lock() else {
+        return;
+    };
+    let Ok(tx) = conn.transaction() else {
+        return;
+    };
+    for (path, entry) in entries {
+        upsert_cache_entry(&tx, path, entry);
+    }
+    let _ = tx.commit();
+}
+
+/// Non-destructive incremental batched cache upsert. Never deletes unvisited rows.
 pub fn save_cache(vault_path: &str, cache: &BunkerCache) {
-    let mut conn = get_db_conn(vault_path);
+    if cache.is_empty() {
+        return;
+    }
+    let Ok(db) = open_db_conn(vault_path) else {
+        return;
+    };
+    let Ok(mut conn) = db.lock() else {
+        return;
+    };
     let current_db_cache = load_cache_from_conn(&conn);
 
     let Ok(tx) = conn.transaction() else {
@@ -578,6 +748,7 @@ pub fn save_cache(vault_path: &str, cache: &BunkerCache) {
                 || old_entry.explicitly_local != entry.explicitly_local
                 || old_entry.heuristic_sigs_mtime != entry.heuristic_sigs_mtime
                 || old_entry.dna_hash != entry.dna_hash
+                || old_entry.heuristic_malware_sig != entry.heuristic_malware_sig
         } else {
             true
         };
@@ -587,12 +758,40 @@ pub fn save_cache(vault_path: &str, cache: &BunkerCache) {
         }
     }
 
-    for path in current_db_cache.keys() {
-        if !cache.contains_key(path) {
-            remove_cache_entry(&tx, path);
-        }
-    }
+    let _ = tx.commit();
+}
 
+/// Prunes stale non-quarantined cache rows ONLY after a completed full scan sweep.
+pub fn prune_stale_cache_entries(
+    vault_path: &str,
+    valid_paths: &std::collections::HashSet<String>,
+) {
+    let Ok(db) = open_db_conn(vault_path) else {
+        return;
+    };
+    let Ok(mut conn) = db.lock() else {
+        return;
+    };
+    let current_db_cache = load_cache_from_conn(&conn);
+    let stale: Vec<String> = current_db_cache
+        .into_iter()
+        .filter(|(path, entry)| {
+            !entry.quarantined
+                && !path.contains(".sanctuary_quarantine")
+                && !valid_paths.contains(path)
+        })
+        .map(|(path, _)| path)
+        .collect();
+
+    if stale.is_empty() {
+        return;
+    }
+    let Ok(tx) = conn.transaction() else {
+        return;
+    };
+    for path in stale {
+        remove_cache_entry(&tx, &path);
+    }
     let _ = tx.commit();
 }
 
@@ -653,10 +852,11 @@ pub fn walk_packages(
     dir: &Path,
     files: &mut Vec<PathBuf>,
 ) {
-    let manifest_name = game_schema
-        .as_ref()
-        .map(|s| s.paths.manifest_file.to_lowercase())
-        .unwrap_or_else(|| "resource.cfg".to_string());
+    let exts = crate::game_logic::get_supported_extensions(game_schema);
+    if exts.is_empty() {
+        return;
+    }
+    let manifest_name_lower = crate::game_logic::resolve_manifest_leaf_lower(game_schema);
 
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
@@ -669,7 +869,7 @@ pub fn walk_packages(
                     let name_str = name.to_string_lossy().to_lowercase();
                     if name_str == "sandbox"
                         || name_str == "dev"
-                        || name_str == "resource"
+                        || name_str == "quarantine"
                         || name_str == "__macosx"
                         || name_str.starts_with('.')
                     {
@@ -684,19 +884,15 @@ pub fn walk_packages(
                     .and_then(|n| n.to_str())
                     .unwrap_or_default()
                     .to_lowercase();
-                if fname_lower == "resource.cfg"
-                    || (!manifest_name.is_empty() && fname_lower == manifest_name)
-                    || ext_lower == "cfg"
-                    || ext_lower == "ini"
-                    || ext_lower == "txt"
-                    || ext_lower == "log"
+                if fname_lower.starts_with('.')
+                    || (!manifest_name_lower.is_empty() && fname_lower == manifest_name_lower)
                 {
                     continue;
                 }
-                let exts = crate::game_logic::get_supported_extensions(&game_schema);
-                if exts.contains(&ext_lower) {
-                    files.push(p);
+                if !exts.contains(&ext_lower) {
+                    continue;
                 }
+                files.push(p);
             }
         }
     }
@@ -710,8 +906,10 @@ pub fn deploy_air_gap(source: &Path, target: &Path) -> std::io::Result<()> {
 
             let file_name = entry.file_name().to_string_lossy().to_lowercase();
             if file_name == ".sanctuary_cache.json"
+                || file_name == ".sanctuary_cache.db"
                 || file_name == "desktop.ini"
-                || file_name == "default.ini"
+                || file_name == "thumbs.db"
+                || file_name == ".ds_store"
             {
                 continue;
             }
@@ -740,34 +938,337 @@ pub fn is_safe_single_filename(name: &str) -> bool {
         && !trimmed.contains('\0')
 }
 
-pub fn is_safe_user_file_path(path: &std::path::Path) -> bool {
+/// Strips Windows extended-length verbatim prefixes (`\\?\UNC\...`, `\\?\...`, `\\.\...`)
+/// consistently so path comparisons and system-folder checks can never be bypassed via `\\?\C:\Windows`.
+pub fn strip_windows_verbatim_prefix(path: &Path) -> PathBuf {
     let raw = path.to_string_lossy();
-    if raw.trim().is_empty() || raw.contains('\0') {
-        return false;
+    let trimmed = raw.trim();
+    let upper = trimmed.to_ascii_uppercase();
+    if upper.starts_with("\\\\?\\UNC\\") || upper.starts_with("//?/UNC/") {
+        return PathBuf::from(format!("\\\\{}", &trimmed[8..]));
     }
-    if path
+    if upper.starts_with("\\\\?\\")
+        || upper.starts_with("\\\\.\\")
+        || upper.starts_with("//?/")
+        || upper.starts_with("//./")
+    {
+        return PathBuf::from(&trimmed[4..]);
+    }
+    PathBuf::from(trimmed)
+}
+
+/// Resolves `target` (or its nearest existing ancestor when `target` does not yet exist)
+/// via `std::fs::canonicalize`, rejecting `..`, NUL bytes, and stripping Windows verbatim prefixes.
+pub fn resolve_canonical_target(target: &Path) -> Result<PathBuf, String> {
+    let raw = target.to_string_lossy();
+    if raw.trim().is_empty() || raw.contains('\0') {
+        return Err("Path is empty or contains NUL bytes.".to_string());
+    }
+    let cleaned = strip_windows_verbatim_prefix(target);
+    if cleaned
         .components()
         .any(|c| matches!(c, std::path::Component::ParentDir))
     {
-        return false;
+        return Err("Path traversal ('..') is forbidden.".to_string());
     }
-    let normalized = raw.replace('/', "\\").to_lowercase();
-    let trimmed = normalized.trim_end_matches('\\');
-    if trimmed.is_empty() || trimmed.ends_with(':') {
+
+    if cleaned.exists() {
+        let canon = fs::canonicalize(&cleaned)
+            .map_err(|e| format!("Failed to canonicalize path {:?}: {}", cleaned, e))?;
+        return Ok(strip_windows_verbatim_prefix(&canon));
+    }
+
+    // Walk up to the nearest existing ancestor so new files inside symlinks/junctions still resolve canonically.
+    let mut suffix_segments: Vec<std::ffi::OsString> = Vec::new();
+    let mut cursor: &Path = &cleaned;
+    loop {
+        if cursor.exists() {
+            let canon_anc = fs::canonicalize(cursor)
+                .map_err(|e| format!("Failed to canonicalize ancestor {:?}: {}", cursor, e))?;
+            let mut resolved = strip_windows_verbatim_prefix(&canon_anc);
+            for seg in suffix_segments.into_iter().rev() {
+                resolved.push(seg);
+            }
+            return Ok(resolved);
+        }
+        let Some(name) = cursor.file_name() else {
+            // Reached filesystem root without finding an existing ancestor
+            return Err(format!("No existing ancestor directory for {:?}.", cleaned));
+        };
+        let name_str = name.to_string_lossy();
+        if name_str == "." || name_str == ".." || name_str.is_empty() {
+            return Err("Invalid path segment.".to_string());
+        }
+        suffix_segments.push(name.to_os_string());
+        match cursor.parent() {
+            Some(p) if !p.as_os_str().is_empty() => cursor = p,
+            _ => return Err(format!("Relative or unrooted path {:?} is forbidden.", cleaned)),
+        }
+    }
+}
+
+pub fn path_is_within_root(child: &Path, root: &Path) -> bool {
+    let mut child_comps = child.components();
+    let mut root_count = 0usize;
+    for r_comp in root.components() {
+        root_count += 1;
+        let Some(c_comp) = child_comps.next() else {
+            return false;
+        };
+        if cfg!(target_os = "windows") {
+            let r_s = r_comp.as_os_str().to_string_lossy();
+            let c_s = c_comp.as_os_str().to_string_lossy();
+            if !r_s.eq_ignore_ascii_case(&c_s) {
+                return false;
+            }
+        } else if r_comp != c_comp {
+            return false;
+        }
+    }
+    root_count > 0
+}
+
+fn paths_equal_platform(a: &Path, b: &Path) -> bool {
+    path_is_within_root(a, b) && path_is_within_root(b, a)
+}
+
+fn is_blocked_sensitive_or_system_path(resolved: &Path) -> bool {
+    let stripped = strip_windows_verbatim_prefix(resolved);
+    let win_norm = stripped
+        .to_string_lossy()
+        .replace('/', "\\")
+        .trim_end_matches('\\')
+        .to_lowercase();
+    if win_norm.is_empty() || win_norm.ends_with(':') {
+        return true;
+    }
+
+    // Block sensitive credential/key/autostart directories anywhere in the path
+    let unix_norm = stripped
+        .to_string_lossy()
+        .replace('\\', "/")
+        .trim_end_matches('/')
+        .to_lowercase();
+    for seg in [
+        "/.ssh",
+        "/.gnupg",
+        "/.aws",
+        "/.kube",
+        "/.config/gcloud",
+        "/.config/autostart",
+        "/library/launchagents",
+        "/library/launchdaemons",
+        "/microsoft/windows/start menu/programs/startup",
+    ] {
+        if unix_norm.ends_with(seg) || unix_norm.contains(&format!("{}/", seg)) {
+            return true;
+        }
+    }
+
+    // Block Sanctuary's own executable install directory and internal app config/key directories
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            if let Ok(canon_exe_dir) = resolve_canonical_target(exe_dir) {
+                if path_is_within_root(&stripped, &canon_exe_dir) {
+                    return true;
+                }
+            }
+        }
+    }
+    for app_dir in [
+        dirs::config_dir().map(|d| d.join("sanctuary-os")),
+        dirs::config_dir().map(|d| d.join("SanctuaryOS")),
+        dirs::data_local_dir().map(|d| d.join("sanctuary-os")),
+        dirs::data_local_dir().map(|d| d.join("SanctuaryOS")),
+        dirs::data_local_dir().map(|d| d.join("Programs").join("sanctuary-os")),
+        dirs::data_local_dir().map(|d| d.join("Programs").join("SanctuaryOS")),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let app_clean = strip_windows_verbatim_prefix(&app_dir);
+        if path_is_within_root(&stripped, &app_clean) {
+            return true;
+        }
+    }
+
+    // Block OS & system prefixes across Windows, macOS, and Linux
+    let mut blocked_win_prefixes: Vec<String> = vec![
+        "c:\\windows".to_string(),
+        "c:\\program files\\windows".to_string(),
+        "c:\\program files\\windowsapps".to_string(),
+        "c:\\program files\\common files".to_string(),
+        "c:\\program files (x86)\\common files".to_string(),
+        "c:\\programdata\\microsoft".to_string(),
+        "c:\\system volume information".to_string(),
+    ];
+    if let Ok(sys_root) = std::env::var("SystemRoot") {
+        let sr = sys_root.replace('/', "\\").trim_end_matches('\\').to_lowercase();
+        if !sr.is_empty() {
+            blocked_win_prefixes.push(sr);
+        }
+    }
+    for prefix in &blocked_win_prefixes {
+        if &win_norm == prefix || win_norm.starts_with(&format!("{}\\", prefix)) {
+            return true;
+        }
+    }
+    if win_norm == "c:\\program files" || win_norm == "c:\\program files (x86)" {
+        return true;
+    }
+
+    let blocked_unix_prefixes = [
+        "/bin", "/sbin", "/usr", "/etc", "/system", "/lib", "/lib64", "/proc", "/sys", "/dev",
+        "/boot", "/root",
+    ];
+    for prefix in &blocked_unix_prefixes {
+        if unix_norm == *prefix || unix_norm.starts_with(&format!("{}/", prefix)) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Strictly verifies that `target` resolves canonically inside at least one of `allowed_roots`,
+/// strips Windows `\\?\` prefixes consistently, rejects symlinks/junctions escaping `allowed_roots`,
+/// and blocks OS system dirs, `~/.ssh`, `~/.gnupg`, `~/.aws`, Startup folders, and Sanctuary executable dirs.
+pub fn ensure_path_within_roots(
+    target: &Path,
+    allowed_roots: &[PathBuf],
+) -> Result<PathBuf, String> {
+    if allowed_roots.is_empty() {
+        return Err("No allowed roots configured for path containment check.".to_string());
+    }
+    let cleaned_target = strip_windows_verbatim_prefix(target);
+    let resolved = resolve_canonical_target(&cleaned_target)?;
+    if is_blocked_sensitive_or_system_path(&resolved) {
+        return Err("Refusing operation on protected system or sensitive directory.".to_string());
+    }
+
+    let mut canonical_roots: Vec<PathBuf> = Vec::new();
+    for root in allowed_roots {
+        if root.as_os_str().is_empty() {
+            continue;
+        }
+        if let Ok(canon_r) = resolve_canonical_target(root) {
+            if !is_blocked_sensitive_or_system_path(&canon_r) {
+                canonical_roots.push(canon_r);
+            }
+        }
+    }
+    if canonical_roots.is_empty() {
+        return Err("Allowed root directories could not be resolved safely.".to_string());
+    }
+
+    // Also verify the lexical parent and any symlink target so dangling symlinks cannot point outside allowed_roots
+    if let Ok(meta) = fs::symlink_metadata(&cleaned_target) {
+        if meta.file_type().is_symlink() {
+            if let Ok(raw_link) = fs::read_link(&cleaned_target) {
+                let joined_link = if raw_link.is_absolute() {
+                    raw_link
+                } else {
+                    cleaned_target
+                        .parent()
+                        .unwrap_or_else(|| Path::new("."))
+                        .join(raw_link)
+                };
+                if let Ok(canon_link) = resolve_canonical_target(&joined_link) {
+                    if is_blocked_sensitive_or_system_path(&canon_link)
+                        || !canonical_roots
+                            .iter()
+                            .any(|r| path_is_within_root(&canon_link, r))
+                    {
+                        return Err(
+                            "Blocked symlink/junction escaping allowed root boundaries."
+                                .to_string(),
+                        );
+                    }
+                } else {
+                    return Err("Blocked unresolvable symlink target.".to_string());
+                }
+            }
+        }
+    }
+
+    if canonical_roots
+        .iter()
+        .any(|r| path_is_within_root(&resolved, r))
+    {
+        Ok(resolved)
+    } else {
+        Err(format!(
+            "Path {:?} escapes allowed workspace boundaries.",
+            cleaned_target
+        ))
+    }
+}
+
+/// Like `ensure_path_within_roots`, and additionally forbids operating on the root directory itself.
+pub fn ensure_strict_descendant_of_roots(
+    target: &Path,
+    allowed_roots: &[PathBuf],
+) -> Result<PathBuf, String> {
+    let resolved = ensure_path_within_roots(target, allowed_roots)?;
+    for root in allowed_roots {
+        if root.as_os_str().is_empty() {
+            continue;
+        }
+        if let Ok(canon_r) = resolve_canonical_target(root) {
+            if paths_equal_platform(&resolved, &canon_r) {
+                return Err("Refusing destructive operation on workspace root directory itself.".to_string());
+            }
+        }
+    }
+    Ok(resolved)
+}
+
+pub fn get_allowed_workspace_roots(config: &WorkspaceConfig) -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    for s in [
+        Some(config.vault_path.as_str()),
+        Some(config.mods_path.as_str()),
+        Some(config.live_path.as_str()),
+        config.docs_path.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let trimmed = s.trim();
+        if !trimmed.is_empty() {
+            let p = PathBuf::from(trimmed);
+            roots.push(p.clone());
+            if is_mods_dir(&p) {
+                if let Some(parent) = p.parent() {
+                    if !parent.as_os_str().is_empty() {
+                        roots.push(parent.to_path_buf());
+                    }
+                }
+            }
+        }
+    }
+    roots
+}
+
+pub fn is_safe_user_file_path(path: &std::path::Path) -> bool {
+    let Ok(resolved) = resolve_canonical_target(path) else {
+        return false;
+    };
+    if is_blocked_sensitive_or_system_path(&resolved) {
         return false;
     }
 
     // Never allow deleting or overwriting top-level user directories or active workspace root directories themselves
-    let mut protected_exact_dirs: Vec<String> = vec![
-        "c:\\users".to_string(),
-        "/users".to_string(),
-        "/home".to_string(),
-        "/var/home".to_string(),
-        "/volumes".to_string(),
-        "/run/media".to_string(),
-        "/media".to_string(),
-        "/mnt".to_string(),
-        "/applications".to_string(),
+    let mut protected_exact_dirs: Vec<PathBuf> = vec![
+        PathBuf::from("C:\\Users"),
+        PathBuf::from("/Users"),
+        PathBuf::from("/home"),
+        PathBuf::from("/var/home"),
+        PathBuf::from("/Volumes"),
+        PathBuf::from("/run/media"),
+        PathBuf::from("/media"),
+        PathBuf::from("/mnt"),
+        PathBuf::from("/Applications"),
     ];
     for dir_opt in [
         dirs::home_dir(),
@@ -782,72 +1283,294 @@ pub fn is_safe_user_file_path(path: &std::path::Path) -> bool {
     .into_iter()
     .flatten()
     {
-        let d_win = dir_opt
-            .to_string_lossy()
-            .replace('/', "\\")
-            .trim_end_matches('\\')
-            .to_lowercase();
-        if !d_win.is_empty() {
-            protected_exact_dirs.push(d_win);
+        if let Ok(canon) = resolve_canonical_target(&dir_opt) {
+            protected_exact_dirs.push(canon);
+        } else {
+            protected_exact_dirs.push(strip_windows_verbatim_prefix(&dir_opt));
         }
     }
+
     let saved_coords = crate::commands::state_ops::get_saved_coordinates();
-    for root_str in [
-        &saved_coords.vault_path,
-        &saved_coords.mods_path,
-        &saved_coords.live_path,
-    ] {
-        let r_win = root_str
-            .trim()
-            .replace('/', "\\")
-            .trim_end_matches('\\')
-            .to_lowercase();
-        if !r_win.is_empty() {
-            protected_exact_dirs.push(r_win);
+    for root_opt in [
+        Some(saved_coords.vault_path.as_str()),
+        Some(saved_coords.mods_path.as_str()),
+        Some(saved_coords.live_path.as_str()),
+        saved_coords.docs_path.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let trimmed = root_opt.trim();
+        if !trimmed.is_empty() {
+            let rp = PathBuf::from(trimmed);
+            if let Ok(canon) = resolve_canonical_target(&rp) {
+                protected_exact_dirs.push(canon);
+            } else {
+                protected_exact_dirs.push(strip_windows_verbatim_prefix(&rp));
+            }
         }
     }
+
     if protected_exact_dirs
         .iter()
-        .any(|p| p.replace('/', "\\") == trimmed)
+        .any(|p| paths_equal_platform(&resolved, p))
     {
         return false;
     }
 
-    let blocked_win_prefixes = [
-        "c:\\windows",
-        "c:\\program files\\windows",
-        "c:\\program files\\common files",
-        "c:\\program files (x86)\\common files",
-        "c:\\programdata\\microsoft",
-        "c:\\system volume information",
-    ];
-    for prefix in &blocked_win_prefixes {
-        if trimmed == *prefix || trimmed.starts_with(&format!("{}\\", prefix)) {
-            return false;
-        }
-    }
-    if trimmed == "c:\\program files" || trimmed == "c:\\program files (x86)" {
-        return false;
-    }
-    let unix_norm = raw.replace('\\', "/");
-    let unix_trimmed = unix_norm.trim_end_matches('/');
-    if unix_trimmed.is_empty() {
-        return false;
-    }
-    let blocked_unix_prefixes = [
-        "/bin", "/sbin", "/usr", "/etc", "/System", "/lib", "/lib64", "/proc", "/sys", "/dev",
-        "/boot", "/root",
-    ];
-    for prefix in &blocked_unix_prefixes {
-        if unix_trimmed.eq_ignore_ascii_case(prefix)
-            || unix_trimmed
-                .to_lowercase()
-                .starts_with(&format!("{}/", prefix.to_lowercase()))
-        {
-            return false;
-        }
-    }
     true
+}
+
+#[derive(Clone, Debug)]
+pub struct ExtractedZipEntry {
+    pub staged_path: PathBuf,
+    pub rel_path: PathBuf,
+    #[allow(dead_code)]
+    pub size_bytes: u64,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct BoundedZipExtraction {
+    pub files: Vec<ExtractedZipEntry>,
+    pub sanctuary_manifest_json: Option<String>,
+    pub sanctuary_override_json: Option<String>,
+    pub total_bytes: u64,
+}
+
+/// Pure-Rust bounded `.zip` extraction into `staging_dir` using `Read::take` (defeating Zip-Bombs
+/// regardless of spoofed header size), rejecting `..`, absolute roots, drive prefixes, and Unix symlink modes,
+/// preserving full directory trees & auxiliary assets (`preserve_auxiliary_assets` defaults to `true`),
+/// stripping redundant wrapper/anchor folders, and reading `.sanctuary.manifest.json` / `.sanctuary.override.json`
+/// without touching native game `manifest.json` files.
+pub fn extract_zip_bounded_to_dir(
+    zip_path: &Path,
+    staging_dir: &Path,
+    zip_stem_hint: Option<&str>,
+    game_schema: &Option<crate::schema::GameSchema>,
+    max_entry_bytes: u64,
+    max_total_bytes: u64,
+) -> Result<BoundedZipExtraction, String> {
+    let file = fs::File::open(zip_path)
+        .map_err(|e| format!("Failed to open archive {:?}: {}", zip_path, e))?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| format!("Invalid or unsupported ZIP container: {}", e))?;
+
+    if archive.len() > MAX_ARCHIVE_ENTRIES {
+        return Err(format!(
+            "Archive exceeds maximum safe entry count ({} > {}).",
+            archive.len(),
+            MAX_ARCHIVE_ENTRIES
+        ));
+    }
+
+    fs::create_dir_all(staging_dir)
+        .map_err(|e| format!("Failed to create staging directory: {}", e))?;
+
+    let preserve_aux = crate::game_logic::should_preserve_auxiliary_assets(game_schema);
+    let visible_exts = crate::game_logic::get_vault_visible_extensions(game_schema);
+
+    // First pass: validate all entry headers/modes/paths and detect if all files share a single wrapper folder matching zip_stem_hint
+    let mut validated_rel_paths: Vec<(usize, PathBuf)> = Vec::new();
+    for i in 0..archive.len() {
+        let zf = archive
+            .by_index_raw(i)
+            .map_err(|e| format!("Corrupt archive header at index {}: {}", i, e))?;
+
+        if let Some(mode) = zf.unix_mode() {
+            if (mode & 0o170000) == 0o120000 {
+                let _ = fs::remove_dir_all(staging_dir);
+                return Err("Archive rejected: contains unsafe symlink entry.".to_string());
+            }
+        }
+
+        let raw_name = zf.name();
+        if raw_name.contains('\0')
+            || raw_name.starts_with('/')
+            || raw_name.starts_with('\\')
+            || raw_name.contains(':')
+        {
+            let _ = fs::remove_dir_all(staging_dir);
+            return Err(format!(
+                "Archive rejected: unsafe absolute or rooted entry {:?}.",
+                raw_name
+            ));
+        }
+
+        let norm_name = raw_name.replace('\\', "/");
+        let rel_candidate = Path::new(&norm_name);
+        if rel_candidate.components().any(|c| {
+            matches!(
+                c,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        }) {
+            let _ = fs::remove_dir_all(staging_dir);
+            return Err(format!(
+                "Archive rejected: path traversal detected in entry {:?}.",
+                raw_name
+            ));
+        }
+
+        if zf.is_dir() || norm_name.ends_with('/') {
+            continue;
+        }
+
+        let Some(enclosed) = zf.enclosed_name() else {
+            let _ = fs::remove_dir_all(staging_dir);
+            return Err(format!("Archive rejected: invalid enclosed path {:?}.", raw_name));
+        };
+        if is_macos_or_os_metadata_path(&enclosed) {
+            continue;
+        }
+
+        validated_rel_paths.push((i, enclosed));
+    }
+
+    let strip_single_wrapper: Option<String> = zip_stem_hint
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .and_then(|stem| {
+            if validated_rel_paths.is_empty() {
+                return None;
+            }
+            let mut common_first: Option<String> = None;
+            for (_, rel) in &validated_rel_paths {
+                let mut comps = rel.components();
+                let first = comps.next()?.as_os_str().to_string_lossy().to_string();
+                // Must have at least one child component beneath the wrapper
+                comps.next()?;
+                if !first.eq_ignore_ascii_case(stem) {
+                    return None;
+                }
+                match &common_first {
+                    None => common_first = Some(first),
+                    Some(prev) if !prev.eq_ignore_ascii_case(&first) => return None,
+                    _ => {}
+                }
+            }
+            common_first
+        });
+
+    let mut result = BoundedZipExtraction::default();
+    let mut copy_buf = vec![0u8; 64 * 1024];
+
+    for (entry_idx, raw_rel) in validated_rel_paths {
+        let mut zf = archive
+            .by_index(entry_idx)
+            .map_err(|e| format!("Failed reading archive entry {}: {}", entry_idx, e))?;
+
+        let unwrapped = if let Some(ref wrapper) = strip_single_wrapper {
+            let mut comps = raw_rel.components();
+            if let Some(first) = comps.next() {
+                if first.as_os_str().to_string_lossy().eq_ignore_ascii_case(wrapper) {
+                    comps.as_path().to_path_buf()
+                } else {
+                    raw_rel
+                }
+            } else {
+                raw_rel
+            }
+        } else {
+            raw_rel
+        };
+
+        let rel_clean = crate::game_logic::strip_relative_root_anchors(&unwrapped, game_schema);
+        if rel_clean.as_os_str().is_empty()
+            || rel_clean
+                .components()
+                .any(|c| !matches!(c, std::path::Component::Normal(_)))
+        {
+            continue;
+        }
+
+        let fname_lower = rel_clean
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default()
+            .to_lowercase();
+
+        // Intercept namespaced Sanctuary Static Edge sidecars without writing them over mod assets
+        if fname_lower == SANCTUARY_EDGE_MANIFEST_FILE || fname_lower == SANCTUARY_EDGE_OVERRIDE_FILE
+        {
+            let mut sidecar_bytes = Vec::new();
+            let mut limited = (&mut zf).take((2 * 1024 * 1024) + 1);
+            limited
+                .read_to_end(&mut sidecar_bytes)
+                .map_err(|e| format!("Failed reading sidecar {}: {}", fname_lower, e))?;
+            if sidecar_bytes.len() > 2 * 1024 * 1024 {
+                let _ = fs::remove_dir_all(staging_dir);
+                return Err("Sanctuary sidecar JSON exceeds 2 MiB limit.".to_string());
+            }
+            if let Ok(text) = String::from_utf8(sidecar_bytes) {
+                if fname_lower == SANCTUARY_EDGE_MANIFEST_FILE {
+                    result.sanctuary_manifest_json = Some(text);
+                } else {
+                    result.sanctuary_override_json = Some(text);
+                }
+            }
+            continue;
+        }
+
+        if fname_lower.starts_with('.') || fname_lower == "desktop.ini" || fname_lower == "thumbs.db"
+        {
+            continue;
+        }
+
+        if !preserve_aux && !visible_exts.is_empty() {
+            let ext_lower = rel_clean
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or_default()
+                .to_lowercase();
+            if !visible_exts.contains(&ext_lower) {
+                continue;
+            }
+        }
+
+        let dest_path = staging_dir.join(&rel_clean);
+        if let Some(parent) = dest_path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed creating staged subdir {:?}: {}", parent, e))?;
+        }
+
+        let mut out_file = fs::File::create(&dest_path)
+            .map_err(|e| format!("Failed creating staged file {:?}: {}", dest_path, e))?;
+
+        let mut entry_written: u64 = 0;
+        let mut bounded_reader = (&mut zf).take(max_entry_bytes.saturating_add(1));
+        loop {
+            let n = bounded_reader
+                .read(&mut copy_buf)
+                .map_err(|e| format!("Archive decompression read error: {}", e))?;
+            if n == 0 {
+                break;
+            }
+            entry_written = entry_written.saturating_add(n as u64);
+            result.total_bytes = result.total_bytes.saturating_add(n as u64);
+            if entry_written > max_entry_bytes || result.total_bytes > max_total_bytes {
+                drop(out_file);
+                let _ = fs::remove_dir_all(staging_dir);
+                return Err(
+                    "Archive exceeds maximum safe decompressed byte limit (Zip-Bomb protection)."
+                        .to_string(),
+                );
+            }
+            use std::io::Write;
+            out_file
+                .write_all(&copy_buf[..n])
+                .map_err(|e| format!("Failed writing staged file {:?}: {}", dest_path, e))?;
+        }
+
+        result.files.push(ExtractedZipEntry {
+            staged_path: dest_path,
+            rel_path: rel_clean,
+            size_bytes: entry_written,
+        });
+    }
+
+    Ok(result)
 }
 
 pub fn deploy_junction(source: &Path, target: &Path) -> std::io::Result<()> {
@@ -1063,7 +1786,11 @@ fn rescue_untracked_mod_file(
     root_mods_dir: &std::path::Path,
     vault_mods_lane: &std::path::Path,
     supported_exts: &[String],
+    game_schema: &Option<crate::schema::GameSchema>,
 ) -> bool {
+    if supported_exts.is_empty() {
+        return false;
+    }
     if !vault_mods_lane.exists() {
         let _ = std::fs::create_dir_all(vault_mods_lane);
     }
@@ -1072,13 +1799,18 @@ fn rescue_untracked_mod_file(
         None => return false,
     };
     let fname_lower = fname.to_lowercase();
+    let manifest_name_lower = crate::game_logic::resolve_manifest_leaf_lower(game_schema);
+
+    let rel_or_name = file_path
+        .strip_prefix(root_mods_dir)
+        .unwrap_or(file_path)
+        .to_string_lossy();
     if fname_lower.starts_with('.')
         || fname_lower.starts_with("._")
         || fname_lower == "desktop.ini"
         || fname_lower == "thumbs.db"
-        || fname_lower == "resource.cfg"
-        || fname_lower == "localthumbcache.package"
-        || fname_lower == "avatarcache.package"
+        || (!manifest_name_lower.is_empty() && fname_lower == manifest_name_lower)
+        || crate::game_logic::is_cache_file(game_schema, &rel_or_name)
     {
         return false;
     }
@@ -1092,10 +1824,9 @@ fn rescue_untracked_mod_file(
         return false;
     }
 
-    let is_mod_ext = is_mod_binary_extension(&ext_lower)
-        || supported_exts.iter().any(|e| {
-            e.trim_start_matches('.').eq_ignore_ascii_case(&ext_lower)
-        });
+    let is_mod_ext = supported_exts
+        .iter()
+        .any(|e| e.trim_start_matches('.').eq_ignore_ascii_case(&ext_lower));
     if !is_mod_ext {
         return false;
     }
@@ -1118,7 +1849,6 @@ fn rescue_untracked_mod_file(
                 calculate_hash(&existing_vault_path),
             ) {
                 if h1 == h2 {
-                    // Already safely in the Vault; safe to remove the duplicate in Mods/
                     let _ = std::fs::remove_file(file_path);
                     return true;
                 }
@@ -1141,11 +1871,10 @@ fn rescue_untracked_mod_file(
                 }
             }
         }
-        // Different content with same relative path: rescue with a non-colliding suffix
         let stem = file_path
             .file_stem()
             .and_then(|s| s.to_str())
-            .unwrap_or("Mod");
+            .unwrap_or("Artifact");
         let parent = dest.parent().unwrap_or(vault_mods_lane);
         let mut attempt = 1usize;
         loop {
@@ -1175,7 +1904,6 @@ fn rescue_untracked_mod_file(
         return true;
     }
 
-    // If rescue failed (e.g. Vault drive disconnected), return true so we DO NOT delete the user's file!
     true
 }
 
@@ -1190,6 +1918,7 @@ fn safe_wipe_mods_dir_inner(
 ) {
     if let Ok(entries) = std::fs::read_dir(dir) {
         let items: Vec<_> = entries.flatten().map(|e| e.path()).collect();
+        let manifest_leaf = crate::game_logic::resolve_manifest_leaf_lower(game_schema);
         items.into_par_iter().for_each(|path| {
             let is_symlink_or_junction = std::fs::read_link(&path).is_ok()
                 || std::fs::symlink_metadata(&path)
@@ -1205,42 +1934,11 @@ fn safe_wipe_mods_dir_inner(
                 return;
             }
 
-            let manifest_name = game_schema
-                .as_ref()
-                .and_then(|s| {
-                    s.load_order
-                        .as_ref()
-                        .and_then(|lo| lo.manifest_file.clone())
-                        .filter(|m| !m.is_empty())
-                        .or_else(|| {
-                            if !s.paths.manifest_file.is_empty() {
-                                Some(s.paths.manifest_file.clone())
-                            } else {
-                                None
-                            }
-                        })
-                })
-                .unwrap_or_else(|| {
-                    if crate::game_logic::is_sims4_schema(game_schema) {
-                        "Resource.cfg".to_string()
-                    } else {
-                        String::new()
-                    }
-                });
-
-            let parent_is_resource_subdir = path
-                .parent()
-                .and_then(|p| p.file_name())
-                .and_then(|n| n.to_str())
-                .map(|n| n.eq_ignore_ascii_case("resource"))
-                .unwrap_or(false);
-
-            if !parent_is_resource_subdir
-                && path.file_name().and_then(|n| n.to_str()).map_or(false, |n| {
-                    (!manifest_name.is_empty() && n.eq_ignore_ascii_case(&manifest_name))
-                        || (crate::game_logic::is_sims4_schema(game_schema)
-                            && n.eq_ignore_ascii_case("Resource.cfg"))
-                })
+            if !manifest_leaf.is_empty()
+                && path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .map_or(false, |n| n.eq_ignore_ascii_case(&manifest_leaf))
             {
                 return;
             }
@@ -1279,17 +1977,26 @@ fn safe_wipe_mods_dir_inner(
                 );
                 let _ = std::fs::remove_dir(&path);
             } else {
-                // Dedicated Mods folder: if this is an untracked regular mod file dropped directly
-                // into Mods/, rescue/assimilate it into Vault/Mods before cleaning!
                 if !tracked_set.contains(&norm) {
                     if let Some(ref lane) = vault_mods_lane {
-                        if rescue_untracked_mod_file(&path, root_mods_dir, lane, supported_exts) {
+                        if rescue_untracked_mod_file(
+                            &path,
+                            root_mods_dir,
+                            lane,
+                            supported_exts,
+                            game_schema,
+                        ) {
                             return;
                         }
                     }
                 } else if let Some(ref lane) = vault_mods_lane {
-                    // Even if tracked (e.g. fallback copy), ensure a copy exists in Vault before deleting
-                    if rescue_untracked_mod_file(&path, root_mods_dir, lane, supported_exts) {
+                    if rescue_untracked_mod_file(
+                        &path,
+                        root_mods_dir,
+                        lane,
+                        supported_exts,
+                        game_schema,
+                    ) {
                         return;
                     }
                 }
@@ -1523,7 +2230,6 @@ fn default_baseline_heuristic_rules() -> Vec<(&'static str, &'static str)> {
         ("vssadmin delete shadows", "file_content_contains"),
         ("grabber.py", "file_name_exact"),
         ("stealer.exe", "file_name_exact"),
-        ("ts4_poc.py", "archive_entry_exact"),
         (".vbs", "file_name_contains"),
         (".hta", "file_name_contains"),
         (".scr", "file_name_contains"),
@@ -1828,7 +2534,7 @@ fn scan_raw_buffer_core(
         }
     }
 
-    // 3. Universal Symbol-Chain & Token-Proximity Inspection (across .pyc, .py, .package, .dll, scripts, and binaries)
+    // 3. Universal Symbol-Chain & Token-Proximity Inspection (across bytecode, scripts, native plugins, and binary containers)
     let has_unresolved_token_clauses = compiled.clauses.iter().any(|c| {
         (rule_masks[c.rule_idx] & c.clause_bit) == 0 && c.pyc_tokens.len() >= 2
     });
@@ -1978,13 +2684,13 @@ fn scan_buffer_for_compiled_content_sigs_detailed(
         }
     }
 
-    // 5. Binary Container & DBPF (.package) Zlib / Zstd Decompression Layer
-    // Sims 4 .package (DBPF 2.x) and other binary mod containers store internal XML tuning,
-    // scripts, and resources as compressed Zlib (0x78 0x9C / 0x01 / 0xDA / 0x5E) or Zstd streams.
+    // 5. Binary Container Zlib / Zstd Decompression Layer
+    // Probe candidate compressed streams with a stack-only 64-byte read first to avoid
+    // heap allocations on false-positive magic-byte sequences in binary assets.
     let mut streams_checked = 0usize;
-    let max_streams = 64usize;
+    let max_streams = 32usize;
     let mut pos = 0usize;
-    while pos + 6 < buf_len && streams_checked < max_streams {
+    while pos + 8 < buf_len && streams_checked < max_streams {
         let b0 = buffer[pos];
         let b1 = buffer[pos + 1];
 
@@ -1994,23 +2700,24 @@ fn scan_buffer_for_compiled_content_sigs_detailed(
             && ((b0 as u16) * 256 + (b1 as u16)) % 31 == 0
         {
             use std::io::Read;
-            let mut decoder =
-                flate2::read::ZlibDecoder::new(&buffer[pos..]).take(512 * 1024);
-            let mut decompressed = Vec::new();
-            let _ = decoder.read_to_end(&mut decompressed);
-            if decompressed.len() >= 12 {
+            let mut raw_dec = flate2::read::ZlibDecoder::new(&buffer[pos..]);
+            let mut stack_probe = [0u8; 64];
+            let probe_n = raw_dec.read(&mut stack_probe).unwrap_or(0);
+            if probe_n >= 12 {
                 streams_checked += 1;
-                if let Some((sig, _)) =
-                    scan_buffer_for_compiled_content_sigs_detailed(
-                        &decompressed,
-                        _entry_name_lower,
-                        compiled,
-                        false,
-                    )
-                {
+                let max_rem = (256 * 1024usize).saturating_sub(probe_n);
+                let mut decompressed = Vec::with_capacity(probe_n + 1024);
+                decompressed.extend_from_slice(&stack_probe[..probe_n]);
+                let _ = (&mut raw_dec).take(max_rem as u64).read_to_end(&mut decompressed);
+                if let Some((sig, _)) = scan_buffer_for_compiled_content_sigs_detailed(
+                    &decompressed,
+                    _entry_name_lower,
+                    compiled,
+                    false,
+                ) {
                     return Some((sig, "heuristic_decompressed_stream"));
                 }
-                let consumed = decoder.into_inner().total_in() as usize;
+                let consumed = raw_dec.total_in() as usize;
                 pos += consumed.max(2);
                 continue;
             }
@@ -2019,22 +2726,24 @@ fn scan_buffer_for_compiled_content_sigs_detailed(
             && buffer[pos + 2] == 0x2F
             && buffer[pos + 3] == 0xFD
         {
-            // Zstandard frame magic
             use std::io::Read;
-            if let Ok(decoder) = zstd::stream::read::Decoder::new(&buffer[pos..]) {
-                let mut bounded = decoder.take(512 * 1024);
-                let mut decompressed = Vec::new();
-                let _ = bounded.read_to_end(&mut decompressed);
-                if decompressed.len() >= 12 {
+            if let Ok(mut decoder) = zstd::stream::read::Decoder::new(&buffer[pos..]) {
+                let mut stack_probe = [0u8; 64];
+                let probe_n = decoder.read(&mut stack_probe).unwrap_or(0);
+                if probe_n >= 12 {
                     streams_checked += 1;
-                    if let Some((sig, _)) =
-                        scan_buffer_for_compiled_content_sigs_detailed(
-                            &decompressed,
-                            _entry_name_lower,
-                            compiled,
-                            false,
-                        )
-                    {
+                    let max_rem = (256 * 1024usize).saturating_sub(probe_n);
+                    let mut decompressed = Vec::with_capacity(probe_n + 1024);
+                    decompressed.extend_from_slice(&stack_probe[..probe_n]);
+                    let _ = (&mut decoder)
+                        .take(max_rem as u64)
+                        .read_to_end(&mut decompressed);
+                    if let Some((sig, _)) = scan_buffer_for_compiled_content_sigs_detailed(
+                        &decompressed,
+                        _entry_name_lower,
+                        compiled,
+                        false,
+                    ) {
                         return Some((sig, "heuristic_decompressed_stream"));
                     }
                 }
@@ -2055,8 +2764,9 @@ fn scan_zip_reader<R: std::io::Read + std::io::Seek>(
     use std::io::Read;
     let has_content_sigs = !compiled.clauses.is_empty();
     let mut archive = zip::ZipArchive::new(reader).ok()?;
+    let max_entries = archive.len().min(MAX_ARCHIVE_ENTRIES);
 
-    for i in 0..archive.len() {
+    for i in 0..max_entries {
         if let Ok(mut entry) = archive.by_index(i) {
             let raw_entry_name = entry.name().replace('\\', "/");
             let entry_name = raw_entry_name.to_lowercase();
@@ -2104,41 +2814,42 @@ fn scan_zip_reader<R: std::io::Read + std::io::Seek>(
                 }
             }
 
-            if entry.size() <= 16 * 1024 * 1024 {
-                let mut buffer = Vec::with_capacity(entry.size() as usize);
-                if entry.read_to_end(&mut buffer).is_ok() && !buffer.is_empty() {
-                    // Check if this entry is a nested ZIP / .ts4script archive
-                    let is_nested_zip = depth < 2
-                        && buffer.len() >= 4
-                        && (buffer[0..4] == [0x50, 0x4B, 0x03, 0x04]
-                            || buffer[0..4] == [0x50, 0x4B, 0x05, 0x06]);
+            const MAX_SCAN_ENTRY_BYTES: u64 = 16 * 1024 * 1024;
+            let cap_hint = entry.size().min(256 * 1024) as usize;
+            let mut buffer = Vec::with_capacity(cap_hint);
+            let mut bounded = (&mut entry).take(MAX_SCAN_ENTRY_BYTES);
+            if bounded.read_to_end(&mut buffer).is_ok() && !buffer.is_empty() {
+                // Check if this entry is a nested ZIP-based script/mod archive
+                let is_nested_zip = depth < 2
+                    && buffer.len() >= 4
+                    && (buffer[0..4] == [0x50, 0x4B, 0x03, 0x04]
+                        || buffer[0..4] == [0x50, 0x4B, 0x05, 0x06]);
 
-                    if is_nested_zip {
-                        if let Some(nested_hit) = scan_zip_reader(
-                            std::io::Cursor::new(&buffer),
-                            &display_entry,
-                            compiled,
-                            depth + 1,
-                        ) {
-                            return Some(nested_hit);
-                        }
+                if is_nested_zip {
+                    if let Some(nested_hit) = scan_zip_reader(
+                        std::io::Cursor::new(&buffer),
+                        &display_entry,
+                        compiled,
+                        depth + 1,
+                    ) {
+                        return Some(nested_hit);
                     }
+                }
 
-                    if has_content_sigs {
-                        if let Some((matched_sig, det_kind)) =
-                            scan_buffer_for_compiled_content_sigs_detailed(
-                                &buffer,
-                                &entry_name,
-                                compiled,
-                                true,
-                            )
-                        {
-                            return Some(HeuristicMatchDetail {
-                                signature: matched_sig,
-                                matched_entry: Some(display_entry),
-                                detection_type: det_kind.to_string(),
-                            });
-                        }
+                if has_content_sigs {
+                    if let Some((matched_sig, det_kind)) =
+                        scan_buffer_for_compiled_content_sigs_detailed(
+                            &buffer,
+                            &entry_name,
+                            compiled,
+                            true,
+                        )
+                    {
+                        return Some(HeuristicMatchDetail {
+                            signature: matched_sig,
+                            matched_entry: Some(display_entry),
+                            detection_type: det_kind.to_string(),
+                        });
                     }
                 }
             }
@@ -2198,7 +2909,6 @@ pub fn check_heuristic_malware_detailed(
             && (magic == [0x50, 0x4B, 0x03, 0x04]
                 || magic == [0x50, 0x4B, 0x05, 0x06]
                 || magic == [0x50, 0x4B, 0x07, 0x08]);
-        let is_dbpf_package = has_magic && &magic == b"DBPF";
         let _ = file.seek(SeekFrom::Start(0));
 
         if is_zip_container {
@@ -2233,10 +2943,8 @@ pub fn check_heuristic_malware_detailed(
                             true,
                         )
                     {
-                        let matched_entry = if is_dbpf_package
-                            && det_kind == "heuristic_decompressed_stream"
-                        {
-                            Some("DBPF::CompressedResourceStream".to_string())
+                        let matched_entry = if det_kind == "heuristic_decompressed_stream" {
+                            Some("BinaryContainer::CompressedStream".to_string())
                         } else {
                             None
                         };
@@ -2295,6 +3003,9 @@ pub fn check_is_explicitly_local(
 }
 
 pub fn find_backup(vault_path: &str, file_name: &str) -> Option<PathBuf> {
+    if !is_safe_single_filename(file_name) {
+        return None;
+    }
     let base = PathBuf::from(vault_path).join("Backups");
     let p = base.join(file_name);
     if p.exists() {
@@ -2314,7 +3025,7 @@ pub fn find_backup(vault_path: &str, file_name: &str) -> Option<PathBuf> {
             return Some(p3);
         }
     }
-    let docs_base = get_docs_base_from_mods_path(&config.mods_path);
+    let docs_base = resolve_effective_docs_path(&config, &None);
     if let Some(world_dir) = get_world_backups_dir(&docs_base, vault_path) {
         let p4 = world_dir.join(file_name);
         if p4.exists() {
@@ -2646,6 +3357,22 @@ pub fn get_docs_base_from_mods_path(mods_path: &str) -> String {
     doc_dir.to_string_lossy().to_string()
 }
 
+pub fn resolve_effective_docs_path(
+    config: &WorkspaceConfig,
+    schema: &Option<crate::schema::GameSchema>,
+) -> String {
+    if let Some(ref explicit_docs) = config.docs_path {
+        if !explicit_docs.trim().is_empty() {
+            return explicit_docs.trim().to_string();
+        }
+    }
+    let resolved = crate::game_logic::resolve_user_data_root(&config.mods_path, schema);
+    if !resolved.as_os_str().is_empty() {
+        return resolved.to_string_lossy().to_string();
+    }
+    get_docs_base_from_mods_path(&config.mods_path)
+}
+
 pub fn get_world_backups_dir(docs_path: &str, vault_path: &str) -> Option<PathBuf> {
     if docs_path.trim().is_empty() {
         return None;
@@ -2678,516 +3405,60 @@ pub fn get_world_backups_dir(docs_path: &str, vault_path: &str) -> Option<PathBu
     }
 }
 
-#[cfg(windows)]
-fn is_single_hardlink_file(entry_path: &std::path::Path, _metadata: &std::fs::Metadata) -> bool {
-    use std::os::windows::io::AsRawHandle;
-    use windows::Win32::Foundation::HANDLE;
-    use windows::Win32::Storage::FileSystem::{
-        GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION,
-    };
-    if let Ok(file) = std::fs::File::open(entry_path) {
-        let handle = HANDLE(file.as_raw_handle());
-        let mut info = BY_HANDLE_FILE_INFORMATION::default();
-        if unsafe { GetFileInformationByHandle(handle, &mut info) }.is_ok() {
-            return info.nNumberOfLinks <= 1;
-        }
-    }
-    false
-}
-
-#[cfg(not(windows))]
-fn is_single_hardlink_file(_entry_path: &std::path::Path, metadata: &std::fs::Metadata) -> bool {
-    use std::os::unix::fs::MetadataExt;
-    metadata.nlink() <= 1
-}
-
-pub fn calculate_sizes(path: &std::path::Path) -> (u64, u64) {
-    let mut total_size = 0u64;
-    let mut diff_size = 0u64;
-
-    let manifest_opt: Option<(bool, std::collections::HashSet<String>)> = std::fs::read_to_string(
-        path.join(".delta_manifest.json"),
-    )
-    .ok()
-    .and_then(|raw| serde_json::from_str::<crate::commands::backups::DeltaManifest>(&raw).ok())
-    .map(|m| {
-        let mut set =
-            std::collections::HashSet::with_capacity(m.added_paths.len() + m.updated_paths.len());
-        for p in m.added_paths {
-            set.insert(p.replace('\\', "/"));
-        }
-        for p in m.updated_paths {
-            set.insert(p.replace('\\', "/"));
-        }
-        (m.is_baseline, set)
-    });
-
-    for entry in walkdir::WalkDir::new(path).into_iter().flatten() {
-        let entry_path = entry.path();
-        if let Ok(rel) = entry_path.strip_prefix(path) {
-            let rel_str = rel.to_string_lossy().replace('\\', "/");
-            if rel_str.is_empty() || rel_str.split('/').any(|part| part.starts_with('.')) {
-                continue;
-            }
-            if let Ok(metadata) = entry.metadata() {
-                if metadata.is_file() {
-                    let len = metadata.len();
-                    total_size += len;
-                    if let Some((is_baseline, ref delta_set)) = manifest_opt {
-                        if is_baseline || delta_set.contains(&rel_str) {
-                            diff_size += len;
-                        }
-                    } else if is_single_hardlink_file(entry_path, &metadata) {
-                        diff_size += len;
-                    }
-                }
-            }
-        }
-    }
-    (total_size, diff_size)
-}
-
 pub const SANCTUARY_REDACTED_TOKEN: &str = "[REDACTED BY SANCTUARY]";
-
-fn chars_match_ignore_ascii_case(haystack: &[char], pos: usize, needle_lower: &[char]) -> bool {
-    if pos + needle_lower.len() > haystack.len() {
-        return false;
-    }
-    for (i, &nc) in needle_lower.iter().enumerate() {
-        if haystack[pos + i].to_ascii_lowercase() != nc {
-            return false;
-        }
-    }
-    true
-}
-
-fn redact_after_marker_chars(input: &str, marker_lower_str: &str, stop_chars: &[char]) -> String {
-    let chars: Vec<char> = input.chars().collect();
-    let marker: Vec<char> = marker_lower_str.chars().collect();
-    let redacted_chars: Vec<char> = SANCTUARY_REDACTED_TOKEN.chars().collect();
-    let mut out = String::with_capacity(input.len());
-    let mut i = 0;
-
-    while i < chars.len() {
-        if chars_match_ignore_ascii_case(&chars, i, &marker) {
-            for k in 0..marker.len() {
-                out.push(chars[i + k]);
-            }
-            i += marker.len();
-            if chars_match_ignore_ascii_case(&chars, i, &redacted_chars) {
-                for k in 0..redacted_chars.len() {
-                    out.push(chars[i + k]);
-                }
-                i += redacted_chars.len();
-                continue;
-            }
-            let seg_start = i;
-            while i < chars.len() && !stop_chars.contains(&chars[i]) {
-                i += 1;
-            }
-            if i > seg_start {
-                out.push_str(SANCTUARY_REDACTED_TOKEN);
-            }
-        } else {
-            out.push(chars[i]);
-            i += 1;
-        }
-    }
-    out
-}
-
-fn redact_xml_tag_chars(input: &str, tag_lower: &str, replacement: &str) -> String {
-    let chars: Vec<char> = input.chars().collect();
-    let open_tag: Vec<char> = format!("<{}>", tag_lower).chars().collect();
-    let close_tag: Vec<char> = format!("</{}>", tag_lower).chars().collect();
-    let mut out = String::with_capacity(input.len());
-    let mut i = 0;
-
-    while i < chars.len() {
-        if chars_match_ignore_ascii_case(&chars, i, &open_tag) {
-            for k in 0..open_tag.len() {
-                out.push(chars[i + k]);
-            }
-            i += open_tag.len();
-            let content_start = i;
-            let mut found_close = None;
-            let mut scan = i;
-            while scan < chars.len() {
-                if chars_match_ignore_ascii_case(&chars, scan, &close_tag) {
-                    found_close = Some(scan);
-                    break;
-                }
-                if chars[scan] == '<' || chars[scan] == '\n' {
-                    break;
-                }
-                scan += 1;
-            }
-            if let Some(close_idx) = found_close {
-                if close_idx > content_start {
-                    out.push_str(replacement);
-                }
-                for k in 0..close_tag.len() {
-                    out.push(chars[close_idx + k]);
-                }
-                i = close_idx + close_tag.len();
-            }
-        } else {
-            out.push(chars[i]);
-            i += 1;
-        }
-    }
-    out
-}
-
-fn redact_guid_tokens(input: &str) -> String {
-    let chars: Vec<char> = input.chars().collect();
-    let guid_kw: Vec<char> = vec!['g', 'u', 'i', 'd'];
-    let mut out = String::with_capacity(input.len());
-    let mut i = 0;
-
-    while i < chars.len() {
-        let prev_ok = i == 0 || !chars[i - 1].is_ascii_alphanumeric();
-        if prev_ok && chars_match_ignore_ascii_case(&chars, i, &guid_kw) {
-            let mut scan = i + 4;
-            while scan < chars.len() && (chars[scan] == ' ' || chars[scan] == '\t') {
-                scan += 1;
-            }
-            if scan < chars.len() && (chars[scan] == ':' || chars[scan] == '=') {
-                scan += 1;
-                while scan < chars.len() && (chars[scan] == ' ' || chars[scan] == '\t') {
-                    scan += 1;
-                }
-                let val_start = scan;
-                while scan < chars.len()
-                    && (chars[scan].is_ascii_hexdigit()
-                        || chars[scan] == '-'
-                        || chars[scan] == '{'
-                        || chars[scan] == '}')
-                {
-                    scan += 1;
-                }
-                if scan.saturating_sub(val_start) >= 8 {
-                    for k in i..val_start {
-                        out.push(chars[k]);
-                    }
-                    out.push_str(SANCTUARY_REDACTED_TOKEN);
-                    i = scan;
-                    continue;
-                }
-            }
-        }
-        out.push(chars[i]);
-        i += 1;
-    }
-    out
-}
-
 pub const SANCTUARY_REDACTED_HEX_SESSION: &str = "000000000000000000000000";
 
-fn redact_media_mount_usernames(input: &str, marker_lower_str: &str, stop_chars: &[char]) -> String {
-    let chars: Vec<char> = input.chars().collect();
-    let marker: Vec<char> = marker_lower_str.chars().collect();
-    let redacted_chars: Vec<char> = SANCTUARY_REDACTED_TOKEN.chars().collect();
-    let mut out = String::with_capacity(input.len());
-    let mut i = 0;
-
-    while i < chars.len() {
-        if chars_match_ignore_ascii_case(&chars, i, &marker) {
-            for k in 0..marker.len() {
-                out.push(chars[i + k]);
-            }
-            i += marker.len();
-            if chars_match_ignore_ascii_case(&chars, i, &redacted_chars) {
-                for k in 0..redacted_chars.len() {
-                    out.push(chars[i + k]);
-                }
-                i += redacted_chars.len();
-                continue;
-            }
-            let seg_start = i;
-            while i < chars.len() && !stop_chars.contains(&chars[i]) {
-                i += 1;
-            }
-            if i > seg_start {
-                let seg: String = chars[seg_start..i].iter().collect();
-                let seg_lower = seg.to_lowercase();
-                if seg_lower.starts_with("mmcblk")
-                    || seg_lower.starts_with("nvme")
-                    || seg_lower.starts_with("sd")
-                {
-                    out.push_str(&seg);
-                } else {
-                    out.push_str(SANCTUARY_REDACTED_TOKEN);
-                }
-            }
-        } else {
-            out.push(chars[i]);
-            i += 1;
-        }
-    }
-    out
+struct LogScrubberRegexes {
+    guid_re: regex::Regex,
+    hex_xml_re: regex::Regex,
+    pii_xml_re: regex::Regex,
+    user_path_re: regex::Regex,
+    media_mount_re: regex::Regex,
+    sid_re: regex::Regex,
+    mac_re: regex::Regex,
+    email_re: regex::Regex,
+    ipv4_re: regex::Regex,
 }
 
-fn redact_line_emails(input: &str) -> String {
-    if !input.contains('@') {
-        return input.to_string();
-    }
-    let chars: Vec<char> = input.chars().collect();
-    let is_local_char = |c: char| {
-        c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '%' | '+' | '-')
-    };
-    let is_domain_char = |c: char| c.is_ascii_alphanumeric() || c == '-' || c == '.';
+static LOG_SCRUBBER_REGEXES: std::sync::OnceLock<LogScrubberRegexes> =
+    std::sync::OnceLock::new();
 
-    let mut out = String::with_capacity(input.len());
-    let mut i = 0usize;
-    let mut flushed = 0usize;
-
-    while i < chars.len() {
-        if chars[i] == '@' && i > flushed {
-            let mut l_start = i;
-            while l_start > flushed && is_local_char(chars[l_start - 1]) {
-                l_start -= 1;
-            }
-            while l_start < i && !chars[l_start].is_ascii_alphanumeric() {
-                l_start += 1;
-            }
-            let prev_boundary_ok = l_start == 0
-                || !matches!(chars[l_start - 1], '/' | '\\' | '@');
-
-            let mut d_end = i + 1;
-            while d_end < chars.len() && is_domain_char(chars[d_end]) {
-                d_end += 1;
-            }
-            while d_end > i + 1 && (chars[d_end - 1] == '.' || chars[d_end - 1] == '-') {
-                d_end -= 1;
-            }
-
-            if prev_boundary_ok && l_start < i && d_end > i + 3 {
-                let domain_str: String = chars[i + 1..d_end].iter().collect();
-                if let Some((host_part, tld_part)) = domain_str.rsplit_once('.') {
-                    let tld_lower = tld_part.to_ascii_lowercase();
-                    let is_code_or_asset_ext = matches!(
-                        tld_lower.as_str(),
-                        "py" | "pyc"
-                            | "package"
-                            | "ts4script"
-                            | "dll"
-                            | "exe"
-                            | "so"
-                            | "dylib"
-                            | "json"
-                            | "xml"
-                            | "cfg"
-                            | "ini"
-                            | "txt"
-                            | "log"
-                            | "png"
-                            | "jpg"
-                            | "jpeg"
-                            | "webp"
-                            | "dds"
-                            | "js"
-                            | "ts"
-                            | "tsx"
-                            | "css"
-                            | "html"
-                            | "wasm"
-                    );
-                    let valid_domain = !host_part.is_empty()
-                        && host_part.chars().next().map_or(false, |c| c.is_ascii_alphanumeric())
-                        && !host_part.contains("..")
-                        && tld_part.len() >= 2
-                        && tld_part.len() <= 24
-                        && tld_part.chars().all(|c| c.is_ascii_alphabetic())
-                        && !is_code_or_asset_ext;
-
-                    if valid_domain {
-                        for &c in &chars[flushed..l_start] {
-                            out.push(c);
-                        }
-                        out.push_str(SANCTUARY_REDACTED_TOKEN);
-                        flushed = d_end;
-                        i = d_end;
-                        continue;
-                    }
-                }
-            }
-        }
-        i += 1;
-    }
-
-    for &c in &chars[flushed..] {
-        out.push(c);
-    }
-    out
-}
-
-fn redact_line_ipv4(input: &str) -> String {
-    let chars: Vec<char> = input.chars().collect();
-    if chars.len() < 7 {
-        return input.to_string();
-    }
-    let mut out = String::with_capacity(input.len());
-    let mut i = 0usize;
-
-    while i < chars.len() {
-        let prev_ok = i == 0
-            || (!chars[i - 1].is_ascii_alphanumeric()
-                && chars[i - 1] != '.'
-                && chars[i - 1] != '-'
-                && chars[i - 1] != '_');
-
-        if prev_ok && chars[i].is_ascii_digit() {
-            let mut scan = i;
-            let mut octets = [0u16; 4];
-            let mut valid_ipv4 = true;
-
-            for oct_idx in 0..4 {
-                let start = scan;
-                while scan < chars.len() && chars[scan].is_ascii_digit() && (scan - start) < 4 {
-                    scan += 1;
-                }
-                let digits_len = scan - start;
-                if digits_len == 0 || digits_len > 3 || (digits_len > 1 && chars[start] == '0') {
-                    valid_ipv4 = false;
-                    break;
-                }
-                let oct_str: String = chars[start..scan].iter().collect();
-                let val = oct_str.parse::<u16>().unwrap_or(999);
-                if val > 255 {
-                    valid_ipv4 = false;
-                    break;
-                }
-                octets[oct_idx] = val;
-                if oct_idx < 3 {
-                    if scan < chars.len() && chars[scan] == '.' {
-                        scan += 1;
-                    } else {
-                        valid_ipv4 = false;
-                        break;
-                    }
-                }
-            }
-
-            if valid_ipv4 && octets[0] > 0 {
-                // Optional :port suffix
-                let mut end_scan = scan;
-                if end_scan < chars.len() && chars[end_scan] == ':' {
-                    let port_start = end_scan + 1;
-                    let mut p_end = port_start;
-                    while p_end < chars.len() && chars[p_end].is_ascii_digit() && (p_end - port_start) <= 5 {
-                        p_end += 1;
-                    }
-                    if p_end > port_start && (p_end - port_start) <= 5 {
-                        let port_str: String = chars[port_start..p_end].iter().collect();
-                        if let Ok(port_num) = port_str.parse::<u32>() {
-                            if (1..=65535).contains(&port_num) {
-                                end_scan = p_end;
-                            }
-                        }
-                    }
-                }
-
-                let next_ok = end_scan == chars.len()
-                    || (!chars[end_scan].is_ascii_alphanumeric() && chars[end_scan] != '.');
-
-                if next_ok {
-                    // Check preceding context on the line to avoid redacting 4-part game/mod version strings
-                    let prefix_start = i.saturating_sub(32);
-                    let prefix_lower: String = chars[prefix_start..i]
-                        .iter()
-                        .collect::<String>()
-                        .to_ascii_lowercase();
-                    let trimmed_prefix = prefix_lower
-                        .trim_end_matches(|c: char| c.is_ascii_whitespace() || c == ':' || c == '=' || c == '"' || c == '\'');
-                    let is_version_context = prefix_lower.contains("<version>")
-                        || trimmed_prefix.ends_with("version")
-                        || trimmed_prefix.ends_with("ver")
-                        || trimmed_prefix.ends_with("build")
-                        || trimmed_prefix.ends_with("patch")
-                        || trimmed_prefix.ends_with("release")
-                        || trimmed_prefix.ends_with("client")
-                        || trimmed_prefix.ends_with("game")
-                        || trimmed_prefix.ends_with("mod")
-                        || trimmed_prefix.ends_with('v');
-
-                    if !is_version_context {
-                        out.push_str(SANCTUARY_REDACTED_TOKEN);
-                        i = end_scan;
-                        continue;
-                    }
-                }
-            }
-        }
-
-        out.push(chars[i]);
-        i += 1;
-    }
-    out
-}
-
-fn redact_sids_emails_macs_ips(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    for line in input.split_inclusive('\n') {
-        let mut cur = line.to_string();
-        // 1. Windows SIDs (S-1-5-21-...)
-        let mut search_from = 0usize;
-        while let Some(rel_idx) = cur[search_from..].find("S-1-5-21-") {
-            let sid_idx = search_from + rel_idx;
-            let mut end = sid_idx + 9;
-            let bytes = cur.as_bytes();
-            while end < bytes.len() && (bytes[end].is_ascii_digit() || bytes[end] == b'-') {
-                end += 1;
-            }
-            if end > sid_idx + 12 {
-                cur.replace_range(sid_idx..end, SANCTUARY_REDACTED_TOKEN);
-                search_from = sid_idx + SANCTUARY_REDACTED_TOKEN.len();
-            } else {
-                search_from = end;
-            }
-        }
-        // 2. MAC addresses (XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX)
-        let chars: Vec<char> = cur.chars().collect();
-        if chars.len() >= 17 {
-            let mut rebuilt = String::with_capacity(cur.len());
-            let mut idx = 0;
-            while idx < chars.len() {
-                if idx + 17 <= chars.len() {
-                    let sep = chars[idx + 2];
-                    if (sep == ':' || sep == '-')
-                        && (idx == 0 || !chars[idx - 1].is_ascii_alphanumeric())
-                        && (idx + 17 == chars.len() || !chars[idx + 17].is_ascii_alphanumeric())
-                    {
-                        let mut is_mac = true;
-                        for g in 0..6 {
-                            let base = idx + g * 3;
-                            if !chars[base].is_ascii_hexdigit()
-                                || !chars[base + 1].is_ascii_hexdigit()
-                                || (g < 5 && chars[base + 2] != sep)
-                            {
-                                is_mac = false;
-                                break;
-                            }
-                        }
-                        if is_mac {
-                            rebuilt.push_str(SANCTUARY_REDACTED_TOKEN);
-                            idx += 17;
-                            continue;
-                        }
-                    }
-                }
-                rebuilt.push(chars[idx]);
-                idx += 1;
-            }
-            cur = rebuilt;
-        }
-        // 3. Plaintext email addresses (user@domain.tld)
-        cur = redact_line_emails(&cur);
-        // 4. Bare IPv4 addresses (excluding 4-part version strings)
-        cur = redact_line_ipv4(&cur);
-        out.push_str(&cur);
-    }
-    out
+fn get_log_scrubber_regexes() -> &'static LogScrubberRegexes {
+    LOG_SCRUBBER_REGEXES.get_or_init(|| LogScrubberRegexes {
+        guid_re: regex::Regex::new(
+            r"(?i)\b(guid[ \t]*[:=][ \t]*)(\{?[0-9a-f-]{8,}\}?)",
+        )
+        .unwrap(),
+        hex_xml_re: regex::Regex::new(
+            r"(?i)<(sessionid|desyncid)>[^<\r\n]+</(sessionid|desyncid)>",
+        )
+        .unwrap(),
+        pii_xml_re: regex::Regex::new(
+            r"(?i)<(guid|userid|machineid|computername|accountid|username|hostname|ip|ipaddress|macaddress)>[^<\r\n]+</(guid|userid|machineid|computername|accountid|username|hostname|ip|ipaddress|macaddress)>",
+        )
+        .unwrap(),
+        user_path_re: regex::Regex::new(
+            r#"(?i)(\\\\users\\\\|\\users\\|/users/|/var/home/|/home/|drive_c/users/|\\documents and settings\\|/documents and settings/|onedrive - )([^\\/"'<>\r\n&|]+)"#,
+        )
+        .unwrap(),
+        media_mount_re: regex::Regex::new(
+            r#"(?i)(/run/media/|/media/)([^\\/"'<>\r\n&|]+)"#,
+        )
+        .unwrap(),
+        sid_re: regex::Regex::new(r"\bS-1-5-21-[0-9-]{4,}\b").unwrap(),
+        mac_re: regex::Regex::new(
+            r"\b(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}\b|\b(?:[0-9A-Fa-f]{2}-){5}[0-9A-Fa-f]{2}\b",
+        )
+        .unwrap(),
+        email_re: regex::Regex::new(
+            r"([A-Za-z0-9][A-Za-z0-9._%+-]*)@([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.([A-Za-z]{2,24}))\b",
+        )
+        .unwrap(),
+        ipv4_re: regex::Regex::new(
+            r"\b([1-9][0-9]{0,2})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})(?::([0-9]{1,5}))?\b",
+        )
+        .unwrap(),
+    })
 }
 
 pub fn scrub_user_data_from_log(input: &str) -> String {
@@ -3195,70 +3466,84 @@ pub fn scrub_user_data_from_log(input: &str) -> String {
         return String::new();
     }
 
-    let path_stops = ['\\', '/', '"', '\'', '<', '>', '\r', '\n', '&', '|'];
-    let mut text = input.to_string();
+    let rx = get_log_scrubber_regexes();
 
-    // 1. Redact GUID: <UUID/Hex> (e.g. GUID: BC7AFD5D-ECE9-11EF-BE02-E6D1369926EE&#13; &#10;</desyncdata></report>)
-    text = redact_guid_tokens(&text);
+    // 1. Redact GUID: <UUID/Hex>
+    let s1 = rx.guid_re.replace_all(input, |caps: &regex::Captures| {
+        format!("{}{}", &caps[1], SANCTUARY_REDACTED_TOKEN)
+    });
 
-    // 2a. Redact sessionid and desyncid with 24 hex zeroes for strict XML hex parser compatibility
-    for hex_tag in ["sessionid", "desyncid"] {
-        text = redact_xml_tag_chars(&text, hex_tag, SANCTUARY_REDACTED_HEX_SESSION);
-    }
+    // 2a. Redact sessionid / desyncid with 24 hex zeroes
+    let s2 = rx.hex_xml_re.replace_all(&s1, |caps: &regex::Captures| {
+        if caps[1].eq_ignore_ascii_case(&caps[2]) {
+            format!(
+                "<{}>{}</{}>",
+                &caps[1], SANCTUARY_REDACTED_HEX_SESSION, &caps[2]
+            )
+        } else {
+            caps[0].to_string()
+        }
+    });
 
-    // 2b. Redact machine/user/network XML tags with [REDACTED BY SANCTUARY]
-    for tag in [
-        "guid",
-        "userid",
-        "machineid",
-        "computername",
-        "accountid",
-        "username",
-        "hostname",
-        "ip",
-        "ipaddress",
-        "macaddress",
-    ] {
-        text = redact_xml_tag_chars(&text, tag, SANCTUARY_REDACTED_TOKEN);
-    }
+    // 2b. Redact machine/user/network XML tags
+    let s3 = rx.pii_xml_re.replace_all(&s2, |caps: &regex::Captures| {
+        if caps[1].eq_ignore_ascii_case(&caps[2]) {
+            format!("<{}>{}</{}>", &caps[1], SANCTUARY_REDACTED_TOKEN, &caps[2])
+        } else {
+            caps[0].to_string()
+        }
+    });
 
-    // 3. Redact file paths containing the Username across Windows, macOS, Linux, SteamOS, Proton, and OneDrive
-    for marker in [
-        "\\\\users\\\\",
-        "\\users\\",
-        "/users/",
-        "/var/home/",
-        "/home/",
-        "drive_c/users/",
-        "\\documents and settings\\",
-        "/documents and settings/",
-        "onedrive - ",
-    ] {
-        text = redact_after_marker_chars(&text, marker, &path_stops);
-    }
+    // 3. Redact OS user home path segments
+    let s4 = rx.user_path_re.replace_all(&s3, |caps: &regex::Captures| {
+        let seg = &caps[2];
+        if seg.eq_ignore_ascii_case(SANCTUARY_REDACTED_TOKEN) {
+            caps[0].to_string()
+        } else {
+            format!("{}{}", &caps[1], SANCTUARY_REDACTED_TOKEN)
+        }
+    });
 
-    for media_marker in ["/run/media/", "/media/"] {
-        text = redact_media_mount_usernames(&text, media_marker, &path_stops);
-    }
+    let s5 = rx
+        .media_mount_re
+        .replace_all(&s4, |caps: &regex::Captures| {
+            let seg = &caps[2];
+            let seg_lower = seg.to_ascii_lowercase();
+            if seg.eq_ignore_ascii_case(SANCTUARY_REDACTED_TOKEN)
+                || seg_lower.starts_with("mmcblk")
+                || seg_lower.starts_with("nvme")
+                || seg_lower.starts_with("sd")
+            {
+                caps[0].to_string()
+            } else {
+                format!("{}{}", &caps[1], SANCTUARY_REDACTED_TOKEN)
+            }
+        });
 
-    // 4. Redact current OS USERNAME / USER / LOGNAME and COMPUTERNAME / HOSTNAME if any literal occurrences remain
+    let mut text = s5.into_owned();
+
+    // 4. Redact literal OS USERNAME / USER / LOGNAME & COMPUTERNAME / HOSTNAME
     for env_key in ["USERNAME", "USER", "LOGNAME"] {
         if let Ok(val) = std::env::var(env_key) {
             let trimmed = val.trim();
             if trimmed.len() >= 2 {
-                for pat in [
-                    format!("\\{}\\", trimmed),
-                    format!("\\\\{}\\\\", trimmed),
-                    format!("/{}/", trimmed),
+                for (pat, repl) in [
+                    (
+                        format!("\\\\{}\\\\", trimmed),
+                        format!("\\\\{}\\\\", SANCTUARY_REDACTED_TOKEN),
+                    ),
+                    (
+                        format!("\\{}\\", trimmed),
+                        format!("\\{}\\", SANCTUARY_REDACTED_TOKEN),
+                    ),
+                    (
+                        format!("/{}/", trimmed),
+                        format!("/{}/", SANCTUARY_REDACTED_TOKEN),
+                    ),
                 ] {
-                    let repl = if pat.starts_with("\\\\") {
-                        format!("\\\\{}\\\\", SANCTUARY_REDACTED_TOKEN)
-                    } else if pat.starts_with('\\') {
-                        format!("\\{}\\", SANCTUARY_REDACTED_TOKEN)
-                    } else {
-                        format!("/{}/", SANCTUARY_REDACTED_TOKEN)
-                    };
-                    text = text.replace(&pat, &repl);
+                    if text.contains(&pat) {
+                        text = text.replace(&pat, &repl);
+                    }
                 }
             }
         }
@@ -3267,15 +3552,120 @@ pub fn scrub_user_data_from_log(input: &str) -> String {
     for host_key in ["COMPUTERNAME", "HOSTNAME"] {
         if let Ok(val) = std::env::var(host_key) {
             let trimmed = val.trim();
-            if trimmed.len() >= 3 {
+            if trimmed.len() >= 3 && text.contains(trimmed) {
                 text = text.replace(trimmed, SANCTUARY_REDACTED_TOKEN);
             }
         }
     }
 
-    text = redact_sids_emails_macs_ips(&text);
+    // 5. Redact Windows SIDs and MAC addresses
+    let s6 = rx.sid_re.replace_all(&text, SANCTUARY_REDACTED_TOKEN);
+    let s7 = rx.mac_re.replace_all(&s6, SANCTUARY_REDACTED_TOKEN);
 
-    text
+    // 6. Redact email addresses (filtering out @filename.ext code/asset tokens)
+    let s8 = if s7.contains('@') {
+        let s7_ref = s7.as_ref();
+        rx.email_re
+            .replace_all(s7_ref, |caps: &regex::Captures| {
+                let m = caps.get(0).unwrap();
+                if m.start() > 0 {
+                    let prev_b = s7_ref.as_bytes()[m.start() - 1];
+                    if matches!(prev_b, b'/' | b'\\' | b'@') {
+                        return caps[0].to_string();
+                    }
+                }
+                let tld_lower = caps[3].to_ascii_lowercase();
+                let is_code_or_asset_ext = matches!(
+                    tld_lower.as_str(),
+                    "py" | "pyc"
+                        | "dll"
+                        | "exe"
+                        | "so"
+                        | "dylib"
+                        | "json"
+                        | "xml"
+                        | "cfg"
+                        | "ini"
+                        | "toml"
+                        | "yaml"
+                        | "yml"
+                        | "txt"
+                        | "log"
+                        | "png"
+                        | "jpg"
+                        | "jpeg"
+                        | "webp"
+                        | "dds"
+                        | "js"
+                        | "ts"
+                        | "tsx"
+                        | "css"
+                        | "html"
+                        | "wasm"
+                );
+                if is_code_or_asset_ext {
+                    caps[0].to_string()
+                } else {
+                    SANCTUARY_REDACTED_TOKEN.to_string()
+                }
+            })
+            .into_owned()
+    } else {
+        s7.into_owned()
+    };
+
+    // 7. Redact bare IPv4 addresses while preserving 4-part version strings
+    let s9 = rx.ipv4_re.replace_all(&s8, |caps: &regex::Captures| {
+        let m = caps.get(0).unwrap();
+        let bytes = s8.as_bytes();
+        if m.start() > 0 && matches!(bytes[m.start() - 1], b'.' | b'-' | b'_') {
+            return caps[0].to_string();
+        }
+        if m.end() < bytes.len() && bytes[m.end()] == b'.' {
+            return caps[0].to_string();
+        }
+        for idx in 1..=4 {
+            let oct_s = &caps[idx];
+            if oct_s.len() > 1 && oct_s.starts_with('0') {
+                return caps[0].to_string();
+            }
+            if oct_s.parse::<u16>().unwrap_or(999) > 255 {
+                return caps[0].to_string();
+            }
+        }
+        if let Some(port_m) = caps.get(5) {
+            let p_val = port_m.as_str().parse::<u32>().unwrap_or(0);
+            if !(1..=65535).contains(&p_val) {
+                return caps[0].to_string();
+            }
+        }
+        let line_prefix_start = s8[..m.start()]
+            .rfind('\n')
+            .map(|p| p + 1)
+            .unwrap_or(0)
+            .max(m.start().saturating_sub(40));
+        let prefix_lower = s8[line_prefix_start..m.start()].to_ascii_lowercase();
+        let trimmed_prefix = prefix_lower.trim_end_matches(|c: char| {
+            c.is_ascii_whitespace() || matches!(c, ':' | '=' | '"' | '\'')
+        });
+        let is_version_context = prefix_lower.contains("<version>")
+            || trimmed_prefix.ends_with("version")
+            || trimmed_prefix.ends_with("ver")
+            || trimmed_prefix.ends_with("build")
+            || trimmed_prefix.ends_with("patch")
+            || trimmed_prefix.ends_with("release")
+            || trimmed_prefix.ends_with("client")
+            || trimmed_prefix.ends_with("game")
+            || trimmed_prefix.ends_with("mod")
+            || trimmed_prefix.ends_with('v');
+        if is_version_context {
+            caps[0].to_string()
+        } else {
+            SANCTUARY_REDACTED_TOKEN.to_string()
+        }
+    });
+
+    s9.into_owned()
 }
 
 pub fn current_epoch_ms() -> u64 {
@@ -3288,10 +3678,40 @@ pub fn current_epoch_ms() -> u64 {
 fn is_skipped_vault_subdir(name_lower: &str) -> bool {
     name_lower == "sandbox"
         || name_lower == "dev"
-        || name_lower == "resource"
         || name_lower == "quarantine"
         || name_lower == "__macosx"
         || name_lower.starts_with('.')
+}
+
+fn is_plain_text_config_extension(ext_lower: &str) -> bool {
+    matches!(
+        ext_lower.trim_start_matches('.'),
+        "cfg" | "ini" | "json" | "toml" | "yaml" | "yml" | "xml" | "txt" | "log" | "md"
+    )
+}
+
+fn dir_contains_non_config_mod_assets(dir: &Path) -> bool {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_file() {
+                let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
+                if fname_lower.starts_with('.')
+                    || fname_lower == "desktop.ini"
+                    || fname_lower == "thumbs.db"
+                {
+                    continue;
+                }
+                if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+                    let ext_lower = ext.to_lowercase();
+                    if !is_plain_text_config_extension(&ext_lower) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
 }
 
 pub fn resolve_vault_config_destination(
@@ -3316,7 +3736,6 @@ pub fn resolve_vault_config_destination(
             if is_skipped_vault_subdir(&sub_name) {
                 continue;
             }
-            // Check 1 level deep
             if let Ok(sub_entries) = std::fs::read_dir(&sub_path) {
                 for sub_entry in sub_entries.flatten() {
                     let p = sub_entry.path();
@@ -3330,7 +3749,6 @@ pub fn resolve_vault_config_destination(
                     } else if p.is_dir() {
                         let sub2_name = sub_entry.file_name().to_string_lossy().to_lowercase();
                         if !is_skipped_vault_subdir(&sub2_name) {
-                            // Check 2 levels deep
                             if let Ok(sub2_entries) = std::fs::read_dir(&p) {
                                 for sub2_entry in sub2_entries.flatten() {
                                     let p2 = sub2_entry.path();
@@ -3351,9 +3769,9 @@ pub fn resolve_vault_config_destination(
         }
     }
 
-    // 2. If not yet present in any subfolder, check if a subfolder owns mods with a matching `<prefix>_` (e.g., `mc_` -> `mc_cmd_center.ts4script`)
+    // 2. If not yet present in any subfolder, check if a subfolder owns non-config mod files with a matching `<prefix>_`
     if let Some(underscore_idx) = fname_lower.find('_') {
-        let prefix = &fname_lower[..=underscore_idx]; // includes trailing '_'
+        let prefix = &fname_lower[..=underscore_idx];
         if prefix.len() >= 3 {
             if let Ok(entries) = std::fs::read_dir(vault_mods_path) {
                 for entry in entries.flatten() {
@@ -3364,11 +3782,6 @@ pub fn resolve_vault_config_destination(
                     let sub_name = entry.file_name().to_string_lossy().to_lowercase();
                     if is_skipped_vault_subdir(&sub_name) {
                         continue;
-                    }
-                    if prefix == "mc_"
-                        && (sub_name.contains("mc command center") || sub_name == "mccc")
-                    {
-                        return sub_path.join(file_name);
                     }
                     if let Ok(sub_entries) = std::fs::read_dir(&sub_path) {
                         for sub_entry in sub_entries.flatten() {
@@ -3382,7 +3795,8 @@ pub fn resolve_vault_config_destination(
                                     .map(|e| e.to_lowercase())
                                     .unwrap_or_default();
                                 if child_lower.starts_with(prefix)
-                                    && is_mod_binary_extension(&child_ext)
+                                    && !child_ext.is_empty()
+                                    && !is_plain_text_config_extension(&child_ext)
                                 {
                                     return sub_path.join(file_name);
                                 }
@@ -3395,54 +3809,6 @@ pub fn resolve_vault_config_destination(
     }
 
     vault_mods_path.join(relative_path)
-}
-
-pub fn is_mod_binary_extension(ext_lower: &str) -> bool {
-    matches!(
-        ext_lower.trim_start_matches('.'),
-        "ts4script"
-            | "package"
-            | "world"
-            | "dll"
-            | "asi"
-            | "rpf"
-            | "cak"
-            | "pac"
-            | "esp"
-            | "esm"
-            | "esl"
-            | "bsa"
-            | "ba2"
-            | "archive"
-            | "pak"
-            | "lua"
-            | "xl"
-            | "reds"
-            | "tweak"
-            | "jar"
-            | "litemod"
-            | "xnb"
-            | "tmx"
-            | "tbin"
-            | "csx"
-    )
-}
-
-fn dir_contains_mod_binaries(dir: &Path) -> bool {
-    if let Ok(entries) = std::fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let p = entry.path();
-            if p.is_file() {
-                if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
-                    let ext_lower = ext.to_lowercase();
-                    if is_mod_binary_extension(&ext_lower) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    false
 }
 
 fn find_surviving_vault_file(
@@ -3487,7 +3853,7 @@ fn find_surviving_vault_file(
                                 .to_string_lossy()
                                 .eq_ignore_ascii_case(fname_lower)
                         {
-                            if dir_contains_mod_binaries(&p) {
+                            if dir_contains_non_config_mod_assets(&p) {
                                 return Some(sp);
                             }
                             if fallback_match.is_none() {
@@ -3508,8 +3874,8 @@ fn find_surviving_vault_file(
                                                 .to_string_lossy()
                                                 .eq_ignore_ascii_case(fname_lower)
                                         {
-                                            if dir_contains_mod_binaries(&sp)
-                                                || dir_contains_mod_binaries(&p)
+                                            if dir_contains_non_config_mod_assets(&sp)
+                                                || dir_contains_non_config_mod_assets(&p)
                                             {
                                                 return Some(sp2);
                                             }
@@ -3530,16 +3896,20 @@ fn find_surviving_vault_file(
     fallback_match
 }
 
-pub fn deduplicate_vault_root_configs(vault_mods_lane: &Path, config_exts: &[String]) {
+pub fn deduplicate_vault_root_configs(
+    vault_mods_lane: &Path,
+    config_exts: &[String],
+    game_schema: &Option<crate::schema::GameSchema>,
+) {
     if !vault_mods_lane.exists() {
         return;
     }
 
+    let manifest_leaf_lower = crate::game_logic::resolve_manifest_leaf_lower(game_schema);
+
     let is_config_ext = |ext_lower: &str| -> bool {
-        matches!(
-            ext_lower,
-            "cfg" | "ini" | "json" | "toml" | "xml" | "txt" | "log"
-        ) || config_exts.iter().any(|e| e.eq_ignore_ascii_case(ext_lower))
+        is_plain_text_config_extension(ext_lower)
+            || config_exts.iter().any(|e| e.eq_ignore_ascii_case(ext_lower))
     };
 
     let mut root_configs: Vec<(String, PathBuf)> = Vec::new();
@@ -3555,10 +3925,10 @@ pub fn deduplicate_vault_root_configs(vault_mods_lane: &Path, config_exts: &[Str
                 }
             } else if p.is_file() {
                 let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
-                if fname_lower == "resource.cfg"
-                    || fname_lower == "default.ini"
-                    || fname_lower == "desktop.ini"
+                if fname_lower == "desktop.ini"
+                    || fname_lower == "thumbs.db"
                     || fname_lower.starts_with('.')
+                    || (!manifest_leaf_lower.is_empty() && fname_lower == manifest_leaf_lower)
                 {
                     continue;
                 }
@@ -3579,7 +3949,6 @@ pub fn deduplicate_vault_root_configs(vault_mods_lane: &Path, config_exts: &[Str
     let mut removed_root_paths: Vec<String> = Vec::new();
 
     for (fname_lower, root_file) in root_configs {
-        // Prefer a subfolder match where the folder actually contains mod binaries
         let mut preferred_match: Option<PathBuf> = None;
         let mut fallback_match: Option<PathBuf> = None;
 
@@ -3593,7 +3962,7 @@ pub fn deduplicate_vault_root_configs(vault_mods_lane: &Path, config_exts: &[Str
                             .to_string_lossy()
                             .eq_ignore_ascii_case(&fname_lower)
                     {
-                        if dir_contains_mod_binaries(subdir) {
+                        if dir_contains_non_config_mod_assets(subdir) {
                             preferred_match = Some(sp);
                             break 'search;
                         } else if fallback_match.is_none() {
@@ -3611,8 +3980,8 @@ pub fn deduplicate_vault_root_configs(vault_mods_lane: &Path, config_exts: &[Str
                                             .to_string_lossy()
                                             .eq_ignore_ascii_case(&fname_lower)
                                     {
-                                        if dir_contains_mod_binaries(&sp)
-                                            || dir_contains_mod_binaries(subdir)
+                                        if dir_contains_non_config_mod_assets(&sp)
+                                            || dir_contains_non_config_mod_assets(subdir)
                                         {
                                             preferred_match = Some(sp2);
                                             break 'search;
@@ -3642,7 +4011,6 @@ pub fn deduplicate_vault_root_configs(vault_mods_lane: &Path, config_exts: &[Str
                         let should_preserve_root_data = if sm.len() == 0 {
                             true
                         } else if let (Ok(rt), Ok(st)) = (rm.modified(), sm.modified()) {
-                            // Only overwrite subfolder config if root is newer AND not a truncated/empty stub
                             rt > st && rm.len() >= sm.len() / 2
                         } else {
                             false
@@ -3657,7 +4025,6 @@ pub fn deduplicate_vault_root_configs(vault_mods_lane: &Path, config_exts: &[Str
             if std::fs::remove_file(&root_file).is_ok() {
                 removed_root_paths.push(root_file.to_string_lossy().to_string());
 
-                // If live Mods/<fname> symlink was pointing to the removed root duplicate, re-point it to sub_file
                 if !config.mods_path.trim().is_empty() {
                     if let Some(actual_name) = sub_file.file_name() {
                         let live_cfg = Path::new(&config.mods_path).join(actual_name);
@@ -3674,16 +4041,18 @@ pub fn deduplicate_vault_root_configs(vault_mods_lane: &Path, config_exts: &[Str
         }
     }
 
-    // Purge any removed root duplicate entries from SQLite cache so ghost entries never linger
     if !removed_root_paths.is_empty() && !config.vault_path.trim().is_empty() {
-        let conn = get_db_conn(&config.vault_path);
-        for p_str in &removed_root_paths {
-            let norm_win = p_str.replace('/', "\\");
-            let norm_unix = p_str.replace('\\', "/");
-            let _ = conn.execute(
-                "DELETE FROM cache WHERE path = ?1 OR path = ?2 OR path = ?3",
-                params![p_str, norm_win, norm_unix],
-            );
+        if let Ok(db) = open_db_conn(&config.vault_path) {
+            if let Ok(conn) = db.lock() {
+                for p_str in &removed_root_paths {
+                    let norm_win = p_str.replace('/', "\\");
+                    let norm_unix = p_str.replace('\\', "/");
+                    let _ = conn.execute(
+                        "DELETE FROM cache WHERE path = ?1 OR path = ?2 OR path = ?3",
+                        params![p_str, norm_win, norm_unix],
+                    );
+                }
+            }
         }
     }
 }
@@ -3692,13 +4061,14 @@ pub fn cleanup_live_counterparts_on_delete(deleted_path: &Path, deleted_file_nam
     let is_protected = |name_lower: &str| -> bool {
         matches!(
             name_lower,
-            "resource.cfg"
-                | "default.ini"
-                | "desktop.ini"
+            "desktop.ini"
+                | "thumbs.db"
                 | ".ds_store"
                 | ".sanctuary_deployed_links.json"
                 | ".sanctuary_cache.db"
                 | ".sanctuary_cache.json"
+                | SANCTUARY_EDGE_MANIFEST_FILE
+                | SANCTUARY_EDGE_OVERRIDE_FILE
         )
     };
 
@@ -3725,7 +4095,6 @@ pub fn cleanup_live_counterparts_on_delete(deleted_path: &Path, deleted_file_nam
         None
     };
 
-    // Map any surviving copy in Vault/Mods so deleting a duplicate never kills the remaining copy's live link
     let mut surviving_vault_copies: std::collections::HashMap<String, PathBuf> =
         std::collections::HashMap::new();
     if let Some(ref lane) = vault_mods_lane {
@@ -3736,7 +4105,6 @@ pub fn cleanup_live_counterparts_on_delete(deleted_path: &Path, deleted_file_nam
         }
     }
 
-    // 1. Clean up or re-point exact relative path in live Mods folder if present
     if let Some(ref lane) = vault_mods_lane {
         if let Ok(rel) = deleted_path.strip_prefix(lane) {
             if !config.mods_path.trim().is_empty() {
@@ -3748,7 +4116,11 @@ pub fn cleanup_live_counterparts_on_delete(deleted_path: &Path, deleted_file_nam
                         .unwrap_or_default()
                         .to_lowercase();
                     if let Some(survivor) = surviving_vault_copies.get(&fname_lower) {
-                        if live_rel.parent().map(|p| p == Path::new(&config.mods_path)).unwrap_or(false) {
+                        if live_rel
+                            .parent()
+                            .map(|p| p == Path::new(&config.mods_path))
+                            .unwrap_or(false)
+                        {
                             let _ = std::fs::remove_file(&live_rel);
                             let _ = create_symlink_file(survivor, &live_rel)
                                 .or_else(|_| std::fs::copy(survivor, &live_rel).map(|_| ()));
@@ -3769,7 +4141,6 @@ pub fn cleanup_live_counterparts_on_delete(deleted_path: &Path, deleted_file_nam
         }
     }
 
-    // 2. Clean up or re-point live counterparts and symlinks in config.mods_path
     if !config.mods_path.trim().is_empty() {
         let mods_dir = PathBuf::from(&config.mods_path);
         if mods_dir.exists() && mods_dir != deleted_path {
@@ -3787,15 +4158,13 @@ pub fn cleanup_live_counterparts_on_delete(deleted_path: &Path, deleted_file_nam
                         let mut matches_target = target_names_lower.contains(&fname_lower);
                         let mut points_to_deleted = false;
                         if let Ok(link_target) = std::fs::read_link(&p) {
-                            if link_target == deleted_path
-                                || link_target.starts_with(deleted_path)
+                            if link_target == deleted_path || link_target.starts_with(deleted_path)
                             {
                                 matches_target = true;
                                 points_to_deleted = true;
                             }
                         }
                         if matches_target {
-                            // If another copy of this file still exists in the Vault, re-link instead of deleting!
                             if let Some(survivor) = surviving_vault_copies.get(&fname_lower) {
                                 if points_to_deleted || dir == mods_dir {
                                     let _ = std::fs::remove_file(&p);
@@ -3829,7 +4198,7 @@ pub fn cleanup_live_counterparts_on_delete(deleted_path: &Path, deleted_file_nam
                     let p = entry.path();
                     if p.is_dir() {
                         let dname = entry.file_name().to_string_lossy().to_lowercase();
-                        if dname != "resource" && !dname.starts_with('.') {
+                        if !dname.starts_with('.') {
                             remove_or_relink_in_dir(&p);
                         }
                     }
@@ -3943,7 +4312,7 @@ pub fn save_mod_versions_index(
     let _ = std::fs::create_dir_all(&backups_mods);
     let index_path = backups_mods.join(".mod_versions.json");
     if let Ok(json_str) = serde_json::to_string_pretty(index) {
-        let _ = std::fs::write(&index_path, json_str);
+        let _ = atomic_write_bytes(&index_path, json_str.as_bytes());
     }
 }
 
@@ -4291,7 +4660,7 @@ pub fn sync_vault_mod_versions_for_game(
             .unwrap_or_default()
             .to_string_lossy()
             .to_lowercase();
-        if !f_name.is_empty() && is_mod_binary_extension(&ext) {
+        if !f_name.is_empty() && !ext.is_empty() && !is_plain_text_config_extension(&ext) {
             keys_by_filename.entry(f_name).or_default().push(k.clone());
         }
     }

@@ -3,80 +3,28 @@ import { useStore } from '../../store';
 import { useLexicon } from '../../LexiconContext';
 import { readDir, readTextFile, exists } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
+import {
+   isSanctuaryTemplateFile,
+   parseSectionedIni,
+   parseStructuredConfig,
+   stringifyStructuredConfig,
+   readDataPathValue,
+   writeDataPathValue
+} from '../workbenchFormatUtils';
 
 export function parseIniConfig(content: string) {
-   const obj: any = {};
-   const lines = (content || "").split('\n');
-   for (const line of lines) {
-      const match = line.match(/^\s*([^#;=\s]+)\s*=\s*(.*)/);
-      if (match) {
-         const key = match[1];
-         let val: any = match[2].trim();
-         if (val.toLowerCase() === 'true') val = true;
-         else if (val.toLowerCase() === 'false') val = false;
-         else if (!isNaN(Number(val)) && val !== '') val = Number(val);
-         if (typeof val === 'string' && val.startsWith('"') && val.endsWith('"') && val.length > 1) {
-            val = val.substring(1, val.length - 1);
-         }
-         obj[key] = val;
-      }
-   }
-   return obj;
+   return parseSectionedIni(content || '').data;
 }
 
 export function parseConfigContent(content: string, fileName?: string): any {
-   const trimmed = content ? content.trim() : '';
-   const isJson =
-      Boolean(fileName && fileName.toLowerCase().endsWith('.json')) ||
-      Boolean(trimmed && (trimmed.startsWith('{') || trimmed.startsWith('[') || trimmed.endsWith('}') || trimmed.startsWith('"')));
-   if (isJson) {
-      try {
-         const sanitized = content.replace(/,\s*([\]}])/g, '$1');
-         return JSON.parse(sanitized);
-      } catch {
-         return null;
-      }
-   }
-   return parseIniConfig(content || '');
+   return parseStructuredConfig(content || '', fileName).data;
 }
 
 export function useWorkbenchEditor() {
-   const parseIni = parseIniConfig;
-
-   const stringifyIni = (data: any, originalContent: string) => {
-      const lines = originalContent.split('\n');
-      const updatedKeys = new Set<string>();
-      const newLines = [];
-      
-      for (const line of lines) {
-         const match = line.match(/^(\s*)([^#;=\s]+)(\s*=\s*)(.*)/);
-         if (match) {
-            const key = match[2];
-            if (data[key] !== undefined) {
-               let val = data[key];
-               if (typeof val === 'string' && match[4].startsWith('"') && match[4].endsWith('"')) {
-                  val = `"${val}"`;
-               }
-               newLines.push(`${match[1]}${key}${match[3]}${val}`);
-               updatedKeys.add(key);
-            } else {
-               newLines.push(line);
-            }
-         } else {
-            newLines.push(line);
-         }
-      }
-      
-      for (const key of Object.keys(data)) {
-         if (!updatedKeys.has(key)) {
-            newLines.push(`${key}=${data[key]}`);
-         }
-      }
-      return newLines.join('\n');
-   };
    const { t } = useLexicon();
    const pushStatus = useStore(state => state.pushStatus);
    const vaultPath = useStore(state => state.vaultPath);
+   const modsPath = useStore(state => state.modsPath);
    const selectedFile = useStore(state => state.cwSelectedFile);
    const setUnsavedEdits = useStore(state => state.setCwUnsavedEdits);
 
@@ -97,7 +45,7 @@ export function useWorkbenchEditor() {
    const skipNextValidateRef = useRef<boolean>(false);
    const isJumping = useRef(0);
 
-   const isTemplateMode = selectedFile?.name.toLowerCase().endsWith('.json');
+   const isTemplateMode = isSanctuaryTemplateFile(selectedFile, parsedData);
 
    const syncSavedBaseline = useCallback((content: string, fileNameOverride?: string) => {
       const fName = fileNameOverride || selectedFile?.name;
@@ -129,31 +77,9 @@ export function useWorkbenchEditor() {
 
             const currentContent = unsaved[selectedFile.path] !== undefined ? unsaved[selectedFile.path] : diskContent;
             setRawText(currentContent);
-            const trimmedContent = currentContent ? currentContent.trim() : '';
-            const isJson = selectedFile.name.toLowerCase().endsWith('.json') || (trimmedContent && (trimmedContent.startsWith('{') || trimmedContent.startsWith('[') || trimmedContent.endsWith('}') || trimmedContent.startsWith('"')));
-            if (isJson) {
-               try {
-                  const sanitizedContent = currentContent.replace(/,\s*([\]}])/g, '$1');
-                  setParsedData(JSON.parse(sanitizedContent));
-                  setProblemsList([]);
-               } catch (e: any) {
-                  setParsedData(null);
-                  let line = 1;
-                  let col = 1;
-                  const match = e.message.match(/at position (\d+)/);
-                  if (match) {
-                     const pos = parseInt(match[1], 10);
-                     const upToError = currentContent.substring(0, pos);
-                     const lines = upToError.split('\n');
-                     line = lines.length;
-                     col = lines[lines.length - 1].length + 1;
-                  }
-                  setProblemsList([{ line, column: col, message: e.message }]);
-               }
-            } else {
-               setParsedData(parseIni(currentContent));
-               setProblemsList([]);
-            }
+            const structured = parseStructuredConfig(currentContent, selectedFile.name);
+            setParsedData(structured.data);
+            setProblemsList(structured.problems);
          };
          loadFile();
       }
@@ -210,44 +136,23 @@ export function useWorkbenchEditor() {
    }, [selectedFile, editorRef]);
 
    const validateContent = useCallback((text: string, monaco: any, model: any) => {
-      let problems: any[] = [];
-      let markers: any[] = [];
-      
-      const trimmedText = text ? text.trim() : '';
-      const isJson = selectedFile?.name.toLowerCase().endsWith('.json') || (trimmedText && (trimmedText.startsWith('{') || trimmedText.startsWith('[') || trimmedText.endsWith('}') || trimmedText.startsWith('"')));
-
-      if (isJson) {
-         try {
-            const sanitizedText = text.replace(/,\s*([\]}])/g, '$1');
-            const parsed = JSON.parse(sanitizedText);
-            setParsedData(parsed);
-         } catch (err: any) {
-            const match = err.message.match(/at position (\d+)/);
-            let line = 1;
-            let col = 1;
-            if (match && model) {
-               const pos = parseInt(match[1], 10);
-               const p = model.getPositionAt(pos);
-               line = p.lineNumber;
-               col = p.column;
-            } else if (err.message.includes("Unexpected end of JSON input") && model) {
-               line = model.getLineCount() || 1;
-               col = model.getLineMaxColumn(line) || 1;
-            }
-            problems.push({ line, column: col, message: err.message });
-            if (monaco) {
-               markers.push({
-                  startLineNumber: line,
-                  startColumn: col,
-                  endLineNumber: line,
-                  endColumn: col + 1,
-                  message: err.message,
-                  severity: monaco.MarkerSeverity.Error
-               });
-            }
+      const structured = parseStructuredConfig(text, selectedFile?.name);
+      if (structured.data !== null) {
+         setParsedData(structured.data);
+      }
+      const problems = structured.problems;
+      const markers: any[] = [];
+      if (monaco && problems.length > 0) {
+         for (const p of problems) {
+            markers.push({
+               startLineNumber: p.line,
+               startColumn: p.column,
+               endLineNumber: p.line,
+               endColumn: p.column + 1,
+               message: p.message,
+               severity: monaco.MarkerSeverity.Error
+            });
          }
-      } else {
-         setParsedData(parseIni(text));
       }
       if (model && monaco) {
          monaco.editor.setModelMarkers(model, 'owner', markers);
@@ -272,8 +177,9 @@ export function useWorkbenchEditor() {
       if (!editorRef || !(window as any).monaco) return;
       const monaco = (window as any).monaco;
       if (highlightedKey) {
-         const actualKey = highlightedKey.split('::')[0];
-         const searchKey = actualKey.split('.').pop() || actualKey;
+         const actualKey = highlightedKey.replace(/@ts:\d+$/, '');
+         const rawLeaf = actualKey.includes('::') ? actualKey.split('::').pop() || actualKey : (actualKey.split('.').pop() || actualKey);
+         const searchKey = rawLeaf.replace(/^@/, '');
          const model = editorRef.getModel();
          if (model) {
             let matches = model.findMatches(`"${searchKey}"`, false, false, false, null, true, 1);
@@ -324,18 +230,9 @@ export function useWorkbenchEditor() {
       }
       if (preParsedData !== undefined) return;
 
-      const trimmedValue = value ? value.trim() : '';
-      const isJson = selectedFile?.name.toLowerCase().endsWith('.json') || (trimmedValue && (trimmedValue.startsWith('{') || trimmedValue.startsWith('[') || trimmedValue.endsWith('}') || trimmedValue.startsWith('"')));
-
-      if (isJson) {
-         try {
-            const sanitizedText = value.replace(/,\s*([\]}])/g, '$1');
-            setParsedData(JSON.parse(sanitizedText));
-         } catch (e) {
-            // Keep old parsed data if invalid JSON so visual editor doesn't crash while typing
-         }
-      } else if (selectedFile) {
-         setParsedData(parseIni(value));
+      const structured = parseStructuredConfig(value, selectedFile?.name);
+      if (structured.data !== null) {
+         setParsedData(structured.data);
       }
    }, [selectedFile, setUnsavedEdits, editorRef]);
 
@@ -371,7 +268,7 @@ export function useWorkbenchEditor() {
    }, [editorRef, rawText, handleRawChange, pushStatus, t]);
 
    const triggerHighlight = useCallback((key: string) => {
-      setHighlightedKey(key + "::" + Date.now());
+      setHighlightedKey(`${key}@ts:${Date.now()}`);
       if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
       highlightTimeoutRef.current = setTimeout(() => {
          setHighlightedKey(null);
@@ -384,35 +281,18 @@ export function useWorkbenchEditor() {
 
       setParsedData((prev: any) => {
          const newData = JSON.parse(JSON.stringify(prev || {}));
-
-         const parts = dataPath.split('.');
-         let current = newData;
-         for (let i = 0; i < parts.length - 1; i++) {
-            if (!current[parts[i]]) current[parts[i]] = {};
-            current = current[parts[i]];
-         }
-         const currentValue = current[parts[parts.length - 1]];
-         const finalValue = typeof value === 'function' ? value(currentValue) : value;
-         current[parts[parts.length - 1]] = finalValue;
+         writeDataPathValue(newData, dataPath, value);
 
          if (rawUpdateTimeoutRef.current) clearTimeout(rawUpdateTimeoutRef.current);
          rawUpdateTimeoutRef.current = setTimeout(() => {
-            let newRaw = "";
             let currentModelRaw = "";
             if (editorRef && editorRef.getModel()) {
                currentModelRaw = editorRef.getModel().getValue();
             }
-            if (!currentModelRaw) currentModelRaw = useStore.getState().cwUnsavedEdits[sf.path] || "";
-            
-            const trimmedModelRaw = currentModelRaw ? currentModelRaw.trim() : '';
-            const isJson = sf.name.toLowerCase().endsWith('.json') || (trimmedModelRaw && (trimmedModelRaw.startsWith('{') || trimmedModelRaw.startsWith('[') || trimmedModelRaw.endsWith('}') || trimmedModelRaw.startsWith('"')));
+            if (!currentModelRaw) currentModelRaw = useStore.getState().cwUnsavedEdits[sf.path] || savedRawTextRef.current || "";
 
-            if (isJson) {
-               newRaw = JSON.stringify(newData, null, 2);
-            } else {
-               newRaw = stringifyIni(newData, currentModelRaw);
-            }
-            
+            const newRaw = stringifyStructuredConfig(newData, currentModelRaw, sf.name);
+
             if (editorRef && editorRef.getModel()) {
                const model = editorRef.getModel();
                if (newRaw !== model.getValue()) {
@@ -425,13 +305,14 @@ export function useWorkbenchEditor() {
             }
             setRawText(newRaw);
             useStore.getState().setCwUnsavedEdits(prevUnsaved => ({ ...prevUnsaved, [sf.path]: newRaw }));
-            
+
             isJumping.current = Date.now() + 1000;
             triggerHighlight(dataPath);
             if (editorRef) {
                const model = editorRef.getModel();
                if (model) {
-                  const searchKey = dataPath.split('.').pop() || dataPath;
+                  const rawLeaf = dataPath.includes('::') ? dataPath.split('::').pop() || dataPath : (dataPath.split('.').pop() || dataPath);
+                  const searchKey = rawLeaf.replace(/^@/, '');
                   let matches = model.findMatches(`"${searchKey}"`, false, false, false, null, true, 1);
                   if (!matches || matches.length === 0) {
                      matches = model.findMatches(`${searchKey}`, false, false, false, null, true, 1);
@@ -449,8 +330,11 @@ export function useWorkbenchEditor() {
    }, [editorRef, triggerHighlight]);
 
    const handleUndoSettingToSaved = useCallback((dataPath: string) => {
-      if (savedParsedDataRef.current && dataPath in savedParsedDataRef.current) {
-         handleVisualChange(dataPath, savedParsedDataRef.current[dataPath]);
+      if (savedParsedDataRef.current) {
+         const savedVal = readDataPathValue(savedParsedDataRef.current, dataPath);
+         if (savedVal !== undefined) {
+            handleVisualChange(dataPath, savedVal);
+         }
       }
    }, [handleVisualChange]);
 
@@ -469,31 +353,38 @@ export function useWorkbenchEditor() {
 
    useEffect(() => {
       const loadTarget = async () => {
-         if (isTemplateMode && selectedFile && parsedData?.target_file && vaultPath) {
+         if (isTemplateMode && selectedFile && parsedData?.target_file) {
             try {
                const targetName = parsedData.target_file;
-               const sep = vaultPath.includes('\\') ? '\\' : '/';
-               const modsDir = vaultPath + sep + "Mods";
                let targetPath = "";
-               if (await exists(modsDir)) {
-                  if (await exists(modsDir + sep + targetName)) {
-                     targetPath = modsDir + sep + targetName;
-                  } else {
-                     const entries = await readDir(modsDir);
-                     for (const entry of entries) {
-                        if (entry.isDirectory) {
-                           const p = modsDir + sep + entry.name + sep + targetName;
-                           if (await exists(p)) {
-                              targetPath = p;
-                              break;
-                           }
+               const candidateRoots = [modsPath, vaultPath].filter((p): p is string => Boolean(p && p.trim()));
+
+               for (const rootDir of candidateRoots) {
+                  if (!(await exists(rootDir))) continue;
+                  const sep = rootDir.includes('\\') ? '\\' : '/';
+                  const trimmedRoot = rootDir.endsWith(sep) ? rootDir.slice(0, -1) : rootDir;
+                  const directCandidate = `${trimmedRoot}${sep}${targetName}`;
+                  if (await exists(directCandidate)) {
+                     targetPath = directCandidate;
+                     break;
+                  }
+                  const entries = await readDir(trimmedRoot);
+                  for (const entry of entries) {
+                     if (entry.isDirectory) {
+                        const subCandidate = `${trimmedRoot}${sep}${entry.name}${sep}${targetName}`;
+                        if (await exists(subCandidate)) {
+                           targetPath = subCandidate;
+                           break;
                         }
                      }
                   }
+                  if (targetPath) break;
                }
+
                if (!targetPath) {
-                  const dir = selectedFile.path.substring(0, selectedFile.path.lastIndexOf(selectedFile.path.includes('\\') ? '\\' : '/'));
-                  const fallbackPath = dir + sep + targetName;
+                  const sep = selectedFile.path.includes('\\') ? '\\' : '/';
+                  const dir = selectedFile.path.substring(0, selectedFile.path.lastIndexOf(sep));
+                  const fallbackPath = `${dir}${sep}${targetName}`;
                   if (await exists(fallbackPath)) targetPath = fallbackPath;
                }
 
@@ -509,33 +400,25 @@ export function useWorkbenchEditor() {
          }
       };
       loadTarget();
-   }, [isTemplateMode, selectedFile, parsedData?.target_file, vaultPath]);
+   }, [isTemplateMode, selectedFile, parsedData?.target_file, vaultPath, modsPath]);
 
    const handleAutoMap = useCallback(async () => {
       if (!parsedData || !parsedData.target_file) {
          pushStatus(t("err_select_target_first", "Select a target file first"), "error");
          return;
       }
-      
+
       const content = targetFileContent;
-      
+
       if (!content || content.includes('// Target file not found locally')) {
          pushStatus(t("err_no_content_to_map", "Target file content not found locally"), "error");
          return;
       }
 
       try {
-         let keyData: { key: string, type: string, default: any }[] = [];
-         
-         let isJson = false;
-         let parsed: any = null;
-         try {
-            parsed = JSON.parse(content);
-            isJson = true;
-         } catch(e) {}
-
+         const structuredTarget = parseStructuredConfig(content, parsedData.target_file);
          let addedCount = 0;
-         
+
          const newParsedData = JSON.parse(rawText || '{}');
          if (!newParsedData.categories) {
             newParsedData.categories = [{ id: "general", name_key: "General", icon_key: "tune" }];
@@ -543,9 +426,10 @@ export function useWorkbenchEditor() {
          if (!newParsedData.settings) {
             newParsedData.settings = [];
          }
-         
+
          const formatKeyLabel = (rawKey: string) =>
             rawKey
+               .replace(/^@/, '')
                .replace(/_/g, ' ')
                .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
                .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
@@ -573,6 +457,19 @@ export function useWorkbenchEditor() {
             settingObj.allow_decimals = nums.some((n) => !Number.isInteger(n));
          };
 
+         const ensureCategoryForSection = (sectionName: string): string => {
+            const cleanId = sectionName.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+            if (!cleanId) return newParsedData.categories[0]?.id || "general";
+            const existing = newParsedData.categories.find((c: any) => String(c.id).toLowerCase() === cleanId);
+            if (existing) return existing.id;
+            newParsedData.categories.push({
+               id: cleanId,
+               name_key: formatKeyLabel(sectionName),
+               icon_key: "tune"
+            });
+            return cleanId;
+         };
+
          const inferCategoryFromKey = (rawKey: string, cats: any[], fallbackCat: string): string => {
             if (!Array.isArray(cats) || cats.length === 0) return fallbackCat;
             const prefixMatch = rawKey.match(/^([A-Za-z]+)_/);
@@ -580,28 +477,86 @@ export function useWorkbenchEditor() {
                const pref = prefixMatch[1].toLowerCase();
                const direct = cats.find((c: any) => String(c.id).toLowerCase() === pref);
                if (direct) return direct.id;
-               if (pref === 'cas') {
-                  const appCat = cats.find((c: any) => String(c.id).toLowerCase() === 'appearance');
-                  if (appCat) return appCat.id;
-               }
             }
             return fallbackCat;
          };
 
-         if (isJson && parsed && typeof parsed === 'object') {
+         if (structuredTarget.format === 'ini') {
+            const iniObj = structuredTarget.data || {};
+            const entries = Object.entries(iniObj);
+            if (entries.length === 0) {
+               pushStatus(t("err_no_keys_found", "No mappable keys found"), "info");
+               return;
+            }
+
+            for (const [compositePath, defValRaw] of entries) {
+               const hasSection = compositePath.includes('::');
+               const sectionName = hasSection ? compositePath.slice(0, compositePath.indexOf('::')) : '';
+               const rawKey = hasSection ? compositePath.slice(compositePath.indexOf('::') + 2) : compositePath;
+
+               if (newParsedData.settings.find((s: any) => s.path === compositePath || (!hasSection && s.key === rawKey))) {
+                  continue;
+               }
+
+               let type = "string";
+               let defVal: any = defValRaw;
+               const keyLower = rawKey.toLowerCase();
+               const isKeybindingGuess = keyLower.includes('key') || keyLower.includes('bind') || keyLower.includes('button');
+
+               if (isKeybindingGuess && typeof defValRaw !== 'boolean') {
+                  type = "keybinding";
+               } else if (typeof defValRaw === 'boolean') {
+                  type = "boolean";
+               } else if (isTupleString(defValRaw) || isTupleArray(defValRaw)) {
+                  type = "tuple";
+               } else if (typeof defValRaw === 'number') {
+                  type = "number";
+               }
+
+               const resolvedCategory = sectionName
+                  ? ensureCategoryForSection(sectionName)
+                  : inferCategoryFromKey(rawKey, newParsedData.categories, newParsedData.categories[0]?.id || "general");
+
+               const newSetting: any = {
+                  key: rawKey,
+                  path: compositePath,
+                  type,
+                  label_key: formatKeyLabel(rawKey),
+                  desc_key: "",
+                  category: resolvedCategory,
+                  default: defVal
+               };
+
+               if (type === 'number') {
+                  const numDef = typeof defVal === 'number' ? defVal : 0;
+                  newSetting.min = numDef < 0 ? Math.min(-100, Math.floor(numDef * 2)) : 0;
+                  newSetting.max = Math.max(100, Math.ceil(Math.abs(numDef) * 2));
+                  newSetting.step = 1;
+                  newSetting.allow_decimals = !Number.isInteger(numDef);
+               } else if (type === 'tuple') {
+                  applyNumericTupleBounds(newSetting, defVal);
+               } else if (type === 'keybinding') {
+                  newSetting.key_format = typeof defVal === 'number' ? 'keycode' : 'literal';
+                  newSetting.allow_multiple = false;
+               }
+
+               newParsedData.settings.push(newSetting);
+               addedCount++;
+            }
+         } else if (structuredTarget.data && typeof structuredTarget.data === 'object') {
             const defaultCategory = newParsedData.categories[0]?.id || "general";
-            
+
             const buildSettingsRecursively = (obj: any, parentPath: string, inheritedCategory?: string): any[] => {
                const settings: any[] = [];
                for (const key of Object.keys(obj)) {
                   const val = obj[key];
                   const currentPath = parentPath ? `${parentPath}.${key}` : key;
                   const resolvedCategory = inheritedCategory || inferCategoryFromKey(key, newParsedData.categories, defaultCategory);
-                  
+
                   let type = "string";
                   let defaultVal = val;
                   let childSettings: any[] = [];
-                  
+
                   if (typeof val === 'boolean') {
                      type = "boolean";
                   } else if (typeof val === 'number') {
@@ -613,7 +568,7 @@ export function useWorkbenchEditor() {
                      defaultVal = undefined;
                      childSettings = buildSettingsRecursively(val, currentPath, resolvedCategory);
                   }
-                  
+
                   const newSetting: any = {
                      key: key,
                      path: currentPath,
@@ -622,13 +577,13 @@ export function useWorkbenchEditor() {
                      desc_key: "",
                      category: resolvedCategory
                   };
-                  
+
                   if (type !== 'group') {
                      newSetting.default = defaultVal;
                   } else {
                      newSetting.settings = childSettings;
                   }
-                  
+
                   if (type === 'number') {
                      const numDef = typeof defaultVal === 'number' ? defaultVal : 0;
                      newSetting.min = numDef < 0 ? Math.min(-100, Math.floor(numDef * 2)) : 0;
@@ -638,14 +593,14 @@ export function useWorkbenchEditor() {
                   } else if (type === 'tuple') {
                      applyNumericTupleBounds(newSetting, defaultVal);
                   }
-                  
+
                   settings.push(newSetting);
                }
                return settings;
             };
 
-            const generatedSettings = buildSettingsRecursively(parsed, "");
-            
+            const generatedSettings = buildSettingsRecursively(structuredTarget.data, "");
+
             for (const genSet of generatedSettings) {
                const existing = newParsedData.settings.find((s: any) => s.key === genSet.key || s.path === genSet.path);
                if (!existing) {
@@ -664,78 +619,10 @@ export function useWorkbenchEditor() {
                }
             }
          } else {
-            const lines = content.split('\n');
-            for (const line of lines) {
-               const match = line.match(/^([a-zA-Z0-9_]+)\s*=(.*)/);
-               if (match && match[1]) {
-                  const key = match[1];
-                  let valStr = match[2].trim();
-                  if (valStr.startsWith('"') && valStr.endsWith('"') && valStr.length > 1) {
-                     valStr = valStr.substring(1, valStr.length - 1);
-                  }
-                  
-                  let type = "string";
-                  let defVal: any = valStr;
-                  const keyLower = key.toLowerCase();
-                  const isKeybindingGuess = keyLower.includes('key') || keyLower.includes('bind') || keyLower.includes('button');
-                  
-                  if (isKeybindingGuess) {
-                     type = "keybinding";
-                     if (!isNaN(Number(valStr)) && valStr !== "") {
-                        defVal = Number(valStr);
-                     }
-                  } else if (valStr.toLowerCase() === 'true' || valStr.toLowerCase() === 'false') {
-                     type = "boolean";
-                     defVal = valStr.toLowerCase() === 'true';
-                  } else if (isTupleString(valStr)) {
-                     type = "tuple";
-                     defVal = valStr;
-                  } else if (!isNaN(Number(valStr)) && valStr !== "") {
-                     type = "number";
-                     defVal = Number(valStr);
-                  }
-                  
-                  keyData.push({ key, type, default: defVal });
-               }
-            }
-            
-            if (keyData.length === 0 && !isJson) {
-               pushStatus(t("err_no_keys_found", "No mappable keys found"), "info");
-               return;
-            }
-
-            for (const item of keyData) {
-               if (!newParsedData.settings.find((s: any) => s.key === item.key || s.path === item.key)) {
-                  const newSetting: any = {
-                     key: item.key,
-                     path: item.key,
-                     type: item.type,
-                     label_key: formatKeyLabel(item.key),
-                     desc_key: "",
-                     category: newParsedData.categories[0]?.id || "general"
-                  };
-                  
-                  newSetting.default = item.default;
-                  if (item.type === 'number') {
-                     const numDef = typeof item.default === 'number' ? item.default : 0;
-                     newSetting.min = numDef < 0 ? Math.min(-100, Math.floor(numDef * 2)) : 0;
-                     newSetting.max = Math.max(100, Math.ceil(Math.abs(numDef) * 2));
-                     newSetting.step = 1;
-                     newSetting.allow_decimals = !Number.isInteger(numDef);
-                  } else if (item.type === 'tuple') {
-                     applyNumericTupleBounds(newSetting, String(item.default));
-                  }
-                  if (item.type === 'keybinding') {
-                     newSetting.key_format = typeof item.default === 'number' ? 'keycode' : 'literal';
-                     newSetting.allow_multiple = false;
-                  }
-                  
-                  newParsedData.settings.push(newSetting);
-                  addedCount++;
-               }
-            }
+            pushStatus(t("err_no_keys_found", "No mappable keys found"), "info");
+            return;
          }
-         
+
          if (addedCount > 0) {
             handleRawChange(JSON.stringify(newParsedData, null, 2), true, newParsedData);
             pushStatus(`${t("success_auto_map", "Auto-mapped")}: ${addedCount}`, "success");

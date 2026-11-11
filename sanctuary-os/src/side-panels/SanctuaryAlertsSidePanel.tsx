@@ -6,7 +6,6 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   DashboardStatTile,
-  StatTileCarousel,
   extractPostImage,
   stripMarkdown,
   ActionPill,
@@ -147,7 +146,7 @@ export function SanctuaryAlertsSidePanel({
         subtitle={t("subtitle_sanctuary_alerts", "Official System & Security Advisories")}
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
-          <StatTileCarousel innerClassName="px-0">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -175,7 +174,7 @@ export function SanctuaryAlertsSidePanel({
               isActive={filterStatus === "All"}
               onClick={() => setFilterStatus("All")}
             />
-          </StatTileCarousel>
+          </div>
 
           <SidePanelHeroCard
             icon={

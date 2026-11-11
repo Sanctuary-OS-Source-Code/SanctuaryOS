@@ -36,7 +36,8 @@ export function HoverTooltip({
   delay = 300,
   onlyWhenTruncated = false,
 }: any) {
-  const { setTooltip, clearTooltip } = useTooltipStore();
+  const setTooltip = useTooltipStore((s) => s.setTooltip);
+  const clearTooltip = useTooltipStore((s) => s.clearTooltip);
   const ref = React.useRef<HTMLDivElement>(null);
   const propsRef = React.useRef({
     title,

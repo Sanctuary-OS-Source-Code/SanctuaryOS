@@ -4,7 +4,7 @@ import { useStore } from '../store';
 import { supabase } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
-import { CustomDropdown, EmptyState } from "../shared";
+import { CustomDropdown, EmptyState, VAULT_CHIP_CLASS } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid } from "../components/layouts/ElevatedHubLayout";
@@ -25,8 +25,6 @@ interface Ticket {
   author_username?: string;
   onEditMetadata?: (hash: string) => void;
 }
-
-const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export default function ArchitectSupportTickets({
   userRole = "architect",

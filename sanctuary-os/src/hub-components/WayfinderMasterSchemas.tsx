@@ -14,6 +14,7 @@ import {
   DashboardStatTile,
   EmptyState,
   HoverTooltip,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import {
   ElevatedHubLayout,
@@ -54,9 +55,6 @@ import WayfinderKeeperTickets from "../WayfinderKeeperTickets";
 import TicketDossierSidePanel from "../side-panels/TicketDossierSidePanel";
 import WayfinderSupportSidePanel from "../side-panels/WayfinderSupportSidePanel";
 import { WayfinderDonationSetupSidePanel } from "../side-panels/WayfinderSidePanels";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 const STANDALONE_MANUAL_SNIPPET = `export const SANCTUARY_CONFIG = {
   uplinkBundle: "",
@@ -3362,7 +3360,7 @@ export default function WayfinderMasterSchemas({
                   type="text"
                   value={createFileName}
                   onChange={(e) => setCreateFileName(e.target.value)}
-                  placeholder="sims4"
+                  placeholder={t("ph_schema_id", "e.g. custom_engine")}
                   className="glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleCreateSubmit();

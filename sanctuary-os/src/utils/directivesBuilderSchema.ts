@@ -50,14 +50,14 @@ export function resolveRoadmapSubCardStatus(sub?: {
   const combined = `${sub.title || ""} ${sub.desc || ""}`;
   if (
     /in\s+testing|in\s+dev\s+build/i.test(combined) ||
-    combined.includes("🧪")
+    combined.includes("\u{1F9EA}")
   ) {
     return "in_testing";
   }
   if (
     sub.pending === true ||
     /in\s+progress/i.test(combined) ||
-    combined.includes("⏳")
+    combined.includes("\u23F3")
   ) {
     return "in_progress";
   }
@@ -115,13 +115,21 @@ export interface DirectiveBuilderSchema {
   tabs: DirectiveBuilderTab[];
 }
 
-export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 83;
+export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 84;
 
 const BUILDER_COMMENT_PREFIX = "<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:";
 const BUILDER_COMMENT_REGEX =
   /\n*<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:\s*([\s\S]*?)\s*-->\s*$/;
 
 const defaultT = (_key: string, fallback?: string): string => fallback || _key;
+
+function interpolateDynamicText(
+  t: (key: string, fallback?: string) => string,
+  rawText: string
+): string {
+  if (!rawText) return "";
+  return t("__glossary_prose__", rawText);
+}
 
 function computeBodySig(cleanBody: string): number {
   const normalized = (cleanBody || "").replace(/\r\n/g, "\n").trim();
@@ -189,19 +197,19 @@ function extractMarkdownSubCards(
         let explicitStatus: RoadmapMilestoneStatus | undefined = undefined;
         if (
           /in\s+testing|in\s+dev\s+build/i.test(combinedMeta) ||
-          combinedMeta.includes("🧪")
+          combinedMeta.includes("\u{1F9EA}")
         ) {
           explicitStatus = "in_testing";
         } else if (
           /\b(?:in\s+progress)\b/i.test(combinedMeta) ||
-          combinedMeta.includes("⏳")
+          combinedMeta.includes("\u23F3")
         ) {
           explicitStatus = "in_progress";
         } else if (
           /\b(?:completed|complete\s*\(in\s+stable\s+build\)|in\s+stable\s+build)\b/i.test(
             combinedMeta
           ) ||
-          combinedMeta.includes("✅")
+          combinedMeta.includes("\u2705")
         ) {
           explicitStatus = "completed";
         }
@@ -307,8 +315,8 @@ function extractMarkdownSubCards(
           : isPending
             ? t("icon_rocket_launch", "rocket_launch")
             : t("icon_check_circle", "check_circle")),
-      title: t("", cleanItemTitle || matchedFb?.title || ""),
-      desc: t("", combinedDesc || matchedFb?.desc || ""),
+      title: interpolateDynamicText(t, cleanItemTitle || matchedFb?.title || ""),
+      desc: interpolateDynamicText(t, combinedDesc || matchedFb?.desc || ""),
       pending: isPending,
       roadmapStatus: resolvedStatus,
     });
@@ -557,14 +565,14 @@ export function parseMarkdownToDirectiveSchema(
             .replace(/\s*\([^)]*(?:2026|2025|Active|Progress|Completed|V0\.|V5\.)[^)]*\)\s*$/i, "")
             .trim();
           if (parsedHeadingTitle) {
-            title = fallback?.title || t("", parsedHeadingTitle);
+            title = fallback?.title || interpolateDynamicText(t, parsedHeadingTitle);
           }
         }
 
         let focusText = fallback?.footerMeta || "";
         const focusMatch = sectionBody.match(/\*\*Focus:\*\*\s*`?([^`\n|]+)`?/i);
         if (focusMatch && focusMatch[1]) {
-          focusText = fallback?.footerMeta || t("", focusMatch[1].trim());
+          focusText = fallback?.footerMeta || interpolateDynamicText(t, focusMatch[1].trim());
         }
 
         const statusLineMatch = sectionBody.match(
@@ -1041,7 +1049,7 @@ export function getDefaultDirectiveBuilderSchema(
   slug: DirectiveSlug,
   t: (key: string, fallback?: string) => string = defaultT
 ): DirectiveBuilderSchema {
-  const g = (txt: string) => (txt ? t("", txt) : "");
+  const g = (txt: string) => interpolateDynamicText(t, txt);
   const elevatedRolesCards: DirectiveBuilderCard[] = [
     {
       id: "role_citizen",
@@ -1071,7 +1079,7 @@ export function getDefaultDirectiveBuilderSchema(
           title: t("dir_role_cit_s2_title", "Inherited Open {Mason} Workshop & Static Edge Push"),
           desc: t(
             "dir_role_cit_s2_desc",
-            "Build {mods} in Dev Sandbox, package manifest.json / catalog.json releases, and 1-click Auto-Push to GitHub, Gist, GitLab/Codeberg, Neocities, or WebDAV."
+            "Build {mods} in Dev Sandbox, package .sanctuary.manifest.json / catalog.json releases, and 1-click Auto-Push to GitHub, Gist, GitLab/Codeberg, Neocities, or WebDAV."
           ),
         },
       ],
@@ -1318,7 +1326,7 @@ export function getDefaultDirectiveBuilderSchema(
                   title: t("dir_walk_s2_c1_name", "Bin Folder (Windows .exe, macOS .app & Linux / Proton)"),
                   desc: t(
                     "dir_walk_s2_c1_desc",
-                    "Points to your game binary (e.g. TS4_x64.exe or The Sims 4.app). Sanctuary extracts the genuine patch version in-process via Rust pelite or macOS Info.plist across native and Proton prefixes."
+                    "Points to your game binary (.exe or .app). Sanctuary extracts the genuine patch version in-process via Rust pelite or macOS Info.plist across native and Proton prefixes."
                   ),
                 },
                 {
@@ -1368,7 +1376,7 @@ export function getDefaultDirectiveBuilderSchema(
                   title: t("dir_walk_s3_c2_name", "Parent Suite Card & Equip Toggle"),
                   desc: t(
                     "dir_walk_s3_c2_desc",
-                    "Toggles symlinks in milliseconds. Multi-part {mod} suites (like MC Command Center) group into one Parent Card with an expandable Linked Modules drawer."
+                    "Toggles symlinks in milliseconds. Multi-part {mod} suites group into one Parent Card with an expandable Linked Modules drawer."
                   ),
                 },
                 {
@@ -1377,7 +1385,7 @@ export function getDefaultDirectiveBuilderSchema(
                   title: t("dir_walk_s3_c3_name", "{Mod} Dossier SidePanel"),
                   desc: t(
                     "dir_walk_s3_c3_desc",
-                    "Click any card to open its right-hand Dossier: edit custom local names/URLs/tags, bind a static manifest.json / catalog.json URL, or inspect package files."
+                    "Click any card to open its right-hand Dossier: edit custom local names/URLs/tags, bind a static .sanctuary.manifest.json / catalog.json URL, or inspect module files."
                   ),
                 },
               ],
@@ -1459,7 +1467,7 @@ export function getDefaultDirectiveBuilderSchema(
                   title: t("dir_walk_s5_c3_name", "Homestead 100% Nuke & Save Airgap"),
                   desc: t(
                     "dir_walk_s5_c3_desc",
-                    "Snapshots save_airgap_targets (saves & Tray), boots with only the test {mod} (or 1v1 pair), harvests crash logs, and restores your saves."
+                    "Snapshots save_airgap_targets (saves & user profiles), boots with only the test {mod} (or 1v1 pair), harvests crash logs, and restores your saves."
                   ),
                 },
               ],
@@ -1541,7 +1549,7 @@ export function getDefaultDirectiveBuilderSchema(
                   title: t("dir_walk_s7_c3_name", "Universal AV Quarantine & Threat Manifest"),
                   desc: t(
                     "dir_walk_s7_c3_desc",
-                    "Decompresses Zlib/Zstd DBPF streams and Base64/Hex strings against 21 Core + 17 Spoke rules, locking the OS with Move-mode source disposition and Secure Shred."
+                    "Decompresses Zlib/Zstd binary module streams and Base64/Hex strings against 21 Core + 17 Spoke rules, locking the OS with Move-mode source disposition and Secure Shred."
                   ),
                 },
               ],
@@ -1552,10 +1560,10 @@ export function getDefaultDirectiveBuilderSchema(
               overline: "STAGE 8 OF 10",
               badge: t("dir_walk_s8_short", "8. Static Edge"),
               title: t("dir_walk_s8_title", "Decentralized Static Edge Polling & 1-Click Auto-Push"),
-              footerMeta: t("dir_walk_s8_sub", "manifest.json • catalog.json • Lineage Hash Rollover"),
+              footerMeta: t("dir_walk_s8_sub", ".sanctuary.manifest.json • catalog.json • Lineage Hash Rollover"),
               desc: t(
                 "dir_walk_s8_desc",
-                "Publish {mod} updates without a central server using static manifest.json or multi-{mod} catalog.json endpoints with 1-click OS Auto-Push and automatic SHA-256 lineage rollover."
+                "Publish {mod} updates without a central server using static .sanctuary.manifest.json or multi-{mod} catalog.json endpoints with 1-click OS Auto-Push and automatic SHA-256 lineage rollover."
               ),
               subCards: [
                 {
@@ -1564,7 +1572,7 @@ export function getDefaultDirectiveBuilderSchema(
                   title: t("dir_walk_s8_c1_name", "6-Provider 1-Click OS Auto-Push"),
                   desc: t(
                     "dir_walk_s8_c1_desc",
-                    "Push manifest.json or catalog.json directly from your PC to GitHub Repo/Cloudflare Pages, GitHub Gist, GitLab/Codeberg, Neocities, WebDAV, or a Local Synced Folder."
+                    "Push .sanctuary.manifest.json or catalog.json directly from your PC to GitHub Repo/Cloudflare Pages, GitHub Gist, GitLab/Codeberg, Neocities, WebDAV, or a Local Synced Folder."
                   ),
                 },
                 {
@@ -1605,7 +1613,7 @@ export function getDefaultDirectiveBuilderSchema(
                   title: t("dir_walk_s9_c1_name", "7 Engine Architecture Presets & Routes"),
                   desc: t(
                     "dir_walk_s9_c1_desc",
-                    "Load presets for The Sims 4, Cyberpunk 2077, Skyrim SE, GTA V, Baldur's Gate 3, Stardew Valley, or Universal—complete with install_routes and mod_categories."
+                    "Load built-in engine architecture presets—complete with declarative install_routes, load-order strategies, and mod_categories—or author a custom Universal schema."
                   ),
                 },
                 {
@@ -1752,7 +1760,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_system_update_alt", "system_update_alt"),
                   title: g("{Mod} Updates Available (Blue State)"),
                   desc: g(
-                    "Newer SHA-256 versions have been detected either via the Spoke Cloud Registry or decentralized {mason} manifest.json / catalog.json endpoints."
+                    "Newer SHA-256 versions have been detected either via the Spoke Cloud Registry or decentralized {mason} .sanctuary.manifest.json / catalog.json endpoints."
                   ),
                 },
                 {
@@ -1792,15 +1800,15 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_fingerprint", "fingerprint"),
                   title: g("Global Drop-Zone & DNA Match"),
                   desc: g(
-                    "Drag and drop .package, .ts4script, .zip, .rar, .7z, .tar.zst, or override.json files anywhere into Sanctuary OS. Duplicate SHA-256 hashes are automatically intercepted."
+                    "Drag and drop supported {mod} binaries, .zip, .rar, .7z, .tar.zst, or .sanctuary.override.json files anywhere into Sanctuary OS. Duplicate SHA-256 hashes are automatically intercepted."
                   ),
                 },
                 {
                   id: "mod_3_c2",
                   icon: t("icon_cloud_done", "cloud_done"),
-                  title: g("Decentralized Static Edge (override.json)"),
+                  title: g("Decentralized Static Edge (.sanctuary.override.json)"),
                   desc: g(
-                    "When a {mod} archive includes a {mason}'s override.json, Sanctuary binds its SHA-256 lineage to the {mason}'s static manifest.json or catalog.json URL for serverless update alerts."
+                    "When a {mod} archive includes a {mason}'s .sanctuary.override.json, Sanctuary binds its SHA-256 lineage to the {mason}'s static .sanctuary.manifest.json or catalog.json URL for serverless update alerts."
                   ),
                 },
                 {
@@ -1960,7 +1968,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_layers", "layers"),
                   title: g("Searchable Scan Scope & 4 Load Order Engines"),
                   desc: g(
-                    "Switch Scan Scope across 100+ {Blueprints} via a searchable selector and compile load order via Priority Override Tiers (Resource.cfg), Manifest List (loadorder.txt), Numeric Prefix (001_), or Timestamp Order."
+                    "Switch Scan Scope across 100+ {Blueprints} via a searchable selector and compile load order via Priority Override Tiers (dynamic manifest), Manifest List (loadorder.txt), Numeric Prefix (001_), or Timestamp Order."
                   ),
                 },
               ],
@@ -1992,7 +2000,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_shield", "shield"),
                   title: g("Hardware-Airgapped Lab Test Save"),
                   desc: g(
-                    "Swaps your live Saves folder with a dedicated Lab Test Save slot during testing so your legacy households can never be corrupted."
+                    "Swaps your live user saves directories with a dedicated Lab Test Save slot during testing so your primary save slots can never be corrupted."
                   ),
                 },
                 {
@@ -2000,7 +2008,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_bug_report", "bug_report"),
                   title: g("Real-Time Exception & Crash Monitor"),
                   desc: g(
-                    "Purges stale logs before launch and watches for LastException / engine crash output in real time, matching against community diagnostic signatures."
+                    "Purges stale logs before launch and watches for engine exception and crash output in real time, matching against community diagnostic signatures."
                   ),
                 },
                 {
@@ -2032,7 +2040,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_archive", "archive"),
                   title: g("World State (Purple) & Engine Core (Pink)"),
                   desc: g(
-                    "Independently snapshot your Saves/Tray/Configs (World State) and your actual Game Installation Binaries (Engine Core) before patches hit."
+                    "Independently snapshot your user saves, profiles, and configs (World State) and your actual Game Installation Binaries (Engine Core) before patches hit."
                   ),
                 },
                 {
@@ -2096,7 +2104,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_security", "security"),
                   title: g("Universal 21+17 Multi-Format Heuristic Scanner"),
                   desc: g(
-                    "Combines 21 Sanctuary Foundry Core Heuristics and 17 Spoke Heuristics with Zlib/Zstd DBPF stream decompression to inspect .zip, .ts4script, .package, .dll, .exe, and .pyc files."
+                    "Combines 21 Sanctuary Foundry Core Heuristics and 17 Spoke Heuristics with Zlib/Zstd binary stream decompression to inspect .zip, .mod, .bin, .dll, .exe, .lua, and .pyc files."
                   ),
                 },
                 {
@@ -2115,7 +2123,7 @@ export function getDefaultDirectiveBuilderSchema(
               overline: "MODULE 10 OF 12",
               badge: g("10. Static Edge"),
               title: g("Decentralized Static Edge Release & Catalog Engine"),
-              footerMeta: g("MANIFEST.JSON • CATALOG.JSON • 6-PROVIDER AUTO-PUSH"),
+              footerMeta: g(".SANCTUARY.MANIFEST.JSON • CATALOG.JSON • 6-PROVIDER AUTO-PUSH"),
               desc: g(
                 "Zero-server update distribution for independent {Masons} and Tier 1–4 creators—supporting 1-click direct push, automatic SHA-256 lineage rollover, and in-place {Vault} upgrades."
               ),
@@ -2128,7 +2136,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_cloud_upload", "cloud_upload"),
                   title: g("6-Provider 1-Click Direct Push"),
                   desc: g(
-                    "Push manifest.json or catalog.json directly from the Rust backend to GitHub, GitHub Gist, GitLab/Codeberg, Neocities, WebDAV, or a Local Synced Folder."
+                    "Push .sanctuary.manifest.json or catalog.json directly from the Rust backend to GitHub, GitHub Gist, GitLab/Codeberg, Neocities, WebDAV, or a Local Synced Folder."
                   ),
                 },
                 {
@@ -2176,7 +2184,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_terminal", "terminal"),
                   title: g("Cross-Platform Binaries, Routes & Config Watcher"),
                   desc: g(
-                    "Map Windows (.exe), macOS (.app), and Linux / SteamOS (Proton compatdata) paths, custom secondary install_routes (.world, .asi, .dll), and config_extensions for live in-game config syncing."
+                    "Map Windows (.exe), macOS (.app), and Linux / SteamOS (Proton compatdata) paths, custom secondary install_routes (.dll, .asi, .lua), and config_extensions for live in-game config syncing."
                   ),
                 },
                 {
@@ -2277,10 +2285,10 @@ export function getDefaultDirectiveBuilderSchema(
           "Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Manager & Collection Migration, Guided Diagnostics & Cross-Platform {Vault} Companion"
         ),
         footerMeta: g(
-          "External Tool Bridge (World Architect, CakeView, Sims 4 Studio, OpenIV), GTA V .rpf Isolation, FOMOD/Flavor Installer, MO2/Vortex Setup Importer, Cross-Platform Modlist/Collection Translator, Save Doctor, Crash Decoder, SteamOS/Proton, Patch Radar, Guided Queue, Ctrl+K & Conflict Radar 2.0"
+          "External Tool Bridge, Multi-Engine Manifest Compilers, FOMOD/Flavor Installer, External Mod Manager Importer, Cross-Platform Modlist/Collection Translator, Save Doctor, Crash Decoder, SteamOS/Proton, Patch Radar, Guided Queue, Ctrl+K & Conflict Radar 2.0"
         ),
         desc: g(
-          "First-class External Modding & World-Building Tool Bridge with Hardware Save Airgapping inside {Lab}, live Multi-Engine Manifest Compilers & GTA V .rpf Copy-on-Write / LML isolation, Guided FOMOD & Flavor Package Installer, External Mod Manager Migration (MO2, Vortex, BG3MM, Sims 4 Mod Manager) without reinstalling, Cross-Platform Curated Modlist & Collection Translator into native {Blueprints}, Save-Game {Blueprint} Lock (Save Doctor), {Lab} Crash & Exception Decoder, SteamOS/Proton Prefix Auto-Resolver, Mobile/Web {Vault} Patch Radar, Guided Side Browser Batch Queue, Global Ctrl+K Command Palette, Conflict Radar 2.0 Resource Diffing, In-Game Config Diff Timeline, and an automated Vitest + Cargo Test regression suite."
+          "First-class External Modding & World-Building Tool Bridge with Hardware Save Airgapping inside {Lab}, live Multi-Engine Manifest Compilers & Copy-on-Write archive isolation, Guided FOMOD & Flavor Package Installer, External Mod Manager Migration without reinstalling, Cross-Platform Curated Modlist & Collection Translator into native {Blueprints}, Save-Game {Blueprint} Lock (Save Doctor), {Lab} Crash & Exception Decoder, SteamOS/Proton Prefix Auto-Resolver, Mobile/Web {Vault} Patch Radar, Guided Side Browser Batch Queue, Global Ctrl+K Command Palette, Conflict Radar 2.0 Resource Diffing, In-Game Config Diff Timeline, and an automated Vitest + Cargo Test regression suite."
         ),
         status: "active",
         subCards: [
@@ -2289,16 +2297,16 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_handyman", "handyman"),
             title: g("External Creator & World-Building Tool Bridge + {Lab} Save Airgap"),
             desc: g(
-              "Launch World Architect, CakeView, Sims 4 Studio, OpenIV, and xEdit inside a Save-Airgapped {Lab} session—physically isolating legacy saves while developing worlds or testing {mods} and restoring saves automatically on exit."
+              "Launch external authoring, asset-editing, and world-building tools inside a Save-Airgapped {Lab} session—physically isolating primary saves while developing assets or testing {mods} and restoring saves automatically on exit."
             ),
             pending: true,
           },
           {
             id: "phase_14_m2",
             icon: t("icon_extension", "extension"),
-            title: g("Multi-Engine Manifest Compilers & GTA V .rpf / mods/ Isolation"),
+            title: g("Multi-Engine Manifest Compilers & Copy-on-Write Archive Isolation"),
             desc: g(
-              "Native compilers for BG3 (modsettings.lsx), Creation Engine (plugins.txt), Cyberpunk 2077 (REDmod), SMAPI (manifest.json), plus GTA V .rpf Copy-on-Write hardlink staging and OpenIV / LML VFS integration."
+              "Declarative manifest compilers for ordered XML/JSON/text load lists (loadorder.txt, modsettings.lsx, manifest.json), plus Copy-on-Write hardlink staging and virtual filesystem isolation."
             ),
             pending: true,
           },
@@ -2314,9 +2322,9 @@ export function getDefaultDirectiveBuilderSchema(
           {
             id: "phase_14_m4",
             icon: t("icon_drive_file_move", "drive_file_move"),
-            title: g("External Mod Manager Migration & Out-of-Tree Setup Importer (MO2, Vortex, BG3MM, Sims 4 Mod Manager)"),
+            title: g("External Mod Manager Migration & Out-of-Tree Setup Importer"),
             desc: g(
-              "Zero-Reinstall Out-of-Tree Migration (Cartographer & {Vault}): Solves one of the top community complaints from other mod-manager transitions by allowing {Citizens} whose {mods} live in external staging directories outside the game's live {Mods} folder to migrate their entire setup without dragging-and-dropping or reinstalling a single file. Automatic Profile, Load Order & Metadata Translation: Reads Mod Organizer 2 instances (mods/<ModName>/meta.ini, profiles/<Profile>/modlist.txt, plugins.txt, loadorder.txt), Vortex staging folders (safely unlinking legacy .vortex_deployment hardlinks/symlinks from the game folder), BG3 Mod Manager (modsettings.lsx), and Sims 4 Mod Manager profiles—preserving existing {mod} versions, source URLs, and notes as Local Dossiers, converting every external profile into a ready-to-use Sanctuary {Blueprint}, and supporting Zero-Duplication Hardlink, Move, or Copy ingestion into the {Vault}."
+              "Zero-Reinstall Out-of-Tree Migration (Cartographer & {Vault}): Solves one of the top community complaints from other mod-manager transitions by allowing {Citizens} whose {mods} live in external staging directories outside the game's live {Mods} folder to migrate their entire setup without dragging-and-dropping or reinstalling a single file. Automatic Profile, Load Order & Metadata Translation: Reads external staging instances (mods/<ModName>/meta.ini, profiles/<Profile>/modlist.txt, loadorder.txt), virtual staging folders (safely unlinking legacy deployment hardlinks/symlinks from the game folder), and XML/JSON profile manifests—preserving existing {mod} versions, source URLs, and notes as Local Dossiers, converting every external profile into a ready-to-use Sanctuary {Blueprint}, and supporting Zero-Duplication Hardlink, Move, or Copy ingestion into the {Vault}."
             ),
             pending: true,
           },
@@ -2343,7 +2351,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_troubleshoot", "troubleshoot"),
             title: g("{Citizen}-Facing {Lab} Crash & Exception Decoder (Desktop + Web)"),
             desc: g(
-              "Watches schema log_files (lastException.txt, Papyrus, SMAPI, redscript) and cross-references stack traces against installed {Vault} {mods} and KnownExceptionRules to surface plain-English Crash Diagnosis Cards."
+              "Watches schema exception_logs (crash_*.log, engine_error.txt, script diagnostics) and cross-references stack traces against installed {Vault} {mods} and KnownExceptionRules to surface plain-English Crash Diagnosis Cards."
             ),
             pending: true,
           },
@@ -2412,7 +2420,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_verified", "verified"),
             title: g("Automated Protocol Regression & Stability Suite (Vitest + Cargo Test)"),
             desc: g(
-              "Automated test coverage for compileLoadOrder, check_heuristic_malware_detailed (21+17 rules & Zlib/Zstd DBPF streams), interpolateGlossaryTokens, and parseMarkdownToDirectiveSchema."
+              "Automated test coverage for compileLoadOrder, check_heuristic_malware_detailed (21+17 rules & Zlib/Zstd binary streams), interpolateGlossaryTokens, and parseMarkdownToDirectiveSchema."
             ),
             pending: true,
           },
@@ -2430,7 +2438,7 @@ export function getDefaultDirectiveBuilderSchema(
           "Master Schema & Lexicon Studios, Guided Icon Builder, Universal AV, Static Edge Auto-Push & Partner Covenants"
         ),
         desc: g(
-          "Delivered the 4-Tab Master Schema Studio & Lexicon Terminology Studio with Guided Icon Overrides and Interactive Codex Guides, upgraded the Universal Heuristic Scanner (21 Core + 17 Spoke rules with Zlib/Zstd DBPF & Base64/Hex deobfuscation), added 6-provider Static Edge Direct Push, Readiness-Gated Partner Applications with mandatory Covenants, and Bilateral Codebase ↔ Cloud Sync."
+          "Delivered the 4-Tab Master Schema Studio & Lexicon Terminology Studio with Guided Icon Overrides and Interactive Codex Guides, upgraded the Universal Heuristic Scanner (21 Core + 17 Spoke rules with Zlib/Zstd binary stream & Base64/Hex deobfuscation), added 6-provider Static Edge Direct Push, Readiness-Gated Partner Applications with mandatory Covenants, and Bilateral Codebase ↔ Cloud Sync."
         ),
         status: "completed",
         subCards: [
@@ -2457,7 +2465,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Universal Multi-Format Heuristic Scanner (21 Core + 17 Spoke Rules)"),
             desc: g(
-              "In-memory Zlib/Zstd DBPF stream decompression, Base64/Hex deobfuscation, Move-mode source disposition tracking, and Zero-PII Threat Manifest reporting."
+              "In-memory Zlib/Zstd binary stream decompression, Base64/Hex deobfuscation, Move-mode source disposition tracking, and Zero-PII Threat Manifest reporting."
             ),
             pending: false,
           },
@@ -2526,7 +2534,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Sanctuary V6 & Liquid Glass Engine"),
             desc: g(
-              "4-layer 3D Refractive Liquid Glass Engine, revamped Default Themes + The Sims 4 ('Plumbob Crystal') Partner Chameleon, and Chameleon Theme Forge 2.0."
+              "4-layer 3D Refractive Liquid Glass Engine, revamped Default Themes + 'Plumbob Crystal' Partner Chameleon, and Chameleon Theme Forge 2.0."
             ),
           },
           {
@@ -2542,7 +2550,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Website V2, Mobile PWA & Remote Queuing"),
             desc: g(
-              "Unified single-codebase Web OS & PWA (sanctuaryos.net/sims4) with live Comm-Link, Nexus, Support Desk, Command Hubs, and Web-to-PC {Blueprint} queuing."
+              "Unified single-codebase Web OS & PWA (sanctuaryos.net/<spoke>) with live Comm-Link, Nexus, Support Desk, Command Hubs, and Web-to-PC {Blueprint} queuing."
             ),
           },
           {
@@ -2600,7 +2608,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("The Agnostic Sprint & Master Schemas"),
             desc: g(
-              "Extracted all hardcoded Sims 4 (.package / .ts4script) checks across 17 frontend modules and the Rust backend into dynamic Master JSON Schemas."
+              "Extracted all hardcoded single-game extension and path checks across 17 frontend modules and the Rust backend into dynamic Master JSON Schemas."
             ),
           },
           {
@@ -2608,7 +2616,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Integrated Side Browser & {Vault} Intercept"),
             desc: g(
-              "Embedded multi-tab Side Browser that automatically intercepts .zip, .rar, .7z, .package, and .ts4script downloads straight into the {Vault}."
+              "Embedded multi-tab Side Browser that automatically intercepts .zip, .rar, .7z, and schema-supported {mod} downloads straight into the {Vault}."
             ),
           },
           {
@@ -2766,7 +2774,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Rust 'Rip Protocol' & Auto-Sanitization"),
             desc: g(
-              "Dynamic engine version recognition parsing Default.ini and PE headers in Rust, plus pre-launch purging of stale LastException and cache files."
+              "Dynamic engine version recognition parsing config files and PE headers in Rust, plus pre-launch purging of stale crash logs and volatile cache files."
             ),
           },
           {
@@ -2890,7 +2898,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Automated Crash Log Harvester & Scrubber"),
             desc: g(
-              "Captures lastException.txt crash logs automatically and scrubs local filesystem paths and PII (scrub_user_data_from_log) before sharing."
+              "Captures engine exception and crash logs automatically and scrubs local filesystem paths and PII (scrub_user_data_from_log) before sharing."
             ),
           },
         ],
@@ -2924,7 +2932,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Dual-State {Backups} Architecture"),
             desc: g(
-              "Independently snapshots World State (Saves, Tray & Settings) and Engine Core (Game Installation Binaries) before patches or {mod} tests."
+              "Independently snapshots World State (User Saves, Profiles & Settings) and Engine Core (Game Installation Binaries) before patches or {mod} tests."
             ),
           },
           {
@@ -2980,9 +2988,9 @@ export function getDefaultDirectiveBuilderSchema(
           {
             id: "phase_4_m7",
             icon: t("icon_check_circle", "check_circle"),
-            title: g("Priority Tier Folders & Dynamic Resource.cfg"),
+            title: g("Priority Tier Folders & Dynamic Load Manifests"),
             desc: g(
-              "Multi-tier override directories (Sanctuary1–Sanctuary3) paired with automated Resource.cfg priority depth compilation."
+              "Multi-tier override directories (Sanctuary1–Sanctuary3) paired with automated load-order manifest priority depth compilation."
             ),
           },
           {
@@ -3022,7 +3030,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Atomic Logic Triumvirate"),
             desc: g(
-              "Relational {mod} rules enforcing Highlander Flavor eviction, bidirectional .package/.ts4script Twin bonds, and Recursive Chain-Link Dependencies."
+              "Relational {mod} rules enforcing Highlander Flavor eviction, bidirectional binary/script Twin bonds, and Recursive Chain-Link Dependencies."
             ),
           },
           {
@@ -3136,7 +3144,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Streaming SHA-256 DNA & Archive Inspector"),
             desc: g(
-              "Multi-threaded Rust cryptographic hashing and in-memory DBPF/ZIP header inspection without extracting archives to disk."
+              "Multi-threaded Rust cryptographic hashing and in-memory binary chunk/ZIP header inspection without extracting archives to disk."
             ),
           },
         ],
@@ -3347,7 +3355,7 @@ export function getDefaultDirectiveBuilderSchema(
               overline: g("MODE 3 • MASTER GAME SCHEMAS & CROSS-PLATFORM"),
               badge: g("7 Engine Presets"),
               title: g("Master Schema Studio & Windows/macOS/Linux Build Pipeline"),
-              footerMeta: "sims4.json • Windows .msi, Darwin .dmg & Linux / SteamOS .AppImage/.deb",
+              footerMeta: "schema.json • Windows .msi, Darwin .dmg & Linux / SteamOS .AppImage/.deb",
               desc: g(
                 "Adapt Sanctuary OS to any game engine without touching Rust or React code by configuring a declarative Master Schema JSON in Wayfinder or Keepers IDE."
               ),
@@ -3357,7 +3365,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_schema", "schema"),
                   title: g("7 Built-In Engine Architecture Presets"),
                   desc: g(
-                    "1-click templates for DBPF + Python, REDengine 4, Creation Engine, RAGE / OpenIV, Larian .pak, SMAPI, and Universal engines."
+                    "1-click templates for Binary Chunk + Script, Multi-Folder Asset Tree, Ordered Load List, Virtual Archive Container, XML Load Manifest, JSON Mod Loader, and Universal engines."
                   ),
                 },
                 {
@@ -3510,7 +3518,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "arch_p2_c3",
                   icon: t("icon_cloud_done", "cloud_done"),
-                  title: g("Decentralized Static Edge Direct Push (manifest.json & catalog.json)"),
+                  title: g("Decentralized Static Edge Direct Push (.sanctuary.manifest.json & catalog.json)"),
                   desc: g(
                     "6-provider 1-click OS Auto-Push and HTTP GET polling with automatic previous_hashes lineage rollover and in-place file upgrades."
                   ),
@@ -3685,7 +3693,7 @@ export function getDefaultDirectiveBuilderSchema(
             ),
             footerMeta: g("TIERS 1–2 • EXPLICIT / ILLICIT"),
             desc: g(
-              "Permitted in local Vaults and decentralized Static Edge manifests (manifest.json / catalog.json). Automatically scrubbed from public Nexus feeds and stripped from public Cloud {Blueprints}. Eligible for Support Desk with automated 'Dirty Log' sanitization."
+              "Permitted in local Vaults and decentralized Static Edge manifests (.sanctuary.manifest.json / catalog.json). Automatically scrubbed from public Nexus feeds and stripped from public Cloud {Blueprints}. Eligible for Support Desk with automated 'Dirty Log' sanitization."
             ),
             subCards: [],
           },
@@ -3719,7 +3727,7 @@ export function getDefaultDirectiveBuilderSchema(
             id: "comp_av",
             icon: t("icon_security", "security"),
             overline: g(
-              "UNIVERSAL 21+17 RUST AV • DBPF & BYTECODE DECOMPRESSION"
+              "UNIVERSAL 21+17 RUST AV • BINARY STREAM & BYTECODE DECOMPRESSION"
             ),
             badge: "21+17 RULES",
             title: g(
@@ -3727,7 +3735,7 @@ export function getDefaultDirectiveBuilderSchema(
             ),
             footerMeta: "21 Core + 17 Spoke Signatures • Zlib/Zstd/Base64",
             desc: g(
-              "Combines 21 Core Heuristics (keeper_heuristic_signatures) and 17+ Spoke Heuristics (heuristic_signatures) with in-memory Zlib/Zstd DBPF decompression and Base64/Hex deobfuscation to inspect .zip, .package, .ts4script, .asi, .dll, .exe, and .pyc bytecode."
+              "Combines 21 Core Heuristics (keeper_heuristic_signatures) and 17+ Spoke Heuristics (heuristic_signatures) with in-memory Zlib/Zstd binary stream decompression and Base64/Hex deobfuscation to inspect .zip, .mod, .bin, .asi, .dll, .exe, .lua, and .pyc bytecode."
             ),
             subCards: [],
           },
@@ -3880,7 +3888,7 @@ export function getDefaultDirectiveBuilderSchema(
               {
                 id: "proto_d2_r3",
                 icon: t("icon_cloud_done", "cloud_done"),
-                title: g("Decentralized Static Edge Polling (manifest.json & override.json)"),
+                title: g("Decentralized Static Edge Polling (.sanctuary.manifest.json & .sanctuary.override.json)"),
                 desc: g(
                   "Binds a {mod}'s SHA-256 hash lineage in .sanctuary_cache.db and polls creator HTTP endpoints directly during Radar Sweeps for serverless updates."
                 ),
@@ -3890,7 +3898,7 @@ export function getDefaultDirectiveBuilderSchema(
                 icon: t("icon_folder_copy", "folder_copy"),
                 title: g("{Mod} Suite Parent Grouping"),
                 desc: g(
-                  "Automatically groups multi-file {mod} suites (e.g., MC Command Center and its submodules) into a single clean Parent Card with an expandable Linked Modules drawer."
+                  "Automatically groups multi-file {mod} suites and their modular add-ons into a single clean Parent Card with an expandable Linked Modules drawer."
                 ),
               },
               {
@@ -3935,7 +3943,7 @@ export function getDefaultDirectiveBuilderSchema(
                 icon: t("icon_layers", "layers"),
                 title: g("Schema-Driven Load Order Engine (compileLoadOrder)"),
                 desc: g(
-                  "Compiles deployment priority using folder_priority (Standard Load to Final Override + Resource.cfg), manifest_list, numeric_prefix, or timestamp, with strategy-aware priority tier and queue controls, searchable {Blueprint} Scan Scope, and DFS circular-loop breaking."
+                  "Compiles deployment priority using folder_priority (Standard Load to Final Override + dynamic manifest), manifest_list, numeric_prefix, or timestamp, with strategy-aware priority tier and queue controls, searchable {Blueprint} Scan Scope, and DFS circular-loop breaking."
                 ),
               },
               {
@@ -3959,7 +3967,7 @@ export function getDefaultDirectiveBuilderSchema(
                 icon: t("icon_join_inner", "join_inner"),
                 title: g("Nuclear Family Cohesion (Twins)"),
                 desc: g(
-                  "Bidirectionally links companion .package and .ts4script files so they equip and unequip together."
+                  "Bidirectionally links companion binary module and script plugin files so they equip and unequip together."
                 ),
               },
               {

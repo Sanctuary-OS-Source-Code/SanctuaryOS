@@ -163,8 +163,9 @@ export const isSupportedExtension = (
 export const isScriptExtension = (filename: string, schema?: any): boolean => {
   if (!filename) return false;
   const low = filename.toLowerCase();
-  const scripts: string[] = Array.isArray(schema?.extensions?.script_extensions)
-    ? schema.extensions.script_extensions
+  const effectiveSchema = schema || useStore.getState().activeGameSchema;
+  const scripts: string[] = Array.isArray(effectiveSchema?.extensions?.script_extensions)
+    ? effectiveSchema.extensions.script_extensions
     : [];
   if (scripts.length > 0) {
     return scripts.some((ext: string) => {
@@ -172,22 +173,29 @@ export const isScriptExtension = (filename: string, schema?: any): boolean => {
       return low.endsWith(clean);
     });
   }
-  return /\.(ts4script|dll|asi|lua|reds|csx)$/i.test(low);
+  return getFileLabel(filename, effectiveSchema) === "SCRIPT";
 };
 
 export const isModBinaryExtension = (filename: string, schema?: any): boolean => {
   if (!filename) return false;
   const low = filename.toLowerCase();
-  if (
-    /\.(package|ts4script|world|dll|asi|rpf|cak|pac|esp|esm|esl|bsa|ba2|archive|pak|lua|xl|reds|tweak|jar|litemod|xnb|tmx|tbin|csx)$/i.test(
-      low,
-    )
-  ) {
-    return true;
-  }
-  if (schema?.extensions?.supported && Array.isArray(schema.extensions.supported)) {
-    const nonBinary = new Set([".zip", ".rar", ".7z", ".cfg", ".ini", ".txt", ".log", ".md", ".html", ".pdf"]);
-    return schema.extensions.supported.some((ext: string) => {
+  const effectiveSchema = schema || useStore.getState().activeGameSchema;
+  if (effectiveSchema?.extensions?.supported && Array.isArray(effectiveSchema.extensions.supported)) {
+    const containers: string[] = Array.isArray(effectiveSchema?.archive_containers)
+      ? effectiveSchema.archive_containers
+      : [];
+    const configs: string[] = Array.isArray(effectiveSchema?.extensions?.config_extensions)
+      ? effectiveSchema.extensions.config_extensions
+      : [];
+    const ignored: string[] = Array.isArray(effectiveSchema?.extensions?.ignore_unidentified)
+      ? effectiveSchema.extensions.ignore_unidentified
+      : [];
+    const nonBinary = new Set(
+      [...containers, ...configs, ...ignored].map((e) =>
+        e.startsWith(".") ? e.toLowerCase() : `.${e.toLowerCase()}`
+      )
+    );
+    return effectiveSchema.extensions.supported.some((ext: string) => {
       const clean = ext.startsWith(".") ? ext.toLowerCase() : `.${ext.toLowerCase()}`;
       return !nonBinary.has(clean) && low.endsWith(clean);
     });
@@ -211,75 +219,19 @@ export const loadDLCMap = async () => {
     console.error("Failed to load DLC map from DB", e);
   }
 };
-export const LOCAL_DLC_MAP: Record<string, string> = {
-  EP01: "Get to Work",
-  EP02: "Get Together",
-  EP03: "City Living",
-  EP04: "Cats & Dogs",
-  EP05: "Seasons",
-  EP06: "Get Famous",
-  EP07: "Island Living",
-  EP08: "Discover University",
-  EP09: "Eco Lifestyle",
-  EP10: "Snowy Escape",
-  EP11: "Cottage Living",
-  EP12: "High School Years",
-  EP13: "Growing Together",
-  EP14: "Horse Ranch",
-  EP15: "For Rent",
-  EP16: "Lovestruck",
-  EP17: "Life & Death",
-  GP01: "Outdoor Retreat",
-  GP02: "Spa Day",
-  GP03: "Dine Out",
-  GP04: "Vampires",
-  GP05: "Parenthood",
-  GP06: "Jungle Adventure",
-  GP07: "StrangerVille",
-  GP08: "Realm of Magic",
-  GP09: "Star Wars: Journey to Batuu",
-  GP10: "Dream Home Decorator",
-  GP11: "My Wedding Stories",
-  GP12: "Werewolves",
-  SP01: "Luxury Party",
-  SP02: "Perfect Patio",
-  SP03: "Cool Kitchen",
-  SP04: "Spooky Stuff",
-  SP05: "Movie Hangout",
-  SP06: "Romantic Garden",
-  SP07: "Kids Room",
-  SP08: "Backyard Stuff",
-  SP09: "Vintage Glamour",
-  SP10: "Bowling Night",
-  SP11: "Fitness Stuff",
-  SP12: "Toddler Stuff",
-  SP13: "Laundry Day",
-  SP14: "First Pet",
-  SP15: "Moschino",
-  SP16: "Tiny Living",
-  SP17: "Nifty Knitting",
-  SP18: "Paranormal",
-  SP46: "Home Chef Hustle",
-  SP47: "Crystal Creations",
-  SP22: "Throwback Fit Kit",
-  SP23: "Country Kitchen Kit",
-  SP24: "Bust the Dust Kit",
-  SP64: "Riviera Retreat Kit",
-  SP65: "Cozy Bistro Kit",
-  SP68: "SpongeBobâ€™s House Kit",
-  SP70: "SpongeBob Kidâ€™s Room Kit",
-  SP75: "Wonderland Playroom Set",
-  SP81: "Prairie Dreams Set",
-  SP82: "Yard Charm Kit",
-};
 export const mapDlcCode = (code: string) => {
+  if (!code) return "";
   let baseCode = code.split(" ")[0].toUpperCase();
   baseCode = baseCode.replace(/^([A-Z]+)(\d)$/, "$10$2");
   try {
     const activeSchema = useStore.getState().activeGameSchema;
-    const schemaDlcList = activeSchema?.taxonomy?.dlc_list;
-    if (Array.isArray(schemaDlcList)) {
-      const found = schemaDlcList.find(
+    const catalog = Array.isArray(activeSchema?.dlc_catalog)
+      ? activeSchema.dlc_catalog
+      : Array.isArray(activeSchema?.taxonomy?.dlc_list)
+        ? activeSchema.taxonomy.dlc_list
+        : [];
+    if (catalog.length > 0) {
+      const found = catalog.find(
         (d: any) =>
           String(d?.code || d?.id || "").toUpperCase() === baseCode ||
           String(d?.code || d?.id || "").toUpperCase() === code.toUpperCase()
@@ -287,7 +239,7 @@ export const mapDlcCode = (code: string) => {
       if (found?.name) return found.name;
     }
   } catch {}
-  return DLC_MAP[baseCode] || LOCAL_DLC_MAP[baseCode] || code;
+  return DLC_MAP[baseCode] || code;
 };
 export const getModIcon = (mod: any, schema: any, t: any) => {
   if (mod.isFlavorFolder) return t("icon_style", "style") || "style";
@@ -298,13 +250,18 @@ export const getModIcon = (mod: any, schema: any, t: any) => {
     )
   )
     return t("icon_account_tree", "account_tree") || "account_tree";
-  if (mod.isParent) return t("icon_folder_open", "folder_open") || "folder_open";
+  if (mod.isParent || mod.isCollection) return t("icon_folder_open", "folder_open") || "folder_open";
 
   const name = (mod.name || "").toLowerCase();
-  const rawType = (mod.type || mod.category_override || "").toLowerCase();
+  const rawType = (mod.type || mod.category_override || mod.category || "").toLowerCase();
 
-  const category = schema?.mod_categories?.find(
-    (c: any) => c.id.toLowerCase() === rawType,
+  const categories: any[] = Array.isArray(schema?.mod_categories)
+    ? schema.mod_categories
+    : Array.isArray(schema?.taxonomy?.categories)
+      ? schema.taxonomy.categories
+      : [];
+  const category = categories.find(
+    (c: any) => String(c?.id || "").toLowerCase() === rawType,
   );
   if (category) {
     if (category.icon) {
@@ -317,24 +274,11 @@ export const getModIcon = (mod: any, schema: any, t: any) => {
     }
   }
 
-  if (
-    rawType.includes("cas") ||
-    name.includes("hair") ||
-    name.includes("clothes") ||
-    name.includes("tattoo")
-  )
-    return t("icon_checkroom", "checkroom") || "checkroom";
-  if (
-    rawType.includes("build") ||
-    name.includes("furniture") ||
-    name.includes("object")
-  )
-    return t("icon_chair", "chair") || "chair";
-  if (rawType.includes("script") || getFileLabel(name, schema) === "SCRIPT")
+  if (rawType.includes("script") || isScriptExtension(name, schema))
     return t("icon_receipt_long", "receipt_long") || "code";
   if (rawType.includes("anim") || name.includes("anim"))
     return t("icon_movie", "movie") || "animation";
-  if (rawType.includes("cc") || name.includes("set"))
+  if (rawType.includes("collection") || name.includes("set"))
     return t("icon_folder_special", "folder_special") || "folder_special";
   return t("icon_extension", "extension") || "extension";
 };
@@ -478,7 +422,7 @@ export const processModsIntoCollections = (
 
       if (members.length > 0) {
         allItems.push({
-          id: `ccset_${set.id}`,
+          id: `collection_${set.id}`,
           name: set.name,
           category_override: "Collection",
           image_url: set.image_url || null,

@@ -1,15 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import {
-  SidePanel,
-  SidePanelHeroCard,
-  UniversalGroup,
-  InlineFilterGroup,
-  EmptyState,
-  ActionPill,
-  HoverTooltip,
-} from "../shared";
+import { useStore } from "../store";
+import { SidePanel, InlineFilterGroup, EmptyState } from "../shared-components/layout";
+import { ActionPill, HoverTooltip } from "../shared-components/alerts";
+import { getExtensionRegex } from "../shared-components/modUtils";
+import { SidePanelHeroCard, UniversalGroup } from "../components/universal/UniversalLayout";
 
 interface Asset {
   id: string;
@@ -22,10 +18,12 @@ const formatCleanAssetName = (rawName: string): string => {
   let cleaned = String(rawName)
     .split(/[\\/]/)
     .pop() || "";
+  const extRegex = getExtensionRegex(useStore.getState().activeGameSchema);
   cleaned = cleaned
-    .replace(/\.(package|ts4script|zip|rar|7z|json|dll|asi|lua|reds|csx)$/i, "")
+    .replace(extRegex, "")
+    .replace(/\.(zip|rar|7z|tar|gz|json|toml|yaml|yml|xml|cfg|ini|dll|asi|so|dylib|lua)$/i, "")
     .replace(/_/g, " ")
-    .replace(/^['`’]+(?=[A-Za-z])/, (m) => (cleaned.toUpperCase().startsWith("'OFFEE") ? "C" : ""))
+    .replace(/^['`’]+(?=[A-Za-z])/, "")
     .replace(/\]\s*(?=[A-Za-z0-9])/g, "] ")
     .replace(/\s+/g, " ")
     .trim();

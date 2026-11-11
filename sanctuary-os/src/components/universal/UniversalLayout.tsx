@@ -1,6 +1,7 @@
 import React from 'react';
 import { EmptyState } from '../../shared-components/layout';
 import { HoverTooltip } from '../../shared-components/alerts';
+import { VAULT_CHIP_CLASS } from '../../shared-components/constants';
 import { normalizeAllCapsForThemeCase, useLexicon } from '../../LexiconContext';
 
 // ==========================================
@@ -37,11 +38,11 @@ export interface HubOverviewSectionProps {
 
 export function HubOverviewSection({
   title,
-  icon = "schedule",
+  icon,
   iconColorClass = "text-[var(--accent)]",
   headerAction,
   isEmpty = false,
-  emptyIcon = "inventory_2",
+  emptyIcon,
   emptyTitle,
   emptySubtitle,
   emptyState,
@@ -49,14 +50,17 @@ export function HubOverviewSection({
   className = "",
   children
 }: HubOverviewSectionProps) {
+  const { t } = useLexicon();
+  const resolvedIcon = icon === undefined ? t("icon_schedule", "schedule") : icon;
+  const resolvedEmptyIcon = emptyIcon ?? t("icon_inventory_2", "inventory_2");
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
       <div className="flex items-center justify-start gap-4 w-full min-w-0">
         <div className="glass-panel rounded-xl flex items-stretch shrink-0 min-w-0 max-w-full overflow-hidden">
           <div className="p-2 pr-3.5 md:p-2.5 md:pr-4 flex items-center gap-3 md:gap-3.5 min-w-0">
-            {icon && (
+            {resolvedIcon && (
               <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] flex items-center justify-center shrink-0">
-                <span className={`material-symbols-outlined !text-[17px] md:!text-[19px] opacity-90 ${iconColorClass}`}>{icon}</span>
+                <span className={`material-symbols-outlined !text-[17px] md:!text-[19px] opacity-90 ${iconColorClass}`}>{resolvedIcon}</span>
               </div>
             )}
             <h2 className="text-sm sm:text-base font-black text-[var(--text)] capitalize tracking-tight leading-tight min-w-0 m-0 truncate">
@@ -71,7 +75,7 @@ export function HubOverviewSection({
         </div>
       </div>
       {isEmpty ? (
-        emptyState ? <>{emptyState}</> : <EmptyState icon={emptyIcon} title={emptyTitle} subtitle={emptySubtitle} className="py-8" />
+        emptyState ? <>{emptyState}</> : <EmptyState icon={resolvedEmptyIcon} title={emptyTitle} subtitle={emptySubtitle} className="py-8" />
       ) : (
         <div className={gridClassName}>
           {children}
@@ -93,17 +97,19 @@ export interface HubListGridProps {
 
 export function HubListGrid({
   isEmpty = false,
-  emptyIcon = "inventory_2",
+  emptyIcon,
   emptyTitle,
   emptySubtitle,
   gridClassName = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pr-2",
   className = "",
   children
 }: HubListGridProps) {
+  const { t } = useLexicon();
+  const resolvedEmptyIcon = emptyIcon ?? t("icon_inventory_2", "inventory_2");
   return (
     <div className={`flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500 ${className}`}>
       {isEmpty ? (
-        <EmptyState icon={emptyIcon} title={emptyTitle} subtitle={emptySubtitle} className="py-8" />
+        <EmptyState icon={resolvedEmptyIcon} title={emptyTitle} subtitle={emptySubtitle} className="py-8" />
       ) : (
         <div className={gridClassName}>
           {children}
@@ -211,7 +217,7 @@ export function SidePanelHeroCard({
         {hasBadges && (
           <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
             {resolvedBadge && (
-              <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+              <span className={VAULT_CHIP_CLASS}>
                 <span
                   className="material-symbols-outlined !text-[12px]"
                   style={{ color: `var(${colorVar})` }}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { EmptyState, InlineFilterGroup, ActionPill, HoverTooltip } from "./shared";
+import { EmptyState, InlineFilterGroup, ActionPill, HoverTooltip, VAULT_CHIP_CLASS } from "./shared";
 import { supabase, supabaseAuth } from "./supabase";
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
@@ -31,8 +31,6 @@ interface CitizenTicketsProps {
   externalFilter?: "all" | "open" | "pending" | "closed";
   onCountChange?: (count: number) => void;
 }
-
-const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export default function CitizenTickets({
   userId,

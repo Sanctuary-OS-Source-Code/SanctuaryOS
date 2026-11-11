@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase, supabaseAuth } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
-import { renderTextWithIcons, StatBox } from "../../shared";
+import { renderTextWithIcons } from "../../shared-components/stringUtils";
+import { StatBox } from "./UniversalLayout";
 
 let cachedHubCommunities: string[] | null = null;
 let isFetchingHubCommunities = false;

@@ -15,15 +15,13 @@ import {
   PanelHeaderGroup,
   SidePanel,
   SidePanelHeroCard,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
 import { notifyOS } from "../utils/notificationHelper";
 
 const enDefault = enDefaultRaw as Record<string, any>;
 const enSanctuary = enSanctuaryRaw as Record<string, any>;
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 function humanizeKey(key: string): string {
   return key

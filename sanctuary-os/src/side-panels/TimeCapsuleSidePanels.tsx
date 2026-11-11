@@ -134,12 +134,17 @@ export function TimeCapsuleSnapshotDossier({
   );
   const [listLimit, setListLimit] = useState(40);
 
+  const activeGameSchema = useStore((s: any) => s.activeGameSchema);
+  const storeDocsPath = useStore((s: any) => s.docsPath);
+
   const docsPath = useMemo(() => {
-    if (activeConfig?.mods_path) {
-      return activeConfig.mods_path.replace(/[\\/]Mods[\\/]?$/i, "");
-    }
-    return "";
-  }, [activeConfig]);
+    return (
+      storeDocsPath ||
+      activeConfig?.docs_path ||
+      activeConfig?.user_data_path ||
+      ""
+    );
+  }, [storeDocsPath, activeConfig]);
 
   useEffect(() => {
     setListLimit(40);
@@ -424,46 +429,197 @@ export function TimeCapsuleSnapshotDossier({
     [diffEntries]
   );
 
-  // Classifiers
-  const isSaveFile = (path: string) => {
-    const lower = path.toLowerCase();
-    return lower.endsWith(".save") || lower.includes(".save.ver");
+  const saveExtensions = useMemo(() => {
+    const raw = activeGameSchema?.lab_verification?.save_extensions;
+    if (Array.isArray(raw) && raw.length > 0) {
+      return raw.map((e: string) => String(e).toLowerCase());
+    }
+    return [".save", ".sav"];
+  }, [activeGameSchema?.lab_verification?.save_extensions]);
+
+  const primarySaveExt = saveExtensions[0] || ".save";
+  const revisionSaveExts = useMemo(() => saveExtensions.slice(1), [saveExtensions]);
+
+  const isRevisionSaveFile = (filePath: string) => {
+    const lower = String(filePath || "").toLowerCase();
+    if (revisionSaveExts.length > 0) {
+      return revisionSaveExts.some(
+        (ext: string) => lower.endsWith(ext) || lower.includes(`${primarySaveExt}${ext}`)
+      );
+    }
+    return /\.(ver\d+|bak)$/i.test(lower);
   };
 
-  const isTrayFile = (path: string) => {
-    const lower = path.toLowerCase();
-    return (
-      lower.startsWith("tray/") ||
-      lower.endsWith(".trayitem") ||
-      lower.endsWith(".blueprint") ||
-      lower.endsWith(".bpi") ||
-      lower.endsWith(".householdbinary") ||
-      lower.endsWith(".hhi") ||
-      lower.endsWith(".sgi") ||
-      lower.endsWith(".rmi")
+  const capsuleLanes = useMemo(() => {
+    const colorPalette = ["var(--accent)", "var(--success)", "var(--warning)", "var(--subtext)"];
+    const colorClasses = [
+      "text-[var(--accent)]",
+      "text-[var(--success)]",
+      "text-[var(--warning)]",
+      "text-[var(--subtext)]",
+    ];
+    if (isEngine) {
+      const rawTargets = Array.isArray(activeGameSchema?.time_capsule?.engine_state_targets)
+        ? activeGameSchema.time_capsule.engine_state_targets
+        : [];
+      if (rawTargets.length > 0) {
+        const mapped = rawTargets.map((tgt: any, idx: number) => {
+          const cleanName = String(tgt?.name || tgt?.path || `Sector ${idx + 1}`);
+          const cleanPath = String(tgt?.path || tgt?.name || "")
+            .replace(/\\/g, "/")
+            .replace(/^\/+|\/+$/g, "")
+            .toLowerCase();
+          const id = `ENG_${cleanPath.toUpperCase().replace(/[^A-Z0-9]+/g, "_") || idx}`;
+          return {
+            id,
+            label: cleanName,
+            targetPrefix: cleanPath,
+            icon:
+              idx === 0
+                ? t("icon_terminal", "terminal")
+                : idx === 1
+                  ? t("icon_inventory_2", "inventory_2")
+                  : t("icon_difference", "difference"),
+            colorVar: colorPalette[idx % colorPalette.length],
+            colorClass: colorClasses[idx % colorClasses.length],
+            isSaveLane: false,
+            isFallback: false,
+          };
+        });
+        mapped.push({
+          id: "ENG_OTHER",
+          label: t("tc_engine_cat_other", "Add-Ons & Assets"),
+          targetPrefix: "",
+          icon: t("icon_extension", "extension"),
+          colorVar: "var(--subtext)",
+          colorClass: "text-[var(--subtext)]",
+          isSaveLane: false,
+          isFallback: true,
+        });
+        return mapped;
+      }
+      return [
+        {
+          id: "BIN",
+          label: t("tc_engine_cat_bin", "Binaries"),
+          targetPrefix: "__bin__",
+          icon: t("icon_terminal", "terminal"),
+          colorVar: "var(--accent)",
+          colorClass: "text-[var(--accent)]",
+          isSaveLane: false,
+          isFallback: false,
+        },
+        {
+          id: "DATA",
+          label: t("tc_engine_cat_data", "Engine Data"),
+          targetPrefix: "",
+          icon: t("icon_inventory_2", "inventory_2"),
+          colorVar: "var(--success)",
+          colorClass: "text-[var(--success)]",
+          isSaveLane: false,
+          isFallback: true,
+        },
+      ];
+    }
+
+    const rawWorldTargets = Array.isArray(activeGameSchema?.time_capsule?.world_state_targets)
+      ? activeGameSchema.time_capsule.world_state_targets
+      : [];
+    const saveAirgaps = (activeGameSchema?.time_capsule?.save_airgap_targets || []).map((s: string) =>
+      String(s).toLowerCase()
     );
-  };
 
-  const isEngineBinFile = (path: string) => {
-    const lower = path.toLowerCase();
-    return (
-      lower.startsWith("game/") ||
-      lower.includes("/bin/") ||
-      lower.endsWith(".exe") ||
-      lower.endsWith(".dll") ||
-      lower.endsWith(".py") ||
-      lower.endsWith(".zip")
-    );
-  };
+    if (rawWorldTargets.length > 0) {
+      const mapped = rawWorldTargets.map((tgt: any, idx: number) => {
+        const cleanName = String(tgt?.name || tgt?.path || `Target ${idx + 1}`);
+        const cleanPath = String(tgt?.path || tgt?.name || "")
+          .replace(/\\/g, "/")
+          .replace(/^\/+|\/+$/g, "")
+          .toLowerCase();
+        const isSave =
+          saveAirgaps.includes(cleanPath) ||
+          cleanPath.includes("save") ||
+          cleanName.toLowerCase().includes("save");
+        const id = isSave
+          ? "SAVES"
+          : `WORLD_${cleanPath.toUpperCase().replace(/[^A-Z0-9]+/g, "_") || idx}`;
+        return {
+          id,
+          label: isSave ? t("label_saves", cleanName) : cleanName,
+          targetPrefix: cleanPath,
+          icon: isSave
+            ? t("icon_save", "save")
+            : cleanPath.includes(".")
+              ? t("icon_tune", "tune")
+              : t("icon_folder", "folder"),
+          colorVar: colorPalette[idx % colorPalette.length],
+          colorClass: colorClasses[idx % colorClasses.length],
+          isSaveLane: isSave,
+          isFallback: false,
+        };
+      });
+      mapped.push({
+        id: "CONFIGS",
+        label: t("tc_panel_filter_configs", "Configs & Data"),
+        targetPrefix: "",
+        icon: t("icon_tune", "tune"),
+        colorVar: "var(--subtext)",
+        colorClass: "text-[var(--subtext)]",
+        isSaveLane: false,
+        isFallback: true,
+      });
+      return mapped;
+    }
 
-  const isEngineDeltaFile = (path: string) => {
-    const lower = path.toLowerCase();
-    return lower.startsWith("delta/") || lower.includes("/delta/");
-  };
+    return [
+      {
+        id: "SAVES",
+        label: t("label_saves", "Saves"),
+        targetPrefix: "saves",
+        icon: t("icon_save", "save"),
+        colorVar: "var(--accent)",
+        colorClass: "text-[var(--accent)]",
+        isSaveLane: true,
+        isFallback: false,
+      },
+      {
+        id: "CONFIGS",
+        label: t("tc_panel_filter_configs", "Configs & Data"),
+        targetPrefix: "",
+        icon: t("icon_tune", "tune"),
+        colorVar: "var(--subtext)",
+        colorClass: "text-[var(--subtext)]",
+        isSaveLane: false,
+        isFallback: true,
+      },
+    ];
+  }, [isEngine, activeGameSchema?.time_capsule, t]);
 
-  const isEngineDataFile = (path: string) => {
-    const lower = path.toLowerCase();
-    return lower.startsWith("data/") || lower.includes("/data/");
+  const matchesLane = (filePath: string, lane: any): boolean => {
+    const lower = String(filePath || "").replace(/\\/g, "/").toLowerCase();
+    if (lane.targetPrefix === "__bin__") {
+      return (
+        lower.includes("/bin/") ||
+        /\.(exe|dll|so|dylib|asi|app)$/i.test(lower)
+      );
+    }
+    if (lane.isSaveLane) {
+      if (
+        lane.targetPrefix &&
+        (lower === lane.targetPrefix || lower.startsWith(`${lane.targetPrefix}/`))
+      ) {
+        return true;
+      }
+      return saveExtensions.some((ext: string) => lower.endsWith(ext));
+    }
+    if (lane.targetPrefix) {
+      return (
+        lower === lane.targetPrefix ||
+        lower.startsWith(`${lane.targetPrefix}/`) ||
+        lower.includes(`/${lane.targetPrefix}/`)
+      );
+    }
+    return false;
   };
 
   const getFileFolderSubtitle = (filePath: string) => {
@@ -475,124 +631,21 @@ export function TimeCapsuleSnapshotDossier({
   };
 
   const getFileCategoryInfo = (filePath: string) => {
-    if (isEngine) {
-      if (isEngineBinFile(filePath)) {
-        return {
-          id: "BIN",
-          icon: t("icon_terminal", "terminal"),
-          label: t("tc_engine_cat_bin", "Binaries"),
-          colorVar: "var(--accent)",
-          colorClass: "text-[var(--accent)]",
-        };
+    for (const lane of capsuleLanes) {
+      if (!lane.isFallback && matchesLane(filePath, lane)) {
+        return lane;
       }
-      if (isEngineDeltaFile(filePath)) {
-        return {
-          id: "DELTA",
-          icon: t("icon_difference", "difference"),
-          label: t("tc_engine_cat_delta", "Delta"),
-          colorVar: "var(--warning)",
-          colorClass: "text-[var(--warning)]",
-        };
-      }
-      if (isEngineDataFile(filePath)) {
-        return {
-          id: "DATA",
-          icon: t("icon_inventory_2", "inventory_2"),
-          label: t("tc_engine_cat_data", "Base Game"),
-          colorVar: "var(--success)",
-          colorClass: "text-[var(--success)]",
-        };
-      }
-      return {
-        id: "PACKS",
-        icon: t("icon_extension", "extension"),
-        label: t("tc_engine_cat_packs", "Packs"),
-        colorVar: "var(--subtext)",
-        colorClass: "text-[var(--subtext)]",
-      };
     }
-
-    if (isSaveFile(filePath)) {
-      return {
-        id: "SAVES",
-        icon: t("icon_save", "save"),
-        label: t("label_saves", "Saves"),
-        colorVar: "var(--accent)",
-        colorClass: "text-[var(--accent)]",
-      };
-    }
-    if (isTrayFile(filePath)) {
-      return {
-        id: "TRAY",
-        icon: t("icon_group", "Holiday_Village"),
-        label: t("label_tray_files", "Tray Files"),
-        colorVar: "var(--success)",
-        colorClass: "text-[var(--success)]",
-      };
-    }
-    return {
-      id: "CONFIGS",
-      icon: t("icon_tune", "tune"),
-      label: t("tc_panel_filter_configs", "Configs & Data"),
-      colorVar: "var(--subtext)",
-      colorClass: "text-[var(--subtext)]",
-    };
+    const fallback = capsuleLanes.find((l: any) => l.isFallback) || capsuleLanes[capsuleLanes.length - 1];
+    return fallback;
   };
 
-  const saveFiles = useMemo(
-    () => visibleBackupFiles.filter((f) => isSaveFile(f.path)),
-    [visibleBackupFiles]
-  );
-  const primarySaveFiles = useMemo(
-    () => saveFiles.filter((f) => f.path.toLowerCase().endsWith(".save")),
-    [saveFiles]
-  );
   const verRevisionFiles = useMemo(
-    () => saveFiles.filter((f) => f.path.toLowerCase().includes(".save.ver")),
-    [saveFiles]
-  );
-  const trayFiles = useMemo(
-    () => visibleBackupFiles.filter((f) => isTrayFile(f.path)),
-    [visibleBackupFiles]
-  );
-  const configFiles = useMemo(
     () =>
-      visibleBackupFiles.filter(
-        (f) => !isSaveFile(f.path) && !isTrayFile(f.path)
-      ),
-    [visibleBackupFiles]
-  );
-
-  const engineBinFiles = useMemo(
-    () => visibleBackupFiles.filter((f) => isEngineBinFile(f.path)),
-    [visibleBackupFiles]
-  );
-  const engineDeltaFiles = useMemo(
-    () =>
-      visibleBackupFiles.filter(
-        (f) => !isEngineBinFile(f.path) && isEngineDeltaFile(f.path)
-      ),
-    [visibleBackupFiles]
-  );
-  const engineDataFiles = useMemo(
-    () =>
-      visibleBackupFiles.filter(
-        (f) =>
-          !isEngineBinFile(f.path) &&
-          !isEngineDeltaFile(f.path) &&
-          isEngineDataFile(f.path)
-      ),
-    [visibleBackupFiles]
-  );
-  const enginePackFiles = useMemo(
-    () =>
-      visibleBackupFiles.filter(
-        (f) =>
-          !isEngineBinFile(f.path) &&
-          !isEngineDeltaFile(f.path) &&
-          !isEngineDataFile(f.path)
-      ),
-    [visibleBackupFiles]
+      !isEngine
+        ? visibleBackupFiles.filter((f) => isRevisionSaveFile(f.path))
+        : [],
+    [visibleBackupFiles, isEngine, revisionSaveExts, primarySaveExt]
   );
 
   // Delta counts + written bytes
@@ -692,22 +745,14 @@ export function TimeCapsuleSnapshotDossier({
       : 0;
 
   const sectorOptions = useMemo(() => {
-    if (isEngine) {
-      return [
-        { id: "ALL", label: t("filter_all", "All") },
-        { id: "BIN", label: t("tc_engine_cat_bin", "Binaries") },
-        { id: "DATA", label: t("tc_engine_cat_data", "Base Game") },
-        { id: "DELTA", label: t("tc_engine_cat_delta", "Delta") },
-        { id: "PACKS", label: t("tc_engine_cat_packs", "Packs") },
-      ];
-    }
     return [
       { id: "ALL", label: t("filter_all", "All") },
-      { id: "SAVES", label: t("label_saves", "Saves") },
-      { id: "CONFIGS", label: t("tc_panel_filter_configs", "Configs & Data") },
-      { id: "TRAY", label: t("label_tray_files", "Tray Files") },
+      ...capsuleLanes.map((lane: any) => ({
+        id: lane.id,
+        label: lane.label,
+      })),
     ];
-  }, [isEngine, t]);
+  }, [capsuleLanes, t]);
 
   const sortItems = (list: any[]) => {
     if (sortBy === "DEFAULT") return list;
@@ -736,112 +781,47 @@ export function TimeCapsuleSnapshotDossier({
     return copy;
   };
 
-  // Structured Category Groups for EXTRACT view
+  // Structured Category Groups for EXTRACT view (100% schema-driven via time_capsule)
   const extractGroups = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const matchesSearch = (f: any) => !q || f.path.toLowerCase().includes(q);
     const sumMb = (list: any[]) =>
       list.reduce((acc, f) => acc + (f.size_mb || 0), 0);
 
-    if (isEngine) {
-      const bin = sortItems(engineBinFiles.filter(matchesSearch));
-      const data = sortItems(engineDataFiles.filter(matchesSearch));
-      const delta = sortItems(engineDeltaFiles.filter(matchesSearch));
-      const packs = sortItems(enginePackFiles.filter(matchesSearch));
-      return [
-        {
-          id: "BIN",
-          label: t("tc_engine_cat_bin", "Binaries"),
-          icon: t("icon_terminal", "terminal"),
-          colorVar: "var(--accent)",
-          files: bin,
-          sizeMb: sumMb(bin),
-        },
-        {
-          id: "DATA",
-          label: t("tc_engine_cat_data", "Base Game"),
-          icon: t("icon_inventory_2", "inventory_2"),
-          colorVar: "var(--success)",
-          files: data,
-          sizeMb: sumMb(data),
-        },
-        {
-          id: "DELTA",
-          label: t("tc_engine_cat_delta", "Delta"),
-          icon: t("icon_difference", "difference"),
-          colorVar: "var(--warning)",
-          files: delta,
-          sizeMb: sumMb(delta),
-        },
-        {
-          id: "PACKS",
-          label: t("tc_engine_cat_packs", "Packs"),
-          icon: t("icon_extension", "extension"),
-          colorVar: "var(--subtext)",
-          files: packs,
-          sizeMb: sumMb(packs),
-        },
-      ].filter(
-        (g) =>
+    return capsuleLanes
+      .map((lane: any) => {
+        const laneFilesRaw = visibleBackupFiles.filter((f) => {
+          const cat = getFileCategoryInfo(f.path);
+          if (cat.id !== lane.id) return false;
+          if (!showVerRevisions && lane.isSaveLane && isRevisionSaveFile(f.path)) {
+            return false;
+          }
+          return matchesSearch(f);
+        });
+        const sortedFiles = sortItems(laneFilesRaw);
+        return {
+          id: lane.id,
+          label: lane.label,
+          icon: lane.icon,
+          colorVar: lane.colorVar,
+          files: sortedFiles,
+          sizeMb: sumMb(sortedFiles),
+          hasVerToggle: Boolean(lane.isSaveLane && verRevisionFiles.length > 0),
+        };
+      })
+      .filter(
+        (g: any) =>
           (sectorFilter === "ALL" || sectorFilter === g.id) &&
-          g.files.length > 0
+          (g.files.length > 0 || (g.hasVerToggle && !q))
       );
-    }
-
-    const savesList = sortItems(
-      (showVerRevisions ? saveFiles : primarySaveFiles).filter(matchesSearch)
-    );
-    const configsList = sortItems(configFiles.filter(matchesSearch));
-    const trayList = sortItems(trayFiles.filter(matchesSearch));
-
-    return [
-      {
-        id: "SAVES",
-        label: t("label_saves", "Saves"),
-        icon: t("icon_save", "save"),
-        colorVar: "var(--accent)",
-        files: savesList,
-        sizeMb: sumMb(savesList),
-        hasVerToggle: verRevisionFiles.length > 0,
-      },
-      {
-        id: "CONFIGS",
-        label: t("tc_panel_filter_configs", "Configs & Data"),
-        icon: t("icon_tune", "tune"),
-        colorVar: "var(--subtext)",
-        files: configsList,
-        sizeMb: sumMb(configsList),
-      },
-      {
-        id: "TRAY",
-        label: t("label_tray_files", "Tray Files"),
-        icon: t("icon_group", "Holiday_Village"),
-        colorVar: "var(--success)",
-        files: trayList,
-        sizeMb: sumMb(trayList),
-      },
-    ].filter(
-      (g) =>
-        (sectorFilter === "ALL" || sectorFilter === g.id) &&
-        (g.files.length > 0 ||
-          (g.id === "SAVES" && verRevisionFiles.length > 0 && !q))
-    );
   }, [
-    isEngine,
+    capsuleLanes,
+    visibleBackupFiles,
     searchQuery,
     sectorFilter,
     sortBy,
     showVerRevisions,
-    saveFiles,
-    primarySaveFiles,
     verRevisionFiles.length,
-    configFiles,
-    trayFiles,
-    engineBinFiles,
-    engineDataFiles,
-    engineDeltaFiles,
-    enginePackFiles,
-    t,
   ]);
 
   const allDeltaEntries = useMemo(() => {
@@ -877,7 +857,7 @@ export function TimeCapsuleSnapshotDossier({
     const q = searchQuery.trim().toLowerCase();
     const base = allDeltaEntries.filter((item) => {
       if (item.delta_status === "Deduplicated") return false;
-      if (!showVerRevisions && item.path.toLowerCase().includes(".save.ver")) {
+      if (!showVerRevisions && isRevisionSaveFile(item.path)) {
         return false;
       }
       if (q && !item.path.toLowerCase().includes(q)) return false;
@@ -913,7 +893,7 @@ export function TimeCapsuleSnapshotDossier({
     const q = searchQuery.trim().toLowerCase();
     const base = visibleDiffEntries.filter((d) => {
       if (d.status === "Identical") return false;
-      if (!showVerRevisions && d.path.toLowerCase().includes(".save.ver")) {
+      if (!showVerRevisions && isRevisionSaveFile(d.path)) {
         return false;
       }
       if (q && !d.path.toLowerCase().includes(q)) return false;
@@ -1273,7 +1253,7 @@ export function TimeCapsuleSnapshotDossier({
                     )
                   : t(
                       "tc_restore_world_desc",
-                      "Roll back your active Saves, Tray library, and user settings to this World State snapshot."
+                      "Roll back your active user saves, profiles, and settings to this World State snapshot."
                     )}
             </p>
 

@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
@@ -5,8 +6,19 @@ import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "../utils/envUtils";
 
 export function useBackupLogic(detectGameVersion: () => void) {
-  const { setStatus, setBackupList, selectedVersion } = useStore();
-  const { setIsRestoring, setIsBackingUp } = useModalStore();
+  const { setStatus, setBackupList, selectedVersion } = useStore(
+    useShallow((s) => ({
+      setStatus: s.setStatus,
+      setBackupList: s.setBackupList,
+      selectedVersion: s.selectedVersion,
+    }))
+  );
+  const { setIsRestoring, setIsBackingUp } = useModalStore(
+    useShallow((s) => ({
+      setIsRestoring: s.setIsRestoring,
+      setIsBackingUp: s.setIsBackingUp,
+    }))
+  );
   const { t } = useLexicon();
 
   async function fetchBackups() {
@@ -35,11 +47,13 @@ export function useBackupLogic(detectGameVersion: () => void) {
     setIsRestoring(true);
     try {
       const config: any = await invoke("get_saved_coordinates");
-      const dPath = config.mods_path.split(/[\\/]Mods/i)[0];
+      const state = useStore.getState();
+      const dPath = state.docsPath || config?.docs_path || config?.user_data_path || "";
       const msg = await invoke("restore_game_data", {
         docsPath: dPath,
         livePath: config.live_path,
         backupName: filename,
+        gameSchema: state.activeGameSchema,
       });
       setStatus(msg as string);
       const cleanName = filename.replace(/^Secured:\s*/i, "").trim();
@@ -99,7 +113,8 @@ export function useBackupLogic(detectGameVersion: () => void) {
 
   const triggerPrePatchSnapshot = async (keepPreviousCompleted = false) => {
     const config: any = await invoke("get_saved_coordinates");
-    const docsBase = config.mods_path.replace(/[\\/]Mods[\\/]?$/i, "");
+    const state = useStore.getState();
+    const docsBase = state.docsPath || config?.docs_path || config?.user_data_path || "";
     if (!keepPreviousCompleted) {
       useModalStore.getState().setCompletedBackups([]);
       useModalStore.getState().setIsDefconBackupSession(false);
@@ -117,6 +132,7 @@ export function useBackupLogic(detectGameVersion: () => void) {
       const createdName = await invoke<string>("backup_universe", {
         docsPath: docsBase,
         version: selectedVersion,
+        gameSchema: state.activeGameSchema,
       });
       if (createdName && typeof createdName === "string") {
         useModalStore

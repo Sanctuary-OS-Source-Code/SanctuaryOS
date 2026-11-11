@@ -27,7 +27,7 @@ import { deepCompare } from "../lib/MasonValidation";
 import { useStore } from "../store";
 
 
-export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }: any) {
+export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
   const [reports, setReports] = useState<UnifiedReport[]>([]);
@@ -445,6 +445,8 @@ export function NexusReportsViewer({ onOpenDossier: _onOpenDossier, setStatus }:
       setActiveBlueprint(report.metadata.blueprint_full);
     } else if (report.source === "comm-link" && report.metadata?.post_full) {
       setActivePost(report.metadata.post_full);
+    } else if (onOpenDossier) {
+      onOpenDossier(report);
     }
   };
 

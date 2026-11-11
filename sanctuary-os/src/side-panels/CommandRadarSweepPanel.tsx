@@ -1,4 +1,5 @@
 import React from "react";
+import { useShallow } from "zustand/react/shallow";
 import {
   SidePanel,
   PanelHeaderGroup,
@@ -31,7 +32,13 @@ export default function CommandRadarSweepPanel({
 }: any) {
   const { t, registry } = useLexicon();
   const { customThemes, CORE_THEMES } = useTheme();
-  const { modList, playSets, activeSetName } = useStore();
+  const { modList, playSets, activeSetName } = useStore(
+    useShallow((s) => ({
+      modList: s.modList,
+      playSets: s.playSets,
+      activeSetName: s.activeSetName,
+    }))
+  );
 
   const activeSet = React.useMemo(
     () => playSets.find((ps: any) => ps.name === activeSetName) || null,

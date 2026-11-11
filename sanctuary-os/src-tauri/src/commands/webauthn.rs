@@ -1,7 +1,7 @@
-use serde_json::Value;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
-#[cfg(target_os = "windows")]
-fn b64url_encode(data: &[u8]) -> String {
+pub(crate) fn b64url_encode(data: &[u8]) -> String {
     const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let mut out = String::with_capacity((data.len() * 4 + 2) / 3);
     let mut i = 0;
@@ -27,8 +27,7 @@ fn b64url_encode(data: &[u8]) -> String {
     out
 }
 
-#[cfg(target_os = "windows")]
-fn b64url_decode(input: &str) -> Result<Vec<u8>, String> {
+pub(crate) fn b64url_decode(input: &str) -> Result<Vec<u8>, String> {
     let clean = input.trim().trim_end_matches('=');
     let mut out = Vec::with_capacity(clean.len() * 3 / 4);
     let mut buf: u32 = 0;
@@ -40,7 +39,8 @@ fn b64url_decode(input: &str) -> Result<Vec<u8>, String> {
             b'0'..=b'9' => (b - b'0' + 52) as u32,
             b'-' | b'+' => 62,
             b'_' | b'/' => 63,
-            _ => continue,
+            b'\r' | b'\n' | b' ' | b'\t' => continue,
+            _ => return Err(format!("Invalid base64url character: {}", b as char)),
         };
         buf = (buf << 6) | val;
         bits += 6;
@@ -52,11 +52,194 @@ fn b64url_decode(input: &str) -> Result<Vec<u8>, String> {
     Ok(out)
 }
 
+pub(crate) fn serialize_webauthn_client_data(
+    ceremony_type: &str,
+    challenge: &str,
+    origin: &str,
+) -> Result<Vec<u8>, String> {
+    serde_json::to_vec(&json!({
+        "type": ceremony_type,
+        "challenge": challenge,
+        "origin": origin,
+        "crossOrigin": false,
+    }))
+    .map_err(|e| format!("Failed to serialize WebAuthn clientDataJSON: {}", e))
+}
+
+/// Local AES-256-GCM encrypted passkey private-key store keyed by a random per-install 256-bit
+/// master secret persisted locally with `0600` permissions (never derived from `machine_uid`, and
+/// never embedding private key material inside the transmitted `credentialId`).
+#[allow(dead_code)]
+pub(crate) mod local_passkey_vault {
+    use super::{b64url_decode, b64url_encode, Deserialize, Serialize};
+    use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
+    use ring::rand::{SecureRandom, SystemRandom};
+    use std::fs;
+    use std::path::{Path, PathBuf};
+
+    #[derive(Serialize, Deserialize, Clone)]
+    pub struct StoredLocalPasskey {
+        pub rp_id: String,
+        pub cred_id_b64: String,
+        pub user_handle_b64: String,
+        pub nonce_b64: String,
+        pub sealed_priv_key_b64: String,
+        pub created_at: u64,
+    }
+
+    fn secure_passkey_dir() -> Result<PathBuf, String> {
+        let mut dir = dirs::data_local_dir()
+            .or_else(dirs::home_dir)
+            .ok_or_else(|| "Unable to resolve local application data directory.".to_string())?;
+        dir.push("SanctuaryOS");
+        fs::create_dir_all(&dir)
+            .map_err(|e| format!("Failed creating local passkey directory: {}", e))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&dir, fs::Permissions::from_mode(0o700));
+        }
+        Ok(dir)
+    }
+
+    fn write_restricted_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
+        crate::utils::atomic_write_bytes(path, bytes)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(path, fs::Permissions::from_mode(0o600))
+                .map_err(|e| format!("Failed setting 0600 permissions on {:?}: {}", path, e))?;
+        }
+        #[cfg(target_os = "windows")]
+        {
+            crate::utils::mark_path_hidden(path);
+        }
+        Ok(())
+    }
+
+    pub fn load_or_create_master_key() -> Result<[u8; 32], String> {
+        let key_path = secure_passkey_dir()?.join(".passkey_master_key.bin");
+        if key_path.exists() {
+            let raw = fs::read(&key_path)
+                .map_err(|e| format!("Failed reading local passkey master key: {}", e))?;
+            if raw.len() == 32 {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let _ = fs::set_permissions(&key_path, fs::Permissions::from_mode(0o600));
+                }
+                let mut key = [0u8; 32];
+                key.copy_from_slice(&raw);
+                return Ok(key);
+            }
+        }
+
+        let rng = SystemRandom::new();
+        let mut fresh_key = [0u8; 32];
+        rng.fill(&mut fresh_key)
+            .map_err(|_| "OS CSPRNG failed generating 256-bit passkey master secret.".to_string())?;
+        write_restricted_file(&key_path, &fresh_key)?;
+        Ok(fresh_key)
+    }
+
+    pub fn generate_opaque_credential_id() -> Result<Vec<u8>, String> {
+        let rng = SystemRandom::new();
+        let mut cred_id = vec![0u8; 32];
+        rng.fill(&mut cred_id)
+            .map_err(|_| "OS CSPRNG failed generating opaque WebAuthn credential ID.".to_string())?;
+        Ok(cred_id)
+    }
+
+    fn build_aad(rp_id: &str, cred_id_b64: &str) -> Vec<u8> {
+        format!("sanctuary-webauthn-aes256gcm-v2:{}:{}", rp_id, cred_id_b64).into_bytes()
+    }
+
+    pub fn seal_private_key_with_key(
+        master_key: &[u8; 32],
+        rp_id: &str,
+        cred_id_b64: &str,
+        plaintext_priv_key: &[u8],
+    ) -> Result<(String, String), String> {
+        let rng = SystemRandom::new();
+        let mut nonce_bytes = [0u8; 12];
+        rng.fill(&mut nonce_bytes)
+            .map_err(|_| "OS CSPRNG failed generating AES-256-GCM nonce.".to_string())?;
+
+        let unbound = UnboundKey::new(&AES_256_GCM, master_key)
+            .map_err(|_| "Failed initializing AES-256-GCM key.".to_string())?;
+        let key = LessSafeKey::new(unbound);
+
+        let aad_bytes = build_aad(rp_id, cred_id_b64);
+        let mut in_out = plaintext_priv_key.to_vec();
+        key.seal_in_place_append_tag(
+            Nonce::assume_unique_for_key(nonce_bytes),
+            Aad::from(&aad_bytes),
+            &mut in_out,
+        )
+        .map_err(|_| "AES-256-GCM encryption failed.".to_string())?;
+
+        Ok((b64url_encode(&nonce_bytes), b64url_encode(&in_out)))
+    }
+
+    pub fn unseal_private_key_with_key(
+        master_key: &[u8; 32],
+        rp_id: &str,
+        cred_id_b64: &str,
+        nonce_b64: &str,
+        sealed_b64: &str,
+    ) -> Result<Vec<u8>, String> {
+        let nonce_vec = b64url_decode(nonce_b64)?;
+        if nonce_vec.len() != 12 {
+            return Err("Invalid AES-256-GCM nonce length.".to_string());
+        }
+        let mut nonce_bytes = [0u8; 12];
+        nonce_bytes.copy_from_slice(&nonce_vec);
+
+        let mut in_out = b64url_decode(sealed_b64)?;
+        let unbound = UnboundKey::new(&AES_256_GCM, master_key)
+            .map_err(|_| "Failed initializing AES-256-GCM decryption key.".to_string())?;
+        let key = LessSafeKey::new(unbound);
+
+        let aad_bytes = build_aad(rp_id, cred_id_b64);
+        let plaintext = key
+            .open_in_place(
+                Nonce::assume_unique_for_key(nonce_bytes),
+                Aad::from(&aad_bytes),
+                &mut in_out,
+            )
+            .map_err(|_| "AES-256-GCM authentication tag verification failed.".to_string())?;
+        Ok(plaintext.to_vec())
+    }
+
+    fn vault_store_path() -> Result<PathBuf, String> {
+        Ok(secure_passkey_dir()?.join("local_passkey_vault_v2.json"))
+    }
+
+    pub fn load_stored_credentials() -> Vec<StoredLocalPasskey> {
+        let Ok(path) = vault_store_path() else {
+            return Vec::new();
+        };
+        let Ok(raw) = fs::read_to_string(path) else {
+            return Vec::new();
+        };
+        serde_json::from_str::<Vec<StoredLocalPasskey>>(&raw).unwrap_or_default()
+    }
+
+    pub fn save_stored_credential(entry: StoredLocalPasskey) -> Result<(), String> {
+        let path = vault_store_path()?;
+        let mut list = load_stored_credentials();
+        list.retain(|item| item.cred_id_b64 != entry.cred_id_b64);
+        list.insert(0, entry);
+        let serialized = serde_json::to_string_pretty(&list)
+            .map_err(|e| format!("Failed serializing passkey store: {}", e))?;
+        write_restricted_file(&path, serialized.as_bytes())
+    }
+}
+
 #[cfg(target_os = "windows")]
 #[allow(non_snake_case)]
 mod win_webauthn {
     use super::*;
-    use serde_json::json;
     use std::ffi::c_void;
     use std::ptr;
     use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
@@ -221,9 +404,7 @@ mod win_webauthn {
             .as_str()
             .ok_or_else(|| "Missing WebAuthn user.id".to_string())?;
         let user_id_bytes = b64url_decode(user_id_str)?;
-        let raw_user_name = options["user"]["name"]
-            .as_str()
-            .unwrap_or("Sanctuary OS");
+        let raw_user_name = options["user"]["name"].as_str().unwrap_or("Sanctuary OS");
         let user_name = if raw_user_name.contains('@') || raw_user_name.trim().is_empty() {
             "Sanctuary OS".to_string()
         } else {
@@ -246,11 +427,8 @@ mod win_webauthn {
             format!("https://{}", rp_id)
         };
 
-        let client_data_json = format!(
-            r#"{{"type":"webauthn.create","challenge":"{}","origin":"{}","crossOrigin":false}}"#,
-            challenge_str, origin
-        );
-        let client_data_bytes = client_data_json.as_bytes();
+        let client_data_bytes =
+            serialize_webauthn_client_data("webauthn.create", challenge_str, &origin)?;
 
         let rp_id_w = to_wide(&rp_id);
         let rp_name_w = to_wide(&rp_name);
@@ -344,10 +522,10 @@ mod win_webauthn {
                 cExtensions: 0,
                 pExtensions: ptr::null(),
             },
-            dwAuthenticatorAttachment: 0, // ANY (Platform Windows Hello + USB/NFC Keys)
-            bRequireResidentKey: 1,       // Discoverable passkey
-            dwUserVerificationRequirement: 1, // REQUIRED
-            dwAttestationConveyancePreference: 1, // NONE
+            dwAuthenticatorAttachment: 0,
+            bRequireResidentKey: 1,
+            dwUserVerificationRequirement: 1,
+            dwAttestationConveyancePreference: 1,
             dwFlags: 0,
         };
 
@@ -389,7 +567,7 @@ mod win_webauthn {
 
             let cred_id_b64 = b64url_encode(cred_id_slice);
             let att_obj_b64 = b64url_encode(att_obj_slice);
-            let client_data_b64 = b64url_encode(client_data_bytes);
+            let client_data_b64 = b64url_encode(&client_data_bytes);
 
             WebAuthNFreeCredentialAttestation(p_attestation);
 
@@ -427,11 +605,8 @@ mod win_webauthn {
             format!("https://{}", rp_id)
         };
 
-        let client_data_json = format!(
-            r#"{{"type":"webauthn.get","challenge":"{}","origin":"{}","crossOrigin":false}}"#,
-            challenge_str, origin
-        );
-        let client_data_bytes = client_data_json.as_bytes();
+        let client_data_bytes =
+            serialize_webauthn_client_data("webauthn.get", challenge_str, &origin)?;
 
         let rp_id_w = to_wide(&rp_id);
         let cred_type_w = to_wide("public-key");
@@ -532,7 +707,7 @@ mod win_webauthn {
             let cred_id_b64 = b64url_encode(cred_id_slice);
             let auth_data_b64 = b64url_encode(auth_data_slice);
             let sig_b64 = b64url_encode(sig_slice);
-            let client_data_b64 = b64url_encode(client_data_bytes);
+            let client_data_b64 = b64url_encode(&client_data_bytes);
 
             WebAuthNFreeAssertion(p_assertion);
 
@@ -555,12 +730,15 @@ mod win_webauthn {
 
 #[cfg(target_os = "macos")]
 mod mac_webauthn {
-    use serde::{Deserialize, Serialize};
+    use super::local_passkey_vault::{
+        generate_opaque_credential_id, load_or_create_master_key, load_stored_credentials,
+        save_stored_credential, seal_private_key_with_key, unseal_private_key_with_key,
+        StoredLocalPasskey,
+    };
+    use super::{b64url_decode, b64url_encode, serialize_webauthn_client_data};
     use serde_json::{json, Value};
     use sha2::{Digest, Sha256};
     use std::ffi::{c_char, c_void, CString};
-    use std::fs;
-    use std::path::PathBuf;
     use std::ptr;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Condvar, Mutex};
@@ -627,7 +805,6 @@ mod mac_webauthn {
             data_to_sign: *const c_void,
             error: *mut *const c_void,
         ) -> *const c_void;
-        fn SecRandomCopyBytes(rnd: *const c_void, count: usize, bytes: *mut u8) -> i32;
     }
 
     #[repr(C)]
@@ -741,7 +918,6 @@ mod mac_webauthn {
                 return Err("Failed to initialize macOS Touch ID context.".to_string());
             }
 
-            // LAPolicyDeviceOwnerAuthenticationWithBiometrics = 1, LAPolicyDeviceOwnerAuthentication = 2
             let mut err_ptr: *mut c_void = ptr::null_mut();
             let policy: isize = 2;
             let can_eval = msg_send_can_eval(ctx, sel_can_eval, policy, &mut err_ptr);
@@ -753,8 +929,8 @@ mod mac_webauthn {
                 );
             }
 
-            let c_reason =
-                CString::new(reason).unwrap_or_else(|_| CString::new("Authenticate with Touch ID").unwrap());
+            let c_reason = CString::new(reason)
+                .unwrap_or_else(|_| CString::new("Authenticate with Touch ID").unwrap());
             let ns_reason = msg_send_str(ns_str_cls, sel_utf8, c_reason.as_ptr());
 
             let wait_state = Arc::new(LaWaitState {
@@ -800,184 +976,6 @@ mod mac_webauthn {
         }
     }
 
-    fn b64url_encode(bytes: &[u8]) -> String {
-        const TABLE: &[u8; 64] =
-            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-        let mut out = String::with_capacity((bytes.len() * 4 + 2) / 3);
-        let mut i = 0;
-        while i + 3 <= bytes.len() {
-            let n = ((bytes[i] as u32) << 16)
-                | ((bytes[i + 1] as u32) << 8)
-                | (bytes[i + 2] as u32);
-            out.push(TABLE[((n >> 18) & 0x3F) as usize] as char);
-            out.push(TABLE[((n >> 12) & 0x3F) as usize] as char);
-            out.push(TABLE[((n >> 6) & 0x3F) as usize] as char);
-            out.push(TABLE[(n & 0x3F) as usize] as char);
-            i += 3;
-        }
-        let rem = bytes.len() - i;
-        if rem == 1 {
-            let n = (bytes[i] as u32) << 16;
-            out.push(TABLE[((n >> 18) & 0x3F) as usize] as char);
-            out.push(TABLE[((n >> 12) & 0x3F) as usize] as char);
-        } else if rem == 2 {
-            let n = ((bytes[i] as u32) << 16) | ((bytes[i + 1] as u32) << 8);
-            out.push(TABLE[((n >> 18) & 0x3F) as usize] as char);
-            out.push(TABLE[((n >> 12) & 0x3F) as usize] as char);
-            out.push(TABLE[((n >> 6) & 0x3F) as usize] as char);
-        }
-        out
-    }
-
-    fn b64url_decode(input: &str) -> Result<Vec<u8>, String> {
-        let clean = input.trim().trim_end_matches('=');
-        let mut out = Vec::with_capacity(clean.len() * 3 / 4);
-        let mut buf = 0u32;
-        let mut bits = 0u32;
-        for b in clean.bytes() {
-            let val = match b {
-                b'A'..=b'Z' => b - b'A',
-                b'a'..=b'z' => b - b'a' + 26,
-                b'0'..=b'9' => b - b'0' + 52,
-                b'-' | b'+' => 62,
-                b'_' | b'/' => 63,
-                _ => return Err(format!("Invalid base64url character: {}", b as char)),
-            };
-            buf = (buf << 6) | (val as u32);
-            bits += 6;
-            if bits >= 8 {
-                bits -= 8;
-                out.push(((buf >> bits) & 0xFF) as u8);
-            }
-        }
-        Ok(out)
-    }
-
-    fn derive_mac_vault_key() -> [u8; 32] {
-        let hw = machine_uid::get().unwrap_or_else(|_| "sanctuary-mac-default-rig".to_string());
-        let mut hasher = Sha256::new();
-        hasher.update(b"SanctuaryOS-MacTouchID-WebAuthn-v1:");
-        hasher.update(hw.as_bytes());
-        let digest = hasher.finalize();
-        let mut out = [0u8; 32];
-        out.copy_from_slice(&digest);
-        out
-    }
-
-    fn keystream_xor(master_key: &[u8; 32], nonce: &[u8; 16], data: &[u8]) -> Vec<u8> {
-        let mut out = Vec::with_capacity(data.len());
-        let mut counter = 0u32;
-        let mut offset = 0usize;
-        while offset < data.len() {
-            let mut hasher = Sha256::new();
-            hasher.update(b"SanctuaryOS-MacKeyStream:");
-            hasher.update(master_key);
-            hasher.update(nonce);
-            hasher.update(counter.to_be_bytes());
-            let block = hasher.finalize();
-            let take = std::cmp::min(32, data.len() - offset);
-            for i in 0..take {
-                out.push(data[offset + i] ^ block[i]);
-            }
-            offset += take;
-            counter += 1;
-        }
-        out
-    }
-
-    fn compute_envelope_tag(
-        master_key: &[u8; 32],
-        nonce: &[u8; 16],
-        rp_id: &str,
-        ciphertext: &[u8],
-    ) -> [u8; 16] {
-        let mut hasher = Sha256::new();
-        hasher.update(b"SanctuaryOS-MacKeyTag:");
-        hasher.update(master_key);
-        hasher.update(nonce);
-        hasher.update(rp_id.as_bytes());
-        hasher.update(ciphertext);
-        let digest = hasher.finalize();
-        let mut tag = [0u8; 16];
-        tag.copy_from_slice(&digest[0..16]);
-        tag
-    }
-
-    fn seal_private_key_into_cred_id(rp_id: &str, x963_priv: &[u8]) -> Result<Vec<u8>, String> {
-        let master_key = derive_mac_vault_key();
-        let mut nonce = [0u8; 16];
-        unsafe {
-            if SecRandomCopyBytes(ptr::null(), 16, nonce.as_mut_ptr()) != 0 {
-                return Err("Failed to generate secure random nonce on macOS.".to_string());
-            }
-        }
-        let ciphertext = keystream_xor(&master_key, &nonce, x963_priv);
-        let tag = compute_envelope_tag(&master_key, &nonce, rp_id, &ciphertext);
-        let mut cred_id = Vec::with_capacity(16 + ciphertext.len() + 16);
-        cred_id.extend_from_slice(&nonce);
-        cred_id.extend_from_slice(&ciphertext);
-        cred_id.extend_from_slice(&tag);
-        Ok(cred_id)
-    }
-
-    fn unseal_private_key_from_cred_id(rp_id: &str, cred_id: &[u8]) -> Option<Vec<u8>> {
-        if cred_id.len() != 16 + 97 + 16 {
-            return None;
-        }
-        let master_key = derive_mac_vault_key();
-        let mut nonce = [0u8; 16];
-        nonce.copy_from_slice(&cred_id[0..16]);
-        let ciphertext = &cred_id[16..113];
-        let tag = &cred_id[113..129];
-        let expected_tag = compute_envelope_tag(&master_key, &nonce, rp_id, ciphertext);
-        let mut diff = 0u8;
-        for i in 0..16 {
-            diff |= tag[i] ^ expected_tag[i];
-        }
-        if diff != 0 {
-            return None;
-        }
-        Some(keystream_xor(&master_key, &nonce, ciphertext))
-    }
-
-    #[derive(Serialize, Deserialize, Clone)]
-    struct StoredMacCredential {
-        rp_id: String,
-        cred_id_b64: String,
-        user_handle_b64: String,
-        created_at: u64,
-    }
-
-    fn vault_file_path() -> Option<PathBuf> {
-        let mut base = dirs::data_local_dir().or_else(dirs::home_dir)?;
-        base.push("SanctuaryOS");
-        let _ = fs::create_dir_all(&base);
-        base.push("macos_passkey_vault.json");
-        Some(base)
-    }
-
-    fn load_stored_credentials() -> Vec<StoredMacCredential> {
-        let Some(path) = vault_file_path() else {
-            return Vec::new();
-        };
-        let Ok(raw) = fs::read_to_string(path) else {
-            return Vec::new();
-        };
-        serde_json::from_str::<Vec<StoredMacCredential>>(&raw).unwrap_or_default()
-    }
-
-    fn save_stored_credential(entry: StoredMacCredential) {
-        let Some(path) = vault_file_path() else {
-            return;
-        };
-        let mut list = load_stored_credentials();
-        list.retain(|item| item.cred_id_b64 != entry.cred_id_b64);
-        list.insert(0, entry);
-        if let Ok(serialized) = serde_json::to_string_pretty(&list) {
-            let _ = fs::write(path, serialized);
-        }
-    }
-
     fn generate_p256_x963_keypair() -> Result<Vec<u8>, String> {
         unsafe {
             let bit_size: i32 = 256;
@@ -986,16 +984,10 @@ mod mac_webauthn {
                 return Err("Failed to allocate CFNumber for P-256 key generation.".to_string());
             }
 
-            let keys: [*const c_void; 3] = [
-                kSecAttrKeyType,
-                kSecAttrKeySizeInBits,
-                kSecAttrIsPermanent,
-            ];
-            let values: [*const c_void; 3] = [
-                kSecAttrKeyTypeECSECPrimeRandom,
-                cf_bits,
-                kCFBooleanFalse,
-            ];
+            let keys: [*const c_void; 3] =
+                [kSecAttrKeyType, kSecAttrKeySizeInBits, kSecAttrIsPermanent];
+            let values: [*const c_void; 3] =
+                [kSecAttrKeyTypeECSECPrimeRandom, cf_bits, kCFBooleanFalse];
 
             let attrs = CFDictionaryCreate(
                 ptr::null(),
@@ -1039,7 +1031,9 @@ mod mac_webauthn {
             CFRelease(cf_data);
 
             if out.len() != 97 || out[0] != 0x04 {
-                return Err("Unexpected P-256 key format from macOS Security.framework.".to_string());
+                return Err(
+                    "Unexpected P-256 key format from macOS Security.framework.".to_string(),
+                );
             }
             Ok(out)
         }
@@ -1053,11 +1047,8 @@ mod mac_webauthn {
                 return Err("Failed to allocate CFNumber for P-256 signing.".to_string());
             }
 
-            let keys: [*const c_void; 3] = [
-                kSecAttrKeyType,
-                kSecAttrKeyClass,
-                kSecAttrKeySizeInBits,
-            ];
+            let keys: [*const c_void; 3] =
+                [kSecAttrKeyType, kSecAttrKeyClass, kSecAttrKeySizeInBits];
             let values: [*const c_void; 3] = [
                 kSecAttrKeyTypeECSECPrimeRandom,
                 kSecAttrKeyClassPrivate,
@@ -1077,7 +1068,8 @@ mod mac_webauthn {
                 return Err("Failed to create P-256 private key attributes.".to_string());
             }
 
-            let cf_key_data = CFDataCreate(ptr::null(), x963_priv.as_ptr(), x963_priv.len() as isize);
+            let cf_key_data =
+                CFDataCreate(ptr::null(), x963_priv.as_ptr(), x963_priv.len() as isize);
             if cf_key_data.is_null() {
                 CFRelease(attrs);
                 return Err("Failed to create CFData for P-256 private key.".to_string());
@@ -1114,7 +1106,9 @@ mod mac_webauthn {
                 if !sig_err.is_null() {
                     CFRelease(sig_err);
                 }
-                return Err("macOS Security.framework failed to sign WebAuthn assertion.".to_string());
+                return Err(
+                    "macOS Security.framework failed to sign WebAuthn assertion.".to_string(),
+                );
             }
 
             let len = CFDataGetLength(cf_sig) as usize;
@@ -1130,22 +1124,17 @@ mod mac_webauthn {
 
     fn encode_cose_p256_public_key(x: &[u8], y: &[u8]) -> Vec<u8> {
         let mut cose = Vec::with_capacity(77);
-        cose.push(0xA5); // map(5)
-        // 1 (kty): 2 (EC2)
+        cose.push(0xA5);
         cose.push(0x01);
         cose.push(0x02);
-        // 3 (alg): -7 (ES256)
         cose.push(0x03);
         cose.push(0x26);
-        // -1 (crv): 1 (P-256)
         cose.push(0x20);
         cose.push(0x01);
-        // -2 (x): bstr(32)
         cose.push(0x21);
         cose.push(0x58);
         cose.push(0x20);
         cose.extend_from_slice(&x[0..32]);
-        // -3 (y): bstr(32)
         cose.push(0x22);
         cose.push(0x58);
         cose.push(0x20);
@@ -1155,12 +1144,9 @@ mod mac_webauthn {
 
     fn encode_none_attestation_object(auth_data: &[u8]) -> Vec<u8> {
         let mut out = Vec::with_capacity(auth_data.len() + 32);
-        out.push(0xA3); // map(3)
-        // "fmt": "none"
+        out.push(0xA3);
         out.extend_from_slice(&[0x63, b'f', b'm', b't', 0x64, b'n', b'o', b'n', b'e']);
-        // "attStmt": {}
         out.extend_from_slice(&[0x67, b'a', b't', b't', b'S', b't', b'm', b't', 0xA0]);
-        // "authData": bstr(auth_data)
         out.extend_from_slice(&[0x68, b'a', b'u', b't', b'h', b'D', b'a', b't', b'a']);
         let len = auth_data.len();
         if len <= 0xFF {
@@ -1186,7 +1172,6 @@ mod mac_webauthn {
             .as_str()
             .ok_or_else(|| "Missing WebAuthn user.id".to_string())?;
 
-        // Trigger native macOS Touch ID / Apple Watch / Biometric prompt
         verify_macos_touch_id("register a Sanctuary OS FIDO2 Passkey")?;
 
         let origin = if let Some(custom_origin) = options["originOverride"].as_str() {
@@ -1197,50 +1182,56 @@ mod mac_webauthn {
             format!("https://{}", rp_id)
         };
 
-        let client_data_json = format!(
-            r#"{{"type":"webauthn.create","challenge":"{}","origin":"{}","crossOrigin":false}}"#,
-            challenge_str, origin
-        );
-        let client_data_bytes = client_data_json.as_bytes();
+        let client_data_bytes =
+            serialize_webauthn_client_data("webauthn.create", challenge_str, &origin)?;
 
-        let x963_priv = generate_p256_x963_keypair()?;
-        let pub_x = &x963_priv[1..33];
-        let pub_y = &x963_priv[33..65];
+        let mut x963_priv = generate_p256_x963_keypair()?;
+        let pub_x = x963_priv[1..33].to_vec();
+        let pub_y = x963_priv[33..65].to_vec();
 
-        let cred_id = seal_private_key_into_cred_id(&rp_id, &x963_priv)?;
+        // Generate an opaque 32-byte random credentialId — private key material NEVER leaves local storage!
+        let cred_id = generate_opaque_credential_id()?;
         let cred_id_b64 = b64url_encode(&cred_id);
+
+        let mut master_key = load_or_create_master_key()?;
+        let seal_res = seal_private_key_with_key(&master_key, &rp_id, &cred_id_b64, &x963_priv);
+        master_key.fill(0);
+        x963_priv.fill(0);
+        let (nonce_b64, sealed_priv_key_b64) = seal_res?;
 
         let now_secs = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(1);
 
-        save_stored_credential(StoredMacCredential {
+        save_stored_credential(StoredLocalPasskey {
             rp_id: rp_id.clone(),
             cred_id_b64: cred_id_b64.clone(),
             user_handle_b64: user_id_str.to_string(),
+            nonce_b64,
+            sealed_priv_key_b64,
             created_at: now_secs,
-        });
+        })?;
 
         let mut rp_hasher = Sha256::new();
         rp_hasher.update(rp_id.as_bytes());
         let rp_id_hash = rp_hasher.finalize();
 
-        let cose_pub_key = encode_cose_p256_public_key(pub_x, pub_y);
+        let cose_pub_key = encode_cose_p256_public_key(&pub_x, &pub_y);
         let sign_count = (now_secs as u32).to_be_bytes();
 
         let mut auth_data = Vec::with_capacity(37 + 18 + cred_id.len() + cose_pub_key.len());
         auth_data.extend_from_slice(&rp_id_hash);
-        auth_data.push(0x45); // UP (0x01) | UV (0x04) | AT (0x40)
+        auth_data.push(0x45);
         auth_data.extend_from_slice(&sign_count);
-        auth_data.extend_from_slice(&[0u8; 16]); // AAGUID (none attestation)
+        auth_data.extend_from_slice(&[0u8; 16]);
         auth_data.extend_from_slice(&(cred_id.len() as u16).to_be_bytes());
         auth_data.extend_from_slice(&cred_id);
         auth_data.extend_from_slice(&cose_pub_key);
 
         let attestation_obj = encode_none_attestation_object(&auth_data);
         let att_obj_b64 = b64url_encode(&attestation_obj);
-        let client_data_b64 = b64url_encode(client_data_bytes);
+        let client_data_b64 = b64url_encode(&client_data_bytes);
 
         Ok(json!({
             "id": cred_id_b64,
@@ -1267,55 +1258,47 @@ mod mac_webauthn {
             .ok_or_else(|| "Missing WebAuthn challenge".to_string())?;
 
         let stored_list = load_stored_credentials();
-        let mut matched_cred_bytes: Option<Vec<u8>> = None;
-        let mut matched_priv_key: Option<Vec<u8>> = None;
-        let mut matched_user_handle: Option<String> = None;
+        let mut matched_entry: Option<StoredLocalPasskey> = None;
 
         if let Some(arr) = options["allowCredentials"].as_array() {
             for item in arr {
                 if let Some(id_str) = item["id"].as_str() {
-                    if let Ok(raw_id) = b64url_decode(id_str) {
-                        if let Some(priv_key) = unseal_private_key_from_cred_id(&rp_id, &raw_id) {
-                            matched_cred_bytes = Some(raw_id);
-                            matched_priv_key = Some(priv_key);
-                            if let Some(found) = stored_list.iter().find(|c| c.cred_id_b64 == id_str)
-                            {
-                                matched_user_handle = Some(found.user_handle_b64.clone());
-                            }
-                            break;
-                        }
+                    if let Some(found) = stored_list
+                        .iter()
+                        .find(|c| c.rp_id == rp_id && c.cred_id_b64 == id_str.trim())
+                    {
+                        matched_entry = Some(found.clone());
+                        break;
                     }
                 }
             }
         }
 
-        if matched_priv_key.is_none() {
-            for item in &stored_list {
-                if item.rp_id == rp_id {
-                    if let Ok(raw_id) = b64url_decode(&item.cred_id_b64) {
-                        if let Some(priv_key) = unseal_private_key_from_cred_id(&rp_id, &raw_id) {
-                            matched_cred_bytes = Some(raw_id);
-                            matched_priv_key = Some(priv_key);
-                            matched_user_handle = Some(item.user_handle_b64.clone());
-                            break;
-                        }
-                    }
-                }
+        if matched_entry.is_none() {
+            if let Some(found) = stored_list.iter().find(|c| c.rp_id == rp_id) {
+                matched_entry = Some(found.clone());
             }
         }
 
-        let (cred_id_bytes, x963_priv) = match (matched_cred_bytes, matched_priv_key) {
-            (Some(c), Some(k)) => (c, k),
-            _ => {
-                return Err(
-                    "No macOS Touch ID Passkey found on this Mac for this account. Register a Passkey with Touch ID or use Companion Passkey Handshake."
-                        .to_string(),
-                )
-            }
-        };
+        let entry = matched_entry.ok_or_else(|| {
+            "No macOS Touch ID Passkey found on this Mac for this account. Register a Passkey with Touch ID or use Companion Passkey Handshake.".to_string()
+        })?;
 
-        // Trigger native macOS Touch ID / Apple Watch / Biometric prompt
+        let cred_id_bytes = b64url_decode(&entry.cred_id_b64)?;
+
+        // Gate key unsealing strictly behind Touch ID / system biometric verification
         verify_macos_touch_id("authenticate your Sanctuary OS FIDO2 Passkey")?;
+
+        let mut master_key = load_or_create_master_key()?;
+        let unseal_res = unseal_private_key_with_key(
+            &master_key,
+            &entry.rp_id,
+            &entry.cred_id_b64,
+            &entry.nonce_b64,
+            &entry.sealed_priv_key_b64,
+        );
+        master_key.fill(0);
+        let mut x963_priv = unseal_res?;
 
         let origin = if let Some(custom_origin) = options["originOverride"].as_str() {
             custom_origin.to_string()
@@ -1325,11 +1308,8 @@ mod mac_webauthn {
             format!("https://{}", rp_id)
         };
 
-        let client_data_json = format!(
-            r#"{{"type":"webauthn.get","challenge":"{}","origin":"{}","crossOrigin":false}}"#,
-            challenge_str, origin
-        );
-        let client_data_bytes = client_data_json.as_bytes();
+        let client_data_bytes =
+            serialize_webauthn_client_data("webauthn.get", challenge_str, &origin)?;
 
         let mut rp_hasher = Sha256::new();
         rp_hasher.update(rp_id.as_bytes());
@@ -1342,23 +1322,25 @@ mod mac_webauthn {
 
         let mut auth_data = Vec::with_capacity(37);
         auth_data.extend_from_slice(&rp_id_hash);
-        auth_data.push(0x05); // UP (0x01) | UV (0x04)
+        auth_data.push(0x05);
         auth_data.extend_from_slice(&now_secs.to_be_bytes());
 
         let mut client_hasher = Sha256::new();
-        client_hasher.update(client_data_bytes);
+        client_hasher.update(&client_data_bytes);
         let client_data_hash = client_hasher.finalize();
 
         let mut signed_payload = Vec::with_capacity(auth_data.len() + 32);
         signed_payload.extend_from_slice(&auth_data);
         signed_payload.extend_from_slice(&client_data_hash);
 
-        let signature_der = sign_p256_sha256(&x963_priv, &signed_payload)?;
+        let sign_res = sign_p256_sha256(&x963_priv, &signed_payload);
+        x963_priv.fill(0);
+        let signature_der = sign_res?;
 
         let cred_id_b64 = b64url_encode(&cred_id_bytes);
         let auth_data_b64 = b64url_encode(&auth_data);
         let sig_b64 = b64url_encode(&signature_der);
-        let client_data_b64 = b64url_encode(client_data_bytes);
+        let client_data_b64 = b64url_encode(&client_data_bytes);
 
         Ok(json!({
             "id": cred_id_b64,
@@ -1368,7 +1350,7 @@ mod mac_webauthn {
                 "authenticatorData": auth_data_b64,
                 "clientDataJSON": client_data_b64,
                 "signature": sig_b64,
-                "userHandle": matched_user_handle
+                "userHandle": Some(entry.user_handle_b64)
             },
             "clientExtensionResults": {},
             "authenticatorAttachment": "platform"
@@ -1377,7 +1359,10 @@ mod mac_webauthn {
 }
 
 #[tauri::command]
-pub async fn native_webauthn_register(window: tauri::Window, options: Value) -> Result<Value, String> {
+pub async fn native_webauthn_register(
+    window: tauri::Window,
+    options: Value,
+) -> Result<Value, String> {
     #[cfg(target_os = "windows")]
     {
         let hwnd = window.hwnd().map(|h| h.0 as isize).unwrap_or(0);
@@ -1400,7 +1385,10 @@ pub async fn native_webauthn_register(window: tauri::Window, options: Value) -> 
 }
 
 #[tauri::command]
-pub async fn native_webauthn_authenticate(window: tauri::Window, options: Value) -> Result<Value, String> {
+pub async fn native_webauthn_authenticate(
+    window: tauri::Window,
+    options: Value,
+) -> Result<Value, String> {
     #[cfg(target_os = "windows")]
     {
         let hwnd = window.hwnd().map(|h| h.0 as isize).unwrap_or(0);
@@ -1422,3 +1410,59 @@ pub async fn native_webauthn_authenticate(window: tauri::Window, options: Value)
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::local_passkey_vault::*;
+    use super::*;
+
+    #[test]
+    fn client_data_json_escapes_injection_payloads() {
+        let malicious_challenge = r#"abc","origin":"https://evil.example","extra":"#;
+        let bytes = serialize_webauthn_client_data(
+            "webauthn.get",
+            malicious_challenge,
+            "https://sanctuaryos.net",
+        )
+        .expect("serialize_webauthn_client_data");
+        let parsed: Value = serde_json::from_slice(&bytes).expect("valid JSON");
+        assert_eq!(parsed["type"], "webauthn.get");
+        assert_eq!(parsed["challenge"], malicious_challenge);
+        assert_eq!(parsed["origin"], "https://sanctuaryos.net");
+        assert_eq!(parsed["crossOrigin"], false);
+        assert!(parsed.get("extra").is_none());
+    }
+
+    #[test]
+    fn aes_256_gcm_passkey_sealing_roundtrip_and_aad_binding() {
+        let key = [0x42u8; 32];
+        let cred_id = generate_opaque_credential_id().expect("opaque cred id");
+        assert_eq!(cred_id.len(), 32);
+        let cred_id_b64 = b64url_encode(&cred_id);
+        let dummy_priv = vec![0x04u8; 97];
+
+        let (nonce_b64, sealed_b64) =
+            seal_private_key_with_key(&key, "sanctuaryos.net", &cred_id_b64, &dummy_priv)
+                .expect("seal");
+        assert_ne!(cred_id_b64, sealed_b64);
+
+        let opened = unseal_private_key_with_key(
+            &key,
+            "sanctuaryos.net",
+            &cred_id_b64,
+            &nonce_b64,
+            &sealed_b64,
+        )
+        .expect("unseal");
+        assert_eq!(opened, dummy_priv);
+
+        // Tampered RP ID must fail AES-GCM tag verification
+        assert!(unseal_private_key_with_key(
+            &key,
+            "evil.example",
+            &cred_id_b64,
+            &nonce_b64,
+            &sealed_b64,
+        )
+        .is_err());
+    }
+}

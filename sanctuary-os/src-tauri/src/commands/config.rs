@@ -11,10 +11,14 @@ pub fn read_config_file(path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn save_config_file(path: String, content: String) -> Result<String, String> {
-    if !crate::utils::is_safe_user_file_path(Path::new(&path)) {
+    let target = Path::new(&path);
+    if !crate::utils::is_safe_user_file_path(target) {
         return Err("Blocked: Refusing to overwrite protected system file.".into());
     }
-    fs::write(path, content)
-        .map(|_| "Saved".into())
-        .map_err(|e| e.to_string())
+    let coords = crate::commands::state_ops::get_saved_coordinates();
+    let allowed = crate::utils::get_allowed_workspace_roots(&coords);
+    if !allowed.is_empty() {
+        crate::utils::ensure_strict_descendant_of_roots(target, &allowed)?;
+    }
+    crate::utils::atomic_write_bytes(target, content.as_bytes()).map(|_| "Saved".into())
 }

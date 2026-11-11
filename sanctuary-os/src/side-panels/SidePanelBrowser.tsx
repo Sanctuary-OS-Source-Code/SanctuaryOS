@@ -14,6 +14,7 @@ import {
   HoverTooltip,
   VAULT_CHIP_CLASS,
 } from '../shared';
+import { useShallow } from 'zustand/react/shallow';
 import { useModalStore } from '../store/modalStore';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
@@ -140,7 +141,37 @@ export default function SidePanelBrowser() {
     yeetConfirmPending,
     isBackingUp,
     isRestoring,
-  } = useModalStore();
+  } = useModalStore(
+    useShallow((s) => ({
+      isSideBrowserOpen: s.isSideBrowserOpen,
+      setIsSideBrowserOpen: s.setIsSideBrowserOpen,
+      sideBrowserUrl: s.sideBrowserUrl,
+      sideBrowserTrigger: s.sideBrowserTrigger,
+      browserTabs: s.browserTabs,
+      setBrowserTabs: s.setBrowserTabs,
+      activeBrowserTabId: s.activeBrowserTabId,
+      setActiveBrowserTabId: s.setActiveBrowserTabId,
+      browserBookmarks: s.browserBookmarks,
+      setBrowserBookmarks: s.setBrowserBookmarks,
+      browserHistory: s.browserHistory,
+      setBrowserHistory: s.setBrowserHistory,
+      maxActiveWebviews: s.maxActiveWebviews,
+      downloadsQueue: s.downloadsQueue,
+      setDownloadsQueue: s.setDownloadsQueue,
+      guidedBrowserQueue: s.guidedBrowserQueue,
+      guidedBrowserIndex: s.guidedBrowserIndex,
+      advanceGuidedBrowserQueue: s.advanceGuidedBrowserQueue,
+      setGuidedBrowserIndex: s.setGuidedBrowserIndex,
+      clearGuidedBrowserQueue: s.clearGuidedBrowserQueue,
+      dnaMatchQueue: s.dnaMatchQueue,
+      confirmDialog: s.confirmDialog,
+      bulkModal: s.bulkModal,
+      localFolderModal: s.localFolderModal,
+      yeetConfirmPending: s.yeetConfirmPending,
+      isBackingUp: s.isBackingUp,
+      isRestoring: s.isRestoring,
+    }))
+  );
 
   // Compute theme-harmonized background colors for the Webview & corner mask
   const browserThemeColors = useMemo(() => {
@@ -228,7 +259,7 @@ export default function SidePanelBrowser() {
 
   const webviewsRef = useRef<Map<string, Webview>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
-  const bridgeTokenRef = useRef<string>(crypto.randomUUID());
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
 
   const [hasInitialized, setHasInitialized] = useState(false);
 
@@ -303,6 +334,36 @@ export default function SidePanelBrowser() {
     };
   }, [isBookmarksDropdownOpen, isBrowserFullscreen, downloadsQueue.length, isSideBrowserOpen]);
 
+  const schemaDownloadExts = useMemo(() => {
+    const containers = Array.isArray(activeGameSchema?.archive_containers)
+      ? activeGameSchema.archive_containers
+      : [];
+    const supported = Array.isArray(activeGameSchema?.extensions?.supported)
+      ? activeGameSchema.extensions.supported
+      : [];
+    return Array.from(
+      new Set(
+        [...containers, ...supported]
+          .map((ext: any) => String(ext || '').trim().toLowerCase().replace(/^\./, ''))
+          .filter(Boolean)
+      )
+    );
+  }, [activeGameSchema]);
+
+  const contextMenuLabels = useMemo(
+    () => ({
+      openLinkNewTab: t('browser_ctx_open_new_tab', 'Open Link in New Tab'),
+      copyLinkAddress: t('browser_ctx_copy_link', 'Copy Link Address'),
+      copyVideoUrl: t('browser_ctx_copy_video', 'Copy Video URL'),
+      cut: t('browser_ctx_cut', 'Cut'),
+      copy: t('copy', 'Copy'),
+      selectAll: t('btn_select_all', 'Select All'),
+      reloadPage: t('refresh', 'Reload Page'),
+      goBack: t('back', 'Back'),
+    }),
+    [t]
+  );
+
   const buildInjectedScript = useCallback(() => {
     return INJECTED_BROWSER_SCRIPT
       .replace(/__OS_BG_R__/g, String(browserThemeColors.bgR))
@@ -315,8 +376,9 @@ export default function SidePanelBrowser() {
       .replace(/__OS_ACCENT_G__/g, String(browserThemeColors.accentG))
       .replace(/__OS_ACCENT_B__/g, String(browserThemeColors.accentB))
       .replace(/__OS_IS_LIGHT__/g, String(browserThemeColors.isLight))
-      .replace(/__SANCTUARY_BRIDGE_TOKEN__/g, bridgeTokenRef.current);
-  }, [browserThemeColors]);
+      .replace(/__SANCTUARY_CTX_LABELS__/g, JSON.stringify(contextMenuLabels))
+      .replace(/__SANCTUARY_DOWNLOAD_EXTS__/g, JSON.stringify(schemaDownloadExts));
+  }, [browserThemeColors, contextMenuLabels, schemaDownloadExts]);
 
   useEffect(() => {
     if (!isSideBrowserOpen || !activeBrowserTabId) return;
@@ -339,7 +401,9 @@ export default function SidePanelBrowser() {
               const parts = url.split('#sanctuary-new-tab=');
               if (parts.length > 1) {
                 const targetUrl = decodeURIComponent(parts[1]);
-                openUrlInNewTab(targetUrl);
+                if (/^https?:\/\//i.test(targetUrl)) {
+                  openUrlInNewTab(targetUrl);
+                }
                 invoke('webview_eval', {
                   label: activeLabel,
                   script:
@@ -350,94 +414,12 @@ export default function SidePanelBrowser() {
             }
 
             if (url.includes('#sanctuary-action=')) {
-              const parts = url.split('#sanctuary-action=');
-              if (parts.length > 1) {
-                const rawAction = parts[1];
-                const expectedPrefix = `${bridgeTokenRef.current}:`;
-                if (!rawAction.startsWith(expectedPrefix)) {
-                  invoke('webview_eval', {
-                    label: activeLabel,
-                    script:
-                      "window.history.replaceState(null, '', window.location.pathname + window.location.search);",
-                  }).catch(console.error);
-                  return;
-                }
-                const action = rawAction.slice(expectedPrefix.length);
-                if (action === 'paste') {
-                  import('@tauri-apps/plugin-clipboard-manager').then(({ readText }) => {
-                    readText().then((clipText) => {
-                      if (clipText) {
-                        const escaped = JSON.stringify(clipText);
-                        invoke('webview_eval', {
-                          label: activeLabel,
-                          script: `document.execCommand('insertText', false, ${escaped})`,
-                        }).catch(console.error);
-                      }
-                    });
-                  });
-                } else if (action.startsWith('copyText=')) {
-                  const textToCopy = decodeURIComponent(action.substring(9));
-                  import('@tauri-apps/plugin-clipboard-manager').then(({ writeText }) => {
-                    writeText(textToCopy).catch(console.error);
-                  });
-                } else if (action.startsWith('stripeCheckoutSuccess=')) {
-                  try {
-                    const rawPayload = decodeURIComponent(
-                      action.substring('stripeCheckoutSuccess='.length)
-                    );
-                    const parsed = JSON.parse(rawPayload);
-                    const sessionId = String(parsed.sessionId || '').trim();
-                    const amountUsd = Math.max(5, Number(parsed.amountUsd || 5));
-                    if (
-                      /^cs_[a-zA-Z0-9_]+$/.test(sessionId) &&
-                      /^https:\/\/([a-z0-9-]+\.)*stripe\.com\//i.test(url)
-                    ) {
-                      setTimeout(() => {
-                        import('../utils/supporterManager').then(
-                          ({ stackGlobalDevBuildDonation, presentSupporterCelebrationModal }) => {
-                            stackGlobalDevBuildDonation({
-                              amountUsd,
-                              txNonce: `stripe_${sessionId}`,
-                            })
-                              .then((res) => {
-                                window.dispatchEvent(
-                                  new CustomEvent('sanctuary-supporter-updated')
-                                );
-                                presentSupporterCelebrationModal({
-                                  devBuildUntil: res.devBuild.dev_build_until,
-                                  monthsAdded: res.monthsAdded,
-                                  t,
-                                });
-                                useStore
-                                  .getState()
-                                  .pushStatus(
-                                    t(
-                                      'supporter_status_stacked',
-                                      'Global Dev Build access updated! +30 days per $5 stacked to your account.'
-                                    ),
-                                    'success'
-                                  );
-                              })
-                              .catch(() => {
-                                window.dispatchEvent(
-                                  new CustomEvent('sanctuary-supporter-updated')
-                                );
-                              });
-                          }
-                        );
-                      }, 950);
-                    }
-                  } catch (err) {
-                    console.error('Failed to process stripeCheckoutSuccess:', err);
-                  }
-                }
-                invoke('webview_eval', {
-                  label: activeLabel,
-                  script:
-                    "window.history.replaceState(null, '', window.location.pathname + window.location.search);",
-                }).catch(console.error);
-                return;
-              }
+              invoke('webview_eval', {
+                label: activeLabel,
+                script:
+                  "window.history.replaceState(null, '', window.location.pathname + window.location.search);",
+              }).catch(console.error);
+              return;
             }
 
             const displayUrl = cleanDisplayUrl(url);

@@ -1,13 +1,10 @@
 import { useLexicon } from "./LexiconContext";
-import { stripMarkdown, renderTextWithIcons, HoverTooltip } from "./shared";
+import { stripMarkdown, renderTextWithIcons, HoverTooltip, VAULT_CHIP_CLASS } from "./shared";
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { extractDispatchMetadata } from "./components/universal/DispatchPollAndMeta";
 import { formatSanctuaryDate } from "./utils/dateUtils";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export default function MasonPostCard({ post, index, onPostClick, onToggleLike, onOpenMasonProfile, isFeatured, isCompact, layout, actions, hasUnsavedEdits, hidePinBadge, onContextMenu }: any) {
   const { t, td } = useLexicon();

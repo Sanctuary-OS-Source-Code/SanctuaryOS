@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useShallow } from "zustand/react/shallow";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
@@ -46,9 +47,7 @@ import {
   StagedCloudPayload,
   ResolvedStagedPayload,
 } from "../utils/stagingCrypto";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { VAULT_CHIP_CLASS } from "../shared-components/constants";
 
 const PRIORITY_TIERS = [
   {
@@ -88,24 +87,6 @@ function resolveKnownAuthor(mod: any, fallbackText: string): string {
   ) {
     return explicit;
   }
-  const n = String(mod?.name || mod?.displayName || "").toLowerCase();
-  if (n.includes("mc command") || n.startsWith("mc ") || n.startsWith("mc_") || n.includes("mccc"))
-    return "Deaderpool";
-  if (n.includes("wickedwhims") || n.includes("wonderfulwhims") || n.startsWith("ww_"))
-    return "TURBODRIVER";
-  if (n.includes("ui cheats") || n.includes("ui_cheats")) return "weerbesu";
-  if (n.includes("xml injector") || n.includes("xmlinjector")) return "Scumbumbo";
-  if (n.includes("basemental")) return "Basemental";
-  if (n.includes("lumpinou") || n.includes("rpo_") || n.includes("relationship & pregnancy"))
-    return "Lumpinou";
-  if (n.includes("littlemssam") || n.startsWith("lms_")) return "LittleMsSam";
-  if (n.includes("twistedmexi") || n.includes("betterbuildbuy") || n.includes("tool mod"))
-    return "TwistedMexi";
-  if (n.includes("kawaiistacie")) return "KawaiiStacie";
-  if (n.includes("adeepindigo")) return "adeepindigo";
-  if (n.includes("kiarasims")) return "KiaraSims4Mods";
-  if (n.includes("lot51") || n.includes("lot 51")) return "Lot 51";
-  if (n.includes("pandasama")) return "PandaSama";
   return fallbackText;
 }
 
@@ -160,7 +141,41 @@ export default function StagingPayloadEditor({
     activeSignatureQueueIndex,
     setActiveSignatureQueueIndex,
     setIsSignatureQueueOpen,
-  } = useModalStore();
+  } = useModalStore(
+    useShallow((s) => ({
+      stagingDraftMode: s.stagingDraftMode,
+      setStagingDraftMode: s.setStagingDraftMode,
+      stagingDraftName: s.stagingDraftName,
+      setStagingDraftName: s.setStagingDraftName,
+      stagingTargetDesktopBlueprint: s.stagingTargetDesktopBlueprint,
+      setStagingTargetDesktopBlueprint: s.setStagingTargetDesktopBlueprint,
+      stagingDraftCode: s.stagingDraftCode,
+      stagingDraftNotes: s.stagingDraftNotes,
+      setStagingDraftNotes: s.setStagingDraftNotes,
+      stagingDraftAutoEquip: s.stagingDraftAutoEquip,
+      setStagingDraftAutoEquip: s.setStagingDraftAutoEquip,
+      stagingDraftStrategy: s.stagingDraftStrategy,
+      setStagingDraftStrategy: s.setStagingDraftStrategy,
+      stagingDraftItems: s.stagingDraftItems,
+      setStagingDraftItems: s.setStagingDraftItems,
+      stagingDraftRemovedItems: s.stagingDraftRemovedItems,
+      setStagingDraftRemovedItems: s.setStagingDraftRemovedItems,
+      savedLocalDrafts: s.savedLocalDrafts,
+      saveCurrentDraftLocally: s.saveCurrentDraftLocally,
+      loadSavedLocalDraft: s.loadSavedLocalDraft,
+      deleteSavedLocalDraft: s.deleteSavedLocalDraft,
+      toggleModInStagingDraft: s.toggleModInStagingDraft,
+      toggleRemoveModInStagingDraft: s.toggleRemoveModInStagingDraft,
+      clearStagingDraft: s.clearStagingDraft,
+      volatileSignatureQueue: s.volatileSignatureQueue,
+      setVolatileSignatureQueue: s.setVolatileSignatureQueue,
+      volatileSignatureQueues: s.volatileSignatureQueues,
+      setVolatileSignatureQueues: s.setVolatileSignatureQueues,
+      activeSignatureQueueIndex: s.activeSignatureQueueIndex,
+      setActiveSignatureQueueIndex: s.setActiveSignatureQueueIndex,
+      setIsSignatureQueueOpen: s.setIsSignatureQueueOpen,
+    }))
+  );
 
   const [activeSubTab, setActiveSubTab] = useState<
     "OVERVIEW" | "DESKTOP_BPS" | "SAVED" | "CLOUD"
@@ -1739,20 +1754,19 @@ export default function StagingPayloadEditor({
           </div>
         </>
       ) : (
-        <div className="flex flex-col w-full gap-3 mb-6 relative z-10 shrink-0">
-          <StatTileCarousel innerClassName="px-0">
-            {subTabs.map((st) => (
-              <DashboardStatTile
-                key={st.id}
-                variant="tab"
-                icon={st.icon}
-                label={st.label}
-                number={st.count}
-                onClick={() => setActiveSubTab(st.id)}
-                isActive={activeSubTab === st.id}
-              />
-            ))}
-          </StatTileCarousel>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full mb-6 relative z-10 shrink-0">
+          {subTabs.map((st) => (
+            <DashboardStatTile
+              key={st.id}
+              variant="filter"
+              className="!w-full"
+              icon={st.icon}
+              label={st.label}
+              number={st.count}
+              onClick={() => setActiveSubTab(st.id)}
+              isActive={activeSubTab === st.id}
+            />
+          ))}
         </div>
       )}
 

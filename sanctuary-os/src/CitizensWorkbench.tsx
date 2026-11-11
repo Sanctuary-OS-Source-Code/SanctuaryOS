@@ -17,9 +17,8 @@ import { UniversalCard } from './components/universal/UniversalCard';
 import { useWorkbenchFiles } from './workbench/hooks/useWorkbenchFiles';
 import { useWorkbenchEditor } from './workbench/hooks/useWorkbenchEditor';
 import { useWorkbenchLayout } from './workbench/hooks/useWorkbenchLayout';
-
-const VAULT_CHIP_CLASS =
-   "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { isSanctuaryTemplateFile, isSanctuaryTemplateFileName } from './workbench/workbenchFormatUtils';
+import { VAULT_CHIP_CLASS } from './shared-components/constants';
 
 export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonProfile?: (masonId: string, postId?: string) => void }) {
    const { t } = useLexicon();
@@ -50,7 +49,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
    const layoutState = useWorkbenchLayout({
       editorRef: editorState.editorRef,
       previewMode: 'preview',
-      isTemplateMode: selectedFile?.name.toLowerCase().endsWith('.json') || false
+      isTemplateMode: isSanctuaryTemplateFile(selectedFile, editorState.parsedData)
    });
 
    const [activeTemplate, setActiveTemplate] = useState<any>(null);
@@ -108,36 +107,20 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
    }, [selectedFile, fileState.availableTemplates, lastInitializedFile, selectedTemplatePath, activeTemplate, customAppliedTemplate]);
 
    useEffect(() => {
-      const currentUnsaved = useStore.getState().cwUnsavedEdits || {};
-      let mutated = false;
-      const nextUnsaved = { ...currentUnsaved };
-      for (const [fPath, rawVal] of Object.entries(currentUnsaved)) {
-         const lower = fPath.toLowerCase();
-         if (lower.endsWith('mc_settings.json') || lower.endsWith('mccc_settings_template_template.json') || lower.endsWith('template_jrmu.json')) {
-            if (typeof rawVal === 'string' && (!rawVal.includes('"template_version": "2.0.0"') || rawVal.includes('"Appearance Female Fit Limits"'))) {
-               delete nextUnsaved[fPath];
-               mutated = true;
-            }
-         } else if (lower.endsWith('mc_settings.cfg')) {
-            if (typeof rawVal === 'string' && rawVal.includes('"Appearance_FemaleFitLimits": "0"')) {
-               delete nextUnsaved[fPath];
-               mutated = true;
-            }
-         }
-      }
-      if (mutated) {
-         useStore.getState().setCwUnsavedEdits(nextUnsaved);
-      }
-
       return () => {
          useStore.getState().setCwSelectedFile(null);
       };
    }, []);
 
-   const configsCount = fileState.files.filter((f: any) => !f.name.toLowerCase().endsWith('.json')).length;
-   const templatesCount = fileState.files.filter((f: any) => f.name.toLowerCase().endsWith('.json')).length;
-   const unsavedConfigsCount = Object.keys(unsavedEdits || {}).filter(p => !p.toLowerCase().endsWith('.json')).length;
-   const unsavedTemplatesCount = Object.keys(unsavedEdits || {}).filter(p => p.toLowerCase().endsWith('.json')).length;
+   const configsCount = fileState.files.filter((f: any) => !isSanctuaryTemplateFile(f)).length;
+   const templatesCount = fileState.files.filter((f: any) => isSanctuaryTemplateFile(f)).length;
+   const isUnsavedPathTemplate = (p: string) => {
+      const matched = fileState.files.find((f: any) => f.path === p);
+      if (matched) return isSanctuaryTemplateFile(matched);
+      return isSanctuaryTemplateFile({ path: p }, unsavedEdits?.[p]);
+   };
+   const unsavedConfigsCount = Object.keys(unsavedEdits || {}).filter(p => !isUnsavedPathTemplate(p)).length;
+   const unsavedTemplatesCount = Object.keys(unsavedEdits || {}).filter(p => isUnsavedPathTemplate(p)).length;
 
    const headerPillActions = React.useMemo(() => {
       const list: any[] = [];
@@ -215,7 +198,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
                            {(() => {
                               const recentActivityFiles = fileState.files.filter((f: any) => {
-                                 const isTmpl = f.name.toLowerCase().endsWith('.json');
+                                 const isTmpl = isSanctuaryTemplateFile(f);
                                  if (feedFilter === "CONFIGS" && isTmpl) return false;
                                  if (feedFilter === "TEMPLATES" && !isTmpl) return false;
                                  return unsavedEdits && unsavedEdits[f.path] !== undefined;
@@ -235,10 +218,15 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                               return (
                                  <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                                     {recentActivityFiles.map((file: any) => {
-                                       const isTmpl = file.name.toLowerCase().endsWith('.json');
+                                       const isTmpl = isSanctuaryTemplateFile(file);
+                                       const isSanctuaryTmplName = isSanctuaryTemplateFileName(file.name);
                                        const dotIndex = file.name.lastIndexOf('.');
-                                       const baseTitle = dotIndex > 0 ? file.name.substring(0, dotIndex) : file.name;
-                                       const extLabel = dotIndex > 0 ? file.name.substring(dotIndex) : (isTmpl ? t("schema_json", ".json") : t("schema_system", ".cfg"));
+                                       const baseTitle = isSanctuaryTmplName
+                                          ? file.name.slice(0, -'.sanctuary.template.json'.length)
+                                          : (dotIndex > 0 ? file.name.substring(0, dotIndex) : file.name);
+                                       const extLabel = isSanctuaryTmplName
+                                          ? '.sanctuary.template.json'
+                                          : (dotIndex > 0 ? file.name.substring(dotIndex) : (isTmpl ? t("schema_json", ".json") : t("schema_system", ".cfg")));
                                        return (
                                           <UniversalCard
                                              key={file.path}
@@ -408,7 +396,9 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                if (selectedFile) {
                   try {
                      const sanitizedName = newName.replace(/[^a-z0-9_\-\.]/gi, '_');
-                     const newFileName = sanitizedName.toLowerCase().endsWith('.json') ? sanitizedName : sanitizedName + '.json';
+                     const newFileName = sanitizedName.toLowerCase().endsWith('.sanctuary.template.json')
+                        ? sanitizedName
+                        : `${sanitizedName.replace(/\.json$/i, '')}.sanctuary.template.json`;
 
                      if (newFileName !== selectedFile.name) {
                         const dirPath = selectedFile.path.substring(0, selectedFile.path.lastIndexOf(selectedFile.path.includes('\\') ? '\\' : '/'));
@@ -418,7 +408,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                         await writeTextFile(newPath, newJson);
                         await remove(selectedFile.path);
 
-                        useStore.getState().setCwSelectedFile({ name: newFileName, path: newPath });
+                        useStore.getState().setCwSelectedFile({ name: newFileName, path: newPath, isTemplate: true });
                      } else {
                         await invoke('save_file_silently', { path: selectedFile.path, content: newJson });
                      }
@@ -506,7 +496,7 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                currentContent={editorState.rawText}
                savedContent={editorState.savedRawText}
                visualTemplate={
-                  !selectedFile.name.toLowerCase().endsWith('.json')
+                  !isSanctuaryTemplateFile(selectedFile, editorState.parsedData)
                      ? ((selectedTemplatePath && selectedTemplatePath !== "built_in" && customAppliedTemplate) ? customAppliedTemplate : activeTemplate)
                      : undefined
                }

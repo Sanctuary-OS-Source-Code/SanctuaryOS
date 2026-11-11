@@ -27,21 +27,6 @@ declare module "https://esm.sh/@supabase/supabase-js@2" {
   };
 }
 
-declare module "https://esm.sh/@supabase/supabase-js@2.39.8" {
-  export function createClient(
-    supabaseUrl: string,
-    supabaseKey: string,
-    options?: Record<string, any>,
-  ): {
-    from: (table: string) => any;
-    rpc: (
-      fn: string,
-      params?: Record<string, any>,
-    ) => Promise<{ data: any; error: any }>;
-    auth: any;
-  };
-}
-
 declare module "https://deno.land/std@0.177.0/http/server.ts" {
   export function serve(
     handler: (req: Request) => Response | Promise<Response>,

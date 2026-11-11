@@ -40,6 +40,10 @@ pub fn initialize_vault_watch(
         return;
     }
     let mods_path_to_ignore = std::path::PathBuf::from(&config.mods_path);
+    let game_schema = app_state.active_schema.lock().unwrap().clone();
+    let supported_exts = crate::game_logic::get_supported_extensions(&game_schema);
+    let editable_cfg_exts = crate::game_logic::get_editable_config_extensions(&game_schema);
+    let manifest_leaf_lower = crate::game_logic::resolve_manifest_leaf_lower(&game_schema);
     let is_deploying = app_state.inner().is_deploying.clone();
     let last_deploy_epoch_ms = app_state.inner().last_deploy_epoch_ms.clone();
     let shutdown_rx = reset_watcher_shutdown(&VAULT_WATCH_SHUTDOWN);
@@ -103,16 +107,26 @@ pub fn initialize_vault_watch(
                             .and_then(|n| n.to_str())
                             .unwrap_or_default()
                             .to_lowercase();
+                        let ext_lower = path
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .unwrap_or_default()
+                            .to_lowercase();
+                        let is_config_only = !ext_lower.is_empty()
+                            && editable_cfg_exts.contains(&ext_lower)
+                            && !supported_exts.contains(&ext_lower);
                         if lower.ends_with(".db")
                             || lower.ends_with(".db-journal")
                             || lower.ends_with(".db-wal")
                             || lower.ends_with(".db-shm")
-                            || lower.ends_with(".json")
-                            || lower.ends_with(".cfg")
-                            || lower.ends_with(".ini")
-                            || lower.ends_with(".txt")
+                            || is_config_only
+                            || (!manifest_leaf_lower.is_empty()
+                                && file_name_lower == manifest_leaf_lower)
+                            || file_name_lower == crate::utils::SANCTUARY_EDGE_MANIFEST_FILE
+                            || file_name_lower == crate::utils::SANCTUARY_EDGE_OVERRIDE_FILE
                             || lower.ends_with(".tmp_sanctuary_conflict")
                             || lower.contains(".tmp_sanctuary_conflict")
+                            || lower.contains(".tmp.")
                             || file_name_lower.starts_with(".shredding_")
                             || lower.contains(".shredding_")
                             || file_name_lower == ".ds_store"
@@ -146,11 +160,16 @@ pub fn initialize_airgap_watch(
     app_handle: tauri::AppHandle,
     docs_path: String,
     vault_path: String,
+    app_state: tauri::State<'_, AppState>,
 ) {
     let path_to_watch = std::path::PathBuf::from(&docs_path);
     if !path_to_watch.exists() {
         return;
     }
+
+    let game_schema = app_state.active_schema.lock().unwrap().clone();
+    let editable_exts = crate::game_logic::get_editable_config_extensions(&game_schema);
+    let manifest_leaf_lower = crate::game_logic::resolve_manifest_leaf_lower(&game_schema);
 
     let v_path = std::path::PathBuf::from(&vault_path)
         .join("Backups")
@@ -197,16 +216,15 @@ pub fn initialize_airgap_watch(
                             }
                             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                                 let ext_lower = ext.to_lowercase();
-                                if matches!(
-                                    ext_lower.as_str(),
-                                    "cfg" | "ini" | "json" | "toml" | "txt" | "xml"
-                                ) {
+                                if editable_exts.contains(&ext_lower) {
                                     if let Some(filename) = path.file_name() {
                                         let fname_str = filename.to_string_lossy().to_string();
+                                        let fname_lower = fname_str.to_lowercase();
                                         if fname_str.starts_with('.')
-                                            || fname_str.eq_ignore_ascii_case("Resource.cfg")
-                                            || fname_str.eq_ignore_ascii_case("Default.ini")
-                                            || fname_str.eq_ignore_ascii_case("desktop.ini")
+                                            || (!manifest_leaf_lower.is_empty()
+                                                && fname_lower == manifest_leaf_lower)
+                                            || fname_lower == "desktop.ini"
+                                            || fname_lower == "thumbs.db"
                                         {
                                             continue;
                                         }
@@ -275,6 +293,9 @@ pub fn initialize_settings_watch(
     let vault_mods_path = crate::utils::get_vault_mods_lane(&vault_path);
     let _ = std::fs::create_dir_all(&vault_mods_path);
 
+    let game_schema = app_state.active_schema.lock().unwrap().clone();
+    let editable_exts = crate::game_logic::get_editable_config_extensions(&game_schema);
+    let manifest_leaf_lower = crate::game_logic::resolve_manifest_leaf_lower(&game_schema);
     let is_deploying = app_state.inner().is_deploying.clone();
     let last_deploy_epoch_ms = app_state.inner().last_deploy_epoch_ms.clone();
     let shutdown_rx = reset_watcher_shutdown(&SETTINGS_WATCH_SHUTDOWN);
@@ -288,25 +309,23 @@ pub fn initialize_settings_watch(
                 return false;
             };
             let ext_lower = ext.to_lowercase();
-            if !matches!(
-                ext_lower.as_str(),
-                "cfg" | "ini" | "json" | "toml" | "txt" | "xml"
-            ) {
+            if !editable_exts.contains(&ext_lower) {
                 return false;
             }
             let Some(file_name) = p.file_name().and_then(|n| n.to_str()) else {
                 return false;
             };
+            let fname_lower = file_name.to_lowercase();
             if file_name.starts_with('.')
                 || file_name.starts_with("._")
-                || file_name.eq_ignore_ascii_case("Default.ini")
-                || file_name.eq_ignore_ascii_case("Resource.cfg")
-                || file_name.eq_ignore_ascii_case("desktop.ini")
-                || file_name.eq_ignore_ascii_case(".DS_Store")
-                || file_name.eq_ignore_ascii_case("override.json")
-                || file_name.eq_ignore_ascii_case("manifest.json")
-                || file_name.eq_ignore_ascii_case(".sanctuary_deployed_links.json")
-                || file_name.eq_ignore_ascii_case(".sanctuary_cache.json")
+                || (!manifest_leaf_lower.is_empty() && fname_lower == manifest_leaf_lower)
+                || fname_lower == "desktop.ini"
+                || fname_lower == "thumbs.db"
+                || fname_lower == ".ds_store"
+                || fname_lower == crate::utils::SANCTUARY_EDGE_OVERRIDE_FILE
+                || fname_lower == crate::utils::SANCTUARY_EDGE_MANIFEST_FILE
+                || fname_lower == ".sanctuary_deployed_links.json"
+                || fname_lower == ".sanctuary_cache.json"
             {
                 return false;
             }
@@ -570,8 +589,8 @@ pub async fn start_downloads_watch(
                                     let ext_with_dot = format!(".{}", ext.to_lowercase());
                                     let path_str = path.to_string_lossy().to_string();
                                     if (extensions.contains(&ext_with_dot)
-                                        || file_name == "override.json"
-                                        || file_name == "manifest.json")
+                                        || file_name == crate::utils::SANCTUARY_EDGE_OVERRIDE_FILE
+                                        || file_name == crate::utils::SANCTUARY_EDGE_MANIFEST_FILE)
                                         && !path_str.ends_with(".crdownload")
                                         && !path_str.ends_with(".part")
                                     {

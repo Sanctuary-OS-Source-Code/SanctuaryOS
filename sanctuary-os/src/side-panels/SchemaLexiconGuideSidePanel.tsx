@@ -121,7 +121,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_id_desc",
         "Unique identifier for this schema profile used internally by Sanctuary OS."
       ),
-      example: '"id": "sims4"',
+      example: '"id": "custom_rpg"',
     },
     {
       label: t("schema_studio_game_id", "Game Identifier / Engine ID"),
@@ -130,7 +130,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_game_id_desc",
         "Database and Spoke identifier linking this schema to community registries and cloud profiles."
       ),
-      example: '"game_id": "the-sims-4"',
+      example: '"game_id": "example-studio-rpg"',
     },
     {
       label: t("schema_studio_display_name", "Display Title"),
@@ -139,7 +139,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_display_name_desc",
         "Human-readable game title shown in workspace headers, cards, and launch banners."
       ),
-      example: '"display_name": "The Sims 4"',
+      example: '"display_name": "Example Studio Game"',
     },
     {
       label: t("schema_studio_default_lexicon", "Default {Lexicon} Pack"),
@@ -178,7 +178,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_exe_list_desc",
         "All valid Windows (.exe) and macOS (.app) binary names Sanctuary OS scans for and launches."
       ),
-      example: '["TS4_x64.exe", "TS4_DX9_x64.exe", "The Sims 4.app"]',
+      example: '["GameLauncher.exe", "ExampleGame_x64.exe", "ExampleGame.app"]',
     },
     {
       label: t("schema_studio_exe_subdir", "Executable Subfolder"),
@@ -187,16 +187,16 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_exe_subdir_desc",
         "Subfolder inside the game installation root where the binary lives. Leave blank if the binary sits in the root folder."
       ),
-      example: '"executable_subdir": "Game/Bin" | "bin/x64"',
+      example: '"executable_subdir": "bin/x64" | "Engine/Binaries"',
     },
     {
       label: t("schema_studio_manifest_file", "Engine Manifest File"),
       jsonKey: "paths.manifest_file",
       desc: t(
         "schema_doc_manifest_file_desc",
-        "Optional resource or plugin manifest file generated inside the {Mods} or user data directory."
+        "Optional resource or load-order manifest file generated inside the {Mods} or user data directory."
       ),
-      example: '"manifest_file": "Resource.cfg" | "plugins.txt"',
+      example: '"manifest_file": "load_manifest.cfg" | "loadorder.txt"',
     },
     {
       label: t("schema_studio_win_mod_dir", "Default Windows {Mods} Directory"),
@@ -205,7 +205,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_win_mod_dir_desc",
         "Default path where {Mods} are deployed on Windows (relative to Documents, user profile, or game root)."
       ),
-      example: '"Documents/Electronic Arts/The Sims 4/Mods"',
+      example: '"Documents/ExampleStudio/MyGame/mods"',
     },
     {
       label: t("schema_studio_mac_mod_dir", "Default MacOS {Mods} Directory"),
@@ -214,7 +214,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_mac_mod_dir_desc",
         "Default path where {Mods} are deployed on macOS."
       ),
-      example: '"~/Documents/Electronic Arts/The Sims 4/Mods"',
+      example: '"~/Documents/ExampleStudio/MyGame/mods"',
     },
     {
       label: t("schema_studio_linux_mod_dir", "Default Linux / Proton {Mods} Directory"),
@@ -223,7 +223,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_win_mod_dir_desc",
         "Default path where {Mods} are deployed on Windows (relative to Documents, user profile, or game root)."
       ),
-      example: '"%USERPROFILE%/Documents/Electronic Arts/The Sims 4/Mods"',
+      example: '"%USERPROFILE%/Documents/ExampleStudio/MyGame/mods"',
     },
     {
       label: t("schema_studio_win_user_dir", "Windows Telemetry & Saves Root"),
@@ -232,7 +232,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_win_user_dir_desc",
         "Windows directory containing saves, crash logs, and user settings. Supports %USERPROFILE%, %LOCALAPPDATA%, and %APPDATA%."
       ),
-      example: '"%USERPROFILE%/Documents/Electronic Arts/The Sims 4"',
+      example: '"%USERPROFILE%/Documents/ExampleStudio/MyGame"',
     },
     {
       label: t("schema_studio_mac_user_dir", "MacOS Telemetry & Saves Root"),
@@ -241,7 +241,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_mac_user_dir_desc",
         "macOS directory containing saves, crash logs, and user settings. Supports ~/Documents and ~/Library/Application Support."
       ),
-      example: '"~/Documents/Electronic Arts/The Sims 4"',
+      example: '"~/Documents/ExampleStudio/MyGame"',
     },
     {
       label: t("schema_studio_user_data_linux", "Linux / Proton User Data / Saves Root"),
@@ -250,16 +250,16 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_win_user_dir_desc",
         "Windows directory containing saves, crash logs, and user settings. Supports %USERPROFILE%, %LOCALAPPDATA%, and %APPDATA%."
       ),
-      example: '"%USERPROFILE%/Documents/Electronic Arts/The Sims 4"',
+      example: '"%USERPROFILE%/Documents/ExampleStudio/MyGame"',
     },
     {
       label: t("schema_studio_win_scan_paths", "Windows & MacOS Auto-Recon Paths"),
       jsonKey: "paths.auto_scan_paths_windows / _mac / _linux",
       desc: t(
         "schema_doc_scan_paths_desc",
-        "Default Steam, EA App, Origin, Epic, GOG, and macOS /Applications paths checked automatically during workspace setup."
+        "Default desktop launcher, storefront, and macOS /Applications paths checked automatically during workspace setup."
       ),
-      example: '"/Applications/The Sims 4.app", "~/.steam/steam/steamapps/common/..."',
+      example: '"/Applications/ExampleGame.app", "~/.steam/steam/steamapps/common/..."',
     },
   ];
 
@@ -269,36 +269,36 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
       jsonKey: "constraints.shared_vanilla_dir",
       desc: t(
         "schema_guide_safe_shared_desc",
-        "Enable when {Mods} deploy directly into a folder that already contains vanilla game files (such as GTA V root or Game/Bin). Sanctuary OS tracks deployed links in .sanctuary_deployed_links.json and never deletes vanilla files."
+        "Enable when {Mods} deploy directly into a folder that already contains vanilla game files (such as the install root or bin/x64). Sanctuary OS tracks deployed links in .sanctuary_deployed_links.json and never deletes vanilla files."
       ),
-      example: "true (GTA V / root folders) • false (dedicated Mods folder)",
+      example: "true (shared root / Data folders) • false (dedicated mods folder)",
     },
     {
       label: t("schema_studio_preserve_structure", "Preserve Archive Subfolders"),
       jsonKey: "constraints.preserve_archive_structure",
       desc: t(
         "schema_guide_safe_preserve_desc",
-        "Keep internal folder hierarchies intact when importing multi-folder archives (required for Cyberpunk 2077 archive/pc/mod, Skyrim Data/, and Stardew Valley SMAPI {Mods})."
+        "Keep internal folder hierarchies intact when importing multi-folder archives (required for engines expecting structured meshes/, textures/, plugins/, or scripts/ trees)."
       ),
-      example: "true (Cyberpunk / Skyrim / SMAPI) • false (Sims 4)",
+      example: "true (structured asset trees) • false (flat module folders)",
     },
     {
       label: t("schema_studio_wrap_subfolder", "Wrap Loose Files in Subfolders"),
       jsonKey: "constraints.wrap_in_subfolder",
       desc: t(
         "schema_guide_safe_wrap_desc",
-        "Automatically wraps loose package/script files inside a clean named subfolder inside your {Vault} and {Mods} directory."
+        "Automatically wraps loose module/script files inside a clean named subfolder inside your {Vault} and {Mods} directory."
       ),
       example: '"wrap_in_subfolder": true',
     },
     {
-      label: t("schema_studio_script_depth", "Script & Package Max Depth"),
-      jsonKey: "constraints.script_max_depth / package_max_depth",
+      label: t("schema_studio_script_depth", "Script & Module Max Depth"),
+      jsonKey: "constraints.script_max_depth / module_max_depth",
       desc: t(
         "schema_doc_depth_desc",
-        "Maximum subfolder recursion depth the engine can read for script archives (e.g. 1 folder deep for .ts4script) vs. regular packages (5 folders deep)."
+        "Maximum subfolder recursion depth the engine can read for executable script plugins (e.g. 1 folder deep) vs. regular binary modules (5 folders deep)."
       ),
-      example: '"script_max_depth": 1, "package_max_depth": 5',
+      example: '"script_max_depth": 1, "module_max_depth": 5',
     },
     {
       label: t("schema_studio_ver_file", "Version File & Extraction Regex"),
@@ -307,7 +307,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_ver_file_desc",
         "Relative path to the file storing the installed game patch string and the regex pattern used to extract it, with Windows Registry and macOS Plist fallbacks."
       ),
-      example: '"GameVersion.txt" • "(\\d+\\.\\d+\\.\\d+\\.\\d+)"',
+      example: '"EngineVersion.ini" • "(\\d+\\.\\d+\\.\\d+\\.\\d+)"',
     },
     {
       label: t("schema_studio_dlc_subdirs", "DLC Subdirectories, Regex & Launch Mask"),
@@ -316,7 +316,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_dlc_desc",
         "Subfolders and folder regex used to detect installed DLC packs on Windows/macOS, plus the command-line template for disabling packs during {Lab} testing."
       ),
-      example: '"^(EP|GP|SP|FP|KP)\\d{2}$" • "-disablepacks:{packs}"',
+      example: '"^(DLC|EXP)_\\d{2}$" • "-disablepacks:{packs}"',
     },
   ];
 
@@ -328,7 +328,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_ext_supported_desc",
         "All deployable {Mod} extensions that Sanctuary OS links into the live game folders during ignition."
       ),
-      example: '[".package", ".ts4script", ".world", ".cfg", ".ini"]',
+      example: '[".mod", ".bin", ".dll", ".cfg", ".ini"]',
     },
     {
       label: t("schema_studio_ext_vault", "{Vault} Visible Extensions"),
@@ -337,16 +337,16 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_ext_vault_desc",
         "All file extensions shown inside the {Vault} browser, including supported {Mod} files plus .zip, .rar, and .7z archives."
       ),
-      example: '[".package", ".ts4script", ".zip", ".rar", ".7z"]',
+      example: '[".mod", ".dll", ".zip", ".rar", ".7z"]',
     },
     {
-      label: t("schema_studio_ext_primary", "Primary Package Extensions"),
-      jsonKey: "extensions.primary_package",
+      label: t("schema_studio_ext_primary", "Primary Binary Module Extensions"),
+      jsonKey: "extensions.primary_module",
       desc: t(
         "schema_doc_ext_primary_desc",
-        "Binary package formats indexed by the Conflict Radar for resource and tuning collisions."
+        "Binary module formats indexed by the Conflict Radar for resource and tuning collisions."
       ),
-      example: '[".package", ".archive", ".pak", ".rpf"]',
+      example: '[".mod", ".bin", ".dat", ".bundle"]',
     },
     {
       label: t("schema_studio_ext_script", "Script / Executable {Mod} Extensions"),
@@ -355,7 +355,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_ext_script_desc",
         "Executable or script formats governed by Script Max Depth and deep heuristic malware scanning."
       ),
-      example: '[".ts4script", ".asi", ".dll", ".lua", ".pyc"]',
+      example: '[".dll", ".asi", ".so", ".lua", ".pyc"]',
     },
     {
       label: t("schema_studio_ext_config", "Editable Directive Extensions"),
@@ -382,16 +382,16 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_cache_files_desc",
         "Engine cache files automatically purged when switching {Blueprints} or {Mods} so stale data never persists."
       ),
-      example: '["localthumbcache.package", "avatarcache.package"]',
+      example: '["shader_cache.bin", "asset_index.dat"]',
     },
     {
       label: t("schema_studio_binary_parsers", "Binary Extension Parsers & Badges"),
       jsonKey: "extensions.binary_parsers / badge_labels",
       desc: t(
         "schema_doc_parsers_desc",
-        "Maps file extensions to native Rust binary parsers (dbpf, ts4script, rage_rpf) and UI card badge labels (PACKAGE, SCRIPT, CONFIG)."
+        "Maps file extensions to native Rust binary indexers and UI card badge labels (MODULE, SCRIPT, CONFIG)."
       ),
-      example: '".package": "dbpf" • ".package": "PACKAGE"',
+      example: '".mod": "chunk_table" • ".mod": "MODULE"',
     },
   ];
 
@@ -403,7 +403,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_route_id_desc",
         "Unique identifier and display label for a custom deployment rule that routes specific file types outside the main {Mods} folder."
       ),
-      example: '"id": "worlds", "label": "Custom Worlds (.world)"',
+      example: '"id": "native_plugins", "label": "Engine Plugins (.dll)"',
     },
     {
       label: t("schema_studio_route_target", "Target Root & Relative Destination Path"),
@@ -412,16 +412,16 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_route_target_desc",
         "Selects the base root (game_dir / live_path, user_data_dir, or mod_dir) and the exact subfolder where matching files deploy."
       ),
-      example: '"target_root": "game_dir", "relative_path": "Data/Shared/Worlds/Areas"',
+      example: '"target_root": "game_dir", "relative_path": "bin/x64/plugins"',
     },
     {
       label: t("schema_studio_route_exts", "Matched Extensions & Max Depth"),
       jsonKey: "extensions / max_depth",
       desc: t(
         "schema_doc_route_exts_desc",
-        "File extensions routed by this rule (.world, .asi, .dll) and the maximum subfolder recursion allowed at the destination (0 = flat)."
+        "File extensions routed by this rule (.dll, .asi, .lua) and the maximum subfolder recursion allowed at the destination (0 = flat)."
       ),
-      example: '"extensions": [".world"], "max_depth": 0',
+      example: '"extensions": [".dll", ".asi"], "max_depth": 0',
     },
     {
       label: t("schema_studio_route_flatten", "Flatten Subfolders & Shared With Vanilla"),
@@ -440,7 +440,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
       jsonKey: "load_order.strategy",
       desc: t(
         "schema_guide_lo_desc",
-        "Choose Folder Priority (alphabetical tier folders like ZZ_Overrides), Numeric Prefix ({index:03}_ prepended to links), Manifest List (generates Resource.cfg, plugins.txt, or modsettings.lsx), or Modified Timestamp Order."
+        "Choose Folder Priority (alphabetical tier folders like ZZ_Overrides), Numeric Prefix ({index:03}_ prepended to links), Manifest List (generates load_manifest.cfg or loadorder.txt), or Modified Timestamp Order."
       ),
       example: '"folder_priority" | "manifest_list" | "numeric_prefix" | "timestamp"',
     },
@@ -458,9 +458,9 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
       jsonKey: "paths.manifest_content_template",
       desc: t(
         "schema_doc_manifest_header_desc",
-        "Complete Resource.cfg or manifest file content written when compiling Folder Priority override tiers."
+        "Complete manifest header or priority configuration written when compiling Folder Priority override tiers."
       ),
-      example: '"Priority 500\\nPackedFile *.package\\nPackedFile *\\*.package..."',
+      example: '"Priority 500\\nModuleFile *.mod\\nModuleFile *\\*.mod..."',
     },
     {
       label: t("schema_studio_sec_tiers", "Priority Tiers (ID, Label, Folder Prefix, Weight)"),
@@ -487,7 +487,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_lab_saves_desc",
         "Save file extensions monitored during {Lab} verification runs."
       ),
-      example: '[".save", ".ver0", ".ver1"]',
+      example: '[".save", ".sav", ".dat"]',
     },
   ];
 
@@ -497,9 +497,9 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
       jsonKey: "exception_logs[]",
       desc: t(
         "schema_guide_logs_matcher_desc",
-        "Use Prefix + Extension (e.g. Starts With: lastexception, Ends With: .txt) to catch timestamped crash logs, or switch the Rule Type dropdown to Exact Filename (e.g. ScriptHookV.log, red4ext.log) for fixed log files."
+        "Use Prefix + Extension (e.g. Starts With: crash_report, Ends With: .log) to catch timestamped crash logs, or switch the Rule Type dropdown to Exact Filename (e.g. engine_error.log) for fixed log files."
       ),
-      example: 'Starts With: "lastexception" + Ends With: ".txt" | Exact: "lastCrash.txt"',
+      example: 'Starts With: "crash_report" + Ends With: ".log" | Exact: "engine_error.log"',
     },
     {
       label: t("schema_studio_sec_exc_rules", "Exception Rules (ID, File Hint & Threat Level)"),
@@ -508,7 +508,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_exc_meta_desc",
         "Unique rule ID, target log filename hint, and severity badge (Critical, Warning, or Info) displayed when a log matches."
       ),
-      example: '"id": "ts4_python_attr", "severity": "critical"',
+      example: '"id": "engine_script_err", "severity": "critical"',
     },
     {
       label: t("schema_doc_exc_kw_title", "Pipe-Separated Keywords, Analysis & Countermeasure"),
@@ -526,7 +526,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_tc_world_desc",
         "User data folders and settings files (relative to user_data_dir) archived during World State {Backups} snapshots."
       ),
-      example: '["saves", "Tray", "Options.ini", "UserSetting.ini"]',
+      example: '["saves", "profiles", "settings.ini", "user_prefs.json"]',
     },
     {
       label: t("schema_studio_tc_engine_targets", "Engine State {Backups} Targets"),
@@ -535,7 +535,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_doc_tc_engine_desc",
         "Core game binary folders (relative to the game installation root) archived during Engine State {Backups} snapshots."
       ),
-      example: '["Game", "Data"]',
+      example: '["bin", "Data"]',
     },
     {
       label: t("schema_studio_sec_airgap", "{Lab} Save Airgap Targets"),
@@ -544,7 +544,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "schema_guide_backups_airgap_desc",
         "Folders listed in Save Airgap Targets are automatically snapshotted before a {Lab} sandbox test begins and restored the moment verification finishes, guaranteeing zero save corruption during {Mod} testing."
       ),
-      example: '["saves", "Tray"]',
+      example: '["saves", "profiles"]',
     },
   ];
 

@@ -8,6 +8,7 @@ import {
   HoverTooltip,
   VAULT_CHIP_CLASS,
 } from "../shared";
+import { useShallow } from "zustand/react/shallow";
 import { useModalStore } from "../store/modalStore";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
@@ -15,7 +16,13 @@ import { useLexicon } from "../LexiconContext";
 export function NexusUpdatesSidePanel() {
   const { t } = useLexicon();
   const { isNexusUpdatesPanelOpen, setIsNexusUpdatesPanelOpen, setNexusPreviewAsset } =
-    useModalStore();
+    useModalStore(
+      useShallow((s) => ({
+        isNexusUpdatesPanelOpen: s.isNexusUpdatesPanelOpen,
+        setIsNexusUpdatesPanelOpen: s.setIsNexusUpdatesPanelOpen,
+        setNexusPreviewAsset: s.setNexusPreviewAsset,
+      }))
+    );
   const nexusAvailableUpdates =
     useStore((state) => state.nexusAvailableUpdates) || [];
   const setNexusUpdatesCount = useStore((state) => state.setNexusUpdatesCount);

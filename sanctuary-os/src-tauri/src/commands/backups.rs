@@ -28,11 +28,21 @@ pub async fn sanitize_vault(
                 self.0.store(false, std::sync::atomic::Ordering::SeqCst);
             }
         }
-        is_deploying.store(true, std::sync::atomic::Ordering::SeqCst);
+        if is_deploying
+            .compare_exchange(
+                false,
+                true,
+                std::sync::atomic::Ordering::SeqCst,
+                std::sync::atomic::Ordering::SeqCst,
+            )
+            .is_err()
+        {
+            return Err("Deployment or scan already in progress.".into());
+        }
         let _guard = SanitizeGuard(is_deploying, last_deploy_epoch_ms);
 
         let vault_root = PathBuf::from(&vault_path);
-        let _ = crate::utils::get_db_conn(&vault_path);
+        let _ = crate::utils::open_db_conn(&vault_path)?;
 
         let backups_dir = vault_root.join("Backups");
         let legacy_backups_world = backups_dir.join("World");
@@ -72,7 +82,7 @@ pub async fn sanitize_vault(
                 let path = entry.path();
                 if path.is_file() && path.extension().map_or(false, |ext| ext == "zst") {
                     let coords = get_saved_coordinates();
-                    let docs_base = coords.mods_path.replace("\\Mods", "").replace("/Mods", "");
+                    let docs_base = crate::utils::resolve_effective_docs_path(&coords, &game_schema);
                     let target_world_dir =
                         crate::utils::get_world_backups_dir(&docs_base, &vault_path)
                             .unwrap_or_else(|| backups_dir.clone());
@@ -117,7 +127,7 @@ pub async fn sanitize_vault(
         }
 
         let config_exts = crate::game_logic::get_config_extensions(&game_schema);
-        crate::utils::deduplicate_vault_root_configs(&mods_lane, &config_exts);
+        crate::utils::deduplicate_vault_root_configs(&mods_lane, &config_exts, &game_schema);
         let _ = sweep_empty_dirs(&mods_lane);
 
         Ok(moved.to_string())
@@ -292,7 +302,7 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
         }
 
         // Scan relocated World State backups (same drive as docs_path / mods_path)
-        let docs_base = crate::utils::get_docs_base_from_mods_path(&config.mods_path);
+        let docs_base = crate::utils::resolve_effective_docs_path(&config, &None);
         if let Some(world_dir) =
             crate::utils::get_world_backups_dir(&docs_base, &vault_path)
         {
@@ -461,6 +471,29 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
     .map_err(|e| e.to_string())?
 }
 
+fn collect_allowed_backup_roots(
+    vault_path: &str,
+    config: &WorkspaceConfig,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Vec<PathBuf> {
+    let vault_root = crate::utils::get_vault_root_dir(vault_path);
+    let backups_base = vault_root.join("Backups");
+    let mut roots = vec![
+        backups_base.clone(),
+        backups_base.join("World"),
+        backups_base.join("Engine"),
+        vault_root,
+    ];
+    if let Some(engine_dir) = crate::utils::get_engine_backups_dir(&config.live_path, vault_path) {
+        roots.push(engine_dir);
+    }
+    let docs_base = crate::utils::resolve_effective_docs_path(config, game_schema);
+    if let Some(world_dir) = crate::utils::get_world_backups_dir(&docs_base, vault_path) {
+        roots.push(world_dir);
+    }
+    roots
+}
+
 #[tauri::command]
 pub async fn delete_backup(file_name: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -468,10 +501,13 @@ pub async fn delete_backup(file_name: String) -> Result<String, String> {
             return Err("Invalid backup name.".into());
         }
         let config = get_saved_coordinates();
+        let allowed_roots = collect_allowed_backup_roots(&config.vault_path, &config, &None);
         if let Some(path) = find_backup(&config.vault_path, &file_name) {
+            crate::utils::ensure_strict_descendant_of_roots(&path, &allowed_roots)?;
             if path.is_dir() {
                 let now_ms = crate::utils::current_epoch_ms();
                 let purging_path = path.with_file_name(format!(".purging_{}_{}", now_ms, file_name));
+                crate::utils::ensure_strict_descendant_of_roots(&purging_path, &allowed_roots)?;
                 if std::fs::rename(&path, &purging_path).is_ok() {
                     std::thread::spawn(move || {
                         let _ = crate::utils::remove_backup_dir_cow_safe(&purging_path);
@@ -504,7 +540,9 @@ pub fn rename_backup(old_name: String, new_name: String) -> Result<String, Strin
         return Err("Invalid source backup name.".into());
     }
     let config = get_saved_coordinates();
+    let allowed_roots = collect_allowed_backup_roots(&config.vault_path, &config, &None);
     if let Some(old_path) = find_backup(&config.vault_path, &old_name) {
+        crate::utils::ensure_strict_descendant_of_roots(&old_path, &allowed_roots)?;
         let mut final_name = new_name.trim().to_string();
         if old_path.is_file() && !final_name.ends_with(".zst") {
             final_name = format!("{}.tar.zst", final_name);
@@ -513,6 +551,7 @@ pub fn rename_backup(old_name: String, new_name: String) -> Result<String, Strin
             return Err("Invalid target backup name.".into());
         }
         let new_path = old_path.with_file_name(&final_name);
+        crate::utils::ensure_strict_descendant_of_roots(&new_path, &allowed_roots)?;
         std::fs::rename(old_path, new_path).map_err(|e| e.to_string())?;
         Ok(final_name)
     } else {
@@ -633,22 +672,16 @@ pub async fn backup_universe(
             if let Some(time_capsule) = &schema.time_capsule {
                 for target in &time_capsule.world_state_targets {
                     let resolved = crate::game_logic::expand_env_vars(&target.path);
-                    targets.push((target.name.clone(), game_docs_path.join(&resolved)));
+                    if !resolved.trim().is_empty() {
+                        targets.push((target.name.clone(), game_docs_path.join(&resolved)));
+                    }
                 }
             }
         }
         if targets.is_empty() {
-            let defaults: &[&str] = if crate::game_logic::is_sims4_schema(&game_schema) {
-                &["saves", "Saves", "Tray"]
-            } else {
-                &["saves", "Saves"]
-            };
-            for default_dir in defaults {
-                let candidate = game_docs_path.join(default_dir);
-                if candidate.exists() && !targets.iter().any(|(_, p)| p == &candidate) {
-                    targets.push((default_dir.to_string(), candidate));
-                }
-            }
+            return Err(
+                "No Time Capsule world_state_targets configured in active GameSchema.".into(),
+            );
         }
 
         let mut files_to_backup = Vec::new();
@@ -1099,8 +1132,8 @@ fn seal_snapshot_parallel_cow(
 
     // Separate heavy physical copy jobs (>= 4 MB) from fast hardlink / small copy jobs.
     // Scheduling heavy copy jobs with `.with_max_len(1)` sorted largest-first ensures
-    // multi-GB files (like ClientDeltaBuild0.package and SimulationDeltaBuild0.package)
-    // immediately get dedicated Rayon worker threads at t=0ms instead of sitting in the same chunk.
+    // multi-GB engine archives immediately get dedicated Rayon worker threads at t=0ms
+    // instead of sitting in the same chunk.
     let (mut heavy_copy_jobs, regular_jobs): (Vec<ClassifiedJob>, Vec<ClassifiedJob>) =
         classified_jobs
             .into_iter()
@@ -1139,7 +1172,7 @@ fn seal_snapshot_parallel_cow(
                 0
             };
             // Blend displayed file counter with byte-weighted work progress while large files are streaming
-            // so the counter never appears stuck at 5,968 / 5,971 while copying 20 GB of .package files.
+            // so the counter never appears stuck near 99% while copying multi-GB engine archives.
             let display_files_done = if planned_copy_bytes > 0 && done < total {
                 ((work_ratio * total as f64).floor() as usize).clamp(done.min(1), total.saturating_sub(1))
             } else {
@@ -1812,19 +1845,36 @@ pub async fn extract_backup_file(
             None => return Err("Backup not found".into()),
         };
         let config = get_saved_coordinates();
+        let allowed_backup_roots =
+            collect_allowed_backup_roots(&vault_path, &config, &game_schema);
+        crate::utils::ensure_strict_descendant_of_roots(&backup_dir, &allowed_backup_roots)?;
 
         let src_file = backup_dir.join(&file_path);
         if !src_file.exists() {
             return Err("File not found in backup".into());
         }
+        crate::utils::ensure_strict_descendant_of_roots(
+            &src_file,
+            std::slice::from_ref(&backup_dir),
+        )?;
 
         let target_root = if backup_name.starts_with("Engine_Core") {
             crate::game_logic::resolve_game_engine_root(&config.live_path, &game_schema)
         } else {
             PathBuf::from(&docs_path)
         };
+        if !crate::utils::is_safe_user_file_path(&target_root) {
+            return Err("Blocked: Refusing to extract into a protected system path.".into());
+        }
 
         let dest_file = target_root.join(&file_path);
+        crate::utils::ensure_strict_descendant_of_roots(
+            &dest_file,
+            std::slice::from_ref(&target_root),
+        )?;
+        if !crate::utils::is_safe_user_file_path(&dest_file) {
+            return Err("Blocked: Refusing to overwrite a protected system file.".into());
+        }
         if let Some(parent_dir) = dest_file.parent() {
             let _ = std::fs::create_dir_all(parent_dir);
         }
@@ -1940,15 +1990,11 @@ pub async fn diff_backup(
             if let Some(schema) = &game_schema {
                 if let Some(tc) = &schema.time_capsule {
                     for target in &tc.world_state_targets {
-                        sub_dirs.push(crate::game_logic::expand_env_vars(&target.path));
+                        let expanded = crate::game_logic::expand_env_vars(&target.path);
+                        if !expanded.trim().is_empty() {
+                            sub_dirs.push(expanded);
+                        }
                     }
-                }
-            }
-            if sub_dirs.is_empty() {
-                if crate::game_logic::is_sims4_schema(&game_schema) {
-                    sub_dirs = vec!["saves".into(), "Saves".into(), "Tray".into()];
-                } else {
-                    sub_dirs = vec!["saves".into(), "Saves".into()];
                 }
             }
 
@@ -2019,6 +2065,12 @@ pub async fn restore_game_data(
         } else {
             PathBuf::from(docs_path)
         };
+        if !crate::utils::is_safe_user_file_path(&target) {
+            return Err("Blocked: Refusing to restore into a protected system path.".into());
+        }
+        let allowed_backup_roots =
+            collect_allowed_backup_roots(&config.vault_path, &config, &game_schema);
+        crate::utils::ensure_strict_descendant_of_roots(&arc, &allowed_backup_roots)?;
 
         let mut final_total: usize = 0;
 
@@ -2058,19 +2110,23 @@ pub async fn restore_game_data(
                 if let Some(schema) = &game_schema {
                     if let Some(tc) = &schema.time_capsule {
                         for t in &tc.world_state_targets {
-                            targets_to_clear.push(crate::game_logic::expand_env_vars(&t.path));
+                            let expanded = crate::game_logic::expand_env_vars(&t.path);
+                            if !expanded.trim().is_empty() {
+                                targets_to_clear.push(expanded);
+                            }
                         }
                     }
                 }
-                if targets_to_clear.is_empty() {
-                    if crate::game_logic::is_sims4_schema(&game_schema) {
-                        targets_to_clear = vec!["Saves".into(), "Tray".into()];
-                    } else {
-                        targets_to_clear = vec!["Saves".into()];
-                    }
-                }
                 for sub in targets_to_clear {
-                    let _ = std::fs::remove_dir_all(target.join(sub));
+                    let sub_path = target.join(sub);
+                    if crate::utils::ensure_strict_descendant_of_roots(
+                        &sub_path,
+                        std::slice::from_ref(&target),
+                    )
+                    .is_ok()
+                    {
+                        let _ = std::fs::remove_dir_all(sub_path);
+                    }
                 }
             }
 
@@ -2129,9 +2185,37 @@ pub async fn restore_game_data(
                 last_emit: std::time::Instant::now(),
             };
 
+            let _ = std::fs::create_dir_all(&target);
             let mut archive =
                 tar::Archive::new(zstd::Decoder::new(progress_reader).map_err(|e| e.to_string())?);
-            archive.unpack(target).map_err(|e| e.to_string())?;
+            for entry_res in archive.entries().map_err(|e| e.to_string())? {
+                let mut entry = entry_res.map_err(|e| e.to_string())?;
+                let entry_type = entry.header().entry_type();
+                if entry_type.is_symlink() || entry_type.is_hard_link() {
+                    return Err("Blocked symlink or hardlink entry inside backup archive.".into());
+                }
+                let rel_path = entry.path().map_err(|e| e.to_string())?.into_owned();
+                if !rel_path
+                    .components()
+                    .all(|c| matches!(c, std::path::Component::Normal(_)))
+                {
+                    return Err("Blocked path traversal entry inside backup archive.".into());
+                }
+                let out_path = target.join(&rel_path);
+                crate::utils::ensure_strict_descendant_of_roots(
+                    &out_path,
+                    std::slice::from_ref(&target),
+                )?;
+                if entry_type.is_dir() {
+                    let _ = std::fs::create_dir_all(&out_path);
+                } else if entry_type.is_file() {
+                    if let Some(parent) = out_path.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+                    entry.unpack(&out_path).map_err(|e| e.to_string())?;
+                    final_total += 1;
+                }
+            }
         }
 
         let _ = app.emit(

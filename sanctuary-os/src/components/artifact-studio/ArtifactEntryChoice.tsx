@@ -121,7 +121,7 @@ export function ArtifactEntryChoice({
                   "studio_entry_link_mode_version_desc",
                   "Auto-pulls Title, Category, Description, DLC, Dependencies, Conflicts & Folder Layout from the previous version and clears Game Version for the new patch."
                 )
-              : t("studio_entry_link_mode_module_desc", "Attaches this file to the selected parent {mod} as a Script Twin (.ts4script), Add-on, or Pick-One Flavor.")}
+              : t("studio_entry_link_mode_module_desc", "Attaches this file to the selected parent {mod} as a Script Twin, Add-on, or Pick-One Flavor.")}
           </p>
 
           {entryLinkMode === "module" && (

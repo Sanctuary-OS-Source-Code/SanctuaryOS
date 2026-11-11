@@ -14,6 +14,8 @@ pub struct WorkspaceConfig {
     pub schema_id: String,
     pub live_path: String,
     pub mods_path: String,
+    #[serde(default, alias = "user_data_path")]
+    pub docs_path: Option<String>,
     pub vault_path: String,
     #[serde(default)]
     pub master_vault_path: Option<String>,
@@ -42,6 +44,8 @@ pub struct SolderConfig {
     pub live_path: Option<String>,
     #[serde(default)]
     pub mods_path: Option<String>,
+    #[serde(default, alias = "user_data_path")]
+    pub docs_path: Option<String>,
     #[serde(default)]
     pub vault_path: Option<String>,
 }
@@ -102,11 +106,21 @@ pub struct SecurityState {
     pub volatile_original_paths: std::sync::Mutex<HashMap<String, String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Conflict {
     pub mod_pair: String,
     pub shared_assets: usize,
     pub severity_rank: u32,
+    #[serde(default)]
+    pub mod_a: String,
+    #[serde(default)]
+    pub mod_b: String,
+    #[serde(default)]
+    pub conflict_type: String,
+    #[serde(default)]
+    pub analyzer_id: String,
+    #[serde(default)]
+    pub sample_resources: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

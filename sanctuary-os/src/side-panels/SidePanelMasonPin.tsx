@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useStore } from "../store";
 import {
   getModIcon,
+  getExtensionRegex,
   SidePanel,
   SidePanelHeroCard,
   UniversalGroup,
@@ -17,7 +19,8 @@ const formatCleanPinTitle = (rawInput: any) => {
       .split(/[\\/]/)
       .pop() || "";
   const base = raw
-    .replace(/\.(package|ts4script|zip|rar|7z|json|dll|asi|lua|reds|csx)$/i, "")
+    .replace(getExtensionRegex(useStore.getState().activeGameSchema), "")
+    .replace(/\.(zip|rar|7z|tar|gz|json|toml|yaml|yml|xml|cfg|ini|dll|asi|so|dylib|lua)$/i, "")
     .replace(/_/g, " ")
     .trim();
   if (!base) return "";
@@ -86,8 +89,8 @@ export default function SidePanelMasonPin({
       return true;
     }) || []
   ).sort((a: any, b: any) => {
-    const aPin = mason?.pinned_mod_id === a?.id || mason?.pinned_ccset_id === a?.id ? 1 : 0;
-    const bPin = mason?.pinned_mod_id === b?.id || mason?.pinned_ccset_id === b?.id ? 1 : 0;
+    const aPin = mason?.pinned_mod_id === a?.id || mason?.pinned_collection_id === a?.id ? 1 : 0;
+    const bPin = mason?.pinned_mod_id === b?.id || mason?.pinned_collection_id === b?.id ? 1 : 0;
     return bPin - aPin;
   });
 
@@ -254,7 +257,7 @@ export default function SidePanelMasonPin({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
                 {filteredMods.map((mod: any) => {
                   const isPinned =
-                    mason?.pinned_mod_id === mod.id || mason?.pinned_ccset_id === mod.id;
+                    mason?.pinned_mod_id === mod.id || mason?.pinned_collection_id === mod.id;
                   const cleanedTitle = formatCleanPinTitle(mod?.displayName || mod?.name);
                   const modIcon = getModIcon(mod, activeGameSchema, t);
                   const categoryLabel = mod.category_override || t("label_artifact", "{Mod}");

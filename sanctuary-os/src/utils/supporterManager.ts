@@ -463,69 +463,52 @@ export async function stackGlobalDevBuildDonation(params: {
   const now = Math.floor(Date.now() / 1000);
   const currentState = await getSupporterState(vaultPath, userId);
 
-  const combinedCents =
-    (currentState.dev_build.donation_credit_cents || 0) + amountCents;
-  const monthsAdded = Math.floor(combinedCents / 500);
-  const remainderCents = combinedCents % 500;
-  const baseUntil = Math.max(now, currentState.dev_build.dev_build_until || 0);
-  const newUntil =
-    monthsAdded > 0
-      ? baseUntil + monthsAdded * 30 * 86400
-      : currentState.dev_build.dev_build_until || 0;
-  const newTotalMonths =
-    (currentState.dev_build.total_months_unlocked || 0) + monthsAdded;
-
-  let finalUntil = newUntil;
-  let finalCredit = remainderCents;
-  let finalTotalMonths = newTotalMonths;
-  let finalMonthsAdded = monthsAdded;
-
-  // 1. Try syncing with Hub User Database via RPC or profile update (Zero Partner/Creator Honeypot)
+  // 1. Strictly verify donation event via Hub User Database RPC — NEVER fail open or locally mint clearance!
   const localOnly = localStorage.getItem("sanctuary_local_only") === "true";
-  if (!localOnly && navigator.onLine && userId && userId !== "local_citizen") {
-    try {
-      const client = supabaseAuth || supabase;
-      const existingUntilIso =
-        (currentState.dev_build.dev_build_until || 0) > now
-          ? new Date(
-              currentState.dev_build.dev_build_until * 1000,
-            ).toISOString()
-          : null;
-      const { data: rpcData, error: rpcErr } = await client.rpc(
-        "register_partner_donation_event",
-        {
-          p_user_id: userId,
-          p_amount_cents: amountCents,
-          p_tx_nonce: cleanNonce,
-          p_base_until: existingUntilIso,
-        },
-      );
-      if (!rpcErr && rpcData) {
-        if (rpcData.dev_build_until) {
-          finalUntil = Math.max(
-            finalUntil,
-            Math.floor(new Date(rpcData.dev_build_until).getTime() / 1000),
-          );
-        }
-        if (typeof rpcData.donation_credit_cents === "number") {
-          finalCredit = rpcData.donation_credit_cents;
-        }
-        if (typeof rpcData.total_months_unlocked === "number") {
-          finalTotalMonths = Math.max(
-            finalTotalMonths,
-            rpcData.total_months_unlocked,
-          );
-        }
-        if (typeof rpcData.months_added === "number") {
-          finalMonthsAdded = rpcData.months_added;
-        }
-      }
-    } catch {
-      // Continue with local SQLite persistence
-    }
+  if (localOnly || !navigator.onLine || !userId || userId === "local_citizen") {
+    throw new Error(
+      "Online authentication is required to verify and stack Dev Build supporter access."
+    );
   }
 
-  // 2. Persist in local SQLite + local storage
+  const client = supabaseAuth || supabase;
+  const existingUntilIso =
+    (currentState.dev_build.dev_build_until || 0) > now
+      ? new Date(currentState.dev_build.dev_build_until * 1000).toISOString()
+      : null;
+
+  const { data: rpcData, error: rpcErr } = await client.rpc(
+    "register_partner_donation_event",
+    {
+      p_user_id: userId,
+      p_amount_cents: amountCents,
+      p_tx_nonce: cleanNonce,
+      p_base_until: existingUntilIso,
+    },
+  );
+
+  if (rpcErr || !rpcData || !rpcData.dev_build_until) {
+    throw new Error(
+      rpcErr?.message || "Server verification of supporter donation failed."
+    );
+  }
+
+  const finalUntil = Math.floor(new Date(rpcData.dev_build_until).getTime() / 1000);
+  if (!Number.isFinite(finalUntil) || finalUntil <= 0) {
+    throw new Error("Server returned an invalid Dev Build expiration timestamp.");
+  }
+  const finalCredit =
+    typeof rpcData.donation_credit_cents === "number"
+      ? rpcData.donation_credit_cents
+      : 0;
+  const finalTotalMonths =
+    typeof rpcData.total_months_unlocked === "number"
+      ? rpcData.total_months_unlocked
+      : currentState.dev_build.total_months_unlocked || 0;
+  const finalMonthsAdded =
+    typeof rpcData.months_added === "number" ? rpcData.months_added : 0;
+
+  // 2. Cache server-verified state in local SQLite + fallback storage
   let updatedDevBuild: LocalDevBuildStatus = {
     user_id: userId,
     dev_build_until: finalUntil,
@@ -552,7 +535,7 @@ export async function stackGlobalDevBuildDonation(params: {
         },
       );
     } catch (e) {
-      console.warn("SQLite stack_local_dev_build_donation fallback:", e);
+      console.warn("SQLite stack_local_dev_build_donation cache sync warning:", e);
     }
   }
 
@@ -1630,7 +1613,6 @@ export async function dispatchKeeperCustomEmail(
           from_email: fromEmail,
           from_name: fromName,
           reply_to: replyTo,
-          api_key: cfg.support_email_api_key || undefined,
           webhook_url: cfg.support_email_webhook_url || undefined,
         },
       },

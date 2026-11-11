@@ -1,22 +1,30 @@
 import { useEffect } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { tauriBridge } from "../lib/tauri-bridge";
 
 export function useGlobalListeners(
   fetchBackups: () => void,
-  askCustom: any,
-  t: (k: string) => string,
-  triggerPrePatchSnapshot: () => void,
-  triggerFullEngineBackup: () => void
+  _askCustom: any,
+  _t: (k: string, fallback?: string) => string,
+  _triggerPrePatchSnapshot: () => void,
+  _triggerFullEngineBackup: () => void,
+  ignoredHashesRef?: { current: Set<string> }
 ) {
-  const { setScanProgress, setBackupProgress } = useStore();
-  const { setDnaMatches, setIsDnaModalOpen, dnaMatches } = useModalStore();
+  const { setScanProgress, setBackupProgress } = useStore(
+    useShallow((s) => ({
+      setScanProgress: s.setScanProgress,
+      setBackupProgress: s.setBackupProgress,
+    }))
+  );
+  const setDnaMatchQueue = useModalStore((s) => s.setDnaMatchQueue);
 
   useEffect(() => {
+    let cancelled = false;
     let unlisten: any = null;
     let vaultTimeout: any = null;
-    let accumulatedPaths: Set<string> = new Set();
+    const accumulatedPaths: Set<string> = new Set();
 
     tauriBridge.listenToVaultChanges((path?: string) => {
       const modalState = useModalStore.getState();
@@ -57,7 +65,7 @@ export function useGlobalListeners(
         if (accumulatedPaths.size > 0) {
           const pathsToUpdate = new Set(accumulatedPaths);
           accumulatedPaths.clear();
-          
+
           useStore.setState(state => ({
             modList: state.modList.map(m => {
               const normalizedModPath = (m.physical_path || m.name)?.replace(/\\/g, '/').toLowerCase();
@@ -72,15 +80,20 @@ export function useGlobalListeners(
         fetchBackups();
         window.dispatchEvent(new Event('force-radar-sweep'));
       }, 800);
-    }).then(u => { unlisten = u; });
+    }).then((u) => {
+      if (cancelled) u();
+      else unlisten = u;
+    });
 
     return () => {
+      cancelled = true;
       if (unlisten) unlisten();
       if (vaultTimeout) clearTimeout(vaultTimeout);
     };
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     let unlisten: any = null;
     tauriBridge.listenToScanProgress((payload: any) => {
       if (!payload) return;
@@ -98,35 +111,64 @@ export function useGlobalListeners(
         total: 100,
         message: payload.message || prev?.message || "",
       });
-    }).then(u => { unlisten = u; });
+    }).then((u) => {
+      if (cancelled) u();
+      else unlisten = u;
+    });
 
     return () => {
+      cancelled = true;
       if (unlisten) unlisten();
     };
   }, [setScanProgress]);
 
   useEffect(() => {
+    let cancelled = false;
     let unlisten: any = null;
     tauriBridge.listenToBackupProgress((payload: any) => {
       setBackupProgress(payload);
-    }).then(u => { unlisten = u; });
+    }).then((u) => {
+      if (cancelled) u();
+      else unlisten = u;
+    });
 
     return () => {
+      cancelled = true;
       if (unlisten) unlisten();
     };
   }, [setBackupProgress]);
 
   useEffect(() => {
+    let cancelled = false;
     let unlisten: any = null;
     tauriBridge.listenToDnaMatch((payload: any) => {
-      setDnaMatches([...dnaMatches, payload]);
-      setIsDnaModalOpen(true);
-    }).then(u => { unlisten = u; });
+      if (!payload) return;
+      const { hash, path } = payload;
+      if (hash && ignoredHashesRef?.current?.has(hash)) return;
+      if (!hash && path && ignoredHashesRef?.current?.has(path)) return;
+
+      setDnaMatchQueue((prev: any[]) => {
+        const isDuplicate = prev.some((m) => (hash ? m.hash === hash : m.path === path));
+        if (isDuplicate) return prev;
+        return [...prev, payload];
+      });
+      useModalStore.setState((state) => {
+        const already = state.dnaMatches.some((m: any) =>
+          hash ? m.hash === hash : m.path === path
+        );
+        return {
+          dnaMatches: already ? state.dnaMatches : [...state.dnaMatches, payload],
+          isDnaModalOpen: true,
+        };
+      });
+    }).then((u) => {
+      if (cancelled) u();
+      else unlisten = u;
+    });
 
     return () => {
+      cancelled = true;
       if (unlisten) unlisten();
     };
-  }, [dnaMatches, setDnaMatches, setIsDnaModalOpen]);
-
-
+  }, [setDnaMatchQueue, ignoredHashesRef]);
 }

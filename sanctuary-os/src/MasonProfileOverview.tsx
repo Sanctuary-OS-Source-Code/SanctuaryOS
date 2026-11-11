@@ -1,4 +1,4 @@
-import { getModIcon, stripMarkdown, EmptyState, formatDisplayName, HoverTooltip, VAULT_CHIP_CLASS, PanelHeaderGroup, PanelHeaderButton } from './shared';
+import { getModIcon, getExtensionRegex, stripMarkdown, EmptyState, formatDisplayName, HoverTooltip, VAULT_CHIP_CLASS, PanelHeaderGroup, PanelHeaderButton } from './shared';
 import MasonPostCard from './MasonPostCard';
 import { UniversalCard } from './components/universal/UniversalCard';
 import {
@@ -21,7 +21,8 @@ const formatModCardTitle = (mod: any) => {
       .pop() || "";
   return (
     raw
-      .replace(/\.(package|ts4script|zip|rar|7z|json|dll|asi|lua|reds|csx)$/i, "")
+      .replace(getExtensionRegex(useStore.getState().activeGameSchema), "")
+      .replace(/\.(zip|rar|7z|tar|gz|json|toml|yaml|yml|xml|cfg|ini|dll|asi|so|dylib|lua)$/i, "")
       .replace(/_/g, " ")
       .trim() ||
     mod?.name ||
@@ -110,7 +111,7 @@ export default function MasonProfileOverview({
     ) : undefined;
 
   const renderModShowcaseCard = (mod: any) => {
-    const isPinned = mason?.pinned_mod_id === mod.id || mason?.pinned_ccset_id === mod.id;
+    const isPinned = mason?.pinned_mod_id === mod.id || mason?.pinned_collection_id === mod.id;
     const isFolder = Boolean(mod.isVirtual || mod.isParent || mod.familyCount > 1);
     const cleanedTitle = formatModCardTitle(mod);
     const enrichedMod = {
@@ -502,7 +503,7 @@ export default function MasonProfileOverview({
   };
 
   const featuredMod =
-    mods.find((m: any) => m.id === mason?.pinned_mod_id || m.id === mason?.pinned_ccset_id) ||
+    mods.find((m: any) => m.id === mason?.pinned_mod_id || m.id === mason?.pinned_collection_id) ||
     mods[0];
   const featuredBlueprint =
     blueprintAssets.find((b: any) => b.id === mason?.pinned_blueprint_id) || blueprintAssets[0];
@@ -531,7 +532,7 @@ export default function MasonProfileOverview({
         subtitle: `${mason.name}${featuredMod.latest_version ? ` • ${featuredMod.latest_version}` : ""}`,
         typeLabel: featuredMod.category_override || t("label_artifact", "{Mod}"),
         isPinned:
-          mason?.pinned_mod_id === featuredMod.id || mason?.pinned_ccset_id === featuredMod.id,
+          mason?.pinned_mod_id === featuredMod.id || mason?.pinned_collection_id === featuredMod.id,
         onClick: () => onModClick({ ...featuredMod, author: mason.name, isNexusView: true }),
       });
     }
@@ -694,7 +695,7 @@ export default function MasonProfileOverview({
               {(() => {
                 const showcaseMod =
                   mods.find(
-                    (m: any) => m.id === mason?.pinned_mod_id || m.id === mason?.pinned_ccset_id
+                    (m: any) => m.id === mason?.pinned_mod_id || m.id === mason?.pinned_collection_id
                   ) || mods[0];
                 const otherMods = mods
                   .filter((m: any) => m.id !== showcaseMod.id)

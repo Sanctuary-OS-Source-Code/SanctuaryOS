@@ -160,8 +160,9 @@ export default function MasonEditorPanel({
     }
   }, [activeFile?.content, isJsonFile]);
 
-  const isValidationRequired =
-    activeFile && !isLexiconActive && activeFile.name?.includes("Sims4");
+  const isValidationRequired = Boolean(
+    activeFile && !isLexiconActive && isSchemaActive && hasReference
+  );
   const isPublishDisabled =
     !activeFile ||
     !isDirty ||
@@ -435,7 +436,13 @@ export default function MasonEditorPanel({
               ? t("schema_studio_title", "Master Schema Studio")
               : t("mason_ide_subtitle", "Development & Localization Environment")
         }
-        icon={isLexiconActive ? "translate" : isSchemaActive ? "data_object" : "code"}
+        icon={
+          isLexiconActive
+            ? t("icon_translate", "translate")
+            : isSchemaActive
+              ? t("icon_data_object", "data_object")
+              : t("icon_code", "code")
+        }
         iconColorClass="theme-text-accent"
         backdropZ="z-[60000]"
         panelZ="z-[60001]"

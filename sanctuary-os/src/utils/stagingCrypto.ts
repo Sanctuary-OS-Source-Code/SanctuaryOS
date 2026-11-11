@@ -1,7 +1,8 @@
-import { supabase } from "../supabase";
+import { supabase, supabaseAuth } from "../supabase";
 import { isDesktop, isLinuxDesktop } from "./envUtils";
 import { packageBlueprintLoadOrder } from "../hooks/usePlaySetLogic";
 import { triggerPwaWebPush } from "./webPushClient";
+import { useStore } from "../store";
 
 export interface StagedArtifactItem {
   id: string;
@@ -122,11 +123,50 @@ export interface ResolvedStagedPayload {
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  const CHUNK_SIZE = 0x8000;
+  const parts: string[] = [];
+  for (let i = 0; i < bytes.byteLength; i += CHUNK_SIZE) {
+    const sub = bytes.subarray(i, Math.min(i + CHUNK_SIZE, bytes.byteLength));
+    parts.push(String.fromCharCode.apply(null, sub as unknown as number[]));
   }
-  return btoa(binary);
+  return btoa(parts.join(""));
+}
+
+async function maybeCompressBytes(input: Uint8Array): Promise<Uint8Array> {
+  if (typeof CompressionStream === "undefined" || input.byteLength < 1024) {
+    return input;
+  }
+  try {
+    const cs = new CompressionStream("gzip");
+    const writer = cs.writable.getWriter();
+    await writer.write(input as unknown as BufferSource);
+    await writer.close();
+    const compressedBuf = await new Response(cs.readable).arrayBuffer();
+    return new Uint8Array(compressedBuf);
+  } catch {
+    return input;
+  }
+}
+
+async function maybeDecompressBytes(input: Uint8Array): Promise<Uint8Array> {
+  if (
+    input.byteLength >= 2 &&
+    input[0] === 0x1f &&
+    input[1] === 0x8b &&
+    typeof DecompressionStream !== "undefined"
+  ) {
+    try {
+      const ds = new DecompressionStream("gzip");
+      const writer = ds.writable.getWriter();
+      await writer.write(input as unknown as BufferSource);
+      await writer.close();
+      const decompressedBuf = await new Response(ds.readable).arrayBuffer();
+      return new Uint8Array(decompressedBuf);
+    } catch {
+      return input;
+    }
+  }
+  return input;
 }
 
 function base64ToBytes(b64: string): Uint8Array {
@@ -138,16 +178,172 @@ function base64ToBytes(b64: string): Uint8Array {
   return bytes;
 }
 
-export async function deriveUserStagingToken(userId: string, email?: string): Promise<string> {
-  const raw = `sanctuary_citizen_stage_v1:${userId}:${(email || "").trim().toLowerCase()}`;
+const STAGING_SECRET_STORAGE_PREFIX = "sanctuary_staging_secret_v2_";
+const inMemoryStagingSecrets = new Map<string, string>();
+const inFlightSecretSyncs = new Set<string>();
+
+function generateRandom256BitHex(): string {
+  const bytes = new Uint8Array(32);
+  window.crypto.getRandomValues(bytes);
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function captureUrlFragmentStagingSecret(userId: string): string | null {
+  if (typeof window === "undefined" || !window.location?.hash) return null;
+  const rawHash = window.location.hash.replace(/^#/, "");
+  if (!rawHash) return null;
+  const params = new URLSearchParams(rawHash);
+  const fragmentSecret = (params.get("k") || params.get("staging_secret") || "").trim();
+  if (!fragmentSecret || fragmentSecret.length < 32 || !/^[A-Za-z0-9_-]+$/.test(fragmentSecret)) {
+    return null;
+  }
+  try {
+    localStorage.setItem(`${STAGING_SECRET_STORAGE_PREFIX}${userId}`, fragmentSecret);
+  } catch {}
+  try {
+    params.delete("k");
+    params.delete("staging_secret");
+    const remaining = params.toString();
+    const cleanUrl = `${window.location.pathname}${window.location.search}${remaining ? `#${remaining}` : ""}`;
+    window.history.replaceState(null, "", cleanUrl);
+  } catch {}
+  return fragmentSecret;
+}
+
+/**
+ * Resolves high-entropy 256-bit secret material for Zero-PII staging encryption and token derivation.
+ * Never derives keys solely from public `userId + email`. Secret material is resolved from:
+ * 1. Pairing QR/link URL fragment `#k=<secret>` (never transmitted in HTTP requests or public rows)
+ * 2. Private GoTrue `user_metadata.staging_vault_secret_v2` (authenticated user session only)
+ * 3. Device local cache (`localStorage`), generating a fresh CSPRNG 256-bit secret if absent.
+ */
+export async function resolveStagingVaultSecret(
+  userId: string,
+  explicitSecret?: string
+): Promise<string> {
+  if (!userId) {
+    throw new Error("Cannot derive staging secret without an authenticated user ID.");
+  }
+
+  if (explicitSecret && explicitSecret.trim().length >= 32) {
+    const clean = explicitSecret.trim();
+    inMemoryStagingSecrets.set(userId, clean);
+    try {
+      localStorage.setItem(`${STAGING_SECRET_STORAGE_PREFIX}${userId}`, clean);
+    } catch {}
+    return clean;
+  }
+
+  const fromFragment = captureUrlFragmentStagingSecret(userId);
+  if (fromFragment) {
+    inMemoryStagingSecrets.set(userId, fromFragment);
+    syncStagingSecretToUserMetadata(userId, fromFragment);
+    return fromFragment;
+  }
+
+  const cachedMem = inMemoryStagingSecrets.get(userId);
+  if (cachedMem && cachedMem.length >= 32) {
+    return cachedMem;
+  }
+
+  let metadataSecret = "";
+  try {
+    const storeSession = useStore.getState()?.session;
+    if (storeSession?.user?.id === userId) {
+      const candidate = storeSession.user?.user_metadata?.staging_vault_secret_v2;
+      if (typeof candidate === "string" && candidate.trim().length >= 32) {
+        metadataSecret = candidate.trim();
+      }
+    }
+    if (!metadataSecret) {
+      const { data } = await supabaseAuth.auth.getSession();
+      if (data?.session?.user?.id === userId) {
+        const candidate = data.session.user?.user_metadata?.staging_vault_secret_v2;
+        if (typeof candidate === "string" && candidate.trim().length >= 32) {
+          metadataSecret = candidate.trim();
+        }
+      }
+    }
+  } catch {}
+
+  if (metadataSecret) {
+    inMemoryStagingSecrets.set(userId, metadataSecret);
+    try {
+      localStorage.setItem(`${STAGING_SECRET_STORAGE_PREFIX}${userId}`, metadataSecret);
+    } catch {}
+    return metadataSecret;
+  }
+
+  try {
+    const localSecret = (localStorage.getItem(`${STAGING_SECRET_STORAGE_PREFIX}${userId}`) || "").trim();
+    if (localSecret.length >= 32) {
+      inMemoryStagingSecrets.set(userId, localSecret);
+      syncStagingSecretToUserMetadata(userId, localSecret);
+      return localSecret;
+    }
+  } catch {}
+
+  const generated = generateRandom256BitHex();
+  inMemoryStagingSecrets.set(userId, generated);
+  try {
+    localStorage.setItem(`${STAGING_SECRET_STORAGE_PREFIX}${userId}`, generated);
+  } catch {}
+  syncStagingSecretToUserMetadata(userId, generated);
+  return generated;
+}
+
+function syncStagingSecretToUserMetadata(userId: string, secret: string): void {
+  if (!userId || !secret || inFlightSecretSyncs.has(userId)) return;
+  if (typeof navigator !== "undefined" && !navigator.onLine) return;
+  inFlightSecretSyncs.add(userId);
+  (async () => {
+    try {
+      const { data } = await supabaseAuth.auth.getSession();
+      if (
+        data?.session?.user?.id === userId &&
+        data.session.user?.user_metadata?.staging_vault_secret_v2 !== secret
+      ) {
+        await supabaseAuth.auth.updateUser({
+          data: { staging_vault_secret_v2: secret },
+        });
+      }
+    } catch {
+      // Non-fatal; secret remains in volatile/local storage and URL pairing fragment
+    } finally {
+      inFlightSecretSyncs.delete(userId);
+    }
+  })();
+}
+
+export async function buildStagingPairingUrl(baseUrl: string, userId: string): Promise<string> {
+  const secret = await resolveStagingVaultSecret(userId);
+  const trimmed = baseUrl.replace(/#.*$/, "");
+  return `${trimmed}#k=${encodeURIComponent(secret)}`;
+}
+
+export async function deriveUserStagingToken(
+  userId: string,
+  email?: string,
+  explicitSecret?: string
+): Promise<string> {
+  const secret = await resolveStagingVaultSecret(userId, explicitSecret);
+  const raw = `sanctuary_citizen_stage_v2:${userId}:${(email || "").trim().toLowerCase()}:${secret}`;
   const encoded = new TextEncoder().encode(raw);
   const digest = await window.crypto.subtle.digest("SHA-256", encoded);
   const hashArray = Array.from(new Uint8Array(digest));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function deriveAesGcmKey(userId: string, email: string | undefined, salt: Uint8Array): Promise<CryptoKey> {
-  const passphrase = `${userId}::${(email || "").trim().toLowerCase()}::sanctuary_signature_queue_v1`;
+async function deriveAesGcmKey(
+  userId: string,
+  email: string | undefined,
+  salt: Uint8Array,
+  explicitSecret?: string
+): Promise<CryptoKey> {
+  const secret = await resolveStagingVaultSecret(userId, explicitSecret);
+  const passphrase = `${userId}::${(email || "").trim().toLowerCase()}::${secret}::sanctuary_signature_queue_v2`;
   const keyMaterial = await window.crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(passphrase),
@@ -179,11 +375,12 @@ export async function encryptStagingPayload(
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
   const key = await deriveAesGcmKey(userId, email, salt);
 
-  const plaintext = new TextEncoder().encode(JSON.stringify(payload));
+  const rawPlaintext = new TextEncoder().encode(JSON.stringify(payload));
+  const plaintext = await maybeCompressBytes(rawPlaintext);
   const ciphertext = await window.crypto.subtle.encrypt(
     { name: "AES-GCM", iv: iv as unknown as BufferSource },
     key,
-    plaintext
+    plaintext as unknown as BufferSource
   );
 
   return {
@@ -211,8 +408,8 @@ export async function decryptStagingPayload(
       key,
       ciphertext as unknown as BufferSource
     );
-
-    const jsonStr = new TextDecoder().decode(decryptedBuffer);
+    const decompressedBytes = await maybeDecompressBytes(new Uint8Array(decryptedBuffer));
+    const jsonStr = new TextDecoder().decode(decompressedBytes);
     return JSON.parse(jsonStr) as StagedCloudPayload;
   } catch (err) {
     console.warn("Failed to decrypt staged payload in volatile memory:", err);
@@ -339,7 +536,7 @@ export async function resolvePayloadDependencies(
       return { mergedItems: items, addedCount: 0 };
     }
 
-    // Expand twin relationships so if a .ts4script twin is staged, its .package twin ID is also checked as a child
+    // Expand twin relationships so if a companion script twin is staged, its module twin ID is also checked as a child
     const { data: twinRows } = await supabase
       .from("mod_relationships")
       .select("parent_id, child_id")
@@ -1278,8 +1475,13 @@ export function getSourceDeviceLabel(): string {
   return "Web / PWA Client";
 }
 
-export async function deriveUserCompanionToken(userId: string, email?: string): Promise<string> {
-  const raw = `sanctuary_citizen_companion_v1:${userId}:${(email || "").trim().toLowerCase()}`;
+export async function deriveUserCompanionToken(
+  userId: string,
+  email?: string,
+  explicitSecret?: string
+): Promise<string> {
+  const secret = await resolveStagingVaultSecret(userId, explicitSecret);
+  const raw = `sanctuary_citizen_companion_v2:${userId}:${(email || "").trim().toLowerCase()}:${secret}`;
   const encoded = new TextEncoder().encode(raw);
   const digest = await window.crypto.subtle.digest("SHA-256", encoded);
   const hashArray = Array.from(new Uint8Array(digest));
@@ -1297,11 +1499,12 @@ export async function pushEncryptedVaultCompanionSnapshot(
     const iv = window.crypto.getRandomValues(new Uint8Array(12));
     const key = await deriveAesGcmKey(session.user.id, session.user.email, salt);
 
-    const plaintext = new TextEncoder().encode(JSON.stringify(snapshot));
+    const rawPlaintext = new TextEncoder().encode(JSON.stringify(snapshot));
+    const plaintext = await maybeCompressBytes(rawPlaintext);
     const ciphertext = await window.crypto.subtle.encrypt(
       { name: "AES-GCM", iv: iv as unknown as BufferSource },
       key,
-      plaintext
+      plaintext as unknown as BufferSource
     );
 
     await supabase
@@ -1380,8 +1583,9 @@ export async function fetchEncryptedVaultCompanionSnapshots(
       key,
       ciphertext as unknown as BufferSource
     );
+    const decompressedBytes = await maybeDecompressBytes(new Uint8Array(decryptedBuffer));
     const parsed = JSON.parse(
-      new TextDecoder().decode(decryptedBuffer)
+      new TextDecoder().decode(decompressedBytes)
     ) as VaultCompanionSnapshot;
     if (parsed && Array.isArray(parsed.artifacts)) {
       // Statically poll any bound Edge Manifest URLs (especially for Tier 1-4 / unknown / local mods)
@@ -1585,6 +1789,10 @@ function toCompanionArtifact(
   };
 }
 
+let lastCompanionSyncSignature = "";
+let lastCompanionSyncAt = 0;
+let inFlightCompanionSync: Promise<boolean> | null = null;
+
 export async function syncDesktopCompanionRadarSnapshot(
   modList: any[],
   session: any,
@@ -1605,6 +1813,44 @@ export async function syncDesktopCompanionRadarSnapshot(
   if (!isDesktop() || !session?.user?.id) return false;
   if (localStorage.getItem("sanctuary_local_only") === "true") return false;
   if (localStorage.getItem("sanctuary_cloud_companion_sync") === "false") return false;
+
+  const storePlaySets = useStore.getState()?.playSets;
+  const candidatePlaySets = Array.isArray(exactDesktopSummary?.playSets)
+    ? exactDesktopSummary!.playSets!
+    : Array.isArray(storePlaySets)
+      ? storePlaySets
+      : [];
+
+  const syncSig = [
+    session.user.id,
+    activeBlueprintName || "",
+    gameVersion || "",
+    Array.isArray(modList) ? modList.length : 0,
+    exactDesktopSummary?.vaultCount ?? -1,
+    exactDesktopSummary?.criticalCount ?? -1,
+    exactDesktopSummary?.alertsCount ?? -1,
+    exactDesktopSummary?.updatesCount ?? -1,
+    exactDesktopSummary?.blueprintsCount ?? candidatePlaySets.length,
+    Array.isArray(exactDesktopSummary?.criticalItems) ? 1 : 0,
+  ].join("|");
+
+  if (
+    syncSig === lastCompanionSyncSignature &&
+    Date.now() - lastCompanionSyncAt < 15_000
+  ) {
+    return true;
+  }
+  if (inFlightCompanionSync) {
+    try {
+      await inFlightCompanionSync;
+    } catch {}
+    if (
+      syncSig === lastCompanionSyncSignature &&
+      Date.now() - lastCompanionSyncAt < 15_000
+    ) {
+      return true;
+    }
+  }
 
   const safeList = Array.isArray(modList) ? modList : [];
   const virtualFolderIds = new Set<string>();
@@ -1643,6 +1889,25 @@ export async function syncDesktopCompanionRadarSnapshot(
   const addedTopKeys = new Set<string>();
   const nameToTopIndex = new Map<string, number>();
 
+  const activeSchema = useStore.getState()?.activeGameSchema;
+  const schemaSupportedExts: string[] = Array.isArray(activeSchema?.extensions?.supported)
+    ? activeSchema.extensions.supported
+        .map((ext: any) => String(ext || "").trim().toLowerCase().replace(/^\./, ""))
+        .filter(Boolean)
+    : [];
+  const escapedExts = schemaSupportedExts.map((e) =>
+    e.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  );
+  const supportedExtRegex =
+    escapedExts.length > 0 ? new RegExp(`\\.(${escapedExts.join("|")})$`, "i") : null;
+  const stripSupportedExt = (fileName?: string): string | undefined => {
+    if (!fileName) return undefined;
+    if (supportedExtRegex) {
+      return fileName.replace(supportedExtRegex, "");
+    }
+    return fileName.replace(/\.[^/.]+$/, "");
+  };
+
   for (let i = 0; i < safeList.length; i++) {
     const mod = safeList[i];
     if (!mod) continue;
@@ -1652,10 +1917,9 @@ export async function syncDesktopCompanionRadarSnapshot(
     }
     if (!mod.isVirtual && mod.name) {
       const lowName = String(mod.name).toLowerCase();
-      const isModBinary =
-        /\.(package|ts4script|world|dll|asi|rpf|cak|pac|esp|esm|esl|bsa|ba2|archive|pak|lua|xl|reds|tweak|jar|litemod|xnb|tmx|tbin|csx)$/i.test(
-          lowName,
-        );
+      const isModBinary = supportedExtRegex
+        ? supportedExtRegex.test(lowName)
+        : /\.[a-z0-9]{1,16}$/i.test(lowName);
       if (!isModBinary) continue;
     }
     const modNameUpper = String(mod.displayName || mod.meta_name || mod.name || mod.title || "")
@@ -1741,7 +2005,7 @@ export async function syncDesktopCompanionRadarSnapshot(
       if (!nameToTopIndex.has(low)) nameToTopIndex.set(low, topIdx);
       const base = low.split("/").pop();
       if (base && !nameToTopIndex.has(base)) nameToTopIndex.set(base, topIdx);
-      const noExt = base?.replace(/\.(package|ts4script)$/i, "");
+      const noExt = stripSupportedExt(base);
       if (noExt && !nameToTopIndex.has(noExt)) nameToTopIndex.set(noExt, topIdx);
     };
     registerLookup(mod.name);
@@ -1772,15 +2036,14 @@ export async function syncDesktopCompanionRadarSnapshot(
       }))
     : undefined;
 
-  let effectivePlaySets: any[] = Array.isArray(exactDesktopSummary?.playSets)
-    ? exactDesktopSummary!.playSets!
-    : [];
+  let effectivePlaySets: any[] = candidatePlaySets;
   if (effectivePlaySets.length === 0) {
     try {
-      const wsId = localStorage.getItem("sanctuary_active_workspace") || "sims4";
-      const rawSaved =
-        localStorage.getItem(`sanctuary_${wsId}_playsets`) ||
-        localStorage.getItem("sanctuary_sims4_playsets");
+      const wsId =
+        localStorage.getItem("sanctuary_active_workspace") ||
+        useStore.getState()?.activeWorkspaceId ||
+        "";
+      const rawSaved = wsId ? localStorage.getItem(`sanctuary_${wsId}_playsets`) : null;
       if (rawSaved) {
         const parsedSaved = JSON.parse(rawSaved);
         if (Array.isArray(parsedSaved)) {
@@ -1803,7 +2066,7 @@ export async function syncDesktopCompanionRadarSnapshot(
               .toLowerCase()
               .replace(/\\/g, "/");
             const base = clean.split("/").pop() || clean;
-            const noExt = base.replace(/\.(package|ts4script)$/i, "");
+            const noExt = stripSupportedExt(base) || base;
             const idx =
               nameToTopIndex.get(clean) ??
               nameToTopIndex.get(base) ??
@@ -1842,6 +2105,21 @@ export async function syncDesktopCompanionRadarSnapshot(
     artifacts: topLevelVaultItems,
   };
 
-  return pushEncryptedVaultCompanionSnapshot(snapshot, session);
+  const pushPromise = pushEncryptedVaultCompanionSnapshot(snapshot, session)
+    .then((ok) => {
+      if (ok) {
+        lastCompanionSyncSignature = syncSig;
+        lastCompanionSyncAt = Date.now();
+      }
+      return ok;
+    })
+    .finally(() => {
+      if (inFlightCompanionSync === pushPromise) {
+        inFlightCompanionSync = null;
+      }
+    });
+
+  inFlightCompanionSync = pushPromise;
+  return pushPromise;
 }
 

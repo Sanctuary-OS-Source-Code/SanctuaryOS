@@ -8,6 +8,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   CustomDropdown,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
 import { logArchitectAction } from "../lib/audit";
@@ -39,9 +40,6 @@ import { useTheme } from "../ThemeContext";
 import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from "../utils/monacoTheme";
 import { AuditLogViewer } from "../side-panels/SAAuditLogViewer";
 import TicketDossierSidePanel from "../side-panels/TicketDossierSidePanel";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export default function KeepersActiveGames({
   initialTab = "overview",
@@ -307,12 +305,17 @@ export default function KeepersActiveGames({
     setVerifyingHandshake(true);
     setHandshakeStatus(null);
     try {
-      const res: any = await supabase.rpc("secure_verify_and_bootstrap_spoke", {
-        p_payload: {
-          supabase_url: formData.supabase_url.trim(),
-          supabase_anon_key: formData.supabase_anon_key.trim(),
-          supabase_service_key: formData.supabase_service_key?.trim() || "",
-          founder_identifier: formData.founder_identifier?.trim() || "",
+      const handshakePayload = {
+        supabase_url: formData.supabase_url.trim(),
+        supabase_anon_key: formData.supabase_anon_key.trim(),
+        supabase_service_key: formData.supabase_service_key?.trim() || "",
+        founder_identifier: formData.founder_identifier?.trim() || "",
+      };
+      const res: any = await supabaseAuth.functions.invoke("game-gateway", {
+        body: {
+          action: "keeper_verify_spoke_handshake",
+          payload: handshakePayload,
+          ...handshakePayload,
         },
       });
       const data = res?.data;
@@ -362,22 +365,31 @@ export default function KeepersActiveGames({
       await handleVerifyHandshake();
     }
 
-    let result;
-    if (sidePanelMode === "add") {
-      result = await supabase.from("sanctuary_games").insert([
-        {
-          name: formData.name.trim(),
-          schema_id: formData.schema_id.trim().toUpperCase(),
-          supabase_url: formData.supabase_url.trim(),
-          supabase_anon_key: formData.supabase_anon_key.trim(),
-          ...(formData.supabase_service_key?.trim()
-            ? { supabase_service_key: formData.supabase_service_key.trim() }
-            : {}),
-          icon: formData.icon,
-          is_active: formData.is_active,
-        },
-      ]);
-      if (!result?.error) {
+    const prevGame = sidePanelMode === "edit" ? games.find((g) => g.id === formData.id) : undefined;
+    const upsertPayload = {
+      id: sidePanelMode === "edit" ? formData.id : undefined,
+      name: formData.name.trim(),
+      schema_id: formData.schema_id.trim().toUpperCase(),
+      supabase_url: formData.supabase_url.trim(),
+      supabase_anon_key: formData.supabase_anon_key.trim(),
+      supabase_service_key: formData.supabase_service_key?.trim() || undefined,
+      icon: formData.icon,
+      is_active: formData.is_active,
+      donation_url: formData.donation_url,
+      payment_processor: formData.payment_processor,
+    };
+
+    const result: any = await supabaseAuth.functions.invoke("game-gateway", {
+      body: {
+        action: "keeper_upsert_game",
+        payload: upsertPayload,
+      },
+    });
+
+    const invokeError = result?.error || (result?.data?.error ? { message: result.data.error } : null);
+
+    if (!invokeError) {
+      if (sidePanelMode === "add") {
         logArchitectAction(
           `Registered Game Database: ${formData.name}`,
           "sanctuary_games",
@@ -392,24 +404,7 @@ export default function KeepersActiveGames({
             is_active: { to: formData.is_active },
           }
         );
-      }
-    } else if (sidePanelMode === "edit") {
-      const prevGame = games.find((g) => g.id === formData.id);
-      result = await supabase
-        .from("sanctuary_games")
-        .update({
-          name: formData.name.trim(),
-          schema_id: formData.schema_id.trim().toUpperCase(),
-          supabase_url: formData.supabase_url.trim(),
-          supabase_anon_key: formData.supabase_anon_key.trim(),
-          ...(formData.supabase_service_key?.trim()
-            ? { supabase_service_key: formData.supabase_service_key.trim() }
-            : {}),
-          icon: formData.icon,
-          is_active: formData.is_active,
-        })
-        .eq("id", formData.id);
-      if (!result?.error) {
+      } else if (sidePanelMode === "edit") {
         logArchitectAction(
           `Updated Game Database: ${formData.name}`,
           "sanctuary_games",
@@ -425,13 +420,11 @@ export default function KeepersActiveGames({
           }
         );
       }
-    }
-
-    if (!result?.error) {
       try {
         const { savePartnerCommunityDonationConfig } = await import("../utils/supporterManager");
+        const savedGameId = result?.data?.game?.id || result?.data?.id || formData.id || undefined;
         await savePartnerCommunityDonationConfig({
-          gameId: formData.id || undefined,
+          gameId: savedGameId,
           schemaId: formData.schema_id.trim().toUpperCase(),
           donationUrl: formData.donation_url,
           paymentProcessor: formData.payment_processor,
@@ -455,7 +448,7 @@ export default function KeepersActiveGames({
       await fetchGames();
       await syncGameDatabases();
     } else {
-      alert(`${t("identities_failed_prefix", "Error saving game:")} ${result.error.message}`);
+      alert(`${t("identities_failed_prefix", "Error saving game:")} ${invokeError.message}`);
     }
   };
 
@@ -1171,7 +1164,7 @@ export default function KeepersActiveGames({
             value={formData.name}
             onChange={(val) => setFormData({ ...formData, name: val })}
             label={t("ui_game_name", "Game Workspace Name")}
-            placeholder={t("ui_game_name", "e.g. The Sims 4")}
+            placeholder={t("ph_game_name", "e.g. My Community Game")}
             subtitle={
               formData.schema_id
                 ? `${t("ui_schema_id", "SCHEMA")}: ${formData.schema_id}`
@@ -1210,7 +1203,7 @@ export default function KeepersActiveGames({
               type="text"
               value={formData.schema_id}
               onChange={(val) => setFormData({ ...formData, schema_id: val })}
-              placeholder={t("ui_schema_id", "e.g. SIMS4")}
+              placeholder={t("ph_schema_id", "e.g. custom_engine")}
             />
             <UniversalInput
               label={t("ui_supabase_url", "Supabase Project URL")}
@@ -1850,7 +1843,7 @@ export default function KeepersActiveGames({
                   type="text"
                   value={createFileName}
                   onChange={(e) => setCreateFileName(e.target.value)}
-                  placeholder="sims4"
+                  placeholder={t("ph_schema_id", "e.g. custom_engine")}
                   className="glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleCreateSubmit();

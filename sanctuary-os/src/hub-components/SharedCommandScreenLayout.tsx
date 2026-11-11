@@ -1,7 +1,8 @@
 import React from 'react';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { extractPostImage, stripMarkdown, DashboardStatTile, SidePanelContext, EmptyState } from '../shared';
+import { extractPostImage, stripMarkdown } from '../shared-components/stringUtils';
+import { DashboardStatTile, SidePanelContext, EmptyState } from '../shared-components/layout';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { extractDispatchMetadata, formatDispatchCategory } from '../components/universal/DispatchPollAndMeta';
 import { formatSanctuaryDate } from '../utils/dateUtils';

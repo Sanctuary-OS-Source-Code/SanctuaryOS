@@ -11,7 +11,6 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   DashboardStatTile,
-  StatTileCarousel,
   PanelHeaderGroup,
   PanelHeaderButton,
   EmptyState,
@@ -149,9 +148,10 @@ export default function WebLegalViewer() {
       }
     >
       <div className="flex flex-col gap-5 mt-2 relative z-10 w-full pb-8">
-        <StatTileCarousel innerClassName="px-0">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_gavel", "gavel")}
             label={`V${stableVersion} • ${t("btn_view", "View")}`}
             number={t("landing_eula", "EULA")}
@@ -160,6 +160,7 @@ export default function WebLegalViewer() {
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_shield", "shield")}
             label={`V${stableVersion} • ${t("btn_view", "View")}`}
             number={t("landing_privacy", "Privacy")}
@@ -168,13 +169,14 @@ export default function WebLegalViewer() {
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_description", "description")}
             label={`V${stableVersion} • ${t("btn_view", "View")}`}
             number={t("landing_terms", "Terms")}
             isActive={activeLegal === "terms"}
             onClick={() => setActiveLegal("terms")}
           />
-        </StatTileCarousel>
+        </div>
 
         <SidePanelHeroCard
           icon={t("icon_gavel", "gavel")}

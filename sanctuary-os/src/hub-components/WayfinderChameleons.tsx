@@ -7,6 +7,7 @@ import {
   PanelHeaderButton,
   UniversalGroup,
   CustomDropdown,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import {
   ElevatedHubLayout,
@@ -198,7 +199,7 @@ export function WayfinderChameleons({
         const activeWs = (state.workspaces || []).find(
           (w: any) => w.id === state.activeWorkspaceId
         );
-        const wsSchemaId = activeWs?.schema_id || "sims4";
+        const wsSchemaId = activeWs?.schema_id || "default_schema";
         if (DEFAULT_CORE_THEMES[wsSchemaId]) {
           themesMap[wsSchemaId] = {
             ...DEFAULT_CORE_THEMES[wsSchemaId],
@@ -485,7 +486,11 @@ export function WayfinderChameleons({
         try {
           await fetch("/__update-lexicon", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "x-sanctuary-dev-token":
+                typeof __SANCTUARY_DEV_TOKEN__ !== "undefined" ? __SANCTUARY_DEV_TOKEN__ : "",
+            },
             body: JSON.stringify({
               id: fileId,
               file: `${fileId}.json`,
@@ -1097,8 +1102,6 @@ export function WayfinderChameleons({
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full pb-16">
           {(() => {
             const hasTitleDraft = hasIdeCachedDraft("cloud://core-title-area");
-            const VAULT_CHIP_CLASS =
-              "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
             return (
               <>

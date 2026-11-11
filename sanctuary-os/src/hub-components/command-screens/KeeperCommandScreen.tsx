@@ -9,12 +9,11 @@ import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandSc
 import { UniversalCard } from "../../components/universal/UniversalCard";
 import { ReleaseNotesShowcase } from "../../components/ReleaseNotesShowcase";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
-
-const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { VAULT_CHIP_CLASS } from "../../shared";
 
 export function KeeperCommandScreen({ setTab, onOpenMasonProfile }: any) {
   const { t } = useLexicon();
-  const { session } = useStore();
+  const session = useStore((state) => state.session);
   const [healthOpen, setHealthOpen] = useState(false);
   const [isPipelineOpen, setIsPipelineOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);

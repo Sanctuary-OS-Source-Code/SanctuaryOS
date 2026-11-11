@@ -5,12 +5,111 @@ use std::fs;
 use std::path::PathBuf;
 
 #[tauri::command]
-pub fn rip_game_version(
+pub async fn rip_game_version(
     live_path: String,
+    game_schema: Option<crate::schema::GameSchema>,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
-    rip_game_version_with_schema(&live_path, &game_schema)
+    let effective_schema = game_schema.or_else(|| {
+        state
+            .active_schema
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    });
+    tauri::async_runtime::spawn_blocking(move || {
+        rip_game_version_with_schema(&live_path, &effective_schema)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn extract_json_key_version(json_val: &serde_json::Value, key_path: &str) -> Option<String> {
+    let mut current = json_val;
+    for segment in key_path.split('.').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        match current {
+            serde_json::Value::Object(map) => {
+                current = map.get(segment)?;
+            }
+            serde_json::Value::Array(arr) => {
+                let idx = segment.parse::<usize>().ok()?;
+                current = arr.get(idx)?;
+            }
+            _ => return None,
+        }
+    }
+
+    let raw = match current {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Number(n) => n.to_string(),
+        _ => return None,
+    };
+    crate::game_logic::clean_semver_like_version(&raw)
+}
+
+fn try_extract_version_from_schema_descriptor(
+    live_path: &str,
+    root_path: &std::path::Path,
+    version_ext: &crate::schema::VersionExtraction,
+) -> Option<String> {
+    let rel = version_ext.relative_path.trim();
+    if rel.is_empty() {
+        return None;
+    }
+
+    let candidates = [root_path.join(rel), PathBuf::from(live_path).join(rel)];
+    for candidate in candidates {
+        if !candidate.is_file() {
+            continue;
+        }
+        let Ok(content) = fs::read_to_string(&candidate) else {
+            continue;
+        };
+
+        if let Some(json_key) = version_ext
+            .json_key
+            .as_deref()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+        {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(ver) = extract_json_key_version(&parsed, json_key) {
+                    return Some(ver);
+                }
+            }
+        }
+
+        let prefix = version_ext.line_prefix.trim();
+        if !prefix.is_empty() {
+            let prefix_lower = prefix.to_lowercase();
+            for line in content.lines() {
+                let trimmed_line = line.trim();
+                if trimmed_line.to_lowercase().starts_with(&prefix_lower) {
+                    let remainder = if let Some(idx) = trimmed_line.find('=') {
+                        &trimmed_line[idx + 1..]
+                    } else if let Some(idx) = trimmed_line.find(':') {
+                        &trimmed_line[idx + 1..]
+                    } else {
+                        &trimmed_line[prefix.len()..]
+                    };
+                    if let Some(cleaned) = crate::game_logic::clean_semver_like_version(remainder) {
+                        return Some(cleaned);
+                    }
+                }
+            }
+        } else if matches!(
+            version_ext.method.as_deref(),
+            Some("plain_text" | "raw_file" | "text")
+        ) {
+            if let Some(first_line) = content.lines().map(|l| l.trim()).find(|l| !l.is_empty()) {
+                if let Some(cleaned) = crate::game_logic::clean_semver_like_version(first_line) {
+                    return Some(cleaned);
+                }
+            }
+        }
+    }
+
+    None
 }
 
 pub fn rip_game_version_with_schema(
@@ -18,6 +117,28 @@ pub fn rip_game_version_with_schema(
     game_schema: &Option<crate::schema::GameSchema>,
 ) -> Result<String, String> {
     let root_path = crate::game_logic::resolve_game_engine_root(live_path, game_schema);
+
+    // 1. If schema explicitly configures JSON key extraction, prefer it first so wrapper executables
+    // do not shadow authoritative manifest versions (e.g., version.json / info.json / pack.mcmeta).
+    if let Some(schema) = game_schema {
+        if let Some(version_ext) = &schema.version_extraction {
+            let prefers_json = version_ext.method.as_deref() == Some("json_key")
+                || version_ext
+                    .json_key
+                    .as_deref()
+                    .map(|s| !s.trim().is_empty())
+                    .unwrap_or(false);
+            if prefers_json {
+                if let Some(ver) =
+                    try_extract_version_from_schema_descriptor(live_path, &root_path, version_ext)
+                {
+                    return Ok(ver);
+                }
+            }
+        }
+    }
+
+    // 2. Probe executable PE version header using schema executable_names / executable_subdir
     let mut exe_path = crate::game_logic::resolve_executable_path(live_path, game_schema);
 
     if exe_path.is_none() {
@@ -33,16 +154,6 @@ pub fn rip_game_version_with_schema(
                 if sub.exists() {
                     search_folder = sub;
                 }
-            } else if crate::game_logic::is_sims4_schema(game_schema) {
-                let bin_folder = root_path.join("Game").join("Bin");
-                if bin_folder.exists() {
-                    search_folder = bin_folder;
-                }
-            }
-        } else {
-            let bin_folder = root_path.join("Game").join("Bin");
-            if bin_folder.exists() {
-                search_folder = bin_folder;
             }
         }
 
@@ -98,63 +209,13 @@ pub fn rip_game_version_with_schema(
         }
     }
 
-    if let Some(schema) = &game_schema {
+    // 3. Schema-driven text / INI / JSON version extraction fallback
+    if let Some(schema) = game_schema {
         if let Some(version_ext) = &schema.version_extraction {
-            if !version_ext.relative_path.is_empty() {
-                let schema_ini = root_path.join(&version_ext.relative_path);
-
-                if schema_ini.exists() {
-                    if let Ok(content) = fs::read_to_string(&schema_ini) {
-                        let prefix = version_ext.line_prefix.to_lowercase();
-                        for line in content.lines() {
-                            if line.to_lowercase().starts_with(&prefix) {
-                                if let Some(idx) = line.find('=') {
-                                    let raw_version = line[idx + 1..].trim();
-                                    let version: String = raw_version
-                                        .chars()
-                                        .filter(|c| c.is_ascii_digit() || *c == '.')
-                                        .collect();
-
-                                    if !version.is_empty() {
-                                        return Ok(version);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if crate::game_logic::is_sims4_schema(game_schema) {
-        let ini_candidates = [
-            root_path.join("Game").join("Bin").join("Default.ini"),
-            root_path.join("Contents").join("Resources").join("Default.ini"),
-            PathBuf::from(live_path)
-                .join("Contents")
-                .join("Resources")
-                .join("Default.ini"),
-        ];
-        for legacy_ini in ini_candidates {
-            if legacy_ini.exists() {
-                if let Ok(content) = fs::read_to_string(&legacy_ini) {
-                    for line in content.lines() {
-                        if line.to_lowercase().starts_with("gameversion") {
-                            if let Some(idx) = line.find('=') {
-                                let raw_version = line[idx + 1..].trim();
-                                let version: String = raw_version
-                                    .chars()
-                                    .filter(|c| c.is_ascii_digit() || *c == '.')
-                                    .collect();
-
-                                if !version.is_empty() {
-                                    return Ok(version);
-                                }
-                            }
-                        }
-                    }
-                }
+            if let Some(ver) =
+                try_extract_version_from_schema_descriptor(live_path, &root_path, version_ext)
+            {
+                return Ok(ver);
             }
         }
     }
@@ -167,62 +228,65 @@ pub async fn scan_installed_dlc(
     live_path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
-    let mut installed_packs = Vec::new();
-    let root = crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
+    let game_schema = state
+        .active_schema
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
 
-    let mut dirs_to_scan = vec![root.clone()];
-    if crate::game_logic::is_sims4_schema(&game_schema) {
-        for extra in [
-            root.join("The Sims 4 Packs"),
-            root.join("Contents").join("Delta"),
-            PathBuf::from(&live_path).join("Contents").join("Delta"),
-        ] {
-            if extra.exists() && !dirs_to_scan.contains(&extra) {
-                dirs_to_scan.push(extra);
-            }
-        }
-    }
-    if let Some(schema) = &game_schema {
-        if let Some(subs) = &schema.dlc_subdirs {
-            for sub in subs {
-                let p = root.join(sub);
-                if p.exists() && !dirs_to_scan.contains(&p) {
-                    dirs_to_scan.push(p);
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut installed_packs = Vec::new();
+        let root = crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
+        let live_path_buf = PathBuf::from(&live_path);
+
+        let mut dirs_to_scan = vec![root.clone()];
+        if let Some(schema) = &game_schema {
+            if let Some(subs) = &schema.dlc_subdirs {
+                for sub in subs {
+                    let trimmed = sub.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    for candidate in [root.join(trimmed), live_path_buf.join(trimmed)] {
+                        if candidate.exists() && !dirs_to_scan.contains(&candidate) {
+                            dirs_to_scan.push(candidate);
+                        }
+                    }
                 }
             }
         }
-    }
-    let dlc_exts: Vec<String> = game_schema
-        .as_ref()
-        .and_then(|s| s.dlc_file_extensions.as_ref())
-        .map(|list| {
-            list.iter()
-                .map(|e| e.trim_start_matches('.').to_lowercase())
-                .collect()
-        })
-        .unwrap_or_default();
 
-    for dir in dirs_to_scan {
-        if let Ok(entries) = std::fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.is_dir() {
-                    if let Ok(name) = entry.file_name().into_string() {
-                        let name_up = name.to_uppercase();
-                        if crate::game_logic::is_dlc_folder(&game_schema, &name_up) {
-                            if !installed_packs.contains(&name_up) {
+        let dlc_exts: Vec<String> = game_schema
+            .as_ref()
+            .and_then(|s| s.dlc_file_extensions.as_ref())
+            .map(|list| {
+                list.iter()
+                    .map(|e| e.trim_start_matches('.').to_lowercase())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        for dir in dirs_to_scan {
+            if let Ok(entries) = std::fs::read_dir(&dir) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_dir() {
+                        if let Ok(name) = entry.file_name().into_string() {
+                            let name_up = name.to_uppercase();
+                            if crate::game_logic::is_dlc_folder(&game_schema, &name_up)
+                                && !installed_packs.contains(&name_up)
+                            {
                                 installed_packs.push(name_up);
                             }
                         }
-                    }
-                } else if p.is_file() && !dlc_exts.is_empty() {
-                    if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
-                        if dlc_exts.contains(&ext.to_lowercase()) {
-                            if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
-                                let name_up = stem.to_uppercase();
-                                if crate::game_logic::is_dlc_folder(&game_schema, &name_up) {
-                                    if !installed_packs.contains(&name_up) {
+                    } else if p.is_file() && !dlc_exts.is_empty() {
+                        if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+                            if dlc_exts.contains(&ext.to_lowercase()) {
+                                if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
+                                    let name_up = stem.to_uppercase();
+                                    if crate::game_logic::is_dlc_folder(&game_schema, &name_up)
+                                        && !installed_packs.contains(&name_up)
+                                    {
                                         installed_packs.push(name_up);
                                     }
                                 }
@@ -232,9 +296,11 @@ pub async fn scan_installed_dlc(
                 }
             }
         }
-    }
-    installed_packs.sort();
-    Ok(installed_packs)
+        installed_packs.sort();
+        Ok(installed_packs)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -615,7 +681,8 @@ pub fn save_file_with_history(
 
     let prior_disk_content = std::fs::read_to_string(&path).ok();
     mark_workbench_save(&path);
-    std::fs::write(&path, &content).map_err(|e| format!("Failed to save file: {}", e))?;
+    crate::utils::atomic_write_bytes(std::path::Path::new(&path), content.as_bytes())
+        .map_err(|e| format!("Failed to save file: {}", e))?;
 
     if let Some(file_history_dir) = get_file_history_dir(&app, &path) {
         let config = get_saved_coordinates();
@@ -682,7 +749,8 @@ pub fn save_file_silently(path: String, content: String) -> Result<String, Strin
         return Err("Blocked: Refusing to write to protected system path.".into());
     }
     mark_workbench_save(&path);
-    std::fs::write(&path, &content).map_err(|e| format!("Failed to save file: {}", e))?;
+    crate::utils::atomic_write_bytes(std::path::Path::new(&path), content.as_bytes())
+        .map_err(|e| format!("Failed to save file: {}", e))?;
     Ok("Saved successfully".into())
 }
 

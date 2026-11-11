@@ -1,15 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabaseServices } from "../lib/supabase-services";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderButton, StatBox } from "../shared";
+import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderButton, StatBox, VAULT_CHIP_CLASS } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelHeroCard, SidePanelTitleInput, UniversalGroup } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
 import { DynamicTemplatePreviewBanner } from "../chameleon-components/ThemeCard";
 import TemplatePreviewer from "../TemplatePreviewer";
-
-const VAULT_CHIP_CLASS =
-    "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 import { supabase } from "../supabase";
 import { useStore } from "../store";
 
@@ -249,22 +246,22 @@ export default function ArchitectTemplateOversight() {
     const renderLanding = () => (
         <HubOverviewLanding>
             <HubOverviewSection
-                icon="description"
+                icon={t("icon_description", "description")}
                 iconColorClass="text-[var(--accent)]"
                 title={t("recent_active_files", "Recent Active")}
                 isEmpty={trackedFiles.length === 0}
-                emptyIcon="description"
+                emptyIcon={t("icon_description", "description")}
                 emptyTitle={t("no_tracked_files", "No Active Files")}
             >
                 {trackedFiles.slice(0, 4).map(renderTrackedFileCard)}
             </HubOverviewSection>
 
             <HubOverviewSection
-                icon="flag"
+                icon={t("icon_flag", "flag")}
                 iconColorClass="text-[var(--warning)]"
                 title={t("recent_flagged_files", "Recent Flagged")}
                 isEmpty={flaggedFiles.length === 0}
-                emptyIcon="flag"
+                emptyIcon={t("icon_flag", "flag")}
                 emptyTitle={t("no_issues", "No Flagged Files")}
             >
                 {flaggedFiles.slice(0, 4).map(renderTrackedFileCard)}
@@ -277,7 +274,7 @@ export default function ArchitectTemplateOversight() {
             <ElevatedHubLayout
                 headerTitle={t("architect_templates", "Template Oversight")}
                 headerSubtitle={t("architect_templates_desc", "Manage and review configuration templates.")}
-                headerIcon="description"
+                headerIcon={t("icon_description", "description")}
                 headerIconColorClass="theme-text-accent"
                 search={fileSearch}
                 onSearchChange={setFileSearch}
@@ -287,7 +284,7 @@ export default function ArchitectTemplateOversight() {
                 onTabChange={(tabId: string) => setActiveFilterTab(tabId as any)}
                 hideSearch={activeFilterTab === 'overview'}
                 primaryPopover={activeFilterTab !== 'overview' ? {
-                    icon: "tune",
+                    icon: t("icon_tune", "tune"),
                     label: t("filters", "Filters"),
                     content: (
                         <div className="flex flex-col w-[300px] p-4 text-left">
@@ -310,7 +307,7 @@ export default function ArchitectTemplateOversight() {
                 actions={activeFilterTab !== 'overview' ? [
                     {
                         id: "add",
-                        icon: "add",
+                        icon: t("icon_add", "add"),
                         label: t("auto_create", "Add"),
                         onClick: () => setIsAddPanelOpen(true)
                     }
@@ -339,12 +336,12 @@ export default function ArchitectTemplateOversight() {
                 onClose={() => setIsAddPanelOpen(false)}
                 title={t("add_target_file", "Add Target File")}
                 subtitle={t("desc_file_name", "Track a new configuration file")}
-                icon="add"
+                icon={t("icon_add", "add")}
                 iconColorClass="text-[var(--accent)]"
                 headerActions={
                     <PanelHeaderGroup>
                         <PanelHeaderButton
-                            icon="check"
+                            icon={t("icon_check", "check")}
                             variant="success"
                             tooltip={t("save_meta", "Save File")}
                             disabled={!newFileName.trim()}
@@ -365,7 +362,7 @@ export default function ArchitectTemplateOversight() {
                         value={newFileName}
                         onChange={setNewFileName}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddSubmit()}
-                        placeholder={t("ph_file_name", "e.g. mc_settings.cfg")}
+                        placeholder={t("ph_file_name", "e.g. mod_settings.ini")}
                         subtitle={t("author_filename", "Target File Name")}
                         autoFocus
                     />

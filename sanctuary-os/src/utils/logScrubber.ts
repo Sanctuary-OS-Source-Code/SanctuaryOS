@@ -3,6 +3,8 @@ import {
   normalizeRuleSeverity,
   SchemaExceptionRule,
 } from "../components/KnownExceptionRules";
+import { getExtensionRegex } from "../shared-components/modUtils";
+import { useStore } from "../store";
 
 export const REDACTED_TOKEN = "[REDACTED BY SANCTUARY]";
 export const REDACTED_HEX_SESSION_TOKEN = "000000000000000000000000";
@@ -138,7 +140,7 @@ export function formatHumanReadableLogText(rawText?: string | null): string {
 
 /**
  * Strips any internal Sanctuary prefix ("⚠️ EXCEPTION DETECTED:") or outer Lab Report header
- * and returns the pure, scrubbed real game log content (e.g., lastException.txt / lastUIException.txt XML)
+ * and returns the pure, scrubbed real game log content
  * with XML entities (`&#13;&#10;`) preserved for external XML parsers.
  */
 export function extractCleanRealLogContent(rawSnippet?: string | null): string {
@@ -157,21 +159,47 @@ export function extractCleanRealLogContent(rawSnippet?: string | null): string {
 }
 
 /**
- * Infers a sensible real log filename (e.g. lastUIException.txt vs lastException.txt)
+ * Infers a sensible real log filename from activeGameSchema.exception_logs
  * when saving the companion real game log alongside Lab_Report_#.txt.
  */
-export function inferRealLogFileName(logText?: string | null, explicitFileName?: string): string {
+export function inferRealLogFileName(
+  logText?: string | null,
+  explicitFileName?: string,
+  activeGameSchema?: any
+): string {
   if (explicitFileName && explicitFileName.trim()) {
     return explicitFileName.trim().replace(/[^a-zA-Z0-9._-]/g, "_");
   }
+  const schemaLogNames: string[] = Array.isArray(activeGameSchema?.exception_logs)
+    ? activeGameSchema.exception_logs
+        .map((entry: any) => {
+          const raw =
+            typeof entry === "string"
+              ? entry
+              : entry?.file_name || entry?.exact_name || entry?.pattern || "";
+          const cleaned = String(raw || "")
+            .trim()
+            .replace(/[*?]/g, "");
+          return cleaned;
+        })
+        .filter((s: string) => Boolean(s) && /\.[a-z0-9]+$/i.test(s))
+    : [];
+
+  const sanitize = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const lower = (logText || "").toLowerCase();
   if (lower.includes("uiexception") || lower.includes("widgets.") || lower.includes("actionscript")) {
-    return "lastUIException.txt";
+    const uiMatch = schemaLogNames.find((n) => n.toLowerCase().includes("ui"));
+    return sanitize(uiMatch || "ui_exception.log");
   }
   if (lower.includes("crash") && !lower.includes("<desyncdata>")) {
-    return "lastCrash.txt";
+    const crashMatch = schemaLogNames.find((n) => n.toLowerCase().includes("crash"));
+    return sanitize(crashMatch || "crash.log");
   }
-  return "lastException.txt";
+  const primaryMatch =
+    schemaLogNames.find(
+      (n) => !n.toLowerCase().includes("ui") && !n.toLowerCase().includes("crash")
+    ) || schemaLogNames[0];
+  return sanitize(primaryMatch || "exception.log");
 }
 
 /**
@@ -365,7 +393,7 @@ function getModListIndex(modList?: any[]): ModListIndex | null {
 }
 
 /**
- * Determines the file extension tag for a mod (e.g. "ts4script", "package", "world").
+ * Determines the file extension tag for a mod from the active GameSchema.
  */
 export function getModExtensionLabel(
   m: any,
@@ -377,19 +405,31 @@ export function getModExtensionLabel(
     ? activeGameSchema.extensions.supported.map((e: string) =>
         String(e).replace(/^\./, "").toLowerCase()
       )
-    : ["package", "ts4script"];
+    : [];
+  const scriptExts: string[] = Array.isArray(activeGameSchema?.extensions?.scripts)
+    ? activeGameSchema.extensions.scripts.map((e: string) =>
+        String(e).replace(/^\./, "").toLowerCase()
+      )
+    : [];
 
   const defaultPkgExt =
-    supportedExts.find((e) => !e.includes("script")) || "package";
+    supportedExts.find((e) => !scriptExts.includes(e) && !e.includes("script")) ||
+    supportedExts[0] ||
+    "mod";
   const defaultScriptExt =
-    supportedExts.find((e) => e.includes("script")) || "ts4script";
+    scriptExts[0] || supportedExts.find((e) => e.includes("script")) || "script";
 
   if (!m) return defaultPkgExt;
 
   const detectOwnExt = (): string | null => {
     if (typeof m === "string") {
       const extMatch = m.match(/\.([a-z0-9]{2,12})$/i);
-      if (extMatch && supportedExts.includes(extMatch[1].toLowerCase())) {
+      if (
+        extMatch &&
+        (supportedExts.includes(extMatch[1].toLowerCase()) ||
+          scriptExts.includes(extMatch[1].toLowerCase()) ||
+          supportedExts.length === 0)
+      ) {
         return extMatch[1].toLowerCase();
       }
       if (/script/i.test(m)) return defaultScriptExt;
@@ -411,7 +451,8 @@ export function getModExtensionLabel(
           const ext = extMatch[1].toLowerCase();
           if (
             supportedExts.includes(ext) ||
-            ["package", "ts4script", "script", "world", "asi", "dll", "archive", "pak"].includes(ext)
+            scriptExts.includes(ext) ||
+            supportedExts.length === 0
           ) {
             return ext;
           }
@@ -430,8 +471,11 @@ export function getModExtensionLabel(
           const flatFiles = parsed.map((item: any) =>
             typeof item === "string" ? item : item?.name || item?.path || ""
           );
-          if (flatFiles.some((f: string) => /\.ts4script$/i.test(f))) {
-            return "ts4script";
+          const matchedScriptFileExt = flatFiles
+            .map((f: string) => String(f).match(/\.([a-z0-9]{2,12})$/i)?.[1]?.toLowerCase() || "")
+            .find((ext: string) => Boolean(ext) && scriptExts.includes(ext));
+          if (matchedScriptFileExt) {
+            return matchedScriptFileExt;
           }
           if (flatFiles.some((f: string) => /script/i.test(f))) {
             return defaultScriptExt;
@@ -446,12 +490,12 @@ export function getModExtensionLabel(
       } catch {}
     }
 
-    // 4. Check if name/displayName/type indicates a script twin (e.g. UI_Cheats_Extension_Scripts)
-    const rawIdentity = `${m.name || ""} ${m.displayName || ""} ${m.physical_path || ""} ${m.type || ""} ${m.category || ""}`;
+    // 4. Check if name/displayName/type indicates a script twin
+    const rawIdentity = `${m.name || ""} ${m.displayName || ""} ${m.physical_path || ""} ${m.type || ""} ${m.category || ""}`.toLowerCase();
     if (
       /[_-\s]scripts?\b/i.test(m.name || "") ||
       /[_-\s]scripts?\b/i.test(m.displayName || "") ||
-      /\bts4scripts?\b/i.test(rawIdentity) ||
+      scriptExts.some((se) => Boolean(se) && rawIdentity.includes(se)) ||
       String(m.type || "").toLowerCase() === "script"
     ) {
       return defaultScriptExt;
@@ -647,7 +691,7 @@ export function getModVersionLabel(
 /**
  * Resolves a report's mod (which may have been stored as a virtual family card or minimal object)
  * to its actual non-virtual physical mod entry in `modList`.
- * If the mod has twins (e.g. .package and .ts4script) and one of them is in `stagedExtras`,
+ * If the mod has twins (e.g. primary module and script companion) and one of them is in `stagedExtras`,
  * it selects the complementary twin that is NOT in `stagedExtras`.
  */
 export function resolveRealReportMod(
@@ -779,18 +823,20 @@ export function resolveRealReportMod(
 
 /**
  * Cleans a mod's base display name (stripping file extensions and redundant trailing _Scripts suffix
- * since the [ts4script] / [package] tag explicitly shows the file type).
+ * since the [ext] tag explicitly shows the file type).
  */
-export function getCleanModBaseName(m: any): string {
+export function getCleanModBaseName(m: any, activeGameSchema?: any): string {
   if (!m) return "UNKNOWN";
   const raw =
     typeof m === "string"
       ? m
       : m.displayName || m.name || "UNKNOWN";
+  const schema = activeGameSchema || useStore.getState().activeGameSchema;
   return String(raw)
     .split(/[\\/]/)
     .pop()!
-    .replace(/\.(package|ts4scripts?|scripts?|world|zip|rar|7z|asi|dll|archive|pak)$/i, "")
+    .replace(getExtensionRegex(schema), "")
+    .replace(/\.(scripts?|zip|rar|7z|tar|gz|dll|asi|so|dylib)$/i, "")
     .replace(/_/g, " ")
     .replace(/\s+scripts?$/i, "")
     .trim()
@@ -799,7 +845,7 @@ export function getCleanModBaseName(m: any): string {
 
 /**
  * Formats a mod with its file extension and version number:
- * Ex: `UI CHEATS EXTENSION [ts4script] (1.54)`
+ * Ex: `CORE ENGINE MODULE [script] (1.54)`
  */
 export function formatModWithExtAndVersion(
   m: any,
@@ -809,7 +855,7 @@ export function formatModWithExtAndVersion(
 ): string {
   if (!m) return "UNKNOWN";
   const resolved = resolveRealReportMod(m, companionMods, modList);
-  const baseName = getCleanModBaseName(resolved);
+  const baseName = getCleanModBaseName(resolved, activeGameSchema);
   const ext = getModExtensionLabel(
     resolved,
     activeGameSchema,
@@ -1001,8 +1047,8 @@ export interface ExtractedReportLoadout {
  * 1. Explicit report props (`explicitDependencies`, `explicitConflictTarget`, `explicitConflictExtras`)
  * 2. `testerNote` JSON (`{ dependencies, conflictTarget, conflictExtras }`)
  * 3. `logText` (`SANCTUARY OS LAB REPORT` header lines: `Dependencies Loaded`, `Conflicts Loaded`, `Sandbox Deployed Files`)
- * 4. `localStorage.getItem("sanctuary_test_history")` matching `targetMod`
- * 5. Automatic twin/companion lookup in `modList` and `allMods` (e.g. pairing `.ts4script` with its `.package` twin)
+ * 4. `localStorage.getItem("sanctuary_test_history_<workspace>")` matching `targetMod`
+ * 5. Automatic twin/companion lookup in `modList` and `allMods` (e.g. pairing a script module with its primary binary twin)
  */
 export function extractReportLoadoutFromLogAndContext(
   opts: ExtractReportLoadoutOptions
@@ -1067,7 +1113,10 @@ export function extractReportLoadoutFromLogAndContext(
       if (extSuffixMatch) {
         parsedExt = extSuffixMatch[1].toLowerCase();
       } else if (/script/i.test(rawStr)) {
-        parsedExt = "ts4script";
+        const primaryScriptExt = Array.isArray(activeGameSchema?.extensions?.scripts) && activeGameSchema.extensions.scripts[0]
+          ? String(activeGameSchema.extensions.scripts[0]).replace(/^\./, "").toLowerCase()
+          : "script";
+        parsedExt = primaryScriptExt;
       }
     }
 
@@ -1174,7 +1223,7 @@ export function extractReportLoadoutFromLogAndContext(
     const candExt = getModExtensionLabel(candidate, activeGameSchema, modList);
     if (targetBaseKey && candKey && targetBaseKey === candKey) {
       // If it shares the base key AND has the same file extension, it's the target mod itself.
-      // If it has a different extension (e.g. .package twin of a .ts4script target), it IS a companion dependency!
+      // If it has a different extension (e.g. binary twin of a script target), it IS a companion dependency!
       return Boolean(targetOwnExt && candExt && targetOwnExt === candExt);
     }
     return false;
@@ -1321,20 +1370,10 @@ export function extractReportLoadoutFromLogAndContext(
   if ((depsAcc.length === 0 || !resolvedConflictTarget) && targetBaseKey) {
     try {
       const schemaRaw =
-        activeGameSchema?.id || activeGameSchema?.game_id || "sims4";
-      const cleanScope = String(schemaRaw || "").trim().toLowerCase();
-      const isSims4Scope =
-        !cleanScope ||
-        cleanScope === "default_schema" ||
-        cleanScope === "sims4" ||
-        cleanScope === "ts4" ||
-        cleanScope === "the_sims_4";
-      const scopedHistKey = `sanctuary_test_history_${isSims4Scope ? "sims4" : cleanScope}`;
-      const rawHist = JSON.parse(
-        localStorage.getItem(scopedHistKey) ||
-          (isSims4Scope ? localStorage.getItem("sanctuary_test_history") : null) ||
-          "[]"
-      );
+        activeGameSchema?.id || activeGameSchema?.game_id || "default_schema";
+      const cleanScope = String(schemaRaw || "").trim().toLowerCase() || "default_schema";
+      const scopedHistKey = `sanctuary_test_history_${cleanScope}`;
+      const rawHist = JSON.parse(localStorage.getItem(scopedHistKey) || "[]");
       if (Array.isArray(rawHist)) {
         const matchingHist = rawHist.find((entry: any) => {
           if (!entry?.mod) return false;
@@ -1392,7 +1431,7 @@ export function extractReportLoadoutFromLogAndContext(
       rawDeps.forEach((d: any) => pushUniqueDep(d));
     }
 
-    // Check local modList for complementary twin (e.g. .package companion for .ts4script or vice versa)
+    // Check local modList for complementary twin (e.g. binary companion for script module or vice versa)
     if (idx) {
       const localTwins = idx.nonVirtualsByBaseKey.get(targetBaseKey) || [];
       localTwins.forEach((twin: any) => {
@@ -1403,7 +1442,7 @@ export function extractReportLoadoutFromLogAndContext(
       });
     }
 
-    // Check cloud allMods for complementary twin (e.g. UI Cheats Extension .package vs .ts4script)
+    // Check cloud allMods for complementary twin (e.g. primary module vs script companion)
     if (Array.isArray(allMods) && allMods.length > 0) {
       allMods.forEach((m: any) => {
         if (!m || getModBaseKey(m) !== targetBaseKey) return;

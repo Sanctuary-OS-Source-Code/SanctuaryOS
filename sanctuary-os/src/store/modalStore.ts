@@ -294,8 +294,7 @@ function inferDefaultPriorityTier(category?: string, name?: string): string {
     hay.includes("framework") ||
     hay.includes("library") ||
     hay.includes("injector") ||
-    hay.includes("mccc") ||
-    hay.includes("ui cheats")
+    hay.includes("loader")
   ) {
     return "1_Core";
   }
@@ -303,16 +302,15 @@ function inferDefaultPriorityTier(category?: string, name?: string): string {
     hay.includes("override") ||
     hay.includes("default replacement") ||
     hay.includes("lighting") ||
-    hay.includes("reshade")
+    hay.includes("reshade") ||
+    hay.includes("shader")
   ) {
     return "4_Overrides";
   }
   if (
     hay.includes("gameplay") ||
-    hay.includes("trait") ||
-    hay.includes("career") ||
-    hay.includes("aspiration") ||
-    hay.includes("overhaul")
+    hay.includes("overhaul") ||
+    hay.includes("mechanic")
   ) {
     return "2_Gameplay";
   }
@@ -362,7 +360,8 @@ export const useModalStore = create<ModalState>((set, get) => ({
   setEdgeOverrideQueue: (edgeOverrideQueue) => set((state) => ({ edgeOverrideQueue: typeof edgeOverrideQueue === 'function' ? edgeOverrideQueue(state.edgeOverrideQueue) : edgeOverrideQueue })),
   scoutQueue: (() => {
     try {
-      const wsId = localStorage.getItem("sanctuary_last_active_workspace") || localStorage.getItem("sanctuary_active_workspace") || "sims4";
+      const wsId = localStorage.getItem("sanctuary_last_active_workspace") || localStorage.getItem("sanctuary_active_workspace") || "";
+      if (!wsId) return [];
       const cached = localStorage.getItem(`sanctuary_${wsId}_scout_queue`);
       if (cached) {
         const parsed = JSON.parse(cached);
@@ -374,7 +373,7 @@ export const useModalStore = create<ModalState>((set, get) => ({
   setScoutQueue: (scoutQueue) => set((state) => {
     const nextQueue = typeof scoutQueue === 'function' ? scoutQueue(state.scoutQueue) : scoutQueue;
     try {
-      const wsId = localStorage.getItem("sanctuary_last_active_workspace") || localStorage.getItem("sanctuary_active_workspace") || "sims4";
+      const wsId = localStorage.getItem("sanctuary_last_active_workspace") || localStorage.getItem("sanctuary_active_workspace") || "";
       if (wsId && Array.isArray(nextQueue)) {
         const lean = nextQueue.map((m: any) => ({
           name: m?.name,
@@ -748,7 +747,7 @@ export const useModalStore = create<ModalState>((set, get) => ({
     const state = get();
     const current = state.stagingDraftItems || [];
 
-    // Support grouped parent suites / folders / collections (e.g. MC Command Center with child flavors)
+    // Support grouped parent suites / folders / collections with child modules
     const rawFlavors =
       Array.isArray(mod?.flavors) && mod.flavors.length > 0
         ? mod.flavors

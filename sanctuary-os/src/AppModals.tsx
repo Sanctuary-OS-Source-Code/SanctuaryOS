@@ -1,36 +1,69 @@
-import React from 'react';
+import React, { Suspense } from 'react';
+import { useShallow } from "zustand/react/shallow";
 import { useModalStore } from "./store/modalStore";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from './store';
-import { MissingImportsAlert } from "./side-panels/MissingImportsAlert";
-import { YeetConfirmAlert } from "./side-panels/YeetConfirmAlert";
 import { GlobalConfirmDialog } from "./app-modals/GlobalConfirmDialog";
-import { DropzoneSidePanel } from "./app-modals/DropzoneSidePanel";
-import { DnaMatchQueueSidePanel } from "./app-modals/DnaMatchQueueSidePanel";
-
-import { ScoutQueueSidePanel } from "./app-modals/ScoutQueueSidePanel";
 import { SignatureQueueSidePanel } from "./side-panels/SignatureQueueSidePanel";
-import { SystemStatusPanel } from "./side-panels/SystemStatusPanel";
 import SidePanelBrowser from "./side-panels/SidePanelBrowser";
-import { MalwareAlertModal } from "./app-modals/MalwareAlertModal";
-import { BulkModal } from "./app-modals/BulkModal";
-import { LocalFolderModal } from "./app-modals/LocalFolderModal";
-import { BackupRestoreModals } from "./app-modals/BackupRestoreModals";
-import { IngestProgressModal } from "./app-modals/IngestProgressModal";
-import { SystemLogModal } from "./app-modals/SystemLogModal";
 import { SystemStatusBar } from "./app-modals/SystemStatusBar";
 import { GlobalWorkbenchSidePanelHost } from "./app-modals/GlobalWorkbenchSidePanelHost";
-import { SanctuaryAlertsSidePanel } from './side-panels/SanctuaryAlertsSidePanel';
-import BlueprintSwapSidePanel from "./side-panels/BlueprintSwapSidePanel";
-import CommandRadarSweepPanel from "./side-panels/CommandRadarSweepPanel";
-import { UpdatesSidePanel } from "./side-panels/CommandCenterSidePanels";
-import CommandConflictsPanel from "./side-panels/CommandConflictsPanel";
-import CommandIncompatiblePanel from "./side-panels/CommandIncompatiblePanel";
-import { ScreenshotTourSidePanel } from "./side-panels/ScreenshotTourSidePanel";
 import { getExtensionRegex, handleOpenUrl } from "./shared";
-import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
+import { useConflictOverride } from "./hooks/usePlaySetLogic";
 import { isDesktop } from "./utils/envUtils";
+
+const MissingImportsAlert = React.lazy(() =>
+  import("./side-panels/MissingImportsAlert").then((m) => ({ default: m.MissingImportsAlert }))
+);
+const YeetConfirmAlert = React.lazy(() =>
+  import("./side-panels/YeetConfirmAlert").then((m) => ({ default: m.YeetConfirmAlert }))
+);
+const DropzoneSidePanel = React.lazy(() =>
+  import("./app-modals/DropzoneSidePanel").then((m) => ({ default: m.DropzoneSidePanel }))
+);
+const DnaMatchQueueSidePanel = React.lazy(() =>
+  import("./app-modals/DnaMatchQueueSidePanel").then((m) => ({ default: m.DnaMatchQueueSidePanel }))
+);
+const ScoutQueueSidePanel = React.lazy(() =>
+  import("./app-modals/ScoutQueueSidePanel").then((m) => ({ default: m.ScoutQueueSidePanel }))
+);
+const SystemStatusPanel = React.lazy(() =>
+  import("./side-panels/SystemStatusPanel").then((m) => ({ default: m.SystemStatusPanel }))
+);
+const MalwareAlertModal = React.lazy(() =>
+  import("./app-modals/MalwareAlertModal").then((m) => ({ default: m.MalwareAlertModal }))
+);
+const BulkModal = React.lazy(() =>
+  import("./app-modals/BulkModal").then((m) => ({ default: m.BulkModal }))
+);
+const LocalFolderModal = React.lazy(() =>
+  import("./app-modals/LocalFolderModal").then((m) => ({ default: m.LocalFolderModal }))
+);
+const BackupRestoreModals = React.lazy(() =>
+  import("./app-modals/BackupRestoreModals").then((m) => ({ default: m.BackupRestoreModals }))
+);
+const IngestProgressModal = React.lazy(() =>
+  import("./app-modals/IngestProgressModal").then((m) => ({ default: m.IngestProgressModal }))
+);
+const SystemLogModal = React.lazy(() =>
+  import("./app-modals/SystemLogModal").then((m) => ({ default: m.SystemLogModal }))
+);
+const SanctuaryAlertsSidePanel = React.lazy(() =>
+  import("./side-panels/SanctuaryAlertsSidePanel").then((m) => ({ default: m.SanctuaryAlertsSidePanel }))
+);
+const BlueprintSwapSidePanel = React.lazy(() => import("./side-panels/BlueprintSwapSidePanel"));
+const CommandRadarSweepPanel = React.lazy(() => import("./side-panels/CommandRadarSweepPanel"));
+const UpdatesSidePanel = React.lazy(() =>
+  import("./side-panels/CommandCenterSidePanels").then((m) => ({ default: m.UpdatesSidePanel }))
+);
+const CommandConflictsPanel = React.lazy(() => import("./side-panels/CommandConflictsPanel"));
+const CommandIncompatiblePanel = React.lazy(() => import("./side-panels/CommandIncompatiblePanel"));
+const ScreenshotTourSidePanel = React.lazy(() =>
+  import("./side-panels/ScreenshotTourSidePanel").then((m) => ({ default: m.ScreenshotTourSidePanel }))
+);
+
 export const AppModals = React.memo(function AppModals(props: any) {
+  const { t } = useLexicon();
   const [isScreenshotTourOpen, setIsScreenshotTourOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -58,9 +91,51 @@ export const AppModals = React.memo(function AppModals(props: any) {
   const modsPath = useStore((state) => state.modsPath);
   const isAlertsOpen = useStore(state => state.isAlertsOpen);
   const setIsAlertsOpen = useStore(state => state.setIsAlertsOpen);
-  const { applyConflictOverride } = usePlaySetLogic();
+  const applyConflictOverride = useConflictOverride();
 
-  const { backupType, restoreType, updatePayload, setIsSideBrowserOpen, isBlueprintSwapOpen, setIsBlueprintSwapOpen, isConflictRadarOpen, setIsConflictRadarOpen, showUpdatesModal, setShowUpdatesModal, showConflictsPanel, setShowConflictsPanel, showIncompatiblePanel, setShowIncompatiblePanel, isLogExpanded, setIsLogExpanded, isSystemStatusOpen, setIsSystemStatusOpen } = useModalStore();
+  const {
+    backupType,
+    restoreType,
+    updatePayload,
+    setIsSideBrowserOpen,
+    isBlueprintSwapOpen,
+    setIsBlueprintSwapOpen,
+    isConflictRadarOpen,
+    setIsConflictRadarOpen,
+    showUpdatesModal,
+    setShowUpdatesModal,
+    showConflictsPanel,
+    setShowConflictsPanel,
+    showIncompatiblePanel,
+    setShowIncompatiblePanel,
+    isLogExpanded,
+    setIsLogExpanded,
+    isSystemStatusOpen,
+    setIsSystemStatusOpen,
+    isScoutPanelOpen,
+  } = useModalStore(
+    useShallow((s) => ({
+      backupType: s.backupType,
+      restoreType: s.restoreType,
+      updatePayload: s.updatePayload,
+      setIsSideBrowserOpen: s.setIsSideBrowserOpen,
+      isBlueprintSwapOpen: s.isBlueprintSwapOpen,
+      setIsBlueprintSwapOpen: s.setIsBlueprintSwapOpen,
+      isConflictRadarOpen: s.isConflictRadarOpen,
+      setIsConflictRadarOpen: s.setIsConflictRadarOpen,
+      showUpdatesModal: s.showUpdatesModal,
+      setShowUpdatesModal: s.setShowUpdatesModal,
+      showConflictsPanel: s.showConflictsPanel,
+      setShowConflictsPanel: s.setShowConflictsPanel,
+      showIncompatiblePanel: s.showIncompatiblePanel,
+      setShowIncompatiblePanel: s.setShowIncompatiblePanel,
+      isLogExpanded: s.isLogExpanded,
+      setIsLogExpanded: s.setIsLogExpanded,
+      isSystemStatusOpen: s.isSystemStatusOpen,
+      setIsSystemStatusOpen: s.setIsSystemStatusOpen,
+      isScoutPanelOpen: s.isScoutPanelOpen,
+    }))
+  );
 
   const activePlaySet = playSets ? playSets[activePlaySetIndex] : null;
   const needsBlueprintMods = Boolean(showUpdatesModal || showIncompatiblePanel || showConflictsPanel);
@@ -164,112 +239,160 @@ export const AppModals = React.memo(function AppModals(props: any) {
   const statusIconClass = isErrorStatus ? 'text-[var(--danger)]' : isSuccessStatus ? 'text-[var(--success)]' : 'text-[var(--accent)]';
 
 
+  const hasDnaActivity = Boolean(dnaMatchQueue && dnaMatchQueue.length > 0);
+  const [keepDnaMounted, setKeepDnaMounted] = React.useState(false);
+  React.useEffect(() => {
+    if (hasDnaActivity) {
+      setKeepDnaMounted(true);
+      return;
+    }
+    if (!keepDnaMounted) return;
+    const timer = setTimeout(() => setKeepDnaMounted(false), 2500);
+    return () => clearTimeout(timer);
+  }, [hasDnaActivity, keepDnaMounted]);
+
   return (
     <>
-      <MalwareAlertModal malwareAlert={malwareAlert} setMalwareAlert={setMalwareAlert} droppedFiles={droppedFiles} runRadarSweep={runRadarSweep} setStatus={setStatus} />
-      <BulkModal bulkModal={bulkModal} setBulkModal={setBulkModal} bulkName={bulkName} setBulkName={setBulkName} executeBulkDraft={executeBulkDraft} selectedMods={selectedMods} resolveDisplayName={resolveDisplayName} />
-      <LocalFolderModal localFolderModal={localFolderModal} setLocalFolderModal={setLocalFolderModal} localFolderType={localFolderType} setLocalFolderType={setLocalFolderType} localFolderName={localFolderName} setLocalFolderName={setLocalFolderName} createLocalFolder={createLocalFolder} selectedMods={selectedMods} resolveDisplayName={resolveDisplayName} />
-      
-      {(missingImportMods && missingImportMods.length > 0) && pendingImportSet && (
-        <MissingImportsAlert missingImportMods={missingImportMods} setMissingImportMods={setMissingImportMods} pendingImportSet={pendingImportSet} setPendingImportSet={setPendingImportSet} finalizeImport={finalizeImport} setIsDropzoneOpen={setIsDropzoneOpen} />
-      )}
-      
-      {!showDefconAlert && <GlobalConfirmDialog />}
-      
-      <DropzoneSidePanel isDropzoneOpen={isDropzoneOpen} isDragging={isDragging} setIsDragging={setIsDragging} dropzoneState={dropzoneState} setIsDropzoneOpen={setIsDropzoneOpen} setDropzoneState={setDropzoneState} droppedFiles={droppedFiles} setDroppedFiles={setDroppedFiles} ingestProgress={ingestProgress} handleDroppedFiles={handleDroppedFiles} runRadarSweep={runRadarSweep} />
-      
-      <BackupRestoreModals isBackingUp={isBackingUp} isRestoring={isRestoring} backupType={backupType} restoreType={restoreType} t={useLexicon().t} />
-      
-      <IngestProgressModal ingestProgress={ingestProgress} />
-      
-      {yeetConfirmPending && <YeetConfirmAlert yeetConfirmPending={yeetConfirmPending} setYeetConfirmPending={setYeetConfirmPending} />}
-      
-      <DnaMatchQueueSidePanel dnaMatchQueue={dnaMatchQueue} setDnaMatchQueue={setDnaMatchQueue} ignoredHashesRef={ignoredHashesRef} runRadarSweep={runRadarSweep} setStatus={setStatus} setPlaySets={setPlaySets} activePlaySetIndex={activePlaySetIndex} />
-      
-      
+      <Suspense fallback={null}>
+        {malwareAlert && malwareAlert.length > 0 && (
+          <MalwareAlertModal malwareAlert={malwareAlert} setMalwareAlert={setMalwareAlert} droppedFiles={droppedFiles} runRadarSweep={runRadarSweep} setStatus={setStatus} />
+        )}
+        {bulkModal && (
+          <BulkModal bulkModal={bulkModal} setBulkModal={setBulkModal} bulkName={bulkName} setBulkName={setBulkName} executeBulkDraft={executeBulkDraft} selectedMods={selectedMods} resolveDisplayName={resolveDisplayName} />
+        )}
+        {localFolderModal && (
+          <LocalFolderModal localFolderModal={localFolderModal} setLocalFolderModal={setLocalFolderModal} localFolderType={localFolderType} setLocalFolderType={setLocalFolderType} localFolderName={localFolderName} setLocalFolderName={setLocalFolderName} createLocalFolder={createLocalFolder} selectedMods={selectedMods} resolveDisplayName={resolveDisplayName} />
+        )}
 
-      <ScoutQueueSidePanel scoutQueue={scoutQueue} setScoutQueue={setScoutQueue} onOpenScoutDossier={onOpenScoutDossier} />
+        {(missingImportMods && missingImportMods.length > 0) && pendingImportSet && (
+          <MissingImportsAlert missingImportMods={missingImportMods} setMissingImportMods={setMissingImportMods} pendingImportSet={pendingImportSet} setPendingImportSet={setPendingImportSet} finalizeImport={finalizeImport} setIsDropzoneOpen={setIsDropzoneOpen} />
+        )}
+      </Suspense>
+
+      {!showDefconAlert && <GlobalConfirmDialog />}
+
+      <Suspense fallback={null}>
+        {(isDropzoneOpen || isDragging || (droppedFiles && droppedFiles.length > 0)) && (
+          <DropzoneSidePanel isDropzoneOpen={isDropzoneOpen} isDragging={isDragging} setIsDragging={setIsDragging} dropzoneState={dropzoneState} setIsDropzoneOpen={setIsDropzoneOpen} setDropzoneState={setDropzoneState} droppedFiles={droppedFiles} setDroppedFiles={setDroppedFiles} ingestProgress={ingestProgress} handleDroppedFiles={handleDroppedFiles} runRadarSweep={runRadarSweep} />
+        )}
+
+        {(isBackingUp || isRestoring) && (
+          <BackupRestoreModals isBackingUp={isBackingUp} isRestoring={isRestoring} backupType={backupType} restoreType={restoreType} t={t} />
+        )}
+
+        {ingestProgress?.active && (
+          <IngestProgressModal ingestProgress={ingestProgress} />
+        )}
+
+        {yeetConfirmPending && <YeetConfirmAlert yeetConfirmPending={yeetConfirmPending} setYeetConfirmPending={setYeetConfirmPending} />}
+
+        {(hasDnaActivity || keepDnaMounted) && (
+          <DnaMatchQueueSidePanel dnaMatchQueue={dnaMatchQueue} setDnaMatchQueue={setDnaMatchQueue} ignoredHashesRef={ignoredHashesRef} runRadarSweep={runRadarSweep} setStatus={setStatus} setPlaySets={setPlaySets} activePlaySetIndex={activePlaySetIndex} />
+        )}
+
+        {isScoutPanelOpen && (
+          <ScoutQueueSidePanel scoutQueue={scoutQueue} setScoutQueue={setScoutQueue} onOpenScoutDossier={onOpenScoutDossier} />
+        )}
+      </Suspense>
 
       <SignatureQueueSidePanel equipPlaySet={equipPlaySet} onOpenDossier={props.onOpenDossier} />
-      
-      <SystemLogModal isLogExpanded={isLogExpanded} setIsLogExpanded={setIsLogExpanded} statusLog={statusLog} clearStatusLog={clearStatusLog} logModalRef={logModalRef} handleLogPointerDown={handleLogPointerDown} handleLogPointerMove={handleLogPointerMove} handleLogPointerUp={handleLogPointerUp} />
-      
+
+      <Suspense fallback={null}>
+        {isLogExpanded && (
+          <SystemLogModal isLogExpanded={isLogExpanded} setIsLogExpanded={setIsLogExpanded} statusLog={statusLog} clearStatusLog={clearStatusLog} logModalRef={logModalRef} handleLogPointerDown={handleLogPointerDown} handleLogPointerMove={handleLogPointerMove} handleLogPointerUp={handleLogPointerUp} />
+        )}
+      </Suspense>
+
       <SystemStatusBar isSidebarCollapsed={isSidebarCollapsed} isNotificationSidebarOpen={props.isNotificationSidebarOpen} setIsNotificationSidebarOpen={props.setIsNotificationSidebarOpen} unreadNotificationCount={props.unreadNotificationCount} isLogExpanded={isLogExpanded} setIsLogExpanded={setIsLogExpanded} status={status} isScanning={isScanning} isErrorStatus={isErrorStatus} isSuccessStatus={isSuccessStatus} statusBgClass={statusBgClass} statusAccentClass={statusAccentClass} statusIconClass={statusIconClass} statusTextClass={statusTextClass} updatePayload={updatePayload} isSystemStatusOpen={isSystemStatusOpen} setIsSystemStatusOpen={setIsSystemStatusOpen} setIsSideBrowserOpen={setIsSideBrowserOpen} />
-      
-      <SystemStatusPanel isOpen={isSystemStatusOpen} onClose={() => setIsSystemStatusOpen(false)} />
-      
+
+      <Suspense fallback={null}>
+        {isSystemStatusOpen && (
+          <SystemStatusPanel isOpen={isSystemStatusOpen} onClose={() => setIsSystemStatusOpen(false)} />
+        )}
+      </Suspense>
+
       {isDesktop() && <SidePanelBrowser />}
-      
-      {isBlueprintSwapOpen && (
-        <BlueprintSwapSidePanel
-          isOpen={isBlueprintSwapOpen}
-          onClose={() => setIsBlueprintSwapOpen(false)}
-          equipPlaySet={equipPlaySet}
-        />
-      )}
 
-      {isConflictRadarOpen && (
-        <CommandRadarSweepPanel
-          isOpen={isConflictRadarOpen}
-          onClose={() => setIsConflictRadarOpen(false)}
-          status={status}
-          runRadarSweep={runRadarSweep}
-          isScanning={isScanning}
-          networkUpdates={networkUpdates}
-          tier3Count={activeConflictCount.tier3}
-          tier4Count={activeConflictCount.tier4}
-          brokenCount={activeBrokenCounts.broken}
-          unstableCount={activeBrokenCounts.unstable}
-          onOpenUpdates={() => setShowUpdatesModal(true)}
-          onOpenConflicts={() => setShowConflictsPanel(true)}
-          onOpenIncompatible={() => setShowIncompatiblePanel(true)}
-          onOpenHotSwap={() => setIsBlueprintSwapOpen(true)}
-        />
-      )}
+      <Suspense fallback={null}>
+        {isBlueprintSwapOpen && (
+          <BlueprintSwapSidePanel
+            isOpen={isBlueprintSwapOpen}
+            onClose={() => setIsBlueprintSwapOpen(false)}
+            equipPlaySet={equipPlaySet}
+          />
+        )}
 
-      <UpdatesSidePanel
-        isOpen={showUpdatesModal}
-        onClose={() => setShowUpdatesModal(false)}
-        activeUpdates={activeUpdates}
-        handleOpenUrl={handleOpenUrl}
-      />
+        {isConflictRadarOpen && (
+          <CommandRadarSweepPanel
+            isOpen={isConflictRadarOpen}
+            onClose={() => setIsConflictRadarOpen(false)}
+            status={status}
+            runRadarSweep={runRadarSweep}
+            isScanning={isScanning}
+            networkUpdates={networkUpdates}
+            tier3Count={activeConflictCount.tier3}
+            tier4Count={activeConflictCount.tier4}
+            brokenCount={activeBrokenCounts.broken}
+            unstableCount={activeBrokenCounts.unstable}
+            onOpenUpdates={() => setShowUpdatesModal(true)}
+            onOpenConflicts={() => setShowConflictsPanel(true)}
+            onOpenIncompatible={() => setShowIncompatiblePanel(true)}
+            onOpenHotSwap={() => setIsBlueprintSwapOpen(true)}
+          />
+        )}
 
-      {showIncompatiblePanel && (
-        <CommandIncompatiblePanel
-          isOpen={showIncompatiblePanel}
-          onClose={() => setShowIncompatiblePanel(false)}
-          activeMods={activeBlueprintMods}
-          allow_write={!activePlaySet?.read_only}
-          toggleInActiveSet={toggleInActiveSet}
-        />
-      )}
+        {showUpdatesModal && (
+          <UpdatesSidePanel
+            isOpen={showUpdatesModal}
+            onClose={() => setShowUpdatesModal(false)}
+            activeUpdates={activeUpdates}
+            handleOpenUrl={handleOpenUrl}
+          />
+        )}
 
-      {showConflictsPanel && (
-        <CommandConflictsPanel
-          isOpen={showConflictsPanel}
-          onClose={() => setShowConflictsPanel(false)}
-          activeMods={activeBlueprintMods}
-          allow_write={!activePlaySet?.read_only}
-          toggleInActiveSet={toggleInActiveSet}
-          applyConflictOverride={applyConflictOverride}
-          activeSetName={activePlaySet?.name}
-          vaultPath={modsPath}
-          onRefreshMods={runRadarSweep}
-        />
-      )}
-      
-      <SanctuaryAlertsSidePanel
-        isOpen={isAlertsOpen}
-        onClose={() => setIsAlertsOpen(false)}
-        audience="Citizens"
-      />
+        {showIncompatiblePanel && (
+          <CommandIncompatiblePanel
+            isOpen={showIncompatiblePanel}
+            onClose={() => setShowIncompatiblePanel(false)}
+            activeMods={activeBlueprintMods}
+            allow_write={!activePlaySet?.read_only}
+            toggleInActiveSet={toggleInActiveSet}
+          />
+        )}
+
+        {showConflictsPanel && (
+          <CommandConflictsPanel
+            isOpen={showConflictsPanel}
+            onClose={() => setShowConflictsPanel(false)}
+            activeMods={activeBlueprintMods}
+            allow_write={!activePlaySet?.read_only}
+            toggleInActiveSet={toggleInActiveSet}
+            applyConflictOverride={applyConflictOverride}
+            activeSetName={activePlaySet?.name}
+            vaultPath={modsPath}
+            onRefreshMods={runRadarSweep}
+          />
+        )}
+
+        {isAlertsOpen && (
+          <SanctuaryAlertsSidePanel
+            isOpen={isAlertsOpen}
+            onClose={() => setIsAlertsOpen(false)}
+            audience="Citizens"
+          />
+        )}
+      </Suspense>
 
       <GlobalWorkbenchSidePanelHost />
 
-      <ScreenshotTourSidePanel
-        isOpen={isScreenshotTourOpen}
-        onClose={() => setIsScreenshotTourOpen(false)}
-      />
+      <Suspense fallback={null}>
+        {isScreenshotTourOpen && (
+          <ScreenshotTourSidePanel
+            isOpen={isScreenshotTourOpen}
+            onClose={() => setIsScreenshotTourOpen(false)}
+          />
+        )}
+      </Suspense>
     </>
   );
 });

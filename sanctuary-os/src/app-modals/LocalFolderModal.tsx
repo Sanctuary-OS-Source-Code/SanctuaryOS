@@ -24,7 +24,7 @@ export function LocalFolderModal({
 
   if (!localFolderModal) return null;
 
-  const isCollection = localFolderType === "CC_SET";
+  const isCollection = localFolderType === "COLLECTION";
 
   return (
     <SidePanel
@@ -84,7 +84,7 @@ export function LocalFolderModal({
             label={t("local_folder_title", "Container Type")}
             value={t("collection", "Collection")}
             isActive={isCollection}
-            onClick={() => setLocalFolderType("CC_SET")}
+            onClick={() => setLocalFolderType("COLLECTION")}
           />
         </div>
 

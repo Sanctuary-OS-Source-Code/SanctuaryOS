@@ -20,8 +20,10 @@ import {
   DashboardStatTile,
   UniversalGroup,
   VAULT_CHIP_CLASS,
+  isScriptExtension,
   openModDossier,
 } from "../shared";
+import { useShallow } from "zustand/react/shallow";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 
@@ -349,11 +351,6 @@ export function groupBrokenMods(rawList: any[]): any[] {
   const { vaultUpdateLookup, virtualByFamilyId, parentByDbId } =
     getCachedVaultGroupLookups(allVaultMods);
 
-  const mcCount = rawList.filter((m) => {
-    const label = formatDisplayName(m?.displayName || m?.name || "").trim();
-    return /^mc[\s_-]/i.test(label) || /mc\s*command\s*center/i.test(label);
-  }).length;
-
   const grouped = new Map<string, any>();
 
   for (const rawMod of rawList) {
@@ -402,17 +399,12 @@ export function groupBrokenMods(rawList: any[]): any[] {
     };
 
     const rawTitle = formatDisplayName(mod?.displayName || mod?.name || "").trim();
-    const isMc =
-      mcCount > 1 && (/^mc[\s_-]/i.test(rawTitle) || /mc\s*command\s*center/i.test(rawTitle));
     const twinNormalized = normalizeModGroupTitle(rawTitle) || rawTitle;
 
     let groupKey: string;
     let displayTitle = twinNormalized;
 
-    if (isMc) {
-      groupKey = "__suite_mc_command_center__";
-      displayTitle = "MC Command Center";
-    } else if (hasRealFamily) {
+    if (hasRealFamily) {
       groupKey = `__family_${famIdRaw}__`;
       const canonicalParentTitle = familyParent
         ? formatDisplayName(familyParent.displayName || familyParent.name || "").trim()
@@ -598,8 +590,6 @@ const PRESERVED_ACRONYMS = new Set([
   "ID",
   "DIY",
   "AI",
-  "WW",
-  "MCCC",
   "NWP",
 ]);
 
@@ -618,10 +608,6 @@ export function formatCleanModTitle(rawTitle: any): string {
     .replace(/\s+/g, " ")
     .trim();
 
-  if (/^mc\s+cmd\s+center$/i.test(spaced) || /^mc\s+command\s+center$/i.test(spaced)) {
-    return "MC Command Center";
-  }
-
   return spaced
     .split(" ")
     .map((token) => {
@@ -634,10 +620,7 @@ export function formatCleanModTitle(rawTitle: any): string {
       if (PRESERVED_ACRONYMS.has(upperCore)) {
         return `${prefix}${upperCore}${suffix}`;
       }
-      if (upperCore === "LITTLEMSSAM") {
-        return `${prefix}LittleMsSam${suffix}`;
-      }
-      // Preserve alphanumeric codes like MAX20, V1, EP01
+      // Preserve alphanumeric codes like MAX20, V1, DLC01
       if (/[A-Za-z]/.test(core) && /\d/.test(core)) {
         return `${prefix}${upperCore}${suffix}`;
       }
@@ -905,11 +888,11 @@ export function IncompatibleModCard({
 
   const validCreator = extractValidCreator(mod, ...groupedMods);
   const hasScriptFile = groupedMods.some((gm) =>
-    /\.ts4script$/i.test(String(gm?.name || gm?._originalSetName || ""))
+    isScriptExtension(String(gm?.name || gm?._originalSetName || ""), activeGameSchema)
   );
   const fallbackTypeLabel = hasScriptFile
     ? t("type_script", "Script")
-    : t("type_package", "Package");
+    : t("type_package", "Module");
 
   const hasUpdate = Boolean(mod.hasUpdate && mod.newVersion);
   const cleanNewVer = mod.newVersion
@@ -1268,7 +1251,7 @@ export function IncompatibleModCard({
         </div>
       </div>
 
-      {/* Compact Recessed Linked Modules Tray */}
+      {/* Compact Recessed Linked Modules Drawer */}
       {isExpanded && groupedMods.length > 1 && (
         <div
           onClick={(e) => e.stopPropagation()}
@@ -1280,8 +1263,9 @@ export function IncompatibleModCard({
               const gmName =
                 formatAddonModuleName(gm, activeGameSchema) ||
                 formatDisplayName(gm.displayName || gm.name);
-              const isScript = /\.ts4script$/i.test(
-                String(gm?.name || gm?._originalSetName || "")
+              const isScript = isScriptExtension(
+                String(gm?.name || gm?._originalSetName || ""),
+                activeGameSchema
               );
               const gmIgnored =
                 ignoredBroken instanceof Set ? ignoredBroken.has(gm.name) : false;
@@ -1565,12 +1549,13 @@ export function ConflictComparisonCard({
             formatDisplayName(slot.mod.displayName || slot.mod.name)
           );
           const mAuthor = extractValidCreator(slot.mod);
-          const isScript = /\.ts4script$/i.test(
-            String(slot.mod?.name || slot.mod?._originalSetName || "")
+          const isScript = isScriptExtension(
+            String(slot.mod?.name || slot.mod?._originalSetName || ""),
+            activeGameSchema
           );
           const mTypeLabel = isScript
             ? t("type_script", "Script")
-            : t("type_package", "Package");
+            : t("type_package", "Module");
           const mIcon = getModIcon(slot.mod, activeGameSchema, t);
 
           const cardElement = (
@@ -1744,7 +1729,14 @@ export default function CommandIncompatiblePanel({
   toggleInActiveSet,
 }: any) {
   const { t } = useLexicon();
-  const { ownedDLC, maskedDLC, selectedVersion, activeGameSchema } = useStore();
+  const { ownedDLC, maskedDLC, selectedVersion, activeGameSchema } = useStore(
+    useShallow((s) => ({
+      ownedDLC: s.ownedDLC,
+      maskedDLC: s.maskedDLC,
+      selectedVersion: s.selectedVersion,
+      activeGameSchema: s.activeGameSchema,
+    }))
+  );
   const [ignoredBroken, setIgnoredBroken] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");

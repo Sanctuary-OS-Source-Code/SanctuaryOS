@@ -242,5 +242,18 @@
       "lexicon_key": "class_dd_unknown",
       "icon_key": "ui_icon_unknown"
     }
-  ]
+  ],
+  "taxonomy": {
+    "categories": [
+      { "id": "Core", "label": "SMAPI Framework / Content Patcher", "icon": "memory", "lexicon_key": "class_dd_core", "icon_key": "ui_icon_core" },
+      { "id": "Script", "label": "SMAPI C# Mod (.dll)", "icon": "terminal", "lexicon_key": "class_dd_script", "icon_key": "ui_icon_script" },
+      { "id": "Expansion", "label": "Expansions, NPCs & Locations", "icon": "map", "lexicon_key": "class_dd_expansion", "icon_key": "ui_icon_expansion" },
+      { "id": "Crops", "label": "Crops, Artisan Goods & Recipes", "icon": "eco", "lexicon_key": "class_dd_crops", "icon_key": "ui_icon_crops" },
+      { "id": "Aesthetics", "label": "Recolors, Buildings & Portraits", "icon": "palette", "lexicon_key": "class_dd_aesthetics", "icon_key": "ui_icon_aesthetics" },
+      { "id": "Characters", "label": "Fashion Sense & Farmer Sprites", "icon": "checkroom", "lexicon_key": "class_dd_characters", "icon_key": "ui_icon_characters" },
+      { "id": "Gameplay", "label": "Automation & Quality of Life", "icon": "sports_esports", "lexicon_key": "class_dd_gameplay", "icon_key": "ui_icon_gameplay" },
+      { "id": "UI", "label": "UI Info & Menus", "icon": "dashboard_customize", "lexicon_key": "class_dd_ui", "icon_key": "ui_icon_ui" },
+      { "id": "Unknown", "label": "Unclassified", "icon": "help_outline", "lexicon_key": "class_dd_unknown", "icon_key": "ui_icon_unknown" }
+    ]
+  }
 }

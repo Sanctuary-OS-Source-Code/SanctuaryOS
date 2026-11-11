@@ -3,6 +3,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
   formatDisplayName,
+  getExtensionRegex,
   HoverTooltip,
   SidePanel,
   PanelHeaderGroup,
@@ -11,6 +12,7 @@ import {
   UniversalGroup,
   StatBox,
   openModDossier,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { ConflictLoadOrderInfo } from "../ConflictCard";
 
@@ -35,12 +37,12 @@ const cleanModName = (name: string) => {
         .replace(new RegExp(ext.replace(".", "\\."), "i"), "");
     }
   }
-  cleaned = cleaned.replace(/\.(package|ts4script|pak|archive|esp|esm|esl|rpf|asi|zip)$/i, "").trim();
+  cleaned = cleaned
+    .replace(getExtensionRegex(activeGameSchema), "")
+    .replace(/\.(zip|rar|7z|tar|gz)$/i, "")
+    .trim();
   return cleaned;
 };
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 const ModNameWithBadge = ({
   name,

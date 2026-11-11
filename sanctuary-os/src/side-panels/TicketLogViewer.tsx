@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
@@ -190,23 +191,23 @@ function parseAttachedHistoryEntry(rawLine: string, t: any, index: number) {
       lower.includes("reorganized"));
 
   if (!logIcon || logIcon === "terminal") {
-    if (isErr) logIcon = "error";
-    else if (isWarn) logIcon = "warning";
+    if (isErr) logIcon = t("icon_error", "error");
+    else if (isWarn) logIcon = t("icon_warning", "warning");
     else if (lower.includes("lexicon") || lower.includes("language"))
-      logIcon = "translate";
+      logIcon = t("icon_translate", "translate");
     else if (
       lower.includes("preview") ||
       lower.includes("chameleon") ||
       lower.includes("theme")
     )
-      logIcon = "palette";
-    else if (category === "blueprint") logIcon = "map";
-    else if (category === "vault") logIcon = "inventory_2";
-    else if (category === "radar") logIcon = "radar";
-    else if (category === "security") logIcon = "shield_lock";
-    else if (category === "workbench") logIcon = "save";
-    else if (isSucc) logIcon = "check_circle";
-    else logIcon = "terminal";
+      logIcon = t("icon_palette", "palette");
+    else if (category === "blueprint") logIcon = t("icon_map", "map");
+    else if (category === "vault") logIcon = t("icon_inventory_2", "inventory_2");
+    else if (category === "radar") logIcon = t("icon_radar", "radar");
+    else if (category === "security") logIcon = t("icon_shield_lock", "shield_lock");
+    else if (category === "workbench") logIcon = t("icon_save", "save");
+    else if (isSucc) logIcon = t("icon_check_circle", "check_circle");
+    else logIcon = t("icon_terminal", "terminal");
   }
 
   const severity: "error" | "warning" | "success" | "info" = isErr
@@ -303,9 +304,15 @@ function parseAttachedHistoryEntry(rawLine: string, t: any, index: number) {
 }
 
 export default function TicketLogViewer({ logs }: { logs: string }) {
-  const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const { activeGameSchema, playSets, setPlaySets, pushStatus } = useStore(
+    useShallow((state) => ({
+      activeGameSchema: state.activeGameSchema,
+      playSets: state.playSets,
+      setPlaySets: state.setPlaySets,
+      pushStatus: state.pushStatus,
+    }))
+  );
   const { t } = useLexicon();
-  const store = useStore();
   const [activeSectionIndex, setActiveSectionIndex] = useState<number | null>(
     null
   );
@@ -342,7 +349,7 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
 
   const handleImportBlueprint = () => {
     if (!blueprintJson) return;
-    const copySets = [...store.playSets];
+    const copySets = [...playSets];
     let newName =
       blueprintJson.name || t("support_imported_blueprint", "Imported {Blueprint}");
     let counter = 1;
@@ -353,12 +360,12 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
       counter++;
     }
     copySets.push({ name: newName, mods: [...(blueprintJson.mods || [])] });
-    store.setPlaySets(copySets);
+    setPlaySets(copySets);
 
     window.dispatchEvent(new Event("storage"));
 
-    if (store.pushStatus) {
-      store.pushStatus(
+    if (pushStatus) {
+      pushStatus(
         t("support_blueprint_imported", "Imported {name}").replace(
           "{name}",
           newName

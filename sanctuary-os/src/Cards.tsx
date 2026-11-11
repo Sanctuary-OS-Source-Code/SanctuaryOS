@@ -3,11 +3,11 @@ import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { DynamicArtifactPreviewBanner } from "./chameleon-components/ThemeCard";
-import { openModDossier } from "./shared";
+import { openModDossier, isScriptExtension } from "./shared-components/modUtils";
+import { VAULT_CHIP_CLASS } from "./shared-components/constants";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 
-export const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+export { VAULT_CHIP_CLASS };
 
 export function ArtifactCard({
   mod,
@@ -30,6 +30,7 @@ export function ArtifactCard({
 }) {
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
+  const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const rawStatus = String(mod?.status || "")
@@ -187,14 +188,18 @@ export function ArtifactCard({
   const extClean = mod?.file_extension
     ? String(mod.file_extension).replace(/^\./, "").toLowerCase()
     : "";
+  const isScriptMod = isScriptExtension(
+    mod?.name || (extClean ? `.${extClean}` : ""),
+    activeGameSchema
+  );
   const categoryLabel =
     mod?.category_override && String(mod.category_override).toLowerCase() !== "unknown"
       ? mod.category_override
       : mod?.suggested_type && String(mod.suggested_type).toLowerCase() !== "unknown"
         ? mod.suggested_type
-        : extClean === "ts4script"
+        : isScriptMod
           ? t("type_script", "Script")
-          : t("type_package", "Package");
+          : t("type_module", "Module");
 
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -238,7 +243,7 @@ export function ArtifactCard({
 
       <div className={chipClass}>
         <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-          {String(categoryLabel).toLowerCase().includes("script") || extClean === "ts4script"
+          {String(categoryLabel).toLowerCase().includes("script") || isScriptMod
             ? t("icon_terminal", "terminal")
             : t("icon_deployed_code", "deployed_code")}
         </span>
@@ -281,7 +286,7 @@ export function ArtifactCard({
       {extClean && String(categoryLabel).toLowerCase() !== extClean && (
         <div className={chipClass}>
           <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-            {extClean === "ts4script"
+            {isScriptMod
               ? t("icon_terminal", "terminal")
               : t("icon_deployed_code", "deployed_code")}
           </span>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { HoverTooltip, formatDisplayName, getModIcon, cleanSearchName, mapDlcCode, isVersionMatch, getHighestVersion, getLowestVersion, parseStringArray } from "./shared";
+import { HoverTooltip, formatDisplayName, getModIcon, getExtensionRegex, isScriptExtension, cleanSearchName, mapDlcCode, isVersionMatch, getHighestVersion, getLowestVersion, parseStringArray } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
@@ -131,14 +131,16 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
   const hasTier3 = tier3List.length > 0;
 
   const reqCount = (() => {
+    const extRegex = getExtensionRegex(activeGameSchema);
     const normalizeReqName = (raw: any) =>
       String(raw || "")
         .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
         .split(/[\\/]/)
         .pop()
-        ?.replace(/\.(package|ts4script|script|zip|rar|7z)$/i, "")
+        ?.replace(extRegex, "")
+        .replace(/\.(script|zip|rar|7z|tar|gz)$/i, "")
         .replace(/[_-]+/g, " ")
-        .replace(/\b(script|scripts|package|pkg|core)\b/gi, "")
+        .replace(/\b(script|scripts|module|modules|artifact|pkg|core)\b/gi, "")
         .replace(/\s+/g, " ")
         .trim()
         .toLowerCase() || "";
@@ -267,7 +269,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
         : 0;
 
   const rawFileName = String(mod.file_extension || mod.name || "").toLowerCase();
-  const isScript = rawFileName.includes("ts4script") || String(mod.type || "").toLowerCase().includes("script");
+  const isScript = isScriptExtension(rawFileName, activeGameSchema) || String(mod.type || "").toLowerCase().includes("script");
   const extLabel = isScript
     ? t("type_script", "Script")
     : !mod.isCollection

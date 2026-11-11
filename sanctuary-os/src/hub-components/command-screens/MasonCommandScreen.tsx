@@ -7,9 +7,7 @@ import { stripMarkdown } from "../../shared";
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
-import { openModDossier } from "../../shared";
-
-const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { openModDossier, VAULT_CHIP_CLASS } from "../../shared";
 
 export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = false, session, onOpenRecentReplies, onOpenSupportDesk, setViewingPost, onOpenBugReport, onOpenMetadataEditor }: any) {
   const { t } = useLexicon();
@@ -229,7 +227,7 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
       <CommandScreenBody>
         <CommandScreenMain>
           <div className="flex flex-col gap-4 w-full">
-            <CommandScreenSectionHeading title={t("wf_comms_title", "Broadcasts")} icon="history" />
+            <CommandScreenSectionHeading title={t("wf_comms_title", "Broadcasts")} icon={t("icon_history", "history")} />
 
             <div className="w-full">
               <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
@@ -238,7 +236,7 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
 
           {isVerifiedMason && recentBugs.length > 0 && (
             <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("stat_bugs", "Bug Reports")} icon="bug_report" />
+              <CommandScreenSectionHeading title={t("stat_bugs", "Bug Reports")} icon={t("icon_bug_report", "bug_report")} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                 {recentBugs.map((bug: any) => (
                   <UniversalCard 
@@ -302,7 +300,7 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
 
           {isVerifiedMason && recentArtifacts.length > 0 && (
             <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("term_mods", "Artifacts")} icon="deployed_code" />
+              <CommandScreenSectionHeading title={t("term_mods", "Artifacts")} icon={t("icon_deployed_code", "deployed_code")} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                 {recentArtifacts.map((art: any) => (
                   <UniversalCard 
@@ -366,7 +364,7 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
 
           {isVerifiedMason && recentReplies.length > 0 && (
             <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("ui.replies", "Replies")} icon="forum" />
+              <CommandScreenSectionHeading title={t("ui.replies", "Replies")} icon={t("icon_forum", "forum")} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                 {recentReplies.map((rep: any) => (
                   <UniversalCard 
@@ -424,7 +422,7 @@ export function MasonCommandScreen({ onNavigate, masonId, isVerifiedMason = fals
           )}
         </CommandScreenMain>
 
-        <CommandScreenSidebar title={t("wf_quick_links", "Quick Links")} icon="rocket_launch">
+        <CommandScreenSidebar title={t("wf_quick_links", "Quick Links")} icon={t("icon_rocket_launch", "rocket_launch")}>
           {urgentBroadcast && (
             <CommandScreenQuickLink 
               icon={t("icon_priority_high", "priority_high")}

@@ -25,9 +25,7 @@ import {
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { SidePanelHeroCard, UniversalGroup } from "./components/layouts/ElevatedHubLayout";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { VAULT_CHIP_CLASS } from "./shared-components/constants";
 import { useStore } from "./store";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { save, open } from "@tauri-apps/plugin-dialog";
@@ -73,20 +71,31 @@ function resolveSpokeLabScopeKey(activeWorkspaceId?: string | null, activeGameSc
     (activeWorkspaceId && activeWorkspaceId !== "default_workspace" ? activeWorkspaceId : "") ||
     activeGameSchema?.id ||
     activeGameSchema?.game_id ||
-    "sims4";
+    "";
   const clean = String(raw || "").trim().toLowerCase();
-  if (
-    !clean ||
-    clean === "default_workspace" ||
-    clean === "default_schema" ||
-    clean === "sims4" ||
-    clean === "ts4" ||
-    clean === "the_sims_4" ||
-    clean === "sims_4"
-  ) {
-    return "sims4";
+  if (!clean || clean === "default_workspace" || clean === "default_schema") {
+    return "default_workspace";
   }
   return clean;
+}
+
+function resolveDefaultRealLogName(activeGameSchema?: any): string {
+  const logs = activeGameSchema?.exception_logs;
+  if (Array.isArray(logs) && logs.length > 0) {
+    for (const entry of logs) {
+      const raw =
+        typeof entry === "string"
+          ? entry
+          : entry?.file_name || entry?.exact_name || entry?.pattern || "";
+      const cleaned = String(raw || "")
+        .trim()
+        .replace(/[*?]/g, "");
+      if (cleaned && /\.[a-z0-9]+$/i.test(cleaned)) {
+        return cleaned;
+      }
+    }
+  }
+  return "exception.log";
 }
 
 export default function Lab({
@@ -113,7 +122,8 @@ export default function Lab({
   const activeGameSchema = useStore((s) => s.activeGameSchema);
   const selectedVersion = useStore((s) => s.selectedVersion);
   const modsPath = useStore((s) => s.modsPath);
-  const docsPath = modsPath ? modsPath.split(/[\\/]Mods/i)[0] : "";
+  const storeDocsPath = useStore((s) => s.docsPath);
+  const docsPath = storeDocsPath || "";
   const setStatus = useStore((s) => s.setStatus);
 
   const spokeLabKey = resolveSpokeLabScopeKey(activeWorkspaceId, activeGameSchema);
@@ -172,8 +182,8 @@ export default function Lab({
         return;
       }
       const [res, saveRes]: any = await Promise.all([
-        invoke("get_airgap_status", { docsPath: targetDocs }).catch(() => null),
-        invoke("get_lab_test_save_status", { docsPath: targetDocs }).catch(() => null),
+        invoke("get_airgap_status", { docsPath: targetDocs, gameSchema: activeGameSchema }).catch(() => null),
+        invoke("get_lab_test_save_status", { docsPath: targetDocs, gameSchema: activeGameSchema }).catch(() => null),
       ]);
       if (res) {
         setAirgapStatus(res);
@@ -233,13 +243,15 @@ export default function Lab({
     if (selectedReport && (docsPath || modsPath)) {
       invoke<ScrubbedRealLogFile[]>("get_scrubbed_game_logs", {
         docsPath: docsPath || modsPath || "",
+        gameSchema: activeGameSchema,
       })
         .then((files) => {
           if (Array.isArray(files) && files.length > 0) {
+            const fallbackLogName = resolveDefaultRealLogName(activeGameSchema);
             setLiveRealLogs(
               files.map((f) => ({
                 ...f,
-                fileName: f.fileName || f.file_name || "lastException.txt",
+                fileName: f.fileName || f.file_name || fallbackLogName,
                 content: scrubLogUserData(f.content),
               }))
             );
@@ -247,15 +259,12 @@ export default function Lab({
         })
         .catch(() => {});
     }
-  }, [selectedReport?.id, selectedReport?.sessionKey, docsPath, modsPath]);
+  }, [selectedReport?.id, selectedReport?.sessionKey, docsPath, modsPath, activeGameSchema]);
 
   const loadScopedTestHistory = (scopeKey: string): any[] => {
     try {
       const key = `sanctuary_test_history_${scopeKey}`;
-      const rawStr =
-        localStorage.getItem(key) ||
-        (scopeKey === "sims4" ? localStorage.getItem("sanctuary_test_history") : null) ||
-        "[]";
+      const rawStr = localStorage.getItem(key) || "[]";
       const raw = JSON.parse(rawStr);
       if (!Array.isArray(raw)) return [];
       const cleaned = raw
@@ -279,9 +288,7 @@ export default function Lab({
 
   const [lastConcludingReport, setLastConcludingReport] = useState<any>(() => {
     try {
-      const raw =
-        localStorage.getItem(scopedPanelMemoryKey) ||
-        (spokeLabKey === "sims4" ? localStorage.getItem(LAB_PANEL_MEMORY_KEY) : null);
+      const raw = localStorage.getItem(scopedPanelMemoryKey);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed.lastConcludingReport) {
@@ -300,9 +307,7 @@ export default function Lab({
   useEffect(() => {
     setTestHistory(loadScopedTestHistory(spokeLabKey));
     try {
-      const raw =
-        localStorage.getItem(scopedPanelMemoryKey) ||
-        (spokeLabKey === "sims4" ? localStorage.getItem(LAB_PANEL_MEMORY_KEY) : null);
+      const raw = localStorage.getItem(scopedPanelMemoryKey);
       if (raw) {
         const parsed = JSON.parse(raw);
         setLastConcludingReport(
@@ -352,9 +357,6 @@ export default function Lab({
       }
       try {
         localStorage.setItem(scopedTestHistoryKey, JSON.stringify(next));
-        if (spokeLabKey === "sims4") {
-          localStorage.setItem("sanctuary_test_history", JSON.stringify(next));
-        }
       } catch {}
       return next;
     });
@@ -698,9 +700,7 @@ export default function Lab({
   // Restore active test payload memory on mount if accidentally closed or navigated away
   useEffect(() => {
     try {
-      const raw =
-        localStorage.getItem(scopedPanelMemoryKey) ||
-        (spokeLabKey === "sims4" ? localStorage.getItem(LAB_PANEL_MEMORY_KEY) : null);
+      const raw = localStorage.getItem(scopedPanelMemoryKey);
       if (raw) {
         const mem = JSON.parse(raw);
         if (!activeLabMod && mem.activeLabMod && setActiveLabMod) {
@@ -747,7 +747,6 @@ export default function Lab({
     memoryDismissedRef.current = true;
     try {
       localStorage.removeItem(scopedPanelMemoryKey);
-      if (spokeLabKey === "sims4") localStorage.removeItem(LAB_PANEL_MEMORY_KEY);
     } catch {}
     saveLabSessionMemory(null);
     setLastConcludingReport(null);
@@ -902,9 +901,10 @@ export default function Lab({
         const name = extractDepString(raw);
         return name
           ? name
+              .replace(getExtensionRegex(useStore.getState().activeGameSchema), "")
               .replace(/_/g, " ")
               .replace(
-                /(\.| |-)*(\(|\[)?(package|ts4scripts?|scripts?|zip)(\)|\])?/gi,
+                /(\.| |-)*(\(|\[)?(scripts?|modules?|artifacts?|zip)(\)|\])?/gi,
                 "",
               )
               .trim()
@@ -1048,15 +1048,16 @@ export default function Lab({
         const baseFileName = (lastSepIdx >= 0 ? path.slice(lastSepIdx + 1) : path).replace(/\.txt$/i, "");
 
         if (liveRealLogs.length > 0) {
+          const fallbackLogName = resolveDefaultRealLogName(activeGameSchema);
           for (const realLog of liveRealLogs) {
-            const rawName = realLog.fileName || realLog.file_name || "lastException.txt";
+            const rawName = realLog.fileName || realLog.file_name || fallbackLogName;
             const safeRealName = rawName.replace(/[^a-zA-Z0-9._-]/g, "_");
             const companionPath = `${dirPath}${baseFileName}_${safeRealName}`;
             await writeTextFile(companionPath, scrubLogUserData(realLog.content));
           }
         } else if (scrubbedLog.trim().length > 0) {
           const cleanRealLog = extractCleanRealLogContent(scrubbedLog);
-          const inferredRealName = inferRealLogFileName(scrubbedLog);
+          const inferredRealName = inferRealLogFileName(scrubbedLog, undefined, activeGameSchema);
           const companionPath = `${dirPath}${baseFileName}_${inferredRealName}`;
           await writeTextFile(companionPath, cleanRealLog);
         }
@@ -1094,6 +1095,7 @@ export default function Lab({
         docsPath: targetDocs,
         mode: "copy_live_save",
         sourceSaveName: saveFileName,
+        gameSchema: activeGameSchema,
       });
       setTestSaveStatus(updated);
       setFreshSaveArmed(false);
@@ -1121,6 +1123,7 @@ export default function Lab({
       const updated = await invoke<LabTestSaveStatus>("configure_lab_test_save", {
         docsPath: targetDocs,
         mode: "reset_for_fresh_save",
+        gameSchema: activeGameSchema,
       });
       setTestSaveStatus(updated);
       setFreshSaveArmed(true);
@@ -1143,11 +1146,12 @@ export default function Lab({
         if (activeLabMod) {
           await executeHotSwapNow();
         } else {
-          await invoke("airgap_saves", { docsPath: targetDocs, enable: true });
+          await invoke("airgap_saves", { docsPath: targetDocs, enable: true, gameSchema: activeGameSchema });
           const coords: any = await invoke("get_saved_coordinates");
           await invoke("launch_game", {
             livePath: coords?.live_path || "",
             modsPath: coords?.mods_path || modsPath || "",
+            gameSchema: activeGameSchema,
           });
           await refreshAirgapStatus();
         }
@@ -1273,7 +1277,6 @@ export default function Lab({
       setSelectedReport((prev: any) => (prev ? { ...prev, isConcluding: false } : prev));
       try {
         localStorage.removeItem(scopedPanelMemoryKey);
-        if (spokeLabKey === "sims4") localStorage.removeItem(LAB_PANEL_MEMORY_KEY);
       } catch {}
       saveLabSessionMemory(null);
       setLastConcludingReport(null);
@@ -1420,7 +1423,7 @@ export default function Lab({
     if (!shelterActive) {
       headerPillActions.push({
         id: "initiate_swap",
-        icon: "bolt",
+        icon: t("icon_bolt", "bolt"),
         label: t("btn_initiate_swap", "Conduct Experiment") as string,
         onClick: () => runCombinedHotSwap(),
         activeClassName: "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]",
@@ -1436,7 +1439,7 @@ export default function Lab({
     } else {
       headerPillActions.push({
         id: "view_active_test",
-        icon: "science",
+        icon: t("icon_science", "science"),
         label: t("btn_view_test", "View Active Test") as string,
         onClick: () => setShowTestPanel(true),
         activeClassName: "text-[var(--success)] bg-[color-mix(in_srgb,var(--success)_12%,transparent)]",
@@ -1555,7 +1558,7 @@ export default function Lab({
               primaryPopover={
                 labFilterPopoverContent
                   ? {
-                      icon: "tune",
+                      icon: t("icon_tune", "tune"),
                       label: t("filters", "Filters") as string,
                       content: labFilterPopoverContent,
                     }
@@ -1571,7 +1574,7 @@ export default function Lab({
         <StatTileCarousel>
           <DashboardStatTile
             variant="tab"
-            icon="dashboard"
+            icon={t("icon_dashboard", "dashboard")}
             label={t("overview", "Overview")}
             number=""
             onClick={() => setActiveTab("DASHBOARD")}
@@ -1579,7 +1582,7 @@ export default function Lab({
           />
           <DashboardStatTile
             variant="tab"
-            icon="science"
+            icon={t("icon_science", "science")}
             label={t("tab_lab_builder", "Environment Builder")}
             number={modList?.length || 0}
             onClick={() => setActiveTab("BUILDER")}
@@ -1587,7 +1590,7 @@ export default function Lab({
           />
           <DashboardStatTile
             variant="tab"
-            icon="terminal"
+            icon={t("icon_terminal", "terminal")}
             label={t("tab_lab_reports", "Lab Reports")}
             number={reportsToList.length}
             onClick={() => { setActiveTab("REPORTS"); setLogFilter("all"); }}
@@ -1655,7 +1658,7 @@ export default function Lab({
                 <div className="flex flex-col gap-4 w-full">
                   <CommandScreenSectionHeading
                     title={t("recent_tests_title", "Recent Tests")}
-                    icon="history"
+                    icon={t("icon_history", "history")}
                   />
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                     {testHistory.length > 0 ? (
@@ -2136,7 +2139,7 @@ export default function Lab({
 
                       <div className="mt-8 relative z-10">
                         <ActionButton
-                          icon="close"
+                          icon={t("icon_close", "close")}
                           label={t("lab_btn_abort", "Abort / Dismount Subject")}
                           onClick={abortLab}
                           className="!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
@@ -2158,7 +2161,7 @@ export default function Lab({
                   shape="circle"
                   title={t("symbiotic_deps", "Symbiotic Dependencies")}
                   subtitle={t("symbiotic_desc", "These {mods} will be injected into the simulation alongside the primary subject.")}
-                  icon="folder"
+                  icon={t("icon_folder", "folder")}
                   colorClass=""
                   iconColorClass="text-[var(--text)] opacity-80"
                   className="mb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 relative z-10 w-full"
@@ -2169,7 +2172,7 @@ export default function Lab({
                     <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-xl p-4 mb-6 flex flex-col gap-2 shadow-md">
                       <div className="flex items-center gap-2 text-[var(--danger)] font-black text-xs capitalize tracking-widest">
                         <span className="material-symbols-outlined !text-[16px]">
-                          warning
+                          {t("icon_warning", "warning")}
                         </span>
                         {t("missing_deps", "Missing Dependencies")}
                       </div>
@@ -2232,7 +2235,7 @@ export default function Lab({
                               className="text-[10px] bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] px-2.5 py-1 rounded-lg font-mono text-[var(--danger)] cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] transition-all inline-flex items-center gap-1"
                             >
                               <span className="material-symbols-outlined !text-[12px]">
-                                warning
+                                {t("icon_warning", "warning")}
                               </span>
                               {depName}
                             </span>
@@ -2306,7 +2309,7 @@ export default function Lab({
                   </div>
                 ) : (
                   <div className="w-full flex-1 min-h-[100px] mt-2 flex items-center justify-center border-2 border-dashed border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl bg-black/20 text-[var(--subtext)] opacity-50 font-black text-[10px] capitalize tracking-widest relative z-10">
-                    NO SYMBIOTIC ENTITIES LOADED
+                    {t("none", "None")}
                   </div>
                 )}
               </div>
@@ -2320,7 +2323,7 @@ export default function Lab({
                   shape="circle"
                   title={t("adversarial_entities", "Adversarial Entities")}
                   subtitle={t("adversarial_desc", "These {mods} will be pitted against the primary subject to monitor structural clashes.")}
-                  icon="warning"
+                  icon={t("icon_warning", "warning")}
                   colorClass=""
                   iconColorClass="theme-text-warning opacity-90 animate-pulse"
                   className="mb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 relative z-10 w-full flex-none"
@@ -2466,7 +2469,7 @@ export default function Lab({
                     </div>
                   ) : (
                     <div className="w-full flex-1 min-h-[100px] mt-4 flex items-center justify-center border-2 border-dashed border-[color-mix(in_srgb,var(--warning)_20%,transparent)] rounded-xl bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] text-[var(--warning)] opacity-70 font-black text-[10px] capitalize tracking-widest relative z-10">
-                      NO ADVERSARIAL THREATS DETECTED
+                      {t("none", "None")}
                     </div>
                   )}
                 </div>
@@ -2480,7 +2483,7 @@ export default function Lab({
         <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full h-full min-h-[500px]">
           <CommandScreenSectionHeading
             title={t("tab_lab_reports", "Lab Reports")}
-            icon="terminal"
+            icon={t("icon_terminal", "terminal")}
           />
 
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pb-32">
@@ -2738,7 +2741,7 @@ export default function Lab({
           const realLogFileName =
             liveRealLogs[0]?.fileName ||
             liveRealLogs[0]?.file_name ||
-            "lastException.txt";
+            resolveDefaultRealLogName(activeGameSchema);
 
           const activeLogTextToCopy =
             reportLogViewTab === "REAL_LOG"
@@ -3180,12 +3183,12 @@ export default function Lab({
           onClose={() => setShowTestPanel(false)}
           title={t("test_underway_title", "Experiment Underway")}
           subtitle={t("test_underway_desc", "Monitoring simulation for anomalies...")}
-          icon="science"
+          icon={t("icon_science", "science")}
           iconColorClass="text-[var(--accent)]"
           headerActions={
             <PanelHeaderGroup>
               <PanelHeaderButton
-                icon="science"
+                icon={t("icon_science", "science")}
                 tooltip={t("btn_conclude_experiment", "Conclude Experiment")}
                 onClick={() => {
                   handleConcludeTest();

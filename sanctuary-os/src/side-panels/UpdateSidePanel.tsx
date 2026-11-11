@@ -4,7 +4,6 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
-  StatTileCarousel,
   StatBox,
   HoverTooltip,
   handleOpenUrl,
@@ -12,6 +11,7 @@ import {
   UniversalGroup,
   EmptyState,
 } from "../shared";
+import { useShallow } from "zustand/react/shallow";
 import { useModalStore } from "../store/modalStore";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
@@ -53,7 +53,13 @@ const GITHUB_WEB_DEV_RELEASE_URL =
 export function UpdateSidePanel() {
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
-  const { updatePayload, isUpdatePanelOpen, setIsUpdatePanelOpen } = useModalStore();
+  const { updatePayload, isUpdatePanelOpen, setIsUpdatePanelOpen } = useModalStore(
+    useShallow((s) => ({
+      updatePayload: s.updatePayload,
+      isUpdatePanelOpen: s.isUpdatePanelOpen,
+      setIsUpdatePanelOpen: s.setIsUpdatePanelOpen,
+    }))
+  );
   const setStatus = useStore((state) => state.setStatus);
 
   const [isInstalling, setIsInstalling] = useState(false);
@@ -607,9 +613,10 @@ export function UpdateSidePanel() {
 
         <div className="px-4 sm:px-8 md:px-10 pb-12 pt-6 gap-4 flex flex-col flex-1 relative z-20 min-w-0">
           {/* 3-Column View Switcher Cards */}
-          <StatTileCarousel innerClassName="px-0">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <DashboardStatTile
               variant="filter"
+              className="!w-full"
               icon={t("icon_menu_book", "menu_book")}
               value={t("btn_post", "Post")}
               label={t("btn_view", "View")}
@@ -624,6 +631,7 @@ export function UpdateSidePanel() {
             />
             <DashboardStatTile
               variant="filter"
+              className="!w-full"
               icon={t("icon_terminal", "terminal")}
               value={t("release_notes_tile_changelog", "Changelog")}
               label={t("btn_view", "View")}
@@ -638,6 +646,7 @@ export function UpdateSidePanel() {
             />
             <DashboardStatTile
               variant="filter"
+              className="!w-full"
               icon={t("icon_open_in_new", "open_in_new")}
               value={t("release_notes_tile_github", "On GitHub")}
               label={t("btn_view", "View")}
@@ -647,7 +656,7 @@ export function UpdateSidePanel() {
               tooltipTitle={t("update_panel_view_github", "View on GitHub")}
               tooltipSubtitle={activeGitHubUrl}
             />
-          </StatTileCarousel>
+          </div>
 
           <SidePanelHeroCard
             icon={t("icon_system_update_alt", "system_update_alt")}

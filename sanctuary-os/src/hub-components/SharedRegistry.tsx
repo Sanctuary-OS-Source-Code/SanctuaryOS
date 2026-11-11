@@ -124,6 +124,7 @@ export function ArchitectRegistry({
   setStatus,
 }: any = {}) {
   const { t } = useLexicon();
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
   const [cloudMods, setCloudMods] = useState<any[]>(() => registryCache.cloudMods || []);
   const [modRelationships, setModRelationships] = useState<any[]>(
     () => registryCache.modRelationships || []
@@ -845,7 +846,7 @@ export function ArchitectRegistry({
                     value={activeMod.file_extension || ""}
                     onChange={(e) => setActiveMod({ ...activeMod, file_extension: e.target.value })}
                     className="h-12 glass-surface rounded-[var(--radius)] px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-                    placeholder={t("ph_file_ext", "e.g. .package, .ts4script")}
+                    placeholder={activeGameSchema?.extensions?.supported?.slice(0, 2).join(", ") || t("ph_file_ext", "e.g. .bin, .dll")}
                   />
                 </div>
 

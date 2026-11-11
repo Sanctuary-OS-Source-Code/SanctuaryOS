@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, getFileLabel, formatDisplayName, getModIcon, compareVersions, enrichBlueprintsWithPremiumStatus, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip, EmptyState, countBlueprintArtifacts } from "./shared";
+import { ViewHeader, CustomDropdown, getFileLabel, getExtensionRegex, isScriptExtension, formatDisplayName, getModIcon, compareVersions, enrichBlueprintsWithPremiumStatus, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip, EmptyState, countBlueprintArtifacts } from "./shared";
 import { useLexicon } from "./LexiconContext";
+import { useShallow } from "zustand/react/shallow";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import { MarketUploadPanel, MarketReportPanel, MarketBlueprintPanel, auditBlueprintsTier0Compliance } from './side-panels/NexusSidePanels';
@@ -61,11 +62,12 @@ const cleanModName = (raw: string) => {
   let ext = "PACKAGE";
   let name = filename;
   const activeSchema = useStore.getState().activeGameSchema;
+  const extRegex = getExtensionRegex(activeSchema);
   if (getFileLabel(filename, activeSchema) === "SCRIPT") {
     ext = "SCRIPT";
-    name = filename.substring(0, filename.length - 10);
+    name = filename.replace(extRegex, "").replace(/\.[^.]+$/, "");
   } else if (getFileLabel(filename, activeSchema) === "PACKAGE") {
-    name = filename.substring(0, filename.length - 8);
+    name = filename.replace(extRegex, "").replace(/\.[^.]+$/, "");
   } else if (filename.includes('.')) {
     const splitExt = filename.split('.');
     ext = splitExt[splitExt.length - 1].toUpperCase();
@@ -84,6 +86,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     stopLexiconPreview,
   } = useLexicon();
   const session = useStore((state) => state.session);
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
   const marketTab = useStore(state => state.marketTab);
   const setMarketTab = useStore(state => state.setMarketTab);
   const selectedVersion = useStore(state => state.selectedVersion);
@@ -102,7 +105,21 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   } = useTheme();
   const [assetResultsMap, setAssetResultsMap] = useState<Record<string, any[]>>(window.__sanctuaryCache!.nexus?.assetResultsMap || {});
   const [selectedBlueprint, setSelectedBlueprint] = useState<any>(null);
-  const { nexusPreviewAsset: previewAsset, setNexusPreviewAsset: setPreviewAsset, stagingDraftItems, toggleModInStagingDraft, stageBlueprintToDraft } = useModalStore();
+  const {
+    nexusPreviewAsset: previewAsset,
+    setNexusPreviewAsset: setPreviewAsset,
+    stagingDraftItems,
+    toggleModInStagingDraft,
+    stageBlueprintToDraft,
+  } = useModalStore(
+    useShallow((s) => ({
+      nexusPreviewAsset: s.nexusPreviewAsset,
+      setNexusPreviewAsset: s.setNexusPreviewAsset,
+      stagingDraftItems: s.stagingDraftItems,
+      toggleModInStagingDraft: s.toggleModInStagingDraft,
+      stageBlueprintToDraft: s.stageBlueprintToDraft,
+    }))
+  );
   const stagedModKeys = useMemo(() => {
     const s = new Set<string>();
     stagingDraftItems.forEach((item) => {
@@ -341,9 +358,9 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               const colMember = collections?.find(c => c.mod_id === mod.id);
               if (colMember && colMember.collections) {
                 const col = colMember.collections as any;
-                if (!groupedMods.has(`ccset_${col.id}`)) {
-                  groupedMods.set(`ccset_${col.id}`, {
-                    id: `ccset_${col.id}`,
+                if (!groupedMods.has(`collection_${col.id}`)) {
+                  groupedMods.set(`collection_${col.id}`, {
+                    id: `collection_${col.id}`,
                     name: col.name,
                     category_override: "Collection",
                     image_url: col.image_url,
@@ -357,7 +374,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     flavors: [mod]
                   });
                 } else {
-                  pushUniqueFlavor(groupedMods.get(`ccset_${col.id}`).flavors, mod);
+                  pushUniqueFlavor(groupedMods.get(`collection_${col.id}`).flavors, mod);
                 }
               } else {
                 const rel = relationsAsChild?.find(r => r.child_id === mod.id);
@@ -1202,7 +1219,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 members.find((m: any) => m?.master_author && m.master_author !== "Unknown")?.master_author ||
                 "Unknown Creator";
               allItems.push({
-                id: `ccset_${set.id}`,
+                id: `collection_${set.id}`,
                 name: set.name,
                 category_override: "Collection",
                 image_url: set.image_url || null,
@@ -1886,7 +1903,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                           (t("search_chameleons", "Search {Chameleons} or {Masons}...") as string)
                 }
                 primaryPopover={{
-                  icon: "tune",
+                  icon: t("icon_tune", "tune"),
                   label: t("filters", "Filters") || "Filters",
                   content: (
                     <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)]">
@@ -2291,7 +2308,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                           String(flavor.file_extension || "").toLowerCase().includes("script") ||
                                           String(flavor.category_override || "").toLowerCase() === "script" ||
                                           String(flavor.sub_type || "").toLowerCase() === "script" ||
-                                          String(flavor.name || "").toLowerCase().includes("ts4script");
+                                          isScriptExtension(String(flavor.name || flavor.file_extension || ""), activeGameSchema);
                                         return (
                                           <div
                                             key={`sub-${flavor.id || flavor.hash || flavor.name}-${subIdx}`}
@@ -2400,7 +2417,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]"
                   />
                   <CommandScreenQuickLink
-                    icon="map"
+                    icon={t("icon_map", "map")}
                     title={t("tab_blueprints", "{Blueprints}")}
                     subtitle={`${t("btn_browse", "Browse")} ${t("filter_all", "All")} ${stats.blueprints} ${t("tab_blueprints", "{Blueprints}")}`}
                     onClick={() => setMarketTab('BLUEPRINTS')}
@@ -2410,7 +2427,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                   />
                   <CommandScreenQuickLink
-                    icon="translate"
+                    icon={t("icon_translate", "translate")}
                     title={t("tab_lexicons", "Language")}
                     subtitle={`${t("btn_browse", "Browse")} ${t("filter_all", "All")} ${stats.lexicons} ${t("tab_lexicons", "Language")}`}
                     onClick={() => setMarketTab('LEXICONS')}
@@ -2420,7 +2437,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                   />
                   <CommandScreenQuickLink
-                    icon="palette"
+                    icon={t("icon_palette", "palette")}
                     title={t("tab_chameleons", "Chameleons")}
                     subtitle={`${t("btn_browse", "Browse")} ${t("filter_all", "All")} ${stats.chameleons} ${t("tab_chameleons", "Chameleons")}`}
                     onClick={() => setMarketTab('CHAMELEONS')}
@@ -2430,7 +2447,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
                   />
                   <CommandScreenQuickLink
-                    icon="draw"
+                    icon={t("icon_draw", "draw")}
                     title={t("tab_templates", "Templates")}
                     subtitle={`${t("btn_browse", "Browse")} ${t("filter_all", "All")} ${stats.templates} ${t("tab_templates", "Templates")}`}
                     onClick={() => setMarketTab('TEMPLATES')}
@@ -2743,7 +2760,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                         String(flavor.file_extension || "").toLowerCase().includes("script") ||
                                         String(flavor.category_override || "").toLowerCase() === "script" ||
                                         String(flavor.sub_type || "").toLowerCase() === "script" ||
-                                        String(flavor.name || "").toLowerCase().includes("ts4script");
+                                        isScriptExtension(String(flavor.name || flavor.file_extension || ""), activeGameSchema);
                                       return (
                                         <div
                                           key={`sub-${flavor.id || flavor.hash || flavor.name}-${subIdx}`}

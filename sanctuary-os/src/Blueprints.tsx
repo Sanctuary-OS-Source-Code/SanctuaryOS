@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import {
@@ -53,9 +54,7 @@ import {
   clearMobileBlueprintEdit,
   ResolvedStagedPayload,
 } from "./utils/stagingCrypto";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { VAULT_CHIP_CLASS } from "./shared-components/constants";
 
 export default function Blueprints({
   playSets,
@@ -86,7 +85,17 @@ export default function Blueprints({
   purgeMissingString,
 }: any) {
   const { t } = useLexicon();
-  const { ownedDLC, maskedDLC, selectedVersion, modList, activeGameSchema, ignoredGlobal, session } = useStore();
+  const { ownedDLC, maskedDLC, selectedVersion, modList, activeGameSchema, ignoredGlobal, session } = useStore(
+    useShallow((s) => ({
+      ownedDLC: s.ownedDLC,
+      maskedDLC: s.maskedDLC,
+      selectedVersion: s.selectedVersion,
+      modList: s.modList,
+      activeGameSchema: s.activeGameSchema,
+      ignoredGlobal: s.ignoredGlobal,
+      session: s.session,
+    }))
+  );
   const {
     setIsBlueprintSwapOpen,
     volatileSignatureQueue,
@@ -96,7 +105,18 @@ export default function Blueprints({
     activeSignatureQueueIndex,
     setActiveSignatureQueueIndex,
     setIsSignatureQueueOpen,
-  } = useModalStore();
+  } = useModalStore(
+    useShallow((s) => ({
+      setIsBlueprintSwapOpen: s.setIsBlueprintSwapOpen,
+      volatileSignatureQueue: s.volatileSignatureQueue,
+      setVolatileSignatureQueue: s.setVolatileSignatureQueue,
+      volatileSignatureQueues: s.volatileSignatureQueues,
+      setVolatileSignatureQueues: s.setVolatileSignatureQueues,
+      activeSignatureQueueIndex: s.activeSignatureQueueIndex,
+      setActiveSignatureQueueIndex: s.setActiveSignatureQueueIndex,
+      setIsSignatureQueueOpen: s.setIsSignatureQueueOpen,
+    }))
+  );
   const [activeTab, setActiveTab] = useState("LANDING");
   const [pipelineSearchQuery, setPipelineSearchQuery] = useState("");
   const [shreddingRowId, setShreddingRowId] = useState<string | null>(null);

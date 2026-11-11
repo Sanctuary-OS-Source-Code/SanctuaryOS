@@ -77,6 +77,7 @@ export function ArtifactRulesTab({
   onSaveCloudChanges?: () => void;
 }) {
   const { t } = useLexicon();
+  const activeGameSchema = useStore((s) => s.activeGameSchema);
 
   const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
   const [showPushToken, setShowPushToken] = useState<boolean>(false);
@@ -180,7 +181,7 @@ export function ArtifactRulesTab({
         (mod?.download_url || mod?.url || "").trim() ||
         (customManifestUrl
           ? customManifestUrl.replace(
-              /\/manifest\.json$/i,
+              /\/(\.sanctuary\.)?manifest\.json$/i,
               `/${safeNameSlug}_v${versionStr.replace(/^v/i, "")}.zip`
             )
           : `https://example.com/${safeNameSlug}_v${versionStr.replace(/^v/i, "")}.zip`);
@@ -208,20 +209,28 @@ export function ArtifactRulesTab({
         )
       );
 
+      const fallbackExt =
+        activeGameSchema?.extensions?.packages?.[0] ||
+        activeGameSchema?.extensions?.supported?.[0] ||
+        ".bin";
+
       const manifestPayload = {
         schema_version: "1.0",
         manifest_url: customManifestUrl || undefined,
         artifact: {
           id: mod?.id || safeNameSlug || "unknown",
           name: ((mod?.name || "Unknown Mod").split(/[\\/]/).pop() || "Unknown Mod").replace(
-            /\.(package|ts4script|zip)$/i,
+            /\.[^/.]+$/,
             ""
           ),
           author: mod?.master_author || "Unknown Author",
           version: versionStr,
           game_version: mod?.compatible_versions?.[0] || "",
           release_date: new Date().toISOString(),
-          game_id: useStore.getState().activeGameSchema?.id || "sims4",
+          game_id:
+            useStore.getState().activeGameSchema?.id ||
+            useStore.getState().activeWorkspaceId ||
+            "universal",
         },
         payload: {
           download_url: customDownloadUrl,
@@ -232,7 +241,9 @@ export function ArtifactRulesTab({
         modules: resolvedPrimaryHash
           ? [
               {
-                name: (mod?.name || "mod.package").split(/[\\/]/).pop() || "mod.package",
+                name:
+                  (mod?.name || `artifact${fallbackExt}`).split(/[\\/]/).pop() ||
+                  `artifact${fallbackExt}`,
                 sha256: resolvedPrimaryHash,
                 role: "core",
               },
@@ -290,27 +301,43 @@ export function ArtifactRulesTab({
   const [depsSearchFilter, setDepsSearchFilter] = useState<string>("");
   const [conflictsSearchFilter, setConflictsSearchFilter] = useState<string>("");
 
-  const dlcCategories = useMemo(
-    () => [
+  const effectiveDlcRegistry = useMemo(() => {
+    if (Array.isArray(dlcRegistry) && dlcRegistry.length > 0) return dlcRegistry;
+    const catalog = activeGameSchema?.dlc_catalog;
+    if (catalog && typeof catalog === "object") {
+      return Object.entries(catalog).map(([id, entry]: [string, any]) => ({
+        id,
+        name: typeof entry === "string" ? entry : entry?.name || id,
+        type: typeof entry === "object" && entry?.type ? entry.type : t("dlc_type_addon", "Add-On"),
+      }));
+    }
+    return [];
+  }, [dlcRegistry, activeGameSchema?.dlc_catalog, t]);
+
+  const dlcCategories = useMemo(() => {
+    const types = Array.from(
+      new Set(
+        effectiveDlcRegistry
+          .map((pack: any) => String(pack?.type || "").trim())
+          .filter(Boolean)
+      )
+    );
+    return [
       { id: "ALL", label: t("dlc_tab_all", "All Packs") },
-      { id: "Expansion Pack", label: t("tab_expansion", "Expansions") },
-      { id: "Game Pack", label: t("tab_game_pack", "Game Packs") },
-      { id: "Stuff Pack", label: t("tab_stuff_pack", "Stuff Packs") },
-      { id: "Kit", label: t("tab_kit", "Kits") },
-    ],
-    [t]
-  );
+      ...types.map((tp) => ({ id: tp, label: tp })),
+    ];
+  }, [effectiveDlcRegistry, t]);
 
   const dlcOptions = useMemo(
     () =>
-      dlcRegistry.map((pack) => ({
+      effectiveDlcRegistry.map((pack: any) => ({
         id: pack.id,
         label: pack.name || pack.id,
         badge: pack.id,
         category: pack.type,
         searchText: `${pack.name || ""} ${pack.id || ""} ${pack.type || ""}`,
       })),
-    [dlcRegistry]
+    [effectiveDlcRegistry]
   );
 
   const handleDlcSelectionChange = (nextIds: string[]) => {
@@ -337,7 +364,7 @@ export function ArtifactRulesTab({
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-5 pb-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
-        {/* CARD 1: REQUIRED EA PACKS (DLC) */}
+        {/* CARD 1: REQUIRED ADD-ONS / DLC */}
         <div className="glass-surface rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -345,7 +372,7 @@ export function ArtifactRulesTab({
                 {t("icon_inventory_2", "inventory_2")}
               </span>
               <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text)] truncate">
-                {t("studio_rules_dlc_title", "Required EA Packs (DLC)")} ({activeDlcIds.length})
+                {t("studio_rules_dlc_title_agnostic", "Required Add-Ons / DLC")} ({activeDlcIds.length})
               </h4>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -380,7 +407,7 @@ export function ArtifactRulesTab({
                   ? `${activeDlcIds.length} ${t("studio_dlc_selected_count", "Packs Selected")}`
                   : undefined
               }
-              placeholder={t("studio_dlc_select_ph", "Select Required EA Packs...")}
+              placeholder={t("studio_dlc_select_ph_agnostic", "Select Required Add-Ons / DLC...")}
               searchPlaceholder={t("search_ph", "Search {mods}...")}
               categoryTabs={dlcCategories}
               options={dlcOptions}
@@ -390,19 +417,19 @@ export function ArtifactRulesTab({
 
           {activeDlcIds.length === 0 ? (
             <div className="h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
-              {t("dlc_base_game_only", "Base Game Compatible — No Expansion Packs Required")}
+              {t("dlc_base_game_only", "Base Game Compatible — No Add-Ons / DLC Required")}
             </div>
           ) : (
             <div className="h-[116px] overflow-y-auto custom-scrollbar p-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 sm:grid-cols-2 gap-1.5 content-start">
               {activeDlcIds
                 .filter((id) => {
                   if (!dlcAssignedFilter.trim()) return true;
-                  const pack = dlcRegistry.find((d) => d.id === id);
+                  const pack = effectiveDlcRegistry.find((d: any) => d.id === id);
                   const q = dlcAssignedFilter.toLowerCase();
                   return id.toLowerCase().includes(q) || (pack?.name || "").toLowerCase().includes(q);
                 })
                 .map((id) => {
-                  const pack = dlcRegistry.find((d) => d.id === id);
+                  const pack = effectiveDlcRegistry.find((d: any) => d.id === id);
                   return (
                     <div
                       key={id}
@@ -739,14 +766,14 @@ export function ArtifactRulesTab({
 
         <div className="flex flex-col gap-1.5">
           <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
-            {t("edge_manifest_url_label", "Static Polling Manifest URL (manifest.json / catalog.json)")}
+            {t("edge_manifest_url_label", "Static Polling Manifest URL (.sanctuary.manifest.json / catalog.json)")}
           </label>
           <input
             value={mod.static_manifest_url || ""}
             onChange={(e) => onChangeStaticManifestUrl(e.target.value)}
             placeholder={t(
               "placeholder_static_manifest_url",
-              "https://raw.githubusercontent.com/author/mod/main/manifest.json"
+              "https://raw.githubusercontent.com/author/mod/main/.sanctuary.manifest.json"
             )}
             className="h-12 glass-surface rounded-[var(--radius)] px-4 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
           />
@@ -823,7 +850,7 @@ export function ArtifactRulesTab({
                 options={[
                   {
                     id: "manifest",
-                    label: t("edge_autopush_mode_single", "Single-{Mod} manifest.json"),
+                    label: t("edge_autopush_mode_single", "Single-{Mod} .sanctuary.manifest.json"),
                   },
                   {
                     id: "catalog",
@@ -875,7 +902,7 @@ export function ArtifactRulesTab({
                       placeholder={
                         pushConfig.target_mode === "catalog"
                           ? "catalog.json"
-                          : "my_mod/manifest.json"
+                          : "my_mod/.sanctuary.manifest.json"
                       }
                       className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                     />
@@ -910,7 +937,7 @@ export function ArtifactRulesTab({
                       value={pushConfig.remote_path}
                       onChange={(e) => updatePushConfig({ remote_path: e.target.value })}
                       placeholder={
-                        pushConfig.target_mode === "catalog" ? "catalog.json" : "manifest.json"
+                        pushConfig.target_mode === "catalog" ? "catalog.json" : ".sanctuary.manifest.json"
                       }
                       className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                     />
@@ -941,7 +968,7 @@ export function ArtifactRulesTab({
                       placeholder={
                         pushConfig.target_mode === "catalog"
                           ? "catalog.json"
-                          : "manifests/manifest.json"
+                          : "manifests/.sanctuary.manifest.json"
                       }
                       className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                     />
@@ -960,7 +987,7 @@ export function ArtifactRulesTab({
                     placeholder={
                       pushConfig.provider === "gitlab"
                         ? "https://gitlab.com"
-                        : "https://your-domain.com/upload/manifest.json"
+                        : "https://your-domain.com/upload/.sanctuary.manifest.json"
                     }
                     className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                   />
@@ -1002,7 +1029,7 @@ export function ArtifactRulesTab({
                       placeholder={
                         pushConfig.target_mode === "catalog"
                           ? "catalog.json"
-                          : "my_mod/manifest.json"
+                          : "my_mod/.sanctuary.manifest.json"
                       }
                       className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                     />

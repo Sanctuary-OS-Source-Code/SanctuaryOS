@@ -5,6 +5,7 @@ import {
   formatDisplayName,
   getFileLabel,
   getExtensionRegex,
+  isScriptExtension,
   ActionButton,
   PanelHeaderGroup,
   PanelHeaderButton,
@@ -164,7 +165,7 @@ export default function UndoWinnersPanel({
             <div className="flex flex-col gap-3">
               {overrides.map((file) => {
                 const fileLabel = getFileLabel(file, activeGameSchema);
-                const isScript = String(fileLabel).toUpperCase().includes("SCRIPT") || file.toLowerCase().endsWith(".ts4script");
+                const isScript = String(fileLabel).toUpperCase().includes("SCRIPT") || isScriptExtension(file, activeGameSchema);
                 return (
                 <div
                   key={file}

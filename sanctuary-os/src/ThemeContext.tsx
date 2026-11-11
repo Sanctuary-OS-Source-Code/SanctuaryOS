@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { mkdir, writeTextFile, readDir, readTextFile, readFile, remove, exists } from '@tauri-apps/plugin-fs';
 import { supabase } from './supabase';
@@ -37,9 +37,9 @@ export const DEFAULT_CORE_THEMES: any = {
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
-  // Official Partner Community Light Theme — The Sims 4 ("Plumbob Crystal" — Daylight Plumbob Studio & Emerald Quartz)
+  // Official Partner Community Light Theme ("Plumbob Crystal" — Daylight Studio & Emerald Quartz)
   sims4: {
-    name: "Plumbob Crystal", badge: "The Sims 4", bg: "#eefbf5", sidebar: "#f4fdf9", sidebartext: "#0f2922", accent: "#10b981",
+    name: "Plumbob Crystal", badge: "Partner Pack", bg: "#eefbf5", sidebar: "#f4fdf9", sidebartext: "#0f2922", accent: "#10b981",
     text: "#0f2922", subtext: "#27493d", success: "#059669", warning: "#d97706", danger: "#e11d48",
     panelTint: "#f4fdf9", headerText: "#0f2922", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
     glassOpacity: "0.22", glassBlur: "40px", glassSaturation: "180%", glassRefraction: "95%", glassBezel: "95%",
@@ -51,9 +51,9 @@ export const DEFAULT_CORE_THEMES: any = {
     fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
     fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
   },
-  // Official Partner Community Dark Theme — The Sims 4 ("Plumbob Nocturne" — Midnight Plumbob Crystal Lattice)
+  // Official Partner Community Dark Theme ("Plumbob Nocturne" — Midnight Crystal Lattice)
   sims4_dark: {
-    name: "Plumbob Nocturne", badge: "The Sims 4", bg: "#020a06", sidebar: "#030e09", sidebartext: "#ecfdf5", accent: "#10b981",
+    name: "Plumbob Nocturne", badge: "Partner Pack", bg: "#020a06", sidebar: "#030e09", sidebartext: "#ecfdf5", accent: "#10b981",
     text: "#ecfdf5", subtext: "#a3ceb9", success: "#10b981", warning: "#f59e0b", danger: "#f43f5e",
     panelTint: "#051910", headerText: "#ecfdf5", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
     glassOpacity: "0.15", glassBlur: "40px", glassSaturation: "195%", glassRefraction: "105%", glassBezel: "100%",
@@ -654,69 +654,233 @@ export function applyDominantSystemBarColors(
   }
 }
 
+const ALLOWED_THEME_TOKEN_KEYS = new Set<string>([
+  ...Object.keys(DEFAULT_CORE_THEMES.architect),
+  'id',
+  'name',
+  'badge',
+  'badgeKey',
+  'theme_mode',
+  'textCase',
+  'transparentWindow',
+  'scanlines',
+  'bgImage',
+  'bgImageFile',
+  'bgGradient',
+]);
+
+function isPrivateOrLoopbackHostname(hostname: string): boolean {
+  const host = String(hostname || '').trim().toLowerCase();
+  if (!host) return true;
+  if (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '[::1]' ||
+    host === '::1' ||
+    host === '0.0.0.0' ||
+    host.endsWith('.local') ||
+    host.endsWith('.internal') ||
+    host.endsWith('.lan')
+  ) {
+    return true;
+  }
+  const ipv4Match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4Match) {
+    const [, aStr, bStr] = ipv4Match;
+    const a = Number(aStr);
+    const b = Number(bStr);
+    if (
+      a === 10 ||
+      a === 127 ||
+      a === 0 ||
+      (a === 169 && b === 254) ||
+      (a === 192 && b === 168) ||
+      (a === 172 && b >= 16 && b <= 31)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function sanitizeThemeBgImageUrl(rawInput: unknown): string {
+  if (typeof rawInput !== 'string') return '';
+  const trimmed = rawInput.trim().replace(/[\r\n\0]/g, '');
+  if (!trimmed || trimmed === 'none' || trimmed === 'transparent') return '';
+
+  // Allow bundled relative theme wallpapers (/themes/...)
+  if (/^\/themes\/[A-Za-z0-9._/?=&-]+$/.test(trimmed) && !trimmed.includes('..')) {
+    return trimmed;
+  }
+
+  // Allow raster base64 data URIs (block SVG to prevent embedded script payloads)
+  if (/^data:image\/(?:png|jpeg|jpg|webp|gif|avif);base64,[A-Za-z0-9+/=\s]+$/i.test(trimmed)) {
+    return trimmed.replace(/\s+/g, '');
+  }
+
+  // Allow Tauri local asset protocol
+  if (/^asset:\/\/[A-Za-z0-9._~:/?#[\]@!$&'()*+,;=%-]+$/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const host = parsed.hostname.toLowerCase();
+    // Allow Tauri v2 Windows/macOS asset bridge (asset.localhost)
+    if (
+      (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
+      host === 'asset.localhost'
+    ) {
+      return parsed.toString();
+    }
+    // Block all non-HTTPS schemes (especially http: LAN SSRF beacons) and private/loopback IPs
+    if (parsed.protocol !== 'https:' || isPrivateOrLoopbackHostname(host)) {
+      return '';
+    }
+    return parsed.toString();
+  } catch {
+    return '';
+  }
+}
+
+export function encodeCssUrlValue(safeUrl: string): string {
+  if (!safeUrl) return 'none';
+  const escaped = safeUrl
+    .replace(/\\/g, '%5C')
+    .replace(/"/g, '%22')
+    .replace(/'/g, '%27')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29')
+    .replace(/[\r\n]/g, '');
+  return `url("${escaped}")`;
+}
+
+export function isSafeNonImageCssTokenValue(rawVal: unknown): boolean {
+  if (rawVal === null || rawVal === undefined) return false;
+  if (typeof rawVal === 'boolean' || typeof rawVal === 'number') return true;
+  if (typeof rawVal !== 'string') return false;
+  if (rawVal.length > 512) return false;
+  // Reject url(...), CSS statement/block terminators, escapes, HTML tags, and legacy expressions
+  if (/(?:url\s*\(|@import|expression\s*\(|javascript:|;[^{}]*|[{}<>\\]|\/\*|\*\/)/i.test(rawVal)) {
+    return false;
+  }
+  return true;
+}
+
+export function sanitizeThemeObject<T extends Record<string, any>>(rawTheme: T): T {
+  if (!rawTheme || typeof rawTheme !== 'object') return {} as T;
+  const clean: Record<string, any> = {};
+  for (const [key, val] of Object.entries(rawTheme)) {
+    if (!ALLOWED_THEME_TOKEN_KEYS.has(key) || !/^[a-zA-Z0-9_-]+$/.test(key)) {
+      continue;
+    }
+    if (val === undefined || val === null) continue;
+    if (
+      key === 'name' ||
+      key === 'id' ||
+      key === 'badge' ||
+      key === 'badgeKey' ||
+      key === 'bgImageFile'
+    ) {
+      clean[key] = String(val).slice(0, 160);
+      continue;
+    }
+    if (key === 'bgImage') {
+      clean.bgImage = sanitizeThemeBgImageUrl(val);
+      continue;
+    }
+    if (isSafeNonImageCssTokenValue(val)) {
+      clean[key] = val;
+    }
+  }
+  return clean as T;
+}
+
 export function applyThemeCssVarsToRoot(themeObj: any): 'light' | 'dark' {
   if (!themeObj || typeof document === 'undefined') return 'dark';
   const root = document.documentElement;
-  Object.entries(themeObj).forEach(([key, val]) => {
-    if (key !== 'name' && val !== undefined && val !== null) {
+  const safeTheme = sanitizeThemeObject(themeObj);
+  Object.entries(safeTheme).forEach(([key, val]) => {
+    if (
+      key !== 'name' &&
+      key !== 'id' &&
+      key !== 'badge' &&
+      key !== 'badgeKey' &&
+      key !== 'bgImage' &&
+      key !== 'bgImageFile' &&
+      key !== 'bgGradient' &&
+      /^[a-z0-9-]+$/i.test(key) &&
+      val !== undefined &&
+      val !== null
+    ) {
       let finalVal = String(val);
+      if (!isSafeNonImageCssTokenValue(finalVal)) return;
       if (key === 'glassOpacity' && finalVal.endsWith('%')) {
         finalVal = (parseFloat(finalVal) / 100).toString();
       }
-      if (key !== 'bgGradient') {
-        if (key === 'glassOpacity') {
-          const parsedVal = parseFloat(finalVal);
-          if (!String(finalVal).endsWith('%') && parsedVal <= 1.0) {
-            finalVal = `${parsedVal * 100}%`;
-          }
-          root.style.setProperty(`--glassOpacityPercent`, finalVal);
-          root.style.setProperty(`--${key}`, finalVal);
-        } else {
-          root.style.setProperty(`--${key}`, finalVal);
+      if (key === 'glassOpacity') {
+        const parsedVal = parseFloat(finalVal);
+        if (!String(finalVal).endsWith('%') && parsedVal <= 1.0) {
+          finalVal = `${parsedVal * 100}%`;
         }
+        root.style.setProperty(`--glassOpacityPercent`, finalVal);
+        root.style.setProperty(`--${key}`, finalVal);
+      } else {
+        root.style.setProperty(`--${key}`, finalVal);
       }
     }
   });
 
-  const opticalVars = computeGlassOpticalVars(themeObj);
+  const opticalVars = computeGlassOpticalVars(safeTheme);
   Object.entries(opticalVars).forEach(([k, v]) => {
-    root.style.setProperty(k, v);
+    if (isSafeNonImageCssTokenValue(v)) {
+      root.style.setProperty(k, v);
+    }
   });
-  const resolvedTextCase = themeObj.textCase || 'capitalize';
+  const allowedTextCases = new Set(['capitalize', 'uppercase', 'lowercase', 'none']);
+  const resolvedTextCase = allowedTextCases.has(String(safeTheme.textCase || '').toLowerCase())
+    ? String(safeTheme.textCase).toLowerCase()
+    : 'capitalize';
   root.style.setProperty('--textCase', resolvedTextCase);
   root.setAttribute('data-text-case', resolvedTextCase);
 
+  const rawBgImage = sanitizeThemeBgImageUrl(safeTheme.bgImage);
   const canUsePassthrough =
     isDesktop() ||
     (typeof window !== 'undefined' && window.location.search.includes('lab_overlay=1'));
   const isTransparentPassthrough =
     canUsePassthrough &&
-    !themeObj.bgImage &&
-    (themeObj.bg === 'transparent' || Boolean(themeObj.transparentWindow));
+    !rawBgImage &&
+    (safeTheme.bg === 'transparent' || Boolean(safeTheme.transparentWindow));
   const fallbackThemeColor =
-    themeObj.bg && themeObj.bg !== '#000000' && themeObj.bg !== 'transparent'
-      ? themeObj.bg
-      : themeObj.panelTint && themeObj.panelTint !== '#000000' && themeObj.panelTint !== 'transparent'
-        ? themeObj.panelTint
-        : themeObj.sidebar && themeObj.sidebar !== '#000000' && themeObj.sidebar !== 'transparent'
-          ? themeObj.sidebar
+    safeTheme.bg && safeTheme.bg !== '#000000' && safeTheme.bg !== 'transparent'
+      ? safeTheme.bg
+      : safeTheme.panelTint && safeTheme.panelTint !== '#000000' && safeTheme.panelTint !== 'transparent'
+        ? safeTheme.panelTint
+        : safeTheme.sidebar && safeTheme.sidebar !== '#000000' && safeTheme.sidebar !== 'transparent'
+          ? safeTheme.sidebar
           : '#040812';
   const safeBg = isTransparentPassthrough ? 'transparent' : fallbackThemeColor;
-  const { topHex, bottomHex } = resolveThemeDominantBarColors(themeObj);
+  const { topHex, bottomHex } = resolveThemeDominantBarColors(safeTheme);
   root.style.setProperty('--bg', safeBg);
-  const rawBgImage = typeof themeObj.bgImage === 'string' ? themeObj.bgImage.trim() : '';
   const resolvedBgImage =
     rawBgImage.startsWith('/themes/') && !rawBgImage.includes('?')
       ? `${rawBgImage}?v=liquid_v22`
       : rawBgImage;
-  const bootBgImg = resolvedBgImage ? `url("${resolvedBgImage}")` : 'none';
+  const bootBgImg = resolvedBgImage ? encodeCssUrlValue(resolvedBgImage) : 'none';
   root.style.setProperty('--boot-bg-image', bootBgImg);
   root.style.backgroundImage = bootBgImg;
 
   if (resolvedBgImage) {
-    root.style.setProperty('--bgGradient', `url("${resolvedBgImage}")`);
-  } else if (themeObj.bgGradient && themeObj.bgGradient !== 'transparent' && themeObj.bgGradient !== 'none' && themeObj.bgGradient !== themeObj.bg) {
-    root.style.setProperty('--bgGradient', themeObj.bgGradient);
+    root.style.setProperty('--bgGradient', bootBgImg);
+  } else if (
+    safeTheme.bgGradient &&
+    safeTheme.bgGradient !== 'transparent' &&
+    safeTheme.bgGradient !== 'none' &&
+    safeTheme.bgGradient !== safeTheme.bg &&
+    isSafeNonImageCssTokenValue(safeTheme.bgGradient)
+  ) {
+    root.style.setProperty('--bgGradient', safeTheme.bgGradient);
   } else {
     root.style.setProperty('--bgGradient', 'none');
   }
@@ -801,7 +965,7 @@ export const ThemeProvider = ({ children }: any) => {
     data: any;
   } | null>(null);
 
-  const setUseGlobalTheme = (val: boolean) => {
+  const setUseGlobalTheme = useCallback((val: boolean) => {
     setUseGlobalThemeState(val);
     localStorage.setItem('sanctuary_use_global_theme', String(val));
     if (val) {
@@ -809,9 +973,9 @@ export const ThemeProvider = ({ children }: any) => {
     } else {
       setActiveThemeIdState(localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect");
     }
-  };
+  }, [wsId]);
 
-  const setActiveThemeId = (id: string) => {
+  const setActiveThemeId = useCallback((id: string) => {
     setPreviewThemeState(null);
     (window as any).__sanctuaryPreviewTheme = null;
     setActiveThemeIdState(id);
@@ -820,7 +984,7 @@ export const ThemeProvider = ({ children }: any) => {
     } else {
       localStorage.setItem(`sanctuary_${wsId}_active_theme`, id);
     }
-  };
+  }, [useGlobalThemeState, wsId]);
 
   useEffect(() => {
     const nextCustoms = readSharedThemeMap(wsId, 'custom_themes');
@@ -844,7 +1008,8 @@ export const ThemeProvider = ({ children }: any) => {
             // ONLY load from cloud if it's NOT a built-in core theme.
             // This protects the premium local aesthetic from being ruined by old database strings.
             if (!DEFAULT_CORE_THEMES[row.id]) {
-              fetchedThemes[row.id] = { ...row.theme_data, id: row.id, name: row.name, badgeKey: "badge_community_defaults" };
+              const sanitized = sanitizeThemeObject(row.theme_data || {});
+              fetchedThemes[row.id] = { ...sanitized, id: row.id, name: row.name, badgeKey: "badge_community_defaults" };
             }
           });
           setCoreThemes(fetchedThemes);
@@ -893,60 +1058,73 @@ export const ThemeProvider = ({ children }: any) => {
       try {
         const fetchedGameThemes: Record<string, any> = {};
         const queriedUrls = new Set<string>();
+        const targets: Array<{ url: string; anonKey: string; suffix: string; badge: string }> = [];
 
-        // 1. Fetch Community Defaults from public Spoke databases
+        // 1. Collect public Spoke databases
         try {
-          const { data: publicGames } = await supabase.from('sanctuary_games').select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active').eq('is_active', true);
-          if (publicGames) {
+          const { data: publicGames } = await supabase
+            .from('sanctuary_games')
+            .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active')
+            .eq('is_active', true);
+          if (Array.isArray(publicGames)) {
             for (const game of publicGames) {
               if (!isValidHttpUrl(game.supabase_url) || !game.supabase_anon_key) continue;
-              const cleanUrl = game.supabase_url.trim().replace(/\/+$/, "");
+              const cleanUrl = game.supabase_url.trim().replace(/\/+$/, '');
               if (queriedUrls.has(cleanUrl)) continue;
               queriedUrls.add(cleanUrl);
-              try {
-                const client = getReadOnlyThemeClient(cleanUrl, game.supabase_anon_key, String(game.id || game.name || "game"));
-                const { data } = await client.from('sanctuary_themes').select('*');
-                if (data && data.length > 0) {
-                  data.forEach((row: any) => {
-                    if (row.id === 'theme_1788994757269') return; // Handled by built-in sims4_dark ("Plumbob Nocturne")
-                    if (!DEFAULT_CORE_THEMES[row.id]) {
-                      fetchedGameThemes[row.id] = { ...row.theme_data, id: row.id, name: row.name, badge: game.name || "Community" };
-                    }
-                  });
-                }
-              } catch (err) {
-                console.warn(`Failed to fetch community themes for ${game.name}`, err);
-              }
+              targets.push({
+                url: cleanUrl,
+                anonKey: game.supabase_anon_key,
+                suffix: String(game.id || game.name || 'game'),
+                badge: game.name || 'Community',
+              });
             }
           }
         } catch (err) {
           console.warn('Failed to fetch public game databases', err);
         }
 
-        // 2. Fetch from Workspaces (User specific overrides)
+        // 2. Collect user Workspace Spoke overrides
         for (const ws of workspaces) {
           if (ws.id === 'default_workspace' || !isValidHttpUrl(ws.supabase_url) || !ws.supabase_anon_key) continue;
-          const cleanUrl = ws.supabase_url.trim().replace(/\/+$/, "");
+          const cleanUrl = ws.supabase_url.trim().replace(/\/+$/, '');
           if (queriedUrls.has(cleanUrl)) continue;
           queriedUrls.add(cleanUrl);
-          
-          try {
-            const client = getReadOnlyThemeClient(cleanUrl, ws.supabase_anon_key, String(ws.id || "ws"));
+          targets.push({
+            url: cleanUrl,
+            anonKey: ws.supabase_anon_key,
+            suffix: String(ws.id || 'ws'),
+            badge: ws.name || ws.display_name || 'Community',
+          });
+        }
+
+        // Parallelize all Spoke theme queries with Promise.allSettled
+        const settled = await Promise.allSettled(
+          targets.map(async (target) => {
+            const client = getReadOnlyThemeClient(target.url, target.anonKey, target.suffix);
             const { data, error } = await client.from('sanctuary_themes').select('*');
-            
-            if (!error && data && data.length > 0) {
-              data.forEach((row: any) => {
-                if (row.id === 'theme_1788994757269') return; // Handled by built-in sims4_dark ("Plumbob Nocturne")
-                if (!DEFAULT_CORE_THEMES[row.id]) {
-                  fetchedGameThemes[row.id] = { ...row.theme_data, id: row.id, name: row.name, badge: ws.name || ws.display_name || "Community" };
-                }
-              });
+            if (error || !Array.isArray(data)) return { badge: target.badge, rows: [] };
+            return { badge: target.badge, rows: data };
+          })
+        );
+
+        for (const res of settled) {
+          if (res.status !== 'fulfilled') continue;
+          const { badge, rows } = res.value;
+          for (const row of rows) {
+            if (!row?.id || row.id === 'theme_1788994757269') continue;
+            if (!DEFAULT_CORE_THEMES[row.id]) {
+              const sanitized = sanitizeThemeObject(row.theme_data || {});
+              fetchedGameThemes[row.id] = {
+                ...sanitized,
+                id: row.id,
+                name: row.name,
+                badge,
+              };
             }
-          } catch (err) {
-            console.warn(`Failed to fetch themes from workspace ${ws.id}`, err);
           }
         }
-        
+
         setGameThemes(fetchedGameThemes);
       } catch (err) {
         console.error("Failed to fetch game themes", err);
@@ -1186,7 +1364,7 @@ export const ThemeProvider = ({ children }: any) => {
     }
   }, [activeThemeIdState, currentTheme, previewThemeState, GLASS_OPTICS_REV]);
 
-  const startThemePreview = (id: string, name: string, rawThemeData: any) => {
+  const startThemePreview = useCallback((id: string, name: string, rawThemeData: any) => {
     let parsed = rawThemeData;
     if (typeof rawThemeData === 'string') {
       try {
@@ -1202,34 +1380,35 @@ export const ThemeProvider = ({ children }: any) => {
     } else if (parsed && parsed.json_data && typeof parsed.json_data === 'object') {
       parsed = { ...parsed, ...parsed.json_data };
     }
-    const [bgR, bgG, bgB] = parseHexToRgb(parsed?.bg || '#040812', [4, 8, 18]);
+    const sanitizedParsed = sanitizeThemeObject(parsed || {});
+    const [bgR, bgG, bgB] = parseHexToRgb(sanitizedParsed?.bg || '#040812', [4, 8, 18]);
     const isLight =
-      String(parsed?.theme_mode || '').toLowerCase() === 'light' ||
+      String(sanitizedParsed?.theme_mode || '').toLowerCase() === 'light' ||
       (bgR * 299 + bgG * 587 + bgB * 114) / 1000 >= 128;
     const baseCore = isLight ? DEFAULT_CORE_THEMES.radiant : DEFAULT_CORE_THEMES.architect;
     const { bgImage: _defaultBgImg, name: _defaultName, ...opticalDefaults } = baseCore;
     const normalized = {
-      ...(parsed?.bg || parsed?.accent ? opticalDefaults : baseCore),
-      ...parsed,
-      name: name || parsed?.name || 'Preview',
-      success: sanitizeSemanticChannel('success', parsed?.success || baseCore.success),
-      warning: sanitizeSemanticChannel('warning', parsed?.warning || baseCore.warning),
-      danger: sanitizeSemanticChannel('danger', parsed?.danger || baseCore.danger),
-      textCase: parsed?.textCase || 'capitalize',
+      ...(sanitizedParsed?.bg || sanitizedParsed?.accent ? opticalDefaults : baseCore),
+      ...sanitizedParsed,
+      name: name || sanitizedParsed?.name || 'Preview',
+      success: sanitizeSemanticChannel('success', sanitizedParsed?.success || baseCore.success),
+      warning: sanitizeSemanticChannel('warning', sanitizedParsed?.warning || baseCore.warning),
+      danger: sanitizeSemanticChannel('danger', sanitizedParsed?.danger || baseCore.danger),
+      textCase: sanitizedParsed?.textCase || 'capitalize',
     };
     (window as any).__sanctuaryPreviewTheme = normalized;
     setPreviewThemeState({ id: String(id), name: String(name || normalized.name), data: normalized });
-  };
+  }, []);
 
-  const stopThemePreview = () => {
+  const stopThemePreview = useCallback(() => {
     (window as any).__sanctuaryPreviewTheme = null;
     setPreviewThemeState(null);
     applyThemeCssVarsToRoot(currentTheme);
     (window as any).__sanctuaryRebuildWebGLGlass?.();
     (window as any).__sanctuaryRenderWebGLGlass?.(true);
-  };
+  }, [currentTheme]);
 
-  const saveThemeToVault = (id: string, json: any, isDev: boolean = false) => {
+  const saveThemeToVault = useCallback((id: string, json: any, isDev: boolean = false) => {
     (async () => {
       try {
         if (!isDesktop()) return;
@@ -1241,22 +1420,22 @@ export const ThemeProvider = ({ children }: any) => {
         }
       } catch (err) { console.error("Failed to save theme to vault:", err); }
     })();
-  };
+  }, []);
 
 
-  const updateTheme = (id: string, updates: any) => {
+  const updateTheme = useCallback((id: string, updates: any) => {
     if (id?.startsWith('dev_')) {
-      const currentTheme = devThemes[id];
-      if (!currentTheme) return;
-      const updatedTheme = { ...currentTheme, ...updates };
+      const targetTheme = devThemes[id];
+      if (!targetTheme) return;
+      const updatedTheme = { ...targetTheme, ...updates };
       const updated = { ...devThemes, [id]: updatedTheme };
       setDevThemes(updated);
       writeSharedThemeMap(wsId, 'dev_themes', updated);
       saveThemeToVault(id, updatedTheme, true);
     } else if (CORE_THEMES[id]) {
-      const currentTheme = CORE_THEMES[id];
+      const targetTheme = CORE_THEMES[id];
       const newId = `custom_${id}_${Date.now()}`;
-      const newTheme = { ...currentTheme, ...updates, name: `${currentTheme.name} (Edited)` };
+      const newTheme = { ...targetTheme, ...updates, name: `${targetTheme.name} (Edited)` };
       const newCustoms = { ...customThemes, [newId]: newTheme };
       setCustomThemes(newCustoms);
       setActiveThemeId(newId);
@@ -1271,9 +1450,9 @@ export const ThemeProvider = ({ children }: any) => {
       writeSharedThemeMap(wsId, 'custom_themes', updated);
       saveThemeToVault(id, updatedTheme, false);
     }
-  };
+  }, [devThemes, CORE_THEMES, customThemes, allThemes, currentTheme, wsId, saveThemeToVault, setActiveThemeId]);
 
-  const updateActiveTheme = (updates: any) => {
+  const updateActiveTheme = useCallback((updates: any) => {
     if (activeThemeIdState?.startsWith('dev_')) {
       const updatedTheme = { ...currentTheme, ...updates };
       const updated = { ...devThemes, [activeThemeIdState]: updatedTheme };
@@ -1295,9 +1474,9 @@ export const ThemeProvider = ({ children }: any) => {
       writeSharedThemeMap(wsId, 'custom_themes', updated);
       saveThemeToVault(activeThemeIdState, updatedTheme, false);
     }
-  };
+  }, [activeThemeIdState, currentTheme, devThemes, CORE_THEMES, customThemes, wsId, saveThemeToVault, setActiveThemeId]);
 
-  const createNewTheme = () => {
+  const createNewTheme = useCallback(() => {
     const id = `signature_${Date.now()}`;
     const newTheme = {
       ...DEFAULT_CORE_THEMES.architect,
@@ -1309,9 +1488,9 @@ export const ThemeProvider = ({ children }: any) => {
     writeSharedThemeMap(wsId, 'custom_themes', updated);
     saveThemeToVault(id, newTheme, false);
     return id;
-  };
+  }, [customThemes, setActiveThemeId, wsId, saveThemeToVault]);
 
-  const createNewDevTheme = (baseTheme: any = null) => {
+  const createNewDevTheme = useCallback((baseTheme: any = null) => {
     const id = `dev_${Date.now()}`;
     const newTheme = baseTheme
       ? { ...baseTheme, name: `${baseTheme.name} (Copy)` }
@@ -1324,9 +1503,9 @@ export const ThemeProvider = ({ children }: any) => {
     writeSharedThemeMap(wsId, 'dev_themes', updated);
     saveThemeToVault(id, newTheme, true);
     return id;
-  };
+  }, [devThemes, wsId, saveThemeToVault]);
 
-  const exportDevThemeToCustom = (id: string) => {
+  const exportDevThemeToCustom = useCallback((id: string) => {
     if (!id?.startsWith('dev_')) return;
     const themeToCopy = devThemes[id];
     if (!themeToCopy) return;
@@ -1337,9 +1516,9 @@ export const ThemeProvider = ({ children }: any) => {
     setCustomThemes(updatedCustoms);
     writeSharedThemeMap(wsId, 'custom_themes', updatedCustoms);
     saveThemeToVault(newId, newTheme, false);
-  };
+  }, [devThemes, customThemes, wsId, saveThemeToVault]);
 
-  const deleteTheme = (id: string) => {
+  const deleteTheme = useCallback((id: string) => {
     if (CORE_THEMES[id]) return;
     const isDev = id.startsWith('dev_');
     if (!isDev) {
@@ -1365,9 +1544,9 @@ export const ThemeProvider = ({ children }: any) => {
         }
       } catch (err) { console.error("Failed to delete theme from vault:", err); }
     })();
-  };
+  }, [CORE_THEMES, customThemes, devThemes, wsId, activeThemeIdState, setActiveThemeId]);
 
-  const renameTheme = (id: string, newName: string) => {
+  const renameTheme = useCallback((id: string, newName: string) => {
     if (CORE_THEMES[id]) {
       const baseTheme = CORE_THEMES[id];
       const newId = `custom_${id}_${Date.now()}`;
@@ -1395,44 +1574,86 @@ export const ThemeProvider = ({ children }: any) => {
       writeSharedThemeMap(wsId, 'custom_themes', updated);
       saveThemeToVault(id, updatedTheme, false);
     }
-  };
+  }, [CORE_THEMES, customThemes, devThemes, wsId, setActiveThemeId, saveThemeToVault]);
 
-      return (
-    <ThemeContext.Provider value={{
-      activeThemeId: activeThemeIdState, setActiveThemeId, currentTheme, CORE_THEMES: mergedCoreThemes, setCoreThemes, customThemes, devThemes, gameThemes,
-      updateActiveTheme, updateTheme, renameTheme, createNewTheme, createNewDevTheme, exportDevThemeToCustom, deleteTheme,
-      useGlobalTheme: useGlobalThemeState, setUseGlobalTheme,
-      previewThemeId: previewThemeState?.id || null,
-      previewThemeName: previewThemeState?.name || null,
-      startThemePreview,
-      stopThemePreview,
-      importTheme: (rawJson: any) => {
-        setPreviewThemeState(null);
-        (window as any).__sanctuaryPreviewTheme = null;
-        let json = rawJson;
-        if (typeof rawJson === 'string') {
-          try {
-            json = JSON.parse(rawJson);
-          } catch {
-            return;
-          }
-        }
-        if (!json || typeof json !== 'object') return;
-        const targetName = String(json.name || '').trim().toLowerCase();
-        const existingEntry = targetName
-          ? Object.entries(customThemes).find(
-              ([, th]: [string, any]) =>
-                th && String(th.name || '').trim().toLowerCase() === targetName
-            )
-          : undefined;
-        const id = existingEntry ? existingEntry[0] : `import_${Date.now()}`;
-        const nextCustoms = { ...customThemes, [id]: json };
-        setCustomThemes(nextCustoms);
-        writeSharedThemeMap(wsId, 'custom_themes', nextCustoms);
-        setActiveThemeId(id);
-        saveThemeToVault(id, json, false);
+  const importTheme = useCallback((rawJson: any) => {
+    setPreviewThemeState(null);
+    (window as any).__sanctuaryPreviewTheme = null;
+    let json = rawJson;
+    if (typeof rawJson === 'string') {
+      try {
+        json = JSON.parse(rawJson);
+      } catch {
+        return;
       }
-    }}>
+    }
+    if (!json || typeof json !== 'object') return;
+    const sanitizedJson = sanitizeThemeObject(json);
+    if (Object.keys(sanitizedJson).length === 0) return;
+    const targetName = String(sanitizedJson.name || '').trim().toLowerCase();
+    const existingEntry = targetName
+      ? Object.entries(customThemes).find(
+          ([, th]: [string, any]) =>
+            th && String(th.name || '').trim().toLowerCase() === targetName
+        )
+      : undefined;
+    const id = existingEntry ? existingEntry[0] : `import_${Date.now()}`;
+    const nextCustoms = { ...customThemes, [id]: sanitizedJson };
+    setCustomThemes(nextCustoms);
+    writeSharedThemeMap(wsId, 'custom_themes', nextCustoms);
+    setActiveThemeId(id);
+    saveThemeToVault(id, json, false);
+  }, [customThemes, wsId, setActiveThemeId, saveThemeToVault]);
+
+  const themeContextValue = useMemo(() => ({
+    activeThemeId: activeThemeIdState,
+    setActiveThemeId,
+    currentTheme,
+    CORE_THEMES: mergedCoreThemes,
+    setCoreThemes,
+    customThemes,
+    devThemes,
+    gameThemes,
+    updateActiveTheme,
+    updateTheme,
+    renameTheme,
+    createNewTheme,
+    createNewDevTheme,
+    exportDevThemeToCustom,
+    deleteTheme,
+    useGlobalTheme: useGlobalThemeState,
+    setUseGlobalTheme,
+    previewThemeId: previewThemeState?.id || null,
+    previewThemeName: previewThemeState?.name || null,
+    startThemePreview,
+    stopThemePreview,
+    importTheme,
+  }), [
+    activeThemeIdState,
+    setActiveThemeId,
+    currentTheme,
+    mergedCoreThemes,
+    customThemes,
+    devThemes,
+    gameThemes,
+    updateActiveTheme,
+    updateTheme,
+    renameTheme,
+    createNewTheme,
+    createNewDevTheme,
+    exportDevThemeToCustom,
+    deleteTheme,
+    useGlobalThemeState,
+    setUseGlobalTheme,
+    previewThemeState?.id,
+    previewThemeState?.name,
+    startThemePreview,
+    stopThemePreview,
+    importTheme,
+  ]);
+
+  return (
+    <ThemeContext.Provider value={themeContextValue}>
       {children}
     </ThemeContext.Provider>
   );

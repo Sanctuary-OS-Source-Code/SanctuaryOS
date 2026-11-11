@@ -20,7 +20,7 @@ import {
 import { useStore } from "./store";
 import { useLexicon } from "./LexiconContext";
 import { tauriBridge } from "./lib/tauri-bridge";
-import { usePlaySetLogic } from "./hooks/usePlaySetLogic";
+import { useConflictOverride } from "./hooks/usePlaySetLogic";
 import {
   evaluateModIssues,
   groupBrokenMods,
@@ -181,7 +181,7 @@ export default function BlueprintArchitect({
     }
   }, [isOpen, initialTab, criticalCount, alertsCount, updatesCount]);
 
-  const { applyConflictOverride } = usePlaySetLogic();
+  const applyConflictOverride = useConflictOverride();
 
   const getPriorityDrop = (modData: any) => {
     if (!modData || modData.isFallback || !allow_write) return null;

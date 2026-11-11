@@ -21,6 +21,7 @@ import {
   DashboardStatTile,
   ActionButton,
   UniversalGroup,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import {
   ElevatedHubLayout,
@@ -77,9 +78,6 @@ import {
   compileDirectiveSchemaToMarkdown,
   getDefaultDirectiveBuilderSchema,
 } from "../utils/directivesBuilderSchema";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 const CATEGORY_TO_SLUG: Record<string, DirectiveSlug> = {
   "Citizen Guide": "citizen_guide",

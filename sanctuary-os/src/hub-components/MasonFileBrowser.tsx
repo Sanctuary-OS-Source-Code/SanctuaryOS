@@ -1,4 +1,4 @@
-import { EmptyState } from "../shared";
+import { EmptyState, VAULT_CHIP_CLASS } from "../shared";
 import { useState, useEffect } from "react";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { UniversalCard } from "../components/universal/UniversalCard";
@@ -8,9 +8,6 @@ import {
   DynamicLexiconPreviewBanner,
   DynamicTemplatePreviewBanner,
 } from "../chameleon-components/ThemeCard";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export default function MasonFileBrowser({
   t,

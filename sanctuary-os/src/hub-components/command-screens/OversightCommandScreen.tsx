@@ -6,9 +6,7 @@ import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSideP
 import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, SystemBroadcastsGrid, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
-import { openModDossier } from "../../shared";
-
-const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { openModDossier, VAULT_CHIP_CLASS } from "../../shared";
 
 export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPost }: any) {
   const { t } = useLexicon();
@@ -211,7 +209,7 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
       <CommandScreenBody>
         <CommandScreenMain>
           <div className="flex flex-col gap-4 w-full">
-            <CommandScreenSectionHeading title={t("wf_comms_title", "Latest Dispatch")} icon="history" />
+            <CommandScreenSectionHeading title={t("wf_comms_title", "Latest Dispatch")} icon={t("icon_history", "history")} />
             <div className="w-full">
               <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
             </div>
@@ -219,7 +217,7 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
 
           {recentSupport.length > 0 && (
             <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("wf_tab_tickets", "Support")} icon="local_activity" />
+              <CommandScreenSectionHeading title={t("wf_tab_tickets", "Support")} icon={t("icon_local_activity", "local_activity")} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                   {recentSupport.map((item: any) => (
                       <UniversalCard 
@@ -278,7 +276,7 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
 
           {recentMalware.length > 0 && (
             <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("rating_malware", "Malware")} icon="coronavirus" />
+              <CommandScreenSectionHeading title={t("rating_malware", "Malware")} icon={t("icon_coronavirus", "coronavirus")} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                   {recentMalware.map((item: any) => (
                       <UniversalCard 
@@ -337,7 +335,7 @@ export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilt
 
           {recentCompliance.length > 0 && (
             <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("tab_compliance", "Compliance")} icon="policy" />
+              <CommandScreenSectionHeading title={t("tab_compliance", "Compliance")} icon={t("icon_policy", "policy")} />
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
                   {recentCompliance.map((item: any) => (
                       <UniversalCard 

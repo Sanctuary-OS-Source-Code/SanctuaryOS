@@ -8,6 +8,7 @@ import {
   cleanSearchName,
   getModIcon,
 } from "../shared";
+import { useShallow } from "zustand/react/shallow";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
@@ -24,7 +25,12 @@ export function ScoutQueueSidePanel({
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const requireScoutLabTest =
     activeGameSchema?.lab_verification?.require_for_scout_approval !== false;
-  const { isScoutPanelOpen, setIsScoutPanelOpen } = useModalStore();
+  const { isScoutPanelOpen, setIsScoutPanelOpen } = useModalStore(
+    useShallow((s) => ({
+      isScoutPanelOpen: s.isScoutPanelOpen,
+      setIsScoutPanelOpen: s.setIsScoutPanelOpen,
+    }))
+  );
   const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
 
   const queueItems = Array.isArray(scoutQueue) ? scoutQueue : [];

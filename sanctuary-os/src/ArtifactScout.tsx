@@ -3,34 +3,36 @@ import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
 import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, ActionPill, PanelHeaderGroup, PanelHeaderButton, StatBox, openModDossier, countBlueprintArtifacts } from "./shared";
-import { getExtensionRegex, formatDisplayName, getFileLabel } from "./shared";
+import { getExtensionRegex, formatDisplayName, getFileLabel, isScriptExtension } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { UniversalGroup, SidePanelHeroCard } from "./components/layouts/ElevatedHubLayout";
 import { useLexicon } from "./LexiconContext";
 import { usePlaySetLogic, compileLoadOrder, LoadOrderRule } from "./hooks/usePlaySetLogic";
 import { useStore } from "./store";
+import { useShallow } from "zustand/react/shallow";
+import { useVirtualWindow } from "./hooks/useVirtualWindow";
 import ConflictCard, { RadarPairPreviewBanner } from "./ConflictCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 import ConflictResolutionSidebar from "./side-panels/ConflictResolutionSidebar";
 import UndoWinnersPanel from "./side-panels/UndoWinnersPanel";
 import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, CommandScreenSectionHeading, StatTileCarousel } from "./hub-components/SharedCommandScreenLayout";
-
-const VAULT_CHIP_CLASS =
-    "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { VAULT_CHIP_CLASS } from "./shared-components/constants";
 
 const isCloneConflict = (modA: string, modB: string) => {
     if (!modA || !modB) return false;
     const clean = (s: string) => {
         const file = s.split(/[\\/]/).pop() || s;
-        const extMatch = file.match(getExtensionRegex(useStore.getState().activeGameSchema));
+        const extRegex = getExtensionRegex(useStore.getState().activeGameSchema);
+        const extMatch = file.match(extRegex);
         const ext = extMatch ? extMatch[1].toLowerCase() : '';
-        const cleaned = file.toLowerCase().replace(/(_hq|_nonhq|_v\d+|_alt|_remake|remake|\\.[a-zA-Z0-9]+)/g, '').replace(/[^a-z0-9]/g, '');
+        const withoutExt = file.replace(extRegex, '');
+        const cleaned = withoutExt.toLowerCase().replace(/(_v\d+|_alt|_remake|remake|\.[a-zA-Z0-9]+)/g, '').replace(/[^a-z0-9]/g, '');
         return cleaned + "_" + ext;
     };
     return clean(modA) === clean(modB);
 };
 
-export const DbpfScout = () => {
+export const ArtifactScout = () => {
     const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
     const [isLoadOrderPanelOpen, setIsLoadOrderPanelOpen] = useState(false);
     const [selectedLoadOrderMod, setSelectedLoadOrderMod] = useState<string>("");
@@ -51,7 +53,27 @@ export const DbpfScout = () => {
     const [showUndoPanel, setShowUndoPanel] = useState(false);
     const [stats, setStats] = useState({ packages: 0, totalClashes: 0 });
 
-    const { playSets, setPlaySets, activePlaySetIndex, activeGameSchema, setActiveGameSchema, modList, setStatus, showImages } = useStore();
+    const {
+        playSets,
+        setPlaySets,
+        activePlaySetIndex,
+        activeGameSchema,
+        setActiveGameSchema,
+        modList,
+        setStatus,
+        showImages,
+    } = useStore(
+        useShallow((s) => ({
+            playSets: s.playSets,
+            setPlaySets: s.setPlaySets,
+            activePlaySetIndex: s.activePlaySetIndex,
+            activeGameSchema: s.activeGameSchema,
+            setActiveGameSchema: s.setActiveGameSchema,
+            modList: s.modList,
+            setStatus: s.setStatus,
+            showImages: s.showImages,
+        }))
+    );
     const defaultScope = playSets && playSets.length > 0 ? (playSets[activePlaySetIndex]?.name || playSets[0].name) : "";
     const [scanScope, setScanScope] = useState(defaultScope);
 
@@ -69,11 +91,6 @@ export const DbpfScout = () => {
     const [cloneConflicts, setCloneConflicts] = useState<any[]>([]);
     const [softConflicts, setSoftConflicts] = useState<any[]>([]);
 
-    const [visibleFatal, setVisibleFatal] = useState(50);
-    const [visibleTuning, setVisibleTuning] = useState(50);
-    const [visibleClone, setVisibleClone] = useState(50);
-    const [visibleSoft, setVisibleSoft] = useState(50);
-    const [visibleLoadOrder, setVisibleLoadOrder] = useState(60);
     const [activeTab, setActiveTab] = useState<string>("COMMAND");
     const [overrideTab, setOverrideTab] = useState<"ACTIVE" | "IGNORED" | "ALL">("ALL");
     const [conflictSearch, setConflictSearch] = useState("");
@@ -119,16 +136,12 @@ export const DbpfScout = () => {
     const [editingOrderVal, setEditingOrderVal] = useState<string>("");
 
     useEffect(() => {
-        setVisibleLoadOrder(60);
-    }, [loadOrderSearch, loadOrderSubFilter, scanScope]);
-
-    useEffect(() => {
         setVisiblePickerMods(24);
     }, [inspectorModSearch, isLoadOrderPanelOpen]);
 
     const stripKnownModExt = (rawName: string) => {
         return String(rawName || "")
-            .replace(/\.(package|ts4script|pak|archive|esp|esm|esl|rpf|asi|zip)$/i, "")
+            .replace(getExtensionRegex(activeGameSchema), "")
             .trim();
     };
 
@@ -601,13 +614,15 @@ export const DbpfScout = () => {
         setSelectedForVault([]);
         setResolvingScript(null);
         setConfirmMassVault(false);
-        setVisibleFatal(50);
-        setVisibleTuning(50);
-        setVisibleClone(50);
-        setVisibleSoft(50);
         try {
             const config: any = await invoke("get_saved_coordinates");
-            let targetPath = `${config.vault_path}/Mods`;
+            const storeState = useStore.getState();
+            let targetPath =
+                storeState.modsPath ||
+                config.mods_path ||
+                config.live_path ||
+                config.vault_path ||
+                "";
             let targetFiles: string[] | null = null;
 
             const scopeToUse = resolvedTarget || scanScope || (playSets.length > 0 ? playSets[0].name : "");
@@ -616,7 +631,11 @@ export const DbpfScout = () => {
                 targetFiles = set.mods.map((m: any) => typeof m === 'string' ? m : (m.name || m.path || '')).filter(Boolean);
             }
 
-            const report = await invoke<any>("run_conflict_radar", { modsPath: targetPath, targetFiles });
+            const report = await invoke<any>("run_conflict_radar", {
+                modsPath: targetPath,
+                targetFiles,
+                gameSchema: activeGameSchema,
+            });
 
             const rawFatal: any[] = [];
             const rawTuning: any[] = [];
@@ -739,48 +758,6 @@ export const DbpfScout = () => {
         } else {
             localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(updated));
         }
-    };
-    const targetHq = () => {
-        let newTargets: string[] = [...selectedForVault];
-        cloneConflicts.forEach((c: any) => {
-            const aIsHq = /_hq/i.test(c.modA);
-            const bIsHq = /_hq/i.test(c.modB);
-            let target = null;
-            let nonTarget = null;
-            if (aIsHq && !bIsHq) { target = c.modA; nonTarget = c.modB; }
-            else if (bIsHq && !aIsHq) { target = c.modB; nonTarget = c.modA; }
-
-            if (target) {
-                newTargets = newTargets.filter(m => m !== nonTarget);
-                if (!newTargets.includes(target)) newTargets.push(target);
-            }
-        });
-        setSelectedForVault(newTargets);
-        setConfirmMassVault(false);
-    };
-
-    const targetNonHq = () => {
-        let newTargets: string[] = [...selectedForVault];
-        cloneConflicts.forEach((c: any) => {
-            const aIsHq = /_hq/i.test(c.modA);
-            const bIsHq = /_hq/i.test(c.modB);
-            const aIsNonHq = /_nonhq/i.test(c.modA);
-            const bIsNonHq = /_nonhq/i.test(c.modB);
-
-            let target = null;
-            let nonTarget = null;
-            if (aIsNonHq && !bIsNonHq) { target = c.modA; nonTarget = c.modB; }
-            else if (bIsNonHq && !aIsNonHq) { target = c.modB; nonTarget = c.modA; }
-            else if (!aIsHq && bIsHq) { target = c.modA; nonTarget = c.modB; }
-            else if (!bIsHq && aIsHq) { target = c.modB; nonTarget = c.modA; }
-
-            if (target) {
-                newTargets = newTargets.filter(m => m !== nonTarget);
-                if (!newTargets.includes(target)) newTargets.push(target);
-            }
-        });
-        setSelectedForVault(newTargets);
-        setConfirmMassVault(false);
     };
 
     const toggleTarget = (selectedMod: string, otherMod: string) => {
@@ -983,10 +960,10 @@ export const DbpfScout = () => {
         return modA.includes(term) || modB.includes(term) || pair.includes(term);
     };
 
-    const filteredFatal = fatalConflicts.filter(c => searchFilter(c, conflictSearch));
-    const filteredTuning = tuningConflicts.filter(c => searchFilter(c, conflictSearch));
-    const filteredClone = cloneConflicts.filter(c => searchFilter(c, conflictSearch));
-    const filteredSoft = softConflicts.filter(c => searchFilter(c, conflictSearch));
+    const filteredFatal = useMemo(() => fatalConflicts.filter(c => searchFilter(c, conflictSearch)), [fatalConflicts, conflictSearch]);
+    const filteredTuning = useMemo(() => tuningConflicts.filter(c => searchFilter(c, conflictSearch)), [tuningConflicts, conflictSearch]);
+    const filteredClone = useMemo(() => cloneConflicts.filter(c => searchFilter(c, conflictSearch)), [cloneConflicts, conflictSearch]);
+    const filteredSoft = useMemo(() => softConflicts.filter(c => searchFilter(c, conflictSearch)), [softConflicts, conflictSearch]);
 
     const hasExplicitRuleBetween = (cleanA: string, cleanB: string) => {
         const baseA = stripKnownModExt(cleanA);
@@ -1150,13 +1127,19 @@ export const DbpfScout = () => {
             });
     }, [compiledOrder.items, compiledOrder.priorityTiers, modOverlapMap, loadOrderSearch, activeGameSchema, t]);
 
+    const fatalVirtual = useVirtualWindow({ count: filteredFatal.length, estimateSize: 280, gap: 24, threshold: 60 });
+    const tuningVirtual = useVirtualWindow({ count: filteredTuning.length, estimateSize: 280, gap: 24, threshold: 60 });
+    const cloneVirtual = useVirtualWindow({ count: filteredClone.length, estimateSize: 280, gap: 24, threshold: 60 });
+    const softVirtual = useVirtualWindow({ count: filteredSoft.length, estimateSize: 280, gap: 24, threshold: 60 });
+    const queueVirtual = useVirtualWindow({ count: filteredQueue.length, estimateSize: 280, gap: 24, threshold: 60 });
+
     return (
         <>
             <div className="flex flex-col gap-0 pb-32 w-full relative z-10">
                 <ViewHeader
                     title={t("radar_title", "Conflict Scanner")}
                     subtitle={t("radar_subtitle", "Load-order scans, duplicates, and override conflicts")}
-                    icon="crisis_alert"
+                    icon={t("icon_crisis_alert", "crisis_alert")}
                     iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                     breadcrumb={
                         activeTab !== "COMMAND"
@@ -1413,10 +1396,10 @@ export const DbpfScout = () => {
                 </ViewHeader>
                 <div className="md:hidden">
                     <HoverTabDrawer title={t("radar_title", "Conflict Scanner")} activeTab={activeTab} setTab={setActiveTab}>
-                        <VerticalTabButton id="COMMAND" icon="dashboard" label={t("overview", "Overview")} activeTab={activeTab} setTab={setActiveTab} />
+                        <VerticalTabButton id="COMMAND" icon={t("icon_dashboard", "dashboard")} label={t("overview", "Overview")} activeTab={activeTab} setTab={setActiveTab} />
                         <VerticalTabButton
                             id="CONFLICTS"
-                            icon="warning"
+                            icon={t("icon_warning", "warning")}
                             label={t("conflicts", "Conflicts")}
                             activeTab={activeTab}
                             setTab={setActiveTab}
@@ -1425,7 +1408,7 @@ export const DbpfScout = () => {
                             inactiveColorClass={fatalConflicts.length > 0 ? 'text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80 hover:opacity-100' : tuningConflicts.length > 0 ? 'text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] opacity-80 hover:opacity-100' : undefined}
                             badgeColorClass={fatalConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)]' : tuningConflicts.length > 0 ? 'bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border-[color-mix(in_srgb,var(--warning)_50%,transparent)] text-[var(--warning)]' : undefined}
                         />
-                        <VerticalTabButton id="OVERRIDES" icon="rule" label={t("overrides", "Overrides")} activeTab={activeTab} setTab={setActiveTab} badge={activeScopeOverridesCount > 0 ? activeScopeOverridesCount : null} />
+                        <VerticalTabButton id="OVERRIDES" icon={t("icon_rule", "rule")} label={t("overrides", "Overrides")} activeTab={activeTab} setTab={setActiveTab} badge={activeScopeOverridesCount > 0 ? activeScopeOverridesCount : null} />
                         <VerticalTabButton
                             id="LOAD_ORDER"
                             icon={t("icon_low_priority", "low_priority")}
@@ -1439,16 +1422,16 @@ export const DbpfScout = () => {
 
                 <div className="flex flex-col w-full gap-3 mb-8 md:mb-10">
                     <StatTileCarousel>
-                        <DashboardStatTile variant="tab" icon="dashboard" label={t("overview", "Overview")} number={scanScope || ""} onClick={() => setActiveTab("COMMAND")} isActive={activeTab === "COMMAND"} />
+                        <DashboardStatTile variant="tab" icon={t("icon_dashboard", "dashboard")} label={t("overview", "Overview")} number={scanScope || ""} onClick={() => setActiveTab("COMMAND")} isActive={activeTab === "COMMAND"} />
                         <DashboardStatTile variant="tab"
-                            icon="warning"
+                            icon={t("icon_warning", "warning")}
                             label={t("conflicts", "Conflicts")}
                             number={(fatalConflicts.length + tuningConflicts.length) > 0 ? (fatalConflicts.length + tuningConflicts.length) : 0}
                             colorClass={fatalConflicts.length > 0 ? 'text-[var(--danger)]' : tuningConflicts.length > 0 ? 'text-[var(--warning)]' : undefined}
                             onClick={() => setActiveTab("CONFLICTS")}
                             isActive={activeTab === "CONFLICTS"}
                         />
-                        <DashboardStatTile variant="tab" icon="rule" label={t("overrides", "Overrides")} number={activeScopeOverridesCount} onClick={() => setActiveTab("OVERRIDES")} isActive={activeTab === "OVERRIDES"} />
+                        <DashboardStatTile variant="tab" icon={t("icon_rule", "rule")} label={t("overrides", "Overrides")} number={activeScopeOverridesCount} onClick={() => setActiveTab("OVERRIDES")} isActive={activeTab === "OVERRIDES"} />
                         <DashboardStatTile
                             variant="tab"
                             icon={t("icon_low_priority", "low_priority")}
@@ -1477,7 +1460,7 @@ export const DbpfScout = () => {
                                         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 w-full">
                                             <CommandScreenSectionHeading
                                                 title={t("select_blueprint", "Select {Blueprint}")}
-                                                icon="map"
+                                                icon={t("icon_map", "map")}
                                             />
                                             <div className="w-full md:w-auto">
                                                 <ActionPill
@@ -1628,9 +1611,9 @@ export const DbpfScout = () => {
                                     </div>
                                 </CommandScreenMain>
 
-                                <CommandScreenSidebar title={t("quick_actions", "Quick Actions")} icon="bolt">
+                                <CommandScreenSidebar title={t("quick_actions", "Quick Actions")} icon={t("icon_bolt", "bolt")}>
                                     <CommandScreenQuickLink
-                                        icon="warning"
+                                        icon={t("icon_warning", "warning")}
                                         title={t("total_conflicts", "Total Conflicts") || "Total Conflicts"}
                                         subtitle={`${fatalConflicts.length + tuningConflicts.length + cloneConflicts.length + softConflicts.length} ${t("conflicts", "Conflicts")}`}
                                         onClick={() => setActiveTab("CONFLICTS")}
@@ -1640,7 +1623,7 @@ export const DbpfScout = () => {
                                         iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
                                     />
                                     <CommandScreenQuickLink
-                                        icon="rule"
+                                        icon={t("icon_rule", "rule")}
                                         title={t("total_overrides", "Total Overrides") || "Total Overrides"}
                                         subtitle={`${totalOverridesCount} ${t("overrides", "Overrides")}`}
                                         onClick={() => setActiveTab("OVERRIDES")}
@@ -1659,7 +1642,7 @@ export const DbpfScout = () => {
                                                 ? t("lo_strategy_prefix", "Numeric Prefix (001_)")
                                                 : compiledOrder.strategy === "timestamp"
                                                 ? t("lo_strategy_timestamp", "Timestamp Order")
-                                                : t("lo_strategy_folder", "Folder Priority (Resource.cfg)")
+                                                : t("lo_strategy_folder_agnostic", "Priority Override Tiers (Folder Depth)")
                                         }`}
                                         onClick={() => setActiveTab("LOAD_ORDER")}
                                         textColorClass="text-[var(--accent)]"
@@ -1668,7 +1651,7 @@ export const DbpfScout = () => {
                                         iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                                     />
                                     <CommandScreenQuickLink
-                                        icon="visibility_off"
+                                        icon={t("icon_visibility_off", "visibility_off")}
                                         title={t("total_ignores", "Total Ignored") || "Total Ignored"}
                                         subtitle={`${ignoredPairs.length} ${t("ignored", "Ignored")}`}
                                         onClick={() => { setActiveTab("OVERRIDES"); setOverrideTab("IGNORED"); }}
@@ -1678,7 +1661,7 @@ export const DbpfScout = () => {
                                         iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)]"
                                     />
                                     <CommandScreenQuickLink
-                                        icon={loading ? "sync" : "track_changes"}
+                                        icon={loading ? t("icon_sync", "sync") : t("icon_track_changes", "track_changes")}
                                         title={t("btn_sweep", "Scan {Blueprint}")}
                                         subtitle={t("analyze_blueprint_desc", "Analyze the selected {blueprint}")}
                                         onClick={runRadar}
@@ -1689,7 +1672,7 @@ export const DbpfScout = () => {
                                         iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                                     />
                                     <CommandScreenQuickLink
-                                        icon="undo"
+                                        icon={t("icon_undo", "undo")}
                                         title={t("revert", "revert")}
                                         subtitle={t("undo_overrides_desc", "Undo overrides")}
                                         onClick={() => setShowUndoPanel(true)}
@@ -1790,32 +1773,29 @@ export const DbpfScout = () => {
                                             <section className="space-y-6">
                                                 <CommandScreenSectionHeading
                                                     title={t("tier4_title", "Severity 4 Collisions")}
-                                                    subtitle={t("tier4_desc", "Core Python or Binary overlaps detected. Overrides impossible.")}
+                                                    subtitle={t("tier4_desc_agnostic", "Core script or binary module overlaps detected. Overrides impossible.")}
                                                     icon={t("icon_warning_amber", "warning_amber")}
                                                     iconColorClass="text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
                                                 />
 
-                                                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
-                                                    {filteredFatal.slice(0, visibleFatal).map((c: any) => (
-                                                        <ConflictCard
-                                                            key={c.mod_pair}
-                                                            conflict={c}
-                                                            tier={4}
-                                                            loadOrderInfo={getConflictLoadOrderInfo(c)}
-                                                            onClick={() => setActiveConflictRes(c)}
-                                                            onRemoveA={() => vaultSingleScript(c.modA)}
-                                                            onRemoveB={() => vaultSingleScript(c.modB)}
-                                                            onIgnore={() => ignoreConflict(c.mod_pair)}
-                                                        />
-                                                    ))}
-                                                </div>
-                                                {fatalConflicts.length > visibleFatal && (
-                                                    <div className="flex justify-center mt-8">
-                                                        <button onClick={() => setVisibleFatal(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
-                                                            {t("load_more", "Load More")} ({fatalConflicts.length - visibleFatal})
-                                                        </button>
+                                                <div ref={fatalVirtual.containerRef}>
+                                                    {fatalVirtual.topPadding > 0 && <div style={{ height: fatalVirtual.topPadding }} aria-hidden="true" />}
+                                                    <div ref={fatalVirtual.gridRef} className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+                                                        {(fatalVirtual.isVirtualized ? filteredFatal.slice(fatalVirtual.startIndex, fatalVirtual.endIndex) : filteredFatal).map((c: any) => (
+                                                            <ConflictCard
+                                                                key={c.mod_pair}
+                                                                conflict={c}
+                                                                tier={4}
+                                                                loadOrderInfo={getConflictLoadOrderInfo(c)}
+                                                                onClick={() => setActiveConflictRes(c)}
+                                                                onRemoveA={() => vaultSingleScript(c.modA)}
+                                                                onRemoveB={() => vaultSingleScript(c.modB)}
+                                                                onIgnore={() => ignoreConflict(c.mod_pair)}
+                                                            />
+                                                        ))}
                                                     </div>
-                                                )}
+                                                    {fatalVirtual.bottomPadding > 0 && <div style={{ height: fatalVirtual.bottomPadding }} aria-hidden="true" />}
+                                                </div>
                                             </section>
                                         )}
 
@@ -1823,34 +1803,31 @@ export const DbpfScout = () => {
                                             <section className="space-y-6 mt-12">
                                                 <CommandScreenSectionHeading
                                                     title={t("tier3_title", "Severity 3 Collisions")}
-                                                    subtitle={t("tier3_desc", "XML / SimData overlaps detected. Neutralize via Override.")}
+                                                    subtitle={t("tier3_desc_agnostic", "Structured data or resource chunk overlaps detected. Neutralize via Override.")}
                                                     icon={t("icon_tune", "tune")}
                                                     iconColorClass="text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
                                                 />
 
-                                                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
-                                                    {filteredTuning.slice(0, visibleTuning).map((c: any) => (
-                                                        <ConflictCard
-                                                            key={c.mod_pair}
-                                                            conflict={c}
-                                                            tier={3}
-                                                            loadOrderInfo={getConflictLoadOrderInfo(c)}
-                                                            onClick={() => setActiveConflictRes(c)}
-                                                            onOverrideA={() => applyOverride(c.modA, c.mod_pair, undefined, c.modB)}
-                                                            onOverrideB={() => applyOverride(c.modB, c.mod_pair, undefined, c.modA)}
-                                                            onRemoveA={() => vaultSingleScript(c.modA)}
-                                                            onRemoveB={() => vaultSingleScript(c.modB)}
-                                                            onIgnore={() => ignoreConflict(c.mod_pair)}
-                                                        />
-                                                    ))}
-                                                </div>
-                                                {tuningConflicts.length > visibleTuning && (
-                                                    <div className="flex justify-center mt-8">
-                                                        <button onClick={() => setVisibleTuning(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
-                                                            {t("load_more", "Load More")} ({tuningConflicts.length - visibleTuning})
-                                                        </button>
+                                                <div ref={tuningVirtual.containerRef}>
+                                                    {tuningVirtual.topPadding > 0 && <div style={{ height: tuningVirtual.topPadding }} aria-hidden="true" />}
+                                                    <div ref={tuningVirtual.gridRef} className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+                                                        {(tuningVirtual.isVirtualized ? filteredTuning.slice(tuningVirtual.startIndex, tuningVirtual.endIndex) : filteredTuning).map((c: any) => (
+                                                            <ConflictCard
+                                                                key={c.mod_pair}
+                                                                conflict={c}
+                                                                tier={3}
+                                                                loadOrderInfo={getConflictLoadOrderInfo(c)}
+                                                                onClick={() => setActiveConflictRes(c)}
+                                                                onOverrideA={() => applyOverride(c.modA, c.mod_pair, undefined, c.modB)}
+                                                                onOverrideB={() => applyOverride(c.modB, c.mod_pair, undefined, c.modA)}
+                                                                onRemoveA={() => vaultSingleScript(c.modA)}
+                                                                onRemoveB={() => vaultSingleScript(c.modB)}
+                                                                onIgnore={() => ignoreConflict(c.mod_pair)}
+                                                            />
+                                                        ))}
                                                     </div>
-                                                )}
+                                                    {tuningVirtual.bottomPadding > 0 && <div style={{ height: tuningVirtual.bottomPadding }} aria-hidden="true" />}
+                                                </div>
                                             </section>
                                         )}
 
@@ -1863,16 +1840,6 @@ export const DbpfScout = () => {
                                                     iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
                                                     actions={
                                                         <div className="flex items-center gap-3">
-                                                            {isBulkMode && (
-                                                                <>
-                                                                    <button onClick={targetHq} className="h-[42px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black capitalize tracking-widest transition-all">
-                                                                        {t("btn_select_hq", "Select Hq")}
-                                                                    </button>
-                                                                    <button onClick={targetNonHq} className="h-[42px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] backdrop-blur-md hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[10px] font-black capitalize tracking-widest transition-all">
-                                                                        {t("btn_select_nonhq", "Select Non-hq")}
-                                                                    </button>
-                                                                </>
-                                                            )}
                                                             <button
                                                                 onClick={() => {
                                                                     if (!isBulkMode) setIsBulkMode(true);
@@ -1906,31 +1873,28 @@ export const DbpfScout = () => {
                                                     </div>
                                                 )}
 
-                                                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
-                                                    {filteredClone.slice(0, visibleClone).map((c: any) => (
-                                                        <ConflictCard
-                                                            key={c.mod_pair}
-                                                            conflict={c}
-                                                            tier={2}
-                                                            loadOrderInfo={getConflictLoadOrderInfo(c)}
-                                                            isSelectedA={selectedForVault.includes(c.modA)}
-                                                            isSelectedB={selectedForVault.includes(c.modB)}
-                                                            onKeepA={() => toggleTarget(c.modA, c.modB)}
-                                                            onKeepB={() => toggleTarget(c.modB, c.modA)}
-                                                            onRemoveA={() => vaultSingleScript(c.modA)}
-                                                            onRemoveB={() => vaultSingleScript(c.modB)}
-                                                            onIgnore={() => ignoreConflict(c.mod_pair)}
-                                                            onClick={() => setActiveConflictRes(c)}
-                                                        />
-                                                    ))}
-                                                </div>
-                                                {cloneConflicts.length > visibleClone && (
-                                                    <div className="flex justify-center mt-8">
-                                                        <button onClick={() => setVisibleClone(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
-                                                            {t("load_more", "Load More")} ({cloneConflicts.length - visibleClone})
-                                                        </button>
+                                                <div ref={cloneVirtual.containerRef}>
+                                                    {cloneVirtual.topPadding > 0 && <div style={{ height: cloneVirtual.topPadding }} aria-hidden="true" />}
+                                                    <div ref={cloneVirtual.gridRef} className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+                                                        {(cloneVirtual.isVirtualized ? filteredClone.slice(cloneVirtual.startIndex, cloneVirtual.endIndex) : filteredClone).map((c: any) => (
+                                                            <ConflictCard
+                                                                key={c.mod_pair}
+                                                                conflict={c}
+                                                                tier={2}
+                                                                loadOrderInfo={getConflictLoadOrderInfo(c)}
+                                                                isSelectedA={selectedForVault.includes(c.modA)}
+                                                                isSelectedB={selectedForVault.includes(c.modB)}
+                                                                onKeepA={() => toggleTarget(c.modA, c.modB)}
+                                                                onKeepB={() => toggleTarget(c.modB, c.modA)}
+                                                                onRemoveA={() => vaultSingleScript(c.modA)}
+                                                                onRemoveB={() => vaultSingleScript(c.modB)}
+                                                                onIgnore={() => ignoreConflict(c.mod_pair)}
+                                                                onClick={() => setActiveConflictRes(c)}
+                                                            />
+                                                        ))}
                                                     </div>
-                                                )}
+                                                    {cloneVirtual.bottomPadding > 0 && <div style={{ height: cloneVirtual.bottomPadding }} aria-hidden="true" />}
+                                                </div>
                                             </section>
                                         )}
 
@@ -1947,29 +1911,26 @@ export const DbpfScout = () => {
                                                     </div>
                                                     <p className="text-[9px] font-bold text-gray-600 capitalize tracking-widest ml-9">{t("safe_textures", "Usually safe textures or low-impact overrides")}</p>
                                                 </summary>
-                                                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] mt-4">
-                                                    {filteredSoft.slice(0, visibleSoft).map((c: any) => (
-                                                        <ConflictCard
-                                                            key={c.mod_pair}
-                                                            conflict={c}
-                                                            tier={1}
-                                                            loadOrderInfo={getConflictLoadOrderInfo(c)}
-                                                            onClick={() => setActiveConflictRes(c)}
-                                                            onOverrideA={() => applyOverride(c.modA, c.mod_pair, undefined, c.modB)}
-                                                            onOverrideB={() => applyOverride(c.modB, c.mod_pair, undefined, c.modA)}
-                                                            onRemoveA={() => vaultSingleScript(c.modA)}
-                                                            onRemoveB={() => vaultSingleScript(c.modB)}
-                                                            onIgnore={() => ignoreConflict(c.mod_pair)}
-                                                        />
-                                                    ))}
-                                                </div>
-                                                {softConflicts.length > visibleSoft && (
-                                                    <div className="flex justify-center mt-6">
-                                                        <button onClick={() => setVisibleSoft(v => v + 100)} className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl">
-                                                            {t("load_more", "Load More")} ({softConflicts.length - visibleSoft})
-                                                        </button>
+                                                <div ref={softVirtual.containerRef} className="pt-6 border-t border-[color-mix(in_srgb,var(--text)_5%,transparent)] mt-4">
+                                                    {softVirtual.topPadding > 0 && <div style={{ height: softVirtual.topPadding }} aria-hidden="true" />}
+                                                    <div ref={softVirtual.gridRef} className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+                                                        {(softVirtual.isVirtualized ? filteredSoft.slice(softVirtual.startIndex, softVirtual.endIndex) : filteredSoft).map((c: any) => (
+                                                            <ConflictCard
+                                                                key={c.mod_pair}
+                                                                conflict={c}
+                                                                tier={1}
+                                                                loadOrderInfo={getConflictLoadOrderInfo(c)}
+                                                                onClick={() => setActiveConflictRes(c)}
+                                                                onOverrideA={() => applyOverride(c.modA, c.mod_pair, undefined, c.modB)}
+                                                                onOverrideB={() => applyOverride(c.modB, c.mod_pair, undefined, c.modA)}
+                                                                onRemoveA={() => vaultSingleScript(c.modA)}
+                                                                onRemoveB={() => vaultSingleScript(c.modB)}
+                                                                onIgnore={() => ignoreConflict(c.mod_pair)}
+                                                            />
+                                                        ))}
                                                     </div>
-                                                )}
+                                                    {softVirtual.bottomPadding > 0 && <div style={{ height: softVirtual.bottomPadding }} aria-hidden="true" />}
+                                                </div>
                                             </details>
                                         )}
                                     </div>
@@ -2520,7 +2481,9 @@ export const DbpfScout = () => {
                     })()}
 
                     {activeTab === "LOAD_ORDER" && (() => {
-                        const visibleQueueSlice = filteredQueue.slice(0, visibleLoadOrder);
+                        const visibleQueueSlice = queueVirtual.isVirtualized
+                            ? filteredQueue.slice(queueVirtual.startIndex, queueVirtual.endIndex)
+                            : filteredQueue;
                         const elevatedTierDefs = compiledOrder.priorityTiers.slice(1);
                         const cycleTierFolder = (currentFolder: string) => {
                             const tiers = compiledOrder.priorityTiers;
@@ -2623,8 +2586,10 @@ export const DbpfScout = () => {
                                                             subtitle={t("search_ph", "Search {mods}...")}
                                                         />
                                                     ) : (
-                                                        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
-                                                            {visibleQueueSlice.map((item) => {
+                                                        <div ref={queueVirtual.containerRef}>
+                                                            {queueVirtual.topPadding > 0 && <div style={{ height: queueVirtual.topPadding }} aria-hidden="true" />}
+                                                            <div ref={queueVirtual.gridRef} className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+                                                                {visibleQueueSlice.map((item) => {
                                                                 const isSelected =
                                                                     selectedLoadOrderMod.toLowerCase() === item.cleanName.toLowerCase() &&
                                                                     isLoadOrderPanelOpen;
@@ -2632,7 +2597,7 @@ export const DbpfScout = () => {
                                                                     ruleLinkedSet.has(item.cleanName.toLowerCase()) || item.autoPromoted;
                                                                 const isScript =
                                                                     String(item.extLabel).toUpperCase().includes("SCRIPT") ||
-                                                                    item.cleanName.toLowerCase().endsWith(".ts4script");
+                                                                    isScriptExtension(item.cleanName, activeGameSchema);
                                                                 const vaultMod = resolveVaultMod(item.cleanName);
                                                                 const topOverlap = item.overlapInfo?.entries?.[0] || null;
 
@@ -2843,17 +2808,8 @@ export const DbpfScout = () => {
                                                                     </UniversalCard>
                                                                 );
                                                             })}
-                                                        </div>
-                                                    )}
-                                                    {filteredQueue.length > visibleLoadOrder && (
-                                                        <div className="flex justify-center mt-2">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setVisibleLoadOrder((prev) => prev + 60)}
-                                                                className="px-6 py-3 rounded-2xl glass-panel border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-all font-black text-[10px] capitalize tracking-widest shadow-lg hover:shadow-xl cursor-pointer"
-                                                            >
-                                                                {t("load_more", "Load More")} ({filteredQueue.length - visibleLoadOrder})
-                                                            </button>
+                                                            </div>
+                                                            {queueVirtual.bottomPadding > 0 && <div style={{ height: queueVirtual.bottomPadding }} aria-hidden="true" />}
                                                         </div>
                                                     )}
                                                 </div>
@@ -3003,7 +2959,7 @@ export const DbpfScout = () => {
                                                                     const extLabel = getFileLabel(it.cleanName, activeGameSchema);
                                                                     const isScript =
                                                                         String(extLabel).toUpperCase().includes("SCRIPT") ||
-                                                                        it.cleanName.toLowerCase().endsWith(".ts4script");
+                                                                        isScriptExtension(it.cleanName, activeGameSchema);
                                                                     const isSelected =
                                                                         selectedLoadOrderMod.toLowerCase() ===
                                                                             it.cleanName.toLowerCase() && isLoadOrderPanelOpen;
@@ -3401,7 +3357,7 @@ export const DbpfScout = () => {
                                                                                                     }`}
                                                                                                 >
                                                                                                     {topOverlap.severity >= 4
-                                                                                                        ? t("lo_badge_core_clash", "S4 Core Clash")
+                                                                                                        ? t("lo_badge_core_clash_agnostic", "Core Binary Clash")
                                                                                                         : topOverlap.isWinning
                                                                                                         ? t("lo_badge_wins_override", "Wins Override")
                                                                                                         : t("lo_badge_overridden", "Overridden")}
@@ -3473,17 +3429,19 @@ export const DbpfScout = () => {
                 />
             )}
 
-            <UndoWinnersPanel
-                isOpen={showUndoPanel}
-                onClose={() => setShowUndoPanel(false)}
-                scanScope={scanScope}
-                onUndoComplete={runRadar}
-                onUndo={undoOverride}
-                onClearAll={clearAllOverrides}
-            />
+            {showUndoPanel && (
+                <UndoWinnersPanel
+                    isOpen={showUndoPanel}
+                    onClose={() => setShowUndoPanel(false)}
+                    scanScope={scanScope}
+                    onUndoComplete={runRadar}
+                    onUndo={undoOverride}
+                    onClearAll={clearAllOverrides}
+                />
+            )}
 
             {/* Load Order & Rules Inspector SidePanel */}
-            {(() => {
+            {isLoadOrderPanelOpen && (() => {
                 const selectedItem = selectedLoadOrderMod
                     ? compiledOrder.items.find((it) => it.cleanName.toLowerCase() === selectedLoadOrderMod.toLowerCase()) || null
                     : null;
@@ -3807,7 +3765,7 @@ export const DbpfScout = () => {
                                                             const mExt = getFileLabel(it.cleanName, activeGameSchema);
                                                             const isScriptMod =
                                                                 String(mExt).toUpperCase().includes("SCRIPT") ||
-                                                                it.cleanName.toLowerCase().endsWith(".ts4script");
+                                                                isScriptExtension(it.cleanName, activeGameSchema);
                                                             const vaultM = resolveVaultMod(it.cleanName);
                                                             const mAuthor = vaultM?.author || vaultM?.creator_name || "";
                                                             const isEditingSeq =
@@ -4065,7 +4023,7 @@ export const DbpfScout = () => {
                                                 const mExt = getFileLabel(it.cleanName, activeGameSchema);
                                                 const isScriptMod =
                                                     String(mExt).toUpperCase().includes("SCRIPT") ||
-                                                    it.cleanName.toLowerCase().endsWith(".ts4script");
+                                                    isScriptExtension(it.cleanName, activeGameSchema);
                                                 const vaultM = resolveVaultMod(it.cleanName);
                                                 const mAuthor = vaultM?.author || vaultM?.creator_name || "";
                                                 const tIdx = compiledOrder.priorityTiers.findIndex(
@@ -4250,7 +4208,7 @@ export const DbpfScout = () => {
                                                             </span>
                                                             <span>
                                                                 {isFatalTier
-                                                                    ? t("lo_badge_core_clash", "S4 Core Clash")
+                                                                    ? t("lo_badge_core_clash_agnostic", "Core Binary Clash")
                                                                     : isWinning
                                                                     ? t("lo_badge_wins_override", "Wins Override")
                                                                     : isOverridden
@@ -4396,7 +4354,7 @@ export const DbpfScout = () => {
                                         <div className="flex items-center gap-3 min-w-0 w-full">
                                             <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                                                 <span className="material-symbols-outlined !text-[20px]">
-                                                    {String(getFileLabel(selectedItem.cleanName, activeGameSchema)).toUpperCase().includes("SCRIPT") || selectedItem.cleanName.toLowerCase().endsWith(".ts4script")
+                                                    {String(getFileLabel(selectedItem.cleanName, activeGameSchema)).toUpperCase().includes("SCRIPT") || isScriptExtension(selectedItem.cleanName, activeGameSchema)
                                                         ? t("icon_code", "code")
                                                         : t("icon_extension", "extension")}
                                                 </span>
@@ -4644,7 +4602,8 @@ export const DbpfScout = () => {
                 );
             })()}
 
-            {(() => {
+            {isSidePanelOpen && (() => {
+                const configuredManifest = activeGameSchema?.load_order?.manifest_file || "";
                 const strategyList = [
                     {
                         id: "folder_priority",
@@ -4652,8 +4611,8 @@ export const DbpfScout = () => {
                         label: t("lo_strategy_folder_agnostic", "Priority Override Tiers (Folder Depth)"),
                         shortLabel: t("lo_badge_folder_tiers", "Folder Tiers"),
                         desc: t("lo_strategy_folder_desc", "Uses priority override folders and packed directory depth"),
-                        manifest: "Resource.cfg",
-                        badge: t("lo_badge_resource_cfg", "Resource.cfg"),
+                        manifest: configuredManifest,
+                        badge: t("lo_badge_folder_tiers", "Folder Tiers"),
                     },
                     {
                         id: "manifest_list",
@@ -4661,7 +4620,7 @@ export const DbpfScout = () => {
                         label: t("lo_strategy_manifest", "Manifest List (loadorder.txt)"),
                         shortLabel: t("lo_badge_loadorder_txt", "loadorder.txt"),
                         desc: t("lo_strategy_manifest_desc", "Writes an ordered plain-text manifest file on deployment"),
-                        manifest: "loadorder.txt",
+                        manifest: configuredManifest,
                         badge: t("lo_badge_loadorder_txt", "loadorder.txt"),
                     },
                     {
@@ -4670,7 +4629,7 @@ export const DbpfScout = () => {
                         label: t("lo_strategy_prefix", "Numeric Prefix (001_)"),
                         shortLabel: t("lo_badge_numeric_prefix", "001_<file>"),
                         desc: t("lo_strategy_prefix_desc", "Prefixes deployed filenames with their load sequence index"),
-                        manifest: "loadorder.txt",
+                        manifest: configuredManifest,
                         badge: t("lo_badge_numeric_prefix", "001_<file>"),
                     },
                     {
@@ -4679,7 +4638,7 @@ export const DbpfScout = () => {
                         label: t("lo_strategy_timestamp", "Timestamp Order"),
                         shortLabel: t("lo_badge_mtime", "mtime"),
                         desc: t("lo_strategy_timestamp_desc", "Staggers file modification timestamps by load sequence"),
-                        manifest: "Resource.cfg",
+                        manifest: configuredManifest,
                         badge: t("lo_badge_mtime", "mtime"),
                     },
                 ];

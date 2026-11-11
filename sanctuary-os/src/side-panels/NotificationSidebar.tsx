@@ -9,7 +9,6 @@ import {
   HoverTooltip,
   PanelHeaderButton,
   DashboardStatTile,
-  StatTileCarousel,
   EmptyState,
   SidePanelHeroCard,
   UniversalGroup,
@@ -521,9 +520,10 @@ export default function NotificationSidebar({
         />
 
         {/* 3-Tab Source Filter: Global [All] / OS [Foundry] / Active Spoke [Spoke] */}
-        <StatTileCarousel innerClassName="px-0">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_public", "public")}
             label={t("notif_tab_global_all", "Global [All]")}
             value={String(notifications.length)}
@@ -532,6 +532,7 @@ export default function NotificationSidebar({
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_shield", "shield")}
             label={t("notif_tab_os_foundry", "OS [Foundry]")}
             value={String(foundryCount)}
@@ -540,13 +541,14 @@ export default function NotificationSidebar({
           />
           <DashboardStatTile
             variant="filter"
+            className="!w-full"
             icon={t("icon_sports_esports", "sports_esports")}
             label={activeSpokeLabel}
             value={String(activeSpokeCount)}
             isActive={filterTab === "spoke"}
             onClick={() => setFilterTab("spoke")}
           />
-        </StatTileCarousel>
+        </div>
 
         {loading ? (
           <EmptyState

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { EmptyState, InlineFilterGroup, ActionPill, HeaderActionPortal } from "./shared";
+import { EmptyState, InlineFilterGroup, ActionPill, HeaderActionPortal, VAULT_CHIP_CLASS } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { openSanctuaryContextMenu } from "./ContextMenu";
 import { supabaseAuth } from "./supabase";
@@ -26,8 +26,6 @@ interface WayfinderKeeperTicketsProps {
   onCountChange?: (count: number) => void;
   onTicketsLoaded?: (tickets: Ticket[]) => void;
 }
-
-const VAULT_CHIP_CLASS = "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export default function WayfinderKeeperTickets({
   userId,

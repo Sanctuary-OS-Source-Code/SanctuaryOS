@@ -1034,7 +1034,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
                     value={editForm.file_extension}
                     onChange={(e) => setEditForm({ ...editForm, file_extension: e.target.value })}
                     className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)] transition-all"
-                    placeholder={t("ph_file_ext", ".package")}
+                    placeholder={activeGameSchema?.extensions?.supported?.[0] || t("ph_file_ext", "e.g. .bin, .dll")}
                   />
                 </div>
 

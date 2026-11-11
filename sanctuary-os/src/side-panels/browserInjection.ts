@@ -1,6 +1,7 @@
 export const INJECTED_BROWSER_SCRIPT = `
 (function() {
-const SANC_BRIDGE_TOKEN = "__SANCTUARY_BRIDGE_TOKEN__";
+const SANC_CTX_LABELS = __SANCTUARY_CTX_LABELS__;
+const SANC_DOWNLOAD_EXTS = __SANCTUARY_DOWNLOAD_EXTS__;
 const SANC_BG_R = Number("__OS_BG_R__") || 6;
 const SANC_BG_G = Number("__OS_BG_G__") || 13;
 const SANC_BG_B = Number("__OS_BG_B__") || 31;
@@ -390,6 +391,24 @@ if (!window.__sanctuary_fs_injected) {
         menu.id = 'sanc-ctx-menu';
         menu.style.cssText = "position:fixed; z-index:2147483647; box-sizing:border-box; background:rgba(10, 18, 36, 0.78); backdrop-filter:blur(28px); -webkit-backdrop-filter:blur(28px); border:1px solid rgba(255,255,255,0.16); border-radius:12px; padding:5px; display:flex; flex-direction:column; width:180px; min-width:180px; box-shadow:0 18px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.22); overflow:hidden; font-family:system-ui, -apple-system, sans-serif;";
 
+        const copyPlainTextLocal = (val) => {
+            if (!val) return;
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                navigator.clipboard.writeText(val).catch(() => {});
+                return;
+            }
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = val;
+                ta.setAttribute('readonly', '');
+                ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+            } catch (err) {}
+        };
+
         const makeBtn = (text, action) => {
             const b = document.createElement('button');
             b.style.cssText = "box-sizing:border-box; background:transparent; border:none; border-radius:8px; color:rgba(255,255,255,0.9); padding:7px 12px; text-align:left; cursor:pointer; font-family:system-ui, -apple-system, sans-serif; font-size:13px; font-weight:500; margin:0; transition:background-color 0.15s; display:flex; align-items:center; gap:10px; width:100%; line-height:18px;";
@@ -400,22 +419,19 @@ if (!window.__sanctuary_fs_injected) {
             b.onmouseout = () => { b.style.background = "transparent"; };
             b.onclick = (clickEv) => {
                 if (!clickEv.isTrusted) return;
-                if (action === 'paste') window.location.hash = "sanctuary-action=" + SANC_BRIDGE_TOKEN + ":paste";
-                else if (action === 'reload') window.location.reload();
+                if (action === 'reload') window.location.reload();
                 else if (action === 'back') window.history.back();
                 else if (action === 'newTab' && isLink) {
                     window.location.hash = "sanctuary-new-tab=" + encodeURIComponent(a.href);
                     setTimeout(() => window.history.replaceState(null, '', window.location.pathname + window.location.search), 50);
                 } else if (action === 'copyLink' && isLink) {
-                    window.location.hash = "sanctuary-action=" + SANC_BRIDGE_TOKEN + ":copyText=" + encodeURIComponent(a.href);
-                    setTimeout(() => window.history.replaceState(null, '', window.location.pathname + window.location.search), 50);
+                    copyPlainTextLocal(a.href);
                 } else if (action === 'copyVideo' && isVideo) {
                     let videoUrl = window.location.href;
                     if (isLink && a && a.href && (a.href.includes('/watch') || a.href.includes('/shorts'))) {
                         videoUrl = a.href;
                     }
-                    window.location.hash = "sanctuary-action=" + SANC_BRIDGE_TOKEN + ":copyText=" + encodeURIComponent(videoUrl);
-                    setTimeout(() => window.history.replaceState(null, '', window.location.pathname + window.location.search), 50);
+                    copyPlainTextLocal(videoUrl);
                 }
                 else document.execCommand(action);
                 menu.style.display = 'none';
@@ -424,24 +440,23 @@ if (!window.__sanctuary_fs_injected) {
         };
         
         if (isLink) {
-            menu.appendChild(makeBtn("Open Link in New Tab", "newTab"));
-            menu.appendChild(makeBtn("Copy Link Address", "copyLink"));
+            menu.appendChild(makeBtn(SANC_CTX_LABELS.openLinkNewTab, "newTab"));
+            menu.appendChild(makeBtn(SANC_CTX_LABELS.copyLinkAddress, "copyLink"));
             const div = document.createElement('div');
             div.style.cssText = "height:1px; background:rgba(255,255,255,0.12); margin:4px 0; width:100%;";
             menu.appendChild(div);
         }
         
         if (isVideo) {
-            menu.appendChild(makeBtn("Copy Video URL", "copyVideo"));
+            menu.appendChild(makeBtn(SANC_CTX_LABELS.copyVideoUrl, "copyVideo"));
             const div = document.createElement('div');
             div.style.cssText = "height:1px; background:rgba(255,255,255,0.12); margin:4px 0; width:100%;";
             menu.appendChild(div);
         }
         
-        if (isInput) menu.appendChild(makeBtn("Cut", "cut"));
-        if (hasSelection) menu.appendChild(makeBtn("Copy", "copy"));
-        if (isInput) menu.appendChild(makeBtn("Paste", "paste"));
-        if (isInput) menu.appendChild(makeBtn("Select All", "selectAll"));
+        if (isInput) menu.appendChild(makeBtn(SANC_CTX_LABELS.cut, "cut"));
+        if (hasSelection) menu.appendChild(makeBtn(SANC_CTX_LABELS.copy, "copy"));
+        if (isInput) menu.appendChild(makeBtn(SANC_CTX_LABELS.selectAll, "selectAll"));
         
         if (isInput || hasSelection) {
             const div = document.createElement('div');
@@ -449,8 +464,8 @@ if (!window.__sanctuary_fs_injected) {
             menu.appendChild(div);
         }
         
-        menu.appendChild(makeBtn("Reload Page", "reload"));
-        menu.appendChild(makeBtn("Go Back", "back"));
+        menu.appendChild(makeBtn(SANC_CTX_LABELS.reloadPage, "reload"));
+        menu.appendChild(makeBtn(SANC_CTX_LABELS.goBack, "back"));
         
         document.body.appendChild(menu);
         
@@ -492,14 +507,14 @@ if (!window.__sanctuary_fs_injected) {
         });
     };
     
-    // Download hook
+    // Download hook (schema-driven container & mod artifact extensions)
     window.addEventListener('click', e => {
         const a = e.target.closest('a');
-        if (a && a.href) {
+        if (a && a.href && Array.isArray(SANC_DOWNLOAD_EXTS) && SANC_DOWNLOAD_EXTS.length > 0) {
             try {
                 const url = new URL(a.href);
-                const ext = url.pathname.split('.').pop().toLowerCase();
-                if (['zip', 'rar', '7z', 'package', 'ts4script', 'exe', 'msi', 'pdf'].includes(ext)) {
+                const ext = (url.pathname.split('.').pop() || '').toLowerCase();
+                if (ext && SANC_DOWNLOAD_EXTS.includes(ext)) {
                     e.preventDefault();
                     e.stopPropagation();
                     let ifr = document.getElementById('sanc-download-frame');
@@ -523,76 +538,6 @@ if (!window.__sanctuary_fs_injected) {
     
     setInterval(handleLinks, 2000);
     handleLinks();
-}
-
-if (!window.__sanctuary_checkout_watcher_v1) {
-    window.__sanctuary_checkout_watcher_v1 = true;
-
-    const parseStripeUsdAmounts = (text) => {
-        if (!text) return 0;
-        const matches = text.match(/\\$\\s*(\\d+(?:,\\d{3})*(?:\\.\\d{2})?)/g) || [];
-        let maxUsd = 0;
-        for (const m of matches) {
-            const num = parseFloat(m.replace(/[^0-9.]/g, ''));
-            if (!isNaN(num) && num > maxUsd && num <= 10000) {
-                maxUsd = num;
-            }
-        }
-        return maxUsd;
-    };
-
-    const checkStripeDonationCompletion = () => {
-        try {
-            const host = (window.location.hostname || '').toLowerCase();
-            if (!host.includes('stripe.com')) return;
-
-            const pathMatch = (window.location.pathname || '').match(/\\/c\\/pay\\/(cs_[a-zA-Z0-9_]+)/);
-            if (!pathMatch || !pathMatch[1]) return;
-            const sessionId = pathMatch[1];
-
-            if (sessionStorage.getItem('sanctuary_checkout_claimed_' + sessionId) === 'true') {
-                return;
-            }
-
-            const bodyText = (document.body && document.body.innerText) ? document.body.innerText : '';
-            const lowerText = bodyText.toLowerCase();
-
-            const isConfirmation =
-                lowerText.includes('thanks for your donation') ||
-                lowerText.includes('thanks for your payment') ||
-                lowerText.includes('thank you for your donation') ||
-                lowerText.includes('thank you for your payment') ||
-                lowerText.includes('thanks for your order') ||
-                lowerText.includes('payment successful') ||
-                lowerText.includes('will appear on your statement');
-
-            const visibleUsd = parseStripeUsdAmounts(bodyText);
-
-            if (!isConfirmation) {
-                if (visibleUsd > 0) {
-                    const prevSub = parseFloat(sessionStorage.getItem('sanctuary_checkout_subtotal_' + sessionId) || '0');
-                    if (visibleUsd > prevSub) {
-                        sessionStorage.setItem('sanctuary_checkout_subtotal_' + sessionId, String(visibleUsd));
-                    }
-                }
-                return;
-            }
-
-            sessionStorage.setItem('sanctuary_checkout_claimed_' + sessionId, 'true');
-
-            const savedSubtotal = parseFloat(sessionStorage.getItem('sanctuary_checkout_subtotal_' + sessionId) || '0');
-            const amountUsd = Math.max(visibleUsd, isNaN(savedSubtotal) ? 0 : savedSubtotal, 5);
-
-            const payload = JSON.stringify({
-                sessionId: sessionId,
-                amountUsd: amountUsd
-            });
-            window.location.hash = 'sanctuary-action=' + SANC_BRIDGE_TOKEN + ':stripeCheckoutSuccess=' + encodeURIComponent(payload);
-        } catch (e) {}
-    };
-
-    setInterval(checkStripeDonationCompletion, 900);
-    checkStripeDonationCompletion();
 }
 })();
 `;

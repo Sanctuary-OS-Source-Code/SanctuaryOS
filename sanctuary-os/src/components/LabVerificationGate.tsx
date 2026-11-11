@@ -75,10 +75,10 @@ function resolveSpokeLabKey(): string {
     st.activeWorkspaceId ||
     st.activeGameSchema?.id ||
     st.activeGameSchema?.game_id ||
-    "sims4";
+    "default_workspace";
   const clean = String(raw || "").trim().toLowerCase();
-  if (!clean || clean === "default_workspace" || clean === "default_schema" || clean === "ts4" || clean === "the_sims_4" || clean === "sims_4") {
-    return "sims4";
+  if (!clean || clean === "default_schema") {
+    return "default_workspace";
   }
   return clean;
 }
@@ -89,7 +89,6 @@ export function saveLabSessionMemory(status: LabVerificationStatus | null) {
     const scopedKey = `${LOCAL_SESSION_MEMORY_KEY}_${spokeKey}`;
     if (!status) {
       localStorage.removeItem(scopedKey);
-      if (spokeKey === "sims4") localStorage.removeItem(LOCAL_SESSION_MEMORY_KEY);
     } else {
       localStorage.setItem(scopedKey, JSON.stringify(status));
     }
@@ -100,9 +99,7 @@ export function loadLabSessionMemory(): LabVerificationStatus | null {
   try {
     const spokeKey = resolveSpokeLabKey();
     const scopedKey = `${LOCAL_SESSION_MEMORY_KEY}_${spokeKey}`;
-    const raw =
-      localStorage.getItem(scopedKey) ||
-      (spokeKey === "sims4" ? localStorage.getItem(LOCAL_SESSION_MEMORY_KEY) : null);
+    const raw = localStorage.getItem(scopedKey);
     if (raw) return JSON.parse(raw);
   } catch (e) {}
   return null;
@@ -112,9 +109,7 @@ export function getCachedCertificatesMap(): Record<string, LabVerificationCertif
   try {
     const spokeKey = resolveSpokeLabKey();
     const scopedKey = `${LOCAL_CERT_STORAGE_KEY}_${spokeKey}`;
-    const raw =
-      localStorage.getItem(scopedKey) ||
-      (spokeKey === "sims4" ? localStorage.getItem(LOCAL_CERT_STORAGE_KEY) : null);
+    const raw = localStorage.getItem(scopedKey);
     if (raw) return JSON.parse(raw);
   } catch (e) {}
   return {};
@@ -124,9 +119,7 @@ export function getCachedFailedMap(): Record<string, string> {
   try {
     const spokeKey = resolveSpokeLabKey();
     const scopedKey = `${LOCAL_FAIL_STORAGE_KEY}_${spokeKey}`;
-    const raw =
-      localStorage.getItem(scopedKey) ||
-      (spokeKey === "sims4" ? localStorage.getItem(LOCAL_FAIL_STORAGE_KEY) : null);
+    const raw = localStorage.getItem(scopedKey);
     if (raw) return JSON.parse(raw);
   } catch (e) {}
   return {};

@@ -51,7 +51,7 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
   const [favoriteThemes, setFavoriteThemes] = useState<string[]>(() =>
     JSON.parse(
       localStorage.getItem("sanctuary_favorite_themes") ||
-        '["architect", "sims4", "radiant"]'
+        '["architect", "aurora", "radiant"]'
     )
   );
 

@@ -14,6 +14,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   compareVersions,
+  VAULT_CHIP_CLASS,
 } from "./shared";
 import pkg from "../package.json";
 import { UniversalCard } from "./components/universal/UniversalCard";
@@ -39,9 +40,6 @@ import {
 } from "./side-panels/NexusSidePanels";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
 
 export function MasonNexus({
   masonProfile,
@@ -99,6 +97,13 @@ export function MasonNexus({
 
   const fetchAssets = async () => {
     setLoading(true);
+    const { escapePostgrestFilterValue } = await import("./utils/postgrestUtils");
+    const safeMasonId = escapePostgrestFilterValue(masonProfile.id);
+    const safeMasonName = escapePostgrestFilterValue(masonProfile.name);
+    const authorOrClauses = [`author_id.eq.${safeMasonId}`];
+    if (safeMasonName) {
+      authorOrClauses.push(`author.ilike."${safeMasonName}"`);
+    }
     const [
       { data: assetsData },
       { data: bpData },
@@ -109,7 +114,7 @@ export function MasonNexus({
       supabase
         .from("nexus_assets")
         .select("*")
-        .or(`author_id.eq.${masonProfile.id},author.ilike.${masonProfile.name}`)
+        .or(authorOrClauses.join(","))
         .order("created_at", { ascending: false }),
       supabase
         .from("blueprints")

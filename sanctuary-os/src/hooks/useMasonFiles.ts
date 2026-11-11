@@ -4,17 +4,7 @@ import { GAME_ARCHITECTURE_PRESETS } from "../utils/gameArchitecturePresets";
 import { readDir, readTextFile, writeTextFile, exists, remove } from "@tauri-apps/plugin-fs";
 import { open } from "@tauri-apps/plugin-dialog";
 import enDefault from "../lexicons/en-default.json";
-import enSanctuary from "../lexicons/en-sanctuary.json";
-import enSims from "../lexicons/en-sims.json";
-import simlish from "../lexicons/Simlish.json";
-import { useLexicon } from "../LexiconContext";
-
-const BUNDLED_LEXICONS: Record<string, any> = {
-  "en-default": enDefault,
-  "en-sanctuary": enSanctuary,
-  "en-sims": enSims,
-  Simlish: simlish,
-};
+import { useLexicon, loadBuiltinLexiconAsync, getLoadedBuiltinLexicon } from "../LexiconContext";
 
 const CORE_LEXICON_ORDER = ["en-default", "en-sanctuary", "en-sims", "Simlish"];
 
@@ -179,7 +169,7 @@ export function useMasonFiles({
           activeWs?.name ||
           storeState.activeGameSchema?.display_name ||
           storeState.activeGameSchema?.name ||
-          "The Sims 4";
+          "Workspace";
 
         if (internalCloudTarget === "sanctuary_lexicons") {
           const [primaryRes, spokeRes] = await Promise.all([
@@ -226,6 +216,16 @@ export function useMasonFiles({
           const seedIds = isKeepers
             ? ["en-default", "en-sanctuary", "en-sims", "Simlish"]
             : ["en-sims", "Simlish"];
+          const loadedSeeds: Record<string, Record<string, any>> = {
+            "en-default": enDefault,
+          };
+          await Promise.all(
+            seedIds
+              .filter((id) => id !== "en-default")
+              .map(async (id) => {
+                loadedSeeds[id] = await loadBuiltinLexiconAsync(id);
+              })
+          );
           for (const id of seedIds) {
             if (!rowMap.has(id)) {
               rowMap.set(id, {
@@ -233,14 +233,14 @@ export function useMasonFiles({
                 name: id,
                 badge: id === "en-sims" || id === "Simlish" ? spokeDisplayName : "Sanctuary",
                 version: 1,
-                lexicon_data: BUNDLED_LEXICONS[id] || {},
+                lexicon_data: loadedSeeds[id] || {},
               });
             }
           }
 
           let mapped = Array.from(rowMap.values()).map((row: any) => {
             const id = normalizeLexId(String(row.id));
-            const bundled = BUNDLED_LEXICONS[id];
+            const bundled = loadedSeeds[id] || getLoadedBuiltinLexicon(id);
             const lexData = bundled
               ? { ...(row.lexicon_data || {}), ...bundled }
               : row.lexicon_data || {};
@@ -346,12 +346,11 @@ export function useMasonFiles({
         if (internalCloudTarget === "sanctuary_schemas") {
           const activeGameSchema = storeState.activeGameSchema;
           const rawActiveSchemaId = String(
-            activeWs?.schema_id || activeGameSchema?.id || "sims4"
+            activeWs?.schema_id || activeGameSchema?.id || "default"
           )
             .trim()
             .toLowerCase();
-          const activeSchemaId =
-            !isKeepers && rawActiveSchemaId === "default" ? "sims4" : rawActiveSchemaId;
+          const activeSchemaId = rawActiveSchemaId;
 
           if (activeSchemaId && !rowMap.has(activeSchemaId)) {
             rowMap.set(activeSchemaId, {
@@ -367,7 +366,6 @@ export function useMasonFiles({
           }
           if (isKeepers && rowMap.size === 0) {
             rowMap.set("default", { id: "default", name: "Default Master Schema" });
-            rowMap.set("sims4", { id: "sims4", name: "The Sims 4" });
           }
         }
         const mapped = Array.from(rowMap.entries())
@@ -527,7 +525,7 @@ export function useMasonFiles({
         setReferenceData(enDefault);
         setReferenceLabel(t("validator_source_default_lex", "en-default.json Baseline"));
       } else {
-        const fallbackDefaultSchema = getSafeSchema(GAME_ARCHITECTURE_PRESETS.sims4, "default");
+        const fallbackDefaultSchema = getSafeSchema(GAME_ARCHITECTURE_PRESETS.universal, "default");
         setReferenceData(fallbackDefaultSchema);
         setReferenceLabel(
           t("validator_source_keepers", "Keepers Core Default Schema")
@@ -594,9 +592,10 @@ export function useMasonFiles({
         const supabaseMod = await import("../supabase");
         const client = isKeepers ? supabaseMod.supabaseAuth : supabaseMod.supabase;
 
-        if (internalCloudTarget === "sanctuary_lexicons" && BUNDLED_LEXICONS[fileId]) {
-          // Built-in Master Lexicons: use canonical 1,253-key bundled lexicon & sync cloud if needed
-          const bundledObj = { ...BUNDLED_LEXICONS[fileId] };
+        if (internalCloudTarget === "sanctuary_lexicons" && CORE_LEXICON_ORDER.includes(fileId)) {
+          // Built-in Master Lexicons: load canonical bundled lexicon lazily & sync cloud if needed
+          const loadedPack = await loadBuiltinLexiconAsync(fileId);
+          const bundledObj = { ...loadedPack };
           canonicalContent = JSON.stringify(bundledObj, null, 2);
 
           // Check if cloud row still has deprecated keys and auto-sync in background
@@ -618,9 +617,7 @@ export function useMasonFiles({
                 const payload = {
                   id: fileId,
                   name: bundledObj._meta_name || (data as any)?.name || fileId,
-                  badge:
-                    bundledObj._meta_badge ||
-                    (fileId === "en-sims" || fileId === "Simlish" ? "The Sims 4" : "Sanctuary"),
+                  badge: bundledObj._meta_badge || "Sanctuary",
                   version: (data as any)?.version || bundledObj._meta_version || 1,
                   lexicon_data: bundledObj,
                   updated_at: new Date().toISOString(),
@@ -700,7 +697,7 @@ export function useMasonFiles({
       if (cachedDraft && cachedDraft !== canonicalContent) {
         let useCached = true;
         const fileId = file.name.replace(/\.json$/i, "");
-        if (BUNDLED_LEXICONS[fileId]) {
+        if (CORE_LEXICON_ORDER.includes(fileId)) {
           try {
             const parsedDraft = JSON.parse(cachedDraft);
             if (

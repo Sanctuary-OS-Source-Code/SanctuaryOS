@@ -244,38 +244,38 @@ export function MasonCollectionBuilder({
     {
       id: "overview",
       label: t("overview", "Overview"),
-      icon: "dashboard",
+      icon: t("icon_dashboard", "dashboard"),
       colorClass: "text-[var(--accent)]",
       number: sets.length.toString(),
     },
     {
       id: "stable",
       label: t("status_stable", "Stable"),
-      icon: "verified",
+      icon: t("icon_verified", "verified"),
       number: sets.filter((s) => s.status === "stable").length.toString(),
     },
     {
       id: "under_review",
       label: t("status_dd_review", "Under Review"),
-      icon: "policy",
+      icon: t("icon_policy", "policy"),
       number: sets.filter((s) => s.status === "under_review").length.toString(),
     },
     {
       id: "pending",
       label: t("pending", "Pending"),
-      icon: "schedule",
+      icon: t("icon_schedule", "schedule"),
       number: sets.filter((s) => s.status === "pending").length.toString(),
     },
     {
       id: "unknown",
       label: t("unknown", "Unknown"),
-      icon: "help",
+      icon: t("icon_help", "help"),
       number: sets.filter((s) => s.status === "unknown" || !s.status).length.toString(),
     },
     {
       id: "corrupted",
       label: t("status_corrupted", "Corrupted"),
-      icon: "warning",
+      icon: t("icon_warning", "warning"),
       number: sets.filter((s) => s.status === "corrupted").length.toString(),
     },
   ];
@@ -287,13 +287,13 @@ export function MasonCollectionBuilder({
     return (
       <HubOverviewLanding>
         <HubOverviewSection
-          icon="history"
+          icon={t("icon_history", "history")}
           iconColorClass="text-[var(--accent)]"
           title={t("recent_activity", "Recent Activity")}
         >
           {sets.length === 0 ? (
             <EmptyState
-              icon="collections_bookmark"
+              icon={t("icon_collections_bookmark", "collections_bookmark")}
               title={t("cc_no_sets", "No collections found")}
               className="py-8"
             />
@@ -316,13 +316,13 @@ export function MasonCollectionBuilder({
           )}
         </HubOverviewSection>
         <HubOverviewSection
-          icon="warning"
+          icon={t("icon_warning", "warning")}
           iconColorClass="text-[var(--warning)]"
           title={t("title_issues", "Flags & Issues")}
         >
           {flaggedSets.length === 0 ? (
             <EmptyState
-              icon="collections_bookmark"
+              icon={t("icon_collections_bookmark", "collections_bookmark")}
               title={t("cc_no_sets", "No issues detected")}
               className="py-8"
             />
@@ -380,7 +380,7 @@ export function MasonCollectionBuilder({
   return (
     <ElevatedHubLayout
       headerTitle={t("collections", "Collections")}
-      headerIcon="collections_bookmark"
+      headerIcon={t("icon_collections_bookmark", "collections_bookmark")}
       search={searchTerm}
       onSearchChange={setSearchTerm}
       searchPlaceholder={t("search_ph", "Search {mods}...") as string}
@@ -391,7 +391,7 @@ export function MasonCollectionBuilder({
       primaryPopover={
         activeTab !== "overview"
           ? {
-              icon: "tune",
+              icon: t("icon_tune", "tune"),
               label: t("filters", "Filters"),
               content: (
                 <div className="flex flex-col w-[300px] p-4 text-left">
@@ -406,10 +406,10 @@ export function MasonCollectionBuilder({
                       value={tierFilter}
                       onChange={(v: string[]) => setTierFilter(v[0])}
                       options={[
-                        { id: "ALL", label: "ALL TIERS" },
-                        { id: "0", label: "TIER 0" },
-                        { id: "1", label: "TIER 1" },
-                        { id: "2", label: "TIER 2" },
+                        { id: "ALL", label: t("filter_all", "All") },
+                        { id: "0", label: `${t("auto_tier", "Tier")} 0` },
+                        { id: "1", label: `${t("auto_tier", "Tier")} 1` },
+                        { id: "2", label: `${t("auto_tier", "Tier")} 2` },
                       ]}
                     />
                   </div>
@@ -967,7 +967,7 @@ export function CollectionForge({ setStatus }: any) {
           "architect_collections_desc",
           "Registry review, metadata governance, and conflict triage"
         )}
-        headerIcon="folder"
+        headerIcon={t("icon_folder", "folder")}
         headerIconColorClass="theme-text-accent"
         search={searchTerm}
         onSearchChange={setSearchTerm}
@@ -978,32 +978,32 @@ export function CollectionForge({ setStatus }: any) {
           {
             id: "overview",
             label: t("overview", "Overview"),
-            icon: "dashboard",
+            icon: t("icon_dashboard", "dashboard"),
             colorClass: "text-[var(--accent)]",
             number: sets.length.toString(),
           },
           {
             id: "stable",
             label: t("status_stable", "Stable"),
-            icon: "verified",
+            icon: t("icon_verified", "verified"),
             number: sets.filter((s) => s.status === "stable").length.toString(),
           },
           {
             id: "under_review",
             label: t("status_dd_review", "Under Review"),
-            icon: "policy",
+            icon: t("icon_policy", "policy"),
             number: sets.filter((s) => s.status === "under_review").length.toString(),
           },
           {
             id: "pending",
             label: t("pending", "Pending"),
-            icon: "schedule",
+            icon: t("icon_schedule", "schedule"),
             number: sets.filter((s) => s.status === "pending").length.toString(),
           },
           {
             id: "unknown",
             label: t("unknown", "Unknown"),
-            icon: "help",
+            icon: t("icon_help", "help"),
             number: sets
               .filter((s) => s.status === "unknown" || !s.status)
               .length.toString(),
@@ -1011,7 +1011,7 @@ export function CollectionForge({ setStatus }: any) {
           {
             id: "corrupted",
             label: t("status_corrupted", "Corrupted"),
-            icon: "warning",
+            icon: t("icon_warning", "warning"),
             number: sets.filter((s) => s.status === "corrupted").length.toString(),
           },
         ]}
@@ -1019,7 +1019,7 @@ export function CollectionForge({ setStatus }: any) {
         primaryPopover={
           filterTab !== "overview"
             ? {
-                icon: "tune",
+                icon: t("icon_tune", "tune"),
                 label: t("filters", "Filters"),
                 content: (
                   <div className="flex flex-col w-[300px] p-4 text-left">
@@ -1034,10 +1034,10 @@ export function CollectionForge({ setStatus }: any) {
                         value={tierFilter}
                         onChange={(v: string[]) => setTierFilter(v[0])}
                         options={[
-                          { id: "ALL", label: "ALL TIERS" },
-                          { id: "0", label: "TIER 0" },
-                          { id: "1", label: "TIER 1" },
-                          { id: "2", label: "TIER 2" },
+                          { id: "ALL", label: t("filter_all", "All") },
+                          { id: "0", label: `${t("auto_tier", "Tier")} 0` },
+                          { id: "1", label: `${t("auto_tier", "Tier")} 1` },
+                          { id: "2", label: `${t("auto_tier", "Tier")} 2` },
                         ]}
                       />
                     </div>
@@ -1066,13 +1066,13 @@ export function CollectionForge({ setStatus }: any) {
         {filterTab === "overview" ? (
           <HubOverviewLanding>
             <HubOverviewSection
-              icon="history"
+              icon={t("icon_history", "history")}
               iconColorClass="text-[var(--accent)]"
               title={t("recent_activity", "Recent Activity")}
             >
               {sets.length === 0 ? (
                 <EmptyState
-                  icon="collections_bookmark"
+                  icon={t("icon_collections_bookmark", "collections_bookmark")}
                   title={t("cc_no_sets", "No collections found")}
                   className="py-8"
                 />
@@ -1092,13 +1092,13 @@ export function CollectionForge({ setStatus }: any) {
               )}
             </HubOverviewSection>
             <HubOverviewSection
-              icon="warning"
+              icon={t("icon_warning", "warning")}
               iconColorClass="text-[var(--warning)]"
               title={t("title_issues", "Flags & Issues")}
             >
               {flaggedSets.length === 0 ? (
                 <EmptyState
-                  icon="collections_bookmark"
+                  icon={t("icon_collections_bookmark", "collections_bookmark")}
                   title={t("cc_no_sets", "No Issues Detected")}
                   className="py-8"
                 />
@@ -1122,7 +1122,7 @@ export function CollectionForge({ setStatus }: any) {
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 content-start">
             {filteredSets.length === 0 ? (
               <EmptyState
-                icon={searchTerm ? "search_off" : t("icon_folder", "folder")}
+                icon={searchTerm ? t("icon_search_off", "search_off") : t("icon_folder", "folder")}
                 title={
                   searchTerm
                     ? t("no_matches", "No matches")

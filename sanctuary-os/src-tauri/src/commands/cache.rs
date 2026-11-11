@@ -4,7 +4,10 @@ use std::path::{Path, PathBuf};
 
 #[tauri::command]
 pub fn mark_explicitly_local(vault_path: String, file_path: String) -> Result<(), String> {
-    let conn = get_db_conn(&vault_path);
+    let db = open_db_conn(&vault_path)?;
+    let conn = db
+        .lock()
+        .map_err(|_| "Database lock poisoned.".to_string())?;
     let rows = conn
         .execute(
             "UPDATE cache SET explicitly_local = 1 WHERE path = ?1",
@@ -21,10 +24,29 @@ pub fn mark_explicitly_local(vault_path: String, file_path: String) -> Result<()
 #[tauri::command]
 pub async fn generate_full_dna_hash(file_path: PathBuf) -> String {
     tauri::async_runtime::spawn_blocking(move || {
+        if !crate::utils::is_safe_user_file_path(&file_path) {
+            return "0".into();
+        }
         calculate_hash(&file_path).unwrap_or_else(|_| "0".into())
     })
     .await
     .unwrap_or_else(|_| "0".into())
+}
+
+fn cleanup_empty_vault_parents(start_file: &Path, stop_at_mods: &Path, stop_at_root: &Path) {
+    let mut current_dir = start_file.parent().map(|p| p.to_path_buf());
+    while let Some(dir) = current_dir {
+        if dir == stop_at_mods
+            || dir == stop_at_root
+            || !crate::utils::path_is_within_root(&dir, stop_at_mods)
+        {
+            break;
+        }
+        if std::fs::remove_dir(&dir).is_err() {
+            break;
+        }
+        current_dir = dir.parent().map(|p| p.to_path_buf());
+    }
 }
 
 #[tauri::command]
@@ -35,169 +57,152 @@ pub async fn resolve_dna_match(
     move_original: Option<bool>,
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let cfg = get_saved_coordinates();
+        if cfg.vault_path.trim().is_empty() {
+            return Err("Vault path not configured.".into());
+        }
+        let vault_root = crate::utils::get_vault_root_dir(&cfg.vault_path);
+        let vault_mods = crate::utils::get_vault_mods_lane(&cfg.vault_path);
+        let allowed_vault_roots = vec![vault_root.clone(), vault_mods.clone()];
+
         let source = Path::new(&path);
-    let mut resolved_existing = existing_name.clone();
-    if resolved_existing.is_empty() {
-        resolved_existing = path.replace(".tmp_sanctuary_conflict", "");
-    }
-    let existing = Path::new(&resolved_existing);
-    let config_opt = Some(get_saved_coordinates());
-    let is_external_source = config_opt
-        .as_ref()
-        .map(|cfg| {
-            let vault_mods = crate::utils::get_vault_mods_lane(&cfg.vault_path);
-            let vault_root = if crate::utils::is_mods_dir(Path::new(&cfg.vault_path)) {
-                Path::new(&cfg.vault_path)
-                    .parent()
-                    .unwrap_or(Path::new(&cfg.vault_path))
-                    .to_path_buf()
-            } else {
-                PathBuf::from(&cfg.vault_path)
-            };
-            !source.starts_with(&vault_root)
-                && !source.starts_with(&vault_mods)
-                && !source.starts_with(&cfg.vault_path)
-        })
-        .unwrap_or(false);
-    let should_move_original = is_external_source
-        && move_original.unwrap_or_else(|| {
-            config_opt
-                .as_ref()
-                .and_then(|cfg| cfg.ingest_file_mode.as_deref())
-                .map(|m| m.eq_ignore_ascii_case("move"))
-                .unwrap_or(false)
-        });
+        if !crate::utils::is_safe_user_file_path(source) {
+            return Err("Blocked: unsafe source path.".into());
+        }
+        let is_tmp_conflict = source
+            .extension()
+            .map_or(false, |ext| ext.to_string_lossy() == "tmp_sanctuary_conflict");
+        if is_tmp_conflict {
+            crate::utils::ensure_strict_descendant_of_roots(source, &allowed_vault_roots)?;
+        }
 
-    if action == "replace" {
-        let s_canon = source
-            .canonicalize()
-            .unwrap_or_else(|_| source.to_path_buf());
-        let e_canon = existing
-            .canonicalize()
-            .unwrap_or_else(|_| existing.to_path_buf());
+        let mut resolved_existing = existing_name.clone();
+        if resolved_existing.is_empty() {
+            resolved_existing = path.replace(".tmp_sanctuary_conflict", "");
+        }
+        let existing = Path::new(&resolved_existing);
 
-        if source.exists() && s_canon != e_canon {
-            if let Some(parent) = existing.parent() {
-                let _ = std::fs::create_dir_all(parent);
-                let mut source_file_name = source
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string();
-                if source_file_name.ends_with(".tmp_sanctuary_conflict") {
-                    source_file_name = source_file_name.replace(".tmp_sanctuary_conflict", "");
-                }
-                let new_target = parent.join(&source_file_name);
+        let is_external_source = crate::utils::ensure_path_within_roots(source, &allowed_vault_roots).is_err();
+        let should_move_original = is_external_source
+            && move_original.unwrap_or_else(|| {
+                cfg.ingest_file_mode
+                    .as_deref()
+                    .map(|m| m.eq_ignore_ascii_case("move"))
+                    .unwrap_or(false)
+            });
 
-                let is_setting_ext = new_target
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .map(|e| {
-                        matches!(
-                            e.to_lowercase().as_str(),
-                            "cfg" | "ini" | "json" | "txt" | "xml" | "log"
-                        )
-                    })
-                    .unwrap_or(false);
+        if action == "replace" {
+            crate::utils::ensure_strict_descendant_of_roots(existing, &allowed_vault_roots)?;
 
-                if !is_setting_ext && existing.exists() {
-                    if let Some(cfg) = &config_opt {
-                        if !cfg.vault_path.trim().is_empty() {
-                            let _ = crate::utils::archive_mod_binary_version(
-                                &cfg.vault_path,
-                                existing,
-                                None,
-                                None,
-                                None,
-                            );
-                        }
+            let s_canon = crate::utils::resolve_canonical_target(source)
+                .unwrap_or_else(|_| source.to_path_buf());
+            let e_canon = crate::utils::resolve_canonical_target(existing)
+                .unwrap_or_else(|_| existing.to_path_buf());
+
+            if source.exists() && s_canon != e_canon {
+                if let Some(parent) = existing.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                    let mut source_file_name = source
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    if source_file_name.ends_with(".tmp_sanctuary_conflict") {
+                        source_file_name = source_file_name.replace(".tmp_sanctuary_conflict", "");
                     }
-                }
+                    if !crate::utils::is_safe_single_filename(&source_file_name) {
+                        return Err("Blocked: invalid target filename.".into());
+                    }
+                    let new_target = parent.join(&source_file_name);
+                    crate::utils::ensure_strict_descendant_of_roots(
+                        &new_target,
+                        &allowed_vault_roots,
+                    )?;
 
-                let s_canon = source
-                    .canonicalize()
-                    .unwrap_or_else(|_| source.to_path_buf());
-                let n_canon = new_target
-                    .canonicalize()
-                    .unwrap_or_else(|_| new_target.clone());
+                    let is_setting_ext = new_target
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .map(|e| {
+                            matches!(
+                                e.to_lowercase().as_str(),
+                                "cfg" | "ini" | "json" | "txt" | "xml" | "toml" | "yaml" | "yml" | "log"
+                            )
+                        })
+                        .unwrap_or(false);
 
-                if s_canon != n_canon && new_target.exists() {
-                    let _ = std::fs::remove_file(&new_target);
-                }
+                    if !is_setting_ext && existing.exists() {
+                        let _ = crate::utils::archive_mod_binary_version(
+                            &cfg.vault_path,
+                            existing,
+                            None,
+                            None,
+                            None,
+                        );
+                    }
 
-                let copy_result = if s_canon == n_canon {
-                    Ok(0) // Dummy success if it's already the exact same file
-                } else {
-                    std::fs::copy(source, &new_target)
-                };
+                    let n_canon = crate::utils::resolve_canonical_target(&new_target)
+                        .unwrap_or_else(|_| new_target.clone());
 
-                match copy_result {
-                    Ok(_) => {
-                        let now = filetime::FileTime::now();
-                        let _ = filetime::set_file_times(&new_target, now, now);
+                    if s_canon != n_canon && new_target.exists() {
+                        let _ = std::fs::remove_file(&new_target);
+                    }
 
-                        if !is_setting_ext {
-                            if let Some(cfg) = &config_opt {
-                                if !cfg.vault_path.trim().is_empty() {
-                                    let _ = crate::utils::archive_mod_binary_version(
-                                        &cfg.vault_path,
-                                        &new_target,
-                                        None,
-                                        None,
-                                        None,
-                                    );
-                                }
+                    let copy_result = if s_canon == n_canon {
+                        Ok(0)
+                    } else {
+                        std::fs::copy(source, &new_target)
+                    };
+
+                    match copy_result {
+                        Ok(_) => {
+                            let now = filetime::FileTime::now();
+                            let _ = filetime::set_file_times(&new_target, now, now);
+
+                            if !is_setting_ext {
+                                let _ = crate::utils::archive_mod_binary_version(
+                                    &cfg.vault_path,
+                                    &new_target,
+                                    None,
+                                    None,
+                                    None,
+                                );
                             }
-                        }
 
-                        let n_canon_final = new_target
-                            .canonicalize()
-                            .unwrap_or_else(|_| new_target.clone());
-                        if e_canon != n_canon_final {
-                            let _ = std::fs::remove_file(existing);
-                        }
+                            let n_canon_final = crate::utils::resolve_canonical_target(&new_target)
+                                .unwrap_or_else(|_| new_target.clone());
+                            if e_canon != n_canon_final && existing.exists() {
+                                let _ = std::fs::remove_file(existing);
+                            }
 
-                        if let Some(ext) = source.extension() {
-                            if ext.to_string_lossy() == "tmp_sanctuary_conflict" {
+                            if is_tmp_conflict {
                                 let _ = std::fs::remove_file(source);
-                                let mut current_dir = source.parent().map(|p| p.to_path_buf());
-                                while let Some(dir) = current_dir {
-                                    if std::fs::remove_dir(&dir).is_err() {
-                                        break;
-                                    }
-                                    current_dir = dir.parent().map(|p| p.to_path_buf());
-                                }
-                            } else if should_move_original && s_canon != n_canon_final {
+                                cleanup_empty_vault_parents(source, &vault_mods, &vault_root);
+                            } else if should_move_original
+                                && s_canon != n_canon_final
+                                && crate::utils::is_safe_user_file_path(source)
+                            {
                                 let _ = std::fs::remove_file(source);
                             }
-                        } else if should_move_original && s_canon != n_canon_final {
-                            let _ = std::fs::remove_file(source);
                         }
-                    }
-                    Err(e) => {
-                        return Err(format!("FAILED_TO_COPY: {}", e));
+                        Err(e) => {
+                            return Err(format!("FAILED_TO_COPY: {}", e));
+                        }
                     }
                 }
             }
-        }
-    } else if action == "discard" || action == "ignore" {
-        if let Some(ext) = source.extension() {
-            if ext.to_string_lossy() == "tmp_sanctuary_conflict" {
+        } else if action == "discard" || action == "ignore" {
+            if is_tmp_conflict {
                 let _ = std::fs::remove_file(source);
-                let mut current_dir = source.parent().map(|p| p.to_path_buf());
-                while let Some(dir) = current_dir {
-                    if std::fs::remove_dir(&dir).is_err() {
-                        break;
-                    }
-                    current_dir = dir.parent().map(|p| p.to_path_buf());
-                }
-            } else if should_move_original && action == "discard" {
+                cleanup_empty_vault_parents(source, &vault_mods, &vault_root);
+            } else if should_move_original
+                && action == "discard"
+                && crate::utils::is_safe_user_file_path(source)
+            {
                 let _ = std::fs::remove_file(source);
             }
         }
-    }
 
-    Ok("Resolved".into())
+        Ok("Resolved".into())
     })
     .await
     .map_err(|e| e.to_string())?
@@ -225,8 +230,9 @@ pub fn purge_vault_artifacts(vault_path: String, filenames: Vec<String>) -> Resu
         return Err("Vault path not configured.".into());
     }
     let mut deleted = 0;
-    let vault_root = std::path::PathBuf::from(&vault_path);
+    let vault_root = crate::utils::get_vault_root_dir(&vault_path);
     let vault_mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
+    let allowed_roots = vec![vault_root.clone(), vault_mods_lane.clone()];
 
     for filename in filenames {
         let trimmed_rel = filename.trim().trim_start_matches(&['/', '\\'][..]);
@@ -245,8 +251,7 @@ pub fn purge_vault_artifacts(vault_path: String, filenames: Vec<String>) -> Resu
             vault_mods_lane.join(rel_path),
         ];
         for path in candidates {
-            if path == vault_root
-                || path == vault_mods_lane
+            if crate::utils::ensure_strict_descendant_of_roots(&path, &allowed_roots).is_err()
                 || !crate::utils::is_safe_user_file_path(&path)
             {
                 continue;
@@ -272,18 +277,7 @@ pub fn purge_vault_artifacts(vault_path: String, filenames: Vec<String>) -> Resu
                     let _ = std::fs::remove_file(&path);
                 }
 
-                let mut current = path.parent().map(|d| d.to_path_buf());
-                while let Some(dir) = current {
-                    if dir == vault_mods_lane
-                        || dir.file_name().and_then(|s| s.to_str()) == Some("Mods")
-                    {
-                        break;
-                    }
-                    if std::fs::remove_dir(&dir).is_err() {
-                        break;
-                    }
-                    current = dir.parent().map(|d| d.to_path_buf());
-                }
+                cleanup_empty_vault_parents(&path, &vault_mods_lane, &vault_root);
 
                 crate::utils::cleanup_live_counterparts_on_delete(&path, &deleted_names);
                 deleted += 1;
@@ -345,7 +339,9 @@ pub struct ModVersionPoolStatus {
 fn cleanup_empty_backup_parents(file_path: &Path, backups_mods_root: &Path) {
     let mut cur = file_path.parent().map(|p| p.to_path_buf());
     while let Some(dir) = cur {
-        if dir == backups_mods_root || !dir.starts_with(backups_mods_root) {
+        if dir == backups_mods_root
+            || !crate::utils::path_is_within_root(&dir, backups_mods_root)
+        {
             break;
         }
         if std::fs::remove_dir(&dir).is_err() {
@@ -565,7 +561,13 @@ pub async fn delete_archived_mod_version(
                                     .backup_rel_path
                                     .replace('/', std::path::MAIN_SEPARATOR_STR),
                             );
-                            if full.exists() {
+                            if full.exists()
+                                && crate::utils::ensure_strict_descendant_of_roots(
+                                    &full,
+                                    &[backups_mods.clone()],
+                                )
+                                .is_ok()
+                            {
                                 let _ = std::fs::remove_file(&full);
                                 cleanup_empty_backup_parents(&full, &backups_mods);
                             }
@@ -638,7 +640,13 @@ pub async fn prune_archived_mod_versions(
                                 .backup_rel_path
                                 .replace('/', std::path::MAIN_SEPARATOR_STR),
                         );
-                        if full.exists() {
+                        if full.exists()
+                            && crate::utils::ensure_strict_descendant_of_roots(
+                                &full,
+                                &[backups_mods.clone()],
+                            )
+                            .is_ok()
+                        {
                             let _ = std::fs::remove_file(&full);
                             cleanup_empty_backup_parents(&full, &backups_mods);
                         }
@@ -704,6 +712,7 @@ pub async fn activate_archived_mod_version(
         if !b_full.exists() {
             return Err("Archived binary missing on disk.".into());
         }
+        crate::utils::ensure_strict_descendant_of_roots(&b_full, &[backups_mods.clone()])?;
 
         let mut target_rel_paths: Vec<String> = vec![rel_path.replace('\\', "/")];
         for entries in index.values() {
@@ -728,10 +737,12 @@ pub async fn activate_archived_mod_version(
             }
         }
 
+        let _ = std::fs::create_dir_all(&mods_lane);
         let mut cache = load_cache(&vault_path);
         for rel_target in target_rel_paths {
             let active_full =
                 mods_lane.join(rel_target.replace('/', std::path::MAIN_SEPARATOR_STR));
+            crate::utils::ensure_strict_descendant_of_roots(&active_full, &[mods_lane.clone()])?;
             if let Some(ap) = active_full.parent() {
                 let _ = std::fs::create_dir_all(ap);
             }
@@ -834,7 +845,10 @@ pub async fn activate_archived_mod_versions_batch(
                     .backup_rel_path
                     .replace('/', std::path::MAIN_SEPARATOR_STR),
             );
-            if !b_full.exists() {
+            if !b_full.exists()
+                || crate::utils::ensure_strict_descendant_of_roots(&b_full, &[backups_mods.clone()])
+                    .is_err()
+            {
                 continue;
             }
 
@@ -861,10 +875,16 @@ pub async fn activate_archived_mod_versions_batch(
                 }
             }
 
+            let _ = std::fs::create_dir_all(&mods_lane);
             let mut any_linked = false;
             for rel_target in target_rel_paths {
                 let active_full =
                     mods_lane.join(rel_target.replace('/', std::path::MAIN_SEPARATOR_STR));
+                if crate::utils::ensure_strict_descendant_of_roots(&active_full, &[mods_lane.clone()])
+                    .is_err()
+                {
+                    continue;
+                }
                 if let Some(ap) = active_full.parent() {
                     let _ = std::fs::create_dir_all(ap);
                 }
@@ -1075,7 +1095,10 @@ pub async fn reset_mod_versions_to_auto(
                     .backup_rel_path
                     .replace('/', std::path::MAIN_SEPARATOR_STR),
             );
-            if !b_full.exists() {
+            if !b_full.exists()
+                || crate::utils::ensure_strict_descendant_of_roots(&b_full, &[backups_mods.clone()])
+                    .is_err()
+            {
                 continue;
             }
 
@@ -1083,11 +1106,17 @@ pub async fn reset_mod_versions_to_auto(
                 .get(&f_name)
                 .cloned()
                 .unwrap_or_else(|| vec![winner.rel_path.replace('\\', "/")]);
+            let _ = std::fs::create_dir_all(&mods_lane);
             let mut any_updated = false;
 
             for rel_target in target_rels {
                 let active_full =
                     mods_lane.join(rel_target.replace('/', std::path::MAIN_SEPARATOR_STR));
+                if crate::utils::ensure_strict_descendant_of_roots(&active_full, &[mods_lane.clone()])
+                    .is_err()
+                {
+                    continue;
+                }
                 let active_full_str = active_full.to_string_lossy().to_string();
                 let current_hash = if let Some(c) = cache.get(&active_full_str) {
                     if !c.dna_hash.is_empty() && active_full.exists() {

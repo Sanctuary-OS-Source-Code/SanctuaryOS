@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLexicon } from "./LexiconContext";
 import { supabase } from "./supabase";
 import { ViewHeader, CustomDropdown, CustomDatePicker, ActionButton, ActionPill, EmptyState } from "./shared";
@@ -10,6 +10,7 @@ import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScree
 import MasonRecentRepliesSidePanel from "./side-panels/MasonRecentRepliesSidePanel";
 import MasonRecentPostsSidePanel from "./side-panels/MasonRecentPostsSidePanel";
 import MasonFollowingSidePanel from "./side-panels/MasonFollowingSidePanel";
+import { useVirtualWindow } from "./hooks/useVirtualWindow";
 
 if (!(window as any).__sanctuaryCache) {
   (window as any).__sanctuaryCache = {} as any;
@@ -193,40 +194,52 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
       setLoading(false);
     };
     fetchPosts();
-  }, [activeTab]);
+  }, [activeTab, isOffline]);
 
-  const filteredPosts = posts.filter(p => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchTitle = p.title?.toLowerCase().includes(query);
-      const matchContent = p.content?.toLowerCase().includes(query);
-      const matchMasonName = p.masons?.name?.toLowerCase().includes(query) || p.masons?.username?.toLowerCase().includes(query);
-      
-      if (!matchTitle && !matchContent && !matchMasonName) {
-        return false;
+  const filteredPosts = useMemo(() => {
+    return posts.filter(p => {
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchTitle = p.title?.toLowerCase().includes(query);
+        const matchContent = p.content?.toLowerCase().includes(query);
+        const matchMasonName = p.masons?.name?.toLowerCase().includes(query) || p.masons?.username?.toLowerCase().includes(query);
+        
+        if (!matchTitle && !matchContent && !matchMasonName) {
+          return false;
+        }
       }
-    }
-    if (startDate || endDate) {
-      const postDate = new Date(p.created_at);
-      postDate.setHours(0, 0, 0, 0);
-      if (startDate) {
-        const sd = new Date(startDate);
-        if (postDate < sd) return false;
+      if (startDate || endDate) {
+        const postDate = new Date(p.created_at);
+        postDate.setHours(0, 0, 0, 0);
+        if (startDate) {
+          const sd = new Date(startDate);
+          if (postDate < sd) return false;
+        }
+        if (endDate) {
+          const ed = new Date(endDate);
+          if (postDate > ed) return false;
+        }
       }
-      if (endDate) {
-        const ed = new Date(endDate);
-        if (postDate > ed) return false;
+      return true;
+    }).sort((a, b) => {
+      if (activeSort === "TOP") {
+        const aLikes = a.likes?.[0]?.count || 0;
+        const bLikes = b.likes?.[0]?.count || 0;
+        if (bLikes !== aLikes) return bLikes - aLikes;
       }
-    }
-    return true;
-  }).sort((a, b) => {
-    if (activeSort === "TOP") {
-      const aLikes = a.likes?.[0]?.count || 0;
-      const bLikes = b.likes?.[0]?.count || 0;
-      if (bLikes !== aLikes) return bLikes - aLikes;
-    }
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [posts, searchQuery, startDate, endDate, activeSort]);
+
+  const feedVirtual = useVirtualWindow({
+    count: filteredPosts.length,
+    estimateSize: 280,
+    gap: 24,
+    threshold: 60,
   });
+  const visibleFeedPosts = feedVirtual.isVirtualized
+    ? filteredPosts.slice(feedVirtual.startIndex, feedVirtual.endIndex)
+    : filteredPosts;
 
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
@@ -294,7 +307,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
               setSearchQuery={setSearchQuery}
               searchPlaceholder={t("mason_search_placeholder", "Search {dispatches}...") || "Search..."}
               primaryPopover={{
-                icon: "tune",
+                icon: t("icon_tune", "tune"),
                 label: t("filters", "Filters") || "Filters",
                 content: (
                   <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
@@ -335,7 +348,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
 
                     {(startDate || endDate || activeSort !== "NEWEST") && (
                       <ActionButton 
-                        icon="close" 
+                        icon={t("icon_close", "close")} 
                         label={t("btn_clear", "Clear Filters") || "Clear Filters"} 
                         onClick={() => { setStartDate(null); setEndDate(null); setActiveSort("NEWEST"); }} 
                         className="w-full mt-2" 
@@ -351,9 +364,9 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         </ViewHeader>
       <div className="flex flex-col w-full gap-3 mb-8 md:mb-10 relative z-10 animate-in slide-in-from-top-4 duration-500 shrink-0">
         <StatTileCarousel>
-          <DashboardStatTile variant="tab" icon="dashboard" label={t("tab_overview", "Overview")} number="" onClick={() => { setActiveTab("OVERVIEW"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "OVERVIEW"} />
-          <DashboardStatTile variant="tab" icon="explore" label={t("tab_discover", "Network Feed")} number={overviewStats.posts} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "DISCOVER"} />
-          <DashboardStatTile variant="tab" icon="diversity_1" label={t("tab_following", "Subscribed Channels")} number={overviewStats.followingPosts} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "FOLLOWING"} />
+          <DashboardStatTile variant="tab" icon={t("icon_dashboard", "dashboard")} label={t("tab_overview", "Overview")} number="" onClick={() => { setActiveTab("OVERVIEW"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "OVERVIEW"} />
+          <DashboardStatTile variant="tab" icon={t("icon_explore", "explore")} label={t("tab_discover", "Network Feed")} number={overviewStats.posts} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "DISCOVER"} />
+          <DashboardStatTile variant="tab" icon={t("icon_diversity_1", "diversity_1")} label={t("tab_following", "Subscribed Channels")} number={overviewStats.followingPosts} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} isActive={activeTab === "FOLLOWING"} />
         </StatTileCarousel>
       </div>
 
@@ -365,7 +378,7 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                 <div className="flex flex-col gap-4 w-full">
                   <CommandScreenSectionHeading
                     title={t("feed_sub_feed", "Subscription Feed")}
-                    icon="diversity_1"
+                    icon={t("icon_diversity_1", "diversity_1")}
                   />
 
                   {loading ? (
@@ -390,30 +403,44 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
                       }
                     />
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-6 pb-8">
-                      {filteredPosts.map((p, index) => (
-                        <MasonPostCard
-                          key={p.id}
-                          post={p}
-                          index={index}
-                          onPostClick={handlePostClick}
-                          onToggleLike={handleToggleLike}
-                          onOpenMasonProfile={onOpenMasonProfile}
-                          hidePinBadge={true}
-                        />
-                      ))}
+                    <div ref={feedVirtual.containerRef} className="pb-8">
+                      {feedVirtual.topPadding > 0 && (
+                        <div style={{ height: feedVirtual.topPadding }} aria-hidden="true" />
+                      )}
+                      <div
+                        ref={feedVirtual.gridRef}
+                        className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-6"
+                      >
+                        {visibleFeedPosts.map((p, idx) => {
+                          const actualIndex = (feedVirtual.isVirtualized ? feedVirtual.startIndex : 0) + idx;
+                          return (
+                            <MasonPostCard
+                              key={p.id}
+                              post={p}
+                              index={actualIndex}
+                              onPostClick={handlePostClick}
+                              onToggleLike={handleToggleLike}
+                              onOpenMasonProfile={onOpenMasonProfile}
+                              hidePinBadge={true}
+                            />
+                          );
+                        })}
+                      </div>
+                      {feedVirtual.bottomPadding > 0 && (
+                        <div style={{ height: feedVirtual.bottomPadding }} aria-hidden="true" />
+                      )}
                     </div>
                   )}
                 </div>
               </CommandScreenMain>
 
-              <CommandScreenSidebar title={t("quick_actions", "Quick Actions")} icon="explore">
-                  <CommandScreenQuickLink icon="explore" title={t("feed_btn_discover", "Discover")} subtitle={`${overviewStats.posts} ${t("tab_posts", "{Dispatches}") || "Posts"}`} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} />
+              <CommandScreenSidebar title={t("quick_actions", "Quick Actions")} icon={t("icon_explore", "explore")}>
+                  <CommandScreenQuickLink icon={t("icon_explore", "explore")} title={t("feed_btn_discover", "Discover")} subtitle={`${overviewStats.posts} ${t("tab_posts", "{Dispatches}") || "Posts"}`} onClick={() => { setActiveTab("DISCOVER"); setStartDate(null); setEndDate(null); }} />
                   {masonProfileId && (
                     <CommandScreenQuickLink icon={t("icon_favorite", "favorite") || "favorite"} title={t("feed_stat_activity", "Interactions") || "Interactions"} subtitle={`${overviewStats.likes + overviewStats.replies} ${t("tab_interactions", "Total Interactions") || "Total"}`} onClick={() => setIsRepliesOpen(true)} dotColorClass="bg-amber-500 shadow-md" textColorClass="text-amber-500" hoverTextColorClass="group-hover:text-amber-400" iconShadowClass="drop-shadow-md text-amber-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
                   )}
-                  <CommandScreenQuickLink icon="diversity_1" title={t("feed_stat_following", "Following (Past 30 Days)") || "Following Feed"} subtitle={`${overviewStats.followingPosts} ${t("tab_posts", "{Dispatches}") || "Posts"}`} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} dotColorClass="bg-emerald-500 shadow-md" textColorClass="text-emerald-500" hoverTextColorClass="group-hover:text-emerald-400" iconShadowClass="drop-shadow-md text-emerald-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
-                  <CommandScreenQuickLink icon="group" title={t("feed_stat_network", "Your Network") || "Your Network"} subtitle={`${overviewStats.followingMasons} ${t("tab_masons", "Following") || "Following"}`} onClick={() => setFollowingPanelOpen(true)} dotColorClass="bg-purple-500 shadow-md" textColorClass="text-purple-500" hoverTextColorClass="group-hover:text-purple-400" iconShadowClass="drop-shadow-md text-purple-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
+                  <CommandScreenQuickLink icon={t("icon_diversity_1", "diversity_1")} title={t("feed_stat_following", "Following (Past 30 Days)") || "Following Feed"} subtitle={`${overviewStats.followingPosts} ${t("tab_posts", "{Dispatches}") || "Posts"}`} onClick={() => { setActiveTab("FOLLOWING"); setStartDate(null); setEndDate(null); }} dotColorClass="bg-emerald-500 shadow-md" textColorClass="text-emerald-500" hoverTextColorClass="group-hover:text-emerald-400" iconShadowClass="drop-shadow-md text-emerald-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
+                  <CommandScreenQuickLink icon={t("icon_group", "group")} title={t("feed_stat_network", "Your Network") || "Your Network"} subtitle={`${overviewStats.followingMasons} ${t("tab_masons", "Following") || "Following"}`} onClick={() => setFollowingPanelOpen(true)} dotColorClass="bg-purple-500 shadow-md" textColorClass="text-purple-500" hoverTextColorClass="group-hover:text-purple-400" iconShadowClass="drop-shadow-md text-purple-500" iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
               </CommandScreenSidebar>
             </CommandScreenBody>
           </CommandScreenLayout>
@@ -444,23 +471,35 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
               }
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-6">
-              {filteredPosts.map((p, index) => {
-                const isCompact = filteredPosts.length >= 3 && index > 0;
-                return (
-                  <div key={p.id}>
-                    <MasonPostCard
-                      post={p}
-                      index={index}
-                      onPostClick={handlePostClick}
-                      onToggleLike={handleToggleLike}
-                      onOpenMasonProfile={onOpenMasonProfile}
-                      isCompact={isCompact}
-                      hidePinBadge={true}
-                    />
-                  </div>
-                );
-              })}
+            <div ref={feedVirtual.containerRef}>
+              {feedVirtual.topPadding > 0 && (
+                <div style={{ height: feedVirtual.topPadding }} aria-hidden="true" />
+              )}
+              <div
+                ref={feedVirtual.gridRef}
+                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-6"
+              >
+                {visibleFeedPosts.map((p, idx) => {
+                  const actualIndex = (feedVirtual.isVirtualized ? feedVirtual.startIndex : 0) + idx;
+                  const isCompact = filteredPosts.length >= 3 && actualIndex > 0;
+                  return (
+                    <div key={p.id}>
+                      <MasonPostCard
+                        post={p}
+                        index={actualIndex}
+                        onPostClick={handlePostClick}
+                        onToggleLike={handleToggleLike}
+                        onOpenMasonProfile={onOpenMasonProfile}
+                        isCompact={isCompact}
+                        hidePinBadge={true}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              {feedVirtual.bottomPadding > 0 && (
+                <div style={{ height: feedVirtual.bottomPadding }} aria-hidden="true" />
+              )}
             </div>
           )}
         </div>
@@ -474,30 +513,34 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         />
       )}
 
-      <MasonRecentRepliesSidePanel
-        isOpen={isRepliesOpen}
-        onClose={() => setIsRepliesOpen(false)}
-        masonId={masonProfileId || undefined}
-        userProfileId={userId || undefined}
-        onReplyClick={(post, replyId) => {
-          if (post) setSelectedPost(post);
-          if (replyId) setSelectedReplyId(replyId);
-        }}
-      />
+      {isRepliesOpen && (
+        <MasonRecentRepliesSidePanel
+          isOpen={isRepliesOpen}
+          onClose={() => setIsRepliesOpen(false)}
+          masonId={masonProfileId || undefined}
+          userProfileId={userId || undefined}
+          onReplyClick={(post, replyId) => {
+            if (post) setSelectedPost(post);
+            if (replyId) setSelectedReplyId(replyId);
+          }}
+        />
+      )}
 
-      <MasonRecentPostsSidePanel
-        isOpen={isPostsOpen}
-        onClose={() => setIsPostsOpen(false)}
-        posts={posts}
-        onPostClick={(post) => {
-          setSelectedPost(post);
-          setIsPostsOpen(false);
-        }}
-        onToggleLike={handleToggleLike}
-        onOpenMasonProfile={(masonId) => {
-          if (onOpenMasonProfile) onOpenMasonProfile(masonId);
-        }}
-      />
+      {isPostsOpen && (
+        <MasonRecentPostsSidePanel
+          isOpen={isPostsOpen}
+          onClose={() => setIsPostsOpen(false)}
+          posts={posts}
+          onPostClick={(post) => {
+            setSelectedPost(post);
+            setIsPostsOpen(false);
+          }}
+          onToggleLike={handleToggleLike}
+          onOpenMasonProfile={(masonId) => {
+            if (onOpenMasonProfile) onOpenMasonProfile(masonId);
+          }}
+        />
+      )}
 
       {selectedPost && (
         <MasonPostViewer
@@ -510,14 +553,16 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
         />
       )}
 
-      <MasonFollowingSidePanel
-        isOpen={isFollowingPanelOpen}
-        onClose={() => setFollowingPanelOpen(false)}
-        userId={userId}
-        onOpenMasonProfile={(masonId) => {
-          if (onOpenMasonProfile) onOpenMasonProfile(masonId);
-        }}
-      />
+      {isFollowingPanelOpen && (
+        <MasonFollowingSidePanel
+          isOpen={isFollowingPanelOpen}
+          onClose={() => setFollowingPanelOpen(false)}
+          userId={userId}
+          onOpenMasonProfile={(masonId) => {
+            if (onOpenMasonProfile) onOpenMasonProfile(masonId);
+          }}
+        />
+      )}
     </div>
   );
 }

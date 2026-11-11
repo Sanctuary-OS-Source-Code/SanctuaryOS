@@ -4,6 +4,7 @@ import { readDir, writeTextFile, exists, remove } from "@tauri-apps/plugin-fs";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { isScriptExtension } from "../shared";
 import { logArchitectAction } from "../lib/audit";
 import { StructureNode } from "../ModStructureBuilder";
 import { useWorkbenchFiles } from "../workbench/hooks/useWorkbenchFiles";
@@ -158,18 +159,29 @@ export function ArtifactWorkspace({
     setShowEntryChoice(!alreadyConfigured);
     setEntryTargetMod(null);
     const lowerName = String(mod.name || "").toLowerCase();
-    setEntryModuleRole(lowerName.endsWith(".ts4script") ? "twin" : "addon");
+    setEntryModuleRole(
+      isScriptExtension(lowerName, useStore.getState().activeGameSchema) ? "twin" : "addon"
+    );
   }, [mode, mod?.hash, isAlreadySynced]);
 
   const scanSandboxConfigs = async () => {
     if (!vaultPath) return;
     try {
-      const normalizedVault = vaultPath.replace(/\\/g, "/");
+      const normalizedVault = vaultPath.replace(/\\/g, "/").replace(/\/+$/, "");
+      const activeSchema = useStore.getState().activeGameSchema;
+      const modsSubdir = String(
+        activeSchema?.install_targets?.mods_dir ||
+          activeSchema?.install_targets?.default_mods_folder ||
+          ""
+      )
+        .replace(/\\/g, "/")
+        .replace(/^\/+|\/+$/g, "")
+        .split("/")
+        .pop()
+        ?.toLowerCase();
       let baseDir = normalizedVault;
-      if (baseDir.toLowerCase().endsWith("/mods")) {
-        baseDir = baseDir.substring(0, baseDir.length - 5);
-      } else if (baseDir.toLowerCase().endsWith("mods")) {
-        baseDir = baseDir.substring(0, baseDir.length - 4);
+      if (modsSubdir && baseDir.toLowerCase().endsWith(`/${modsSubdir}`)) {
+        baseDir = baseDir.substring(0, baseDir.length - (modsSubdir.length + 1));
       }
       const sandboxDir = `${baseDir}/Dev/Sandbox`;
       const dirExists = await exists(sandboxDir);
@@ -177,15 +189,16 @@ export function ArtifactWorkspace({
         setSandboxConfigFiles([]);
         return;
       }
+      const manifestFile = String(activeSchema?.load_order?.manifest_file || "").toLowerCase();
       const entries = await readDir(sandboxDir);
       const found: Array<{ name: string; path: string }> = [];
       for (const entry of entries) {
         if (!entry.isDirectory && entry.name) {
           const n = entry.name.toLowerCase();
           if (
-            n === "manifest.json" ||
-            n === "override.json" ||
-            n === "resource.cfg" ||
+            n === ".sanctuary.manifest.json" ||
+            n === ".sanctuary.override.json" ||
+            (manifestFile && n === manifestFile) ||
             /^[a-z]{2}-.+\.json$/i.test(entry.name)
           ) {
             continue;
@@ -194,6 +207,9 @@ export function ArtifactWorkspace({
             n.endsWith(".cfg") ||
             n.endsWith(".ini") ||
             n.endsWith(".json") ||
+            n.endsWith(".toml") ||
+            n.endsWith(".yaml") ||
+            n.endsWith(".yml") ||
             n.endsWith(".xml") ||
             n.endsWith(".txt")
           ) {
@@ -376,8 +392,8 @@ export function ArtifactWorkspace({
             .order("created_at", { ascending: false }),
         ]);
 
-        // Expand connected family cluster up to 2 additional hops so opening Core (.package),
-        // Twin (.ts4script), or Add-on always retrieves the entire connected mod family!
+        // Expand connected family cluster up to 2 additional hops so opening Core,
+        // Twin, or Add-on always retrieves the entire connected module family!
         const clusterRelsMap = new Map<string, any>();
         const clusterNodeIds = new Set<string>([mod.id]);
         for (const r of relsRes.data || []) {

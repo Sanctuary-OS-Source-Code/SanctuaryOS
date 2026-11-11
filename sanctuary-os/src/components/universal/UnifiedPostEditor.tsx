@@ -1,12 +1,10 @@
 import { useState, useRef, useMemo, useEffect, useLayoutEffect } from "react";
 import { EditorContent, Editor } from "@tiptap/react";
 import { useLexicon } from "../../LexiconContext";
-import {
-  ActionButton,
-  DashboardStatTile,
-  HoverTooltip,
-  UniversalGroup,
-} from "../../shared";
+import { ActionButton } from "../../shared-components/buttons";
+import { DashboardStatTile } from "../../shared-components/layout";
+import { HoverTooltip } from "../../shared-components/alerts";
+import { UniversalGroup } from "./UniversalLayout";
 import IconPicker from "../../IconPicker";
 import {
   parseMarkdownIntoReleaseSections,

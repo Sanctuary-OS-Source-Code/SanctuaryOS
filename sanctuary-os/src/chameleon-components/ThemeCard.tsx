@@ -3,11 +3,9 @@ import { useLexicon } from '../LexiconContext';
 import { getLuminance } from './ChameleonShared';
 import { DEFAULT_CORE_THEMES, computeGlassOpticalVars } from '../ThemeContext';
 import { UniversalCard } from '../components/universal/UniversalCard';
-import { HoverTooltip } from '../shared';
+import { HoverTooltip, isScriptExtension, getExtensionRegex, VAULT_CHIP_CLASS } from '../shared';
+import { useStore } from '../store';
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from '../ContextMenu';
-
-const VAULT_CHIP_CLASS =
-  'px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0';
 
 export function resolveThemePreviewData(raw: any): any {
   if (!raw) return DEFAULT_CORE_THEMES.architect;
@@ -89,8 +87,8 @@ export function DynamicThemePreviewBanner({
     : data?.bgImage && String(data.bgImage).trim() !== '' && data.bgImage !== 'none'
       ? data.bgImage
       : data?.image_url &&
-          String(data.image_url).trim() !== '' &&
-          !String(data.image_url).includes('placeholder')
+        String(data.image_url).trim() !== '' &&
+        !String(data.image_url).includes('placeholder')
         ? data.image_url
         : null;
 
@@ -107,10 +105,10 @@ export function DynamicThemePreviewBanner({
   const bgGradient = isPassthrough
     ? `radial-gradient(circle at 20% 20%, ${accentHex}38 0%, transparent 55%), radial-gradient(circle at 80% 80%, ${successHex}28 0%, transparent 55%), linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.04) 75%, rgba(255,255,255,0.04)), linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.04) 75%, rgba(255,255,255,0.04))`
     : !bgImageUrl &&
-        data?.bgGradient &&
-        data.bgGradient !== 'none' &&
-        data.bgGradient !== 'transparent' &&
-        data.bgGradient !== data.bg
+      data?.bgGradient &&
+      data.bgGradient !== 'none' &&
+      data.bgGradient !== 'transparent' &&
+      data.bgGradient !== data.bg
       ? data.bgGradient
       : !bgImageUrl && hasOrbs
         ? `radial-gradient(circle at 82% 18%, ${accentHex}42 0%, transparent 58%), radial-gradient(circle at 18% 88%, ${successHex}28 0%, transparent 55%)`
@@ -145,9 +143,9 @@ export function DynamicThemePreviewBanner({
         backgroundImage: bgGradient,
         ...(isPassthrough
           ? {
-              backgroundPosition: '0 0, 0 0, 0 0, 8px 8px',
-              backgroundSize: '100% 100%, 100% 100%, 16px 16px, 16px 16px',
-            }
+            backgroundPosition: '0 0, 0 0, 0 0, 8px 8px',
+            backgroundSize: '100% 100%, 100% 100%, 16px 16px, 16px 16px',
+          }
           : {}),
         fontFamily: data?.fontFamily || 'Inter, sans-serif',
       }}
@@ -649,13 +647,13 @@ export function DynamicBlueprintPreviewBanner({
         : item?.displayName || item?.name || item?.filename || '';
     const cleanLabel = rawLabel
       ? String(rawLabel)
-          .split(/[\\/]/)
-          .pop()!
-          .replace(/\.[^/.]+$/, '')
-          .replace(/(?:[\s_-]+|^)v?\d+(?:\.\d+)+[a-zA-Z0-9_-]*$/i, '')
-          .replace(/[_-]+/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
+        .split(/[\\/]/)
+        .pop()!
+        .replace(/\.[^/.]+$/, '')
+        .replace(/(?:[\s_-]+|^)v?\d+(?:\.\d+)+[a-zA-Z0-9_-]*$/i, '')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
       : `${t('term_mod', 'Mod')} #0${idx + 1}`;
     const isScript = String(rawLabel).toLowerCase().includes('script');
     return {
@@ -700,17 +698,15 @@ export function DynamicBlueprintPreviewBanner({
                   #{row.seq}
                 </span>
                 <span
-                  className={`text-[8px] font-bold text-[var(--text)] truncate ${
-                    row.hasReal ? 'opacity-90' : 'opacity-45'
-                  }`}
+                  className={`text-[8px] font-bold text-[var(--text)] truncate ${row.hasReal ? 'opacity-90' : 'opacity-45'
+                    }`}
                 >
                   {row.label}
                 </span>
               </div>
               <span
-                className={`text-[6.5px] font-mono font-black uppercase tracking-wider shrink-0 ${
-                  row.isScript ? 'text-[var(--success)]' : 'text-[var(--subtext)] opacity-75'
-                }`}
+                className={`text-[6.5px] font-mono font-black uppercase tracking-wider shrink-0 ${row.isScript ? 'text-[var(--success)]' : 'text-[var(--subtext)] opacity-75'
+                  }`}
               >
                 {row.isScript ? t('scr_short', 'SCR') : t('pkg_short', 'PKG')}
               </span>
@@ -748,8 +744,8 @@ export function DynamicTemplatePreviewBanner({
 
   const parserLabel = String(
     parsed?.parser_type ||
-      (parsed?.target_file ? String(parsed.target_file).split('.').pop() : '') ||
-      'JSON'
+    (parsed?.target_file ? String(parsed.target_file).split('.').pop() : '') ||
+    'JSON'
   ).toUpperCase();
   const targetFile = String(parsed?.target_file || data?.name || 'settings.cfg')
     .split(/[\\/]/)
@@ -829,8 +825,9 @@ export function DynamicArtifactPreviewBanner({
   const rawName = String(
     data?.displayName || data?.name || data?.suggested_name || data?.artifact_name || 'Artifact'
   );
+  const extRegex = getExtensionRegex(useStore.getState().activeGameSchema);
   const cleanBaseName = rawName
-    .replace(/\.(package|ts4script)$/i, '')
+    .replace(extRegex, '')
     .replace(/_/g, ' ')
     .trim();
   const catStr = String(data?.category_override || data?.category || data?.file_type || data?.type || '').trim();
@@ -843,7 +840,7 @@ export function DynamicArtifactPreviewBanner({
   );
   const isScript =
     !isSuite &&
-    (rawName.toLowerCase().endsWith('.ts4script') ||
+    (isScriptExtension(rawName, useStore.getState().activeGameSchema) ||
       rawName.toLowerCase().includes('script') ||
       catStr.toLowerCase().includes('script'));
 
@@ -873,10 +870,10 @@ export function DynamicArtifactPreviewBanner({
   const cleanVer = rawVer
     ? formatVerBadge(rawVer)
     : isSuite && moduleCount > 1
-      ? `${moduleCount} ${t('pkg_short', 'PKG')}`
+      ? `${moduleCount} ${t('pkg_short', 'MOD')}`
       : isScript
-        ? '.SCRIPT'
-        : '.PACKAGE';
+        ? t('scr_short_label', 'Script').toUpperCase()
+        : (useStore.getState().activeGameSchema?.extensions?.supported?.[0] || t('module', 'Module')).toUpperCase();
 
   // Category / Role pill
   const categoryLabel = (() => {
@@ -967,7 +964,7 @@ export function DynamicArtifactPreviewBanner({
         .slice(0, 2)
         .map((f: any) =>
           String(f.displayName || f.name || f.id || '')
-            .replace(/\.(package|ts4script)$/i, '')
+            .replace(extRegex, '')
             .replace(/_/g, ' ')
             .trim()
         )
@@ -1015,15 +1012,13 @@ export function DynamicArtifactPreviewBanner({
       </span>
 
       <div
-        className={`absolute inset-x-3 ${
-          compact ? 'top-[50px] h-11' : 'top-[52px] h-14'
-        } flex items-stretch gap-2 pointer-events-none z-10`}
+        className={`absolute inset-x-3 ${compact ? 'top-[50px] h-11' : 'top-[52px] h-14'
+          } flex items-stretch gap-2 pointer-events-none z-10`}
       >
         {/* Left Artifact Identity Tile (1:1 Square) */}
         <div
-          className={`${
-            compact ? 'w-11 h-11 rounded-lg' : 'w-14 h-14 rounded-xl'
-          } glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
+          className={`${compact ? 'w-11 h-11 rounded-lg' : 'w-14 h-14 rounded-xl'
+            } glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
         >
           <span
             className={`material-symbols-outlined ${compact ? '!text-[14px]' : '!text-[16px]'}`}

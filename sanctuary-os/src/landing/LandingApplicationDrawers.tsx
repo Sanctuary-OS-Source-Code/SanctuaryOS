@@ -12,7 +12,6 @@ import {
   SidePanelHeroCard,
   CustomDropdown,
   DashboardStatTile,
-  StatTileCarousel,
   UniversalGroup,
 } from '../shared';
 import {
@@ -615,7 +614,7 @@ export function LandingApplicationDrawers({
                     onChange={setPartnerExtensions}
                     placeholder={t(
                       'landing_partner_extensions_ph',
-                      'e.g. .esp, .ba2, .dll, .pak, .archive'
+                      'e.g. .bin, .dat, .dll, .ini, .zip'
                     )}
                   />
                   <UniversalInput
@@ -917,9 +916,10 @@ export function LandingApplicationDrawers({
         }
       >
         <div className="flex flex-col gap-5 mt-2 relative z-10 w-full pb-8">
-          <StatTileCarousel innerClassName="px-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <DashboardStatTile
               variant="filter"
+              className="!w-full"
               icon={t('icon_handshake', 'handshake')}
               label={`V${stableVersion} • ${t(
                 'partner_agreement_badge',
@@ -934,6 +934,7 @@ export function LandingApplicationDrawers({
             />
             <DashboardStatTile
               variant="filter"
+              className="!w-full"
               icon={t('icon_verified_user', 'verified_user')}
               label={`V${stableVersion} • ${t(
                 'compliance_protocol_badge',
@@ -946,7 +947,7 @@ export function LandingApplicationDrawers({
                 setActivePartnerCovenant('ComplianceProtocol');
               }}
             />
-          </StatTileCarousel>
+          </div>
 
           <SidePanelHeroCard
             icon={

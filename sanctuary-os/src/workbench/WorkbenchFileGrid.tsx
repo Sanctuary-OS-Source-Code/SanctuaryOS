@@ -5,12 +5,12 @@ import { EmptyState } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { DynamicTemplatePreviewBanner } from "../chameleon-components/ThemeCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
-
-const VAULT_CHIP_CLASS =
-  "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
+import { isSanctuaryTemplateFile, isSanctuaryTemplateFileName } from "./workbenchFormatUtils";
+import { VAULT_CHIP_CLASS } from "../shared-components/constants";
+import { useVirtualWindow } from "../hooks/useVirtualWindow";
 
 interface WorkbenchFileCardProps {
-  file: { name: string; path: string };
+  file: { name: string; path: string; isTemplate?: boolean };
   isTmpl: boolean;
   renamingFile: string | null;
   renameInput: string;
@@ -40,10 +40,16 @@ const WorkbenchFileCard = React.memo(
     const { t } = useLexicon();
     const hasUnsavedEdits = useStore((state) => state.cwUnsavedEdits[file.path] !== undefined);
 
+    const isSanctuaryTmplName = isSanctuaryTemplateFileName(file.name);
     const dotIndex = file.name.lastIndexOf(".");
-    const baseTitle = dotIndex > 0 ? file.name.substring(0, dotIndex) : file.name;
-    const extLabel =
-      dotIndex > 0
+    const baseTitle = isSanctuaryTmplName
+      ? file.name.slice(0, -".sanctuary.template.json".length)
+      : dotIndex > 0
+        ? file.name.substring(0, dotIndex)
+        : file.name;
+    const extLabel = isSanctuaryTmplName
+      ? ".sanctuary.template.json"
+      : dotIndex > 0
         ? file.name.substring(dotIndex)
         : isTmpl
           ? t("schema_json", ".json")
@@ -130,8 +136,7 @@ const WorkbenchFileCard = React.memo(
                 onClick={(e) => {
                   e.stopPropagation();
                   setRenamingFile(file.path);
-                  const d = file.name.lastIndexOf(".");
-                  setRenameInput(d > 0 ? file.name.substring(0, d) : file.name);
+                  setRenameInput(baseTitle);
                 }}
                 className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] opacity-80 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] transition-all"
               >
@@ -191,8 +196,7 @@ const WorkbenchFileCard = React.memo(
               dividerBefore: true,
               onClick: () => {
                 setRenamingFile(file.path);
-                const d = file.name.lastIndexOf(".");
-                setRenameInput(d > 0 ? file.name.substring(0, d) : file.name);
+                setRenameInput(baseTitle);
               },
             });
             items.push({
@@ -272,7 +276,7 @@ const WorkbenchFileCard = React.memo(
 );
 
 interface WorkbenchFileGridProps {
-  filteredMainFiles: { name: string; path: string }[];
+  filteredMainFiles: { name: string; path: string; isTemplate?: boolean }[];
   mainTab: string;
   renamingFile: string | null;
   renameInput: string;
@@ -302,6 +306,12 @@ export const WorkbenchFileGrid = React.memo(
     onNewTemplate,
   }: WorkbenchFileGridProps) => {
     const { t } = useLexicon();
+    const virtual = useVirtualWindow({
+      count: filteredMainFiles.length,
+      estimateSize: 220,
+      gap: 24,
+      threshold: 60,
+    });
 
     if (filteredMainFiles.length === 0) {
       return (
@@ -330,24 +340,39 @@ export const WorkbenchFileGrid = React.memo(
       );
     }
 
+    const visibleFiles = virtual.isVirtualized
+      ? filteredMainFiles.slice(virtual.startIndex, virtual.endIndex)
+      : filteredMainFiles;
+
     return (
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
-        {filteredMainFiles.map((file) => (
-          <WorkbenchFileCard
-            key={file.path}
-            file={file}
-            isTmpl={file.name.toLowerCase().endsWith(".json")}
-            renamingFile={renamingFile}
-            renameInput={renameInput}
-            deleteConfirmPath={deleteConfirmPath}
-            setRenameInput={setRenameInput}
-            setRenamingFile={setRenamingFile}
-            setDeleteConfirmPath={setDeleteConfirmPath}
-            handleRenameSubmit={handleRenameSubmit}
-            handleDeleteTemplate={handleDeleteTemplate}
-            openFile={openFile}
-          />
-        ))}
+      <div ref={virtual.containerRef}>
+        {virtual.topPadding > 0 && (
+          <div style={{ height: virtual.topPadding }} aria-hidden="true" />
+        )}
+        <div
+          ref={virtual.gridRef}
+          className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6"
+        >
+          {visibleFiles.map((file) => (
+            <WorkbenchFileCard
+              key={file.path}
+              file={file}
+              isTmpl={isSanctuaryTemplateFile(file)}
+              renamingFile={renamingFile}
+              renameInput={renameInput}
+              deleteConfirmPath={deleteConfirmPath}
+              setRenameInput={setRenameInput}
+              setRenamingFile={setRenamingFile}
+              setDeleteConfirmPath={setDeleteConfirmPath}
+              handleRenameSubmit={handleRenameSubmit}
+              handleDeleteTemplate={handleDeleteTemplate}
+              openFile={openFile}
+            />
+          ))}
+        </div>
+        {virtual.bottomPadding > 0 && (
+          <div style={{ height: virtual.bottomPadding }} aria-hidden="true" />
+        )}
       </div>
     );
   }

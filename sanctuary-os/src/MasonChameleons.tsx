@@ -54,12 +54,12 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
       panelZ="z-[15001]"
       title={t("theme_select_base", "Select Base {Chameleon}")}
       subtitle={t("theme_choose_blueprint", "Choose a {blueprint} to start your new signature")}
-      icon="palette"
+      icon={t("icon_palette", "palette")}
     >
       <div className="flex flex-col gap-8">
         <UniversalCard
           layout="horizontal"
-          icon="add"
+          icon={t("icon_add", "add")}
           title={t("theme_blank", "Blank Theme")}
           onClick={() => onSelect(null)}
           className="w-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] hover:scale-[1.01] transition-all cursor-pointer shadow-sm group"
@@ -242,12 +242,17 @@ export function MasonChameleons({
   const fetchPublished = async () => {
     if (!masonProfile?.id) return;
     const { supabase } = await import("./supabase");
+    const { escapePostgrestFilterValue } = await import("./utils/postgrestUtils");
     const uid = session?.user?.id || masonProfile?.profile_id || masonProfile?.id;
-    const orParts = [`author_id.eq.${masonProfile.id}`];
-    if (uid && uid !== masonProfile.id) orParts.push(`author_id.eq.${uid}`);
+    const safeMasonId = escapePostgrestFilterValue(masonProfile.id);
+    const safeUid = escapePostgrestFilterValue(uid);
+    const orParts = [`author_id.eq.${safeMasonId}`];
+    if (safeUid && safeUid !== safeMasonId) orParts.push(`author_id.eq.${safeUid}`);
     if (masonProfile.name) {
-      const safeName = String(masonProfile.name).replace(/"/g, "");
-      orParts.push(`author.ilike."${safeName}"`);
+      const safeName = escapePostgrestFilterValue(masonProfile.name);
+      if (safeName) {
+        orParts.push(`author.ilike."${safeName}"`);
+      }
     }
     const orFilter = orParts.join(",");
 
@@ -686,7 +691,7 @@ export function MasonChameleons({
     {
       id: "overview",
       label: t("overview", "Overview"),
-      icon: "dashboard",
+      icon: t("icon_dashboard", "dashboard"),
       number: String(
         localCustomThemes.length +
           localDevThemes.length +
@@ -698,25 +703,25 @@ export function MasonChameleons({
     {
       id: "themes_local",
       label: t("chameleons_tab_themes_local", "Local Themes"),
-      icon: "palette",
+      icon: t("icon_palette", "palette"),
       number: String(localCustomThemes.length + localDevThemes.length),
     },
     {
       id: "themes_synced",
       label: t("chameleons_tab_themes_synced", "Nexus Themes"),
-      icon: "cloud_done",
+      icon: t("icon_cloud_done", "cloud_done"),
       number: String(syncedThemes.length),
     },
     {
       id: "lexicons_local",
       label: t("chameleons_tab_lexicons_local", "Local Lexicons"),
-      icon: "translate",
+      icon: t("icon_translate", "translate"),
       number: String(localLexiconFiles.length),
     },
     {
       id: "lexicons_synced",
       label: t("chameleons_tab_lexicons_synced", "Nexus Lexicons"),
-      icon: "public",
+      icon: t("icon_public", "public"),
       number: String(syncedLexicons.length),
     },
   ];
@@ -1213,7 +1218,7 @@ export function MasonChameleons({
     return (
       <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {syncedLexicons.length === 0 ? (
-          <EmptyState icon="public" title={t("registry_no_mods", "No {Mods} Found")} className="py-12" />
+          <EmptyState icon={t("icon_public", "public")} title={t("registry_no_mods", "No {Mods} Found")} className="py-12" />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 w-full">
             {syncedLexicons
@@ -1425,7 +1430,7 @@ export function MasonChameleons({
             ? t("ui_dev_matrix", "Dev Matrix")
             : t("ui_system_theme", "System Theme")
         }
-        icon="palette"
+        icon={t("icon_palette", "palette")}
         iconColorClass="theme-text-accent"
         isResizable={true}
         defaultWidth={1400}
@@ -1679,11 +1684,11 @@ export function MasonChameleons({
         onClose={() => setIsCreateLexiconOpen(false)}
         title={t("chameleons_btn_new_lexicon", "New Lexicon")}
         subtitle={t("auto_create_file_sub", "Create a new lexicon pack")}
-        icon="translate"
+        icon={t("icon_translate", "translate")}
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
-              icon="add"
+              icon={t("icon_add", "add")}
               variant="accent"
               onClick={handleCreateSubmit}
               disabled={!createFileName.trim()}

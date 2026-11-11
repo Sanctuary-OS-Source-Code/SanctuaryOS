@@ -1,17 +1,24 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { WorkbenchSidePanel } from "../workbench/WorkbenchSidePanel";
-import { PushTemplateSidePanel } from "../side-panels/PushTemplateSidePanel";
-import { WorkbenchTemplateGuide } from "../workbench/WorkbenchTemplateGuide";
-import VersionTimeline from "../VersionTimeline";
 import { useWorkbenchFiles } from "../workbench/hooks/useWorkbenchFiles";
 import { useWorkbenchEditor } from "../workbench/hooks/useWorkbenchEditor";
 import { useWorkbenchLayout } from "../workbench/hooks/useWorkbenchLayout";
-import MasonEditorPanel from "../hub-components/MasonEditorPanel";
 import { useMasonFiles, clearIdeCachedDraft } from "../hooks/useMasonFiles";
 import { invoke } from "@tauri-apps/api/core";
 import { writeTextFile, remove } from "@tauri-apps/plugin-fs";
+
+const WorkbenchSidePanel = React.lazy(() =>
+  import("../workbench/WorkbenchSidePanel").then((m) => ({ default: m.WorkbenchSidePanel }))
+);
+const PushTemplateSidePanel = React.lazy(() =>
+  import("../side-panels/PushTemplateSidePanel").then((m) => ({ default: m.PushTemplateSidePanel }))
+);
+const WorkbenchTemplateGuide = React.lazy(() =>
+  import("../workbench/WorkbenchTemplateGuide").then((m) => ({ default: m.WorkbenchTemplateGuide }))
+);
+const VersionTimeline = React.lazy(() => import("../VersionTimeline"));
+const MasonEditorPanel = React.lazy(() => import("../hub-components/MasonEditorPanel"));
 
 function StandaloneWorkbenchSidePanel() {
   const { t } = useLexicon();
@@ -410,7 +417,7 @@ export function GlobalWorkbenchSidePanelHost() {
     view === "KeepersCore";
 
   return (
-    <>
+    <Suspense fallback={null}>
       {isGlobalWorkbenchRequested &&
         Boolean(cwSelectedFile) &&
         !isWorkbenchMountedInView && <StandaloneWorkbenchSidePanel />}
@@ -420,6 +427,6 @@ export function GlobalWorkbenchSidePanelHost() {
         Array.isArray(ideOpenFiles) &&
         ideOpenFiles.length > 0 &&
         !isMasonEditorMountedInView && <StandaloneMasonEditorSidePanel />}
-    </>
+    </Suspense>
   );
 }

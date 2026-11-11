@@ -16,6 +16,7 @@ import {
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { openSanctuaryContextMenu } from "../ContextMenu";
+import { useVirtualWindow } from "../hooks/useVirtualWindow";
 
 type LogFilterGroup = "all" | "vault" | "nexus" | "alerts";
 type LogSeverityFilter = "all" | "success" | "warning" | "error";
@@ -375,6 +376,53 @@ function parseLogEntryPresentation(log: any, t: any) {
   };
 }
 
+const LogFilterSection = React.memo(function LogFilterSection({
+  title,
+  options,
+  value,
+  onChange,
+  t,
+}: {
+  title: string;
+  options: { id: string; label: React.ReactNode }[];
+  value: string;
+  onChange: (val: any) => void;
+  t: (k: string, fb?: string) => string;
+}) {
+  return (
+    <div className="flex flex-col mb-4 w-full last:mb-0">
+      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-90 mb-2.5 px-1.5 flex items-center gap-2">
+        <span className="text-[var(--text)] opacity-90">{title}</span>
+        <div className="h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_30%,transparent)] via-[color-mix(in_srgb,var(--text)_12%,transparent)] to-transparent flex-1" />
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        {options.map((opt) => {
+          const active = value === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onChange(opt.id)}
+              className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                active ? "is-selected font-bold" : "font-semibold"
+              }`}
+            >
+              <span className="truncate flex items-center gap-2 min-w-0">
+                {opt.label}
+              </span>
+              {active && (
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                  {t("icon_check", "check")}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
 export function SystemLogModal({
   isLogExpanded,
   setIsLogExpanded,
@@ -413,7 +461,7 @@ export function SystemLogModal({
   const [copiedAll, setCopiedAll] = useState(false);
 
   const allLiveUnsavedFiles = useMemo(
-    () => resolveAllCachedUnsavedFiles(),
+    () => (isLogExpanded ? resolveAllCachedUnsavedFiles() : []),
     [cwUnsavedEdits, ideOpenFiles, isLogExpanded]
   );
 
@@ -552,7 +600,7 @@ export function SystemLogModal({
           icon: t("icon_radar", "radar"),
           colorClass:
             "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_40%,transparent)]",
-          targetView: "DbpfScout",
+          targetView: "ArtifactScout",
           onOpenPanel: () => setIsConflictRadarOpen(true),
         };
       case "security":
@@ -713,57 +761,25 @@ export function SystemLogModal({
     );
   };
 
-  const isStandbyStatus =
-    !status ||
-    status.toUpperCase().includes("STANDING BY") ||
-    status.toUpperCase().includes("STANDBY");
+  const liveHeroStatusText = useMemo(() => {
+    const isStandby =
+      !status ||
+      status.toUpperCase().includes("STANDING BY") ||
+      status.toUpperCase().includes("STANDBY");
+    return isStandby
+      ? t("standing_by", "Standing By — Telemetry Nominal")
+      : parseLogEntryPresentation({ message: status }, t).logText;
+  }, [status, t]);
 
-  const liveHeroStatusText = isStandbyStatus
-    ? t("standing_by", "Standing By — Telemetry Nominal")
-    : parseLogEntryPresentation({ message: status }, t).logText;
-
-  const FilterSection = ({
-    title,
-    options,
-    value,
-    onChange,
-  }: {
-    title: string;
-    options: { id: string; label: React.ReactNode }[];
-    value: string;
-    onChange: (val: any) => void;
-  }) => (
-    <div className="flex flex-col mb-4 w-full last:mb-0">
-      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-90 mb-2.5 px-1.5 flex items-center gap-2">
-        <span className="text-[var(--text)] opacity-90">{title}</span>
-        <div className="h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_30%,transparent)] via-[color-mix(in_srgb,var(--text)_12%,transparent)] to-transparent flex-1" />
-      </div>
-      <div className="grid grid-cols-2 gap-1.5">
-        {options.map((opt) => {
-          const active = value === opt.id;
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => onChange(opt.id)}
-              className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
-                active ? "is-selected font-bold" : "font-semibold"
-              }`}
-            >
-              <span className="truncate flex items-center gap-2 min-w-0">
-                {opt.label}
-              </span>
-              {active && (
-                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
-                  {t("icon_check", "check")}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+  const logVirtual = useVirtualWindow({
+    count: filteredLogs.length,
+    estimateSize: 168,
+    gap: 14,
+    threshold: 60,
+  });
+  const visibleLogs = logVirtual.isVirtualized
+    ? filteredLogs.slice(logVirtual.startIndex, logVirtual.endIndex)
+    : filteredLogs;
 
   return (
     <SidePanel
@@ -926,7 +942,8 @@ export function SystemLogModal({
             label: t("filters", "Filters"),
             content: (
               <div className="flex flex-col w-[380px] p-4 max-w-[calc(100vw-40px)]">
-                <FilterSection
+                <LogFilterSection
+                  t={t}
                   title={t("sort_by", "Sort By")}
                   value={sortOrder}
                   onChange={(val: LogSortOrder) => setSortOrder(val)}
@@ -956,7 +973,8 @@ export function SystemLogModal({
                   ]}
                 />
 
-                <FilterSection
+                <LogFilterSection
+                  t={t}
                   title={t("filter_type", "Event Type")}
                   value={severityFilter}
                   onChange={(val: LogSeverityFilter) => setSeverityFilter(val)}
@@ -1008,7 +1026,8 @@ export function SystemLogModal({
                   ]}
                 />
 
-                <FilterSection
+                <LogFilterSection
+                  t={t}
                   title={t("filter_category", "Category")}
                   value={activeGroup}
                   onChange={(val: LogFilterGroup) => setActiveGroup(val)}
@@ -1108,8 +1127,15 @@ export function SystemLogModal({
               }
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {filteredLogs.map((log: any) => {
+            <div ref={logVirtual.containerRef}>
+              {logVirtual.topPadding > 0 && (
+                <div style={{ height: logVirtual.topPadding }} aria-hidden="true" />
+              )}
+              <div
+                ref={logVirtual.gridRef}
+                className="grid grid-cols-1 sm:grid-cols-2 gap-3.5"
+              >
+                {visibleLogs.map((log: any) => {
                 const catMeta = getCategoryMeta(log.category);
 
                 const isErr = log.severity === "error";
@@ -1517,6 +1543,10 @@ export function SystemLogModal({
                   </div>
                 );
               })}
+              </div>
+              {logVirtual.bottomPadding > 0 && (
+                <div style={{ height: logVirtual.bottomPadding }} aria-hidden="true" />
+              )}
             </div>
           )}
         </UniversalGroup>
