@@ -202,7 +202,7 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
     }
 
     if (isKeepers) {
-      const { data: gamesData } = await supabase.from('sanctuary_games').select('name').not('is_active', 'eq', false);
+      const { data: gamesData } = await supabaseAuth.from('sanctuary_games').select('name').not('is_active', 'eq', false);
       if (gamesData) {
         setCommunityOptions(gamesData.map(g => `${g.name} Wayfinders`));
       }

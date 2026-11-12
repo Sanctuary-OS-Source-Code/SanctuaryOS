@@ -9,13 +9,13 @@ export default function EngineTab({ config, updateConfig }: any) {
     <div className="flex flex-col gap-30 w-full pb-48">
       <TabContainer
         title={t("btn_timeline", "VERSION HISTORY")}
-        icon="history"
+        icon={t("icon_history", "history")}
       >
         <SettingsGrid>
           <UniversalCard
             title={t("timeline_copies", "Version Copies")}
             subtitle={t("timeline_copies_desc", "How many distinct timeline iterations to preserve before overwriting.")}
-            icon="content_copy"
+            icon={t("icon_content_copy", "content_copy")}
             footer={
               <CustomSettingsDropdown
                 value={config.timeline_retention_copies ?? 50}
@@ -32,7 +32,7 @@ export default function EngineTab({ config, updateConfig }: any) {
           <UniversalCard
             title={t("timeline_size", "Version Storage Limit")}
             subtitle={t("timeline_size_desc", "Maximum vault space allocated for timeline histories before purging oldest records.")}
-            icon="hard_drive"
+            icon={t("icon_hard_drive", "hard_drive")}
             footer={
               <CustomSettingsDropdown
                 value={config.timeline_retention_size_mb ?? 100}
@@ -51,13 +51,13 @@ export default function EngineTab({ config, updateConfig }: any) {
 
       <TabContainer
         title={t("term_backups", "Backups")}
-        icon="history"
+        icon={t("icon_history", "history")}
       >
         <SettingsGrid>
           <UniversalCard
             title={t("vault_capacity", "{Backups} Limit")}
             subtitle={t("vault_capacity_desc", "Maximum storage allocated for {Backups} backups on your drive.")}
-            icon="inventory_2"
+            icon={t("icon_inventory_2", "inventory_2")}
             footer={
               <CustomSettingsDropdown
                 value={config.vault_capacity_gb ?? 0}
@@ -74,16 +74,16 @@ export default function EngineTab({ config, updateConfig }: any) {
           />
           <UniversalCard
             title={t("engine_agency", "Emergency Backup Level")}
-            subtitle={t("engine_agency_desc", "Permission level for the engine to autonomously execute maintenance protocols.")}
-            icon="memory"
+            subtitle={t("engine_agency_desc", "How Sanctuary OS responds on Desktop open or live DEFCON when a game patch is detected.")}
+            icon={t("icon_memory", "memory")}
             footer={
               <CustomSettingsDropdown
-                value={config.engine_agency_level ?? 0}
+                value={config.engine_agency_level ?? 2}
                 onChange={(val: any) => updateConfig('engine_agency_level', val)}
                 options={[
-                  { id: 0, label: t("agency_none", "None (Passive Monitoring)") },
-                  { id: 1, label: t("agency_basic", "Basic (Alerts Only)") },
-                  { id: 2, label: t("agency_adv", "Advanced (Auto-Intercept)") }
+                  { id: 2, label: t("agency_adv", "Auto Backup (Recommended)") },
+                  { id: 1, label: t("agency_basic", "Alert Only") },
+                  { id: 0, label: t("agency_none", "Lone Wolf (No Alerts)") }
                 ]}
               />
             }
@@ -91,7 +91,7 @@ export default function EngineTab({ config, updateConfig }: any) {
           <UniversalCard
             title={t("defcon_target", "Emergency Backup Target")}
             subtitle={t("defcon_target_desc", "Where to route critical backups when Defcon protocols are initiated.")}
-            icon="security"
+            icon={t("icon_security", "security")}
             footer={
               <CustomSettingsDropdown
                 value={config.defcon_backup_target ?? 0}
@@ -107,7 +107,7 @@ export default function EngineTab({ config, updateConfig }: any) {
           <UniversalCard
             title={t("engine_retention", "Game Files Retention Policy")}
             subtitle={t("engine_retention_desc", "How long core engine metrics and cache are retained locally.")}
-            icon="storage"
+            icon={t("icon_storage", "storage")}
             footer={
               <CustomSettingsDropdown
                 value={config.engine_retention_cycles ?? 5}
@@ -125,7 +125,7 @@ export default function EngineTab({ config, updateConfig }: any) {
           <UniversalCard
             title={t("world_retention", "Save Files Retention Policy")}
             subtitle={t("world_retention_desc", "How long to retain the planetary state coordinates and local overrides.")}
-            icon="public"
+            icon={t("icon_public", "public")}
             footer={
               <CustomSettingsDropdown
                 value={config.world_retention_cycles ?? 5}

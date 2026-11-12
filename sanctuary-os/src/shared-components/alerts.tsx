@@ -321,6 +321,7 @@ export function ActionPill({
           <FilterPopover
             icon={primaryPopover.icon}
             label={primaryPopover.label}
+            activeTab={primaryPopover.isActive ? "active" : undefined}
             variant="inline"
             iconOnly={true}
             className="shrink-0 h-full flex items-center"
@@ -401,6 +402,7 @@ export interface ActionPillProps {
     icon: string;
     label: string;
     content: React.ReactNode;
+    isActive?: boolean;
   };
   actions?: {
     id: string;

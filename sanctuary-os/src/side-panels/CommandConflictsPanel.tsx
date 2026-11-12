@@ -63,11 +63,17 @@ export default function CommandConflictsPanel({
       window.removeEventListener("sanctuary-radar-cache-updated", handleRadarCacheUpdate);
   }, []);
 
-  const activeConflicts = useMemo(() => {
-    return resolveBlueprintConflicts(activeSetName, activeMods, ignoredGlobal, t);
-  }, [activeSetName, activeMods, ignoredGlobal, t, radarCacheTick]);
-
   const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const activeConflicts = useMemo(() => {
+    return resolveBlueprintConflicts(
+      activeSetName,
+      activeMods,
+      ignoredGlobal,
+      t,
+      activeGameSchema
+    );
+  }, [activeSetName, activeMods, ignoredGlobal, t, activeGameSchema, radarCacheTick]);
+
   const schemaPriorityOptions = useMemo(() => {
     const tiers = activeGameSchema?.load_order?.priority_tiers;
     if (Array.isArray(tiers) && tiers.length > 0) {
@@ -77,24 +83,13 @@ export default function CommandConflictsPanel({
         label: pt.label || (pt.folder ? pt.folder : t("bp_priority_default", "Standard Priority")),
       }));
     }
-    return [
-      { id: "", rawFolder: "", label: t("bp_priority_default", "Standard Priority") },
-      { id: "!Sanctuary", rawFolder: "Sanctuary", label: t("bp_priority_sanctuary", "Priority 1") },
-      {
-        id: "!Sanctuary2",
-        rawFolder: "Sanctuary2",
-        label: t("bp_priority_sanctuary2", "Priority 2"),
-      },
-      {
-        id: "!Sanctuary3",
-        rawFolder: "Sanctuary3",
-        label: t("bp_priority_sanctuary3", "Priority 3"),
-      },
-    ];
+    return [];
   }, [activeGameSchema, t]);
 
   const getPriorityDrop = (modData: any) => {
-    if (!modData || modData.isFallback || !allow_write) return null;
+    if (!modData || modData.isFallback || !allow_write || schemaPriorityOptions.length === 0) {
+      return null;
+    }
     let currentPriority = "";
     if (modData.path) {
       const firstPart = modData.path.split(/[/\\]/)[0];

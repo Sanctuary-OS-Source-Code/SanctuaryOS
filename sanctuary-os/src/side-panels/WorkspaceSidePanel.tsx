@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useStore, syncMasterSchemas } from "../store";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
-import { supabase } from "../supabase";
+import { supabaseAuth } from "../supabase";
 import {
   SidePanel,
   EmptyState,
@@ -36,6 +36,8 @@ export function WorkspaceSidePanel({
 }) {
   const { t } = useLexicon();
   const workspaces = useStore((state) => state.workspaces);
+  const osRole = useStore((state) => state.osRole);
+  const isKeeper = osRole === "keeper";
   const setActiveWorkspaceId = useStore((state) => state.setActiveWorkspaceId);
   const setIsConfigured = useStore((state) => state.setIsConfigured);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
@@ -84,17 +86,17 @@ export function WorkspaceSidePanel({
     if (!isOpen) return;
     const fetchGames = async () => {
       setIsLoading(true);
-      const { data } = await supabase
+      const { data } = await supabaseAuth
         .from("sanctuary_games")
         .select(
-          "id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor"
+          "id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, is_keepers_only, donation_url, payment_processor"
         )
         .order("name");
       if (data) setGlobalGames(data);
       setIsLoading(false);
     };
     fetchGames();
-  }, [isOpen]);
+  }, [isOpen, osRole]);
 
   const selectWorkspace = async (workspace: any) => {
     recordWorkspaceLoaded(workspace);
@@ -183,7 +185,9 @@ export function WorkspaceSidePanel({
     }
   };
 
-  const activeGames = globalGames.filter((g: any) => g.is_active !== false);
+  const activeGames = globalGames.filter(
+    (g: any) => g.is_active !== false && (isKeeper || g.is_keepers_only !== true)
+  );
 
   const cards: any[] = [];
   activeGames.forEach((game: any) => {
@@ -203,6 +207,7 @@ export function WorkspaceSidePanel({
           schema_id: game.schema_id,
           supabase_url: game.supabase_url,
           supabase_anon_key: game.supabase_anon_key,
+          is_keepers_only: Boolean(game.is_keepers_only),
         },
         game,
       });
@@ -210,17 +215,18 @@ export function WorkspaceSidePanel({
   });
 
   // Fallback for local workspaces that don't have a matching active game from Supabase
-  // (Exclude any workspace whose spoke is explicitly marked offline in globalGames)
+  // (Exclude any workspace whose spoke is explicitly marked offline or Keepers-only for non-Keepers)
   workspaces.forEach((ws: any) => {
+    if (ws.is_keepers_only === true && !isKeeper) return;
     const wsKey = String(ws.schema_id || ws.id || "").toLowerCase();
-    const isExplicitlyOffline = globalGames.some(
+    const isRestrictedOrOffline = globalGames.some(
       (g: any) =>
-        g.is_active === false &&
+        (g.is_active === false || (g.is_keepers_only === true && !isKeeper)) &&
         (String(g.schema_id || "").toLowerCase() === wsKey ||
           String(g.id || "").toLowerCase() === wsKey ||
           String(g.name || "").toLowerCase() === String(ws.name || "").toLowerCase())
     );
-    if (isExplicitlyOffline) return;
+    if (isRestrictedOrOffline) return;
     if (!cards.find((c) => c.workspace.id === ws.id)) {
       cards.push({
         type: "workspace",
@@ -331,6 +337,14 @@ export function WorkspaceSidePanel({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {isKeeper && (game?.is_keepers_only || ws?.is_keepers_only) && (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
+                  {t("icon_visibility_off", "visibility_off")}
+                </span>
+                <span>{t("lex_studio_keepers_only_short", "Keepers Only")}</span>
+              </span>
+            )}
             {isActive ? (
               <span className={VAULT_CHIP_CLASS}>
                 <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">

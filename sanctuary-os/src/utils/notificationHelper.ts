@@ -2,6 +2,7 @@ import { isPermissionGranted, sendNotification } from '@tauri-apps/plugin-notifi
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from './envUtils';
 import { getSpokeClientById } from '../supabase';
+import { useStore } from '../store';
 
 export type NotificationDeliveryMode = 'OS' | 'APP' | 'NONE';
 
@@ -430,6 +431,7 @@ export function dismissAllHubNotifications(ids: string[]): void {
 
 let cachedGamesMeta: Array<{ id: string; schema_id: string; name: string; icon?: string }> | null = null;
 let cachedGamesAt = 0;
+let cachedGamesIsKeeper = false;
 
 export async function getAvailableSpokeWorkspaces(
   supabaseAuth: any,
@@ -437,8 +439,10 @@ export async function getAvailableSpokeWorkspaces(
 ): Promise<Array<{ id: string; schema_id: string; name: string; icon?: string }>> {
   const map = new Map<string, { id: string; schema_id: string; name: string; icon?: string }>();
 
+  const isKeeper = useStore.getState().osRole === 'keeper';
   if (Array.isArray(storeWorkspaces)) {
     storeWorkspaces.forEach((w: any) => {
+      if (w?.is_keepers_only === true && !isKeeper) return;
       const schemaId = String(w?.schema_id || w?.id || '').trim();
       if (schemaId && schemaId !== 'default_workspace') {
         map.set(schemaId, {
@@ -453,20 +457,26 @@ export async function getAvailableSpokeWorkspaces(
 
   const now = Date.now();
   const offlineSchemaIds = new Set<string>();
-  if (!cachedGamesMeta || now - cachedGamesAt > 60_000) {
+  if (!cachedGamesMeta || cachedGamesIsKeeper !== isKeeper || now - cachedGamesAt > 60_000) {
     try {
       const { data } = await supabaseAuth
         .from('sanctuary_games')
-        .select('id, name, schema_id, icon, is_active');
+        .select('id, name, schema_id, icon, is_active, is_keepers_only');
       if (Array.isArray(data)) {
         data.forEach((g: any) => {
-          if (g && g.is_active === false) {
+          if (g && (g.is_active === false || (g.is_keepers_only === true && !isKeeper))) {
             if (g.schema_id) offlineSchemaIds.add(String(g.schema_id).trim());
             if (g.id) offlineSchemaIds.add(String(g.id).trim());
           }
         });
         cachedGamesMeta = data
-          .filter((g: any) => g?.schema_id && g.schema_id !== 'default_workspace' && g.is_active !== false)
+          .filter(
+            (g: any) =>
+              g?.schema_id &&
+              g.schema_id !== 'default_workspace' &&
+              g.is_active !== false &&
+              (isKeeper || g.is_keepers_only !== true)
+          )
           .map((g: any) => ({
             id: String(g.id || g.schema_id),
             schema_id: String(g.schema_id).trim(),
@@ -474,6 +484,7 @@ export async function getAvailableSpokeWorkspaces(
             icon: g.icon,
           }));
         cachedGamesAt = now;
+        cachedGamesIsKeeper = isKeeper;
       }
     } catch (e) {
       // ignore offline error

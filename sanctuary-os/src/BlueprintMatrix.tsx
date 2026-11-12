@@ -3,7 +3,6 @@ import {
   formatDisplayName,
   SidePanel,
   SidePanelHeroCard,
-  SidePanelPillToggle,
   UniversalGroup,
   StatBox,
   PanelHeaderGroup,
@@ -117,7 +116,6 @@ export default function BlueprintMatrix({
     }))
   );
   const [isPublic, setIsPublic] = useState(true);
-  const [isLocked, setIsLocked] = useState(false);
   const [isMarketListed, setIsMarketListed] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -143,10 +141,10 @@ export default function BlueprintMatrix({
 
   useEffect(() => {
     if (isOpen && playSet) {
+      const initPublic = playSet.is_public ?? true;
       setGeneratedCode(playSet.code || null);
-      setIsPublic(playSet.is_public ?? true);
-      setIsLocked(playSet.is_locked ?? false);
-      setIsMarketListed(playSet.is_market_listed ?? false);
+      setIsPublic(initPublic);
+      setIsMarketListed(initPublic ? Boolean(playSet.is_market_listed ?? false) : false);
       setUploadError("");
       setUploadSuccess(false);
       setIsUploading(false);
@@ -157,7 +155,7 @@ export default function BlueprintMatrix({
         try {
           let query = supabase
             .from("blueprints")
-            .select("code, is_public, is_locked, is_market_listed");
+            .select("code, is_public, is_market_listed");
           if (playSet.code) {
             query = query.eq("code", playSet.code);
           } else {
@@ -187,10 +185,10 @@ export default function BlueprintMatrix({
           }
           const { data } = await query.maybeSingle();
           if (data) {
+            const cloudPublic = data.is_public ?? true;
             setGeneratedCode(data.code);
-            setIsPublic(data.is_public);
-            setIsLocked(data.is_locked);
-            setIsMarketListed(data.is_market_listed);
+            setIsPublic(cloudPublic);
+            setIsMarketListed(cloudPublic ? Boolean(data.is_market_listed) : false);
           }
         } catch (e) {
           console.warn("Failed to sync matrix settings with cloud", e);
@@ -360,19 +358,23 @@ export default function BlueprintMatrix({
     setIsUploading(true);
     setUploadError("");
     setUploadSuccess(false);
-    const code = await onUpload(isPublic, isLocked, allowedMods, isMarketListed);
-    if (code) {
-      setGeneratedCode(code);
-      setUploadSuccess(true);
-      setTimeout(() => setUploadSuccess(false), 3000);
-      useStore
-        .getState()
-        .pushStatus(t("matrix_uplink_success", "Blueprint uplinked successfully!"), "success");
-      navigator.clipboard.writeText(code).catch(() => {});
-    } else {
-      setUploadError(t("err_save_failed", "Failed to save blueprint"));
+    try {
+      const effectiveMarketListed = isPublic ? isMarketListed : false;
+      const code = await onUpload(isPublic, false, allowedMods, effectiveMarketListed);
+      if (code) {
+        setGeneratedCode(code);
+        setUploadSuccess(true);
+        setTimeout(() => setUploadSuccess(false), 3000);
+        useStore
+          .getState()
+          .pushStatus(t("matrix_uplink_success", "{Blueprint} uplinked successfully!"), "success");
+        navigator.clipboard.writeText(code).catch(() => {});
+      } else {
+        setUploadError(t("err_save_failed", "Failed to save blueprint"));
+      }
+    } finally {
+      setIsUploading(false);
     }
-    setIsUploading(false);
   };
 
   const handleStageToRigQueue = async () => {
@@ -387,28 +389,33 @@ export default function BlueprintMatrix({
     }
     setIsStagingToRig(true);
     setUploadError("");
-    const res = await stageFullBlueprintToRigQueue(
-      playSet,
-      modList,
-      activeGameSchema,
-      session,
-      selectedVersion
-    );
-    setIsStagingToRig(false);
-    if (res.success) {
-      setStagedToRigSuccess(true);
-      setTimeout(() => setStagedToRigSuccess(false), 4000);
-      useStore
-        .getState()
-        .pushStatus(
-          t(
-            "status_rig_queue_sent",
-            "{Blueprint} encrypted and staged to your Rig Queue! Open Signature Queue on your Steam Deck or other PC to deploy."
-          ),
-          "success"
-        );
-    } else {
-      setUploadError(res.error || t("err_save_failed", "Failed to save blueprint"));
+    try {
+      const res = await stageFullBlueprintToRigQueue(
+        playSet,
+        modList,
+        activeGameSchema,
+        session,
+        selectedVersion
+      );
+      if (res.success) {
+        setStagedToRigSuccess(true);
+        setTimeout(() => setStagedToRigSuccess(false), 4000);
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "status_rig_queue_sent",
+              "{Blueprint} encrypted and staged to your Rig Queue! Open Signature Queue on your Steam Deck or other PC to deploy."
+            ),
+            "success"
+          );
+      } else {
+        const msg = res.error || t("err_save_failed", "Failed to save blueprint");
+        setUploadError(msg);
+        useStore.getState().pushStatus(msg, "error");
+      }
+    } finally {
+      setIsStagingToRig(false);
     }
   };
 
@@ -949,77 +956,72 @@ export default function BlueprintMatrix({
           icon={t("icon_tune", "tune")}
         >
           <div className="flex flex-col gap-3">
-            {/* Public / Private */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <SidePanelPillToggle
-                checked={isPublic}
-                onChange={() => setIsPublic(true)}
-                label={t("matrix_public", "Public")}
-                icon={t("icon_public", "public")}
-                variant="success"
-              />
-              <SidePanelPillToggle
-                checked={!isPublic}
-                onChange={() => setIsPublic(false)}
-                label={t("matrix_private", "Private")}
-                icon={t("icon_visibility_off", "visibility_off")}
-                variant="accent"
-              />
-            </div>
-            <p className="text-[11px] font-bold text-[var(--subtext)] px-1">
-              {isPublic
-                ? t("matrix_public_desc", "{Blueprint} visible to all {Citizens} on the {Nexus}.")
-                : t("matrix_private_desc", "{Blueprint} restricted to your account.")}
-            </p>
-
-            {/* Locked / Unlocked */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_6%,transparent)]">
-              <SidePanelPillToggle
-                checked={isLocked}
-                onChange={() => setIsLocked(true)}
-                label={t("matrix_locked", "Locked")}
-                icon={t("icon_lock", "lock")}
-                variant="danger"
-              />
-              <SidePanelPillToggle
-                checked={!isLocked}
-                onChange={() => setIsLocked(false)}
-                label={t("matrix_unlocked", "Unlocked")}
-                icon={t("icon_lock_open", "lock_open")}
-                variant="success"
-              />
-            </div>
-            <p className="text-[11px] font-bold text-[var(--subtext)] px-1">
-              {isLocked
-                ? t("matrix_locked_desc", "Prevent modifications after syncing this blueprint.")
-                : t(
-                    "matrix_unlocked_desc",
-                    "Allow users to customize this blueprint after syncing."
-                  )}
-            </p>
-
-            {/* Market Listed / Unlisted */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_6%,transparent)]">
-              <SidePanelPillToggle
-                checked={isMarketListed}
-                onChange={() => setIsMarketListed(true)}
-                label={t("matrix_market", "{Nexus} Listing")}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 w-full">
+              <DashboardStatTile
+                variant="filter"
                 icon={t("icon_storefront", "storefront")}
-                variant="success"
+                label={t("matrix_public", "Public")}
+                value={t("matrix_market", "{Nexus} Listing")}
+                colorClass={isPublic && isMarketListed ? "text-[var(--success)]" : undefined}
+                isActive={isPublic && isMarketListed}
+                onClick={() => {
+                  setIsPublic(true);
+                  setIsMarketListed(true);
+                }}
               />
-              <SidePanelPillToggle
-                checked={!isMarketListed}
-                onChange={() => setIsMarketListed(false)}
+              <DashboardStatTile
+                variant="filter"
+                icon={t("icon_link", "link")}
                 label={t("matrix_market_off", "Unlisted")}
+                value={t("sidebar_uplink", "Uplink Code")}
+                colorClass={isPublic && !isMarketListed ? "text-[var(--accent)]" : undefined}
+                isActive={isPublic && !isMarketListed}
+                onClick={() => {
+                  setIsPublic(true);
+                  setIsMarketListed(false);
+                }}
+              />
+              <DashboardStatTile
+                variant="filter"
                 icon={t("icon_visibility_off", "visibility_off")}
-                variant="accent"
+                label={t("matrix_private", "Private")}
+                value={t("matrix_private_short", "Account Only")}
+                colorClass={!isPublic ? "text-[var(--warning)]" : undefined}
+                isActive={!isPublic}
+                onClick={() => {
+                  setIsPublic(false);
+                  setIsMarketListed(false);
+                }}
               />
             </div>
-            <p className="text-[11px] font-bold text-[var(--subtext)] px-1">
-              {isMarketListed
-                ? t("matrix_market_desc", "{Blueprint} is visible on the public {Nexus}.")
-                : t("matrix_market_off_desc", "{Blueprint} is hidden from {Nexus}.")}
-            </p>
+
+            <div className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-2.5">
+              <span
+                className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                  isPublic && isMarketListed
+                    ? "text-[var(--success)]"
+                    : isPublic
+                      ? "text-[var(--accent)]"
+                      : "text-[var(--warning)]"
+                }`}
+              >
+                {isPublic && isMarketListed
+                  ? t("icon_storefront", "storefront")
+                  : isPublic
+                    ? t("icon_link", "link")
+                    : t("icon_visibility_off", "visibility_off")}
+              </span>
+              <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed m-0">
+                {isPublic && isMarketListed
+                  ? t("matrix_public_desc", "{Blueprint} visible to all {Citizens} on the {Nexus}.")
+                  : isPublic
+                    ? t(
+                        "matrix_vis_unlisted_desc",
+                        "Hidden from {Nexus} browse, but shareable with any {Citizen} using the Uplink Code."
+                      )
+                    : t("matrix_private_desc", "{Blueprint} restricted to your account.")}
+              </p>
+            </div>
           </div>
         </UniversalGroup>
 

@@ -1,28 +1,42 @@
-import { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidebarFooterButton } from './shared';
-import ArchitectSupportTickets from './hub-components/ArchitectSupportTickets';
-import MasonPostViewer from './side-panels/MasonPostViewer';
 import { FileVerificationSidePanel } from './side-panels/ArchitectSidePanels';
 import ComplianceManualFlagSidePanel from './side-panels/ComplianceManualFlagSidePanel';
-import { IdentityMatrix } from './IdentityMatrix';
 import { SharedMetadataEditorSidePanel } from './side-panels/SharedMetadataEditorSidePanel';
-import SAComplianceOversight from './hub-components/SAComplianceOversight';
-import SAMalwareOversight from './hub-components/SAMalwareOversight';
-import { WayfinderPostsEditor } from './hub-components/WayfinderPostsEditor';
-import { OversightCommandScreen } from './hub-components/CommandScreens';
+import { OversightCommandScreen } from './hub-components/command-screens/OversightCommandScreen';
 import { DefconSidePanel } from "./hub-components/SADefcon";
-import { MassUpdateOversight } from "./hub-components/SAMassUpdateOversight";
-import { GameManagementOversight } from "./hub-components/SAGameManagementOversight";
-import { AuditLogViewer } from "./side-panels/SAAuditLogViewer";
-import { NexusReportsViewer } from "./side-panels/NexusReportsViewer";
+
+const MasonPostViewer = React.lazy(() => import('./side-panels/MasonPostViewer'));
+const ArchitectSupportTickets = React.lazy(() => import('./hub-components/ArchitectSupportTickets'));
+const IdentityMatrix = React.lazy(() =>
+    import('./IdentityMatrix').then((m) => ({ default: m.IdentityMatrix }))
+);
+const SAComplianceOversight = React.lazy(() => import('./hub-components/SAComplianceOversight'));
+const SAMalwareOversight = React.lazy(() => import('./hub-components/SAMalwareOversight'));
+const WayfinderPostsEditor = React.lazy(() =>
+    import('./hub-components/WayfinderPostsEditor').then((m) => ({ default: m.WayfinderPostsEditor }))
+);
+const MassUpdateOversight = React.lazy(() =>
+    import('./hub-components/SAMassUpdateOversight').then((m) => ({ default: m.MassUpdateOversight }))
+);
+const GameManagementOversight = React.lazy(() =>
+    import('./hub-components/SAGameManagementOversight').then((m) => ({ default: m.GameManagementOversight }))
+);
+const AuditLogViewer = React.lazy(() =>
+    import('./side-panels/SAAuditLogViewer').then((m) => ({ default: m.AuditLogViewer }))
+);
+const NexusReportsViewer = React.lazy(() =>
+    import('./side-panels/NexusReportsViewer').then((m) => ({ default: m.NexusReportsViewer }))
+);
+
 export default function Oversight({ userRole: _userRole, activeGameSchema: _activeGameSchema, onOpenMasonProfile }: any) {
     const { t } = useLexicon();
     const activeTab = useStore((state) => state.oversightActiveTab);
     const setActiveTab = useStore((state) => state.setOversightActiveTab);
     const [defconOpen, setDefconOpen] = useState(false);
-    const [complianceFilter, setComplianceFilter] = useState("ALL");
+    const [complianceFilter, setComplianceFilter] = useState("overview");
     const [viewingPost, setViewingPost] = useState<any | null>(null);
     const [isVerifyPanelOpen, setIsVerifyPanelOpen] = useState(false);
     const [verifyPanelInitialHash] = useState<string>("");
@@ -32,8 +46,6 @@ export default function Oversight({ userRole: _userRole, activeGameSchema: _acti
     const defconLevel = useStore((state) => state.defconLevel);
     const [isMetadataEditorOpen, setIsMetadataEditorOpen] = useState(false);
     const [metadataEditorInitialId, setMetadataEditorInitialId] = useState<string | undefined>(undefined);
-
-
 
     return (
         <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full pb-48 relative">
@@ -56,7 +68,7 @@ export default function Oversight({ userRole: _userRole, activeGameSchema: _acti
 
             <div className="md:hidden">
                 <HoverTabDrawer 
-                    title="Oversight Navigation" 
+                    title={t("sa_title", "Admin Command")} 
                     activeTab={activeTab} 
                     setTab={setActiveTab}
                     hideMobilePills={true}
@@ -70,7 +82,7 @@ export default function Oversight({ userRole: _userRole, activeGameSchema: _acti
                                 onClick={() => setIsVerifyPanelOpen(true)}
                             />
                             <SidebarFooterButton
-                                icon={defconLevel === 1 ? "warning" : "security"}
+                                icon={defconLevel === 1 ? t("icon_warning", "warning") : t("icon_security", "security")}
                                 label={<span className="truncate">{t("defcon_title", "Lockdown Override").replace("🚨 ", "").replace("⚠️ ", "")}</span>}
                                 variant={defconLevel === 1 ? "danger" : "glass"}
                                 className={`w-full ${defconLevel === 1 ? 'animate-pulse' : ''}`}
@@ -95,28 +107,45 @@ export default function Oversight({ userRole: _userRole, activeGameSchema: _acti
             </div>
 
             <div className="w-full flex-1 flex flex-col min-h-0">
-                {activeTab === "command_center" && <OversightCommandScreen setTab={setActiveTab} onOpenDefcon={() => setDefconOpen(true)} setComplianceFilter={setComplianceFilter} setViewingPost={setViewingPost} />}
-                {(activeTab === "identities" || activeTab === "linker") && <IdentityMatrix initialFilterRole={activeTab === "linker" ? "verified_masons" : "overview"} />}
-                {activeTab === "compliance" && <SAComplianceOversight initialFilter={complianceFilter} setInitialFilter={setComplianceFilter} onOpenManualFlag={(query: string, sig?: any) => {
-                    setInitialManualFlagQuery(query);
-                    if (sig) setInitialHeuristicEdit(sig);
-                    setShowManualFlagModal(true);
-                }} />}
-                {(activeTab === "malware_oversight" || activeTab === "oversight_reports") && <SAMalwareOversight initialFilter={activeTab === "oversight_reports" ? "manifests" : complianceFilter} setInitialFilter={setComplianceFilter} onOpenManualFlag={(query: string, sig?: any) => {
-                    setInitialManualFlagQuery(query);
-                    if (sig) setInitialHeuristicEdit(sig);
-                    setShowManualFlagModal(true);
-                }} />}
-                {activeTab === "mass_update" && <MassUpdateOversight />}
-                {activeTab === "reports" && <NexusReportsViewer />}
-                {activeTab === "game_versions" && <GameManagementOversight />}
-                {activeTab === "oversight_comms" && <WayfinderPostsEditor authorId="system" authorProfileId="system" isOversight={true} />}
-                {activeTab === "audit_logs" && <AuditLogViewer />}
-                {(activeTab === "sanctuary_tickets" || activeTab === "support_settings") && <ArchitectSupportTickets userRole="oversight" initialTab={activeTab === "support_settings" ? "settings" : undefined} onEditMetadata={(hash) => {
-                    setMetadataEditorInitialId(hash);
-                    setIsMetadataEditorOpen(true);
-                }} />}
-
+                {activeTab === "command_center" && (
+                    <OversightCommandScreen
+                        setTab={setActiveTab}
+                        onOpenDefcon={() => setDefconOpen(true)}
+                        setComplianceFilter={setComplianceFilter}
+                        setViewingPost={setViewingPost}
+                        onOpenVerifyHash={() => setIsVerifyPanelOpen(true)}
+                        onOpenManualFlag={(query?: string) => {
+                            setInitialManualFlagQuery(query || "");
+                            setShowManualFlagModal(true);
+                        }}
+                        onOpenMetadataEditor={(id: string) => {
+                            setMetadataEditorInitialId(id);
+                            setIsMetadataEditorOpen(true);
+                        }}
+                    />
+                )}
+                <Suspense fallback={null}>
+                    {(activeTab === "identities" || activeTab === "linker") && <IdentityMatrix initialFilterRole={activeTab === "linker" ? "verified_masons" : "overview"} />}
+                    {activeTab === "compliance" && <SAComplianceOversight initialFilter={complianceFilter} setInitialFilter={setComplianceFilter} onOpenManualFlag={(query: string, sig?: any) => {
+                        setInitialManualFlagQuery(query);
+                        if (sig) setInitialHeuristicEdit(sig);
+                        setShowManualFlagModal(true);
+                    }} />}
+                    {(activeTab === "malware_oversight" || activeTab === "oversight_reports") && <SAMalwareOversight initialFilter={activeTab === "oversight_reports" ? "manifests" : complianceFilter} setInitialFilter={setComplianceFilter} onOpenManualFlag={(query: string, sig?: any) => {
+                        setInitialManualFlagQuery(query);
+                        if (sig) setInitialHeuristicEdit(sig);
+                        setShowManualFlagModal(true);
+                    }} />}
+                    {activeTab === "mass_update" && <MassUpdateOversight />}
+                    {activeTab === "reports" && <NexusReportsViewer hubRole="oversight" />}
+                    {activeTab === "game_versions" && <GameManagementOversight />}
+                    {activeTab === "oversight_comms" && <WayfinderPostsEditor authorId="system" authorProfileId="system" isOversight={true} />}
+                    {activeTab === "audit_logs" && <AuditLogViewer />}
+                    {(activeTab === "sanctuary_tickets" || activeTab === "support_settings") && <ArchitectSupportTickets userRole="oversight" initialTab={activeTab === "support_settings" ? "settings" : undefined} onEditMetadata={(hash) => {
+                        setMetadataEditorInitialId(hash);
+                        setIsMetadataEditorOpen(true);
+                    }} />}
+                </Suspense>
             </div>
 
             <DefconSidePanel isOpen={defconOpen} onClose={() => setDefconOpen(false)} />
@@ -137,7 +166,9 @@ export default function Oversight({ userRole: _userRole, activeGameSchema: _acti
                 initialHeuristicEdit={initialHeuristicEdit}
                 isMalwareOnly={activeTab === 'malware_oversight'}
             />
-            {viewingPost && <MasonPostViewer post={viewingPost} onClose={() => setViewingPost(null)} userId="oversight" onOpenMasonProfile={onOpenMasonProfile} />}
+            <Suspense fallback={null}>
+                {viewingPost && <MasonPostViewer post={viewingPost} onClose={() => setViewingPost(null)} userId="oversight" onOpenMasonProfile={onOpenMasonProfile} />}
+            </Suspense>
             <SharedMetadataEditorSidePanel
                 isOpen={isMetadataEditorOpen}
                 onClose={() => setIsMetadataEditorOpen(false)}
@@ -146,6 +177,3 @@ export default function Oversight({ userRole: _userRole, activeGameSchema: _acti
         </div>
     );
 }
-
-
-

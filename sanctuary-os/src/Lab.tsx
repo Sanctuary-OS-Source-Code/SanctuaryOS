@@ -3,12 +3,15 @@ import { useLexicon } from "./LexiconContext";
 import {
   ViewHeader,
   ModSearchDropdown,
-  ActionButton,
   SidePanel,
   getExtensionRegex,
+  isModBinaryExtension,
+  isScriptExtension,
+  getModIcon,
   PanelHeaderGroup,
   PanelHeaderButton,
   ActionPill,
+  ActionButton,
   StatBox,
   HoverTooltip,
   EmptyState,
@@ -41,10 +44,12 @@ import {
 } from "./components/LabVerificationGate";
 import {
   KnownErrorDiagnosisBanner,
+  KnownErrorFilterPopoverContent,
   KnownErrorRulesManager,
+  KnownErrorSortField,
   getExceptionRules,
   matchExceptionRules,
-  normalizeRuleSeverity,
+  extractSuggestedPatternFromLog,
   isUnrelatedGameBugLog,
   NormalizedRuleSeverity,
 } from "./components/KnownExceptionRules";
@@ -96,6 +101,143 @@ function resolveDefaultRealLogName(activeGameSchema?: any): string {
     }
   }
   return "exception.log";
+}
+
+function isLabTestableArtifact(mod: any, activeGameSchema: any): boolean {
+  if (!mod || mod.isVirtual) return false;
+  const rawName = String(mod.name || mod.physical_path || "").trim();
+  if (!rawName) return false;
+  const baseName = (rawName.split(/[\\/]/).pop() || rawName).toLowerCase();
+  if (!baseName) return false;
+
+  // Exclude Sanctuary OS internal metadata sidecars, templates, and lexicon JSONs
+  if (
+    baseName.includes(".sanctuary.") ||
+    baseName === "manifest.json" ||
+    baseName === "override.json" ||
+    baseName.endsWith(".manifest.json") ||
+    baseName.endsWith(".override.json") ||
+    /^[a-z]{2}-[a-z0-9_-]+\.json$/i.test(baseName)
+  ) {
+    return false;
+  }
+
+  const categoryLower = String(mod.category || mod.type || "").trim().toLowerCase();
+  if (categoryLower === "configuration" || categoryLower === "config") {
+    return false;
+  }
+
+  const normalizeExt = (val: any): string => {
+    const raw =
+      typeof val === "string"
+        ? val
+        : val?.extension || val?.ext || val?.format || "";
+    const trimmed = String(raw || "").trim().toLowerCase();
+    if (!trimmed) return "";
+    return trimmed.startsWith(".") ? trimmed : `.${trimmed}`;
+  };
+
+  const extBlock = activeGameSchema?.extensions || {};
+  const scriptExts = new Set<string>(
+    (Array.isArray(extBlock.script_extensions) ? extBlock.script_extensions : [])
+      .map(normalizeExt)
+      .filter(Boolean)
+  );
+  const matchesAnyExt = (extSet: Set<string>) => {
+    for (const ext of extSet) {
+      if (baseName.endsWith(ext)) return true;
+    }
+    return false;
+  };
+
+  if (matchesAnyExt(scriptExts)) {
+    return true;
+  }
+
+  const nonModExts = new Set<string>(
+    [
+      ...(Array.isArray(extBlock.config_extensions) ? extBlock.config_extensions : []),
+      ...(Array.isArray(extBlock.editable_config_formats) ? extBlock.editable_config_formats : []),
+      ...(Array.isArray(extBlock.ignore_unidentified) ? extBlock.ignore_unidentified : []),
+    ]
+      .map(normalizeExt)
+      .filter(Boolean)
+  );
+  if (matchesAnyExt(nonModExts)) {
+    return false;
+  }
+
+  const exactExcludedFiles = new Set<string>(
+    [
+      activeGameSchema?.paths?.manifest_file,
+      activeGameSchema?.load_order?.manifest_file,
+      ...(Array.isArray(extBlock.cache_files) ? extBlock.cache_files : []),
+    ]
+      .map((f: any) => String(f || "").split(/[\\/]/).pop()?.trim().toLowerCase() || "")
+      .filter(Boolean)
+  );
+  if (exactExcludedFiles.has(baseName)) {
+    return false;
+  }
+
+  if (Array.isArray(extBlock.vault_visible) && extBlock.vault_visible.length > 0) {
+    const visibleExts = new Set<string>(extBlock.vault_visible.map(normalizeExt).filter(Boolean));
+    return matchesAnyExt(visibleExts);
+  }
+
+  if (Array.isArray(extBlock.supported) && extBlock.supported.length > 0) {
+    return isModBinaryExtension(rawName, activeGameSchema) || isScriptExtension(rawName, activeGameSchema);
+  }
+
+  if (/\.(json|jsonc|ini|cfg|toml|yaml|yml|txt|md|log)$/i.test(baseName)) {
+    return false;
+  }
+  return true;
+}
+
+function LabFilterSection({
+  title,
+  options,
+  value,
+  onChange,
+  t,
+}: {
+  title: string;
+  options: { id: string; label: string }[];
+  value: string;
+  onChange: (val: string) => void;
+  t: (key: string, fallback: string) => string;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1 flex items-center gap-2">
+        <span>{title}</span>
+        <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        {options.map((opt) => {
+          const active = String(value).toLowerCase() === String(opt.id).toLowerCase();
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onChange(opt.id)}
+              className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                active ? "is-selected font-bold" : "font-semibold"
+              }`}
+            >
+              <span className="truncate">{opt.label}</span>
+              {active && (
+                <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                  {t("icon_check", "check")}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function Lab({
@@ -194,7 +336,7 @@ export default function Lab({
           setFreshSaveArmed(false);
           try {
             localStorage.removeItem(freshSaveArmedKey);
-          } catch {}
+          } catch { }
         }
       }
     } catch {
@@ -257,7 +399,7 @@ export default function Lab({
             );
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [selectedReport?.id, selectedReport?.sessionKey, docsPath, modsPath, activeGameSchema]);
 
@@ -298,7 +440,7 @@ export default function Lab({
           };
         }
       }
-    } catch {}
+    } catch { }
     return null;
   });
 
@@ -313,9 +455,9 @@ export default function Lab({
         setLastConcludingReport(
           parsed?.lastConcludingReport
             ? {
-                ...parsed.lastConcludingReport,
-                logSnippet: scrubLogUserData(parsed.lastConcludingReport.logSnippet),
-              }
+              ...parsed.lastConcludingReport,
+              logSnippet: scrubLogUserData(parsed.lastConcludingReport.logSnippet),
+            }
             : null
         );
       } else {
@@ -357,7 +499,7 @@ export default function Lab({
       }
       try {
         localStorage.setItem(scopedTestHistoryKey, JSON.stringify(next));
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -450,7 +592,7 @@ export default function Lab({
                   })
                   .filter(Boolean);
               }
-            } catch {}
+            } catch { }
           }
 
           const stagedHashes = new Set(
@@ -474,25 +616,25 @@ export default function Lab({
 
           const fallbackModObj = modRow
             ? {
-                id: modRow.id,
-                hash: dnaHash || modRow.id,
-                name: modRow.name,
-                displayName: modRow.name,
-                file_extension: modRow.file_extension,
-                version: verRow?.version_label || "Local",
-              }
+              id: modRow.id,
+              hash: dnaHash || modRow.id,
+              name: modRow.name,
+              displayName: modRow.name,
+              file_extension: modRow.file_extension,
+              version: verRow?.version_label || "Local",
+            }
             : null;
 
           const modObj = resolveRealReportMod(
             localMatch
               ? {
-                  ...localMatch,
-                  file_extension: localMatch.file_extension || modRow?.file_extension,
-                  version:
-                    getModVersionLabel(localMatch, modList, parsedStagedExtras) !== "Local"
-                      ? getModVersionLabel(localMatch, modList, parsedStagedExtras)
-                      : verRow?.version_label || localMatch.version,
-                }
+                ...localMatch,
+                file_extension: localMatch.file_extension || modRow?.file_extension,
+                version:
+                  getModVersionLabel(localMatch, modList, parsedStagedExtras) !== "Local"
+                    ? getModVersionLabel(localMatch, modList, parsedStagedExtras)
+                    : verRow?.version_label || localMatch.version,
+              }
               : fallbackModObj,
             parsedStagedExtras,
             modList
@@ -527,7 +669,7 @@ export default function Lab({
             conflictExtras: extractedLoadout.conflictExtras,
           });
         });
-      } catch {}
+      } catch { }
     };
     syncCloudLogs();
     return () => {
@@ -619,7 +761,7 @@ export default function Lab({
             setLabSessionStatus((prev) => (prev === null ? null : null));
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     poll();
     const timer = setInterval(poll, 1000);
@@ -634,7 +776,7 @@ export default function Lab({
     try {
       await invoke("airgap_saves", {
         docsPath: docsPath || modsPath || "",
-      enable,
+        enable,
       });
       setStatus(
         enable
@@ -694,8 +836,75 @@ export default function Lab({
   };
 
   const [searchLogs, setSearchLogs] = useState("");
+  const [knownErrorSearch, setKnownErrorSearch] = useState("");
+  const [isScanningLiveLogs, setIsScanningLiveLogs] = useState(false);
   const [logFilter, setLogFilter] = useState("all");
+  const [builderSearch, setBuilderSearch] = useState("");
+  const [builderFilter, setBuilderFilter] = useState<"all" | "untested" | "tested" | "flagged">("all");
+  const [builderPage, setBuilderPage] = useState(1);
   const [knownErrorFilter, setKnownErrorFilter] = useState<"all" | NormalizedRuleSeverity>("all");
+  const [knownErrorLabBehavior, setKnownErrorLabBehavior] = useState<"all" | "fails" | "ignored">("all");
+  const [knownErrorFileHint, setKnownErrorFileHint] = useState<string>("all");
+  const [knownErrorSort, setKnownErrorSort] = useState<KnownErrorSortField>("severity");
+
+  const handleScanLiveExceptionLogs = async () => {
+    if (isScanningLiveLogs) return;
+    setIsScanningLiveLogs(true);
+    try {
+      const targetDocs = (docsPath || modsPath || "").trim();
+      const files = targetDocs
+        ? await invoke<ScrubbedRealLogFile[]>("get_scrubbed_game_logs", {
+            docsPath: targetDocs,
+            gameSchema: activeGameSchema,
+          }).catch(() => [])
+        : [];
+      const combined = (files || [])
+        .map((f) => scrubLogUserData(f?.content || ""))
+        .filter((txt) => txt.trim().length > 0)
+        .join("\n\n");
+
+      if (!combined) {
+        setStatus(
+          t(
+            "lab_ql_scan_logs_clean",
+            "No game exception logs detected on disk — all clear!"
+          )
+        );
+        return;
+      }
+
+      const rulesList = getExceptionRules(activeGameSchema);
+      const matched = matchExceptionRules(combined, rulesList);
+      const queryStr =
+        matched.length > 0
+          ? matched
+              .map((r) => r.pattern.split("|")[0]?.trim())
+              .filter(Boolean)
+              .join(" ")
+          : extractSuggestedPatternFromLog(combined, activeGameSchema)
+              .pattern.split("|")[0]
+              ?.trim() || "";
+
+      setKnownErrorFilter("all");
+      setKnownErrorLabBehavior("all");
+      setKnownErrorFileHint("all");
+      setKnownErrorSearch(queryStr || combined.slice(0, 120));
+      setActiveTab("KNOWN_ERRORS");
+      setStatus(
+        matched.length > 0
+          ? t(
+              "lab_ql_scan_logs_matched",
+              "Matched live game exception log against Community Known Errors."
+            )
+          : t(
+              "lab_ql_scan_logs_opened",
+              "Loaded live game exception signature into Known Errors search."
+            )
+      );
+    } finally {
+      setIsScanningLiveLogs(false);
+    }
+  };
 
   // Restore active test payload memory on mount if accidentally closed or navigated away
   useEffect(() => {
@@ -719,7 +928,7 @@ export default function Lab({
           setLastConcludingReport(mem.lastConcludingReport);
         }
       }
-    } catch {}
+    } catch { }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spokeLabKey]);
 
@@ -740,14 +949,14 @@ export default function Lab({
           })
         );
       }
-    } catch {}
+    } catch { }
   }, [activeLabMod, conflictTarget, stagedExtras, conflictExtras, lastConcludingReport, scopedPanelMemoryKey]);
 
   const handleClearLabMemory = async () => {
     memoryDismissedRef.current = true;
     try {
       localStorage.removeItem(scopedPanelMemoryKey);
-    } catch {}
+    } catch { }
     saveLabSessionMemory(null);
     setLastConcludingReport(null);
     setLabSessionStatus(null);
@@ -759,7 +968,7 @@ export default function Lab({
     if (setActiveLabMod) setActiveLabMod(null);
     try {
       await invoke("stop_lab_verification_session");
-    } catch {}
+    } catch { }
   };
 
   useEffect(() => {
@@ -815,11 +1024,11 @@ export default function Lab({
       const name = extractDepString(raw);
       return name
         ? name
-            .replace(/['"]/g, "")
-            .replace(/_/g, " ")
-            .replace(extRegex, "")
-            .trim()
-            .toUpperCase()
+          .replace(/['"]/g, "")
+          .replace(/_/g, " ")
+          .replace(extRegex, "")
+          .trim()
+          .toUpperCase()
         : "";
     };
 
@@ -882,10 +1091,10 @@ export default function Lab({
             missing.push(
               typeof rawDep === "object" && rawDep
                 ? {
-                    ...rawDep,
-                    name: depName,
-                    displayName: rawDep.displayName || depName,
-                  }
+                  ...rawDep,
+                  name: depName,
+                  displayName: rawDep.displayName || depName,
+                }
                 : { name: depName, displayName: depName },
             );
           }
@@ -901,14 +1110,14 @@ export default function Lab({
         const name = extractDepString(raw);
         return name
           ? name
-              .replace(getExtensionRegex(useStore.getState().activeGameSchema), "")
-              .replace(/_/g, " ")
-              .replace(
-                /(\.| |-)*(\(|\[)?(scripts?|modules?|artifacts?|zip)(\)|\])?/gi,
-                "",
-              )
-              .trim()
-              .toUpperCase()
+            .replace(getExtensionRegex(useStore.getState().activeGameSchema), "")
+            .replace(/_/g, " ")
+            .replace(
+              /(\.| |-)*(\(|\[)?(scripts?|modules?|artifacts?|zip)(\)|\])?/gi,
+              "",
+            )
+            .trim()
+            .toUpperCase()
           : "";
       };
 
@@ -919,7 +1128,7 @@ export default function Lab({
           const isDBScript =
             Boolean(
               typeof am?.file_extension === "string" &&
-                am.file_extension.toLowerCase().includes("script"),
+              am.file_extension.toLowerCase().includes("script"),
             ) || Boolean(amName && amName.toLowerCase().includes("script"));
 
           const found = modList.find((m: any) => {
@@ -1101,7 +1310,7 @@ export default function Lab({
       setFreshSaveArmed(false);
       try {
         localStorage.removeItem(freshSaveArmedKey);
-      } catch {}
+      } catch { }
       setStatus(`${t("lab_test_save_status_copied", "Dedicated Lab Test Save updated:")} ${saveFileName}`);
       if (pendingLaunchAfterSaveSetup) {
         const pending = pendingLaunchAfterSaveSetup;
@@ -1129,7 +1338,7 @@ export default function Lab({
       setFreshSaveArmed(true);
       try {
         localStorage.setItem(freshSaveArmedKey, "1");
-      } catch {}
+      } catch { }
       setStatus(
         t(
           "lab_test_save_status_reset",
@@ -1174,30 +1383,36 @@ export default function Lab({
   };
 
   const builderBaseMods = React.useMemo(
-    () => (modList || []).filter((m: any) => !m?.isVirtual),
-    [modList]
+    () => (modList || []).filter((m: any) => isLabTestableArtifact(m, activeGameSchema)),
+    [modList, activeGameSchema]
   );
 
   const builderSymbioticMods = React.useMemo(() => {
-    const conflictHashes = new Set(
-      conflictExtras.map((e: any) => e?.hash).filter(Boolean)
+    const excludedHashes = new Set(
+      [
+        ...stagedExtras.map((e: any) => e?.hash),
+        ...conflictExtras.map((e: any) => e?.hash),
+        conflictTarget?.hash,
+      ].filter(Boolean)
     );
     return builderBaseMods.filter(
       (m: any) =>
         m.hash !== activeLabMod?.hash &&
-        !(m.hash && conflictHashes.has(m.hash))
+        !(m.hash && excludedHashes.has(m.hash))
     );
-  }, [builderBaseMods, activeLabMod?.hash, conflictExtras]);
+  }, [builderBaseMods, activeLabMod?.hash, stagedExtras, conflictExtras, conflictTarget?.hash]);
 
   const builderPrimaryAdversaryMods = React.useMemo(() => {
     if (activeTab !== "BUILDER" || conflictTarget) return [];
-    return builderBaseMods
-      .filter((m: any) => m.hash !== activeLabMod?.hash)
-      .map((m: any) => ({
-        ...m,
-        displayName: formatModWithExtAndVersion(m, activeGameSchema, modList),
-      }));
-  }, [activeTab, conflictTarget, builderBaseMods, activeLabMod?.hash, activeGameSchema, modList]);
+    const stagedHashes = new Set(
+      stagedExtras.map((e: any) => e?.hash).filter(Boolean)
+    );
+    return builderBaseMods.filter(
+      (m: any) =>
+        m.hash !== activeLabMod?.hash &&
+        !(m.hash && stagedHashes.has(m.hash))
+    );
+  }, [activeTab, conflictTarget, builderBaseMods, activeLabMod?.hash, stagedExtras]);
 
   const builderExtraAdversaryMods = React.useMemo(() => {
     const stagedHashes = new Set(
@@ -1226,12 +1441,12 @@ export default function Lab({
     );
     const targetLog = scrubLogUserData(
       (selectedReport ? selectedReport.logSnippet : testLogSnippet) ||
-        labSessionStatus?.error_log ||
-        ""
+      labSessionStatus?.error_log ||
+      ""
     );
     const isVerifiedPass = Boolean(
       !targetErr &&
-        (selectedReport?.verified || labSessionStatus?.stage === "VERIFIED")
+      (selectedReport?.verified || labSessionStatus?.stage === "VERIFIED")
     );
 
     const ctx = {
@@ -1277,7 +1492,7 @@ export default function Lab({
       setSelectedReport((prev: any) => (prev ? { ...prev, isConcluding: false } : prev));
       try {
         localStorage.removeItem(scopedPanelMemoryKey);
-      } catch {}
+      } catch { }
       saveLabSessionMemory(null);
       setLastConcludingReport(null);
       setLabSessionStatus(null);
@@ -1291,8 +1506,50 @@ export default function Lab({
   const passedCount = testHistory.filter((m: any) => !m.errorFound).length;
   const failedCount = testHistory.filter((m: any) => m.errorFound).length;
   const totalRanCount = testHistory.length;
-  const untestedCount =
-    modList.length - new Set(testHistory.map((t) => t.mod?.hash)).size;
+  const testedModHashes = React.useMemo(
+    () => new Set(testHistory.map((th: any) => th?.mod?.hash).filter(Boolean)),
+    [testHistory]
+  );
+  const testedEligibleCount = React.useMemo(
+    () => builderBaseMods.filter((m: any) => m?.hash && testedModHashes.has(m.hash)).length,
+    [builderBaseMods, testedModHashes]
+  );
+  const untestedCount = Math.max(0, builderBaseMods.length - testedEligibleCount);
+  const flaggedEligibleCount = React.useMemo(
+    () =>
+      builderBaseMods.filter((m: any) => {
+        const st = String(m?.status || "").toLowerCase();
+        return st.includes("unstable") || st.includes("corrupted") || st.includes("broken");
+      }).length,
+    [builderBaseMods]
+  );
+
+  const filteredBuilderCandidates = React.useMemo(() => {
+    const q = builderSearch.trim().toLowerCase();
+    const matches = builderBaseMods.filter((m: any) => {
+      const isTested = Boolean(m?.hash && testedModHashes.has(m.hash));
+      if (builderFilter === "untested" && isTested) return false;
+      if (builderFilter === "tested" && !isTested) return false;
+      if (builderFilter === "flagged") {
+        const st = String(m?.status || "").toLowerCase();
+        if (!st.includes("unstable") && !st.includes("corrupted") && !st.includes("broken")) {
+          return false;
+        }
+      }
+      if (!q) return true;
+      const clean = getCleanModBaseName(m).toLowerCase();
+      const raw = String(m?.name || "").toLowerCase();
+      const author = String(m?.author || m?.master_author || "").toLowerCase();
+      return clean.includes(q) || raw.includes(q) || author.includes(q);
+    });
+
+    return [...matches].sort((a: any, b: any) => {
+      const aTested = a?.hash && testedModHashes.has(a.hash) ? 1 : 0;
+      const bTested = b?.hash && testedModHashes.has(b.hash) ? 1 : 0;
+      if (aTested !== bTested) return aTested - bTested;
+      return getCleanModBaseName(a).localeCompare(getCleanModBaseName(b));
+    });
+  }, [builderBaseMods, builderSearch, builderFilter, testedModHashes]);
 
   const realStats = {
     tested: totalRanCount,
@@ -1354,20 +1611,15 @@ export default function Lab({
 
   const hasActiveMemorySession = Boolean(
     !memoryDismissedRef.current &&
-      (shelterActive ||
-        (labSessionStatus && labSessionStatus.active) ||
-        (activeLabMod && labSessionStatus && labSessionStatus.stage !== "IDLE"))
+    (shelterActive ||
+      (labSessionStatus && labSessionStatus.active) ||
+      (activeLabMod && labSessionStatus && labSessionStatus.stage !== "IDLE"))
   );
   const rememberedReport = !memoryDismissedRef.current
     ? lastConcludingReport || (isConcluding && activeLabMod ? reportsToList[0] : null)
     : null;
   const spokeExceptionRules = getExceptionRules(activeGameSchema);
   const spokeExceptionRulesCount = spokeExceptionRules.length;
-  const knownErrorCounts = {
-    corrupted: spokeExceptionRules.filter((r) => normalizeRuleSeverity(r) === "corrupted").length,
-    unstable: spokeExceptionRules.filter((r) => normalizeRuleSeverity(r) === "unstable").length,
-    unrelated: spokeExceptionRules.filter((r) => normalizeRuleSeverity(r) === "unrelated").length,
-  };
 
   const headerPillActions: {
     id: string;
@@ -1388,7 +1640,9 @@ export default function Lab({
   if (rememberedReport && !selectedReport) {
     headerPillActions.push({
       id: "reopen_last_report",
-      icon: rememberedReport.errorFound ? "warning" : "assignment_turned_in",
+      icon: rememberedReport.errorFound
+        ? t("icon_warning", "warning")
+        : t("icon_assignment_turned_in", "assignment_turned_in"),
       label: t("lab_memory_reopen_report", "Reopen Last Report") as string,
       onClick: () => setSelectedReport(rememberedReport),
       activeClassName: rememberedReport.errorFound
@@ -1419,98 +1673,92 @@ export default function Lab({
       : "text-[var(--warning)]",
   });
 
-  if (activeTab === "BUILDER" && activeLabMod) {
-    if (!shelterActive) {
-      headerPillActions.push({
-        id: "initiate_swap",
-        icon: t("icon_bolt", "bolt"),
-        label: t("btn_initiate_swap", "Conduct Experiment") as string,
-        onClick: () => runCombinedHotSwap(),
-        activeClassName: "text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]",
-      });
-      if (linkedTool) {
-        headerPillActions.push({
-          id: "launch_linked_tool",
-          icon: t("icon_build_circle", "build_circle"),
-          label: `${t("lab_btn_launch_tool", "Launch Linked Tool")} (${linkedTool.name})`,
-          onClick: () => runCombinedHotSwap(linkedTool.path),
-        });
-      }
-    } else {
-      headerPillActions.push({
-        id: "view_active_test",
-        icon: t("icon_science", "science"),
-        label: t("btn_view_test", "View Active Test") as string,
-        onClick: () => setShowTestPanel(true),
-        activeClassName: "text-[var(--success)] bg-[color-mix(in_srgb,var(--success)_12%,transparent)]",
-      });
-    }
+  if (activeTab === "BUILDER" && shelterActive) {
+    headerPillActions.push({
+      id: "view_active_test",
+      icon: t("icon_science", "science"),
+      label: t("btn_view_test", "View Active Test") as string,
+      onClick: () => setShowTestPanel(true),
+      activeClassName: "text-[var(--success)]",
+    });
   }
 
-  const showHeaderSearch = activeTab === "REPORTS" || activeTab === "KNOWN_ERRORS";
+  const showHeaderSearch =
+    activeTab === "BUILDER" || activeTab === "REPORTS" || activeTab === "KNOWN_ERRORS";
+  const activeSearchQuery =
+    activeTab === "BUILDER"
+      ? builderSearch
+      : activeTab === "KNOWN_ERRORS"
+        ? knownErrorSearch
+        : searchLogs;
+  const handleActiveSearchChange = (val: string) => {
+    if (activeTab === "BUILDER") {
+      setBuilderSearch(val);
+      setBuilderPage(1);
+    } else if (activeTab === "KNOWN_ERRORS") {
+      setKnownErrorSearch(val);
+    } else {
+      setSearchLogs(val);
+    }
+  };
+
+  const hasActivePopoverFilter =
+    activeTab === "BUILDER"
+      ? builderFilter !== "all"
+      : activeTab === "REPORTS"
+        ? logFilter !== "all"
+        : activeTab === "KNOWN_ERRORS"
+          ? knownErrorFilter !== "all" ||
+            knownErrorLabBehavior !== "all" ||
+            knownErrorFileHint !== "all" ||
+            knownErrorSort !== "severity"
+          : false;
 
   const labFilterPopoverContent =
-    activeTab === "REPORTS" ? (
-      <div className="flex flex-col w-[360px] p-4 max-w-[calc(100vw-40px)] text-left">
-        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-          {t("filter_status", "Filter Status") || "Status"}
-          <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {[
+    activeTab === "BUILDER" ? (
+      <div className="flex flex-col w-[340px] max-w-[calc(100vw-40px)] p-4 gap-5 text-left">
+        <LabFilterSection
+          t={t}
+          title={t("filter_status", "Filter Status")}
+          value={builderFilter}
+          onChange={(val) => {
+            setBuilderFilter(val as "all" | "untested" | "tested" | "flagged");
+            setBuilderPage(1);
+          }}
+          options={[
+            { id: "all", label: `${t("filter_all", "All")} (${builderBaseMods.length})` },
+            { id: "untested", label: `${t("lab_status_untested", "Untested")} (${untestedCount})` },
+            { id: "tested", label: `${t("lab_status_tested", "Tested")} (${testedEligibleCount})` },
+            { id: "flagged", label: `${t("label_unstable", "Unstable")} (${flaggedEligibleCount})` },
+          ]}
+        />
+      </div>
+    ) : activeTab === "REPORTS" ? (
+      <div className="flex flex-col w-[340px] max-w-[calc(100vw-40px)] p-4 gap-5 text-left">
+        <LabFilterSection
+          t={t}
+          title={t("filter_status", "Filter Status")}
+          value={logFilter}
+          onChange={(val) => setLogFilter(val)}
+          options={[
             { id: "all", label: `${t("filter_all", "All")} (${reportsToList.length})` },
-            { id: "pass", label: `${t("verified", "Stable")} (${realStats.passed})` },
+            { id: "pass", label: `${t("status_stable", "Stable")} (${realStats.passed})` },
             { id: "fail", label: `${t("fatal", "Fatal")} (${realStats.failed})` },
-          ].map((opt) => {
-            const active = logFilter === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => setLogFilter(opt.id)}
-                className={`rounded-full px-4 py-1.5 transition-all flex items-center justify-center text-[10px] font-bold capitalize tracking-widest border cursor-pointer ${
-                  active
-                    ? "border-[var(--accent)] text-[var(--accent)] bg-transparent"
-                    : "border-transparent bg-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)]"
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
+          ]}
+        />
       </div>
     ) : activeTab === "KNOWN_ERRORS" ? (
-      <div className="flex flex-col w-[420px] p-4 max-w-[calc(100vw-40px)] text-left">
-        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-          {t("filter_status", "Filter Status") || "Status"}
-          <div className="h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex-1"></div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { id: "all", label: `${t("filter_all", "All")} (${spokeExceptionRulesCount})` },
-            { id: "corrupted", label: `${t("status_corrupted", "Corrupted")} (${knownErrorCounts.corrupted})` },
-            { id: "unstable", label: `${t("label_unstable", "Unstable")} (${knownErrorCounts.unstable})` },
-            { id: "unrelated", label: `${t("exc_rules_filter_unrelated", "Unrelated")} (${knownErrorCounts.unrelated})` },
-          ].map((opt) => {
-            const active = knownErrorFilter === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => setKnownErrorFilter(opt.id as "all" | NormalizedRuleSeverity)}
-                className={`rounded-full px-4 py-1.5 transition-all flex items-center justify-center text-[10px] font-bold capitalize tracking-widest border cursor-pointer ${
-                  active
-                    ? "border-[var(--accent)] text-[var(--accent)] bg-transparent"
-                    : "border-transparent bg-transparent text-[var(--subtext)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)]"
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <KnownErrorFilterPopoverContent
+        rules={spokeExceptionRules}
+        severityFilter={knownErrorFilter}
+        onSeverityFilterChange={setKnownErrorFilter}
+        labBehaviorFilter={knownErrorLabBehavior}
+        onLabBehaviorFilterChange={setKnownErrorLabBehavior}
+        fileHintFilter={knownErrorFileHint}
+        onFileHintFilterChange={setKnownErrorFileHint}
+        sortBy={knownErrorSort}
+        onSortByChange={setKnownErrorSort}
+      />
     ) : null;
 
   return (
@@ -1530,38 +1778,26 @@ export default function Lab({
         onTitleClick={() => setActiveTab("DASHBOARD")}
       >
         <div className="flex items-center gap-3">
-          {activeTab === "BUILDER" && activeLabMod && (
-            <div className="hidden xl:flex flex-col items-end gap-0.5 px-3 border-r border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <span className="text-[9px] font-black text-[var(--subtext)] capitalize tracking-widest">
-                {t("payload", "Payload")}
-              </span>
-              <span className="text-xs font-black text-[var(--text)] tracking-widest capitalize">
-                {t("core_plus", "1 Core + ")}
-                {stagedExtras.length +
-                  (conflictTarget ? 1 : 0) +
-                  conflictExtras.length}
-                {t("injected", " Injected")}
-              </span>
-            </div>
-          )}
-
           {(showHeaderSearch || headerPillActions.length > 0) && (
             <ActionPill
-              searchQuery={searchLogs}
-              setSearchQuery={setSearchLogs}
+              searchQuery={activeSearchQuery}
+              setSearchQuery={handleActiveSearchChange}
               hideSearch={!showHeaderSearch}
               searchPlaceholder={
                 activeTab === "KNOWN_ERRORS"
-                  ? (t("exc_rules_search_placeholder", "Search exception patterns, error codes, or fixes...") as string)
-                  : (t("search_logs", "Search Logs...") as string)
+                  ? (t("exc_rules_search_short_ph", "Search errors or paste log...") as string)
+                  : activeTab === "BUILDER"
+                    ? (t("search_ph", "Search {mods}...") as string)
+                    : (t("search_logs", "Search Logs...") as string)
               }
               primaryPopover={
                 labFilterPopoverContent
                   ? {
-                      icon: t("icon_tune", "tune"),
-                      label: t("filters", "Filters") as string,
-                      content: labFilterPopoverContent,
-                    }
+                    icon: t("icon_tune", "tune"),
+                    label: t("filters", "Filters") as string,
+                    isActive: hasActivePopoverFilter,
+                    content: labFilterPopoverContent,
+                  }
                   : undefined
               }
               actions={headerPillActions}
@@ -1584,7 +1820,7 @@ export default function Lab({
             variant="tab"
             icon={t("icon_science", "science")}
             label={t("tab_lab_builder", "Environment Builder")}
-            number={modList?.length || 0}
+            number={builderBaseMods.length}
             onClick={() => setActiveTab("BUILDER")}
             isActive={activeTab === "BUILDER"}
           />
@@ -1610,7 +1846,7 @@ export default function Lab({
       {activeTab === "DASHBOARD" && (
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full">
           {testSaveStatus && !testSaveStatus.has_test_save && (
-            <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center justify-between gap-4 flex-wrap">
+            <div className="glass-panel rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-4 min-w-0 flex-1">
                 <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined !text-[22px]">
@@ -1622,7 +1858,7 @@ export default function Lab({
                     <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
                       {t("lab_test_save_unconfigured_title", "First-Time Lab Save Setup")}
                     </span>
-                    <span className="px-2.5 py-1 rounded-lg text-[9px] font-black tracking-wider uppercase border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--warning)] glass-surface flex items-center gap-1.5 shrink-0">
+                    <span className={VAULT_CHIP_CLASS}>
                       <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
                         {t("icon_science", "science")}
                       </span>
@@ -1639,16 +1875,14 @@ export default function Lab({
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowTestSaveModal(true)}
-                className="px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] bg-transparent hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all flex items-center gap-2 cursor-pointer shrink-0"
-              >
-                <span className="material-symbols-outlined !text-[15px]">
-                  {t("icon_save", "save")}
-                </span>
-                {t("lab_test_save_btn_setup", "Set Up Test Save")}
-              </button>
+              <div className="flex items-center justify-end ml-auto shrink-0">
+                <ActionButton
+                  variant="accent"
+                  icon={t("icon_save", "save")}
+                  label={t("lab_test_save_btn_setup", "Set Up Test Save")}
+                  onClick={() => setShowTestSaveModal(true)}
+                />
+              </div>
             </div>
           )}
 
@@ -1677,11 +1911,11 @@ export default function Lab({
                             : null;
                           const modExt = test.mod
                             ? getModExtensionLabel(
-                                resolvedTestMod,
-                                activeGameSchema,
-                                modList,
-                                test.stagedExtras
-                              )
+                              resolvedTestMod,
+                              activeGameSchema,
+                              modList,
+                              test.stagedExtras
+                            )
                             : null;
                           return (
                             <UniversalCard
@@ -1752,13 +1986,12 @@ export default function Lab({
                                 <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5 z-20 pointer-events-none">
                                   <span className={VAULT_CHIP_CLASS}>
                                     <span
-                                      className={`material-symbols-outlined !text-[12px] ${
-                                        isError ? "text-rose-400" : "text-emerald-400"
-                                      }`}
+                                      className={`material-symbols-outlined !text-[12px] ${isError ? "text-[var(--danger)]" : "text-[var(--success)]"
+                                        }`}
                                     >
                                       {isError ? t("icon_warning", "warning") : t("icon_check_circle", "check_circle")}
                                     </span>
-                                    <span className={isError ? "text-rose-400" : "text-emerald-400"}>
+                                    <span>
                                       {isError
                                         ? t("fatal_collision", "Fatal Collision")
                                         : t("successful_injection", "Successful Injection")}
@@ -1772,7 +2005,7 @@ export default function Lab({
                                     <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                                       {t("icon_terminal", "terminal")}
                                     </span>
-                                    <span className="font-mono text-[var(--accent)]">
+                                    <span className="font-mono">
                                       {`Lab_Report_${cardReportNum}`}
                                     </span>
                                   </span>
@@ -1781,14 +2014,14 @@ export default function Lab({
                                       <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
                                         {t("icon_deployed_code", "deployed_code")}
                                       </span>
-                                      <span className="text-[var(--subtext)]">{modExt}</span>
+                                      <span>{modExt}</span>
                                     </span>
                                   )}
                                   <span className={VAULT_CHIP_CLASS}>
                                     <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
                                       {t("icon_sell", "sell")}
                                     </span>
-                                    <span className="text-[var(--subtext)]">
+                                    <span>
                                       {modVer ? `v${modVer}` : selectedVersion || t("unknown", "Unknown")}
                                     </span>
                                   </span>
@@ -1819,201 +2052,136 @@ export default function Lab({
                           );
                         })
                     ) : (
-                      <div className="glass-panel rounded-2xl p-8 border border-[color-mix(in_srgb,var(--text)_5%,transparent)] flex flex-col items-center justify-center opacity-50 space-y-4 shadow-inner">
-                        <span className="material-symbols-outlined !text-[48px] text-[var(--subtext)]">
-                          {t("icon_history", "history")}
-                        </span>
-                        <div className="text-sm font-black capitalize tracking-widest text-[var(--text)]">
-                          {t("no_recent_telemetry", "No Recent Telemetry")}
-                        </div>
-                      </div>
+                      <EmptyState
+                        icon={t("icon_history", "history")}
+                        title={t("no_recent_telemetry", "No Recent Telemetry")}
+                        className="col-span-full py-12"
+                      />
                     )}
                   </div>
                 </div>
               </CommandScreenMain>
 
               <CommandScreenSidebar title={t("wf_quick_links", "Quick Links")} icon={t("icon_bolt", "bolt")}>
-                <div className="flex flex-col gap-4 w-full">
-                  <CommandScreenQuickLink
-                    icon={t("icon_science", "science")}
-                    title={t("launch_blueprints", "Launch {Blueprints}")}
-                    subtitle={t("initialize_test_runs", "Initialize Test Runs")}
-                    onClick={() => setActiveTab("BUILDER")}
-                  />
-                  <CommandScreenQuickLink
-                    icon={t("icon_terminal", "terminal")}
-                    title={t("tab_lab_reports", "Lab Reports")}
-                    subtitle={t("all_telemetry_logs", "All Telemetry Logs")}
-                    onClick={() => {
-                      setActiveTab("REPORTS");
-                      setLogFilter("all");
-                    }}
-                  />
-                  <CommandScreenQuickLink
-                    icon={t("icon_check_circle", "check_circle")}
-                    title={t("recent_pass_tests", "Recent Pass Tests")}
-                    subtitle={t("filter_by_stable", "Filter by Stable")}
-                    onClick={() => {
-                      setActiveTab("REPORTS");
-                      setLogFilter("pass");
-                    }}
-                    textColorClass="text-[var(--success)]"
-                    hoverTextColorClass="group-hover:text-[var(--success)]"
-                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)]"
-                  />
-                  <CommandScreenQuickLink
-                    icon={t("icon_warning", "warning")}
-                    title={t("recent_failed_tests", "Recent Failed Tests")}
-                    subtitle={t("filter_by_fatal", "Filter by Fatal")}
-                    onClick={() => {
-                      setActiveTab("REPORTS");
-                      setLogFilter("fail");
-                    }}
-                    textColorClass="text-[var(--danger)]"
-                    hoverTextColorClass="group-hover:text-[var(--danger)]"
-                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] group-hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
-                  />
-
-                  {/* DEDICATED LAB TEST SAVE CONFIGURATOR */}
-                  <button
-                    type="button"
-                    onClick={() => setShowTestSaveModal(true)}
-                    className={`w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative h-24 shadow-md cursor-pointer ${
-                      testSaveStatus?.has_test_save
-                        ? "border border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
-                        : "border border-[color-mix(in_srgb,var(--warning)_35%,transparent)]"
-                    }`}
-                  >
-                    <div className="flex items-center gap-4 h-full relative z-10">
-                      <div
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-110 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] ${
-                          testSaveStatus?.has_test_save
-                            ? "text-[var(--accent)]"
-                            : "text-[var(--warning)]"
-                        }`}
-                      >
-                        <span className="material-symbols-outlined !text-[26px]">
-                          {t("icon_save", "save")}
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">
-                        <h3 className="text-[11px] font-[900] uppercase tracking-widest truncate text-[var(--text)] m-0">
-                          {testSaveStatus?.has_test_save
-                            ? t("lab_test_save_title", "Dedicated Lab Test Save")
-                            : t("lab_test_save_unconfigured_title", "First-Time Lab Save Setup")}
-                        </h3>
-                        <span
-                          className={`text-[9px] font-bold tracking-wider flex items-center gap-1.5 truncate ${
-                            testSaveStatus?.has_test_save
-                              ? "text-[var(--accent)]"
-                              : "text-[var(--warning)]"
-                          }`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                              testSaveStatus?.has_test_save
-                                ? "bg-[var(--accent)]"
-                                : "bg-[var(--warning)]"
-                            }`}
-                          />
-                          {testSaveStatus?.active_test_save
-                            ? `${testSaveStatus.active_test_save.file_name} • ${t("lab_test_save_btn_change", "Change Test Save")}`
-                            : t("lab_test_save_unconfigured_sub", "No test save configured — click to set up")}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-
-                  {/* SAVE AIRGAP SHIELD */}
-                  <button
-                    type="button"
-                    onClick={() => handleToggleAirgap(!airgapStatus.active)}
-                    className={`w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative h-24 shadow-md cursor-pointer ${
-                      airgapStatus.active
-                        ? "border border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
-                        : "border border-transparent hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)]"
-                    }`}
-                  >
-                    <div
-                      className={`absolute inset-0 rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none overflow-hidden ${
-                        airgapStatus.active
-                          ? "bg-[color-mix(in_srgb,var(--success)_10%,transparent)]"
-                          : "bg-radial-[at_0%_0%] from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent"
-                      }`}
+                <div className="flex flex-col gap-3.5 w-full">
+                  {hasActiveMemorySession ? (
+                    <CommandScreenQuickLink
+                      icon={t("icon_radar", "radar")}
+                      isActive={true}
+                      title={t("btn_view_test", "View Active Test")}
+                      subtitle={
+                        activeLabMod
+                          ? getCleanModBaseName(activeLabMod)
+                          : t("test_running_wait", "Sandbox monitoring is active...")
+                      }
+                      onClick={() => setShowTestPanel(true)}
                     />
-                    <div className="flex items-center gap-4 h-full relative z-10">
-                      <div
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-110 shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_5%,transparent)] border ${
-                          airgapStatus.active
-                            ? "bg-[color-mix(in_srgb,var(--success)_12%,transparent)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)]"
-                            : "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                        }`}
-                      >
-                        <span className="material-symbols-outlined !text-[28px] opacity-80 group-hover:opacity-100 transition-all duration-300 group-hover:drop-shadow-[0_0_10px_currentColor]">
-                          {t("icon_shield_lock", "shield_lock")}
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">
-                        <h3 className="text-[11px] font-[900] uppercase tracking-widest transition-colors duration-500 truncate text-[var(--text)] group-hover:brightness-125 m-0">
-                          {t("lab_save_airgap_title", "Save Airgap Shield")}
-                        </h3>
-                        <span
-                          className={`text-[9px] capitalize font-bold opacity-80 group-hover:opacity-100 transition-opacity duration-500 tracking-widest flex items-center gap-1.5 truncate ${
-                            airgapStatus.active
-                              ? "text-[var(--success)]"
-                              : "text-[var(--subtext)]"
-                          }`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                              airgapStatus.active
-                                ? "bg-[var(--success)]"
-                                : "bg-[var(--accent)]"
-                            }`}
-                          />
-                          {airgapStatus.active
-                            ? t("lab_btn_restore_saves", "Restore Live Saves")
-                            : t("lab_btn_engage_airgap", "Engage Save Airgap")}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
+                  ) : airgapStatus.active ? (
+                    <CommandScreenQuickLink
+                      icon={t("icon_shield_lock", "shield_lock")}
+                      isAlert={true}
+                      title={t("lab_btn_restore_saves", "Restore Live Saves")}
+                      subtitle={t(
+                        "lab_airgap_active_sub",
+                        "Save Airgap engaged — restore normal saves"
+                      )}
+                      onClick={() => handleToggleAirgap(false)}
+                    />
+                  ) : null}
 
-                  {/* EXTERNAL PROGRAM LINKER */}
+                  <CommandScreenQuickLink
+                    icon={t("icon_biotech", "biotech")}
+                    title={t("lab_ql_test_untested_title", "Test Untested {Mods}")}
+                    subtitle={
+                      untestedCount > 0
+                        ? t(
+                            "lab_ql_test_untested_count",
+                            "{count} untested in {Vault}"
+                          ).replace("{count}", String(untestedCount))
+                        : t("lab_ql_all_tested", "All {Vault} {mods} tested")
+                    }
+                    onClick={() => {
+                      setBuilderFilter("untested");
+                      setBuilderSearch("");
+                      setBuilderPage(1);
+                      setActiveTab("BUILDER");
+                    }}
+                  />
+
+                  <CommandScreenQuickLink
+                    icon={t("icon_troubleshoot", "troubleshoot")}
+                    iconColorClass={flaggedEligibleCount > 0 ? "text-[var(--warning)]" : ""}
+                    title={t("lab_ql_isolate_flagged_title", "Isolate Unstable {Mods}")}
+                    subtitle={
+                      flaggedEligibleCount > 0
+                        ? t(
+                            "lab_ql_isolate_flagged_count",
+                            "{count} flagged in {Vault}"
+                          ).replace("{count}", String(flaggedEligibleCount))
+                        : t("lab_ql_zero_flagged", "No unstable or corrupted {mods}")
+                    }
+                    onClick={() => {
+                      setBuilderFilter("flagged");
+                      setBuilderSearch("");
+                      setBuilderPage(1);
+                      setActiveTab("BUILDER");
+                    }}
+                  />
+
+                  <CommandScreenQuickLink
+                    icon={t("icon_manage_search", "manage_search")}
+                    title={t("lab_ql_scan_logs_title", "Scan Game Exception Logs")}
+                    subtitle={t(
+                      "lab_ql_scan_logs_sub",
+                      "Match live game logs against Known Errors"
+                    )}
+                    onClick={handleScanLiveExceptionLogs}
+                  />
+
+                  <CommandScreenQuickLink
+                    icon={t("icon_save", "save")}
+                    iconColorClass={
+                      testSaveStatus?.has_test_save
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--warning)]"
+                    }
+                    title={t("lab_test_save_title", "Dedicated Lab Test Save")}
+                    subtitle={
+                      testSaveStatus?.active_test_save
+                        ? testSaveStatus.active_test_save.file_name
+                        : t("lab_test_save_none_short", "Clean Sandbox • Set Up Save")
+                    }
+                    onClick={() => setShowTestSaveModal(true)}
+                  />
+
+                  {/* EXTERNAL PROGRAM LINKER (MATCHES COMMANDSCREENQUICKLINK GEOMETRY 1:1) */}
                   <div
                     onClick={
                       linkedTool
                         ? handleLaunchExternalToolStandalone
                         : handleLinkExternalTool
                     }
-                    className={`w-full p-5 glass-panel rounded-2xl transition duration-500 text-left group relative h-24 shadow-md cursor-pointer ${
-                      linkedTool
-                        ? "border border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
-                        : "border border-transparent hover:border-[color-mix(in_srgb,var(--text)_15%,transparent)]"
-                    }`}
+                    className="w-full p-5 min-h-24 flex items-center glass-panel rounded-2xl transition-colors text-left group cursor-pointer border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
                   >
-                    <div className="absolute inset-0 rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none overflow-hidden bg-radial-[at_0%_0%] from-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
-                    <div className="flex items-center gap-4 h-full relative z-10">
+                    <div className="flex items-center gap-4 w-full">
                       <div
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-500 group-hover:scale-110 shadow-[inset_0_0_15px_color-mix(in_srgb,var(--text)_5%,transparent)] border ${
-                          linkedTool
-                            ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]"
-                            : "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[var(--text)] group-hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                        className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] ${
+                          linkedTool ? "text-[var(--accent)]" : "text-[var(--text)]"
                         }`}
                       >
-                        <span className="material-symbols-outlined !text-[28px] opacity-80 group-hover:opacity-100 transition-all duration-300 group-hover:drop-shadow-[0_0_10px_currentColor]">
+                        <span className="material-symbols-outlined !text-[22px]">
                           {linkedTool
                             ? t("icon_launch", "rocket_launch")
                             : t("icon_build_circle", "build_circle")}
                         </span>
                       </div>
-                      <div className="flex flex-col gap-1 flex-1 min-w-0 justify-center">
-                        <h3 className="text-[11px] font-[900] uppercase tracking-widest transition-colors duration-500 truncate text-[var(--text)] group-hover:brightness-125 m-0">
+                      <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                        <h3 className="text-sm font-black tracking-wide truncate text-[var(--text)] m-0">
                           {linkedTool
                             ? linkedTool.name
                             : t("lab_external_tool_title", "External Test Program")}
                         </h3>
-                        <span className="text-[9px] capitalize font-bold opacity-70 group-hover:opacity-100 transition-opacity duration-500 tracking-widest flex items-center gap-2 truncate text-[var(--subtext)]">
+                        <span className="text-[10px] font-semibold truncate text-[var(--subtext)]">
                           {linkedTool
                             ? t("lab_btn_launch_tool", "Launch Linked Tool")
                             : t("lab_btn_link_tool", "Link External Program")}
@@ -2021,15 +2189,15 @@ export default function Lab({
                       </div>
                       {linkedTool && (
                         <div
-                          className="flex items-center gap-1.5 shrink-0 ml-1"
+                          className="flex items-center gap-1.5 shrink-0 ml-auto"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <button
                             type="button"
                             onClick={handleLinkExternalTool}
-                            className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] flex items-center justify-center transition-all cursor-pointer"
+                            className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] flex items-center justify-center transition-all cursor-pointer"
                           >
-                            <span className="material-symbols-outlined !text-[14px]">
+                            <span className="material-symbols-outlined !text-[15px]">
                               {t("icon_folder_open", "folder_open")}
                             </span>
                             <HoverTooltip title={t("lab_btn_change_tool", "Change Tool")} />
@@ -2037,9 +2205,9 @@ export default function Lab({
                           <button
                             type="button"
                             onClick={handleUnlinkExternalTool}
-                            className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex items-center justify-center transition-all cursor-pointer"
+                            className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
                           >
-                            <span className="material-symbols-outlined !text-[14px]">
+                            <span className="material-symbols-outlined !text-[15px]">
                               {t("icon_link_off", "link_off")}
                             </span>
                             <HoverTooltip title={t("nav_unlink", "Unlink")} variant="danger" />
@@ -2055,437 +2223,834 @@ export default function Lab({
         </div>
       )}
 
-      {activeTab === "BUILDER" && (
-        <div className="flex flex-col gap-0 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full mt-2 pb-32">
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-8 w-full max-w-[1600px] mx-auto">
-            {/* LEFT COLUMN: THE CORE (SUBJECT) */}
-            <div className="flex flex-col gap-6 h-full">
-              <div className="glass-panel rounded-2xl border border-[color-mix(in_srgb,var(--text)_5%,transparent)] shadow-xl relative flex flex-col flex-1 min-h-[500px] group">
-                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-b from-[color-mix(in_srgb,var(--accent)_5%,transparent)] to-transparent opacity-50 pointer-events-none" />
+      {activeTab === "BUILDER" && (() => {
+        const BUILDER_PAGE_SIZE = 20;
+        const totalBuilderPages = Math.max(
+          1,
+          Math.ceil(filteredBuilderCandidates.length / BUILDER_PAGE_SIZE)
+        );
+        const safeBuilderPage = Math.min(builderPage, totalBuilderPages);
+        const pagedCandidates = filteredBuilderCandidates.slice(
+          (safeBuilderPage - 1) * BUILDER_PAGE_SIZE,
+          safeBuilderPage * BUILDER_PAGE_SIZE
+        );
+        const renderBenchModCard = (
+          m: any,
+          opts: {
+            iconColorClass: string;
+            onRemove: () => void;
+            companionMods?: any[];
+          }
+        ) => {
+          const itemExt = getModExtensionLabel(
+            m,
+            activeGameSchema,
+            modList,
+            opts.companionMods
+          );
+          const itemVer = getModVersionLabel(m, modList, opts.companionMods);
+          const itemMeta =
+            [
+              itemExt,
+              itemVer && itemVer !== "Local" ? `v${itemVer}` : "",
+            ]
+              .filter(Boolean)
+              .join(" • ") || t("term_mod", "Mod");
 
-                <div className="flex flex-col items-center justify-center text-center p-8 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] relative z-10">
-                  <div className="w-20 h-20 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center justify-center border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] shrink-0 mb-4 shadow-md">
-                    <span className="material-symbols-outlined text-[var(--accent)] !text-[40px] animate-pulse">
-                      {t("icon_science", "science")}
-                    </span>
-                  </div>
-                  <h3 className="text-2xl font-black text-[var(--text)] capitalize tracking-[0.2em]">
-                    {t("mount_subject", "Mount Hash Subject")}
-                  </h3>
-                  <p className="text-[10px] font-bold text-[var(--subtext)] capitalize tracking-widest opacity-80 mt-2">
-                    {t("mount_desc", "Select a primary File Hash signature to begin the simulation sequence.")}
-                  </p>
+          return (
+            <div
+              key={m.hash || m.name}
+              className="glass-surface rounded-xl p-2.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2.5"
+            >
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div
+                  className={`w-9 h-9 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0 ${opts.iconColorClass}`}
+                >
+                  <span className="material-symbols-outlined !text-[18px]">
+                    {getModIcon(m, activeGameSchema, t)}
+                  </span>
                 </div>
-
-                <div className="p-8 flex-1 flex flex-col justify-center relative z-10">
-                  {!activeLabMod ? (
-                    <ModSearchDropdown
-                      modList={builderBaseMods}
-                      selectedItem={null}
-                      onSelect={(m: any) => {
-                        memoryDismissedRef.current = false;
-                        setActiveLabMod(m);
-                      }}
-                      onClear={() => { }}
-                      placeholder={t("filter_dna", "Filter File Hash signatures...")}
-                    />
-                  ) : (
-                    <div
-                      onContextMenu={(e) => {
-                        const menuItems: SanctuaryContextMenuItem[] = [];
-                        if (onOpenDossier) {
-                          menuItems.push({
-                            label: t("inspect", "Inspect"),
-                            icon: t("icon_deployed_code", "deployed_code"),
-                            onClick: () => onOpenDossier(activeLabMod),
-                          });
-                        }
-                        menuItems.push({
-                          label: t("copy", "Copy"),
-                          icon: t("icon_content_copy", "content_copy"),
-                          onClick: () => navigator.clipboard?.writeText(getModName(activeLabMod)),
-                        });
-                        menuItems.push({
-                          label: t("lab_btn_abort", "Abort / Dismount Subject"),
-                          icon: t("icon_close", "close"),
-                          variant: "danger",
-                          dividerBefore: true,
-                          onClick: abortLab,
-                        });
-                        openSanctuaryContextMenu(e, menuItems);
-                      }}
-                      className="relative overflow-hidden bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] p-8 rounded-2xl shadow-md flex flex-col items-center text-center group/core h-full justify-center"
-                    >
-                      <div className="absolute inset-0 rounded-[inherit] border-[2px] border-dashed border-[var(--accent)] opacity-20  animate-[spin_20s_linear_infinite] pointer-events-none scale-150" />
-                      <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)] opacity-10 blur-[50px] rounded-full pointer-events-none" />
-
-                      <span className="material-symbols-outlined !text-[64px] text-[var(--accent)] drop-shadow-md mb-6">
-                        view_in_ar
-                      </span>
-
-                      <div className="flex flex-col gap-2 relative z-10 w-full px-4">
-                        <span className={`${VAULT_CHIP_CLASS} mx-auto`}>
-                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                            {t("icon_science", "science")}
-                          </span>
-                          <span>
-                            {t("subject_isolation", "Subject Isolation")}
-                          </span>
-                        </span>
-                        <span className="text-2xl font-black text-[var(--text)] break-words mt-4">
-                          {getModName(activeLabMod)}
-                        </span>
-                      </div>
-
-                      <div className="mt-8 relative z-10">
-                        <ActionButton
-                          icon={t("icon_close", "close")}
-                          label={t("lab_btn_abort", "Abort / Dismount Subject")}
-                          onClick={abortLab}
-                          className="!bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] hover:!bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
-                        />
-                      </div>
-                    </div>
-                  )}
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-xs font-black text-[var(--text)] truncate">
+                    {getCleanModBaseName(m)}
+                  </span>
+                  <span className="text-[10px] font-semibold text-[var(--subtext)] truncate">
+                    {itemMeta}
+                  </span>
                 </div>
               </div>
+
+              <div className="flex items-center gap-1 shrink-0">
+                {onOpenDossier && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenDossier(m)}
+                    className="relative group/inspbtn w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined !text-[14px]">
+                      {t("icon_deployed_code", "deployed_code")}
+                    </span>
+                    <HoverTooltip
+                      className="z-[100] !right-0 !translate-x-0 !left-auto"
+                      title={t("inspect", "Inspect")}
+                    />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={opts.onRemove}
+                  className="w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_close", "close")}
+                  </span>
+                </button>
+              </div>
             </div>
+          );
+        };
 
-            {/* RIGHT COLUMN: MODIFIERS */}
-            <div className="flex flex-col gap-8 h-full">
-              {/* SYMBIOTIC GRID */}
-              <div
-                className={`glass-panel p-8 rounded-2xl border shadow-xl relative flex flex-col flex-1 min-h-[300px] transition-all ${!activeLabMod ? "opacity-30 pointer-events-none border-[color-mix(in_srgb,var(--text)_5%,transparent)] grayscale" : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"}`}
-              >
-                <CommandScreenSectionHeading
-                  shape="circle"
-                  title={t("symbiotic_deps", "Symbiotic Dependencies")}
-                  subtitle={t("symbiotic_desc", "These {mods} will be injected into the simulation alongside the primary subject.")}
-                  icon={t("icon_folder", "folder")}
-                  colorClass=""
-                  iconColorClass="text-[var(--text)] opacity-80"
-                  className="mb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 relative z-10 w-full"
-                />
+        return (
+          <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full pb-32">
+            <CommandScreenBody>
+              {/* LEFT PANE: VAULT MOD CATALOG */}
+              <CommandScreenMain>
+                <div className="flex flex-col gap-4 w-full">
+                  <CommandScreenSectionHeading
+                    title={t("lab_vault_catalog_title", "{Vault} {Mods}")}
+                    subtitle={t(
+                      "lab_vault_catalog_subtitle",
+                      "Select a {mod} to isolate and test in the sandbox"
+                    )}
+                    icon={t("icon_inventory_2", "inventory_2")}
+                  />
 
-                <div className="relative z-20 mb-6 flex-none">
-                  {missingDeps.length > 0 && (
-                    <div className="bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-xl p-4 mb-6 flex flex-col gap-2 shadow-md">
-                      <div className="flex items-center gap-2 text-[var(--danger)] font-black text-xs capitalize tracking-widest">
-                        <span className="material-symbols-outlined !text-[16px]">
-                          {t("icon_warning", "warning")}
-                        </span>
-                        {t("missing_deps", "Missing Dependencies")}
-                      </div>
-                      <div className="text-[10px] text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize font-bold">
-                        {t("missing_deps_warning_desc", "The test will likely fail because the following dependencies were not found in your vault:")}
-                      </div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {missingDeps.map((depObj, idx) => {
-                          const depName =
-                            typeof depObj === "string"
-                              ? depObj
-                              : depObj.displayName ||
-                              depObj.name ||
-                              "Unknown Mod";
-                          const depId =
-                            typeof depObj === "string" ? null : depObj.id;
+                  {filteredBuilderCandidates.length === 0 ? (
+                    <EmptyState
+                      icon={
+                        builderSearch || builderFilter !== "all"
+                          ? t("icon_search_off", "search_off")
+                          : t("icon_science", "science")
+                      }
+                      title={
+                        builderSearch || builderFilter !== "all"
+                          ? t("no_matches", "No matches found")
+                          : t("shared_no_signatures", "No Signatures Found")
+                      }
+                    />
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 w-full">
+                        {pagedCandidates.map((candidate: any, idx: number) => {
+                          const isPrimaryStaged = Boolean(
+                            activeLabMod &&
+                              ((candidate.hash && activeLabMod.hash === candidate.hash) ||
+                                (!candidate.hash && activeLabMod.name === candidate.name))
+                          );
+                          const isExtraStaged = Boolean(
+                            candidate.hash && stagedExtras.some((e: any) => e.hash === candidate.hash)
+                          );
+                          const isConflictStaged = Boolean(
+                            candidate.hash &&
+                              ((conflictTarget && conflictTarget.hash === candidate.hash) ||
+                                conflictExtras.some((e: any) => e.hash === candidate.hash))
+                          );
+                          const isAnyStaged = isPrimaryStaged || isExtraStaged || isConflictStaged;
+                          const isTested = Boolean(
+                            candidate?.hash && testedModHashes.has(candidate.hash)
+                          );
+                          const candExt = getModExtensionLabel(candidate, activeGameSchema, modList);
+                          const candVer = getModVersionLabel(candidate, modList);
+                          const candAuthor = candidate.author || candidate.master_author || "";
+                          const candStatusLower = String(candidate?.status || "").toLowerCase();
+                          const isFlagged =
+                            candStatusLower.includes("unstable") ||
+                            candStatusLower.includes("corrupted") ||
+                            candStatusLower.includes("broken");
+
+                          const cleanTitle = getCleanModBaseName(candidate);
+                          const modIcon = getModIcon(candidate, activeGameSchema, t);
+                          const metaParts = [
+                            candAuthor ? getCleanModBaseName(candAuthor) : "",
+                            candExt || "",
+                            candVer && candVer !== "Local" ? `v${candVer}` : "",
+                          ].filter(Boolean);
+
+                          let chipIcon = t("icon_schedule", "schedule");
+                          let chipIconColor = "text-[var(--subtext)]";
+                          let chipLabel = t("lab_status_untested", "Untested");
+
+                          if (isPrimaryStaged) {
+                            chipIcon = t("icon_science", "science");
+                            chipIconColor = "text-[var(--accent)]";
+                            chipLabel = t("lab_role_primary", "Primary {Mod}");
+                          } else if (isExtraStaged) {
+                            chipIcon = t("icon_hub", "hub");
+                            chipIconColor = "text-[var(--accent)]";
+                            chipLabel = t("lab_role_dependency", "Dependency");
+                          } else if (isConflictStaged) {
+                            chipIcon = t("icon_compare_arrows", "compare_arrows");
+                            chipIconColor = "text-[var(--warning)]";
+                            chipLabel = t("lab_role_conflict", "Conflict Check");
+                          } else if (isFlagged) {
+                            chipIcon = t("icon_warning", "warning");
+                            chipIconColor = "text-[var(--warning)]";
+                            chipLabel = t("label_unstable", "Unstable");
+                          } else if (isTested) {
+                            chipIcon = t("icon_check_circle", "check_circle");
+                            chipIconColor = "text-[var(--success)]";
+                            chipLabel = t("lab_status_tested", "Tested");
+                          }
+
                           return (
-                            <span
-                              key={depId || idx}
-                              onClick={async () => {
-                                let data = null;
-                                if (depId) {
-                                  const { data: d } = await supabase
-                                    .from("mods")
-                                    .select("*")
-                                    .eq("id", depId)
-                                    .eq("compliance_tier", 0)
-                                    .in("status", ["stable", "unstable", "corrupted", "pending"])
-                                    .single();
-                                  data = d;
-                                } else {
-                                  const searchTerms = depName
-                                    .split(" ")
-                                    .map((t: string) => t.trim())
-                                    .filter(Boolean)
-                                    .join("%");
-                                  const { data: d } = await supabase
-                                    .from("mods")
-                                    .select("*")
-                                    .ilike("name", `%${searchTerms}%`)
-                                    .eq("compliance_tier", 0)
-                                    .in("status", ["stable", "unstable", "corrupted", "pending"])
-                                    .limit(1)
-                                    .maybeSingle();
-                                  data = d;
-                                }
-
-                                if (data) {
-                                  onOpenDossier({ ...data, isNexusView: true });
-                                } else {
-                                  onOpenDossier({
-                                    name: depName,
-                                    displayName: depName,
-                                    isNexusView: true,
-                                    description:
-                                      "Artifact not found in the global registry.",
-                                  });
+                            <div
+                              key={candidate.hash || `${candidate.name}-${idx}`}
+                              onClick={() => {
+                                memoryDismissedRef.current = false;
+                                if (!isPrimaryStaged) {
+                                  setActiveLabMod(candidate);
+                                  if (isConflictStaged && conflictTarget?.hash === candidate.hash) {
+                                    setConflictTarget(null);
+                                  }
                                 }
                               }}
-                              className="text-[10px] bg-transparent border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] px-2.5 py-1 rounded-lg font-mono text-[var(--danger)] cursor-pointer hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] transition-all inline-flex items-center gap-1"
+                              onContextMenu={(e) => {
+                                const menuItems: SanctuaryContextMenuItem[] = [
+                                  {
+                                    label: t("select", "Select"),
+                                    icon: t("icon_science", "science"),
+                                    variant: "accent",
+                                    onClick: () => {
+                                      memoryDismissedRef.current = false;
+                                      setActiveLabMod(candidate);
+                                    },
+                                  },
+                                ];
+                                if (activeLabMod && !isPrimaryStaged) {
+                                  menuItems.push({
+                                    label: isExtraStaged
+                                      ? t("remove", "Remove")
+                                      : t("lab_add_as_dep", "Add as Dependency"),
+                                    icon: isExtraStaged
+                                      ? t("icon_close", "close")
+                                      : t("icon_hub", "hub"),
+                                    onClick: () => {
+                                      if (isExtraStaged) {
+                                        setStagedExtras(
+                                          stagedExtras.filter((x: any) => x.hash !== candidate.hash)
+                                        );
+                                      } else {
+                                        setStagedExtras([...stagedExtras, candidate]);
+                                      }
+                                    },
+                                  });
+                                  menuItems.push({
+                                    label: isConflictStaged
+                                      ? t("remove", "Remove")
+                                      : t("lab_set_as_conflict", "Test Conflict Against"),
+                                    icon: isConflictStaged
+                                      ? t("icon_close", "close")
+                                      : t("icon_compare_arrows", "compare_arrows"),
+                                    onClick: () => {
+                                      if (isConflictStaged) {
+                                        if (conflictTarget?.hash === candidate.hash) {
+                                          setConflictTarget(null);
+                                        }
+                                        setConflictExtras(
+                                          conflictExtras.filter((x: any) => x.hash !== candidate.hash)
+                                        );
+                                      } else {
+                                        setConflictTarget(candidate);
+                                      }
+                                    },
+                                  });
+                                }
+                                if (onOpenDossier) {
+                                  menuItems.push({
+                                    label: t("inspect", "Inspect"),
+                                    icon: t("icon_deployed_code", "deployed_code"),
+                                    dividerBefore: true,
+                                    onClick: () => onOpenDossier(candidate),
+                                  });
+                                }
+                                openSanctuaryContextMenu(e, menuItems);
+                              }}
+                              className={`glass-panel rounded-2xl p-3.5 border transition-all duration-200 flex flex-col justify-between gap-3 cursor-pointer group ${
+                                isPrimaryStaged
+                                  ? "sa-card-selected border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
+                                  : isAnyStaged
+                                    ? "border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
+                                    : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
+                              }`}
                             >
-                              <span className="material-symbols-outlined !text-[12px]">
-                                {t("icon_warning", "warning")}
-                              </span>
-                              {depName}
-                            </span>
+                              {/* Top Tier: Icon Well + Clean Mod Title & Metadata */}
+                              <div className="flex items-center gap-3 min-w-0 w-full">
+                                <div
+                                  className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
+                                    isAnyStaged ? "text-[var(--accent)]" : "text-[var(--text)]"
+                                  }`}
+                                >
+                                  <span className="material-symbols-outlined !text-[20px]">
+                                    {modIcon}
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                  <div className="relative group/modtitle flex items-center min-w-0 w-fit max-w-full">
+                                    <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate group-hover:text-[var(--accent)] transition-colors">
+                                      {cleanTitle}
+                                    </span>
+                                    <HoverTooltip
+                                      className="z-[100]"
+                                      title={cleanTitle}
+                                      icon={modIcon}
+                                    />
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0 truncate opacity-85">
+                                    <span className="truncate">
+                                      {metaParts.join(" • ") || t("term_mod", "Mod")}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Bottom Bar: Neutral VAULT_CHIP_CLASS Status on Left | Clear Contextual Actions on Right */}
+                              <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+                                <span className={VAULT_CHIP_CLASS}>
+                                  <span className={`material-symbols-outlined !text-[12px] shrink-0 ${chipIconColor}`}>
+                                    {chipIcon}
+                                  </span>
+                                  <span>{chipLabel}</span>
+                                </span>
+
+                                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                                  {!activeLabMod ? (
+                                    <span className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] group-hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] group-hover:text-[var(--accent)] flex items-center gap-1 transition-all">
+                                      <span>{t("select", "Select")}</span>
+                                      <span className="material-symbols-outlined !text-[13px]">
+                                        {t("icon_arrow_forward", "arrow_forward")}
+                                      </span>
+                                    </span>
+                                  ) : isPrimaryStaged ? (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        abortLab();
+                                      }}
+                                      className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--danger)] flex items-center gap-1 transition-all cursor-pointer"
+                                    >
+                                      <span className="material-symbols-outlined !text-[13px]">
+                                        {t("icon_close", "close")}
+                                      </span>
+                                      <span>{t("clear", "Clear")}</span>
+                                    </button>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (isExtraStaged) {
+                                            setStagedExtras(
+                                              stagedExtras.filter((x: any) => x.hash !== candidate.hash)
+                                            );
+                                          } else {
+                                            if (conflictTarget?.hash === candidate.hash) {
+                                              setConflictTarget(null);
+                                            }
+                                            setConflictExtras(
+                                              conflictExtras.filter((x: any) => x.hash !== candidate.hash)
+                                            );
+                                            setStagedExtras([...stagedExtras, candidate]);
+                                          }
+                                        }}
+                                        className={`relative group/depbtn h-7 px-2 rounded-lg glass-surface border text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer ${
+                                          isExtraStaged
+                                            ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)]"
+                                            : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                                        }`}
+                                      >
+                                        <span
+                                          className={`material-symbols-outlined !text-[13px] ${
+                                            isExtraStaged ? "text-[var(--accent)]" : ""
+                                          }`}
+                                        >
+                                          {isExtraStaged
+                                            ? t("icon_check", "check")
+                                            : t("icon_hub", "hub")}
+                                        </span>
+                                        <span>{t("lab_btn_dep_short", "Dep")}</span>
+                                        <HoverTooltip
+                                          className="z-[100] !right-0 !translate-x-0 !left-auto"
+                                          title={
+                                            isExtraStaged
+                                              ? t("remove", "Remove")
+                                              : t("lab_add_as_dep", "Add as Dependency")
+                                          }
+                                          icon={t("icon_hub", "hub")}
+                                        />
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (isConflictStaged) {
+                                            if (conflictTarget?.hash === candidate.hash) {
+                                              setConflictTarget(null);
+                                            }
+                                            setConflictExtras(
+                                              conflictExtras.filter((x: any) => x.hash !== candidate.hash)
+                                            );
+                                          } else {
+                                            setStagedExtras(
+                                              stagedExtras.filter((x: any) => x.hash !== candidate.hash)
+                                            );
+                                            setConflictTarget(candidate);
+                                          }
+                                        }}
+                                        className={`relative group/vsbtn h-7 px-2 rounded-lg glass-surface border text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer ${
+                                          isConflictStaged
+                                            ? "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--text)]"
+                                            : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                                        }`}
+                                      >
+                                        <span
+                                          className={`material-symbols-outlined !text-[13px] ${
+                                            isConflictStaged ? "text-[var(--warning)]" : ""
+                                          }`}
+                                        >
+                                          {isConflictStaged
+                                            ? t("icon_check", "check")
+                                            : t("icon_compare_arrows", "compare_arrows")}
+                                        </span>
+                                        <span>{t("vs", "vs")}</span>
+                                        <HoverTooltip
+                                          className="z-[100] !right-0 !translate-x-0 !left-auto"
+                                          title={
+                                            isConflictStaged
+                                              ? t("remove", "Remove")
+                                              : t("lab_set_as_conflict", "Test Conflict Against")
+                                          }
+                                          icon={t("icon_compare_arrows", "compare_arrows")}
+                                        />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
                           );
                         })}
                       </div>
-                    </div>
-                  )}
-                  <ModSearchDropdown
-                    modList={builderSymbioticMods}
-                    selectedItem={null}
-                    onSelect={(m: any) => {
-                      if (m && !stagedExtras.find((e) => e.hash === m.hash))
-                        setStagedExtras([...stagedExtras, m]);
-                    }}
-                    onClear={() => { }}
-                    placeholder={t("add_extra", "Add extra dependency...")}
-                  />
-                </div>
 
-                {stagedExtras.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-max relative z-10">
-                    {stagedExtras.map((m: any) => (
-                      <div
-                        key={m.hash}
-                        onContextMenu={(e) => {
-                          const menuItems: SanctuaryContextMenuItem[] = [];
-                          if (onOpenDossier) {
-                            menuItems.push({
-                              label: t("inspect", "Inspect"),
-                              icon: t("icon_deployed_code", "deployed_code"),
-                              onClick: () => onOpenDossier(m),
-                            });
-                          }
-                          menuItems.push({
-                            label: t("subject_isolation", "Subject Isolation"),
-                            icon: t("icon_science", "science"),
-                            onClick: () => {
-                              setStagedExtras(stagedExtras.filter((x) => x.hash !== m.hash));
-                              setActiveLabMod(m);
-                            },
-                          });
-                          menuItems.push({
-                            label: t("remove", "Remove"),
-                            icon: t("icon_close", "close"),
-                            variant: "danger",
-                            dividerBefore: true,
-                            onClick: () => setStagedExtras(stagedExtras.filter((x) => x.hash !== m.hash)),
-                          });
-                          openSanctuaryContextMenu(e, menuItems);
-                        }}
-                        className="flex justify-start items-center bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] p-4 rounded-xl hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] transition-all group/item shadow-sm h-[60px]"
-                      >
-                        <span className="text-[11px] font-black text-[var(--text)] truncate pr-4 flex-1 min-w-0">
-                          {getModName(m)}
-                        </span>
-                        <button
-                          onClick={() =>
-                            setStagedExtras(
-                              stagedExtras.filter((e) => e.hash !== m.hash),
-                            )
-                          }
-                          className="w-8 h-8 rounded-full flex items-center justify-center bg-black/20 text-[var(--subtext)] hover:bg-[var(--danger)] hover:text-white opacity-0 group-hover/item:opacity-100 transition-all shrink-0"
-                        >
-                          <span className="material-symbols-outlined !text-[16px]">
-                            {t("icon_close", "close")}
-                          </span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="w-full flex-1 min-h-[100px] mt-2 flex items-center justify-center border-2 border-dashed border-[color-mix(in_srgb,var(--text)_5%,transparent)] rounded-xl bg-black/20 text-[var(--subtext)] opacity-50 font-black text-[10px] capitalize tracking-widest relative z-10">
-                    {t("none", "None")}
-                  </div>
-                )}
-              </div>
-
-              {/* ADVERSARIAL GRID */}
-              <div
-                className={`glass-panel p-8 rounded-2xl border shadow-xl relative flex flex-col flex-1 min-h-[300px] transition-all ${!activeLabMod ? "opacity-30 pointer-events-none border-[color-mix(in_srgb,var(--text)_5%,transparent)] grayscale" : "border-[color-mix(in_srgb,var(--warning)_20%,transparent)]"}`}
-              >
-                <div className="absolute inset-0 rounded-[inherit] bg-gradient-to-br from-[color-mix(in_srgb,var(--warning)_5%,transparent)] to-transparent opacity-50  pointer-events-none" />
-                <CommandScreenSectionHeading
-                  shape="circle"
-                  title={t("adversarial_entities", "Adversarial Entities")}
-                  subtitle={t("adversarial_desc", "These {mods} will be pitted against the primary subject to monitor structural clashes.")}
-                  icon={t("icon_warning", "warning")}
-                  colorClass=""
-                  iconColorClass="theme-text-warning opacity-90 animate-pulse"
-                  className="mb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)] pb-4 relative z-10 w-full flex-none"
-                />
-
-                <div className="relative z-20 mb-6 flex-none">
-                  {!conflictTarget ? (
-                    <ModSearchDropdown
-                      modList={builderPrimaryAdversaryMods}
-                      selectedItem={conflictTarget}
-                      onSelect={setConflictTarget}
-                      onClear={() => setConflictTarget(null)}
-                      placeholder={t("select_adversary", "Select Adversary...")}
-                    />
-                  ) : (
-                    <ModSearchDropdown
-                      modList={builderExtraAdversaryMods}
-                      selectedItem={null}
-                      onSelect={(m: any) => {
-                        if (m && !conflictExtras.find((e) => e.hash === m.hash))
-                          setConflictExtras([...conflictExtras, m]);
-                      }}
-                      onClear={() => { }}
-                      placeholder={t("add_extra", "Add extra dependency...")}
-                    />
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-4 relative z-10 flex-1">
-                  {conflictTarget ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-max">
-                      <div
-                        onContextMenu={(e) => {
-                          const menuItems: SanctuaryContextMenuItem[] = [];
-                          if (onOpenDossier) {
-                            menuItems.push({
-                              label: t("inspect", "Inspect"),
-                              icon: t("icon_deployed_code", "deployed_code"),
-                              onClick: () => onOpenDossier(conflictTarget),
-                            });
-                          }
-                          menuItems.push({
-                            label: t("subject_isolation", "Subject Isolation"),
-                            icon: t("icon_science", "science"),
-                            onClick: () => {
-                              const prevPrimary = activeLabMod;
-                              setActiveLabMod(conflictTarget);
-                              setConflictTarget(prevPrimary || null);
-                            },
-                          });
-                          menuItems.push({
-                            label: t("remove", "Remove"),
-                            icon: t("icon_close", "close"),
-                            variant: "danger",
-                            dividerBefore: true,
-                            onClick: () => {
-                              setConflictTarget(null);
-                              setConflictExtras([]);
-                            },
-                          });
-                          openSanctuaryContextMenu(e, menuItems);
-                        }}
-                        className="relative overflow-hidden bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] p-4 rounded-xl shadow-md flex justify-start items-center group md:col-span-2 h-[80px]"
-                      >
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--warning)] opacity-10 blur-[30px] rounded-full pointer-events-none" />
-                        <div className="flex flex-col gap-1 relative z-10 min-w-0 pr-4">
-                          <span className="text-[9px] font-black theme-text-warning capitalize tracking-[0.3em]">
-                            {t("primary_adversary", "Primary Adversary")}
-                          </span>
-                          <span className="text-sm font-black text-[var(--text)] truncate">
-                            {getModName(conflictTarget)}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setConflictTarget(null);
-                            setConflictExtras([]);
-                          }}
-                          className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center bg-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:bg-[var(--danger)] text-[var(--text)] hover:text-white transition-all shadow-md relative z-10"
-                        >
-                          <span className="material-symbols-outlined !text-[20px]">
-                            {t("icon_close", "close")}
-                          </span>
-                        </button>
-                      </div>
-
-                      {conflictExtras.map((m: any) => (
-                        <div
-                          key={m.hash}
-                          onContextMenu={(e) => {
-                            const menuItems: SanctuaryContextMenuItem[] = [];
-                            if (onOpenDossier) {
-                              menuItems.push({
-                                label: t("inspect", "Inspect"),
-                                icon: t("icon_deployed_code", "deployed_code"),
-                                onClick: () => onOpenDossier(m),
-                              });
-                            }
-                            menuItems.push({
-                              label: t("primary_adversary", "Primary Adversary"),
-                              icon: t("icon_warning", "warning"),
-                              onClick: () => {
-                                const prevTarget = conflictTarget;
-                                setConflictTarget(m);
-                                setConflictExtras(
-                                  conflictExtras
-                                    .filter((x) => x.hash !== m.hash)
-                                    .concat(prevTarget ? [prevTarget] : [])
-                                );
-                              },
-                            });
-                            menuItems.push({
-                              label: t("remove", "Remove"),
-                              icon: t("icon_close", "close"),
-                              variant: "danger",
-                              dividerBefore: true,
-                              onClick: () =>
-                                setConflictExtras(
-                                  conflictExtras.filter((x) => x.hash !== m.hash)
-                                ),
-                            });
-                            openSanctuaryContextMenu(e, menuItems);
-                          }}
-                          className="flex justify-start items-center bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] border border-[color-mix(in_srgb,var(--warning)_10%,transparent)] p-4 rounded-xl hover:border-[color-mix(in_srgb,var(--warning)_20%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] transition-all group/item shadow-sm h-[60px]"
-                        >
-                          <span className="text-[11px] font-black text-[var(--text)] truncate pr-4 flex-1 min-w-0">
-                            {getModName(m)}
-                          </span>
+                      {totalBuilderPages > 1 && (
+                        <div className="flex items-center justify-center gap-3 pt-2 select-none">
                           <button
-                            onClick={() =>
-                              setConflictExtras(
-                                conflictExtras.filter((e) => e.hash !== m.hash),
-                              )
-                            }
-                            className="w-8 h-8 rounded-full flex items-center justify-center bg-black/20 text-[var(--subtext)] hover:bg-[var(--danger)] hover:text-white opacity-0 group-hover/item:opacity-100 transition-all shrink-0"
+                            type="button"
+                            disabled={safeBuilderPage === 1}
+                            onClick={() => setBuilderPage((p) => Math.max(1, p - 1))}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
                           >
                             <span className="material-symbols-outlined !text-[16px]">
-                              {t("icon_close", "close")}
+                              {t("icon_chevron_left", "chevron_left")}
+                            </span>
+                            <span>{t("prev", "Prev")}</span>
+                          </button>
+
+                          <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-black text-[var(--subtext)] font-mono">
+                            <span className="text-[var(--accent)]">{safeBuilderPage}</span>
+                            <span className="opacity-40">/</span>
+                            <span>{totalBuilderPages}</span>
+                          </div>
+
+                          <button
+                            type="button"
+                            disabled={safeBuilderPage >= totalBuilderPages}
+                            onClick={() => setBuilderPage((p) => Math.min(totalBuilderPages, p + 1))}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                          >
+                            <span>{t("next", "Next")}</span>
+                            <span className="material-symbols-outlined !text-[16px]">
+                              {t("icon_chevron_right", "chevron_right")}
                             </span>
                           </button>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="w-full flex-1 min-h-[100px] mt-4 flex items-center justify-center border-2 border-dashed border-[color-mix(in_srgb,var(--warning)_20%,transparent)] rounded-xl bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] text-[var(--warning)] opacity-70 font-black text-[10px] capitalize tracking-widest relative z-10">
-                      {t("none", "None")}
-                    </div>
+                      )}
+                    </>
                   )}
                 </div>
+              </CommandScreenMain>
+
+              {/* RIGHT PANE: STICKY ACTIVE TEST BENCH */}
+              <div className="w-full lg:w-[400px] xl:w-[420px] shrink-0 lg:sticky lg:top-4 self-start flex flex-col gap-4">
+                <CommandScreenSectionHeading
+                  title={t("lab_test_bench_title", "Active Test Bench")}
+                  subtitle={t(
+                    "lab_test_bench_subtitle",
+                    "Configure dependencies, conflicts, and sandbox safeguards"
+                  )}
+                  icon={t("icon_science", "science")}
+                />
+
+                <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-4">
+                  {/* STEP 1: PRIMARY MOD */}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                          {t("icon_science", "science")}
+                        </span>
+                        <span>{t("lab_slot_primary_title", "1. Primary {Mod}")}</span>
+                      </span>
+                      {activeLabMod && (
+                        <span className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                            {t("icon_check_circle", "check_circle")}
+                          </span>
+                          <span>{t("selected", "Selected")}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {!activeLabMod ? (
+                      <div className="rounded-xl p-5 glass-surface border border-dashed border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-col items-center justify-center text-center gap-2">
+                        <div className="w-10 h-10 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] flex items-center justify-center">
+                          <span className="material-symbols-outlined !text-[20px]">
+                            {t("icon_science", "science")}
+                          </span>
+                        </div>
+                        <span className="text-xs font-black text-[var(--text)]">
+                          {t("lab_empty_primary_title", "Select a {Mod} to Test")}
+                        </span>
+                        <p className="text-[11px] font-medium text-[var(--subtext)] leading-relaxed m-0 max-w-[280px]">
+                          {t(
+                            "lab_empty_primary_desc",
+                            "Pick any {mod} from the catalog on the left to load it into an isolated test session."
+                          )}
+                        </p>
+                      </div>
+                    ) : (
+                      renderBenchModCard(activeLabMod, {
+                        iconColorClass: "text-[var(--accent)]",
+                        onRemove: abortLab,
+                        companionMods: stagedExtras,
+                      })
+                    )}
+
+                    {activeLabMod && missingDeps.length > 0 && (
+                      <div className="glass-surface rounded-xl p-3 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2">
+                        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[var(--text)]">
+                          <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">
+                            {t("icon_warning", "warning")}
+                          </span>
+                          <span>{t("missing_deps", "Missing Dependencies")}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {missingDeps.map((depObj, idx) => {
+                            const depName =
+                              typeof depObj === "string"
+                                ? depObj
+                                : depObj.displayName || depObj.name || t("unknown", "Unknown");
+                            const depId = typeof depObj === "string" ? null : depObj.id;
+                            return (
+                              <button
+                                key={depId || idx}
+                                type="button"
+                                onClick={async () => {
+                                  if (!onOpenDossier) return;
+                                  let data = null;
+                                  if (depId) {
+                                    const { data: d } = await supabase
+                                      .from("mods")
+                                      .select("*")
+                                      .eq("id", depId)
+                                      .eq("compliance_tier", 0)
+                                      .in("status", ["stable", "unstable", "corrupted", "pending"])
+                                      .single();
+                                    data = d;
+                                  } else {
+                                    const searchTerms = depName
+                                      .split(" ")
+                                      .map((term: string) => term.trim())
+                                      .filter(Boolean)
+                                      .join("%");
+                                    const { data: d } = await supabase
+                                      .from("mods")
+                                      .select("*")
+                                      .ilike("name", `%${searchTerms}%`)
+                                      .eq("compliance_tier", 0)
+                                      .in("status", ["stable", "unstable", "corrupted", "pending"])
+                                      .limit(1)
+                                      .maybeSingle();
+                                    data = d;
+                                  }
+                                  if (data) {
+                                    onOpenDossier({ ...data, isNexusView: true });
+                                  } else {
+                                    onOpenDossier({
+                                      name: depName,
+                                      displayName: depName,
+                                      isNexusView: true,
+                                    });
+                                  }
+                                }}
+                                className={`${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] cursor-pointer transition-colors`}
+                              >
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                                  {t("icon_warning", "warning")}
+                                </span>
+                                <span>{getCleanModBaseName(depName)}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* STEP 2: DEPENDENCIES */}
+                  <div className="flex flex-col gap-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                          {t("icon_hub", "hub")}
+                        </span>
+                        <span>{t("lab_slot_deps_title", "2. Dependencies")}</span>
+                      </span>
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span>{stagedExtras.length}</span>
+                      </span>
+                    </div>
+
+                    <ModSearchDropdown
+                      modList={builderSymbioticMods}
+                      selectedItem={null}
+                      onSelect={(m: any) => {
+                        if (m && !stagedExtras.find((e: any) => e.hash === m.hash)) {
+                          setStagedExtras([...stagedExtras, m]);
+                        }
+                      }}
+                      onClear={() => {}}
+                      placeholder={t("add_extra", "Add extra dependency...")}
+                    />
+
+                    {stagedExtras.length > 0 ? (
+                      <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto custom-scrollbar pr-0.5">
+                        {stagedExtras.map((m: any) =>
+                          renderBenchModCard(m, {
+                            iconColorClass: "text-[var(--accent)]",
+                            onRemove: () =>
+                              setStagedExtras(
+                                stagedExtras.filter((x: any) => x.hash !== m.hash)
+                              ),
+                            companionMods: activeLabMod ? [activeLabMod] : undefined,
+                          })
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-[11px] font-medium text-[var(--subtext)] opacity-75 px-0.5">
+                        {t(
+                          "lab_builder_no_deps_hint",
+                          "No extra dependencies staged — only the primary {mod} will load."
+                        )}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* STEP 3: OPTIONAL CONFLICT CHECK */}
+                  <div className="flex flex-col gap-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">
+                          {t("icon_compare_arrows", "compare_arrows")}
+                        </span>
+                        <span>{t("lab_slot_conflict_title", "3. Conflict Check")}</span>
+                      </span>
+                      <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-65">
+                        {t("lab_optional_label", "Optional")}
+                      </span>
+                    </div>
+
+                    {!conflictTarget ? (
+                      <ModSearchDropdown
+                        modList={builderPrimaryAdversaryMods}
+                        selectedItem={conflictTarget}
+                        onSelect={setConflictTarget}
+                        onClear={() => setConflictTarget(null)}
+                        placeholder={t(
+                          "lab_conflict_ph",
+                          "Test compatibility against another {mod}..."
+                        )}
+                      />
+                    ) : (
+                      <ModSearchDropdown
+                        modList={builderExtraAdversaryMods}
+                        selectedItem={null}
+                        onSelect={(m: any) => {
+                          if (m && !conflictExtras.find((e: any) => e.hash === m.hash)) {
+                            setConflictExtras([...conflictExtras, m]);
+                          }
+                        }}
+                        onClear={() => {}}
+                        placeholder={t("add_extra", "Add extra dependency...")}
+                      />
+                    )}
+
+                    {conflictTarget && (
+                      <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto custom-scrollbar pr-0.5">
+                        {renderBenchModCard(conflictTarget, {
+                          iconColorClass: "text-[var(--warning)]",
+                          onRemove: () => {
+                            setConflictTarget(null);
+                            setConflictExtras([]);
+                          },
+                          companionMods: conflictExtras,
+                        })}
+
+                        {conflictExtras.map((m: any) =>
+                          renderBenchModCard(m, {
+                            iconColorClass: "text-[var(--subtext)]",
+                            onRemove: () =>
+                              setConflictExtras(
+                                conflictExtras.filter((x: any) => x.hash !== m.hash)
+                              ),
+                            companionMods: conflictTarget ? [conflictTarget] : undefined,
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* SANDBOX SAFEGUARDS STRIP */}
+                  <div className="grid grid-cols-2 gap-2 pt-3 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                    <button
+                      type="button"
+                      onClick={() => setShowTestSaveModal(true)}
+                      className="glass-surface rounded-xl p-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] flex items-center gap-2 text-left transition-colors cursor-pointer min-w-0"
+                    >
+                      <span
+                        className={`material-symbols-outlined !text-[17px] shrink-0 ${
+                          testSaveStatus?.has_test_save
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--warning)]"
+                        }`}
+                      >
+                        {t("icon_save", "save")}
+                      </span>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] truncate">
+                          {t("lab_bench_save_label", "Test Save")}
+                        </span>
+                        <span className="text-[11px] font-bold text-[var(--text)] truncate">
+                          {testSaveStatus?.active_test_save?.file_name ||
+                            t("lab_test_save_btn_setup", "Set Up Test Save")}
+                        </span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggleAirgap(!airgapStatus.active)}
+                      className="glass-surface rounded-xl p-2.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] flex items-center gap-2 text-left transition-colors cursor-pointer min-w-0"
+                    >
+                      <span
+                        className={`material-symbols-outlined !text-[17px] shrink-0 ${
+                          airgapStatus.active ? "text-[var(--success)]" : "text-[var(--subtext)]"
+                        }`}
+                      >
+                        {t("icon_shield_lock", "shield_lock")}
+                      </span>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] truncate">
+                          {t("lab_save_airgap_title", "Save Airgap Shield")}
+                        </span>
+                        <span className="text-[11px] font-bold text-[var(--text)] truncate">
+                          {airgapStatus.active
+                            ? t("enabled", "Enabled")
+                            : t("lab_airgap_auto_on_run", "Auto on Launch")}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* PRIMARY LAUNCH CTA */}
+                  <div className="flex flex-col gap-2 pt-1">
+                    {!shelterActive ? (
+                      <>
+                        <div className="flex items-center gap-2 w-full">
+                          <button
+                            type="button"
+                            disabled={!activeLabMod}
+                            onClick={() => runCombinedHotSwap()}
+                            className="flex-1 py-3 px-4 rounded-xl glass-surface sa-glass-pill-active text-xs font-black uppercase tracking-wider text-[var(--text)] flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                          >
+                            <span className="material-symbols-outlined !text-[17px] text-[var(--accent)]">
+                              {t("icon_bolt", "bolt")}
+                            </span>
+                            <span>{t("btn_initiate_swap", "Conduct Experiment")}</span>
+                          </button>
+
+                          {activeLabMod && (
+                            <button
+                              type="button"
+                              onClick={abortLab}
+                              className="py-3 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-xs font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0"
+                            >
+                              <span className="material-symbols-outlined !text-[16px]">
+                                {t("icon_restart_alt", "restart_alt")}
+                              </span>
+                              <span>{t("clear", "Clear")}</span>
+                            </button>
+                          )}
+                        </div>
+                        {linkedTool && activeLabMod && (
+                          <button
+                            type="button"
+                            onClick={() => runCombinedHotSwap(linkedTool.path)}
+                            className="w-full py-2.5 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
+                              {t("icon_build_circle", "build_circle")}
+                            </span>
+                            <span className="truncate">
+                              {`${t("lab_btn_launch_tool", "Launch Linked Tool")} (${linkedTool.name})`}
+                            </span>
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowTestPanel(true)}
+                        className="w-full py-3 px-4 rounded-xl glass-surface sa-glass-pill-success text-xs font-black uppercase tracking-wider text-[var(--text)] flex items-center justify-center gap-2 transition-all cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined !text-[17px] text-[var(--success)]">
+                          {t("icon_science", "science")}
+                        </span>
+                        <span>{t("btn_view_test", "View Active Test")}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            </CommandScreenBody>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {activeTab === "REPORTS" && (
         <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full h-full min-h-[500px]">
           <CommandScreenSectionHeading
             title={t("tab_lab_reports", "Lab Reports")}
+            subtitle={t(
+              "lab_reports_section_sub",
+              "Session logs, crash diagnostics, and sandbox verification results"
+            )}
             icon={t("icon_terminal", "terminal")}
           />
-
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pb-32">
             {filteredReports.map((report: any) => {
               const isError = Boolean(report.errorFound);
@@ -2571,9 +3136,8 @@ export default function Lab({
                     <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5 z-20 pointer-events-none">
                       <span className={VAULT_CHIP_CLASS}>
                         <span
-                          className={`material-symbols-outlined !text-[12px] ${
-                            isError ? "text-[var(--danger)]" : "text-[var(--success)]"
-                          }`}
+                          className={`material-symbols-outlined !text-[12px] ${isError ? "text-[var(--danger)]" : "text-[var(--success)]"
+                            }`}
                         >
                           {isError ? t("icon_warning", "warning") : t("icon_check_circle", "check_circle")}
                         </span>
@@ -2659,10 +3223,19 @@ export default function Lab({
       {activeTab === "KNOWN_ERRORS" && (
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 w-full pb-32">
           <KnownErrorRulesManager
-            searchQuery={searchLogs}
+            searchQuery={knownErrorSearch}
+            onClearSearch={() => {
+              setKnownErrorSearch("");
+              setKnownErrorFilter("all");
+              setKnownErrorLabBehavior("all");
+              setKnownErrorFileHint("all");
+            }}
             canEdit={false}
             severityFilter={knownErrorFilter}
             onSeverityFilterChange={setKnownErrorFilter}
+            labBehaviorFilter={knownErrorLabBehavior}
+            fileHintFilter={knownErrorFileHint}
+            sortBy={knownErrorSort}
           />
         </div>
       )}
@@ -2719,11 +3292,11 @@ export default function Lab({
           const realLogDisplayContent = formatHumanReadableLogText(
             liveRealLogs.length > 0
               ? liveRealLogs
-                  .map(
-                    (l) =>
-                      `// === FILE: ${l.fileName || l.file_name} ===\n${scrubLogUserData(l.content)}`
-                  )
-                  .join("\n\n")
+                .map(
+                  (l) =>
+                    `// === FILE: ${l.fileName || l.file_name} ===\n${scrubLogUserData(l.content)}`
+                )
+                .join("\n\n")
               : extractCleanRealLogContent(rawLogData)
           );
 
@@ -2733,9 +3306,9 @@ export default function Lab({
 
           const canSecureReport = Boolean(
             selectedReport.isConcluding ||
-              shelterActive ||
-              lastConcludingReport?.id === selectedReport.id ||
-              secureCardState !== "idle"
+            shelterActive ||
+            lastConcludingReport?.id === selectedReport.id ||
+            secureCardState !== "idle"
           );
 
           const realLogFileName =
@@ -2768,7 +3341,7 @@ export default function Lab({
               onClose={() => setSelectedReport(null)}
               title={<span className="normal-case font-mono">{`Lab_Report_${reportNum}`}</span>}
               subtitle={`${isError ? t("fatal_collision", "Fatal Collision") : t("successful_injection", "Successful Injection")} • ${t("tab_lab_reports", "Lab Reports")}`}
-              icon={isError ? "warning" : "science"}
+              icon={isError ? t("icon_warning", "warning") : t("icon_science", "science")}
               iconColorClass={
                 isError ? "text-[var(--danger)]" : "text-[var(--success)]"
               }
@@ -2779,7 +3352,7 @@ export default function Lab({
                     <PanelHeaderButton
                       icon={
                         submitCardState === "done"
-                          ? "check_circle"
+                          ? t("icon_check_circle", "check_circle")
                           : submitCardState === "working"
                             ? t("icon_sync", "sync")
                             : t("icon_send", "send")
@@ -2811,7 +3384,7 @@ export default function Lab({
                   <PanelHeaderButton
                     icon={
                       downloadCardState === "done"
-                        ? "check_circle"
+                        ? t("icon_check_circle", "check_circle")
                         : t("icon_download", "download")
                     }
                     variant={downloadCardState === "done" ? "success" : "accent"}
@@ -2835,15 +3408,15 @@ export default function Lab({
                     reportStagedDeps
                   )} • v${getModVersionLabel(resolvedTargetMod, modList, reportStagedDeps)}`}
                   label={t("subject_isolation", "Subject Isolation")}
-                  icon={isError ? "warning" : "check_circle"}
+                  icon={isError ? t("icon_warning", "warning") : t("icon_check_circle", "check_circle")}
                   variant={isError ? "danger" : "success"}
                   badges={[
                     {
-                      icon: isError ? "warning" : "check_circle",
+                      icon: isError ? t("icon_warning", "warning") : t("icon_check_circle", "check_circle"),
                       label: isError ? t("fatal_collision", "Fatal Collision") : t("successful_injection", "Successful Injection"),
                       colorClass: isError
-                        ? "text-rose-400 border-rose-500/45"
-                        : "text-emerald-400 border-emerald-500/45",
+                        ? "text-[var(--danger)]"
+                        : "text-[var(--success)]",
                     },
                   ]}
                 >
@@ -2881,54 +3454,83 @@ export default function Lab({
                       }
                     />
                   </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-1 ml-auto w-full">
+                    {resolvedTargetMod && onOpenDossier && (
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_deployed_code", "deployed_code")}
+                        label={t("inspect", "Inspect")}
+                        onClick={() => onOpenDossier(resolvedTargetMod)}
+                      />
+                    )}
+                    {resolvedTargetMod && (
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_science", "science")}
+                        label={t("tab_env_builder", "Environment Builder")}
+                        onClick={() => {
+                          if (setActiveLabMod) setActiveLabMod(resolvedTargetMod);
+                          setStagedExtras(Array.isArray(reportStagedDeps) ? reportStagedDeps : []);
+                          if (setConflictTarget) setConflictTarget(resolvedConflictTarget || null);
+                          setConflictExtras(
+                            Array.isArray(resolvedConflictExtras) ? resolvedConflictExtras : []
+                          );
+                          setSelectedReport(null);
+                          setActiveTab("BUILDER");
+                        }}
+                      />
+                    )}
+                    <ActionButton
+                      variant={downloadCardState === "done" ? "success" : "accent"}
+                      icon={
+                        downloadCardState === "done"
+                          ? t("icon_check_circle", "check_circle")
+                          : t("icon_download", "download")
+                      }
+                      label={
+                        downloadCardState === "done"
+                          ? t("lab_action_download_done_title", "Report Saved Locally")
+                          : t("lab_action_download_title", "Download Report")
+                      }
+                      onClick={handleExportLogs}
+                    />
+                  </div>
                 </SidePanelHeroCard>
                 {canSecureReport && (
                   <button
                     type="button"
                     onClick={handleConcludeTest}
                     disabled={secureCardState === "working" || secureCardState === "done"}
-                    className={`text-left rounded-2xl p-3.5 border transition-all flex items-start gap-3 group cursor-pointer shadow-sm disabled:cursor-default bg-transparent ${
-                      secureCardState === "done"
-                        ? "border-[var(--success)]"
-                        : isError
-                          ? "border-[color-mix(in_srgb,var(--danger)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_8%,transparent)]"
-                          : "border-[color-mix(in_srgb,var(--success)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_8%,transparent)]"
-                    }`}
+                    className={`text-left glass-panel rounded-2xl p-3.5 border transition-all flex items-start gap-3 group cursor-pointer shadow-sm disabled:cursor-default ${secureCardState === "done"
+                      ? "sa-glass-pill-active"
+                      : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
+                      }`}
                   >
                     <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] ${
-                        secureCardState === "done"
-                          ? "text-[var(--success)]"
-                          : isError
-                            ? "text-[var(--danger)]"
-                            : "text-[var(--success)]"
-                      }`}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] ${secureCardState === "done"
+                        ? "text-[var(--success)]"
+                        : isError
+                          ? "text-[var(--danger)]"
+                          : "text-[var(--success)]"
+                        }`}
                     >
                       <span
-                        className={`material-symbols-outlined !text-[18px] ${
-                          secureCardState === "working" ? "animate-spin" : ""
-                        }`}
+                        className={`material-symbols-outlined !text-[18px] ${secureCardState === "working" ? "animate-spin" : ""
+                          }`}
                       >
                         {secureCardState === "done"
-                          ? "check_circle"
+                          ? t("icon_check_circle", "check_circle")
                           : secureCardState === "working"
                             ? t("icon_sync", "sync")
                             : isError
-                              ? "shield"
-                              : "verified_user"}
+                              ? t("icon_shield", "shield")
+                              : t("icon_verified_user", "verified_user")}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span
-                          className={`text-[11px] font-black uppercase tracking-wider ${
-                            secureCardState === "done"
-                              ? "text-[var(--success)]"
-                              : isError
-                                ? "text-[var(--danger)]"
-                                : "text-[var(--success)]"
-                          }`}
-                        >
+                        <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)]">
                           {secureCardState === "done"
                             ? isError
                               ? t("lab_action_secure_broken_done_title", "Removed From {Blueprint} & Secured")
@@ -2940,16 +3542,13 @@ export default function Lab({
                                 : t("lab_action_secure_verified_title", "Secure Verified Artifact")}
                         </span>
                         <span
-                          className={`material-symbols-outlined !text-[15px] transition-all ${
-                            secureCardState === "done"
-                              ? "text-[var(--success)] opacity-100"
-                              : `opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 ${
-                                  isError ? "text-[var(--danger)]" : "text-[var(--success)]"
-                                }`
-                          }`}
+                          className={`material-symbols-outlined !text-[15px] transition-all ${secureCardState === "done"
+                            ? "text-[var(--success)] opacity-100"
+                            : "text-[var(--subtext)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5"
+                            }`}
                         >
                           {secureCardState === "done"
-                            ? "check_circle"
+                            ? t("icon_check_circle", "check_circle")
                             : t("icon_arrow_forward", "arrow_forward")}
                         </span>
                       </div>
@@ -2958,9 +3557,9 @@ export default function Lab({
                           ? isError
                             ? t("lab_action_secure_broken_done_desc", "Live saves restored and corrupted {mod} unequipped from active {Blueprint}.")
                             : t(
-                                "lab_action_secure_verified_done_desc",
-                                "Sandbox closed, live saves restored, and mod signed off as verified."
-                              )
+                              "lab_action_secure_verified_done_desc",
+                              "Sandbox closed, live saves restored, and mod signed off as verified."
+                            )
                           : isError
                             ? t("lab_action_secure_broken_desc", "Conclude test, mark {mod} as broken, and restore your live {blueprint} & saves")
                             : t("lab_action_secure_verified_desc", "Conclude test, mark {mod} as verified, and restore your live {blueprint} & saves")}
@@ -2975,11 +3574,11 @@ export default function Lab({
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
                         <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                          extension
+                          {t("icon_extension", "extension")}
                         </span>
                         {t("lab_report_deps_loaded_title", "Dependencies Loaded for Test")}
                       </span>
-                      <span className="text-[10px] font-mono font-bold text-[var(--accent)]">
+                      <span className="text-[10px] font-mono font-bold text-[var(--subtext)]">
                         {reportStagedDeps.length}
                       </span>
                     </div>
@@ -2992,7 +3591,7 @@ export default function Lab({
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] shrink-0">
-                                extension
+                                {t("icon_extension", "extension")}
                               </span>
                               <span className="text-xs font-bold text-[var(--text)] truncate">
                                 {getCleanModBaseName(m)}
@@ -3014,31 +3613,31 @@ export default function Lab({
                     )}
                   </div>
 
-                  <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--warning)_25%,transparent)] flex flex-col gap-2.5">
+                  <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
                         <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">
-                          warning
+                          {t("icon_warning", "warning")}
                         </span>
                         {t("lab_report_conflicts_loaded_title", "Conflicts Loaded for Test")}
                       </span>
-                      <span className="text-[10px] font-mono font-bold text-[var(--warning)]">
+                      <span className="text-[10px] font-mono font-bold text-[var(--subtext)]">
                         {reportConflicts.length}
                       </span>
                     </div>
                     {reportConflicts.length > 0 ? (
                       <div className="flex flex-col gap-1.5">
                         {resolvedConflictTarget && (
-                          <div className="w-full rounded-xl px-3 py-2 bg-[color-mix(in_srgb,var(--danger)_4%,transparent)] border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] flex items-center justify-between gap-2">
+                          <div className="w-full rounded-xl px-3 py-2 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="material-symbols-outlined !text-[14px] text-[var(--danger)] shrink-0">
-                                warning
+                                {t("icon_warning", "warning")}
                               </span>
                               <span className="text-xs font-bold text-[var(--text)] truncate">
                                 {getCleanModBaseName(resolvedConflictTarget)}
                               </span>
                             </div>
-                            <span className="text-[10px] font-mono font-bold text-[var(--danger)] shrink-0">
+                            <span className="text-[10px] font-mono font-bold text-[var(--subtext)] shrink-0">
                               {getModExtensionLabel(
                                 resolvedConflictTarget,
                                 activeGameSchema,
@@ -3052,17 +3651,17 @@ export default function Lab({
                         {resolvedConflictExtras?.map((m: any) => (
                           <div
                             key={m.hash || m.name}
-                            className="w-full rounded-xl px-3 py-2 bg-[color-mix(in_srgb,var(--warning)_4%,transparent)] border border-[color-mix(in_srgb,var(--warning)_25%,transparent)] flex items-center justify-between gap-2"
+                            className="w-full rounded-xl px-3 py-2 bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2"
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="material-symbols-outlined !text-[14px] text-[var(--warning)] shrink-0">
-                                extension
+                                {t("icon_extension", "extension")}
                               </span>
                               <span className="text-xs font-bold text-[var(--text)] truncate">
                                 {getCleanModBaseName(m)}
                               </span>
                             </div>
-                            <span className="text-[10px] font-mono font-bold text-[var(--warning)] shrink-0">
+                            <span className="text-[10px] font-mono font-bold text-[var(--subtext)] shrink-0">
                               {getModExtensionLabel(m, activeGameSchema, modList)} &bull; v
                               {getModVersionLabel(m, modList)}
                             </span>
@@ -3136,33 +3735,35 @@ export default function Lab({
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center gap-1.5">
+                    <div className="flex items-center justify-end gap-2 flex-wrap ml-auto">
+                      <span className={VAULT_CHIP_CLASS}>
                         <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                           {t("icon_verified_user", "verified_user")}
                         </span>
-                        {t("lab_report_pii_scrubbed_badge", "USER DATA SCRUBBED")}
+                        <span>{t("lab_report_pii_scrubbed_badge", "User Data Scrubbed")}</span>
                       </span>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!activeLogTextToCopy) return;
-                          navigator.clipboard?.writeText(activeLogTextToCopy);
-                          setCopiedLogState(true);
-                          setTimeout(() => setCopiedLogState(false), 1800);
-                        }}
-                        className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] transition-all flex items-center gap-1 cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined !text-[12px]">
-                          {copiedLogState
-                            ? "check"
-                            : t("icon_content_copy", "content_copy")}
-                        </span>
-                        {copiedLogState
-                          ? t("copied", "Copied")
-                          : t("lab_report_copy_btn", "Copy Log")}
-                      </button>
+                      <PanelHeaderGroup>
+                        <PanelHeaderButton
+                          icon={
+                            copiedLogState
+                              ? t("icon_check", "check")
+                              : t("icon_content_copy", "content_copy")
+                          }
+                          label={
+                            copiedLogState
+                              ? t("copied", "Copied")
+                              : t("lab_report_copy_btn", "Copy Log")
+                          }
+                          variant={copiedLogState ? "success" : "default"}
+                          onClick={() => {
+                            if (!activeLogTextToCopy) return;
+                            navigator.clipboard?.writeText(activeLogTextToCopy);
+                            setCopiedLogState(true);
+                            setTimeout(() => setCopiedLogState(false), 1800);
+                          }}
+                        />
+                      </PanelHeaderGroup>
                     </div>
                   </div>
 
@@ -3209,23 +3810,30 @@ export default function Lab({
               badges={[
                 {
                   icon: t("icon_shield_lock", "shield_lock"),
-                  label: t("lab_badge_saves_airgapped", "SAVES AIRGAPPED (SANDBOX ACTIVE)"),
-                  colorClass: "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_45%,transparent)]",
+                  label: t("lab_badge_saves_airgapped", "Saves Airgapped (Sandbox Active)"),
+                  colorClass: "text-[var(--success)]",
                 },
               ]}
             >
-              {linkedTool && (
-                <button
-                  type="button"
-                  onClick={handleLaunchExternalToolStandalone}
-                  className="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all inline-flex items-center gap-1.5 cursor-pointer w-fit"
-                >
-                  <span className="material-symbols-outlined !text-[14px]">
-                    {t("icon_launch", "launch")}
-                  </span>
-                  {`${t("lab_btn_launch_tool", "Launch Tool (Isolated)")} (${linkedTool.name})`}
-                </button>
-              )}
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-1 ml-auto w-full">
+                {linkedTool && (
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_launch", "launch")}
+                    label={`${t("lab_btn_launch_tool", "Launch Tool (Isolated)")} (${linkedTool.name})`}
+                    onClick={handleLaunchExternalToolStandalone}
+                  />
+                )}
+                <ActionButton
+                  variant="success"
+                  icon={t("icon_science", "science")}
+                  label={t("btn_conclude_experiment", "Conclude Experiment")}
+                  onClick={() => {
+                    handleConcludeTest();
+                    setShowTestPanel(false);
+                  }}
+                />
+              </div>
             </SidePanelHeroCard>
 
             <div className="w-full text-left">
@@ -3265,21 +3873,27 @@ export default function Lab({
               title={
                 testSaveStatus?.active_test_save
                   ? testSaveStatus.active_test_save.file_name
-                  : t("lab_test_save_none_badge", "CLEAN SANDBOX (CREATE SAVE IN-GAME)")
+                  : t("lab_test_save_none_badge", "Clean Sandbox (Create Save In-Game)")
               }
               subtitle={t("lab_test_save_active_sub", "Only active while Lab is running")}
               label={t("lab_test_save_current_label", "Active Lab Test Save")}
-              icon={testSaveStatus?.has_test_save ? "verified_user" : t("icon_save", "save")}
+              icon={
+                testSaveStatus?.has_test_save
+                  ? t("icon_verified_user", "verified_user")
+                  : t("icon_save", "save")
+              }
               variant={testSaveStatus?.has_test_save ? "success" : "warning"}
               badges={[
                 {
-                  icon: testSaveStatus?.has_test_save ? "check_circle" : "science",
+                  icon: testSaveStatus?.has_test_save
+                    ? t("icon_check_circle", "check_circle")
+                    : t("icon_science", "science"),
                   label: testSaveStatus?.has_test_save
-                    ? t("lab_test_save_active_badge", "ISOLATED TEST SAVE READY")
-                    : t("lab_test_save_none_badge", "CLEAN SANDBOX (CREATE SAVE IN-GAME)"),
+                    ? t("lab_test_save_active_badge", "Isolated Test Save Ready")
+                    : t("lab_test_save_none_badge", "Clean Sandbox (Create Save In-Game)"),
                   colorClass: testSaveStatus?.has_test_save
-                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                    : "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]",
+                    ? "text-[var(--success)]"
+                    : "text-[var(--warning)]",
                 },
               ]}
             />
@@ -3296,36 +3910,28 @@ export default function Lab({
                 )}
               </p>
 
-              <div className="flex items-center gap-2.5 flex-wrap pt-1">
-                <button
-                  type="button"
-                  disabled={isConfiguringSave}
-                  onClick={() => handleResetForFreshSave(false)}
-                  className="px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] bg-transparent hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined !text-[14px]">
-                    {t("icon_save", "save")}
-                  </span>
-                  {t(
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-1 ml-auto w-full">
+                <ActionButton
+                  variant="glass"
+                  icon={t("icon_save", "save")}
+                  label={t(
                     "lab_test_save_btn_use_fresh",
                     "Use Clean Sandbox (Create Save In-Game)"
                   )}
-                </button>
-
-                <button
-                  type="button"
                   disabled={isConfiguringSave}
-                  onClick={() => handleResetForFreshSave(true)}
-                  className="px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] bg-transparent hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)] transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined !text-[14px]">
-                    {t("icon_launch", "rocket_launch")}
-                  </span>
-                  {t(
+                  onClick={() => handleResetForFreshSave(false)}
+                />
+
+                <ActionButton
+                  variant="success"
+                  icon={t("icon_launch", "rocket_launch")}
+                  label={t(
                     "lab_test_save_btn_launch_create",
                     "Launch Game Now to Create Test Save"
                   )}
-                </button>
+                  disabled={isConfiguringSave}
+                  onClick={() => handleResetForFreshSave(true)}
+                />
               </div>
             </UniversalGroup>
 
@@ -3342,7 +3948,7 @@ export default function Lab({
               </p>
 
               {testSaveStatus?.available_live_saves &&
-              testSaveStatus.available_live_saves.length > 0 ? (
+                testSaveStatus.available_live_saves.length > 0 ? (
                 <div className="flex flex-col gap-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
                   {testSaveStatus.available_live_saves.map((saveItem) => {
                     const isCurrentActive =
@@ -3351,19 +3957,17 @@ export default function Lab({
                     return (
                       <div
                         key={saveItem.file_name}
-                        className={`glass-surface rounded-xl p-3 border flex items-center justify-between gap-3 transition-all ${
-                          isCurrentActive
-                            ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
-                            : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)]"
-                        }`}
+                        className={`glass-surface rounded-xl p-3 border flex items-center justify-between gap-3 transition-all ${isCurrentActive
+                          ? "sa-glass-pill-active"
+                          : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)]"
+                          }`}
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <span
-                            className={`material-symbols-outlined !text-[18px] shrink-0 ${
-                              isCurrentActive
-                                ? "text-[var(--success)]"
-                                : "text-[var(--subtext)]"
-                            }`}
+                            className={`material-symbols-outlined !text-[18px] shrink-0 ${isCurrentActive
+                              ? "text-[var(--success)]"
+                              : "text-[var(--subtext)]"
+                              }`}
                           >
                             {t("icon_save", "save")}
                           </span>
@@ -3372,34 +3976,32 @@ export default function Lab({
                               {saveItem.file_name}
                             </span>
                             <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75">
-                              {`${(saveItem.size_kb / 1024).toFixed(1)} MB • ${
-                                saveItem.modified_epoch
-                                  ? new Date(
-                                      saveItem.modified_epoch * 1000
-                                    ).toLocaleString()
-                                  : ""
-                              }`}
+                              {`${(saveItem.size_kb / 1024).toFixed(1)} MB • ${saveItem.modified_epoch
+                                ? new Date(
+                                  saveItem.modified_epoch * 1000
+                                ).toLocaleString()
+                                : ""
+                                }`}
                             </span>
                           </div>
                         </div>
 
-                        <button
-                          type="button"
+                        <ActionButton
+                          variant={isCurrentActive ? "success" : "glass"}
+                          icon={
+                            isCurrentActive
+                              ? t("icon_check_circle", "check_circle")
+                              : t("icon_content_copy", "content_copy")
+                          }
+                          label={
+                            isCurrentActive
+                              ? t("lab_test_save_btn_active", "Active Test Save")
+                              : t("lab_test_save_btn_use_this", "Set as Test Save")
+                          }
                           disabled={isConfiguringSave}
                           onClick={() => handleCopyLiveSaveForLab(saveItem.file_name)}
-                          className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border bg-transparent transition-all flex items-center gap-1 cursor-pointer shrink-0 disabled:opacity-50 ${
-                            isCurrentActive
-                              ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                              : "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
-                          }`}
-                        >
-                          <span className="material-symbols-outlined !text-[12px]">
-                            {isCurrentActive ? "check_circle" : "content_copy"}
-                          </span>
-                          {isCurrentActive
-                            ? t("lab_test_save_btn_active", "Active Test Save")
-                            : t("lab_test_save_btn_use_this", "Set as Test Save")}
-                        </button>
+                          className="ml-auto shrink-0"
+                        />
                       </div>
                     );
                   })}
@@ -3408,7 +4010,7 @@ export default function Lab({
                 <div className="glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-xs font-bold text-[var(--subtext)] text-center">
                   {t(
                     "lab_test_save_no_live_saves",
-                    "No existing .save files found in your game saves folder. Use the option above to create a new test save in-game."
+                    "No existing save files found in your game saves folder. Use the option above to create a new test save in-game."
                   )}
                 </div>
               )}

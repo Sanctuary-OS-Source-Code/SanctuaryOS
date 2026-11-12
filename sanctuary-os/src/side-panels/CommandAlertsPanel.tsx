@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from "react";
 import {
   CustomDropdown,
   SidePanel,
-  getExtensionRegex,
   EmptyState,
   PanelHeaderGroup,
   PanelHeaderButton,
@@ -12,8 +11,6 @@ import {
   SidePanelHeroCard,
   DashboardStatTile,
   UniversalGroup,
-  deduplicateBlueprintArtifacts,
-  stripPriorityTierPrefix,
 } from "../shared";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
@@ -23,6 +20,7 @@ import {
   evaluateModIssues,
   groupBrokenMods,
   renderGroupedIncompatibleSections,
+  resolveActiveBlueprintMods,
   resolveBlueprintConflicts,
   ConflictComparisonCard,
 } from "./CommandIncompatiblePanel";
@@ -43,6 +41,7 @@ export default function CommandAlertsPanel({
   const maskedDLC = useStore((state: any) => state.maskedDLC);
   const selectedVersion = useStore((state: any) => state.selectedVersion);
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
+  const networkUpdates = useStore((state: any) => state.networkUpdates);
   const ignoredGlobal = useStore((state: any) => state.ignoredGlobal);
   const showImages = useStore((state: any) => state.showImages);
   const playSets = useStore((state: any) => state.playSets);
@@ -77,42 +76,15 @@ export default function CommandAlertsPanel({
       window.removeEventListener("sanctuary-radar-cache-updated", handleRadarCacheUpdate);
   }, []);
 
-  const extRegex = useMemo(() => getExtensionRegex(activeGameSchema), [activeGameSchema]);
   const activeMods = useMemo(() => {
     if (!isOpen) return [];
-    const safeMods = deduplicateBlueprintArtifacts(effectivePlaySet?.mods, activeGameSchema);
-    const safeList = Array.isArray(modList) ? modList : [];
-
-    const exactMatchMap = new Map();
-    const baseMatchMap = new Map();
-
-    for (const m of safeList) {
-      if (!m.name) continue;
-      const exactKey = m.name.toLowerCase().replace(/\\/g, "/");
-      exactMatchMap.set(exactKey, m);
-
-      const baseKey = m.name.split(/[\\/]/).pop()?.replace(extRegex, "").toLowerCase();
-      if (baseKey && !baseMatchMap.has(baseKey)) {
-        baseMatchMap.set(baseKey, m);
-      }
-    }
-
-    return safeMods.map((rawMod: any) => {
-      const modName = typeof rawMod === "string" ? rawMod : String(rawMod?.name || rawMod?.path || "");
-      const cleanModName = stripPriorityTierPrefix(modName, activeGameSchema);
-      const modNameLow = cleanModName.toLowerCase().replace(/\\/g, "/");
-
-      const exactMatch = exactMatchMap.get(modNameLow);
-      if (exactMatch) return { ...exactMatch, _originalSetName: modName };
-
-      const mBase = modName.split(/[\\/]/).pop()?.replace(extRegex, "").toLowerCase();
-      const baseMatch = mBase ? baseMatchMap.get(mBase) : undefined;
-
-      if (baseMatch) return { ...baseMatch, _originalSetName: modName };
-
-      return { name: modName, isFallback: true, _originalSetName: modName };
-    });
-  }, [isOpen, effectivePlaySet?.mods, modList, extRegex, activeGameSchema]);
+    return resolveActiveBlueprintMods(
+      effectivePlaySet?.mods,
+      modList,
+      activeGameSchema,
+      networkUpdates
+    );
+  }, [isOpen, effectivePlaySet?.mods, modList, activeGameSchema, networkUpdates]);
 
   const activeConflicts = useMemo(() => {
     if (!isOpen) return [];
@@ -120,14 +92,15 @@ export default function CommandAlertsPanel({
       effectivePlaySet?.name,
       activeMods,
       ignoredGlobal,
-      t
+      t,
+      activeGameSchema
     );
     return allResolved.filter((c) =>
       mode === "critical"
         ? Number(c.conflict?.severity_rank) === 4
         : Number(c.conflict?.severity_rank) !== 4
     );
-  }, [isOpen, effectivePlaySet?.name, activeMods, ignoredGlobal, mode, t, radarCacheTick]);
+  }, [isOpen, effectivePlaySet?.name, activeMods, ignoredGlobal, mode, t, activeGameSchema, radarCacheTick]);
 
   const allBrokenMods = useMemo(() => {
     if (!isOpen) return [];
@@ -178,13 +151,35 @@ export default function CommandAlertsPanel({
 
   const { applyConflictOverride } = usePlaySetLogic();
 
+  const schemaPriorityOptions = useMemo(() => {
+    const tiers = activeGameSchema?.load_order?.priority_tiers;
+    if (Array.isArray(tiers) && tiers.length > 0) {
+      return tiers.map((pt: any) => ({
+        id: pt.folder ? `!${pt.folder.replace(/^!/, "")}` : "",
+        rawFolder: pt.folder || "",
+        label:
+          pt.label ||
+          (pt.folder ? pt.folder : t("bp_priority_default", "Standard Priority")),
+      }));
+    }
+    return [];
+  }, [activeGameSchema, t]);
+
   const getPriorityDrop = (modData: any) => {
-    if (!modData || modData.isFallback || !allow_write) return null;
+    if (!modData || modData.isFallback || !allow_write || schemaPriorityOptions.length === 0) {
+      return null;
+    }
     let currentPriority = "";
     if (modData.path) {
       const firstPart = modData.path.split(/[/\\]/)[0];
-      if (["!Sanctuary", "!Sanctuary2", "!Sanctuary3"].includes(firstPart)) {
-        currentPriority = firstPart;
+      const matchedOpt = schemaPriorityOptions.find(
+        (opt) =>
+          opt.id &&
+          (opt.id.toLowerCase() === firstPart.toLowerCase() ||
+            opt.rawFolder.toLowerCase() === firstPart.toLowerCase())
+      );
+      if (matchedOpt) {
+        currentPriority = matchedOpt.id;
       }
     }
     return (
@@ -200,12 +195,7 @@ export default function CommandAlertsPanel({
               console.error("Failed to move mod priority", e);
             }
           }}
-          options={[
-            { id: "", label: t("bp_priority_default", "Standard Priority") },
-            { id: "!Sanctuary", label: t("bp_priority_sanctuary", "Priority 1") },
-            { id: "!Sanctuary2", label: t("bp_priority_sanctuary2", "Priority 2") },
-            { id: "!Sanctuary3", label: t("bp_priority_sanctuary3", "Priority 3") },
-          ]}
+          options={schemaPriorityOptions.map((o) => ({ id: o.id, label: o.label }))}
         />
       </div>
     );

@@ -249,6 +249,7 @@ CREATE TABLE public.collections (
     image_url TEXT,
     is_official BOOLEAN DEFAULT false,
     set_type TEXT DEFAULT 'Collection',
+    status TEXT DEFAULT 'stable',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     mason_id UUID REFERENCES public.masons(id) ON DELETE SET NULL,
     url TEXT,
@@ -1173,9 +1174,9 @@ BEGIN
 
     IF COALESCE(current_setting('request.jwt.claim.role', true), '') IS DISTINCT FROM 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin')
-       AND sanctuary_internal.spoke_user_role() NOT IN ('wayfinder', 'oversight', 'admin')
+       AND sanctuary_internal.spoke_user_role() NOT IN ('wayfinder', 'admin')
     THEN
-        RAISE EXCEPTION 'Unauthorized: Only Wayfinders or Oversight may prune archived Spoke audit logs.';
+        RAISE EXCEPTION 'Unauthorized: Only Wayfinders may prune archived Spoke audit logs.';
     END IF;
 
     PERFORM set_config('sanctuary.allow_audit_prune', 'true', true);
@@ -1206,9 +1207,29 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 SET search_path = public
 AS $$
+DECLARE
+    v_new_confirmed BOOLEAN;
+    v_old_confirmed BOOLEAN := false;
 BEGIN
-    IF (TG_OP = 'INSERT' AND NEW.compliance_tier BETWEEN 1 AND 5) OR
-       (TG_OP = 'UPDATE' AND NEW.compliance_tier BETWEEN 1 AND 5 AND OLD.compliance_tier IS DISTINCT FROM NEW.compliance_tier) THEN
+    v_new_confirmed := (
+        NEW.compliance_tier = 5
+        OR (
+            NEW.compliance_tier BETWEEN 1 AND 4
+            AND LOWER(COALESCE(NEW.status, '')) NOT IN ('pending', 'under_review', 'unverified')
+        )
+    );
+
+    IF TG_OP = 'UPDATE' THEN
+        v_old_confirmed := (
+            OLD.compliance_tier = 5
+            OR (
+                OLD.compliance_tier BETWEEN 1 AND 4
+                AND LOWER(COALESCE(OLD.status, '')) NOT IN ('pending', 'under_review', 'unverified')
+            )
+        );
+    END IF;
+
+    IF v_new_confirmed AND (TG_OP = 'INSERT' OR NOT v_old_confirmed OR OLD.compliance_tier IS DISTINCT FROM NEW.compliance_tier) THEN
         UPDATE public.blueprints
         SET artifacts = (
             SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
@@ -1229,7 +1250,7 @@ $$;
 
 DROP TRIGGER IF EXISTS trg_purge_flagged_hash_from_blueprints ON public.mods;
 CREATE TRIGGER trg_purge_flagged_hash_from_blueprints
-    AFTER INSERT OR UPDATE OF compliance_tier ON public.mods
+    AFTER INSERT OR UPDATE OF compliance_tier, status ON public.mods
     FOR EACH ROW EXECUTE FUNCTION public.purge_flagged_hash_from_blueprints();
 
 CREATE OR REPLACE FUNCTION public.get_blueprints_premium_status(b_ids BIGINT[])

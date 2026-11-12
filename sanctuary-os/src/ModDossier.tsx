@@ -11,7 +11,9 @@ import {
   GameVersionMultiSelect,
   deriveHumanReadableVersion,
   CustomDatePicker,
+  CustomDropdown,
   CustomClassificationDropdown,
+  CustomComplianceDropdown,
   getHighestVersion,
   getLowestVersion,
   getFileLabel,
@@ -55,6 +57,7 @@ import {
   ModVersionHistorySidePanel,
   ModVersionBinaryGroup,
 } from "./side-panels/VaultSidePanels";
+import { UniversalTextArea } from "./components/universal/UniversalLayout";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -3557,6 +3560,7 @@ export default function ModDossier({
 
   const handleSave = async () => {
     setIsSaving(true);
+    const normStatus = String(metaInputs.status || "").toLowerCase().trim();
     await onSaveMetadata({
       created_at: localCreatedAt,
       updated_at: localUpdatedAt,
@@ -3565,6 +3569,13 @@ export default function ModDossier({
       manifest_url: metaInputs.manifest_url?.trim() || undefined,
       is_paid: metaInputs.is_paid || false,
       is_early_access: metaInputs.is_early_access || false,
+      status_reason: metaInputs.statusMsg?.trim() || "",
+      ...(normStatus === "corrupted" ||
+      normStatus === "broken" ||
+      normStatus === "unstable" ||
+      normStatus === "stable"
+        ? { status: normStatus === "broken" ? "corrupted" : normStatus }
+        : {}),
     });
     setIsSaving(false);
     setEditMode(false);
@@ -3700,7 +3711,11 @@ export default function ModDossier({
     }
   };
 
-  const handleFlagMod = async (reason: string) => {
+  const [flagComplianceTier, setFlagComplianceTier] = useState<number>(1);
+  const [flagReasonNotes, setFlagReasonNotes] = useState<string>("");
+  const [isSubmittingFlag, setIsSubmittingFlag] = useState<boolean>(false);
+
+  const handleFlagMod = async (reason: string, customTier?: number) => {
     if (
       reason === "Outdated Information" ||
       reason === "Inaccurate Information"
@@ -3721,44 +3736,81 @@ export default function ModDossier({
       return;
     }
 
-    let payload: any = {};
-    if (reason === "adult") payload = { compliance_tier: 2 };
-    else if (reason === "NSFW") payload = { compliance_tier: 1 };
-    else if (reason === "Suspected Malware") {
-      const { error: reportError } = await submitThreatManifestToSpoke(
-        {
-          artifact_name: mod.name || "Unknown Mod",
-          detected_hash: mod.hash || "unknown-hash",
-          signature: "User Flagged: Suspected Malware",
-          status: "pending",
-          original_exists: true,
-          original_shredded: false,
-        },
-        { isAuto: false, defaultSignature: "User Flagged: Suspected Malware" }
-      );
-      if (reportError) {
+    setIsSubmittingFlag(true);
+    try {
+      if (reason === "Suspected Malware") {
+        const { error: reportError } = await submitThreatManifestToSpoke(
+          {
+            artifact_name: mod.name || t("unknown", "Unknown"),
+            detected_hash: mod.hash || "unknown-hash",
+            signature: flagReasonNotes.trim()
+              ? `User Flagged: Suspected Malware — ${flagReasonNotes.trim()}`
+              : "User Flagged: Suspected Malware",
+            status: "pending",
+            original_exists: true,
+            original_shredded: false,
+          },
+          { isAuto: false, defaultSignature: "User Flagged: Suspected Malware" }
+        );
+        if (reportError) {
+          useStore
+            .getState()
+            .pushStatus(`${t("err_flag_mod_failed", "Failed to flag {mod}:")} ${reportError.message}`);
+          return;
+        }
         useStore
           .getState()
-          .pushStatus(`Failed to flag mod: ${reportError.message}`);
+          .pushStatus(
+            t(
+              "msg_malware_flag_routed",
+              "Suspected malware signature routed to Oversight Malware Queue for verification."
+            )
+          );
+        setShowFlagModal(false);
+        setFlagReasonNotes("");
         return;
       }
-      payload = { status: "unverified" };
-    } else payload = { status: "unverified" };
 
-    const { error } = await supabase
-      .from("mods")
-      .update(payload)
-      .eq("id", targetDbId);
-    if (!error) {
-      useStore
-        .getState()
-        .pushStatus(
-          `Mod flagged for: ${reason}. It has been updated pending review.`
+      const resolvedTier = Math.min(
+        4,
+        Math.max(
+          1,
+          customTier ??
+            (reason === "adult" ? 2 : reason === "NSFW" ? 1 : flagComplianceTier || 1)
+        )
+      );
+      const cleanNotes =
+        flagReasonNotes.trim() ||
+        t("compliance_flag_default_reason", "Flagged for Oversight Compliance review (Tier {tier}).").replace(
+          "{tier}",
+          String(resolvedTier)
         );
-      setShowFlagModal(false);
-      onClose();
-    } else {
-      useStore.getState().pushStatus(`Failed to flag mod: ${error.message}`);
+
+      const { error } = await supabase.rpc("flag_mod_for_compliance", {
+        p_mod_id: targetDbId,
+        p_tier: resolvedTier,
+        p_reason: cleanNotes,
+      });
+
+      if (!error) {
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "nexus_mod_flagged_compliance_toast",
+              "{Mod} flagged for Oversight Compliance review (Pending)."
+            )
+          );
+        setShowFlagModal(false);
+        setFlagReasonNotes("");
+        onClose();
+      } else {
+        useStore
+          .getState()
+          .pushStatus(`${t("err_flag_mod_failed", "Failed to flag {mod}:")} ${error.message}`);
+      }
+    } finally {
+      setIsSubmittingFlag(false);
     }
   };
 
@@ -4183,7 +4235,11 @@ export default function ModDossier({
             overline={t("system_status", "System Status")}
             title={statusLabel}
             description={
-              mod.status_reason ||
+              (mod.status_reason &&
+              !/^\[ARCHITECT\b/i.test(String(mod.status_reason).trim())
+                ? mod.status_reason
+                : "") ||
+              mod._alert_reason ||
               `${cleanArtifactTitle} • ${mod.author || t("unknown", "Unknown")}`
             }
             badge={
@@ -4575,6 +4631,65 @@ export default function ModDossier({
                     <CustomDatePicker
                       value={localUpdatedAt}
                       onChange={setLocalUpdatedAt}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5 md:col-span-2">
+                    <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-wider px-1">
+                      {t("registry_label_status", "Verification Status")}
+                    </label>
+                    <CustomDropdown
+                      disableTint={true}
+                      value={(() => {
+                        const s = String(metaInputs.status || mod.status || "")
+                          .toLowerCase()
+                          .trim();
+                        if (s === "corrupted" || s === "broken") return "corrupted";
+                        if (s === "unstable") return "unstable";
+                        return "stable";
+                      })()}
+                      onChange={(val: string) =>
+                        setMetaInputs.status && setMetaInputs.status(val)
+                      }
+                      options={[
+                        { id: "stable", label: t("status_stable", "Stable") },
+                        { id: "unstable", label: t("label_unstable", "Unstable") },
+                        { id: "corrupted", label: t("status_corrupted", "Corrupted") },
+                      ]}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5 md:col-span-2">
+                    <label
+                      className={`text-[10px] font-black uppercase tracking-wider px-1 flex items-center gap-1.5 ${
+                        String(metaInputs.status || mod.status || "").toLowerCase() ===
+                          "corrupted" ||
+                        String(metaInputs.status || mod.status || "").toLowerCase() ===
+                          "broken"
+                          ? "text-[var(--danger)]"
+                          : String(metaInputs.status || mod.status || "").toLowerCase() ===
+                              "unstable"
+                            ? "text-[var(--warning)]"
+                            : "text-[var(--subtext)]"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined !text-[13px]">
+                        {t("icon_report_problem", "report_problem")}
+                      </span>
+                      {t(
+                        "label_status_issue_details",
+                        "Issue & Cause Details (Corrupted / Unstable)"
+                      )}
+                    </label>
+                    <textarea
+                      value={metaInputs.statusMsg || ""}
+                      onChange={(e) =>
+                        setMetaInputs.statusMsg &&
+                        setMetaInputs.statusMsg(e.target.value)
+                      }
+                      placeholder={t(
+                        "ph_status_issue_details",
+                        "Explain what the issue is and what is causing it (shown on {Citizen} Alerts & {Mod} Dossier)..."
+                      )}
+                      className="w-full min-h-[72px] glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[var(--accent)] rounded-xl p-3 text-xs font-semibold text-[var(--text)] resize-y focus:outline-none transition-all custom-scrollbar"
                     />
                   </div>
                 </div>
@@ -5434,8 +5549,8 @@ export default function ModDossier({
         <SidePanel
           isOpen={showFlagModal}
           onClose={() => setShowFlagModal(false)}
-          title={t("flag_title", "Flag Artifact")}
-          subtitle={t("flag_desc", "Select a reason to flag this {Mod} for Moderator review.")}
+          title={t("flag_title", "Flag {Mod}")}
+          subtitle={t("flag_desc", "Route {Mod} compliance or metadata issues for review.")}
           icon={t("icon_flag", "flag")}
           iconColorClass="text-[var(--warning)]"
           widthClass="w-[520px] max-w-[100vw]"
@@ -5445,21 +5560,61 @@ export default function ModDossier({
           <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
             <SidePanelHeroCard
               icon={t("icon_flag", "flag")}
-              overline={t("flag_title", "Flag Artifact")}
+              overline={t("flag_title", "Flag {Mod}")}
               title={cleanArtifactTitle}
-              description={t("flag_desc", "Select a reason to flag this {Mod} for Moderator review.")}
+              description={t(
+                "nexus_compliance_flag_desc",
+                "Tier 1–4 compliance flags route directly to Oversight Compliance as Pending until verified by Oversight or Wayfinder staff."
+              )}
               variant="warning"
             />
 
             <UniversalGroup
-              title={t("flag_title", "Report Reason")}
-              icon={t("icon_report", "report")}
+              title={t("compliance_tier", "Compliance Tier (Tier 1–4)")}
+              icon={t("icon_policy", "policy")}
+            >
+              <div className="space-y-3">
+                <CustomComplianceDropdown
+                  value={Math.min(4, Math.max(1, Number(flagComplianceTier || 1)))}
+                  onChange={(val) => setFlagComplianceTier(val)}
+                  minTier={1}
+                  maxTier={4}
+                />
+                <UniversalTextArea
+                  label={t("reason", "Reason")}
+                  value={flagReasonNotes}
+                  onChange={(val) => setFlagReasonNotes(val)}
+                  placeholder={t(
+                    "placeholder_provide_specific_details_or_context",
+                    "Provide specific details or context..."
+                  )}
+                  rows={3}
+                />
+                <ActionButton
+                  variant="warning"
+                  icon={t("icon_policy", "policy")}
+                  label={
+                    isSubmittingFlag
+                      ? t("submitting", "Submitting...")
+                      : t("submit_compliance_flag_btn", "Submit to Oversight Compliance")
+                  }
+                  disabled={isSubmittingFlag}
+                  onClick={() => handleFlagMod("compliance", flagComplianceTier)}
+                  className="!w-full !h-11 !justify-center"
+                />
+              </div>
+            </UniversalGroup>
+
+            <UniversalGroup
+              title={t("metadata_and_security", "Metadata & Security")}
+              icon={t("icon_edit_note", "edit_note")}
             >
               <div className="flex flex-col gap-2.5">
                 <ActionButton
                   variant="glass"
                   icon={t("icon_history", "history")}
                   label={t("dossier_flag_outdated", "Outdated Information")}
+                  disabled={isSubmittingFlag}
                   onClick={() => handleFlagMod("Outdated Information")}
                   className="!w-full !h-11 !justify-start !px-4"
                 />
@@ -5467,27 +5622,15 @@ export default function ModDossier({
                   variant="glass"
                   icon={t("icon_edit_note", "edit_note")}
                   label={t("flag_inaccurate", "Inaccurate Information")}
+                  disabled={isSubmittingFlag}
                   onClick={() => handleFlagMod("Inaccurate Information")}
                   className="!w-full !h-11 !justify-start !px-4"
                 />
                 <ActionButton
                   variant="glass"
-                  icon={t("icon_warning", "warning")}
-                  label={t("flag_nsfw", "NSFW Content")}
-                  onClick={() => handleFlagMod("NSFW")}
-                  className="!w-full !h-11 !justify-start !px-4 !text-[var(--warning)] !border-[color-mix(in_srgb,var(--warning)_35%,transparent)]"
-                />
-                <ActionButton
-                  variant="glass"
-                  icon={t("icon_shield", "shield")}
-                  label={t("flag_adult", "Adult Content")}
-                  onClick={() => handleFlagMod("adult")}
-                  className="!w-full !h-11 !justify-start !px-4 !text-[var(--warning)] !border-[color-mix(in_srgb,var(--warning)_35%,transparent)]"
-                />
-                <ActionButton
-                  variant="glass"
                   icon={t("icon_gpp_bad", "gpp_bad")}
                   label={t("flag_malware", "Suspected Malware")}
+                  disabled={isSubmittingFlag}
                   onClick={() => handleFlagMod("Suspected Malware")}
                   className="!w-full !h-11 !justify-start !px-4 !text-[var(--danger)] !border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
                 />

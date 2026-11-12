@@ -1,24 +1,36 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { ActionButton, ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, LoadingScreen } from "./shared";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import { supabase } from "./supabase";
-import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { useLexicon } from "./LexiconContext";
 import { isDesktop } from "./utils/envUtils";
-import MasonBugReports from "./MasonBugReports";
 import MasonNotepadSidePanel from "./side-panels/MasonNotepadSidePanel";
 import MasonRecentRepliesSidePanel from "./side-panels/MasonRecentRepliesSidePanel";
 import CitizenTicketsSidePanel from "./side-panels/CitizenTicketsSidePanel";
 import { SharedMetadataEditorSidePanel } from "./side-panels/SharedMetadataEditorSidePanel";
 import { useStore } from "./store";
-import { MasonCommandScreen } from "./hub-components/CommandScreens";
-import { MasonCollectionBuilder } from "./hub-components/SharedCollections";
-import { MasonPostsEditor } from "./MasonPostsEditor";
+import { MasonCommandScreen } from "./hub-components/command-screens/MasonCommandScreen";
 import { MasonSettingsSidePanel } from "./side-panels/MasonSettingsSidePanel";
-import { MasonSandbox } from "./MasonSandbox";
-import { MasonNexus } from "./MasonNexus";
-import { MasonChameleons } from "./MasonChameleons";
 import { ElevatedPasskeyGate } from "./components/ElevatedPasskeyGate";
+import { getCachedMasonProfile, setCachedMasonProfile } from "./utils/hubCommandCache";
+
+const MasonPostViewer = React.lazy(() => import("./side-panels/MasonPostViewer"));
+const MasonBugReports = React.lazy(() => import("./MasonBugReports"));
+const MasonCollectionBuilder = React.lazy(() =>
+  import("./hub-components/SharedCollections").then((m) => ({ default: m.MasonCollectionBuilder }))
+);
+const MasonPostsEditor = React.lazy(() =>
+  import("./MasonPostsEditor").then((m) => ({ default: m.MasonPostsEditor }))
+);
+const MasonSandbox = React.lazy(() =>
+  import("./MasonSandbox").then((m) => ({ default: m.MasonSandbox }))
+);
+const MasonNexus = React.lazy(() =>
+  import("./MasonNexus").then((m) => ({ default: m.MasonNexus }))
+);
+const MasonChameleons = React.lazy(() =>
+  import("./MasonChameleons").then((m) => ({ default: m.MasonChameleons }))
+);
 
 const VERIFIED_ONLY_TABS = ["collections", "posts", "bug_reports"];
 
@@ -27,10 +39,16 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
   const userRole = useStore((state) => state.userRole);
   const osRole = useStore((state) => state.osRole);
   const session = useStore((state) => state.session);
+  const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const masonActiveTab = useStore((state) => state.masonActiveTab);
   const setMasonActiveTab = useStore((state) => state.setMasonActiveTab);
-  const [masonProfile, setMasonProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+
+  const initialCachedProfile = session?.user?.id
+    ? getCachedMasonProfile(session.user.id, activeWorkspaceId || "global")
+    : undefined;
+
+  const [masonProfile, setMasonProfile] = useState<any>(initialCachedProfile ?? null);
+  const [loading, setLoading] = useState(initialCachedProfile === undefined);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isNotepadOpen, setIsNotepadOpen] = useState(false);
   const [isRecentRepliesOpen, setIsRecentRepliesOpen] = useState(false);
@@ -41,31 +59,55 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
   const [viewingPost, setViewingPost] = useState<any>(null);
   const [activeAsset, setActiveAsset] = useState<{ type: string, id: string } | null>(null);
   const [registryTargetMod, setRegistryTargetMod] = useState<string | null>(null);
-  const [] = useState<any | null>(null);
+
   useEffect(() => {
     if (sandboxMod) setMasonActiveTab("sandbox");
   }, [sandboxMod]);
 
   useEffect(() => {
+    let cancelled = false;
     async function fetchMasonProfile() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data, error } = await supabase.from("masons").select("*").eq("profile_id", session.user.id).single();
-        if (!error && data) {
-          setMasonProfile(data);
-        } else {
-          setMasonProfile({
-            id: session.user.id,
-            profile_id: session.user.id,
-            name: session.user.user_metadata?.mason_name || session.user.user_metadata?.username || session.user.email?.split("@")[0] || (t("citizen_creator", "{Citizen} Creator")),
-            isUnverifiedLocal: true
-          });
-        }
+      const scopeKey = activeWorkspaceId || "global";
+      let currentSession = useStore.getState().session;
+      if (!currentSession?.user) {
+        const { data } = await supabase.auth.getSession();
+        currentSession = data?.session || null;
       }
-      setLoading(false);
+      if (currentSession?.user) {
+        const cached = getCachedMasonProfile(currentSession.user.id, scopeKey);
+        if (cached && !cancelled) {
+          setMasonProfile(cached);
+          setLoading(false);
+        }
+        const { data, error } = await supabase
+          .from("masons")
+          .select("*")
+          .eq("profile_id", currentSession.user.id)
+          .maybeSingle();
+        if (cancelled) return;
+        const resolved =
+          !error && data
+            ? data
+            : {
+                id: currentSession.user.id,
+                profile_id: currentSession.user.id,
+                name:
+                  currentSession.user.user_metadata?.mason_name ||
+                  currentSession.user.user_metadata?.username ||
+                  currentSession.user.email?.split("@")[0] ||
+                  t("citizen_creator", "{Citizen} Creator"),
+                isUnverifiedLocal: true,
+              };
+        setMasonProfile(resolved);
+        setCachedMasonProfile(currentSession.user.id, scopeKey, resolved);
+      }
+      if (!cancelled) setLoading(false);
     }
     fetchMasonProfile();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeWorkspaceId]);
 
   const isVerifiedMason = !masonProfile?.isUnverifiedLocal && (
     masonProfile?.is_verified === true ||
@@ -114,7 +156,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
                 ? t("tab_aesthetics", "Aesthetics")
                 : masonActiveTab === "posts"
                   ? t("tab_posts", "{Dispatches}")
-                  : masonActiveTab === "sandbox"
+                  : masonActiveTab === "sandbox" || masonActiveTab === "registry"
                     ? t("term_mods", "{Mods}")
                     : masonActiveTab === "nexus"
                       ? t("term_nexus", "{Nexus}")
@@ -205,38 +247,76 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
         </div>
 
         <div className="w-full flex-1 flex flex-col min-h-0">
-          {masonActiveTab === "command_center" && <MasonCommandScreen 
-            onNavigate={setMasonActiveTab} 
-            masonId={masonProfile.id} 
-            isVerifiedMason={isVerifiedMason}
-            session={session} 
-            onOpenRecentReplies={() => setIsRecentRepliesOpen(true)} 
-            onOpenSupportDesk={() => { setSupportTicketInitialId(undefined); setIsSupportDeskOpen(true); }} 
-            setViewingPost={setViewingPost} 
-            onOpenMetadataEditor={(id: string) => { setRegistryTargetMod(id); setMasonActiveTab("registry"); }}
-            onOpenBugReport={(bugId: string) => { setSupportTicketInitialId(bugId); setIsSupportDeskOpen(true); }}
-          />}
-          {(masonActiveTab === "sandbox" || masonActiveTab === "registry") && (
-            <MasonSandbox
+          {masonActiveTab === "command_center" && (
+            <MasonCommandScreen
+              onNavigate={setMasonActiveTab}
               masonId={masonProfile.id}
               masonName={masonProfile.name}
               isVerifiedMason={isVerifiedMason}
-              initialSandboxMod={sandboxMod}
-              onClear={clearSandboxMod}
-              vaultPath={vaultPath}
-              initialActiveModId={registryTargetMod}
-              onClearActiveMod={() => setRegistryTargetMod(null)}
-              initialViewTab={masonActiveTab === "registry" ? "nexus" : "overview"}
+              session={session}
+              onOpenRecentReplies={() => setIsRecentRepliesOpen(true)}
+              onOpenSupportDesk={() => {
+                setSupportTicketInitialId(undefined);
+                setIsSupportDeskOpen(true);
+              }}
+              onOpenNotepad={() => setIsNotepadOpen(true)}
+              onOpenCreatorSettings={() => setIsSettingsOpen(true)}
+              onViewProfile={
+                isVerifiedMason && handleOpenMasonProfile
+                  ? () => handleOpenMasonProfile(masonProfile.id)
+                  : undefined
+              }
+              setViewingPost={setViewingPost}
+              onOpenMetadataEditor={(id: string) => {
+                setMetadataEditorInitialId(id);
+                setIsMetadataEditorOpen(true);
+              }}
             />
           )}
-          {isVerifiedMason && masonActiveTab === "collections" && <MasonCollectionBuilder masonId={masonProfile.id} masonName={masonProfile.name} />}
-          {isVerifiedMason && masonActiveTab === "bug_reports" && <MasonBugReports masonId={masonProfile?.id} onEditMetadata={(hash) => {
-            setMetadataEditorInitialId(hash);
-            setIsMetadataEditorOpen(true);
-          }} />}
-          {masonActiveTab === "nexus" && <MasonNexus masonProfile={masonProfile} isVerifiedMason={isVerifiedMason} />}
-          {isVerifiedMason && masonActiveTab === "posts" && <MasonPostsEditor masonId={masonProfile.id} masonProfileId={masonProfile.profile_id} handleOpenMasonProfile={handleOpenMasonProfile} />}
-          {isDesktop() && masonActiveTab === "chameleons" && <MasonChameleons masonProfile={masonProfile} isVerifiedMason={isVerifiedMason} vaultPath={vaultPath} />}
+          <Suspense fallback={null}>
+            {(masonActiveTab === "sandbox" || masonActiveTab === "registry") && (
+              <MasonSandbox
+                masonId={masonProfile.id}
+                masonName={masonProfile.name}
+                isVerifiedMason={isVerifiedMason}
+                initialSandboxMod={sandboxMod}
+                onClear={clearSandboxMod}
+                vaultPath={vaultPath}
+                initialActiveModId={registryTargetMod}
+                onClearActiveMod={() => setRegistryTargetMod(null)}
+                initialViewTab={masonActiveTab === "registry" ? "nexus" : "overview"}
+              />
+            )}
+            {isVerifiedMason && masonActiveTab === "collections" && (
+              <MasonCollectionBuilder masonId={masonProfile.id} masonName={masonProfile.name} />
+            )}
+            {isVerifiedMason && masonActiveTab === "bug_reports" && (
+              <MasonBugReports
+                masonId={masonProfile?.id}
+                onEditMetadata={(hash) => {
+                  setMetadataEditorInitialId(hash);
+                  setIsMetadataEditorOpen(true);
+                }}
+              />
+            )}
+            {masonActiveTab === "nexus" && (
+              <MasonNexus masonProfile={masonProfile} isVerifiedMason={isVerifiedMason} />
+            )}
+            {isVerifiedMason && masonActiveTab === "posts" && (
+              <MasonPostsEditor
+                masonId={masonProfile.id}
+                masonProfileId={masonProfile.profile_id}
+                handleOpenMasonProfile={handleOpenMasonProfile}
+              />
+            )}
+            {isDesktop() && masonActiveTab === "chameleons" && (
+              <MasonChameleons
+                masonProfile={masonProfile}
+                isVerifiedMason={isVerifiedMason}
+                vaultPath={vaultPath}
+              />
+            )}
+          </Suspense>
         </div>
 
         {isVerifiedMason && (
@@ -244,7 +324,16 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
             isOpen={isSettingsOpen}
             onClose={() => setIsSettingsOpen(false)}
             profile={masonProfile}
-            onUpdate={setMasonProfile}
+            onUpdate={(nextProfile: any) => {
+              setMasonProfile(nextProfile);
+              if (session?.user?.id) {
+                setCachedMasonProfile(
+                  session.user.id,
+                  activeWorkspaceId || "global",
+                  nextProfile
+                );
+              }
+            }}
           />
         )}
 
@@ -263,16 +352,43 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
             }}
           />
         )}
-        {session?.user?.id && <CitizenTicketsSidePanel isOpen={isSupportDeskOpen} onClose={() => { setIsSupportDeskOpen(false); setSupportTicketInitialId(undefined); }} userId={session.user.id} initialTicketId={supportTicketInitialId} />}
-        {viewingPost && <MasonPostViewer post={viewingPost} onClose={() => setViewingPost(null)} userId={session?.user?.id || masonProfile.id} onOpenMasonProfile={handleOpenMasonProfile} onAssetClick={(type, id) => setActiveAsset({ type, id })} />}
-        {activeAsset && <AssetPreviewSidebar assetType={activeAsset.type} assetId={activeAsset.id} onClose={() => setActiveAsset(null)} />}
-        {isVerifiedMason && (
-          <SharedMetadataEditorSidePanel
-            isOpen={isMetadataEditorOpen}
-            onClose={() => setIsMetadataEditorOpen(false)}
-            initialModId={metadataEditorInitialId}
+        {session?.user?.id && (
+          <CitizenTicketsSidePanel
+            isOpen={isSupportDeskOpen}
+            onClose={() => {
+              setIsSupportDeskOpen(false);
+              setSupportTicketInitialId(undefined);
+            }}
+            userId={session.user.id}
+            initialTicketId={supportTicketInitialId}
           />
         )}
+        <Suspense fallback={null}>
+          {viewingPost && (
+            <MasonPostViewer
+              post={viewingPost}
+              onClose={() => setViewingPost(null)}
+              userId={session?.user?.id || masonProfile.id}
+              onOpenMasonProfile={handleOpenMasonProfile}
+              onAssetClick={(type, id) => setActiveAsset({ type, id })}
+              initialFocusCommentId={
+                viewingPost.scrollToCommentId || viewingPost.initialFocusCommentId || null
+              }
+            />
+          )}
+        </Suspense>
+        {activeAsset && (
+          <AssetPreviewSidebar
+            assetType={activeAsset.type}
+            assetId={activeAsset.id}
+            onClose={() => setActiveAsset(null)}
+          />
+        )}
+        <SharedMetadataEditorSidePanel
+          isOpen={isMetadataEditorOpen}
+          onClose={() => setIsMetadataEditorOpen(false)}
+          initialModId={metadataEditorInitialId}
+        />
       </div>
     </ElevatedPasskeyGate>
   );

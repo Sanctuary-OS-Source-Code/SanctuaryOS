@@ -1,517 +1,1058 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
-import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
-import { WayfinderPostsEditor } from "../WayfinderPostsEditor";
-import { useStore } from '../../store';
-import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, SystemBroadcastsGrid, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
+import { useStore } from "../../store";
+import { SanctuaryAlertsSidePanel } from "../../side-panels/SanctuaryAlertsSidePanel";
+import TicketDossierSidePanel from "../../side-panels/TicketDossierSidePanel";
+import {
+  CommandScoutReviewSidePanel,
+  CommandMasonSubmissionSidePanel,
+  CommandDiagnosticDossierSidePanel,
+  CommandReportResolutionSidePanel,
+} from "../../side-panels/HubCommandQuickPanels";
+import { EmptyState, VAULT_CHIP_CLASS } from "../../shared";
+import {
+  CommandScreenLayout,
+  CommandScreenBody,
+  CommandScreenSidebar,
+  CommandScreenStats,
+  CommandScreenMain,
+  SystemBroadcastsGrid,
+  CommandScreenMetricTile,
+  CommandScreenQuickLink,
+  DashboardStatTile,
+  AlertStatTile,
+  CommandScreenSectionHeading,
+} from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
-import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
-import { openModDossier, VAULT_CHIP_CLASS } from "../../shared";
+import { formatSanctuaryDate } from "../../utils/dateUtils";
+import {
+  getHubCommandCache,
+  setHubCommandCache,
+  isTicketOpenStatus,
+  isComplianceEscalatedReport,
+  buildTicketModLookupMap,
+  routeSpokeTicketsForRole,
+  executeHubTicketAction,
+  claimOrReleaseHubTicket,
+} from "../../utils/hubCommandCache";
+import { auditBlueprintsTier0Compliance } from "../../side-panels/NexusSidePanels";
 
-export function ArchitectCommandScreen({ onNavigate, setViewingPost }: any) {
+interface ArchitectCommandSnapshot {
+  stats: {
+    scoutQueue: number;
+    masonQueue: number;
+    ticketQueue: number;
+    pendingDiagnostics: number;
+    reportQueue: number;
+    verifiedMods: number;
+    templates: number;
+    collections: number;
+    conflicts: number;
+    dependencies: number;
+  };
+  broadcasts: any[];
+  urgentBroadcast: any | null;
+  recentSupport: any[];
+  recentScanner: any[];
+  recentMasonSubs: any[];
+  recentDiagnostics: any[];
+  recentReports: any[];
+}
+
+const DEFAULT_ARCHITECT_SNAPSHOT: ArchitectCommandSnapshot = {
+  stats: {
+    scoutQueue: 0,
+    masonQueue: 0,
+    ticketQueue: 0,
+    pendingDiagnostics: 0,
+    reportQueue: 0,
+    verifiedMods: 0,
+    templates: 0,
+    collections: 0,
+    conflicts: 0,
+    dependencies: 0,
+  },
+  broadcasts: [],
+  urgentBroadcast: null,
+  recentSupport: [],
+  recentScanner: [],
+  recentMasonSubs: [],
+  recentDiagnostics: [],
+  recentReports: [],
+};
+
+export function ArchitectCommandScreen({
+  setStatus: _setStatus,
+  onNavigate,
+  setViewingPost,
+  onOpenVerifyHash,
+  onOpenMetadataEditor,
+}: any) {
   const { t } = useLexicon();
-  const [stats, setStats] = useState({
-    scoutQueue: 0, masonQueue: 0, nexusReports: 0,
-    nsfw: 0, explicit: 0, supportTickets: 0,
-    totalArtifacts: 0, unverifiedMods: 0, tier4Conflicts: 0, tier3Conflicts: 0, labQueue: 0
-  });
-  const [broadcasts, setBroadcasts] = useState<any[]>([]);
+  const session = useStore((s) => s.session);
+  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const activeGameSchema = useStore((s) => s.activeGameSchema);
+  const dateFormat = useStore((s) => s.dateFormat);
+
+  const userId = session?.user?.id || "";
+  const minScoutSubmissions = Math.max(
+    1,
+    Number(activeGameSchema?.min_scout_submissions ?? 5)
+  );
+  const exceptionRulesCount = Array.isArray(activeGameSchema?.exception_rules)
+    ? activeGameSchema.exception_rules.length
+    : 0;
+
+  const cacheScope = `${activeWorkspaceId || "global"}:${minScoutSubmissions}:${userId || "anon"}`;
+  const [snapshot, setSnapshot] = useState<ArchitectCommandSnapshot>(
+    () =>
+      getHubCommandCache<ArchitectCommandSnapshot>("architect", cacheScope) ||
+      DEFAULT_ARCHITECT_SNAPSHOT
+  );
+
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
-  const [isDispatchOpen, setIsDispatchOpen] = useState(false);
-  const [urgentBroadcast, setUrgentBroadcast] = useState<any>(null);
-  
-  const [recentScout, setRecentScout] = useState<any[]>([]);
-  const [recentMason, setRecentMason] = useState<any[]>([]);
-  const [recentReports, setRecentReports] = useState<any[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+  const [selectedScout, setSelectedScout] = useState<any | null>(null);
+  const [selectedMasonSub, setSelectedMasonSub] = useState<any | null>(null);
+  const [selectedDiagnostic, setSelectedDiagnostic] = useState<any | null>(null);
+  const [selectedReport, setSelectedReport] = useState<any | null>(null);
 
+  const refreshArchitectDashboard = useCallback(async () => {
+    const [
+      broadcastsRes,
+      urgentRes,
+      scoutRes,
+      underReviewModsRes,
+      verifiedMasonsRes,
+      verifiedModsCountRes,
+      ticketsRes,
+      categoriesRes,
+      labLogsRes,
+      nexusReportsRes,
+      blueprintReportsRes,
+      contentFlagsRes,
+      templatesCountRes,
+      collectionsCountRes,
+      conflictsCountRes,
+      modDepsCountRes,
+      verDepsCountRes,
+    ] = await Promise.all([
+      supabase
+        .from("system_broadcasts")
+        .select("*")
+        .eq("is_active", true)
+        .in("category", ["Update", "Info", "Event", "System"])
+        .order("created_at", { ascending: false })
+        .limit(12),
+      supabase
+        .from("system_broadcasts")
+        .select("*")
+        .eq("is_active", true)
+        .in("is_pinned", ["true", "True", true] as any)
+        .order("created_at", { ascending: false })
+        .limit(8),
+      supabase
+        .from("scout_suggestions")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("mods")
+        .select("*")
+        .eq("status", "under_review")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("masons")
+        .select("id, name, is_verified")
+        .eq("is_verified", true),
+      supabase
+        .from("mods")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["stable", "verified"])
+        .eq("compliance_tier", 0),
+      supabase
+        .from("sanctuary_tickets")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase.from("support_categories").select("*"),
+      supabase
+        .from("homestead_lab_logs")
+        .select("*, mods(id, name, master_author, status, compliance_tier, latest_version)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(60),
+      supabase
+        .from("nexus_reports")
+        .select("*, nexus_assets(id, name, asset_type)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("blueprint_reports")
+        .select("*, blueprints(*)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("content_flags")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("nexus_assets")
+        .select("id", { count: "exact", head: true })
+        .eq("asset_type", "workbench_template"),
+      supabase
+        .from("collections")
+        .select("id", { count: "exact", head: true })
+        .eq("compliance_tier", 0),
+      supabase
+        .from("logical_conflicts")
+        .select("id", { count: "exact", head: true }),
+      supabase
+        .from("mod_dependencies")
+        .select("id", { count: "exact", head: true }),
+      supabase
+        .from("version_dependencies")
+        .select("id", { count: "exact", head: true }),
+    ]);
 
-  useEffect(() => {
-    const fetchBroadcasts = async () => {
-      const [bRes, uRes] = await Promise.all([
-        supabase.from('system_broadcasts')
-          .select('*')
-          .or('target_audience.ilike.%All%,target_audience.eq.Architects,target_audience.ilike."Architects,%",target_audience.ilike."%,Architects,%",target_audience.ilike."%,Architects"')
-          .in('category', ['Update', 'Info', 'Event'])
-          .order('created_at', { ascending: false })
-          .limit(3),
-        supabase.from('system_broadcasts')
-          .select('*')
-          .eq('is_active', true)
-          .in('is_pinned', ["true", "True", true])
-          .or('target_audience.ilike.%All%,target_audience.eq.Architects,target_audience.ilike."Architects,%",target_audience.ilike."%,Architects,%",target_audience.ilike."%,Architects"')
-          .order('created_at', { ascending: false })
-          .limit(1)
-      ]);
-
-      if (bRes.data) {
-        const gameName = useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || t("sanctuary_default_name", "Sanctuary");
-        setBroadcasts(bRes.data.map((p: any) => ({
-          ...p,
-          masons: { name: `${gameName} Team` }
-        })));
-      }
-      if (uRes.data && uRes.data.length > 0) {
-        if (sessionStorage.getItem('dismissedAlertId') !== String(uRes.data[0].id)) {
-          const gameName = useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || t("sanctuary_default_name", "Sanctuary");
-          setUrgentBroadcast({
-            ...uRes.data[0],
-            masons: { name: `${gameName} Team` }
-          });
-        }
-      }
+    const matchesArchitectAudience = (p: any) => {
+      const aud = p?.target_audience;
+      if (!aud || (Array.isArray(aud) && aud.length === 0)) return true;
+      const arr = Array.isArray(aud) ? aud.map(String) : [String(aud)];
+      return (
+        arr.includes("All") ||
+        arr.includes("Architect") ||
+        arr.includes("Moderators")
+      );
     };
-    const fetchRecentItems = async () => {
-        const [scoutRes, masonRes, nexusRepRes, bpRepRes, commRepRes] = await Promise.all([
-            supabase.from('scout_suggestions').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(24),
-            supabase.from('mods').select('id, name, created_at, description, compliance_tier').eq('status', 'under_review').or('compliance_tier.is.null,compliance_tier.eq.0').order('created_at', { ascending: false }).limit(6),
-            supabase.from('nexus_reports').select('*, nexus_assets(name, asset_type, author)').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
-            supabase.from('blueprint_reports').select('*, blueprints(name, code)').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
-            supabase.from('content_flags').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
-        ]);
-        if (scoutRes.data) {
-            setRecentScout(scoutRes.data.filter((s: any) => Number(s?.compliance_tier || 0) === 0).slice(0, 6));
-        }
-        if (masonRes.data) {
-            setRecentMason(masonRes.data.filter((m: any) => Number(m?.compliance_tier || 0) === 0).slice(0, 6));
-        }
-        const mergedReports: any[] = [];
-        (nexusRepRes.data || []).forEach((r: any) => {
-            mergedReports.push({
-                ...r,
-                source_type: r.nexus_assets?.asset_type || "nexus",
-                asset_title: r.nexus_assets?.name || t("unknown_asset", "Unknown Asset"),
-                clean_reason: (r.reason || "").replace(/\s+\?\s+/g, " — "),
-            });
+
+    const broadcasts = (broadcastsRes?.data || []).filter(matchesArchitectAudience).slice(0, 3);
+    let urgentBroadcast = (urgentRes?.data || []).find(matchesArchitectAudience) || null;
+    const dismissedAlertId = sessionStorage.getItem("dismissedAlertId");
+    if (urgentBroadcast && String(urgentBroadcast.id) === dismissedAlertId) {
+      urgentBroadcast = null;
+    }
+
+    // 1:1 Scout consensus grouping (matches ArchitectScoutQueue.tsx)
+    const pendingScouts = (scoutRes?.data || []).filter(
+      (s: any) => Number(s?.compliance_tier || 0) === 0
+    );
+    const scoutByHash = new Map<string, any[]>();
+    pendingScouts.forEach((row: any) => {
+      const key = row.dna_hash || `id:${row.id}`;
+      const list = scoutByHash.get(key) || [];
+      list.push(row);
+      scoutByHash.set(key, list);
+    });
+    const consensusReadyGroups: any[] = [];
+    scoutByHash.forEach((rows, key) => {
+      if (rows.length >= minScoutSubmissions) {
+        const primary = rows[0];
+        consensusReadyGroups.push({
+          ...primary,
+          dna_hash: key.startsWith("id:") ? primary.dna_hash : key,
+          suggested_name:
+            String(primary.suggested_name || "")
+              .replace(/_/g, " ")
+              .trim() ||
+            primary.dna_hash ||
+            t("scanner_item", "Scanner Telemetry"),
+          suggested_author: primary.suggested_author || t("unknown_author", "Unknown Author"),
+          suggested_version: primary.suggested_version || "1.0.0",
+          submission_count: rows.length,
         });
-        (bpRepRes.data || []).forEach((r: any) => {
-            mergedReports.push({
-                ...r,
-                source_type: "blueprint",
-                asset_title: r.blueprints?.name || t("unknown_blueprint", "Unknown {Blueprint}"),
-                clean_reason: (r.reason || "").replace(/\s+\?\s+/g, " — "),
-            });
-        });
-        (commRepRes.data || []).forEach((r: any) => {
-            mergedReports.push({
-                ...r,
-                source_type: "comm-link",
-                asset_title: `COMM-LINK: ${(r.content_type || "").toUpperCase()}`,
-                clean_reason: (r.reason || "").replace(/\s+\?\s+/g, " — "),
-            });
-        });
-        mergedReports.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setRecentReports(mergedReports.slice(0, 6));
-    };
-    fetchBroadcasts();
-    fetchRecentItems();
-  }, []);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      const [
-        { count: scoutQueueCount },
-        { count: masonQueueCount },
-        { count: nexusRepCount },
-        { count: bpRepCount },
-        { count: commRepCount },
-      ] = await Promise.all([
-        supabase.from('scout_suggestions').select('*', { count: 'exact', head: true }).eq('status', 'pending').or('compliance_tier.is.null,compliance_tier.eq.0'),
-        supabase.from('mods').select('*', { count: 'exact', head: true }).eq('status', 'under_review').or('compliance_tier.is.null,compliance_tier.eq.0'),
-        supabase.from('nexus_reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('blueprint_reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('content_flags').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-      ]);
-      const nexusReportsCount = (nexusRepCount || 0) + (bpRepCount || 0) + (commRepCount || 0);
-
-      const { data: ticketsDataRaw } = await supabase.from('sanctuary_tickets')
-        .select('created_at, ticket_type, status, metadata')
-        .in('status', ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating']);
-      const { data: catData } = await supabase.from('sanctuary_support_categories').select('*');
-
-      let supportTicketsCount = 0;
-      if (ticketsDataRaw && catData) {
-        const ticketsData = ticketsDataRaw.map(t => ({
-          ...t,
-          target_mod_id: (t as any).target_mod_id || t.metadata?.target_mod_id,
-          category: t.ticket_type
-        }));
-
-        const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-        const targetModIds = [...new Set(ticketsData.filter(t => t.target_mod_id).map(t => t.target_mod_id as string))].filter(Boolean).filter(isValidUUID);
-        const modAuthorMap: Record<string, string> = {};
-        const modTierMap: Record<string, number> = {};
-        if (targetModIds.length > 0) {
-          const { data: modsData } = await supabase.from('mods').select('id, mason_id, compliance_tier').in('id', targetModIds);
-          modsData?.forEach(m => {
-            modAuthorMap[m.id] = m.mason_id;
-            modTierMap[m.id] = Number(m.compliance_tier || 0);
-          });
-        }
-
-        supportTicketsCount = ticketsData.filter(t => {
-          if (t.target_mod_id && modTierMap[t.target_mod_id] > 0) return false;
-          const typeStr = t.category;
-          const cat = catData.find(c => c.category_name === typeStr || c.category_code === typeStr);
-          let baseDest = cat?.ticket_destination || 'architect';
-          if (typeStr === 'BUG_MOD' || typeStr?.toLowerCase().includes('bug_mod') || typeStr?.toLowerCase().includes('artifact')) {
-            baseDest = 'mod_author';
-          }
-          const escalationPath = cat?.escalation_path || 'standard';
-
-          const ageMs = Date.now() - new Date(t.created_at).getTime();
-          const hoursOld = ageMs / (1000 * 60 * 60);
-
-          let escalationTiers = 0;
-          if (escalationPath === 'urgent') {
-            escalationTiers = Math.floor(hoursOld / 24);
-          } else if (escalationPath === 'standard') {
-            escalationTiers = Math.floor(hoursOld / 72);
-          }
-
-          const tiers = ['mod_author', 'architect', 'oversight', 'wayfinder'];
-          let currentTierIndex = tiers.indexOf(baseDest);
-          if (currentTierIndex === -1) currentTierIndex = 1;
-
-          let effectiveTierIndex = currentTierIndex;
-          if (escalationPath?.toLowerCase() !== 'none') {
-            effectiveTierIndex += escalationTiers;
-          }
-
-          effectiveTierIndex = Math.min(effectiveTierIndex, Math.max(2, currentTierIndex));
-          let dest = tiers[effectiveTierIndex];
-
-          if (t.status?.toUpperCase() === 'ESCALATED') {
-            const logs = t.metadata?.action_log || [];
-            const lastEscalation = [...logs].reverse().find((l: any) => l.action === 'ESCALATED');
-
-            if (lastEscalation) {
-              const esciArc = lastEscalation.architect;
-              if (esciArc === 'Wayfinder') {
-                dest = 'wayfinder';
-              } else if (esciArc === 'Oversight') {
-                dest = 'wayfinder';
-              } else if (esciArc === 'Architect') {
-                dest = 'oversight';
-              } else if (esciArc === 'Mason' || esciArc === 'Mod Author') {
-                dest = 'architect';
-              } else {
-                dest = tiers[Math.min(currentTierIndex + 1, tiers.length - 1)];
-              }
-            } else {
-              dest = tiers[Math.min(currentTierIndex + 1, tiers.length - 1)];
-            }
-          }
-
-          if (dest === 'mod_author') {
-            const modAuthorId = t.target_mod_id ? modAuthorMap[t.target_mod_id] : null;
-            if (!modAuthorId) dest = 'architect';
-          }
-
-          return dest === 'architect';
-        }).length;
       }
+    });
 
-      const { count: totalArtifactsCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).or('compliance_tier.is.null,compliance_tier.eq.0');
-      const { count: unverifiedModsCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('status', 'unverified').or('compliance_tier.is.null,compliance_tier.eq.0');
-      const { count: tier4ConflictsCount } = await supabase.from('logical_conflicts').select('*', { count: 'exact', head: true }).eq('severity_rank', 4);
-      const { count: tier3ConflictsCount } = await supabase.from('logical_conflicts').select('*', { count: 'exact', head: true }).eq('severity_rank', 3);
-      const { count: labQueueCount } = await supabase.from('homestead_lab_logs').select('*', { count: 'exact', head: true });
-
-      setStats({
-        scoutQueue: scoutQueueCount || 0,
-        masonQueue: masonQueueCount || 0,
-        nexusReports: nexusReportsCount || 0,
-        supportTickets: supportTicketsCount || 0,
-        nsfw: 0,
-        explicit: 0,
-        totalArtifacts: totalArtifactsCount || 0,
-        unverifiedMods: unverifiedModsCount || 0,
-        tier4Conflicts: tier4ConflictsCount || 0,
-        tier3Conflicts: tier3ConflictsCount || 0,
-        labQueue: labQueueCount || 0
+    // 1:1 Mason Queue (verified masons + Tier 0 + deduplicated by normalized name)
+    const verifiedMasonMap = new Map<string, string>();
+    (verifiedMasonsRes?.data || []).forEach((m: any) => {
+      verifiedMasonMap.set(String(m.id), m.name);
+    });
+    const seenMasonSubNames = new Set<string>();
+    const verifiedMasonSubs: any[] = [];
+    (underReviewModsRes?.data || []).forEach((mod: any) => {
+      if (Number(mod?.compliance_tier || 0) > 0) return;
+      if (!mod?.mason_id || !verifiedMasonMap.has(String(mod.mason_id))) return;
+      const normName = String(mod.name || mod.id).trim().toLowerCase();
+      if (seenMasonSubNames.has(normName)) return;
+      seenMasonSubNames.add(normName);
+      verifiedMasonSubs.push({
+        ...mod,
+        mason_name: verifiedMasonMap.get(String(mod.mason_id)),
       });
+    });
+
+    // 1:1 Architect Support Queue (includes NEW / OPEN, exclusive when claimed!)
+    const rawOpenTickets = (ticketsRes?.data || []).filter((tk: any) =>
+      isTicketOpenStatus(tk.status)
+    );
+    const modLookup = await buildTicketModLookupMap(rawOpenTickets);
+    const architectOpenTickets = routeSpokeTicketsForRole(
+      rawOpenTickets,
+      categoriesRes?.data || [],
+      modLookup,
+      "architect",
+      userId
+    );
+
+    // 1:1 Pending Diagnostics (unresolved Tier-0 Homestead Lab reports, deduplicated by mod)
+    const pendingDiagMap = new Map<string, any>();
+    (labLogsRes?.data || []).forEach((log: any) => {
+      const mod = Array.isArray(log.mods) ? log.mods[0] : log.mods;
+      if (!mod || Number(mod?.compliance_tier || 0) > 0) return;
+      if (mod.status === "stable" || mod.status === "verified" || mod.status === "broken") return;
+      if (!pendingDiagMap.has(mod.id)) {
+        pendingDiagMap.set(mod.id, {
+          ...log,
+          mod_id: mod.id,
+          mod_name: mod.name,
+          mod_author: mod.master_author,
+          mod_status: mod.status,
+          version_label: mod.latest_version,
+        });
+      }
+    });
+    const pendingDiagnosticsList = Array.from(pendingDiagMap.values());
+
+    // Audit reported blueprints so Tier 1-4 / compliance-flagged blueprints route exclusively to Oversight
+    const uniqueReportedBlueprints = new Map<string, any>();
+    (blueprintReportsRes?.data || []).forEach((r: any) => {
+      if (r?.blueprints?.id) {
+        uniqueReportedBlueprints.set(String(r.blueprints.id), r.blueprints);
+      }
+    });
+    let bpAuditMap: Record<string, any> = {};
+    if (uniqueReportedBlueprints.size > 0) {
+      try {
+        bpAuditMap = await auditBlueprintsTier0Compliance(
+          supabase,
+          Array.from(uniqueReportedBlueprints.values()),
+          { autoFlagInDb: false }
+        );
+      } catch {
+        // Ignore audit failure
+      }
+    }
+
+    // Unified Reports Queue (Tier-0 Non-Compliance Nexus + Blueprints + Comm-Link)
+    const unifiedReports: any[] = [
+      ...(nexusReportsRes?.data || []).map((r: any) => ({
+        id: r.id,
+        source: "nexus",
+        status: r.status,
+        title: r.nexus_assets?.name || t("unknown_asset", "Unknown Asset"),
+        reason: r.reason,
+        reporter_name: r.reporter_name,
+        target_id: r.asset_id,
+        created_at: r.created_at,
+      })),
+      ...(blueprintReportsRes?.data || []).map((r: any) => {
+        const bp = r.blueprints || {};
+        const audit = bp.id ? bpAuditMap[String(bp.id)] : undefined;
+        return {
+          id: r.id,
+          source: "blueprint",
+          status: r.status,
+          title: bp.name || t("term_blueprint", "{Blueprint}"),
+          reason: r.reason,
+          reporter_name: r.reporter_name,
+          compliance_tier: bp.compliance_tier,
+          violations: audit?.violations || [],
+          target_id: r.blueprint_id,
+          created_at: r.created_at,
+        };
+      }),
+      ...(contentFlagsRes?.data || []).map((r: any) => ({
+        id: r.id,
+        source: "comm-link",
+        content_type: r.content_type,
+        status: r.status,
+        title:
+          r.content_type === "comment"
+            ? t("flagged_comment", "Flagged Comment")
+            : t("flagged_dispatch", "Flagged {Dispatch}"),
+        reason: r.reason,
+        reporter_name: r.reporter_name,
+        target_id: r.target_id,
+        created_at: r.created_at,
+      })),
+    ]
+      .filter((rep) => !isComplianceEscalatedReport(rep))
+      .sort(
+        (a, b) =>
+          new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
+
+    const nextSnapshot: ArchitectCommandSnapshot = {
+      stats: {
+        scoutQueue: consensusReadyGroups.length,
+        masonQueue: verifiedMasonSubs.length,
+        ticketQueue: architectOpenTickets.length,
+        pendingDiagnostics: pendingDiagnosticsList.length,
+        reportQueue: unifiedReports.length,
+        verifiedMods: verifiedModsCountRes?.count || 0,
+        templates: templatesCountRes?.count || 0,
+        collections: collectionsCountRes?.count || 0,
+        conflicts: conflictsCountRes?.count || 0,
+        dependencies: (modDepsCountRes?.count || 0) + (verDepsCountRes?.count || 0),
+      },
+      broadcasts,
+      urgentBroadcast,
+      recentSupport: architectOpenTickets.slice(0, 3),
+      recentScanner: consensusReadyGroups.slice(0, 3),
+      recentMasonSubs: verifiedMasonSubs.slice(0, 3),
+      recentDiagnostics: pendingDiagnosticsList.slice(0, 3),
+      recentReports: unifiedReports.slice(0, 3),
     };
-    fetchStats();
-  }, []);
+
+    setSnapshot(nextSnapshot);
+    setHubCommandCache("architect", cacheScope, nextSnapshot);
+  }, [cacheScope, minScoutSubmissions, t, userId]);
+
+  useEffect(() => {
+    const cached = getHubCommandCache<ArchitectCommandSnapshot>("architect", cacheScope);
+    if (cached) setSnapshot(cached);
+    refreshArchitectDashboard();
+  }, [cacheScope, refreshArchitectDashboard]);
+
+  const {
+    stats,
+    broadcasts,
+    urgentBroadcast,
+    recentSupport,
+    recentScanner,
+    recentMasonSubs,
+    recentDiagnostics,
+    recentReports,
+  } = snapshot;
 
   return (
     <CommandScreenLayout>
-      <CommandScreenStats gridClassOverride={urgentBroadcast ? "grid-cols-2 lg:grid-cols-4" : undefined}>
-        {urgentBroadcast && (
-          <AlertStatTile className="col-span-2" broadcast={urgentBroadcast} number={urgentBroadcast ? 1 : 0} active={!!urgentBroadcast} onClick={() => setIsAlertsOpen(true)} />
+      {/* 1. TOP STAT TILES (1:1 WITH SUB-SECTIONS) */}
+      <CommandScreenStats>
+        {urgentBroadcast ? (
+          <AlertStatTile
+            broadcast={urgentBroadcast}
+            active={true}
+            onClick={() => setIsAlertsOpen(true)}
+          />
+        ) : (
+          <DashboardStatTile
+            icon={t("icon_radar", "radar")}
+            value={stats.scoutQueue}
+            label={t("scout_queue", "Scout Queue")}
+            colorClass={stats.scoutQueue > 0 ? "text-[var(--warning)]" : "theme-text-accent"}
+            onClick={() => onNavigate("queue")}
+          />
         )}
-        {urgentBroadcast && (
-          <DashboardStatTile className="col-span-2" icon={<span className="material-symbols-outlined ">{t("icon_flag", "flag")}</span>} number={stats.nexusReports} label={t("title_reports", "Reports Queue")} colorClass="text-amber-500" onClick={() => onNavigate("nexus_reports")} />
-        )}
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_search", "search")}</span>} number={stats.scoutQueue} label={t("reviewing", "Scanner Queue")} colorClass="text-blue-500" onClick={() => onNavigate("queue")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_handyman", "handyman")}</span>} number={stats.masonQueue} label={t("mason_queue", "{Mason} Queue")} colorClass="text-emerald-500" onClick={() => onNavigate("mason_queue")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_local_activity", "local_activity")}</span>} number={stats.supportTickets} label={t("ql_support", "Support Queue")} colorClass="text-indigo-500" onClick={() => onNavigate("support_tickets")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_monitor_heart", "monitor_heart")}</span>} number={stats.labQueue} label={t("tab_diagnostics", "Diagnostics")} colorClass="text-orange-500" onClick={() => onNavigate("lab")} />
-        {!urgentBroadcast && (
-          <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_flag", "flag")}</span>} number={stats.nexusReports} label={t("title_reports", "Reports Queue")} colorClass="text-amber-500" onClick={() => onNavigate("nexus_reports")} />
-        )}
+        <DashboardStatTile
+          icon={t("icon_construction", "construction")}
+          value={stats.masonQueue}
+          label={t("mason_queue", "{Mason} Queue")}
+          colorClass={stats.masonQueue > 0 ? "text-[var(--warning)]" : "theme-text-accent"}
+          onClick={() => onNavigate("mason_queue")}
+        />
+        <DashboardStatTile
+          icon={t("icon_local_activity", "local_activity")}
+          value={stats.ticketQueue}
+          label={t("support_queue", "Support Queue")}
+          colorClass={stats.ticketQueue > 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}
+          onClick={() => onNavigate("support_tickets")}
+        />
+        <DashboardStatTile
+          icon={t("icon_monitor_heart", "monitor_heart")}
+          value={stats.pendingDiagnostics}
+          label={t("pending_diagnostics", "Diagnostics")}
+          colorClass={stats.pendingDiagnostics > 0 ? "text-[var(--warning)]" : "theme-text-accent"}
+          onClick={() => onNavigate("lab")}
+        />
+        <DashboardStatTile
+          icon={t("icon_flag", "flag")}
+          value={stats.reportQueue}
+          label={t("nexus_reports", "{Nexus} Reports")}
+          colorClass={stats.reportQueue > 0 ? "text-[var(--danger)]" : "theme-text-accent"}
+          onClick={() => onNavigate("nexus_reports")}
+        />
       </CommandScreenStats>
 
-
+      {/* 2. MAIN LANDING BODY + OPERATIONS SIDEBAR */}
       <CommandScreenBody>
         <CommandScreenMain>
-          <div className="flex flex-col gap-4 w-full">
-            <CommandScreenSectionHeading title={t("wf_comms_title", "Latest Dispatch")} icon={t("icon_history", "history")} />
-            <div className="w-full">
-              <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
+          {/* System Broadcasts */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_satellite_alt", "satellite_alt")}
+              title={t("wf_tab_dispatch", "{Dispatches}")}
+              subtitle={t("architect_broadcasts_sub", "Staff Directives & Catalog Notices")}
+              onJump={() => setIsAlertsOpen(true)}
+              jumpTooltip={t("sanctuary_alerts", "Sanctuary Alerts")}
+            />
+            <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
+          </div>
+
+          {/* Support Queue -> Opens TicketDossierSidePanel Directly */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_local_activity", "local_activity")}
+              iconColorClass={stats.ticketQueue > 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}
+              title={t("support_queue", "Support Queue")}
+              subtitle={t("architect_support_sub", "Click any ticket to claim, reply, or resolve in-drawer")}
+              onJump={() => onNavigate("support_tickets")}
+              jumpTooltip={`${t("support_queue", "Support Queue")} (${stats.ticketQueue})`}
+            />
+            {recentSupport.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+                {recentSupport.map((tk: any) => (
+                  <UniversalCard
+                    key={tk.id}
+                    layout="vertical"
+                    icon={t("icon_local_activity", "local_activity")}
+                    title={tk.title || t("support_ticket", "Support Ticket")}
+                    subtitle={(tk.ticket_type || tk.category || t("general", "General")).replace(/_/g, " ")}
+                    bannerTopLabel={String(tk.status || "OPEN").toUpperCase()}
+                    bannerTopRightLabel={formatSanctuaryDate(tk.created_at, dateFormat)}
+                    onClick={() => setSelectedTicket(tk)}
+                    badges={
+                      <>
+                        <span className={`${VAULT_CHIP_CLASS} !text-[var(--accent)] !border-[color-mix(in_srgb,var(--accent)_35%,transparent)]`}>
+                          <span className="material-symbols-outlined !text-[12px]">
+                            {t("icon_confirmation_number", "confirmation_number")}
+                          </span>
+                          <span>{String(tk.status || "OPEN").toUpperCase()}</span>
+                        </span>
+                        {tk.target_mod_name && (
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[12px]">
+                              {t("icon_extension", "extension")}
+                            </span>
+                            <span className="truncate max-w-[140px]">{tk.target_mod_name}</span>
+                          </span>
+                        )}
+                      </>
+                    }
+                    footer={
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-[10px] font-black text-[var(--subtext)] opacity-60">
+                          {formatSanctuaryDate(tk.created_at, dateFormat)}
+                        </span>
+                        <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {t("view_ticket", "Inspect")}
+                          <span className="material-symbols-outlined !text-[12px]">
+                            {t("icon_arrow_forward", "arrow_forward")}
+                          </span>
+                        </span>
+                      </div>
+                    }
+                  >
+                    <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
+                      {tk.description || t("no_description", "No description provided.")}
+                    </p>
+                  </UniversalCard>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={t("icon_check_circle", "check_circle")}
+                title={t("support_queue_clear", "Support Queue Clear")}
+              />
+            )}
+          </div>
+
+          {/* Scanner Consensus Queue -> Opens CommandScoutReviewSidePanel Directly */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_radar", "radar")}
+              iconColorClass={stats.scoutQueue > 0 ? "text-[var(--warning)]" : "theme-text-accent"}
+              title={t("scout_queue", "Scout Queue")}
+              subtitle={t("architect_scanner_sub", "Consensus-ready {Citizen} telemetry — click to approve or reject")}
+              onJump={() => onNavigate("queue")}
+              jumpTooltip={`${t("scout_queue", "Scout Queue")} (${stats.scoutQueue})`}
+            />
+            {recentScanner.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+                {recentScanner.map((item: any) => (
+                  <UniversalCard
+                    key={item.dna_hash || item.id}
+                    layout="vertical"
+                    icon={t("icon_radar", "radar")}
+                    title={item.suggested_name}
+                    subtitle={item.suggested_author}
+                    bannerTopLabel={`${item.submission_count} ${t("submissions", "Submissions")}`}
+                    bannerTopRightLabel={item.suggested_version}
+                    onClick={() => setSelectedScout(item)}
+                    badges={
+                      <>
+                        <span className={`${VAULT_CHIP_CLASS} !text-[var(--accent)] !border-[color-mix(in_srgb,var(--accent)_35%,transparent)]`}>
+                          <span className="material-symbols-outlined !text-[12px]">
+                            {t("icon_groups", "groups")}
+                          </span>
+                          <span>{item.submission_count}x</span>
+                        </span>
+                        {item.dna_hash && (
+                          <span className={`${VAULT_CHIP_CLASS} font-mono`}>
+                            {String(item.dna_hash).substring(0, 10)}
+                          </span>
+                        )}
+                      </>
+                    }
+                    footer={
+                      <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
+                        {t("btn_review", "Review Telemetry")}
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {t("icon_arrow_forward", "arrow_forward")}
+                        </span>
+                      </span>
+                    }
+                  >
+                    <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
+                      {item.description ||
+                        `${t("author", "Author")}: ${item.suggested_author} • ${t("version", "Version")}: ${item.suggested_version}`}
+                    </p>
+                  </UniversalCard>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={t("icon_radar", "radar")}
+                title={t("no_consensus_scouts", "No Consensus-Ready Scanner Items")}
+              />
+            )}
+          </div>
+
+          {/* {Mason} Submissions Queue -> Opens CommandMasonSubmissionSidePanel Directly */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_construction", "construction")}
+              title={t("mason_queue", "{Mason} Queue")}
+              subtitle={t("mason_queue_desc", "Review submissions from {masons}.")}
+              onJump={() => onNavigate("mason_queue")}
+              jumpTooltip={`${t("mason_queue", "{Mason} Queue")} (${stats.masonQueue})`}
+            />
+            {recentMasonSubs.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+                {recentMasonSubs.map((sub: any) => (
+                  <UniversalCard
+                    key={sub.id}
+                    layout="vertical"
+                    icon={t("icon_extension", "extension")}
+                    title={sub.name || t("untitled", "Untitled")}
+                    subtitle={sub.mason_name || sub.master_author || t("mason", "{Mason}")}
+                    bannerTopLabel={sub.latest_version || "1.0.0"}
+                    bannerTopRightLabel={formatSanctuaryDate(sub.created_at, dateFormat)}
+                    onClick={() => setSelectedMasonSub(sub)}
+                    badges={
+                      <span className={`${VAULT_CHIP_CLASS} !text-[var(--warning)] !border-[color-mix(in_srgb,var(--warning)_35%,transparent)]`}>
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {t("icon_schedule", "schedule")}
+                        </span>
+                        <span>{t("under_review", "Under Review")}</span>
+                      </span>
+                    }
+                    footer={
+                      <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
+                        {t("btn_review", "Review Submission")}
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {t("icon_arrow_forward", "arrow_forward")}
+                        </span>
+                      </span>
+                    }
+                  >
+                    <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
+                      {sub.description || t("no_description", "No description provided.")}
+                    </p>
+                  </UniversalCard>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={t("icon_check_circle", "check_circle")}
+                title={t("no_pending_masons", "No Pending {Mason} Submissions")}
+              />
+            )}
+          </div>
+
+          {/* Diagnostics & Known Error Rules -> Opens CommandDiagnosticDossierSidePanel Directly */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_monitor_heart", "monitor_heart")}
+              title={t("diagnostics_and_rules_heading", "Diagnostics & Known Error Rules")}
+              subtitle={t(
+                "diagnostics_and_rules_sub",
+                "Pending {Lab} crash/loadout dossiers and active schema exception signatures"
+              )}
+              onJump={() => onNavigate("lab")}
+              jumpTooltip={`${t("tab_diagnostics", "Diagnostics")} (${stats.pendingDiagnostics})`}
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+              {recentDiagnostics.slice(0, 2).map((diag: any) => (
+                <UniversalCard
+                  key={diag.id}
+                  layout="vertical"
+                  icon={t("icon_science", "science")}
+                  title={diag.mod_name || t("unknown", "Unknown")}
+                  subtitle={diag.mod_author || t("lab_diagnostic_entry", "{Lab} Report")}
+                  bannerTopLabel={diag.version_label || "1.0.0"}
+                  bannerTopRightLabel={formatSanctuaryDate(diag.created_at, dateFormat)}
+                  onClick={() => setSelectedDiagnostic(diag)}
+                  badges={
+                    <span className={`${VAULT_CHIP_CLASS} !text-[var(--warning)] !border-[color-mix(in_srgb,var(--warning)_35%,transparent)]`}>
+                      <span className="material-symbols-outlined !text-[12px]">
+                        {t("icon_pending_actions", "pending_actions")}
+                      </span>
+                      <span>{t("pending", "Pending")}</span>
+                    </span>
+                  }
+                  footer={
+                    <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
+                      {t("inspect_telemetry", "Inspect Dossier")}
+                      <span className="material-symbols-outlined !text-[12px]">
+                        {t("icon_arrow_forward", "arrow_forward")}
+                      </span>
+                    </span>
+                  }
+                >
+                  <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
+                    {diag.notes ||
+                      diag.exception_summary ||
+                      t("pending_lab_verdict", "Awaiting moderator verification verdict.")}
+                  </p>
+                </UniversalCard>
+              ))}
+
+              <UniversalCard
+                layout="vertical"
+                icon={t("icon_rule_settings", "rule_settings")}
+                title={t("known_error_rules_card", "Known Error Rules")}
+                subtitle={`${exceptionRulesCount} ${t("active_rules", "Active Rules")}`}
+                onClick={() => onNavigate("lab")}
+                badges={
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_Terminal", "terminal")}
+                    </span>
+                    <span>{exceptionRulesCount} {t("signatures", "Signatures")}</span>
+                  </span>
+                }
+                footer={
+                  <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
+                    {t("manage_error_rules", "Open Diagnostics & Rules")}
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {t("icon_arrow_forward", "arrow_forward")}
+                    </span>
+                  </span>
+                }
+              >
+                <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed">
+                  {t(
+                    "known_error_rules_card_desc",
+                    "Schema-driven exception log matchers that automatically diagnose known crashes in {Lab}."
+                  )}
+                </p>
+              </UniversalCard>
             </div>
           </div>
 
-          {recentScout.length > 0 && (
-            <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("reviewing", "Scanner Queue")} icon={t("icon_search", "search")} />
+          {/* {Nexus} Reports & Registry Governance (Templates / Collections / Registry) */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_flag", "flag")}
+              title={t("reports_and_governance_heading", "{Nexus} Reports, Templates & Collections")}
+              subtitle={t(
+                "reports_and_governance_sub",
+                "Community flags and curated catalog architecture"
+              )}
+              onJump={() => onNavigate("nexus_reports")}
+              jumpTooltip={`${t("nexus_reports", "{Nexus} Reports")} (${stats.reportQueue})`}
+            />
+            {recentReports.length > 0 && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-                  {recentScout.map((item: any) => (
-                      <UniversalCard 
-                          key={`scout-${item.id}`} 
-                          layout="vertical" 
-                          title={item.suggestion_text || t("reviewing", "Scanner Queue")} 
-                          icon={t("icon_search", "search")} 
-                          onClick={() => onNavigate("queue")}
-                          onContextMenu={(e) => {
-                            const menuItems: SanctuaryContextMenuItem[] = [
-                              {
-                                label: t("reviewing", "Scanner Queue"),
-                                icon: t("icon_search", "search"),
-                                onClick: () => onNavigate("queue"),
-                              },
-                              {
-                                label: t("copy", "Copy"),
-                                icon: t("icon_content_copy", "content_copy"),
-                                dividerBefore: true,
-                                onClick: () => navigator.clipboard?.writeText(String(item.suggestion_text || "")),
-                              },
-                            ];
-                            openSanctuaryContextMenu(e, menuItems);
-                          }}
-                          className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-                                  <div className={VAULT_CHIP_CLASS}>
-                                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_pending_actions", "pending_actions")}</span>
-                                      <span>{t("status_pending", "Pending")}</span>
-                                  </div>
-                              </div>
-                          }
-                          badges={
-                              <div className={VAULT_CHIP_CLASS}>
-                                  <span className="material-symbols-outlined !text-[12px] text-[var(--info)]">{t("icon_search", "search")}</span>
-                                  <span>{t("reviewing", "Scanner Queue")}</span>
-                              </div>
-                          }
-                          footer={
-                              <div className="flex items-center justify-start w-full mt-2">
-                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
-                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today", "calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
-                                  </span>
-                              </div>
-                          }
-                      >
-                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
-                              {item.metadata?.notes || t("status_pending", "Pending")}
-                          </p>
-                      </UniversalCard>
-                  ))}
+                {recentReports.map((rep: any) => (
+                  <UniversalCard
+                    key={`${rep.source}-${rep.id}`}
+                    layout="vertical"
+                    icon={t("icon_flag", "flag")}
+                    title={rep.title}
+                    subtitle={rep.reporter_name || t("citizen", "{Citizen}")}
+                    bannerTopLabel={String(rep.source).toUpperCase()}
+                    bannerTopRightLabel={formatSanctuaryDate(rep.created_at, dateFormat)}
+                    onClick={() => setSelectedReport(rep)}
+                    badges={
+                      <span className={`${VAULT_CHIP_CLASS} !text-[var(--danger)] !border-[color-mix(in_srgb,var(--danger)_35%,transparent)]`}>
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {t("icon_flag", "flag")}
+                        </span>
+                        <span>{String(rep.source).toUpperCase()}</span>
+                      </span>
+                    }
+                    footer={
+                      <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
+                        {t("btn_review", "Review Report")}
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {t("icon_arrow_forward", "arrow_forward")}
+                        </span>
+                      </span>
+                    }
+                  >
+                    <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
+                      {rep.reason || t("no_reason", "No reason provided")}
+                    </p>
+                  </UniversalCard>
+                ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {recentMason.length > 0 && (
-            <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("mason_queue", "{Mason} Queue")} icon={t("icon_handyman", "handyman")} />
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-                  {recentMason.map((item: any) => (
-                      <UniversalCard 
-                          key={`mason-${item.id}`} 
-                          layout="vertical" 
-                          title={item.name || t("term_mod", "{Mod}")} 
-                          icon={t("icon_handyman", "handyman")} 
-                          onClick={() => onNavigate("mason_queue")}
-                          onContextMenu={(e) => {
-                            const menuItems: SanctuaryContextMenuItem[] = [
-                              {
-                                label: t("mason_queue", "{Mason} Queue"),
-                                icon: t("icon_handyman", "handyman"),
-                                onClick: () => onNavigate("mason_queue"),
-                              },
-                              {
-                                label: t("btn_inspect", "Inspect {Mod}"),
-                                icon: t("icon_open_in_new", "open_in_new"),
-                                onClick: () => openModDossier({ ...item, isNexusView: true }),
-                              },
-                              {
-                                label: t("copy", "Copy"),
-                                icon: t("icon_content_copy", "content_copy"),
-                                dividerBefore: true,
-                                onClick: () => navigator.clipboard?.writeText(String(item.name || "")),
-                              },
-                            ];
-                            openSanctuaryContextMenu(e, menuItems);
-                          }}
-                          className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-                                  <div className={VAULT_CHIP_CLASS}>
-                                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_pending_actions", "pending_actions")}</span>
-                                      <span>{t("status_pending", "Pending")}</span>
-                                  </div>
-                              </div>
-                          }
-                          badges={
-                              <div className={VAULT_CHIP_CLASS}>
-                                  <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">{t("icon_handyman", "handyman")}</span>
-                                  <span>{t("mason_queue", "{Mason} Queue")}</span>
-                              </div>
-                          }
-                          footer={
-                              <div className="flex items-center justify-start w-full mt-2">
-                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
-                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today", "calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
-                                  </span>
-                              </div>
-                          }
-                      >
-                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
-                              {item.description || t("status_pending", "Pending")}
-                          </p>
-                      </UniversalCard>
-                  ))}
-              </div>
-            </div>
-          )}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+              <UniversalCard
+                layout="vertical"
+                icon={t("icon_inventory_2", "inventory_2")}
+                title={t("mod_registry_card", "{Mod} Registry & Conflicts")}
+                subtitle={`${stats.verifiedMods} ${t("status_stable", "Stable")} • ${stats.conflicts} ${t("conflicts", "Conflicts")}`}
+                onClick={() => onNavigate("registry")}
+                footer={
+                  <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
+                    {t("open_registry", "Open {Mod} Registry")}
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {t("icon_arrow_forward", "arrow_forward")}
+                    </span>
+                  </span>
+                }
+              >
+                <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed">
+                  {t(
+                    "mod_registry_card_desc",
+                    "Curate verified Tier-0 {Mod} metadata, lineage hashes, dependencies, and conflict matrices."
+                  )}
+                </p>
+              </UniversalCard>
 
-          {recentReports.length > 0 && (
-            <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("title_reports", "Reports Queue")} icon={t("icon_flag", "flag")} />
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-                  {recentReports.map((report: any) => (
-                      <UniversalCard 
-                          key={`rep-${report.id}`} 
-                          layout="vertical" 
-                          title={report.asset_title || report.report_reason || t("title_reports", "Reports Queue")} 
-                          subtitle={`${t("reporter", "Reporter")}: ${report.reporter_name || t("anonymous", "Anonymous")}`}
-                          icon={t("icon_flag", "flag")} 
-                          onClick={() => onNavigate("nexus_reports")}
-                          onContextMenu={(e) => {
-                            const menuItems: SanctuaryContextMenuItem[] = [
-                              {
-                                label: t("btn_inspect", "Inspect"),
-                                icon: t("icon_flag", "flag"),
-                                onClick: () => onNavigate("nexus_reports"),
-                              },
-                              {
-                                label: t("copy", "Copy"),
-                                icon: t("icon_content_copy", "content_copy"),
-                                dividerBefore: true,
-                                onClick: () => navigator.clipboard?.writeText(String(report.clean_reason || report.reason || report.asset_title || "")),
-                              },
-                            ];
-                            openSanctuaryContextMenu(e, menuItems);
-                          }}
-                          className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-                                  <div className={VAULT_CHIP_CLASS}>
-                                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_pending_actions", "pending_actions")}</span>
-                                      <span>{t("status_pending", "Pending")}</span>
-                                  </div>
-                              </div>
-                          }
-                          badges={
-                              <div className={VAULT_CHIP_CLASS}>
-                                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                                      {report.source_type === "blueprint"
-                                          ? t("icon_architecture", "architecture")
-                                          : report.source_type === "lexicon"
-                                            ? t("icon_translate", "translate")
-                                            : t("icon_flag", "flag")}
-                                  </span>
-                                  <span>
-                                      {report.source_type === "blueprint"
-                                          ? t("playsets_title", "{Blueprints}")
-                                          : report.source_type === "lexicon"
-                                            ? t("tab_lexicons", "{Lexicons}")
-                                            : t("title_reports", "Reports Queue")}
-                                  </span>
-                              </div>
-                          }
-                          footer={
-                              <div className="flex items-center justify-between w-full mt-2 text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                                  <span className="flex items-center gap-2 opacity-60">
-                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today", "calendar_today")}</span> {new Date(report.created_at).toLocaleDateString()}
-                                  </span>
-                                  <span className="text-[var(--text)] group-hover:text-[var(--accent)] transition-all flex items-center gap-1">
-                                      {t("btn_inspect", "Inspect")} &rarr;
-                                  </span>
-                              </div>
-                          }
-                      >
-                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-85 line-clamp-2 mt-1">
-                              {report.clean_reason || report.reason || report.details || t("status_pending", "Pending")}
-                          </p>
-                      </UniversalCard>
-                  ))}
-              </div>
-            </div>
-          )}
+              <UniversalCard
+                layout="vertical"
+                icon={t("icon_data_object", "data_object")}
+                title={t("ql_templates", "Workbench Templates")}
+                subtitle={`${stats.templates} ${t("ql_templates", "Templates")}`}
+                onClick={() => onNavigate("template_oversight")}
+                footer={
+                  <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
+                    {t("open_templates", "Open Templates")}
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {t("icon_arrow_forward", "arrow_forward")}
+                    </span>
+                  </span>
+                }
+              >
+                <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed">
+                  {t(
+                    "template_oversight_desc",
+                    "Audit and curate community Workbench Templates published to {Nexus}."
+                  )}
+                </p>
+              </UniversalCard>
 
+              <UniversalCard
+                layout="vertical"
+                icon={t("icon_collections_bookmark", "collections_bookmark")}
+                title={t("tab_collections", "Collection Forge")}
+                subtitle={`${stats.collections} ${t("tab_collections", "Collections")}`}
+                onClick={() => onNavigate("collections")}
+                footer={
+                  <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
+                    {t("open_collections", "Open Collections")}
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {t("icon_arrow_forward", "arrow_forward")}
+                    </span>
+                  </span>
+                }
+              >
+                <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed">
+                  {t(
+                    "collection_forge_desc",
+                    "Organize related {Mods} into structured creator sets and dependency groups."
+                  )}
+                </p>
+              </UniversalCard>
+            </div>
+          </div>
         </CommandScreenMain>
 
-        <CommandScreenSidebar title={t("wf_quick_links", "Quick Links")} icon={t("icon_rocket_launch", "rocket_launch")}>
-          {urgentBroadcast && (
-            <CommandScreenQuickLink 
-              icon={t("icon_priority_high", "priority_high")}
-              title={t("title_sanctuary_alerts", "Sanctuary Alerts")}
-              subtitle={t("urgent_alert", "Urgent Alert")}
-              onClick={() => setIsAlertsOpen(true)}
-              isAlert={true}
+        {/* 3. QUICK OPERATIONS SIDEBAR + 2x3 HUB METRICS */}
+        <CommandScreenSidebar
+          title={t("command_operations", "Command Operations")}
+          icon={t("icon_bolt", "bolt")}
+          metricsSubtitle={t("architect_metrics_sub", "Tier-0 Atomic Logic, Metadata & Conflict Telemetry")}
+          metrics={
+            <>
+              <CommandScreenMetricTile
+                icon={t("icon_verified", "verified")}
+                value={stats.verifiedMods}
+                label={t("stable_mods_metric", "Stable {Mods}")}
+                onClick={() => onNavigate("registry")}
+              />
+              <CommandScreenMetricTile
+                icon={t("icon_warning", "warning")}
+                value={stats.conflicts}
+                label={t("active_conflicts_metric", "Active Conflicts")}
+                valueColorClass={stats.conflicts > 0 ? "text-[var(--warning)]" : "theme-text-accent"}
+                onClick={() => onNavigate("registry")}
+              />
+              <CommandScreenMetricTile
+                icon={t("icon_account_tree", "account_tree")}
+                value={stats.dependencies}
+                label={t("dependencies_metric", "Dependencies")}
+                onClick={() => onNavigate("registry")}
+              />
+              <CommandScreenMetricTile
+                icon={t("icon_rule_settings", "rule_settings")}
+                value={exceptionRulesCount}
+                label={t("known_error_rules_card", "Known Error Rules")}
+                onClick={() => onNavigate("lab")}
+              />
+              <CommandScreenMetricTile
+                icon={t("icon_collections_bookmark", "collections_bookmark")}
+                value={stats.collections}
+                label={t("tab_collections", "Collections")}
+                onClick={() => onNavigate("collections")}
+              />
+              <CommandScreenMetricTile
+                icon={t("icon_data_object", "data_object")}
+                value={stats.templates}
+                label={t("ql_templates", "Templates")}
+                onClick={() => onNavigate("template_oversight")}
+              />
+            </>
+          }
+        >
+          <CommandScreenQuickLink
+            icon={t("icon_campaign", "campaign")}
+            title={t("sanctuary_alerts", "Sanctuary Alerts")}
+            subtitle={
+              urgentBroadcast
+                ? t("urgent_alert_active", "Urgent Alert Active")
+                : t("view_active_advisories", "View Platform Advisories")
+            }
+            isAlert={Boolean(urgentBroadcast)}
+            onClick={() => setIsAlertsOpen(true)}
+          />
+          {onOpenVerifyHash && (
+            <CommandScreenQuickLink
+              icon={t("icon_verified_user", "verified_user")}
+              title={t("wf_hub_verify", "Verify SHA-256 Hash")}
+              subtitle={t("verify_hash_sub", "Inspect Any Local File Against Cloud DNA")}
+              onClick={onOpenVerifyHash}
             />
           )}
-
-          <CommandScreenQuickLink onClick={() => onNavigate("registry")} icon={t("icon_inventory_2", "inventory_2")} title={t("term_mods", "Mods")} subtitle={t("ql_logical_issues", "Logical Issues")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-rose-400" hoverTextColorClass="group-hover:text-rose-300" dotColorClass="bg-rose-400 shadow-md" />
-
-          <CommandScreenQuickLink onClick={() => onNavigate("template_oversight")} icon={t("icon_data_object", "data_object")} title={t("ql_templates", "Templates")} subtitle={t("ql_templates_desc", "Manage Metadata Formats")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-fuchsia-400" hoverTextColorClass="group-hover:text-fuchsia-300" dotColorClass="bg-fuchsia-400 shadow-md" />
-
-          <CommandScreenQuickLink onClick={() => onNavigate("lab")} icon={t("icon_monitor_heart", "monitor_heart")} title={t("tab_lab", "Testing DIAGNOSTICS")} subtitle={t("ql_system_health", "System Health")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-emerald-400" hoverTextColorClass="group-hover:text-emerald-300" dotColorClass="bg-emerald-400 shadow-md" />
-
-          <CommandScreenQuickLink onClick={() => onNavigate("support_tickets")} icon={t("icon_local_activity", "local_activity")} title={t("ql_support", "Support Queue")} subtitle={t("ql_help_requests", "Help Requests")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-md" />
-
-          {!urgentBroadcast && (
-            <CommandScreenQuickLink onClick={() => setIsAlertsOpen(true)} icon={t("icon_warning_off", "warning_off")} title={t("title_sanctuary_alerts", "Sanctuary Alerts")} subtitle={t("alert_empty", "No Active Alerts")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" iconShadowClass="drop-shadow-md" textColorClass="text-[color-mix(in_srgb,var(--warning)_80%,transparent)]" hoverTextColorClass="group-hover:text-amber-400" dotColorClass="bg-amber-500 shadow-md" />
-          )}
+          <CommandScreenQuickLink
+            icon={t("icon_inventory_2", "inventory_2")}
+            title={t("mod_registry_card", "{Mod} Registry")}
+            subtitle={`${stats.verifiedMods} ${t("status_stable", "Stable")}`}
+            onClick={() => onNavigate("registry")}
+          />
+          <CommandScreenQuickLink
+            icon={t("icon_monitor_heart", "monitor_heart")}
+            title={t("tab_diagnostics", "Diagnostics & Error Rules")}
+            subtitle={`${stats.pendingDiagnostics} ${t("pending", "Pending")} • ${exceptionRulesCount} ${t("rules", "Rules")}`}
+            onClick={() => onNavigate("lab")}
+          />
+          <CommandScreenQuickLink
+            icon={t("icon_data_object", "data_object")}
+            title={t("ql_templates", "Workbench Templates")}
+            subtitle={`${stats.templates} ${t("ql_templates", "Templates")}`}
+            onClick={() => onNavigate("template_oversight")}
+          />
         </CommandScreenSidebar>
       </CommandScreenBody>
 
-      <div className="flex flex-col gap-4 w-full">
-        <CommandScreenSectionHeading title={t("metrics", "Hub Metrics")} icon={t("icon_monitoring", "monitoring")} />
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 w-full">
-          <CommandScreenMetricTile icon={t("icon_deployed_code", "deployed_code")} value={stats.totalArtifacts} label={t("term_mods", "Mods")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" />
-          <CommandScreenMetricTile icon={t("icon_pending_actions", "pending_actions")} value={stats.unverifiedMods} label={t("unverified", "Unverified")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-          <CommandScreenMetricTile icon={t("icon_report", "report")} value={stats.tier4Conflicts} label={t("stat_tier4", "Severity 4")} valueColorClass="text-red-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" />
-          <CommandScreenMetricTile icon={t("icon_warning", "warning")} value={stats.tier3Conflicts} label={t("stat_tier3", "Severity 3")} valueColorClass="text-orange-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" />
-          <CommandScreenMetricTile icon={t("icon_science", "science")} value={stats.labQueue} label={t("stat_lab_queue", "Testing Queue")} valueColorClass="text-blue-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-        </div>
-      </div>
-
+      {/* DIRECT SIDE PANELS */}
       <SanctuaryAlertsSidePanel
         isOpen={isAlertsOpen}
         onClose={() => setIsAlertsOpen(false)}
-        audience="Architects"
       />
 
-      <WayfinderPostsEditor
-        authorId="architect"
-        authorProfileId="architect"
-        isSidePanel={true}
-        isOpen={isDispatchOpen}
-        onClose={() => setIsDispatchOpen(false)}
-        isOversight={true}
+      <TicketDossierSidePanel
+        isOpen={Boolean(selectedTicket)}
+        onClose={() => setSelectedTicket(null)}
+        ticket={selectedTicket}
+        tableName="sanctuary_tickets"
+        canReply={true}
+        currentUserId={userId}
+        availableActions={["RESOLVED", "REJECTED", "ESCALATED", "PENDING"]}
+        onEditMetadata={(hashOrId) => {
+          setSelectedTicket(null);
+          if (onOpenMetadataEditor) onOpenMetadataEditor(hashOrId);
+        }}
+        onClaim={async () => {
+          const updated = await claimOrReleaseHubTicket({
+            ticket: selectedTicket,
+            currentUserId: userId,
+            claim: true,
+            actorRole: "architect",
+            t,
+          });
+          if (updated) {
+            setSelectedTicket(updated);
+            refreshArchitectDashboard();
+          }
+        }}
+        onRelease={async () => {
+          const updated = await claimOrReleaseHubTicket({
+            ticket: selectedTicket,
+            currentUserId: userId,
+            claim: false,
+            t,
+          });
+          if (updated) {
+            setSelectedTicket(updated);
+            refreshArchitectDashboard();
+          }
+        }}
+        onReplyAdded={() => refreshArchitectDashboard()}
+        onTakeAction={async (actionType, reason) => {
+          const ok = await executeHubTicketAction({
+            ticket: selectedTicket,
+            actionType,
+            reason,
+            actorRole: "architect",
+            t,
+          });
+          if (ok) {
+            setSelectedTicket(null);
+            refreshArchitectDashboard();
+          }
+        }}
+      />
+
+      <CommandScoutReviewSidePanel
+        isOpen={Boolean(selectedScout)}
+        onClose={() => setSelectedScout(null)}
+        scoutItem={selectedScout}
+        onCompleted={refreshArchitectDashboard}
+        onOpenFullQueue={() => onNavigate("queue")}
+      />
+
+      <CommandMasonSubmissionSidePanel
+        isOpen={Boolean(selectedMasonSub)}
+        onClose={() => setSelectedMasonSub(null)}
+        submission={selectedMasonSub}
+        onCompleted={refreshArchitectDashboard}
+        onOpenMetadataEditor={onOpenMetadataEditor}
+        onOpenFullQueue={() => onNavigate("mason_queue")}
+      />
+
+      <CommandDiagnosticDossierSidePanel
+        isOpen={Boolean(selectedDiagnostic)}
+        onClose={() => setSelectedDiagnostic(null)}
+        diagnostic={selectedDiagnostic}
+        onCompleted={refreshArchitectDashboard}
+        onOpenFullDiagnostics={() => onNavigate("lab")}
+      />
+
+      <CommandReportResolutionSidePanel
+        isOpen={Boolean(selectedReport)}
+        onClose={() => setSelectedReport(null)}
+        report={selectedReport}
+        onCompleted={refreshArchitectDashboard}
+        onOpenFullReports={() => onNavigate("nexus_reports")}
       />
     </CommandScreenLayout>
   );

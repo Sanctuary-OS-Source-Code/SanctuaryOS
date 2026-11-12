@@ -335,9 +335,11 @@ export default function SidePanelBrowser() {
   }, [isBookmarksDropdownOpen, isBrowserFullscreen, downloadsQueue.length, isSideBrowserOpen]);
 
   const schemaDownloadExts = useMemo(() => {
-    const containers = Array.isArray(activeGameSchema?.archive_containers)
-      ? activeGameSchema.archive_containers
-      : [];
+    const containers = Array.isArray(activeGameSchema?.extensions?.archive_containers)
+      ? activeGameSchema.extensions.archive_containers
+      : Array.isArray(activeGameSchema?.archive_containers)
+        ? activeGameSchema.archive_containers
+        : [];
     const supported = Array.isArray(activeGameSchema?.extensions?.supported)
       ? activeGameSchema.extensions.supported
       : [];
@@ -1274,12 +1276,12 @@ export default function SidePanelBrowser() {
             <button
               type="button"
               onClick={createNewTab}
-              title={t('browser_new_tab', 'New Tab')}
               className="w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--text)_4%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_9%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center shrink-0 text-[var(--subtext)] hover:text-[var(--text)] active:scale-95 transition-all"
             >
               <span className="material-symbols-outlined !text-[18px]">
                 {t('icon_add', 'add')}
               </span>
+              <HoverTooltip title={t('browser_new_tab', 'New Tab')} />
             </button>
           </div>
 
@@ -1809,7 +1811,6 @@ export default function SidePanelBrowser() {
                               <div className="flex items-center gap-0.5 shrink-0 opacity-75 group-hover:opacity-100 transition-opacity">
                                 <button
                                   type="button"
-                                  title={t('browser_new_tab', 'New Tab')}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     openUrlInNewTab(b.url);
@@ -1819,10 +1820,10 @@ export default function SidePanelBrowser() {
                                   <span className="material-symbols-outlined !text-[15px]">
                                     {t('icon_open_in_new', 'open_in_new')}
                                   </span>
+                                  <HoverTooltip title={t('browser_new_tab', 'New Tab')} />
                                 </button>
                                 <button
                                   type="button"
-                                  title={t('edit', 'Edit')}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setEditingBookmarkUrl(b.url);
@@ -1834,10 +1835,10 @@ export default function SidePanelBrowser() {
                                   <span className="material-symbols-outlined !text-[15px]">
                                     {t('icon_edit', 'edit')}
                                   </span>
+                                  <HoverTooltip title={t('edit', 'Edit')} />
                                 </button>
                                 <button
                                   type="button"
-                                  title={t('btn_delete', 'Delete')}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setBrowserBookmarks(
@@ -1849,6 +1850,7 @@ export default function SidePanelBrowser() {
                                   <span className="material-symbols-outlined !text-[15px]">
                                     {t('icon_delete', 'delete')}
                                   </span>
+                                  <HoverTooltip title={t('btn_delete', '{Delete}')} />
                                 </button>
                               </div>
                             </div>
@@ -1947,7 +1949,6 @@ export default function SidePanelBrowser() {
                                   <div className="flex items-center gap-0.5 shrink-0 opacity-75 group-hover:opacity-100 transition-opacity">
                                     <button
                                       type="button"
-                                      title={t('browser_new_tab', 'New Tab')}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         openUrlInNewTab(h.url);
@@ -1957,10 +1958,10 @@ export default function SidePanelBrowser() {
                                       <span className="material-symbols-outlined !text-[15px]">
                                         {t('icon_open_in_new', 'open_in_new')}
                                       </span>
+                                      <HoverTooltip title={t('browser_new_tab', 'New Tab')} />
                                     </button>
                                     <button
                                       type="button"
-                                      title={t('btn_delete', 'Delete')}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setBrowserHistory(
@@ -1974,6 +1975,7 @@ export default function SidePanelBrowser() {
                                       <span className="material-symbols-outlined !text-[15px]">
                                         {t('icon_delete', 'delete')}
                                       </span>
+                                      <HoverTooltip title={t('btn_delete', '{Delete}')} />
                                     </button>
                                   </div>
                                 </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
@@ -12,6 +13,7 @@ import {
   HoverTooltip,
   countBlueprintArtifacts,
 } from "../shared";
+import { closeSanctuaryContextMenu } from "../ContextMenu";
 import { useLexicon } from "../LexiconContext";
 import { useTheme } from "../ThemeContext";
 import { useStore } from "../store";
@@ -210,18 +212,167 @@ export function isEditableElementFocused(): boolean {
   return Boolean(el.isContentEditable);
 }
 
-export function scrollActiveViewport(deltaY: number): boolean {
-  if (typeof document === "undefined" || deltaY === 0) return false;
-  const panels = Array.from(
-    document.querySelectorAll<HTMLElement>(".sa-side-panel-window")
+function getOpenPopovers(): HTMLElement[] {
+  if (typeof document === "undefined") return [];
+  return Array.from(document.querySelectorAll<HTMLElement>(".sa-dropdown-popover")).filter(
+    (el) => {
+      const style = window.getComputedStyle(el);
+      if (
+        style.display === "none" ||
+        style.visibility === "hidden" ||
+        Number(style.opacity) === 0
+      ) {
+        return false;
+      }
+      const rect = el.getBoundingClientRect();
+      return rect.width > 8 && rect.height > 8;
+    }
   );
+}
+
+function getOpenSidePanels(): HTMLElement[] {
+  if (typeof document === "undefined") return [];
+  return Array.from(
+    document.querySelectorAll<HTMLElement>(
+      ".sa-side-panel-wrapper.sa-panel-open .sa-side-panel-window"
+    )
+  ).filter((panel) => {
+    const style = window.getComputedStyle(panel);
+    if (style.display === "none" || style.visibility === "hidden") return false;
+    const rect = panel.getBoundingClientRect();
+    return rect.width > 16 && rect.height > 16;
+  });
+}
+
+function getTopmostOpenSidePanel(): HTMLElement | null {
+  const panels = getOpenSidePanels();
+  if (panels.length === 0) return null;
+  let best = panels[panels.length - 1];
+  let bestZ = parseInt(window.getComputedStyle(best).zIndex || "0", 10) || 0;
+  for (const p of panels) {
+    const z = parseInt(window.getComputedStyle(p).zIndex || "0", 10) || 0;
+    if (z >= bestZ) {
+      best = p;
+      bestZ = z;
+    }
+  }
+  return best;
+}
+
+function clearGamepadFocus(): void {
+  if (typeof document === "undefined") return;
+  document
+    .querySelectorAll<HTMLElement>('[data-sa-gamepad-focus="true"]')
+    .forEach((el) => el.removeAttribute("data-sa-gamepad-focus"));
+}
+
+const INTERACTIVE_SELECTOR =
+  'button:not(:disabled), a[href], input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled), [role="button"]:not([aria-disabled="true"]), [data-sa-clickable="true"], .sa-glass-toggle, .sa-dropdown-item';
+
+export function scrollActiveViewport(
+  deltaY: number,
+  deltaX = 0,
+  originEl?: Element | null
+): boolean {
+  if (typeof document === "undefined" || (deltaY === 0 && deltaX === 0)) return false;
+
+  // 1. Scroll the nearest scrollable ancestor under the Virtual Pointer or focused element first
+  let cur: HTMLElement | null =
+    originEl instanceof HTMLElement ? originEl : (originEl?.parentElement ?? null);
+  let handledY = deltaY === 0;
+  let handledX = deltaX === 0;
+  while (cur && cur !== document.body && (!handledY || !handledX)) {
+    const style = window.getComputedStyle(cur);
+    if (!handledY && cur.scrollHeight > cur.clientHeight + 2) {
+      const oy = style.overflowY;
+      if (oy === "auto" || oy === "scroll" || oy === "overlay") {
+        const before = cur.scrollTop;
+        cur.scrollTop += deltaY;
+        if (cur.scrollTop !== before) {
+          handledY = true;
+        }
+      }
+    }
+    if (!handledX && cur.scrollWidth > cur.clientWidth + 2) {
+      const ox = style.overflowX;
+      if (
+        ox === "auto" ||
+        ox === "scroll" ||
+        ox === "overlay" ||
+        cur.classList.contains("sa-stat-tile-carousel")
+      ) {
+        const before = cur.scrollLeft;
+        cur.scrollLeft += deltaX;
+        if (cur.scrollLeft !== before) {
+          handledX = true;
+        }
+      }
+    }
+    cur = cur.parentElement;
+  }
+  if (handledY && handledX) return true;
+
+  // 2. Scroll inside open popovers / context menus
+  const popovers = getOpenPopovers();
+  for (let i = popovers.length - 1; i >= 0; i--) {
+    const pop = popovers[i];
+    const scrollers = [
+      pop,
+      ...Array.from(pop.querySelectorAll<HTMLElement>(".overflow-y-auto, .custom-scrollbar")),
+    ];
+    for (const scroller of scrollers) {
+      if (deltaY !== 0 && scroller.scrollHeight > scroller.clientHeight + 2) {
+        scroller.scrollTop += deltaY;
+        return true;
+      }
+    }
+  }
+
+  // 3. Scroll inside topmost open SidePanel
+  const panels = getOpenSidePanels();
   for (let i = panels.length - 1; i >= 0; i--) {
     const panel = panels[i];
-    if (panel.offsetParent !== null || panel.getClientRects().length > 0) {
-      const scrollers = Array.from(
-        panel.querySelectorAll<HTMLElement>(".overflow-y-auto, .custom-scrollbar")
+    const scrollers = Array.from(
+      panel.querySelectorAll<HTMLElement>(
+        ".overflow-y-auto, .custom-scrollbar, .sa-stat-tile-carousel"
+      )
+    );
+    for (const scroller of scrollers) {
+      if (!handledY && deltaY !== 0 && scroller.scrollHeight > scroller.clientHeight + 2) {
+        scroller.scrollTop += deltaY;
+        return true;
+      }
+      if (!handledX && deltaX !== 0 && scroller.scrollWidth > scroller.clientWidth + 2) {
+        scroller.scrollLeft += deltaX;
+        return true;
+      }
+    }
+  }
+
+  // 4. Scroll main OS viewport & carousels
+  const mainScroll = document.getElementById("sanctuary-main-scroll");
+  if (mainScroll) {
+    if (!handledX && deltaX !== 0) {
+      const carousels = Array.from(
+        mainScroll.querySelectorAll<HTMLElement>(".sa-stat-tile-carousel, .overflow-x-auto")
       );
-      for (const scroller of scrollers) {
+      for (const c of carousels) {
+        if (c.scrollWidth > c.clientWidth + 2) {
+          c.scrollLeft += deltaX;
+          handledX = true;
+          break;
+        }
+      }
+    }
+    if (!handledY && deltaY !== 0) {
+      if (mainScroll.scrollHeight > mainScroll.clientHeight + 2) {
+        mainScroll.scrollTop += deltaY;
+        return true;
+      }
+      const innerScrollers = Array.from(
+        mainScroll.querySelectorAll<HTMLElement>(".overflow-y-auto, .custom-scrollbar")
+      );
+      for (const scroller of innerScrollers) {
         if (scroller.scrollHeight > scroller.clientHeight + 2) {
           scroller.scrollTop += deltaY;
           return true;
@@ -229,20 +380,233 @@ export function scrollActiveViewport(deltaY: number): boolean {
       }
     }
   }
-  const mainScroll = document.getElementById("sanctuary-main-scroll");
-  if (mainScroll) {
-    if (mainScroll.scrollHeight > mainScroll.clientHeight + 2) {
-      mainScroll.scrollTop += deltaY;
-      return true;
+  return handledX || handledY;
+}
+
+function stepRangeInput(input: HTMLInputElement, dir: -1 | 1): boolean {
+  const min = input.min !== "" ? Number(input.min) : 0;
+  const max = input.max !== "" ? Number(input.max) : 100;
+  const rawStep = input.step && input.step !== "any" ? Number(input.step) : (max - min) / 20;
+  const step = Number.isFinite(rawStep) && rawStep > 0 ? rawStep : 1;
+  const curr = Number(input.value) || 0;
+  const next = Math.min(max, Math.max(min, Number((curr + dir * step).toFixed(4))));
+  if (next === curr) return true;
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+  if (setter) {
+    setter.call(input, String(next));
+  } else {
+    input.value = String(next);
+  }
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
+
+function moveSpatialFocus(
+  dir: "up" | "down" | "left" | "right",
+  pointerAnchor?: { x: number; y: number } | null
+): HTMLElement | null {
+  if (typeof document === "undefined") return null;
+
+  const currFocused = document.querySelector<HTMLElement>('[data-sa-gamepad-focus="true"]');
+  if (
+    currFocused &&
+    currFocused.tagName === "INPUT" &&
+    (currFocused as HTMLInputElement).type === "range" &&
+    (dir === "left" || dir === "right")
+  ) {
+    stepRangeInput(currFocused as HTMLInputElement, dir === "right" ? 1 : -1);
+    return currFocused;
+  }
+
+  const openPopovers = getOpenPopovers();
+  const topPopover = openPopovers.length > 0 ? openPopovers[openPopovers.length - 1] : null;
+  const topPanel = !topPopover ? getTopmostOpenSidePanel() : null;
+  const scope: HTMLElement =
+    topPopover ||
+    topPanel ||
+    document.getElementById("sanctuary-os-shell") ||
+    document.body;
+  const isMainShellScope = !topPopover && !topPanel;
+
+  const rawCandidates = Array.from(scope.querySelectorAll<HTMLElement>(INTERACTIVE_SELECTOR));
+  const candidates: { el: HTMLElement; rect: DOMRect }[] = [];
+
+  for (const el of rawCandidates) {
+    if (isMainShellScope && el.closest(".sa-side-panel-wrapper")) continue;
+    const closedPanel = el.closest(".sa-side-panel-wrapper:not(.sa-panel-open)");
+    if (closedPanel) continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 10 || rect.height < 10) continue;
+    if (
+      rect.bottom < -240 ||
+      rect.top > window.innerHeight + 320 ||
+      rect.right < -120 ||
+      rect.left > window.innerWidth + 120
+    ) {
+      continue;
     }
-    const innerScrollers = Array.from(
-      mainScroll.querySelectorAll<HTMLElement>(".overflow-y-auto, .custom-scrollbar")
-    );
-    for (const scroller of innerScrollers) {
-      if (scroller.scrollHeight > scroller.clientHeight + 2) {
-        scroller.scrollTop += deltaY;
+    const style = window.getComputedStyle(el);
+    if (
+      style.display === "none" ||
+      style.visibility === "hidden" ||
+      style.pointerEvents === "none" ||
+      Number(style.opacity) < 0.05
+    ) {
+      continue;
+    }
+    candidates.push({ el, rect });
+  }
+
+  if (candidates.length === 0) {
+    if (dir === "up" || dir === "down") {
+      scrollActiveViewport(dir === "down" ? 140 : -140);
+    }
+    return null;
+  }
+
+  const activeInScope =
+    currFocused && scope.contains(currFocused)
+      ? candidates.find((c) => c.el === currFocused) || null
+      : null;
+
+  if (!activeInScope) {
+    clearGamepadFocus();
+    let initial = candidates[0];
+    if (pointerAnchor) {
+      let bestDist = Infinity;
+      for (const c of candidates) {
+        const cx = c.rect.left + c.rect.width * 0.5;
+        const cy = c.rect.top + c.rect.height * 0.5;
+        const d = Math.hypot(cx - pointerAnchor.x, cy - pointerAnchor.y);
+        if (d < bestDist) {
+          bestDist = d;
+          initial = c;
+        }
+      }
+    } else {
+      const activeTile = candidates.find(
+        (c) =>
+          c.el.getAttribute("data-sa-active") === "true" &&
+          c.rect.top >= 0 &&
+          c.rect.bottom <= window.innerHeight
+      );
+      const firstVisible = candidates.find(
+        (c) =>
+          c.rect.top >= 0 &&
+          c.rect.left >= 0 &&
+          c.rect.bottom <= window.innerHeight &&
+          c.rect.right <= window.innerWidth
+      );
+      initial = activeTile || firstVisible || candidates[0];
+    }
+    initial.el.setAttribute("data-sa-gamepad-focus", "true");
+    initial.el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    return initial.el;
+  }
+
+  const currRect = activeInScope.rect;
+  const cx = currRect.left + currRect.width * 0.5;
+  const cy = currRect.top + currRect.height * 0.5;
+
+  let bestCandidate: HTMLElement | null = null;
+  let bestScore = Infinity;
+
+  for (const { el, rect } of candidates) {
+    if (el === activeInScope.el || el.contains(activeInScope.el)) continue;
+    const tx = rect.left + rect.width * 0.5;
+    const ty = rect.top + rect.height * 0.5;
+
+    if (dir === "down" && (ty <= cy + 4 || rect.top < currRect.top + 2)) continue;
+    if (dir === "up" && (ty >= cy - 4 || rect.bottom > currRect.bottom - 2)) continue;
+    if (dir === "right" && (tx <= cx + 4 || rect.left < currRect.left + 2)) continue;
+    if (dir === "left" && (tx >= cx - 4 || rect.right > currRect.right - 2)) continue;
+
+    const childPenalty = activeInScope.el.contains(el) ? 28 : 0;
+    let score = 0;
+
+    if (dir === "down" || dir === "up") {
+      const edgeGap =
+        dir === "down"
+          ? Math.max(0, rect.top - currRect.bottom)
+          : Math.max(0, currRect.top - rect.bottom);
+      const primary = edgeGap > 0 ? edgeGap : Math.abs(ty - cy) * 0.45;
+      const overlapX = Math.max(
+        0,
+        Math.min(currRect.right, rect.right) - Math.max(currRect.left, rect.left)
+      );
+      const perp =
+        overlapX > 4 ? Math.abs(tx - cx) * 0.28 : Math.abs(tx - cx) * 2.35 + 36;
+      score = primary + perp + childPenalty;
+    } else {
+      const edgeGap =
+        dir === "right"
+          ? Math.max(0, rect.left - currRect.right)
+          : Math.max(0, currRect.left - rect.right);
+      const primary = edgeGap > 0 ? edgeGap : Math.abs(tx - cx) * 0.45;
+      const overlapY = Math.max(
+        0,
+        Math.min(currRect.bottom, rect.bottom) - Math.max(currRect.top, rect.top)
+      );
+      const perp =
+        overlapY > 4 ? Math.abs(ty - cy) * 0.28 : Math.abs(ty - cy) * 2.55 + 36;
+      score = primary + perp + childPenalty;
+    }
+
+    if (score < bestScore) {
+      bestScore = score;
+      bestCandidate = el;
+    }
+  }
+
+  if (bestCandidate) {
+    clearGamepadFocus();
+    bestCandidate.setAttribute("data-sa-gamepad-focus", "true");
+    bestCandidate.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    return bestCandidate;
+  }
+
+  if (dir === "up" || dir === "down") {
+    scrollActiveViewport(dir === "down" ? 140 : -140, 0, activeInScope.el);
+  }
+  return activeInScope.el;
+}
+
+function cycleActiveViewTab(dir: -1 | 1): boolean {
+  if (typeof document === "undefined") return false;
+  const topPanel = getTopmostOpenSidePanel();
+  if (topPanel) {
+    const panelTiles = Array.from(
+      topPanel.querySelectorAll<HTMLElement>(
+        '[data-sa-stat-tile="tab"][data-sa-clickable="true"], [data-sa-stat-tile="filter"][data-sa-clickable="true"]'
+      )
+    ).filter((el) => el.getClientRects().length > 0);
+    if (panelTiles.length >= 2) {
+      const currIdx = panelTiles.findIndex((el) => el.getAttribute("data-sa-active") === "true");
+      const baseIdx = currIdx >= 0 ? currIdx : 0;
+      const nextTile = panelTiles[(baseIdx + dir + panelTiles.length) % panelTiles.length];
+      if (nextTile) {
+        nextTile.click();
         return true;
       }
+    }
+    return false;
+  }
+
+  const shell = document.getElementById("sanctuary-os-shell") || document.body;
+  const mainTiles = Array.from(
+    shell.querySelectorAll<HTMLElement>(
+      '.sa-stat-tile-carousel [data-sa-stat-tile][data-sa-clickable="true"]'
+    )
+  ).filter((el) => !el.closest(".sa-side-panel-wrapper") && el.getClientRects().length > 0);
+
+  if (mainTiles.length >= 2) {
+    const currIdx = mainTiles.findIndex((el) => el.getAttribute("data-sa-active") === "true");
+    const baseIdx = currIdx >= 0 ? currIdx : 0;
+    const nextTile = mainTiles[(baseIdx + dir + mainTiles.length) % mainTiles.length];
+    if (nextTile) {
+      nextTile.click();
+      return true;
     }
   }
   return false;
@@ -2528,7 +2892,32 @@ export function GlobalCommandPalette({
     }
   }, [selectedIndex]);
 
-  // Web Gamepad API + Native Linux / Steam Deck Input Polling
+  // Web Gamepad API + Native Linux / Steam Deck Full-OS Navigation Engine
+  const [isPointerVisible, setIsPointerVisible] = useState(false);
+  const isPointerVisibleRef = useRef(false);
+  const pointerPosRef = useRef<{ x: number; y: number }>({
+    x: typeof window !== "undefined" ? Math.round(window.innerWidth * 0.5) : 640,
+    y: typeof window !== "undefined" ? Math.round(window.innerHeight * 0.5) : 400,
+  });
+  const cursorElRef = useRef<HTMLDivElement | null>(null);
+  const pointerHideTimerRef = useRef<number | null>(null);
+  const lastRealMouseAtRef = useRef<number>(0);
+  const activeStickAxesRef = useRef<{ lx: number; ly: number; rx: number; ry: number }>({
+    lx: 0,
+    ly: 0,
+    rx: 0,
+    ry: 0,
+  });
+  const stickRafIdRef = useRef<number | null>(null);
+  const lastStickRafAtRef = useRef<number>(0);
+  const dpadHoldStateRef = useRef<{ btn: number | null; startedAt: number; lastRepeatAt: number }>({
+    btn: null,
+    startedAt: 0,
+    lastRepeatAt: 0,
+  });
+  const bumperSoloCandidateRef = useRef<{ btn: 4 | 5; at: number } | null>(null);
+  const chordFiredDuringHoldRef = useRef<boolean>(false);
+
   const prevPadButtonsRef = useRef<boolean[]>([]);
   const lastStickMoveRef = useRef<number>(0);
   const chordCaptureRef = useRef<number[]>([]);
@@ -2551,6 +2940,7 @@ export function GlobalCommandPalette({
     selectedIndex,
     activeTab,
     closePalette,
+    openPalette,
   });
 
   useEffect(() => {
@@ -2565,6 +2955,7 @@ export function GlobalCommandPalette({
       selectedIndex,
       activeTab,
       closePalette,
+      openPalette,
     };
   }, [
     isOpen,
@@ -2577,6 +2968,7 @@ export function GlobalCommandPalette({
     selectedIndex,
     activeTab,
     closePalette,
+    openPalette,
   ]);
 
   useEffect(() => {
@@ -2584,6 +2976,332 @@ export function GlobalCommandPalette({
   }, [recordingPadField]);
 
   useEffect(() => {
+    const hideVirtualPointer = () => {
+      if (pointerHideTimerRef.current !== null) {
+        window.clearTimeout(pointerHideTimerRef.current);
+        pointerHideTimerRef.current = null;
+      }
+      if (isPointerVisibleRef.current) {
+        isPointerVisibleRef.current = false;
+        setIsPointerVisible(false);
+      }
+    };
+
+    const revealAndPositionPointer = (nextX: number, nextY: number) => {
+      if (typeof window === "undefined") return;
+      const clampedX = Math.max(6, Math.min(window.innerWidth - 6, nextX));
+      const clampedY = Math.max(6, Math.min(window.innerHeight - 6, nextY));
+      pointerPosRef.current = { x: clampedX, y: clampedY };
+
+      if (!isPointerVisibleRef.current) {
+        isPointerVisibleRef.current = true;
+        setIsPointerVisible(true);
+      }
+      if (cursorElRef.current) {
+        cursorElRef.current.style.transform = `translate3d(${clampedX}px, ${clampedY}px, 0)`;
+        const hit = document.elementFromPoint(clampedX, clampedY) as HTMLElement | null;
+        const isInteractive = Boolean(hit?.closest?.(INTERACTIVE_SELECTOR));
+        cursorElRef.current.classList.toggle("is-interactive", isInteractive);
+      }
+
+      clearGamepadFocus();
+
+      if (pointerHideTimerRef.current !== null) {
+        window.clearTimeout(pointerHideTimerRef.current);
+      }
+      pointerHideTimerRef.current = window.setTimeout(() => {
+        hideVirtualPointer();
+      }, 3500);
+    };
+
+    const resolveGamepadTarget = (): {
+      el: HTMLElement | null;
+      x: number;
+      y: number;
+      fromPointer: boolean;
+    } => {
+      if (typeof document === "undefined") {
+        return { el: null, x: 0, y: 0, fromPointer: false };
+      }
+      if (isPointerVisibleRef.current) {
+        const { x, y } = pointerPosRef.current;
+        const hit = document.elementFromPoint(x, y) as HTMLElement | null;
+        return { el: hit, x, y, fromPointer: true };
+      }
+      const focused =
+        document.querySelector<HTMLElement>('[data-sa-gamepad-focus="true"]') ||
+        (document.activeElement instanceof HTMLElement &&
+        document.activeElement !== document.body
+          ? document.activeElement
+          : null);
+      if (focused) {
+        const rect = focused.getBoundingClientRect();
+        return {
+          el: focused,
+          x: rect.left + rect.width * 0.5,
+          y: rect.top + rect.height * 0.5,
+          fromPointer: false,
+        };
+      }
+      return { el: null, x: pointerPosRef.current.x, y: pointerPosRef.current.y, fromPointer: false };
+    };
+
+    const triggerPrimaryClick = () => {
+      const { el, x, y, fromPointer } = resolveGamepadTarget();
+      if (!el) {
+        moveSpatialFocus("down", pointerPosRef.current);
+        return;
+      }
+
+      if (fromPointer && cursorElRef.current) {
+        cursorElRef.current.classList.add("is-pressed");
+        window.setTimeout(() => {
+          cursorElRef.current?.classList.remove("is-pressed");
+        }, 120);
+      }
+
+      const interactive =
+        el.closest<HTMLElement>(
+          'button, a[href], input, select, textarea, label, [role="button"], [data-sa-clickable="true"], .sa-glass-toggle, .sa-dropdown-item'
+        ) || el;
+
+      if (
+        interactive.tagName === "INPUT" &&
+        (interactive as HTMLInputElement).type === "range"
+      ) {
+        const rangeEl = interactive as HTMLInputElement;
+        if (fromPointer) {
+          const rect = rangeEl.getBoundingClientRect();
+          if (rect.width > 4) {
+            const ratio = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
+            const min = rangeEl.min !== "" ? Number(rangeEl.min) : 0;
+            const max = rangeEl.max !== "" ? Number(rangeEl.max) : 100;
+            const rawVal = min + ratio * (max - min);
+            const stepAttr =
+              rangeEl.step && rangeEl.step !== "any" ? Number(rangeEl.step) : 0;
+            const snapped =
+              stepAttr > 0
+                ? Math.round((rawVal - min) / stepAttr) * stepAttr + min
+                : rawVal;
+            const clamped = Math.min(max, Math.max(min, Number(snapped.toFixed(4))));
+            const setter = Object.getOwnPropertyDescriptor(
+              window.HTMLInputElement.prototype,
+              "value"
+            )?.set;
+            if (setter) setter.call(rangeEl, String(clamped));
+            else rangeEl.value = String(clamped);
+            rangeEl.dispatchEvent(new Event("input", { bubbles: true }));
+            rangeEl.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        }
+        clearGamepadFocus();
+        rangeEl.setAttribute("data-sa-gamepad-focus", "true");
+        rangeEl.focus({ preventScroll: true });
+        return;
+      }
+
+      const tag = interactive.tagName;
+      const inputType =
+        tag === "INPUT" ? (interactive as HTMLInputElement).type?.toLowerCase() : "";
+      const isTextEditable =
+        tag === "TEXTAREA" ||
+        interactive.isContentEditable ||
+        (tag === "INPUT" &&
+          inputType !== "checkbox" &&
+          inputType !== "radio" &&
+          inputType !== "button" &&
+          inputType !== "submit" &&
+          inputType !== "reset" &&
+          inputType !== "file" &&
+          inputType !== "color");
+
+      if (isTextEditable) {
+        interactive.focus();
+        interactive.click();
+        if (getAutoOpenKeyboardPref() && isLinuxDesktop()) {
+          invoke("open_steam_osk").catch(() => {});
+        }
+        return;
+      }
+
+      const mouseInit: MouseEventInit = {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        clientX: x,
+        clientY: y,
+        button: 0,
+        buttons: 1,
+      };
+      try {
+        if (typeof PointerEvent !== "undefined") {
+          interactive.dispatchEvent(
+            new PointerEvent("pointerdown", { ...mouseInit, pointerId: 1, isPrimary: true })
+          );
+        }
+        interactive.dispatchEvent(new MouseEvent("mousedown", mouseInit));
+        if (typeof PointerEvent !== "undefined") {
+          interactive.dispatchEvent(
+            new PointerEvent("pointerup", {
+              ...mouseInit,
+              buttons: 0,
+              pointerId: 1,
+              isPrimary: true,
+            })
+          );
+        }
+        interactive.dispatchEvent(new MouseEvent("mouseup", { ...mouseInit, buttons: 0 }));
+      } catch {}
+      interactive.click();
+    };
+
+    const triggerSecondaryContextMenu = () => {
+      const { el, x, y } = resolveGamepadTarget();
+      if (!el) return;
+      el.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+          button: 2,
+          buttons: 2,
+          clientX: x,
+          clientY: y,
+        })
+      );
+    };
+
+    const triggerGamepadBack = () => {
+      // 1. Close open ContextMenu / CustomDropdown / FilterPopover / overflow menus first
+      if (getOpenPopovers().length > 0) {
+        closeSanctuaryContextMenu();
+        window.dispatchEvent(new CustomEvent("sa-close-popovers", { detail: "gamepad-back" }));
+        const backdrops = document.querySelectorAll<HTMLElement>(
+          'div.fixed.inset-0[style*="z-index: 200000"], div.fixed.inset-0[style*="z-index: 100000000"]'
+        );
+        backdrops.forEach((b) => b.click());
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        clearGamepadFocus();
+        return;
+      }
+
+      // 2. Blur active text input
+      if (isEditableElementFocused()) {
+        (document.activeElement as HTMLElement | null)?.blur?.();
+        return;
+      }
+
+      // 3. Click close button on topmost dismissible SidePanel (respects hideCloseButton security gates)
+      const topPanel = getTopmostOpenSidePanel();
+      if (topPanel) {
+        const closeBtn = topPanel.querySelector<HTMLButtonElement>(
+          '[data-sa-panel-close="true"] button'
+        );
+        if (closeBtn && !closeBtn.disabled) {
+          clearGamepadFocus();
+          closeBtn.click();
+        }
+        return;
+      }
+
+      // 4. Fallback Escape event for standard modals
+      clearGamepadFocus();
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    };
+
+    const triggerQuickSearchOrOsk = () => {
+      const topPanel = getTopmostOpenSidePanel();
+      const scope =
+        topPanel || document.getElementById("sanctuary-os-shell") || document.body;
+      const inputs = Array.from(
+        scope.querySelectorAll<HTMLInputElement>(
+          'input[type="search"]:not(:disabled), input[type="text"]:not(:disabled), input:not([type]):not(:disabled)'
+        )
+      ).filter((inp) => {
+        if (!topPanel && inp.closest(".sa-side-panel-wrapper")) return false;
+        const rect = inp.getBoundingClientRect();
+        return rect.width > 24 && rect.height > 14;
+      });
+
+      if (inputs.length > 0) {
+        const target = inputs[0];
+        clearGamepadFocus();
+        target.setAttribute("data-sa-gamepad-focus", "true");
+        target.focus();
+        target.select?.();
+        if (isLinuxDesktop()) {
+          invoke("open_steam_osk").catch(() => {});
+        }
+        return;
+      }
+
+      padStateRef.current.openPalette();
+    };
+
+    const ensureStickRafRunning = () => {
+      if (stickRafIdRef.current !== null || typeof window === "undefined") return;
+      lastStickRafAtRef.current = performance.now();
+
+      const stepFrame = (nowPerf: number) => {
+        const dt = Math.min(48, Math.max(8, nowPerf - lastStickRafAtRef.current));
+        lastStickRafAtRef.current = nowPerf;
+        const dtScale = dt / 16.667;
+
+        const st = padStateRef.current;
+        const { lx, ly, rx, ry } = activeStickAxesRef.current;
+        const leftMag = Math.hypot(lx, ly);
+        const rightMag = Math.hypot(rx, ry);
+
+        if (st.isOpen || (leftMag <= 0.16 && rightMag <= 0.16)) {
+          stickRafIdRef.current = null;
+          return;
+        }
+
+        // Left Stick -> Smooth 60 FPS Virtual Pointer
+        if (leftMag > 0.16) {
+          const norm = Math.min(1, (leftMag - 0.16) / 0.84);
+          const speed = (norm * 4.6 + Math.pow(norm, 2.35) * 14.4) * dtScale;
+          const unitX = lx / leftMag;
+          const unitY = ly / leftMag;
+          revealAndPositionPointer(
+            pointerPosRef.current.x + unitX * speed,
+            pointerPosRef.current.y + unitY * speed
+          );
+        }
+
+        // Right Stick -> Smooth 60 FPS Vertical & Horizontal Scroll
+        if (rightMag > 0.18) {
+          const origin = resolveGamepadTarget().el;
+          const dy = Math.abs(ry) > 0.18 ? ry * 17.5 * dtScale : 0;
+          const dx = Math.abs(rx) > 0.22 ? rx * 15.5 * dtScale : 0;
+          scrollActiveViewport(dy, dx, origin);
+        }
+
+        stickRafIdRef.current = window.requestAnimationFrame(stepFrame);
+      };
+
+      stickRafIdRef.current = window.requestAnimationFrame(stepFrame);
+    };
+
+    const onRealMouseMove = (e: MouseEvent) => {
+      if (!e.isTrusted) return;
+      if (Math.abs(e.movementX) < 2 && Math.abs(e.movementY) < 2) return;
+      lastRealMouseAtRef.current = Date.now();
+      pointerPosRef.current = { x: e.clientX, y: e.clientY };
+      hideVirtualPointer();
+      clearGamepadFocus();
+    };
+
+    const onRealTouchStart = (e: TouchEvent) => {
+      if (!e.isTrusted) return;
+      hideVirtualPointer();
+      clearGamepadFocus();
+    };
+
+    window.addEventListener("mousemove", onRealMouseMove, { passive: true });
+    window.addEventListener("touchstart", onRealTouchStart, { passive: true });
+
     const checkGamepadCombo = (pressedIndices: number[], targetCombo: string): boolean => {
       if (!targetCombo || targetCombo.startsWith("KEY:")) return false;
       const required = targetCombo
@@ -2607,17 +3325,35 @@ export function GlobalCommandPalette({
       const prevButtons = prevPadButtonsRef.current;
       const pressedIndices: number[] = [];
       const newlyPressedIndices: number[] = [];
+      const newlyReleasedIndices: number[] = [];
+      const maxLen = Math.max(currButtons.length, prevButtons.length);
 
-      currButtons.forEach((isDown, idx) => {
+      for (let idx = 0; idx < maxLen; idx++) {
+        const isDown = Boolean(currButtons[idx]);
+        const wasDown = Boolean(prevButtons[idx]);
         if (isDown) {
           pressedIndices.push(idx);
-          if (!prevButtons[idx]) {
-            newlyPressedIndices.push(idx);
-          }
+          if (!wasDown) newlyPressedIndices.push(idx);
+        } else if (wasDown) {
+          newlyReleasedIndices.push(idx);
         }
-      });
+      }
 
-      prevPadButtonsRef.current = currButtons;
+      prevPadButtonsRef.current = currButtons.slice();
+
+      if (pressedIndices.length === 0) {
+        chordFiredDuringHoldRef.current = false;
+      }
+
+      activeStickAxesRef.current = {
+        lx: axes?.[0] ?? 0,
+        ly: axes?.[1] ?? 0,
+        rx: axes?.[2] ?? 0,
+        ry: axes?.[3] ?? 0,
+      };
+      if (!st.isOpen) {
+        ensureStickRafRunning();
+      }
 
       // Recording controller button/chord (supports both single buttons and 2-button chords like L1+R1)
       if (st.recordingPadField) {
@@ -2648,11 +3384,20 @@ export function GlobalCommandPalette({
         return;
       }
 
-      // Check Toggle Palette chord/button when at least one button in the combo is newly pressed
-      if (
+      const now = Date.now();
+
+      // Check Toggle Palette chord/button (e.g. L1 + R1) OR Steam Deck Menu/Start button (9)
+      const matchesToggleChord =
         newlyPressedIndices.length > 0 &&
-        checkGamepadCombo(pressedIndices, st.controllerBindings.togglePalette)
-      ) {
+        checkGamepadCombo(pressedIndices, st.controllerBindings.togglePalette);
+      const matchesMenuStartButton =
+        newlyPressedIndices.includes(9) && pressedIndices.length === 1;
+
+      if (matchesToggleChord || matchesMenuStartButton) {
+        chordFiredDuringHoldRef.current = true;
+        bumperSoloCandidateRef.current = null;
+        clearGamepadFocus();
+        hideVirtualPointer();
         setIsOpen((prev) => {
           const next = !prev;
           if (next) {
@@ -2668,22 +3413,110 @@ export function GlobalCommandPalette({
         return;
       }
 
+      // =========================================================================
+      // FULL SANCTUARY OS CONTROLLER NAVIGATION (When Command Matrix is Closed)
+      // =========================================================================
       if (!st.isOpen) {
-        const rightY = axes?.[3] ?? 0;
-        const leftY = axes?.[1] ?? 0;
-        const scrollAxis = Math.abs(rightY) > Math.abs(leftY) ? rightY : leftY;
-        if (Math.abs(scrollAxis) > 0.35) {
-          scrollActiveViewport(scrollAxis * 34);
-        } else if (pressedIndices.includes(13)) {
-          scrollActiveViewport(28);
-        } else if (pressedIndices.includes(12)) {
-          scrollActiveViewport(-28);
+        // 1. Bumper Tab Cycling (L1 = 4, R1 = 5 on clean single release without L1+R1 chord)
+        if (
+          (newlyPressedIndices.includes(4) || newlyPressedIndices.includes(5)) &&
+          pressedIndices.length === 1
+        ) {
+          const btn = newlyPressedIndices.includes(4) ? 4 : 5;
+          bumperSoloCandidateRef.current = { btn, at: now };
+        } else if (pressedIndices.length > 1) {
+          bumperSoloCandidateRef.current = null;
         }
+
+        const solo = bumperSoloCandidateRef.current;
+        if (
+          solo &&
+          newlyReleasedIndices.includes(solo.btn) &&
+          !chordFiredDuringHoldRef.current &&
+          now - solo.at < 650
+        ) {
+          bumperSoloCandidateRef.current = null;
+          cycleActiveViewTab(solo.btn === 5 ? 1 : -1);
+          return;
+        }
+
+        // 2. D-Pad 2D Spatial Focus Navigation (Up=12, Down=13, Left=14, Right=15 + Hold Repeat)
+        const dpadOrder: { idx: number; dir: "up" | "down" | "left" | "right" }[] = [
+          { idx: 12, dir: "up" },
+          { idx: 13, dir: "down" },
+          { idx: 14, dir: "left" },
+          { idx: 15, dir: "right" },
+        ];
+        const heldDpad = dpadOrder.find((d) => pressedIndices.includes(d.idx)) || null;
+        if (heldDpad) {
+          const isNewDpad = newlyPressedIndices.includes(heldDpad.idx);
+          const holdState = dpadHoldStateRef.current;
+          if (isNewDpad || holdState.btn !== heldDpad.idx) {
+            dpadHoldStateRef.current = {
+              btn: heldDpad.idx,
+              startedAt: now,
+              lastRepeatAt: now,
+            };
+            const anchor = isPointerVisibleRef.current ? pointerPosRef.current : null;
+            hideVirtualPointer();
+            const focused = moveSpatialFocus(heldDpad.dir, anchor);
+            if (focused) {
+              const r = focused.getBoundingClientRect();
+              pointerPosRef.current = {
+                x: r.left + r.width * 0.5,
+                y: r.top + r.height * 0.5,
+              };
+            }
+          } else if (
+            now - holdState.startedAt > 310 &&
+            now - holdState.lastRepeatAt > 140
+          ) {
+            dpadHoldStateRef.current.lastRepeatAt = now;
+            const focused = moveSpatialFocus(heldDpad.dir, null);
+            if (focused) {
+              const r = focused.getBoundingClientRect();
+              pointerPosRef.current = {
+                x: r.left + r.width * 0.5,
+                y: r.top + r.height * 0.5,
+              };
+            }
+          }
+        } else {
+          dpadHoldStateRef.current.btn = null;
+        }
+
+        if (newlyPressedIndices.length === 0) return;
+
+        // 3. Primary Select / Click: A (0) or R2 Trigger (7)
+        if (newlyPressedIndices.includes(0) || newlyPressedIndices.includes(7)) {
+          triggerPrimaryClick();
+          return;
+        }
+
+        // 4. Right-Click Context Menu: L2 Trigger (6) or X (2)
+        if (newlyPressedIndices.includes(6) || newlyPressedIndices.includes(2)) {
+          triggerSecondaryContextMenu();
+          return;
+        }
+
+        // 5. Universal Back / Close Drawer / Close Popover: B (1)
+        if (newlyPressedIndices.includes(1)) {
+          triggerGamepadBack();
+          return;
+        }
+
+        // 6. Quick Search Focus + Steam OSK (or Summon Command Matrix): Y (3)
+        if (newlyPressedIndices.includes(3)) {
+          triggerQuickSearchOrOsk();
+          return;
+        }
+
         return;
       }
 
-      // Inside open Command Matrix: D-Pad & Left Stick 2D grid navigation
-      const now = Date.now();
+      // =========================================================================
+      // INSIDE OPEN COMMAND MATRIX: D-Pad & Left Stick 2D Grid Navigation
+      // =========================================================================
       const stickY = axes?.[1] ?? 0;
       const stickX = axes?.[0] ?? 0;
 
@@ -2746,8 +3579,12 @@ export function GlobalCommandPalette({
         return;
       }
 
-      // Execute Item
-      if (!st.isControlsOpen && checkGamepadCombo(pressedIndices, st.controllerBindings.executeItem)) {
+      // Execute Item (Configured Button or R2 Trigger)
+      if (
+        !st.isControlsOpen &&
+        (checkGamepadCombo(pressedIndices, st.controllerBindings.executeItem) ||
+          newlyPressedIndices.includes(7))
+      ) {
         const target = st.filteredItems[st.selectedIndex];
         if (target) target.onSelect();
         return;
@@ -2768,10 +3605,11 @@ export function GlobalCommandPalette({
         return;
       }
 
-      // Secondary Action
+      // Secondary Action (Configured Button or L2 Trigger)
       if (
         !st.isControlsOpen &&
-        checkGamepadCombo(pressedIndices, st.controllerBindings.secondaryAction)
+        (checkGamepadCombo(pressedIndices, st.controllerBindings.secondaryAction) ||
+          newlyPressedIndices.includes(6))
       ) {
         const target = st.filteredItems[st.selectedIndex];
         if (target?.secondaryAction) {
@@ -2782,20 +3620,46 @@ export function GlobalCommandPalette({
 
     let unlistenNative: (() => void) | null = null;
     let unlistenNativeScroll: (() => void) | null = null;
+    let unlistenNativePointer: (() => void) | null = null;
 
     if (isDesktop()) {
-      listen<{ deltaY: number }>("sanctuary-native-scroll", (event) => {
+      listen<{ deltaY?: number; deltaX?: number }>("sanctuary-native-scroll", (event) => {
         if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
         const now = Date.now();
-        // Skip if a touchscreen gesture or DOM wheel event handled scrolling recently
         if (now - lastTouchAtRef.current < 450 || now - lastDomWheelAtRef.current < 240) return;
         const deltaY = Number(event.payload?.deltaY || 0);
-        if (Math.abs(deltaY) > 0.5) {
-          scrollActiveViewport(deltaY);
+        const deltaX = Number(event.payload?.deltaX || 0);
+        if (Math.abs(deltaY) > 0.4 || Math.abs(deltaX) > 0.4) {
+          const origin = resolveGamepadTarget().el;
+          scrollActiveViewport(deltaY, deltaX, origin);
         }
       })
         .then((fn) => {
           unlistenNativeScroll = fn;
+        })
+        .catch(() => {});
+
+      listen<{ dx?: number; dy?: number; click?: boolean }>(
+        "sanctuary-native-pointer",
+        (event) => {
+          if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+          // Ignore if Steam Input is already driving the XWayland OS mouse cursor
+          if (Date.now() - lastRealMouseAtRef.current < 180) return;
+          const dx = Number(event.payload?.dx || 0);
+          const dy = Number(event.payload?.dy || 0);
+          if (Math.abs(dx) >= 0.3 || Math.abs(dy) >= 0.3) {
+            revealAndPositionPointer(
+              pointerPosRef.current.x + dx,
+              pointerPosRef.current.y + dy
+            );
+          }
+          if (event.payload?.click) {
+            triggerPrimaryClick();
+          }
+        }
+      )
+        .then((fn) => {
+          unlistenNativePointer = fn;
         })
         .catch(() => {});
 
@@ -2838,6 +3702,7 @@ export function GlobalCommandPalette({
         } else if (!isLinuxDesktop() && padStateRef.current.connectedGamepadName !== null) {
           setConnectedGamepadName(null);
           prevPadButtonsRef.current = [];
+          activeStickAxesRef.current = { lx: 0, ly: 0, rx: 0, ry: 0 };
         }
       })
         .then((fn) => {
@@ -2851,13 +3716,23 @@ export function GlobalCommandPalette({
       if (typeof navigator !== "undefined" && typeof navigator.getGamepads === "function") {
         try {
           const pads = navigator.getGamepads();
-          webPad = Array.from(pads || []).find((p): p is Gamepad => Boolean(p && p.connected)) || null;
+          webPad =
+            Array.from(pads || []).find((p): p is Gamepad => Boolean(p && p.connected)) || null;
         } catch {
           webPad = null;
         }
       }
 
-      if (webPad) {
+      const nativePad = nativePadRef.current;
+      const webPadHasActiveInput = Boolean(
+        webPad &&
+          (webPad.buttons.some((b) => Boolean(b?.pressed)) ||
+            webPad.axes.some((a) => Math.abs(a) > 0.16))
+      );
+
+      // On Linux / Steam Deck, WebKitGTK can expose an idle stub Gamepad object that never updates
+      // under Gamescope; never allow an idle webPad to mask an active Rust nativePad stream.
+      if (webPad && (!nativePad?.connected || webPadHasActiveInput)) {
         processGamepadFrame(
           webPad.id,
           webPad.buttons.map((b) => Boolean(b?.pressed)),
@@ -2866,11 +3741,10 @@ export function GlobalCommandPalette({
         return;
       }
 
-      const nativePad = nativePadRef.current;
       if (nativePad && nativePad.connected) {
         const hasHeldInput =
           (nativePad.buttons && nativePad.buttons.some(Boolean)) ||
-          (nativePad.axes && nativePad.axes.some((a) => Math.abs(a) > 0.25));
+          (nativePad.axes && nativePad.axes.some((a) => Math.abs(a) > 0.16));
         if (hasHeldInput) {
           processGamepadFrame(
             nativePad.id || "Steam Deck Controller",
@@ -2885,12 +3759,22 @@ export function GlobalCommandPalette({
         setConnectedGamepadName(null);
       }
       prevPadButtonsRef.current = [];
-    }, 50);
+      activeStickAxesRef.current = { lx: 0, ly: 0, rx: 0, ry: 0 };
+    }, 45);
 
     return () => {
       window.clearInterval(interval);
+      window.removeEventListener("mousemove", onRealMouseMove);
+      window.removeEventListener("touchstart", onRealTouchStart);
+      if (stickRafIdRef.current !== null) {
+        window.cancelAnimationFrame(stickRafIdRef.current);
+      }
+      if (pointerHideTimerRef.current !== null) {
+        window.clearTimeout(pointerHideTimerRef.current);
+      }
       if (unlistenNative) unlistenNative();
       if (unlistenNativeScroll) unlistenNativeScroll();
+      if (unlistenNativePointer) unlistenNativePointer();
     };
   }, []);
 
@@ -3081,6 +3965,7 @@ export function GlobalCommandPalette({
   ];
 
   return (
+    <>
     <SidePanel
       isOpen={isOpen}
       onClose={closePalette}
@@ -3588,5 +4473,19 @@ export function GlobalCommandPalette({
         )}
       </div>
     </SidePanel>
+    {isPointerVisible &&
+      typeof document !== "undefined" &&
+      createPortal(
+        <div
+          id="sa-gamepad-cursor"
+          ref={cursorElRef}
+          className="sa-gamepad-cursor"
+          style={{
+            transform: `translate3d(${pointerPosRef.current.x}px, ${pointerPosRef.current.y}px, 0)`,
+          }}
+        />,
+        document.getElementById("sa-portals") || document.body
+      )}
+    </>
   );
 }

@@ -246,6 +246,8 @@ pub struct SchemaConflictAnalyzer {
     pub key_size: Option<u64>,
     #[serde(default)]
     pub endian: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_opt_bool_flex")]
+    pub bitmask_constant_header: Option<bool>,
 }
 
 fn default_true() -> bool {
@@ -266,6 +268,8 @@ pub struct SchemaExceptionRule {
     pub pattern: String,
     #[serde(default)]
     pub file_hint: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub raw_log: Option<String>,
     #[serde(default)]
     pub severity: String,
     #[serde(default)]
@@ -274,6 +278,10 @@ pub struct SchemaExceptionRule {
     pub resolution: String,
     #[serde(default, deserialize_with = "deserialize_bool_flex")]
     pub ignore_in_lab: bool,
+    #[serde(default, deserialize_with = "deserialize_bool_flex")]
+    pub pinned: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pinned_order: Option<i32>,
     #[serde(default = "default_true", deserialize_with = "deserialize_bool_true_flex")]
     pub enabled: bool,
 }

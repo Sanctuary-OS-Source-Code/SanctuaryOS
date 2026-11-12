@@ -5,6 +5,8 @@ import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useTooltipStore } from "../store/tooltipStore";
 import { useLexicon } from "../LexiconContext";
+import { tauriBridge } from "../lib/tauri-bridge";
+import { isDesktop } from "../utils/envUtils";
 import {
   SidePanel,
   StatBox,
@@ -51,6 +53,7 @@ export function BackupRestoreModals({
   const [selectedCompletedIdx, setSelectedCompletedIdx] = useState(0);
   const [activeLocation, setActiveLocation] = useState("");
   const [lastOpWasRestore, setLastOpWasRestore] = useState(false);
+  const [defconBackupTarget, setDefconBackupTarget] = useState<number>(0);
 
   useEffect(() => {
     if (isRestoring) {
@@ -71,9 +74,23 @@ export function BackupRestoreModals({
   const isDefconPrompt = Boolean(confirmDialog?.isDefcon);
   const isBusy = Boolean(isBackingUp || isRestoring);
   const isPostSummary =
-    !isDefconPrompt &&
-    !isBusy &&
-    (completedBackups.length > 0 || showDefconAlert);
+    !isDefconPrompt && !isBusy && completedBackups.length > 0;
+
+  useEffect(() => {
+    if (!isDefconPrompt || !isDesktop()) return;
+    let active = true;
+    tauriBridge
+      .getSavedCoordinates()
+      .then((cfg: any) => {
+        if (active && cfg) {
+          setDefconBackupTarget(Number(cfg.defcon_backup_target ?? 0));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [isDefconPrompt]);
 
   const isOpen = isDefconPrompt || isBusy || isPostSummary;
   const isLocked = isDefconPrompt || isBusy;
@@ -422,18 +439,22 @@ export function BackupRestoreModals({
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={VAULT_CHIP_CLASS}>
-                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                        {t("icon_public", "public")}
+                    {(defconBackupTarget === 0 || defconBackupTarget === 1) && (
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
+                          {t("icon_public", "public")}
+                        </span>
+                        {t("world_state", "World State")}
                       </span>
-                      {t("world_state", "World State")}
-                    </span>
-                    <span className={VAULT_CHIP_CLASS}>
-                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">
-                        {t("icon_settings", "settings")}
+                    )}
+                    {(defconBackupTarget === 0 || defconBackupTarget === 2) && (
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">
+                          {t("icon_settings", "settings")}
+                        </span>
+                        {t("engine_full", "Engine Core")}
                       </span>
-                      {t("engine_full", "Engine Core")}
-                    </span>
+                    )}
                   </div>
                 </div>
 

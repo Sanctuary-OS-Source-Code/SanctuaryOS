@@ -4,6 +4,13 @@ import { supabase, hasActiveGameDatabase } from '../supabase';
 import { invoke } from '@tauri-apps/api/core';
 import { getSubdomain } from '../utils/routingUtils';
 import { resolvePresetForGameId } from '../utils/gameArchitecturePresets';
+import {
+  BUNDLED_DEFAULT_SCHEMA,
+  DEFAULT_SCHEMA_CACHE_KEY,
+  getBundledSchema,
+  getCachedOrBundledDefaultSchema,
+} from '../utils/bundledSchemas';
+import { postDevCoreAssetSync } from '../utils/devAssetSync';
 import { scrubLogUserData } from '../utils/logScrubber';
 import enDefaultLexicon from '../lexicons/en-default.json';
 import enSanctuaryLexicon from '../lexicons/en-sanctuary.json';
@@ -41,20 +48,17 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
   if (!safe.game_id) safe.game_id = safe.id;
   const preset = resolvePresetForGameId(safe.game_id || safe.id || fallbackId);
 
-  if (!safe.name) safe.name = preset.display_name || String(safe.id).replace(/_/g, ' ').toUpperCase();
-  if (!safe.display_name) safe.display_name = safe.name;
+  if (!safe.display_name) {
+    safe.display_name =
+      safe.name || preset.display_name || String(safe.id).replace(/_/g, ' ').toUpperCase();
+  }
+  if (!safe.name) safe.name = safe.display_name;
   if (!safe.schema_version) safe.schema_version = preset.schema_version || 1;
   if (!Array.isArray(safe.executable_names)) {
     safe.executable_names = [...(preset.executable_names || [])];
   }
-  if (!Array.isArray(safe.archive_containers) && Array.isArray(preset.archive_containers)) {
-    safe.archive_containers = [...preset.archive_containers];
-  }
   if (!Array.isArray(safe.dlc_catalog) && Array.isArray(preset.dlc_catalog)) {
     safe.dlc_catalog = [...preset.dlc_catalog];
-  }
-  if (safe.magic_bytes === undefined && preset.magic_bytes !== undefined) {
-    safe.magic_bytes = preset.magic_bytes;
   }
   if (safe.external_tools === undefined && preset.external_tools !== undefined) {
     safe.external_tools = preset.external_tools;
@@ -71,18 +75,34 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
           : preset.paths.manifest_file,
     };
   }
+  const fallbackArchiveContainers = Array.isArray(safe.extensions?.archive_containers)
+    ? safe.extensions.archive_containers
+    : Array.isArray(safe.archive_containers)
+      ? safe.archive_containers
+      : Array.isArray(preset.extensions?.archive_containers)
+        ? preset.extensions.archive_containers
+        : Array.isArray(preset.archive_containers)
+          ? preset.archive_containers
+          : [];
   if (!safe.extensions) {
     safe.extensions = {
       ...preset.extensions,
+      archive_containers: [...fallbackArchiveContainers],
       labels: { ...(preset.extensions?.labels || {}) },
     };
   } else if (!safe.extensions.supported || safe.extensions.supported.length === 0) {
     safe.extensions = {
       ...preset.extensions,
       ...safe.extensions,
+      archive_containers: [...fallbackArchiveContainers],
       supported: [...(preset.extensions?.supported || [])],
       labels: { ...(preset.extensions?.labels || {}), ...(safe.extensions.labels || {}) },
       parsers: safe.extensions.parsers ?? preset.extensions?.parsers,
+    };
+  } else if (!Array.isArray(safe.extensions.archive_containers)) {
+    safe.extensions = {
+      ...safe.extensions,
+      archive_containers: [...fallbackArchiveContainers],
     };
   }
   if (!safe.constraints) {
@@ -235,28 +255,41 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
 };
 
 const loadActiveGameSchema = () => {
-  let activeSchemaId = 'default_schema';
+  let activeSchemaId = 'default';
   try {
-    // Try to find the active workspace from config file directly if possible, otherwise fallback
     try {
-      // Very hacky synchronous read of localStorage or fallback
       const globalConfigRaw = localStorage.getItem('sanctuary_config');
       if (globalConfigRaw) {
-         const cfg = JSON.parse(globalConfigRaw);
-         if (cfg.active_workspace_id && cfg.workspaces) {
-            const ws = cfg.workspaces.find((w: any) => w.id === cfg.active_workspace_id);
-            if (ws && ws.schema_id) activeSchemaId = ws.schema_id;
-         }
+        const cfg = JSON.parse(globalConfigRaw);
+        if (cfg.active_workspace_id && cfg.workspaces) {
+          const ws = cfg.workspaces.find((w: any) => w.id === cfg.active_workspace_id);
+          if (ws && ws.schema_id) activeSchemaId = ws.schema_id;
+        }
       }
-    } catch(e) {}
-    
-    const cached = localStorage.getItem(`sanctuary_master_schema_${activeSchemaId}`);
+      if (activeSchemaId === 'default') {
+        const lastWs =
+          localStorage.getItem('sanctuary_last_active_workspace') ||
+          localStorage.getItem('sanctuary_active_workspace');
+        if (lastWs && lastWs !== 'default_workspace') {
+          activeSchemaId = lastWs;
+        }
+      }
+    } catch (e) {}
+
+    const cached =
+      localStorage.getItem(`sanctuary_master_schema_${activeSchemaId}`) ||
+      localStorage.getItem(`sanctuary_master_schema_${String(activeSchemaId).toLowerCase()}`);
     if (cached) {
       return getSafeSchema(JSON.parse(cached), activeSchemaId);
     }
-  } catch(e) {}
 
-  return getSafeSchema({}, activeSchemaId);
+    const bundled = getBundledSchema(activeSchemaId);
+    if (bundled) {
+      return getSafeSchema(bundled, activeSchemaId);
+    }
+  } catch (e) {}
+
+  return getSafeSchema(getCachedOrBundledDefaultSchema(), activeSchemaId);
 };
 
 const loadIdeOpenFiles = (wsId: string) => {
@@ -803,12 +836,18 @@ const buildUpdatedStatusLog = (
   return nextLog;
 };
 
-const loadCachedGameDatabases = (): any[] => {
+const loadCachedGameDatabases = (isKeeperOverride?: boolean): any[] => {
   try {
     const raw = localStorage.getItem(CACHED_GAME_DBS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((g: any) => g && g.is_active !== false) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (g: any) =>
+        g &&
+        g.is_active !== false &&
+        (Boolean(isKeeperOverride) || g.is_keepers_only !== true)
+    );
   } catch {
     return [];
   }
@@ -826,6 +865,7 @@ const mergeGamesWithLocalWorkspaces = (games: any[], localWorkspaces: any[] = []
       schema_id: g.schema_id,
       supabase_url: g.supabase_url,
       supabase_anon_key: g.supabase_anon_key,
+      is_keepers_only: Boolean(g.is_keepers_only),
       live_path: existing?.live_path ?? g.live_path,
       mods_path: existing?.mods_path ?? g.mods_path,
       vault_path: existing?.vault_path ?? g.vault_path,
@@ -1124,7 +1164,15 @@ export const useStore = create<GlobalState>((set) => ({
   userRole: 'citizen',
   setUserRole: (userRole) => set({ userRole }),
   osRole: 'citizen',
-  setOsRole: (osRole) => set({ osRole }),
+  setOsRole: (osRole) => {
+    const prevRole = useStore.getState().osRole;
+    set({ osRole });
+    if (prevRole !== osRole && (prevRole === 'keeper' || osRole === 'keeper')) {
+      setTimeout(() => {
+        syncGameDatabases().catch(() => {});
+      }, 0);
+    }
+  },
   session: null,
   setSession: (session) => set({ session }),
   isConfigured: false,
@@ -1454,62 +1502,170 @@ export const useStore = create<GlobalState>((set) => ({
   })
 }));
 
-export const syncMasterSchemas = async (initialSchemaId: string = 'default_schema') => {
+export const syncMasterSchemas = async (initialSchemaId: string = 'default') => {
   try {
     let schemaId = initialSchemaId;
-    
+
     // Resolve subdomain to schema if on web
     const subdomain = getSubdomain();
     if (subdomain && !isDesktop()) {
       schemaId = subdomain; // Trust the URL path for schema routing
     }
 
-    if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") {
-      const cached = localStorage.getItem(`sanctuary_master_schema_${schemaId}`);
+    const normSchemaId = String(schemaId || 'default').trim().toLowerCase();
+    const isDefaultTarget =
+      !normSchemaId ||
+      normSchemaId === 'default' ||
+      normSchemaId === 'default_schema' ||
+      normSchemaId === 'default_workspace';
+
+    const resolveOfflineOrFallbackSchema = (targetId: string) => {
+      const cached =
+        localStorage.getItem(`sanctuary_master_schema_${targetId}`) ||
+        localStorage.getItem(`sanctuary_master_schema_${targetId.toLowerCase()}`);
       if (cached) {
-        useStore.getState().setActiveGameSchema(getSafeSchema(JSON.parse(cached), schemaId));
+        try {
+          return getSafeSchema(JSON.parse(cached), targetId);
+        } catch {}
       }
+      const bundled = getBundledSchema(targetId);
+      if (bundled) {
+        const safeBundled = getSafeSchema(bundled, targetId);
+        safeLocalStorageSetItem(
+          `sanctuary_master_schema_${targetId}`,
+          JSON.stringify(safeBundled)
+        );
+        return safeBundled;
+      }
+      if (isDefaultTarget) {
+        return getSafeSchema(getCachedOrBundledDefaultSchema(), 'default');
+      }
+      return getSafeSchema(
+        {
+          id: targetId,
+          game_id: targetId,
+          name: targetId.replace(/_/g, ' ').toUpperCase(),
+          display_name: targetId.replace(/_/g, ' ').toUpperCase(),
+          schema_version: 1,
+        },
+        targetId
+      );
+    };
+
+    if (!navigator.onLine || localStorage.getItem('sanctuary_local_only') === 'true') {
+      useStore.getState().setActiveGameSchema(resolveOfflineOrFallbackSchema(schemaId));
       return;
     }
-    const { data, error } = await supabase.from('sanctuary_schemas').select('schema_data').eq('id', schemaId).maybeSingle();
+
+    // 1. Always keep Core Hub Default Master Schema cached & cross-synced in DEV builds
+    try {
+      const { supabaseAuth } = await import('../supabase');
+      const { data: coreDefRow, error: coreDefErr } = await supabaseAuth
+        .from('sanctuary_schemas')
+        .select('id, name, version, schema_data')
+        .eq('id', 'default')
+        .maybeSingle();
+
+      if (!coreDefErr && coreDefRow && (coreDefRow as any).schema_data) {
+        let resolvedDefault = (coreDefRow as any).schema_data;
+        if (import.meta.env.DEV) {
+          const isKeeper = useStore.getState().osRole === 'keeper';
+          let missingInCloud = false;
+          const mergedDefault: Record<string, any> = {
+            ...BUNDLED_DEFAULT_SCHEMA,
+            ...resolvedDefault,
+          };
+          for (const k of Object.keys(BUNDLED_DEFAULT_SCHEMA)) {
+            if (!(k in resolvedDefault)) {
+              missingInCloud = true;
+              break;
+            }
+          }
+          if (missingInCloud && isKeeper) {
+            await supabaseAuth.from('sanctuary_schemas').upsert({
+              id: 'default',
+              name: (coreDefRow as any).name || mergedDefault.display_name || 'Default Master Schema',
+              version: (coreDefRow as any).version || mergedDefault.schema_version || 1,
+              schema_data: mergedDefault,
+              updated_at: new Date().toISOString(),
+            } as any);
+          }
+          resolvedDefault = mergedDefault;
+          await postDevCoreAssetSync({
+            kind: 'default_schema',
+            content: resolvedDefault,
+          });
+        }
+        safeLocalStorageSetItem(DEFAULT_SCHEMA_CACHE_KEY, JSON.stringify(resolvedDefault));
+        if (isDefaultTarget) {
+          useStore.getState().setActiveGameSchema(getSafeSchema(resolvedDefault, 'default'));
+          return;
+        }
+      } else if (import.meta.env.DEV && useStore.getState().osRole === 'keeper') {
+        await supabaseAuth.from('sanctuary_schemas').upsert({
+          id: 'default',
+          name: BUNDLED_DEFAULT_SCHEMA.display_name || 'Default Master Schema',
+          version: BUNDLED_DEFAULT_SCHEMA.schema_version || 1,
+          schema_data: BUNDLED_DEFAULT_SCHEMA,
+          updated_at: new Date().toISOString(),
+        } as any);
+        safeLocalStorageSetItem(DEFAULT_SCHEMA_CACHE_KEY, JSON.stringify(BUNDLED_DEFAULT_SCHEMA));
+        if (isDefaultTarget) {
+          useStore.getState().setActiveGameSchema(getSafeSchema(BUNDLED_DEFAULT_SCHEMA, 'default'));
+          return;
+        }
+      } else if (isDefaultTarget) {
+        useStore.getState().setActiveGameSchema(resolveOfflineOrFallbackSchema('default'));
+        return;
+      }
+    } catch (coreErr) {
+      if (isDefaultTarget) {
+        useStore.getState().setActiveGameSchema(resolveOfflineOrFallbackSchema('default'));
+        return;
+      }
+    }
+
+    // 2. Spoke Master Schema: pull latest from Spoke cloud, cache locally, and refresh bundled build snapshot in DEV
+    if (!hasActiveGameDatabase()) {
+      useStore.getState().setActiveGameSchema(resolveOfflineOrFallbackSchema(schemaId));
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('sanctuary_schemas')
+      .select('schema_data')
+      .ilike('id', normSchemaId)
+      .maybeSingle();
+
     if (!error && data && data.schema_data) {
-       const safeSchema = getSafeSchema(data.schema_data, schemaId);
-       safeLocalStorageSetItem(`sanctuary_master_schema_${schemaId}`, JSON.stringify(safeSchema));
-       useStore.getState().setActiveGameSchema(safeSchema);
+      const safeSchema = getSafeSchema(data.schema_data, schemaId);
+      safeLocalStorageSetItem(`sanctuary_master_schema_${schemaId}`, JSON.stringify(safeSchema));
+      safeLocalStorageSetItem(`sanctuary_master_schema_${normSchemaId}`, JSON.stringify(safeSchema));
+      useStore.getState().setActiveGameSchema(safeSchema);
+      if (import.meta.env.DEV) {
+        await postDevCoreAssetSync({
+          kind: 'spoke_schema_snapshot',
+          id: normSchemaId,
+          content: data.schema_data,
+        });
+      }
     } else {
-       const cached = localStorage.getItem(`sanctuary_master_schema_${schemaId}`);
-       if (cached) {
-         useStore.getState().setActiveGameSchema(getSafeSchema(JSON.parse(cached), schemaId));
-       } else {
-         // Fallback basic schema if not found anywhere
-         const fallbackSchema = getSafeSchema({
-           id: schemaId,
-           game_id: schemaId,
-           name: schemaId.replace(/_/g, ' ').toUpperCase(),
-           display_name: schemaId.replace(/_/g, ' ').toUpperCase(),
-           schema_version: 1,
-           config_schema: { groups: [] },
-           file_patterns: { live: [], mods: [], vault: [], dlc: [] },
-           folder_structures: { live: [], mods: [], vault: [] },
-           heuristics: { critical_files: [], ignore_patterns: [] },
-           features: { has_dlc: true, has_saves: true, has_tray: true, has_cc: true }
-         }, schemaId);
-         useStore.getState().setActiveGameSchema(fallbackSchema);
-       }
+      useStore.getState().setActiveGameSchema(resolveOfflineOrFallbackSchema(schemaId));
     }
   } catch (err) {
-    console.error("Failed to sync master schemas", err);
+    console.error('Failed to sync master schemas', err);
   }
 };
 
 export const syncGameDatabases = async (preloadedLocalWorkspaces?: any[]) => {
-  const cachedGames = loadCachedGameDatabases();
+  const isKeeperAtStart = useStore.getState().osRole === 'keeper';
+  const cachedGames = loadCachedGameDatabases(isKeeperAtStart);
   if (cachedGames.length > 0) {
     const hydratedCached = mergeGamesWithLocalWorkspaces(cachedGames, preloadedLocalWorkspaces || []);
     useStore.setState({ workspaces: hydratedCached, isGameDatabasesSynced: true });
   }
 
-  if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") {
+  if (!navigator.onLine || localStorage.getItem('sanctuary_local_only') === 'true') {
     useStore.setState({ isGameDatabasesSynced: true });
     return;
   }
@@ -1519,22 +1675,28 @@ export const syncGameDatabases = async (preloadedLocalWorkspaces?: any[]) => {
       const { supabaseAuth } = await import('../supabase');
       const { data: games, error } = await supabaseAuth
         .from('sanctuary_games')
-        .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active')
+        .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active, is_keepers_only')
         .neq('is_active', false);
 
       if (error) {
         const hubErrPrefix = translateStoreStatus('status_hub_db_error', 'Hub Database Error');
-        useStore.getState().pushStatus(`${hubErrPrefix}: ${error.message}`, "error");
+        useStore.getState().pushStatus(`${hubErrPrefix}: ${error.message}`, 'error');
       }
 
       if (Array.isArray(games)) {
-        const activeGames = games.filter((g: any) => g && g.is_active !== false);
+        const isKeeperNow = useStore.getState().osRole === 'keeper';
+        const activeGames = games.filter(
+          (g: any) =>
+            g &&
+            g.is_active !== false &&
+            (isKeeperNow || g.is_keepers_only !== true)
+        );
         safeLocalStorageSetItem(CACHED_GAME_DBS_KEY, JSON.stringify(activeGames));
         let localWorkspaces: any[] = Array.isArray(preloadedLocalWorkspaces) ? preloadedLocalWorkspaces : [];
         if (localWorkspaces.length === 0 && isDesktop()) {
           try {
             const { invoke } = await import('@tauri-apps/api/core');
-            const gConf: any = await invoke("get_global_config");
+            const gConf: any = await invoke('get_global_config');
             if (gConf && gConf.workspaces) localWorkspaces = gConf.workspaces;
           } catch (e) {}
         }
@@ -1548,7 +1710,7 @@ export const syncGameDatabases = async (preloadedLocalWorkspaces?: any[]) => {
         useStore.setState({ isGameDatabasesSynced: true });
       }
     } catch (err) {
-      console.error("Failed to sync core game databases", err);
+      console.error('Failed to sync core game databases', err);
       useStore.setState({ isGameDatabasesSynced: true });
     }
   };

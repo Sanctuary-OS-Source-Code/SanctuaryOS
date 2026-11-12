@@ -538,14 +538,9 @@ async function writeSpokeAndCoreAuditLog(params: {
     return;
   }
 
-  // 2. Spoke edits write to BOTH the Spoke Database AND the Core OS Database
+  // 2. Spoke edits write strictly to the Spoke Database (Keepers = Hub / Platform only; no Spoke operational surveillance)
   const state = useStore.getState();
   const activeWs = state.workspaces?.find((w: any) => w.id === state.activeWorkspaceId);
-  const gameName =
-    activeWs?.name ||
-    state.activeGameSchema?.display_name ||
-    activeWs?.schema_id ||
-    "Spoke Workspace";
 
   const cleanCoreUrl = (RESOLVED_SANCTUARY_CONFIG.supabaseUrl || "").trim().replace(/\/+$/, "");
   const cleanSpokeUrl = (activeWs?.supabase_url || "").trim().replace(/\/+$/, "");
@@ -568,12 +563,13 @@ async function writeSpokeAndCoreAuditLog(params: {
         p_payload: spokePayload,
       });
     }
+    return;
   }
 
-  // Always write Spoke edits to Core Audit Logs tagged with the Spoke's `game_name`
+  // Fallback only in standalone single-database mode
   await supabaseAuth.from("audit_logs").insert({
     ...spokePayload,
-    game_name: gameName,
+    game_name: activeWs?.name || state.activeGameSchema?.display_name || "Spoke Workspace",
   });
 }
 

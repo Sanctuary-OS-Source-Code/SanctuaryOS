@@ -29,7 +29,7 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
     }))
   );
 
-  async function uploadBlueprintToCloud(setName: string, isPublic: boolean = true, isLocked: boolean = false, allowedMods?: any[], isMarketListed: boolean = false) {
+  async function uploadBlueprintToCloud(setName: string, isPublic: boolean = true, _isLocked: boolean = false, allowedMods?: any[], isMarketListed: boolean = false) {
     if (!session) {
       useStore.getState().pushStatus(t("alert_guest_mode_uploads", "Guest Mode Active:\nUploads are disabled."));
       return;
@@ -74,15 +74,12 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       try {
         const { data: existing } = await supabase
           .from('blueprints')
-          .select('code, is_market_listed, is_public, is_locked')
+          .select('code')
           .eq('mason_id', actualMasonId)
           .eq('name', targetSet.name)
           .maybeSingle();
-        if (existing) {
+        if (existing?.code) {
           code = existing.code;
-          if (existing.is_market_listed) isMarketListed = true;
-          if (existing.is_public) isPublic = true;
-          if (existing.is_locked) isLocked = true;
         }
       } catch (err) {
         console.warn("Failed to check existing blueprint code", err);
@@ -188,6 +185,8 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       return;
     }
 
+    const effectiveMarketListed = isPublic ? isMarketListed : false;
+
     try {
       const { data: upsertedRows, error } = await supabase.from('blueprints').upsert([{
         code: code,
@@ -196,8 +195,8 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
         mason_id: actualMasonId,
         compliance_tier: 0,
         is_public: isPublic,
-        is_locked: isLocked,
-        is_market_listed: isMarketListed,
+        is_locked: false,
+        is_market_listed: effectiveMarketListed,
         game_version: selectedVersion
       }], { onConflict: 'code' }).select('id');
       
@@ -213,7 +212,7 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       }
       
       setPlaySets((prev: any[]) => {
-        const updatedSets = prev.map(ps => ps.name === targetSet.name ? { ...ps, code, is_public: isPublic, is_locked: isLocked, is_market_listed: isMarketListed } : ps);
+        const updatedSets = prev.map(ps => ps.name === targetSet.name ? { ...ps, code, is_public: isPublic, is_locked: false, is_market_listed: effectiveMarketListed } : ps);
 
         return updatedSets;
       });
@@ -222,14 +221,14 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
         `Uploaded Blueprint: ${targetSet.name}`,
         'blueprints',
         code,
-        `Visibility: ${isPublic ? 'Public' : 'Private'}, Nexus: ${isMarketListed ? 'Listed' : 'Unlisted'}`,
+        `Visibility: ${isPublic ? 'Public' : 'Private'}, Nexus: ${effectiveMarketListed ? 'Listed' : 'Unlisted'}`,
         undefined,
         {
           name: { to: targetSet.name },
           code: { to: code },
           is_public: { to: isPublic },
-          is_locked: { to: isLocked },
-          is_market_listed: { to: isMarketListed },
+          is_locked: { to: false },
+          is_market_listed: { to: effectiveMarketListed },
           game_version: { to: selectedVersion },
         }
       );

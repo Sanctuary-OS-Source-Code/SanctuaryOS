@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, startTransition } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
@@ -17,7 +17,7 @@ import {
   ActionPill,
   EmptyState,
   countBlueprintArtifacts,
-  deduplicateBlueprintArtifacts,
+  filterBlueprintModArtifacts,
   stripPriorityTierPrefix,
 } from "./shared";
 import {
@@ -36,7 +36,6 @@ import {
   groupBrokenMods,
   resolveBlueprintConflicts,
 } from "./side-panels/CommandIncompatiblePanel";
-import { GhostStringsModal } from "./side-panels/GhostStringsModal";
 import {
   groupBlueprintArtifactsByFamily,
   BlueprintInspectorModCard,
@@ -55,6 +54,14 @@ import {
   ResolvedStagedPayload,
 } from "./utils/stagingCrypto";
 import { VAULT_CHIP_CLASS } from "./shared-components/constants";
+import {
+  BlueprintPatchReadinessView,
+  useBlueprintPatchReadiness,
+  peekPendingBlueprintsNavigation,
+  consumePendingBlueprintsNavigation,
+  PatchModBucket,
+  PatchPanelSubFilter,
+} from "./components/BlueprintPatchReadiness";
 
 export default function Blueprints({
   playSets,
@@ -62,7 +69,7 @@ export default function Blueprints({
   activeSetName,
   equipPlaySet,
   deletePlaySet,
-  syncCode,
+  syncCode: _syncCode,
   setSyncCode,
   uploadBlueprintToCloud,
   syncBlueprintByCode,
@@ -77,12 +84,8 @@ export default function Blueprints({
   setDraftSetName,
   finalizeDraftSet,
   toggleInActiveSet,
-  onSearchNetwork,
   vaultPath,
   onRefreshMods,
-  getMissingStrings,
-  ignoreMissingString,
-  purgeMissingString,
 }: any) {
   const { t } = useLexicon();
   const { ownedDLC, maskedDLC, selectedVersion, modList, activeGameSchema, ignoredGlobal, session } = useStore(
@@ -97,7 +100,6 @@ export default function Blueprints({
     }))
   );
   const {
-    setIsBlueprintSwapOpen,
     volatileSignatureQueue,
     setVolatileSignatureQueue,
     volatileSignatureQueues,
@@ -107,7 +109,6 @@ export default function Blueprints({
     setIsSignatureQueueOpen,
   } = useModalStore(
     useShallow((s) => ({
-      setIsBlueprintSwapOpen: s.setIsBlueprintSwapOpen,
       volatileSignatureQueue: s.volatileSignatureQueue,
       setVolatileSignatureQueue: s.setVolatileSignatureQueue,
       volatileSignatureQueues: s.volatileSignatureQueues,
@@ -117,7 +118,64 @@ export default function Blueprints({
       setIsSignatureQueueOpen: s.setIsSignatureQueueOpen,
     }))
   );
-  const [activeTab, setActiveTab] = useState("LANDING");
+
+  const [activeTab, setActiveTab] = useState(() => {
+    const pending = peekPendingBlueprintsNavigation();
+    return pending?.tab || "LANDING";
+  });
+  const [pendingReadinessInspect, setPendingReadinessInspect] = useState<{
+    bpName: string | null;
+    bucket: PatchModBucket | null;
+    subFilter: PatchPanelSubFilter | null;
+  } | null>(() => {
+    const pending = peekPendingBlueprintsNavigation();
+    if (pending?.inspectBlueprintName) {
+      return {
+        bpName: pending.inspectBlueprintName,
+        bucket: pending.initialBucket ?? null,
+        subFilter: pending.initialSubFilter ?? null,
+      };
+    }
+    return null;
+  });
+
+  const switchTab = useCallback((nextTab: string) => {
+    startTransition(() => {
+      setActiveTab(nextTab);
+    });
+  }, []);
+
+  useEffect(() => {
+    const applyPending = (detail?: any) => {
+      const consumed = consumePendingBlueprintsNavigation();
+      const targetTab = detail?.tab || consumed?.tab;
+      const inspectBp =
+        detail?.inspectBlueprintName ?? consumed?.inspectBlueprintName ?? null;
+      const initBucket =
+        detail?.initialBucket ?? consumed?.initialBucket ?? null;
+      const initSub =
+        detail?.initialSubFilter ?? consumed?.initialSubFilter ?? null;
+
+      if (targetTab) {
+        setActiveTab(targetTab);
+      }
+      if (inspectBp) {
+        setPendingReadinessInspect({
+          bpName: inspectBp,
+          bucket: initBucket,
+          subFilter: initSub,
+        });
+      }
+    };
+
+    applyPending();
+
+    const handleNav = (e: Event) => {
+      applyPending((e as CustomEvent)?.detail);
+    };
+    window.addEventListener("sanctuary-navigate-blueprints", handleNav);
+    return () => window.removeEventListener("sanctuary-navigate-blueprints", handleNav);
+  }, []);
   const [pipelineSearchQuery, setPipelineSearchQuery] = useState("");
   const [shreddingRowId, setShreddingRowId] = useState<string | null>(null);
   const [selectedUplinkBlueprint, setSelectedUplinkBlueprint] = useState<any>(null);
@@ -144,14 +202,15 @@ export default function Blueprints({
   const [syncInputVisible, setSyncInputVisible] = useState(false);
   const [localSyncCode, setLocalSyncCode] = useState("");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  const [ghostModalSet, setGhostModalSet] = useState<string | null>(null);
-  const [ghostStrings, setGhostStrings] = useState<string[]>([]);
 
   const [myCloudBlueprints, setMyCloudBlueprints] = useState<any[]>([]);
   const [cloudFilterTab, setCloudFilterTab] = useState<"all" | "not_in_vault">("all");
   const [cloudSearchQuery, setCloudSearchQuery] = useState("");
   const [uplinkArtifactSearch, setUplinkArtifactSearch] = useState("");
   const [uplinkArtifactsLimit, setUplinkArtifactsLimit] = useState(100);
+  const patchReadiness = useBlueprintPatchReadiness({
+    pinnedBlueprintNames: pinnedBlueprints,
+  });
 
   useEffect(() => {
     setUplinkArtifactsLimit(100);
@@ -194,12 +253,13 @@ export default function Blueprints({
   const extRegex = useMemo(() => getExtensionRegex(activeGameSchema), [activeGameSchema]);
 
   const optimizedModList = useMemo(() => {
-    const map = new Map();
-    const byCleanLower = new Map();
-    const fallbackArr: any[] = [];
-    (modList || []).forEach((m: any) => {
+    const map = new Map<string, any>();
+    const byCleanLower = new Map<string, any>();
+    const byBaseAndExt = new Map<string, any>();
+
+    const registerModEntry = (m: any) => {
       if (!m?.name) return;
-      map.set(m.name, m);
+      if (!map.has(m.name)) map.set(m.name, m);
       const stripped = stripPriorityTierPrefix(m.name, activeGameSchema);
       if (stripped && !map.has(stripped)) map.set(stripped, m);
       const clean = (m.name.split(/[\\/]/).pop() || m.name).toLowerCase();
@@ -207,10 +267,23 @@ export default function Blueprints({
       const mBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, "");
       const mExt = m.name.split(".").pop()?.toLowerCase();
       if (mBase && mExt) {
-        fallbackArr.push({ ...m, _mBase: mBase, _mExt: mExt });
+        const baseExtKey = `${mBase.toLowerCase()}::${mExt}`;
+        if (!byBaseAndExt.has(baseExtKey)) {
+          byBaseAndExt.set(baseExtKey, m);
+        }
       }
+    };
+
+    (modList || []).forEach((m: any) => {
+      if (!m) return;
+      if (Array.isArray(m.flavors)) {
+        for (let i = 0; i < m.flavors.length; i++) {
+          registerModEntry(m.flavors[i]);
+        }
+      }
+      registerModEntry(m);
     });
-    return { map, byCleanLower, fallbackArr };
+    return { map, byCleanLower, byBaseAndExt };
   }, [modList, extRegex, activeGameSchema]);
 
   const [radarCacheTick, setRadarCacheTick] = useState(0);
@@ -225,7 +298,7 @@ export default function Blueprints({
     const res = { total: 0, tier4: 0, tier3: 0, broken: 0, unstable: 0 };
     if (!set || !set.mods || !Array.isArray(set.mods) || set.mods.length === 0) return res;
 
-    const dedupedMods = deduplicateBlueprintArtifacts(set.mods, activeGameSchema);
+    const dedupedMods = filterBlueprintModArtifacts(set.mods, activeGameSchema);
     const activeMods = dedupedMods.map((rawMod: any) => {
       const modName =
         typeof rawMod === "string" ? rawMod : String(rawMod?.name || rawMod?.path || "");
@@ -244,9 +317,10 @@ export default function Blueprints({
       const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, "");
       const targetExt = modName.split(".").pop()?.toLowerCase();
 
-      const fallbackMatch = optimizedModList.fallbackArr.find(
-        (m: any) => m._mBase === targetBase && m._mExt === targetExt
-      );
+      const fallbackMatch =
+        targetBase && targetExt
+          ? optimizedModList.byBaseAndExt.get(`${targetBase.toLowerCase()}::${targetExt}`)
+          : undefined;
       if (fallbackMatch)
         return {
           ...fallbackMatch,
@@ -294,34 +368,72 @@ export default function Blueprints({
     return res;
   };
 
+  const alertCacheRef = useRef<{
+    envKey: any[];
+    entries: Map<string, { modsRef: any; ignoredRef: any; alertStatus: any }>;
+  }>({
+    envKey: [],
+    entries: new Map(),
+  });
+
   const setComputations = useMemo(() => {
-    const comps: Record<string, { alertStatus: any; hasGhosts: boolean }> = {};
-    (playSets || []).forEach((set: any) => {
-      const alertStatus = getBlueprintAlertCount(set);
-      let hasGhosts = false;
-      if (set && set.mods) {
-        const dedupedMods = deduplicateBlueprintArtifacts(set.mods, activeGameSchema);
-        for (const rawMod of dedupedMods) {
-          const modName =
-            typeof rawMod === "string" ? rawMod : rawMod.name || rawMod.path || "";
-          if (!modName) continue;
-          const strippedName = stripPriorityTierPrefix(modName, activeGameSchema);
-          const cleanLower = (modName.split(/[\\/]/).pop() || modName).toLowerCase();
-          if (
-            !optimizedModList.map.has(modName) &&
-            !optimizedModList.map.has(strippedName) &&
-            !optimizedModList.byCleanLower.has(cleanLower)
-          ) {
-            hasGhosts = true;
-            break;
-          }
-        }
+    if (activeTab !== "LANDING" && activeTab !== "VAULT") {
+      return {} as Record<string, { alertStatus: any }>;
+    }
+
+    const currentEnv = [
+      optimizedModList,
+      extRegex,
+      selectedVersion,
+      ownedDLC,
+      maskedDLC,
+      ignoredGlobal,
+      activeGameSchema,
+      t,
+      radarCacheTick,
+    ];
+    const prevEnv = alertCacheRef.current.envKey;
+    const envUnchanged =
+      prevEnv.length === currentEnv.length &&
+      currentEnv.every((v, idx) => v === prevEnv[idx]);
+    if (!envUnchanged) {
+      alertCacheRef.current = {
+        envKey: currentEnv,
+        entries: new Map(),
+      };
+    }
+
+    const comps: Record<string, { alertStatus: any }> = {};
+    const targetSets =
+      activeTab === "LANDING"
+        ? (playSets || []).filter((s: any) => pinnedBlueprints.includes(s.name))
+        : playSets || [];
+
+    for (let i = 0; i < targetSets.length; i++) {
+      const set = targetSets[i];
+      if (!set?.name) continue;
+      const cached = alertCacheRef.current.entries.get(set.name);
+      if (
+        cached &&
+        cached.modsRef === set.mods &&
+        cached.ignoredRef === set.ignoredConflicts
+      ) {
+        comps[set.name] = { alertStatus: cached.alertStatus };
+      } else {
+        const alertStatus = getBlueprintAlertCount(set);
+        alertCacheRef.current.entries.set(set.name, {
+          modsRef: set.mods,
+          ignoredRef: set.ignoredConflicts,
+          alertStatus,
+        });
+        comps[set.name] = { alertStatus };
       }
-      comps[set.name] = { alertStatus, hasGhosts };
-    });
+    }
     return comps;
   }, [
+    activeTab,
     playSets,
+    pinnedBlueprints,
     optimizedModList,
     extRegex,
     selectedVersion,
@@ -338,7 +450,6 @@ export default function Blueprints({
   const [editingSetName, setEditingSetName] = useState<string | null>(null);
   const [newSetName, setNewSetName] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [cleanConfirm, setCleanConfirm] = useState<string | null>(null);
   const [isArchitectOpen, setIsArchitectOpen] = useState(false);
   const [stagingRigSetName, setStagingRigSetName] = useState<string | null>(null);
   const [stagedRigSuccessSetName, setStagedRigSuccessSetName] = useState<string | null>(null);
@@ -355,30 +466,33 @@ export default function Blueprints({
       return;
     }
     setStagingRigSetName(targetSet.name);
-    const res = await stageFullBlueprintToRigQueue(
-      targetSet,
-      modList,
-      activeGameSchema,
-      session,
-      selectedVersion
-    );
-    setStagingRigSetName(null);
-    if (res.success) {
-      setStagedRigSuccessSetName(targetSet.name);
-      setTimeout(() => setStagedRigSuccessSetName(null), 3500);
-      useStore
-        .getState()
-        .pushStatus(
-          t(
-            "status_rig_queue_sent",
-            "{Blueprint} encrypted and staged to your Rig Queue! Open Signature Queue on your Steam Deck or other PC to deploy."
-          ),
-          "success"
-        );
-    } else {
-      useStore
-        .getState()
-        .pushStatus(res.error || t("err_save_failed", "Failed to save blueprint"), "error");
+    try {
+      const res = await stageFullBlueprintToRigQueue(
+        targetSet,
+        modList,
+        activeGameSchema,
+        session,
+        selectedVersion
+      );
+      if (res.success) {
+        setStagedRigSuccessSetName(targetSet.name);
+        setTimeout(() => setStagedRigSuccessSetName(null), 3500);
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "status_rig_queue_sent",
+              "{Blueprint} encrypted and staged to your Rig Queue! Open Signature Queue on your Steam Deck or other PC to deploy."
+            ),
+            "success"
+          );
+      } else {
+        useStore
+          .getState()
+          .pushStatus(res.error || t("err_save_failed", "Failed to save blueprint"), "error");
+      }
+    } finally {
+      setStagingRigSetName(null);
     }
   };
 
@@ -389,11 +503,6 @@ export default function Blueprints({
       setIsMatrixOpen(true);
     }
   };
-
-  const totalAlerts = Object.values(setComputations).reduce(
-    (acc: number, comp: any) => acc + (comp.alertStatus?.total || 0) + (comp.hasGhosts ? 1 : 0),
-    0
-  );
 
   const cloudQueuesList = useMemo<ResolvedStagedPayload[]>(() => {
     if (Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 0) {
@@ -712,7 +821,13 @@ export default function Blueprints({
                   }}
                   className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
                 >
-                  <span className="material-symbols-outlined !text-[16px]">
+                  <span
+                    className={`material-symbols-outlined !text-[16px] ${
+                      stagingRigSetName === matchingLocalSet.name
+                        ? "animate-spin text-[var(--accent)]"
+                        : ""
+                    }`}
+                  >
                     {stagingRigSetName === matchingLocalSet.name
                       ? t("icon_sync", "sync")
                       : t("icon_devices", "devices")}
@@ -748,9 +863,8 @@ export default function Blueprints({
   };
 
   const renderVaultCard = (set: any) => {
-    const { alertStatus, hasGhosts } = setComputations[set.name] || {
+    const { alertStatus } = setComputations[set.name] || {
       alertStatus: { total: 0, tier4: 0, tier3: 0, broken: 0, unstable: 0 },
-      hasGhosts: false,
     };
     const isPinned = pinnedBlueprints.includes(set.name);
     const hasAlerts = alertStatus && alertStatus.total > 0;
@@ -807,7 +921,8 @@ export default function Blueprints({
         icon={isDeployed ? t("icon_verified_user", "verified_user") : t("icon_map", "map")}
         customIcon={
           <DynamicBlueprintPreviewBanner
-            data={{ ...set, json_data: { artifacts: set.mods || [] } }}
+            data={set}
+            countOverride={linkedModsCount}
             heightClass="h-full"
           />
         }
@@ -931,33 +1046,6 @@ export default function Blueprints({
               label: t("action_export", "Export"),
               icon: t("icon_upload", "upload"),
               onClick: () => exportPlaySet && exportPlaySet(set.name),
-            },
-            {
-              id: "clean",
-              label: t("action_clean_blueprint", "Clean {Blueprint}"),
-              icon: t("icon_cleaning_services", "cleaning_services"),
-              variant: hasGhosts ? "warning" : "default",
-              onClick: () => {
-                const missingStrings = getMissingStrings ? getMissingStrings(set.name) : [];
-                if (missingStrings.length > 0) {
-                  setGhostStrings(missingStrings);
-                  setGhostModalSet(set.name);
-                } else {
-                  setCleanConfirm(set.name);
-                  setTimeout(() => setCleanConfirm(null), 2000);
-                  window.dispatchEvent(
-                    new CustomEvent("push-status", {
-                      detail: {
-                        message: t(
-                          "status_blueprint_clean",
-                          "{Blueprint} is already fully sanitized."
-                        ),
-                        type: "success",
-                      },
-                    })
-                  );
-                }
-              },
             },
             {
               id: "delete",
@@ -1174,7 +1262,7 @@ export default function Blueprints({
               </button>
             </div>
 
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               <button
                 type="button"
                 disabled={stagingRigSetName === set.name}
@@ -1182,13 +1270,17 @@ export default function Blueprints({
                   e.stopPropagation();
                   handleStageSetToRigQueue(set);
                 }}
-                className={`h-8 glass-surface border rounded-lg transition-all flex items-center justify-center relative ${
+                className={`h-8 glass-surface border rounded-lg transition-all flex items-center justify-center relative cursor-pointer ${
                   stagedRigSuccessSetName === set.name
                     ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
                     : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
                 }`}
               >
-                <span className="material-symbols-outlined !text-[16px]">
+                <span
+                  className={`material-symbols-outlined !text-[16px] ${
+                    stagingRigSetName === set.name ? "animate-spin text-[var(--accent)]" : ""
+                  }`}
+                >
                   {stagingRigSetName === set.name
                     ? t("icon_sync", "sync")
                     : stagedRigSuccessSetName === set.name
@@ -1209,7 +1301,7 @@ export default function Blueprints({
                   e.stopPropagation();
                   handleOpenMatrix(set.name);
                 }}
-                className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] rounded-lg transition-all flex items-center justify-center relative"
+                className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
               >
                 <span className="material-symbols-outlined !text-[16px]">
                   {t("icon_cloud", "cloud")}
@@ -1222,57 +1314,12 @@ export default function Blueprints({
                   e.stopPropagation();
                   exportPlaySet && exportPlaySet(set.name);
                 }}
-                className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] rounded-lg transition-all flex items-center justify-center relative"
+                className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
               >
                 <span className="material-symbols-outlined !text-[16px]">
                   {t("icon_upload", "upload")}
                 </span>
                 <HoverTooltip title={t("action_export", "Export")} />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const missingStrings = getMissingStrings ? getMissingStrings(set.name) : [];
-                  if (missingStrings.length > 0) {
-                    setGhostStrings(missingStrings);
-                    setGhostModalSet(set.name);
-                  } else {
-                    setCleanConfirm(set.name);
-                    setTimeout(() => setCleanConfirm(null), 2000);
-                    window.dispatchEvent(
-                      new CustomEvent("push-status", {
-                        detail: {
-                          message: t(
-                            "status_blueprint_clean",
-                            "{Blueprint} is already fully sanitized."
-                          ),
-                          type: "success",
-                        },
-                      })
-                    );
-                  }
-                }}
-                className={`h-8 rounded-lg transition-all flex items-center justify-center border glass-surface relative ${
-                  cleanConfirm === set.name
-                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                    : hasGhosts
-                      ? "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
-                      : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                }`}
-              >
-                <span className="material-symbols-outlined !text-[16px]">
-                  {cleanConfirm === set.name
-                    ? t("icon_check_circle", "check_circle")
-                    : t("icon_cleaning_services", "cleaning_services")}
-                </span>
-                <HoverTooltip
-                  title={
-                    cleanConfirm === set.name
-                      ? t("tier_clean", "Clean")
-                      : t("action_clean_blueprint", "Clean {Blueprint}")
-                  }
-                />
               </button>
               <button
                 type="button"
@@ -1286,7 +1333,7 @@ export default function Blueprints({
                     setTimeout(() => setDeleteConfirm(null), 3000);
                   }
                 }}
-                className={`h-8 transition-all flex items-center justify-center rounded-lg border glass-surface relative ${
+                className={`h-8 transition-all flex items-center justify-center rounded-lg border glass-surface relative cursor-pointer ${
                   deleteConfirm === set.name
                     ? "border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)]"
                     : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
@@ -1321,9 +1368,11 @@ export default function Blueprints({
         breadcrumb={
           activeTab === "PIPELINE"
             ? t("tab_personal_pipeline", "Personal Rig Pipeline")
-            : activeTab !== "LANDING"
-              ? t(`tab_${activeTab.toLowerCase()}`, activeTab) || activeTab
-              : undefined
+            : activeTab === "READINESS"
+              ? t("patch_sim_tab_title", "Patch Readiness")
+              : activeTab !== "LANDING"
+                ? t(`tab_${activeTab.toLowerCase()}`, activeTab) || activeTab
+                : undefined
         }
         onTitleClick={() => setActiveTab("LANDING")}
       >
@@ -1358,7 +1407,11 @@ export default function Blueprints({
                 {
                   id: "beam_active_bp",
                   icon: (
-                    <span className="material-symbols-outlined !text-[20px]">
+                    <span
+                      className={`material-symbols-outlined !text-[20px] ${
+                        stagingRigSetName ? "animate-spin text-[var(--accent)]" : ""
+                      }`}
+                    >
                       {stagingRigSetName
                         ? t("icon_sync", "sync")
                         : t("icon_devices", "devices")}
@@ -1366,11 +1419,19 @@ export default function Blueprints({
                   ),
                   label: t("action_send_rig_queue", "Send to Rig Queue"),
                   onClick: () => {
-                    const activeSet =
+                    const activeCandidate =
                       playSets?.find((s: any) => s.name === activeSetName) ||
                       playSets?.[activePlaySetIndex];
-                    if (activeSet) {
-                      handleStageSetToRigQueue(activeSet);
+                    const fallbackNonEmpty = (playSets || []).find(
+                      (s: any) => countBlueprintArtifacts(s?.mods, activeGameSchema) > 0
+                    );
+                    const target =
+                      activeCandidate &&
+                      countBlueprintArtifacts(activeCandidate.mods, activeGameSchema) > 0
+                        ? activeCandidate
+                        : fallbackNonEmpty || activeCandidate || playSets?.[0];
+                    if (target) {
+                      handleStageSetToRigQueue(target);
                     }
                   },
                 },
@@ -1431,28 +1492,28 @@ export default function Blueprints({
         <HoverTabDrawer
           title={t("playsets_title", "{Blueprints}")}
           activeTab={activeTab}
-          setTab={setActiveTab}
+          setTab={switchTab}
         >
           <VerticalTabButton
             id="LANDING"
             icon={t("icon_dashboard", "dashboard")}
             label={t("tab_landing", "Overview")}
             activeTab={activeTab}
-            setTab={setActiveTab}
+            setTab={switchTab}
           />
           <VerticalTabButton
             id="VAULT"
             icon={t("icon_map", "map")}
             label={t("playsets_all", "All Blueprints")}
             activeTab={activeTab}
-            setTab={setActiveTab}
+            setTab={switchTab}
           />
           <VerticalTabButton
             id="PIPELINE"
             icon={t("icon_phonelink_ring", "phonelink_ring")}
             label={t("tab_personal_pipeline", "Personal Rig Pipeline")}
             activeTab={activeTab}
-            setTab={setActiveTab}
+            setTab={switchTab}
             iconColorClass="text-cyan-400"
           />
           <VerticalTabButton
@@ -1460,8 +1521,16 @@ export default function Blueprints({
             icon={t("icon_cloud", "cloud")}
             label={t("btn_my_cloud_blueprints", "My Cloud {Blueprints}")}
             activeTab={activeTab}
-            setTab={setActiveTab}
+            setTab={switchTab}
             iconColorClass="text-sky-500"
+          />
+          <VerticalTabButton
+            id="READINESS"
+            icon={t("icon_published_with_changes", "published_with_changes")}
+            label={t("patch_sim_tab_title", "Patch Readiness")}
+            activeTab={activeTab}
+            setTab={switchTab}
+            iconColorClass="text-emerald-400"
           />
         </HoverTabDrawer>
       </div>
@@ -1473,7 +1542,7 @@ export default function Blueprints({
             icon={t("icon_dashboard", "dashboard")}
             label={t("tab_landing", "Overview")}
             number={activeSetName || ""}
-            onClick={() => setActiveTab("LANDING")}
+            onClick={() => switchTab("LANDING")}
             isActive={activeTab === "LANDING"}
           />
           <DashboardStatTile
@@ -1481,7 +1550,7 @@ export default function Blueprints({
             icon={t("icon_map", "map")}
             label={t("playsets_all", "All Blueprints")}
             number={playSets?.length || 0}
-            onClick={() => setActiveTab("VAULT")}
+            onClick={() => switchTab("VAULT")}
             isActive={activeTab === "VAULT"}
           />
           <DashboardStatTile
@@ -1490,7 +1559,7 @@ export default function Blueprints({
             label={t("tab_personal_pipeline", "Personal Rig Pipeline")}
             colorClass="text-cyan-400"
             number={cloudQueuesList.length}
-            onClick={() => setActiveTab("PIPELINE")}
+            onClick={() => switchTab("PIPELINE")}
             isActive={activeTab === "PIPELINE"}
           />
           <DashboardStatTile
@@ -1499,8 +1568,23 @@ export default function Blueprints({
             label={t("btn_my_cloud_blueprints", "My Cloud {Blueprints}")}
             colorClass="text-sky-500"
             number={myCloudBlueprints?.length || 0}
-            onClick={() => setActiveTab("NETWORK")}
+            onClick={() => switchTab("NETWORK")}
             isActive={activeTab === "NETWORK"}
+          />
+          <DashboardStatTile
+            variant="tab"
+            icon={t("icon_published_with_changes", "published_with_changes")}
+            label={t("patch_sim_tab_title", "Patch Readiness")}
+            colorClass={
+              patchReadiness.activeBlueprintReport?.verdict === "hold"
+                ? "text-[var(--danger)]"
+                : patchReadiness.activeBlueprintReport?.verdict === "updates_ready"
+                  ? "text-[var(--warning)]"
+                  : "text-[var(--success)]"
+            }
+            number={`${patchReadiness.activeBlueprintReport?.readinessPercent ?? 100}%`}
+            onClick={() => switchTab("READINESS")}
+            isActive={activeTab === "READINESS"}
           />
         </StatTileCarousel>
       </div>
@@ -1554,51 +1638,53 @@ export default function Blueprints({
                   title={t("draft_new", "Draft New {Blueprint}")}
                   subtitle={t("draft_new_desc", "Create a new {blueprint}")}
                   onClick={() => {
-                    setActiveTab("VAULT");
+                    switchTab("VAULT");
                     setIsDraftingSet(true);
                   }}
-                  dotColorClass="bg-emerald-500 shadow-md"
-                  textColorClass="text-emerald-500"
-                  hoverTextColorClass="group-hover:text-emerald-400"
-                  iconShadowClass="drop-shadow-md"
-                  iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]"
+                  iconColorClass="text-[var(--accent)]"
                 />
                 <CommandScreenQuickLink
-                  icon={t("icon_check_circle", "check_circle")}
-                  title={t("btn_deployed", "Deployed")}
-                  subtitle={activeSetName || t("unknown", "Unknown")}
-                  onClick={() => setIsBlueprintSwapOpen(true)}
-                  dotColorClass="bg-indigo-500 shadow-md"
-                  textColorClass="text-indigo-500"
-                  hoverTextColorClass="group-hover:text-indigo-400"
-                  iconShadowClass="drop-shadow-md"
-                  iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                  icon={t("icon_camera", "camera")}
+                  title={t("btn_snapshot", "Snapshot Active {Blueprint}")}
+                  subtitle={t("snapshot_desc", "Clone active {blueprint}")}
+                  onClick={() => {
+                    const activeSet = playSets[activePlaySetIndex];
+                    if (!activeSet) return;
+                    let copyIndex = 1;
+                    let newName = `${activeSet.name} (Copy)`;
+                    while (
+                      playSets.some(
+                        (s: any) => s.name.toLowerCase() === newName.toLowerCase()
+                      )
+                    ) {
+                      newName = `${activeSet.name} (Copy) (${copyIndex})`;
+                      copyIndex++;
+                    }
+                    const updatedSets = [
+                      ...playSets,
+                      {
+                        name: newName,
+                        mods: [...activeSet.mods],
+                        modHashes: activeSet.modHashes
+                          ? { ...activeSet.modHashes }
+                          : undefined,
+                        modMeta: activeSet.modMeta ? { ...activeSet.modMeta } : undefined,
+                        loadRules: Array.isArray(activeSet.loadRules)
+                          ? activeSet.loadRules.map((r: any) => ({ ...r }))
+                          : undefined,
+                        modTiers: activeSet.modTiers ? { ...activeSet.modTiers } : undefined,
+                        loadOrder: Array.isArray(activeSet.loadOrder)
+                          ? [...activeSet.loadOrder]
+                          : undefined,
+                      },
+                    ];
+                    setPlaySets(updatedSets);
+                    window.dispatchEvent(new Event("storage"));
+                    if (setActivePlaySetIndex) setActivePlaySetIndex(updatedSets.length - 1);
+                    switchTab("VAULT");
+                  }}
+                  iconColorClass="text-[var(--accent)]"
                 />
-                {totalAlerts > 0 && (
-                  <CommandScreenQuickLink
-                    icon={t("icon_error", "error")}
-                    title={t("system_alerts_title", "System Alerts")}
-                    subtitle={`${totalAlerts} ${t("system_alerts_title", "Alerts")}`}
-                    onClick={() => {
-                      const activeAlertCount =
-                        setComputations[activeSetName]?.alertStatus?.total || 0;
-                      if (activeAlertCount === 0 && setActivePlaySetIndex) {
-                        const firstWithAlertsIdx = (playSets || []).findIndex(
-                          (s: any) => (setComputations[s.name]?.alertStatus?.total || 0) > 0
-                        );
-                        if (firstWithAlertsIdx >= 0) {
-                          setActivePlaySetIndex(firstWithAlertsIdx);
-                        }
-                      }
-                      setIsArchitectOpen(true);
-                    }}
-                    dotColorClass="bg-rose-500 shadow-md"
-                    textColorClass="text-rose-500"
-                    hoverTextColorClass="group-hover:text-rose-400"
-                    iconShadowClass="drop-shadow-md"
-                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
-                  />
-                )}
                 <CommandScreenQuickLink
                   icon={
                     importStatus === "loading"
@@ -1612,15 +1698,11 @@ export default function Blueprints({
                         ? t("status_profile_imported", "Imported")
                         : importStatus === "error"
                           ? t("alert_import_failed", "Import Failed")
-                          : t("playsets_btn_import", "IMPORT {Blueprint}")
+                          : t("playsets_btn_import", "Import {Blueprint}")
                   }
                   subtitle={t("import_desc", "Import a JSON file to load an external {Blueprint}.")}
                   onClick={handleImport}
-                  dotColorClass="bg-blue-500 shadow-md"
-                  textColorClass="text-blue-500"
-                  hoverTextColorClass="group-hover:text-blue-400"
-                  iconShadowClass="drop-shadow-md"
-                  iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                  iconColorClass="text-[var(--accent)]"
                 />
                 {syncInputVisible ? (
                   <div className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] rounded-2xl relative h-24 text-left group animate-in fade-in zoom-in-95 duration-200">
@@ -1682,85 +1764,26 @@ export default function Blueprints({
                         ? t("btn_importing", "Syncing...")
                         : t("btn_sync", "Sync by Uplink Code")
                     }
-                    subtitle={t("sync_desc", "Download a cloud blueprint via code")}
+                    subtitle={t("sync_desc", "Download a cloud {Blueprint} via code")}
                     onClick={() => setSyncInputVisible(true)}
-                    dotColorClass="bg-sky-500 shadow-md"
-                    textColorClass="text-sky-500"
-                    hoverTextColorClass="group-hover:text-sky-400"
-                    iconShadowClass="drop-shadow-md"
-                    iconBorderHoverClass="group-hover:border-sky-500/30"
+                    iconColorClass="text-[var(--accent)]"
                   />
                 )}
-                <CommandScreenQuickLink
-                  icon={
-                    stagingRigSetName
-                      ? t("icon_sync", "sync")
-                      : stagedRigSuccessSetName
-                        ? t("icon_check_circle", "check_circle")
-                        : t("icon_phonelink_ring", "phonelink_ring")
-                  }
-                  title={t("action_send_rig_queue", "Send to Rig Queue")}
-                  subtitle={t(
-                    "action_send_rig_queue_desc",
-                    "Encrypted transfer to Steam Deck or PC (includes Tier 1–4 & Unknown {mods})"
-                  )}
-                  onClick={() => setActiveTab("PIPELINE")}
-                  dotColorClass="bg-cyan-500 shadow-md"
-                  textColorClass="text-cyan-500"
-                  hoverTextColorClass="group-hover:text-cyan-400"
-                  iconShadowClass="drop-shadow-md"
-                  iconBorderHoverClass="group-hover:border-cyan-500/30"
-                />
-                <CommandScreenQuickLink
-                  icon={t("icon_camera", "camera")}
-                  title={t("btn_snapshot", "Snapshot Active {Blueprint}")}
-                  subtitle={t("snapshot_desc", "Clone active {blueprint}")}
-                  onClick={() => {
-                    const activeSet = playSets[activePlaySetIndex];
-                    if (!activeSet) return;
-                    let copyIndex = 1;
-                    let newName = `${activeSet.name} (Copy)`;
-                    while (
-                      playSets.some(
-                        (s: any) => s.name.toLowerCase() === newName.toLowerCase()
-                      )
-                    ) {
-                      newName = `${activeSet.name} (Copy) (${copyIndex})`;
-                      copyIndex++;
-                    }
-                    const updatedSets = [
-                      ...playSets,
-                      {
-                        name: newName,
-                        mods: [...activeSet.mods],
-                        modHashes: activeSet.modHashes
-                          ? { ...activeSet.modHashes }
-                          : undefined,
-                        modMeta: activeSet.modMeta ? { ...activeSet.modMeta } : undefined,
-                        loadRules: Array.isArray(activeSet.loadRules)
-                          ? activeSet.loadRules.map((r: any) => ({ ...r }))
-                          : undefined,
-                        modTiers: activeSet.modTiers ? { ...activeSet.modTiers } : undefined,
-                        loadOrder: Array.isArray(activeSet.loadOrder)
-                          ? [...activeSet.loadOrder]
-                          : undefined,
-                      },
-                    ];
-                    setPlaySets(updatedSets);
-                    window.dispatchEvent(new Event("storage"));
-                    if (setActivePlaySetIndex) setActivePlaySetIndex(updatedSets.length - 1);
-                    setActiveTab("VAULT");
-                  }}
-                  dotColorClass="bg-amber-500 shadow-md"
-                  textColorClass="text-amber-500"
-                  hoverTextColorClass="group-hover:text-amber-400"
-                  iconShadowClass="drop-shadow-md"
-                  iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
-                />
               </CommandScreenSidebar>
             </CommandScreenBody>
           </CommandScreenLayout>
         </div>
+      )}
+
+      {activeTab === "READINESS" && (
+        <BlueprintPatchReadinessView
+          pinnedBlueprints={pinnedBlueprints}
+          readiness={patchReadiness}
+          initialInspectBlueprint={pendingReadinessInspect?.bpName}
+          initialInspectBucket={pendingReadinessInspect?.bucket}
+          initialInspectSubFilter={pendingReadinessInspect?.subFilter}
+          onClearInitialInspect={() => setPendingReadinessInspect(null)}
+        />
       )}
 
       {activeTab === "VAULT" && (
@@ -1828,15 +1851,31 @@ export default function Blueprints({
                   (playSets || []).length > 0 ? (
                     <ActionButton
                       variant="primary"
-                      icon={t("icon_devices", "devices")}
-                      label={t("action_send_rig_queue", "Send to Rig Queue")}
+                      disabled={Boolean(stagingRigSetName)}
+                      icon={
+                        stagingRigSetName
+                          ? t("icon_sync", "sync")
+                          : t("icon_devices", "devices")
+                      }
+                      label={
+                        stagingRigSetName
+                          ? t("scanning", "Scanning...")
+                          : t("action_send_rig_queue", "Send to Rig Queue")
+                      }
                       onClick={() => {
-                        const activeSet =
+                        const activeCandidate =
                           playSets?.find((s: any) => s.name === activeSetName) ||
-                          playSets?.[activePlaySetIndex] ||
-                          playSets?.[0];
-                        if (activeSet) {
-                          handleStageSetToRigQueue(activeSet);
+                          playSets?.[activePlaySetIndex];
+                        const fallbackNonEmpty = (playSets || []).find(
+                          (s: any) => countBlueprintArtifacts(s?.mods, activeGameSchema) > 0
+                        );
+                        const target =
+                          activeCandidate &&
+                          countBlueprintArtifacts(activeCandidate.mods, activeGameSchema) > 0
+                            ? activeCandidate
+                            : fallbackNonEmpty || activeCandidate || playSets?.[0];
+                        if (target) {
+                          handleStageSetToRigQueue(target);
                         }
                       }}
                     />
@@ -1928,6 +1967,9 @@ export default function Blueprints({
                   const inVault = playSets.some(
                     (set: any) => set.code && set.code.toUpperCase() === bp.code.toUpperCase()
                   );
+                  const bpModCount = bp.artifacts
+                    ? countBlueprintArtifacts(bp.artifacts, activeGameSchema)
+                    : 0;
                   return (
                     <UniversalCard
                       key={bp.code}
@@ -1938,14 +1980,17 @@ export default function Blueprints({
                           ? t("icon_cloud_done", "cloud_done")
                           : t("icon_cloud_download", "cloud_download")
                       }
-                      customIcon={<DynamicBlueprintPreviewBanner data={bp} heightClass="h-full" />}
+                      customIcon={
+                        <DynamicBlueprintPreviewBanner
+                          data={bp}
+                          countOverride={bpModCount}
+                          heightClass="h-full"
+                        />
+                      }
                       title={bp.name}
                       subtitle={bp.code}
                       onClick={() => setSelectedUplinkBlueprint(bp)}
                       onContextMenu={(e) => {
-                        const bpModCount = bp.artifacts
-                          ? countBlueprintArtifacts(bp.artifacts, activeGameSchema)
-                          : 0;
                         const items: SanctuaryContextMenuItem[] = [
                           {
                             id: "inspect",
@@ -2038,7 +2083,7 @@ export default function Blueprints({
                       }
                       badges={
                         <>
-                          {bp.artifacts && countBlueprintArtifacts(bp.artifacts, activeGameSchema) > 0 && (
+                          {bpModCount > 0 && (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -2051,7 +2096,7 @@ export default function Blueprints({
                                 {t("icon_extension", "extension")}
                               </span>
                               <span>
-                                {countBlueprintArtifacts(bp.artifacts, activeGameSchema)} {t("artifacts_linked", "{Mods} Linked")}
+                                {bpModCount} {t("artifacts_linked", "{Mods} Linked")}
                               </span>
                             </button>
                           )}
@@ -2127,71 +2172,50 @@ export default function Blueprints({
         </div>
       )}
 
-      <BlueprintMatrix
-        isOpen={isMatrixOpen}
-        onClose={() => setIsMatrixOpen(false)}
-        playSet={matrixPlaySet}
-        modList={modList}
-        onUpdatePlaySet={(updatedSet: any) => {
-          setMatrixPlaySet(updatedSet);
-          const updatedSets = playSets.map((s: any) =>
-            s.name === updatedSet.name ? updatedSet : s
-          );
-          setPlaySets(updatedSets);
-        }}
-        onUpload={async (
-          isPublic: boolean,
-          isLocked: boolean,
-          allowedMods: any[],
-          isMarketListed: boolean
-        ) => {
-          if (uploadBlueprintToCloud && matrixPlaySet) {
-            return await uploadBlueprintToCloud(
-              matrixPlaySet.name,
-              isPublic,
-              isLocked,
-              allowedMods,
-              isMarketListed
+      {isMatrixOpen && (
+        <BlueprintMatrix
+          isOpen={isMatrixOpen}
+          onClose={() => setIsMatrixOpen(false)}
+          playSet={matrixPlaySet}
+          modList={modList}
+          onUpdatePlaySet={(updatedSet: any) => {
+            setMatrixPlaySet(updatedSet);
+            const updatedSets = playSets.map((s: any) =>
+              s.name === updatedSet.name ? updatedSet : s
             );
-          }
-          return undefined;
-        }}
-      />
+            setPlaySets(updatedSets);
+          }}
+          onUpload={async (
+            isPublic: boolean,
+            isLocked: boolean,
+            allowedMods: any[],
+            isMarketListed: boolean
+          ) => {
+            if (uploadBlueprintToCloud && matrixPlaySet) {
+              return await uploadBlueprintToCloud(
+                matrixPlaySet.name,
+                isPublic,
+                isLocked,
+                allowedMods,
+                isMarketListed
+              );
+            }
+            return undefined;
+          }}
+        />
+      )}
 
-      <BlueprintArchitect
-        isOpen={isArchitectOpen}
-        onClose={() => setIsArchitectOpen(false)}
-        playSet={playSets[activePlaySetIndex]}
-        modList={modList}
-        toggleInActiveSet={toggleInActiveSet}
-        allow_write={true}
-        vaultPath={vaultPath}
-        onRefreshMods={onRefreshMods}
-        renamePlaySet={renamePlaySet}
-      />
-
-      {ghostModalSet && ghostStrings.length > 0 && (
-        <GhostStringsModal
-          setName={ghostModalSet}
-          ghosts={ghostStrings}
-          onClose={() => {
-            setGhostModalSet(null);
-            setGhostStrings([]);
-          }}
-          onIgnore={(mod: string) => {
-            if (ignoreMissingString) ignoreMissingString(ghostModalSet, mod);
-            setGhostStrings((prev) => prev.filter((s) => s !== mod));
-            if (ghostStrings.length <= 1) setGhostModalSet(null);
-          }}
-          onPurge={(mod: string) => {
-            if (purgeMissingString) purgeMissingString(ghostModalSet, mod);
-            setGhostStrings((prev) => prev.filter((s) => s !== mod));
-            if (ghostStrings.length <= 1) setGhostModalSet(null);
-          }}
-          onSearch={(url: string) => {
-            if (onSearchNetwork) onSearchNetwork(url);
-            else window.open(url, "_blank");
-          }}
+      {isArchitectOpen && (
+        <BlueprintArchitect
+          isOpen={isArchitectOpen}
+          onClose={() => setIsArchitectOpen(false)}
+          playSet={playSets[activePlaySetIndex]}
+          modList={modList}
+          toggleInActiveSet={toggleInActiveSet}
+          allow_write={true}
+          vaultPath={vaultPath}
+          onRefreshMods={onRefreshMods}
+          renamePlaySet={renamePlaySet}
         />
       )}
 

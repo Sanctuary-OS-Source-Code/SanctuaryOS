@@ -193,11 +193,18 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     themeMode: 'Dark'
   });
 
-  const [reportState, setReportState] = useState({
+  const [reportState, setReportState] = useState<{
+    isOpen: boolean;
+    assetId: string | number | null;
+    assetType: string | null;
+    reason: string;
+    complianceTier?: number;
+  }>({
     isOpen: false,
-    assetId: null as string | number | null,
-    assetType: null as string | null,
-    reason: ''
+    assetId: null,
+    assetType: null,
+    reason: '',
+    complianceTier: 1,
   });
 
   const [matrixBlueprintAsset, setMatrixBlueprintAsset] = useState<any>(null);
@@ -806,7 +813,16 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     }
     if (!reportState.assetId || !reportState.reason.trim()) return;
     try {
-      if (reportState.assetType === 'blueprint') {
+      if (reportState.assetType === 'mod') {
+        const tierToFlag = Math.min(4, Math.max(1, Number(reportState.complianceTier || 1)));
+        const { error } = await supabase.rpc('flag_mod_for_compliance', {
+          p_mod_id: String(reportState.assetId),
+          p_tier: tierToFlag,
+          p_reason: reportState.reason.trim(),
+        });
+        if (error) throw error;
+        onSetStatus(t("mod_flagged_compliance_pending", "{Mod} flagged for Oversight Compliance review."));
+      } else if (reportState.assetType === 'blueprint') {
         const { error } = await supabase.from('blueprint_reports').insert([{
           blueprint_id: reportState.assetId,
           reporter_name: session?.user?.user_metadata?.username || 'Anonymous',
@@ -815,6 +831,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           status: 'pending'
         }]);
         if (error) throw error;
+        onSetStatus(t("report_submitted_success", "Report submitted successfully."));
       } else {
         const { error } = await supabase.from('nexus_reports').insert([{
           asset_id: reportState.assetId,
@@ -824,13 +841,13 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           status: 'pending'
         }]);
         if (error) throw error;
+        onSetStatus(t("report_submitted_success", "Report submitted successfully."));
       }
-      onSetStatus("Report submitted successfully.");
     } catch (err: any) {
       console.error(err);
-      onSetStatus(`Report failed: ${err.message}`);
+      onSetStatus(`${t("report_failed_prefix", "Report failed:")} ${err.message}`);
     }
-    setReportState({ isOpen: false, assetId: null, assetType: null, reason: '' });
+    setReportState({ isOpen: false, assetId: null, assetType: null, reason: '', complianceTier: 1 });
   };
 
   const getLocalVersion = (asset: any) => {
@@ -3441,12 +3458,12 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             code: matrixBlueprintAsset.json_data?.code || matrixBlueprintAsset.code
           }}
           modList={useStore.getState().modList}
-          onUpload={async (isPublic: boolean, isLocked: boolean, allowedMods: any[], isMarketListed: boolean) => {
+          onUpload={async (isPublic: boolean, _isLocked: boolean, _allowedMods: any[], isMarketListed: boolean) => {
             try {
               const { error } = await supabase.from('blueprints').update({
                 is_public: isPublic,
-                is_locked: isLocked,
-                is_market_listed: isMarketListed
+                is_locked: false,
+                is_market_listed: isPublic ? isMarketListed : false
               }).eq('id', matrixBlueprintAsset.id);
               if (error) throw error;
               fetchNexusAssets();

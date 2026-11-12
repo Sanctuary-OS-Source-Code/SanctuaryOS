@@ -609,9 +609,7 @@ export default function ArchitectTemplateOversight() {
                             title={t("preview_subtitle", "Template Preview")}
                             icon={t("icon_visibility", "visibility")}
                         >
-                            <div className="flex-1 glass-surface rounded-2xl border border-[color-mix(in_srgb,var(--text)_8%,transparent)] p-4 sm:p-5 overflow-y-auto custom-scrollbar min-h-[360px]">
-                                <TemplatePreviewer templateData={selectedTemplateForPreview.parsedData} />
-                            </div>
+                            <TemplatePreviewer templateData={selectedTemplateForPreview.parsedData} compact={false} />
                         </UniversalGroup>
                     </div>
                 )}

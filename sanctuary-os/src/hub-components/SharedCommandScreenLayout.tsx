@@ -2,7 +2,8 @@ import React from 'react';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { extractPostImage, stripMarkdown } from '../shared-components/stringUtils';
-import { DashboardStatTile, SidePanelContext, EmptyState } from '../shared-components/layout';
+import { DashboardStatTile, SidePanelContext, EmptyState, PanelHeaderGroup } from '../shared-components/layout';
+import { PanelHeaderButton } from '../shared-components/buttons';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { extractDispatchMetadata, formatDispatchCategory } from '../components/universal/DispatchPollAndMeta';
 import { formatSanctuaryDate } from '../utils/dateUtils';
@@ -155,13 +156,27 @@ export function CommandScreenLayout({ children }: any) {
 }
 
 export function CommandScreenSectionHeading({ 
-  title, subtitle, icon, actions, rightContent, rightSlot, onBack, breadcrumb,
+  title, subtitle, icon, actions, rightContent, rightSlot, onBack, onJump, jumpTooltip, breadcrumb,
   className = "", shape = "circle", hideLine = false,
   colorClass = "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)]", 
   iconColorClass = "text-[var(--accent)]" 
 }: any) {
+  const { t } = useLexicon();
   const shapeClass = "rounded-lg";
-  const resolvedRight = actions || rightContent || rightSlot;
+  const handleJump = onJump || onBack;
+  const resolvedRight =
+    actions ||
+    rightContent ||
+    rightSlot ||
+    (onJump ? (
+      <PanelHeaderGroup>
+        <PanelHeaderButton
+          icon={t("icon_arrow_forward", "arrow_forward")}
+          tooltip={jumpTooltip || (typeof title === "string" ? title : t("open", "Open"))}
+          onClick={onJump}
+        />
+      </PanelHeaderGroup>
+    ) : undefined);
   
   return (
     <div className={`flex items-center justify-start w-full relative z-10 min-w-0 gap-4 ${className}`}>
@@ -175,8 +190,8 @@ export function CommandScreenSectionHeading({
           <div className="flex flex-col gap-0.5 items-start justify-center text-left min-w-0">
             <div className="flex items-center gap-2 min-w-0">
               <h2 
-                  onClick={onBack}
-                  className={`text-sm sm:text-base font-black text-[var(--text)] capitalize tracking-tight leading-tight m-0 truncate min-w-0 ${onBack ? 'cursor-pointer hover:text-[var(--accent)] transition-colors' : ''}`}
+                  onClick={handleJump}
+                  className={`text-sm sm:text-base font-black text-[var(--text)] capitalize tracking-tight leading-snug m-0 truncate min-w-0 ${handleJump ? 'cursor-pointer hover:text-[var(--accent)] transition-colors' : ''}`}
               >
                 {title}
               </h2>
@@ -239,26 +254,32 @@ export function CommandScreenMain({ children }: any) {
     );
 }
 
-export function CommandScreenSidebar({ title, icon, children }: any) {
-    const shapeClass = "rounded-lg";
+export function CommandScreenSidebar({ title, subtitle, icon, children, metrics, metricsTitle, metricsSubtitle, metricsIcon }: any) {
+    const { t } = useLexicon();
     return (
-        <div className="w-full lg:w-[380px] shrink-0 flex flex-col gap-4">
-            <div className="flex items-center justify-between w-full relative z-10 min-w-0 gap-4">
-                <div className="glass-panel rounded-xl p-2 pr-3.5 md:p-2.5 md:pr-4 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 max-w-full">
-                    {icon && (
-                        <div className={`w-8 h-8 md:w-9 md:h-9 ${shapeClass} flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] relative group`}>
-                            <span className="material-symbols-outlined !text-[17px] md:!text-[19px] relative z-10 theme-text-accent">{icon}</span>
-                        </div>
-                    )}
-                    <h2 className="text-sm sm:text-base font-black capitalize tracking-tight text-[var(--text)] m-0 p-0 text-left leading-tight min-w-0 truncate">
-                        {title}
-                    </h2>
-                </div>
-                <div className="flex-1 min-w-[8px]" />
-            </div>
+        <div className="w-full lg:w-[380px] xl:w-[400px] shrink-0 flex flex-col gap-8">
             <div className="flex flex-col gap-4">
-                {children}
+                <CommandScreenSectionHeading
+                    title={title}
+                    subtitle={subtitle}
+                    icon={icon}
+                />
+                <div className="flex flex-col gap-4">
+                    {children}
+                </div>
             </div>
+            {metrics && (
+                <div className="flex flex-col gap-4">
+                    <CommandScreenSectionHeading
+                        title={metricsTitle || t("hub_metrics", "Hub Metrics")}
+                        subtitle={metricsSubtitle}
+                        icon={metricsIcon || t("icon_monitoring", "monitoring")}
+                    />
+                    <div className="grid grid-cols-2 gap-3.5 w-full">
+                        {metrics}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -325,9 +346,9 @@ export function SystemBroadcastsGrid({ broadcasts, setViewingPost }: any) {
 }
 
 
-export function CommandScreenMetricTile({ icon, value, label, valueColorClass = "theme-text-accent", hoverBorderClass = "" }: any) {
+export function CommandScreenMetricTile({ icon, value, label, valueColorClass = "theme-text-accent", hoverBorderClass: _hoverBorderClass = "", onClick }: any) {
     return (
-        <DashboardStatTile icon={icon} value={value} label={label} colorClass={valueColorClass} />
+        <DashboardStatTile variant="metric" icon={icon} value={value} label={label} colorClass={valueColorClass} onClick={onClick} />
     );
 }
 

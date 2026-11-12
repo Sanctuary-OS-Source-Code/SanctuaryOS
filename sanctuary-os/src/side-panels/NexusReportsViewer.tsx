@@ -15,21 +15,29 @@ export type UnifiedReport = { [key: string]: any };
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import {
-  SidePanel, CustomDropdown, EmptyState,
+  SidePanel, CustomDropdown, CustomComplianceDropdown, EmptyState,
   PanelHeaderGroup, PanelHeaderButton, ActionButton, StatBox,
   VAULT_CHIP_CLASS,
   countBlueprintArtifacts,
 } from "../shared";
-import { UniversalGroup, UniversalTextArea } from "../components/universal/UniversalLayout";
+import { UniversalGroup, UniversalInput, UniversalTextArea } from "../components/universal/UniversalLayout";
 import { logArchitectAction } from "../lib/audit";
 import enDefault from "../lexicons/en-default.json";
 import { deepCompare } from "../lib/MasonValidation";
 import { useStore } from "../store";
+import { isComplianceEscalatedReport } from "../utils/hubCommandCache";
 
 
-export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
+export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
+  const userRole = useStore((state) => state.userRole);
+  const effectiveHubRole = String(hubRole || userRole || "architect").toLowerCase();
+  const canBanAuthors =
+    effectiveHubRole !== "architect" &&
+    ["oversight", "wayfinder", "admin", "keeper"].includes(
+      String(userRole || "").toLowerCase()
+    );
   const [reports, setReports] = useState<UnifiedReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState<UnifiedReport | null>(null);
@@ -39,8 +47,10 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
   const [activePost, setActivePost] = useState<any | null>(null);
   const [resolutionReason, setResolutionReason] = useState("");
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
-  const [selectedAction, setSelectedAction] = useState<"dismiss" | "remove" | "ban" | "">("");
+  const [selectedAction, setSelectedAction] = useState<"dismiss" | "remove" | "flag_compliance" | "ban" | "">("");
   const [banDuration, setBanDuration] = useState<string>("");
+  const [flagModId, setFlagModId] = useState<string>("");
+  const [flagComplianceTier, setFlagComplianceTier] = useState<number>(1);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeStatus, setActiveStatus] = useState<"pending" | "resolved" | "dismissed" | "overview" | "ALL">("overview");
@@ -309,11 +319,31 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
       });
     }
 
-    setReports(unified.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    const visibleReports =
+      effectiveHubRole === "architect"
+        ? unified.filter(
+            (rep) =>
+              !isComplianceEscalatedReport({
+                source: rep.source,
+                reason: rep.description,
+                reporter_name: rep.reporter_name,
+                compliance_tier:
+                  rep.metadata?.blueprint_full?.compliance_tier ??
+                  rep.metadata?.asset_full?.compliance_tier,
+                violations: rep.metadata?.violations,
+              })
+          )
+        : unified;
+
+    setReports(
+      visibleReports.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+    );
     setLoading(false);
   };
 
-  const handleProcessReport = async (action: 'dismiss' | 'remove' | 'ban') => {
+  const handleProcessReport = async (action: 'dismiss' | 'remove' | 'ban' | 'flag_compliance') => {
     if (!selectedReport) return;
     setIsSubmittingAction(true);
 
@@ -387,7 +417,52 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
             }
           );
         }
-      } else if (action === 'ban') {
+      } else if (action === 'flag_compliance') {
+        const candidateModId = (
+          flagModId.trim() ||
+          selectedReport.metadata?.compliance_audit?.violations?.[0]?.modId ||
+          ""
+        ).trim();
+        if (!candidateModId) {
+          useStore
+            .getState()
+            .pushStatus(
+              t("err_flag_mod_id_required", "Enter the target {Mod} UUID to flag for Oversight Compliance."),
+              "error"
+            );
+          setIsSubmittingAction(false);
+          return;
+        }
+        const { error: flagErr } = await supabase.rpc('flag_mod_for_compliance', {
+          p_mod_id: candidateModId,
+          p_tier: Math.min(4, Math.max(1, Number(flagComplianceTier || 1))),
+          p_reason: resolutionReason || selectedReport.description || 'Escalated from Reports Console',
+        });
+        if (flagErr) throw flagErr;
+        await supabase.from(table).update({ status: 'resolved' }).eq('id', selectedReport.id);
+        logArchitectAction(
+          `Escalated Reported Mod to Oversight Compliance (Tier ${flagComplianceTier})`,
+          table,
+          selectedReport.id,
+          resolutionReason || undefined,
+          undefined,
+          false,
+          {
+            flagged_mod_id: { to: candidateModId },
+            compliance_tier: { to: flagComplianceTier },
+            report_status: { from: selectedReport.status || 'pending', to: 'resolved' },
+          }
+        );
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "nexus_mod_flagged_compliance_toast",
+              "{Mod} flagged for Oversight Compliance review (Pending)."
+            ),
+            "warning"
+          );
+      } else if (action === 'ban' && canBanAuthors) {
         if (selectedReport.metadata?.author) {
           await supabase.rpc('secure_update_spoke_profile', { p_target_user_id: selectedReport.metadata.author, p_updates: { is_banned: true, blacklist_reason: resolutionReason || 'Moderation Ban' },
             target_author: selectedReport.metadata.author,
@@ -413,6 +488,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
       setReports(reports.map(r => r.id === selectedReport.id ? { ...r, status: action === 'dismiss' ? 'dismissed' : 'resolved' } : r));
       setSelectedReport(null);
       setResolutionReason("");
+      setFlagModId("");
     } catch (e) {
       console.error(e);
       if (setStatus) setStatus(`${t("icon_block", "block")} ${t("failed_action", "Action failed")}`);
@@ -945,16 +1021,39 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                     <div className="flex flex-col gap-3">
                       <CustomDropdown
                         value={[selectedAction]}
-                        onChange={(val: string[]) => setSelectedAction(val[0] as "dismiss" | "remove" | "ban" | "")}
+                        onChange={(val: string[]) => setSelectedAction(val[0] as "dismiss" | "remove" | "flag_compliance" | "ban" | "")}
                         options={[
                           { id: "dismiss", label: t("btn_dismiss_report", "Dismiss Report") },
                           { id: "remove", label: t("btn_remove_asset", "Remove {Mod}") },
-                          { id: "ban", label: t("btn_revoke_mason", "Revoke {Mason} Privileges") }
+                          { id: "flag_compliance", label: t("btn_flag_compliance_pending", "Flag Compliance (Tier 1–4 → Oversight)") },
+                          ...(canBanAuthors
+                            ? [{ id: "ban", label: t("btn_revoke_mason", "Revoke {Mason} Privileges") }]
+                            : []),
                         ]}
                         placeholder={t("ui_dropdown_action", "Select Action")}
                         disableTint={true}
                       />
-                      {selectedAction === 'ban' && (
+                      {selectedAction === 'flag_compliance' && (
+                        <div className="space-y-3 pt-1">
+                          <CustomComplianceDropdown
+                            value={flagComplianceTier}
+                            onChange={(val) => setFlagComplianceTier(val)}
+                            minTier={1}
+                            maxTier={4}
+                          />
+                          <UniversalInput
+                            label={t("target_mod_uuid", "Target {Mod} UUID")}
+                            value={
+                              flagModId ||
+                              selectedReport.metadata?.compliance_audit?.violations?.[0]?.modId ||
+                              ""
+                            }
+                            onChange={(val) => setFlagModId(val)}
+                            placeholder={t("enter_mod_uuid_ph", "Paste {Mod} UUID to route to Oversight Compliance...")}
+                          />
+                        </div>
+                      )}
+                      {selectedAction === 'ban' && canBanAuthors && (
                         <CustomDropdown
                           value={[banDuration]}
                           onChange={(val: string[]) => setBanDuration(val[0])}
@@ -973,7 +1072,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus }: any) {
                         variant="accent"
                         icon={t("icon_save", "save")}
                         disabled={isSubmittingAction || !resolutionReason || !selectedAction || (selectedAction === 'ban' && !banDuration)}
-                        onClick={() => handleProcessReport(selectedAction as "dismiss" | "remove" | "ban")}
+                        onClick={() => handleProcessReport(selectedAction as any)}
                         className="w-full justify-center !py-3 mt-1"
                       >
                         {t("dossier_btn_save", "Save Action")}

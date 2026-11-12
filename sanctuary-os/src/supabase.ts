@@ -509,6 +509,25 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
             return { data: { success: true, dispatched }, error: null };
         }
 
+        if (fnName === 'flag_mod_for_compliance') {
+            const modId = String(args?.p_mod_id || args?.mod_id || '').trim();
+            const requestedTier = Math.min(4, Math.max(1, Math.round(Number(args?.p_tier || args?.tier || 1))));
+            const cleanReason = String(args?.p_reason || args?.reason || '').trim() || `Flagged Tier ${requestedTier} for Compliance Review`;
+            if (!modId) return { data: null, error: new Error('Missing mod_id') };
+            const { data: updated, error: updErr } = await rawAuthClient
+                .from('mods')
+                .update({
+                    compliance_tier: requestedTier,
+                    status: 'pending',
+                    status_reason: cleanReason,
+                })
+                .eq('id', modId)
+                .select()
+                .maybeSingle();
+            if (updErr) return { data: null, error: updErr };
+            return { data: { success: true, queued_pending: true, mod: updated }, error: null };
+        }
+
         return await rawAuthClient.rpc(fnName, args);
     } catch (err: any) {
         console.error(`Standalone RPC Error (${fnName}):`, err);
@@ -525,6 +544,182 @@ const RESTRICTED_SPOKE_SELECT_TABLES = new Set([
     'notifications',
     'pwa_push_subscriptions',
 ]);
+
+interface PendingSpokeSelectItem {
+    spec: any;
+    resolve: (res: any) => void;
+}
+
+const pendingSpokeSelectQueues = new Map<string, PendingSpokeSelectItem[]>();
+
+async function invokeSingleSpokeGatewaySelect(targetGameId: string, token: string, spec: any) {
+    try {
+        const res = await supabaseAuth.functions.invoke('game-gateway', {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            body: {
+                game_id: targetGameId,
+                action: 'spoke_query',
+                payload: spec,
+            },
+        });
+
+        if (res.error) {
+            return {
+                data: null,
+                error: res.error,
+                count: null,
+                status: 500,
+                statusText: 'Gateway Error',
+            };
+        }
+        if (res.data?.error) {
+            return {
+                data: null,
+                error: { message: res.data.error, details: res.data.original_error },
+                count: null,
+                status: 403,
+                statusText: 'Forbidden',
+            };
+        }
+        if (res.data && res.data.__spoke_query_v1) {
+            return {
+                data: res.data.data ?? null,
+                error: null,
+                count: res.data.count ?? null,
+                status: 200,
+                statusText: 'OK',
+            };
+        }
+        return {
+            data: res.data ?? null,
+            error: null,
+            count: Array.isArray(res.data) ? res.data.length : null,
+            status: 200,
+            statusText: 'OK',
+        };
+    } catch (err: any) {
+        return {
+            data: null,
+            error: { message: err?.message || 'Spoke gateway query failed' },
+            count: null,
+            status: 500,
+            statusText: 'Internal Error',
+        };
+    }
+}
+
+function enqueueBatchedSpokeSelect(targetGameId: string, token: string, spec: any): Promise<any> {
+    const queueKey = `${targetGameId}::${token}`;
+    return new Promise((resolve) => {
+        let queue = pendingSpokeSelectQueues.get(queueKey);
+        if (!queue) {
+            queue = [];
+            pendingSpokeSelectQueues.set(queueKey, queue);
+            queueMicrotask(async () => {
+                const fullBatch = pendingSpokeSelectQueues.get(queueKey) || [];
+                pendingSpokeSelectQueues.delete(queueKey);
+                if (fullBatch.length === 0) return;
+
+                const CHUNK_SIZE = 32;
+                const chunks: PendingSpokeSelectItem[][] = [];
+                for (let i = 0; i < fullBatch.length; i += CHUNK_SIZE) {
+                    chunks.push(fullBatch.slice(i, i + CHUNK_SIZE));
+                }
+
+                await Promise.all(
+                    chunks.map(async (chunk) => {
+                        if (chunk.length === 1) {
+                            const singleRes = await invokeSingleSpokeGatewaySelect(targetGameId, token, chunk[0].spec);
+                            chunk[0].resolve(singleRes);
+                            return;
+                        }
+
+                        try {
+                            const res = await supabaseAuth.functions.invoke('game-gateway', {
+                                headers: {
+                                    Authorization: `Bearer ${token}`,
+                                },
+                                body: {
+                                    game_id: targetGameId,
+                                    action: 'spoke_query_batch',
+                                    payload: {
+                                        queries: chunk.map((item) => item.spec),
+                                    },
+                                },
+                            });
+
+                            if (res.data?.__spoke_batch_v1 && Array.isArray(res.data.results)) {
+                                chunk.forEach((item, idx) => {
+                                    const itemRes = res.data.results[idx];
+                                    if (!itemRes) {
+                                        item.resolve({
+                                            data: null,
+                                            error: { message: 'Missing batch item response' },
+                                            count: null,
+                                            status: 500,
+                                            statusText: 'Gateway Error',
+                                        });
+                                    } else if (itemRes.ok === false || itemRes.error) {
+                                        item.resolve({
+                                            data: null,
+                                            error: { message: itemRes.error || 'Spoke query failed', details: itemRes.original_error },
+                                            count: null,
+                                            status: 403,
+                                            statusText: 'Forbidden',
+                                        });
+                                    } else {
+                                        item.resolve({
+                                            data: itemRes.data ?? null,
+                                            error: null,
+                                            count: itemRes.count ?? null,
+                                            status: 200,
+                                            statusText: 'OK',
+                                        });
+                                    }
+                                });
+                                return;
+                            }
+
+                            // Fallback if gateway returned an unexpected shape or legacy action error
+                            if (res.data?.error && String(res.data.error).includes('Unknown action')) {
+                                await Promise.all(
+                                    chunk.map(async (item) => {
+                                        item.resolve(await invokeSingleSpokeGatewaySelect(targetGameId, token, item.spec));
+                                    })
+                                );
+                                return;
+                            }
+
+                            const errPayload = res.error || { message: res.data?.error || 'Spoke batch gateway error', details: res.data?.original_error };
+                            chunk.forEach((item) => {
+                                item.resolve({
+                                    data: null,
+                                    error: errPayload,
+                                    count: null,
+                                    status: res.error ? 500 : 403,
+                                    statusText: res.error ? 'Gateway Error' : 'Forbidden',
+                                });
+                            });
+                        } catch (err: any) {
+                            chunk.forEach((item) => {
+                                item.resolve({
+                                    data: null,
+                                    error: { message: err?.message || 'Spoke batch gateway query failed' },
+                                    count: null,
+                                    status: 500,
+                                    statusText: 'Internal Error',
+                                });
+                            });
+                        }
+                    })
+                );
+            });
+        }
+        queue.push({ spec: { ...spec, filters: [...spec.filters], orders: [...spec.orders] }, resolve });
+    });
+}
 
 function createSpokeGatewayQuery(
     table: string,
@@ -590,6 +785,10 @@ function createSpokeGatewayQuery(
                 status: 200,
                 statusText: 'OK',
             };
+        }
+
+        if (op === 'select') {
+            return enqueueBatchedSpokeSelect(targetGameId, token, spec);
         }
 
         try {
@@ -814,7 +1013,8 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     'secure_delete_all_notifications',
                     'bulk_ingest_vault_mods',
                     'dispatch_follower_notifications',
-                    'dispatch_broadcast_notifications'
+                    'dispatch_broadcast_notifications',
+                    'flag_mod_for_compliance'
                 ].includes(fnName);
 
                 if (isStandaloneFork && isInterceptedRpc) {
@@ -876,12 +1076,19 @@ export const supabase = new Proxy({} as SupabaseClient, {
                         'secure_delete_all_notifications': 'delete_all_notifications',
                         'bulk_ingest_vault_mods': 'bulk_ingest_vault_mods',
                         'dispatch_follower_notifications': 'dispatch_broadcast_notifications',
-                        'dispatch_broadcast_notifications': 'dispatch_broadcast_notifications'
+                        'dispatch_broadcast_notifications': 'dispatch_broadcast_notifications',
+                        'flag_mod_for_compliance': 'flag_mod_for_compliance'
                     };
 
                     let payload: any = {};
                     if (fnName === 'secure_update_spoke_profile') {
                         payload = { target_user_id: args.p_target_user_id, updates: args.p_updates };
+                    } else if (fnName === 'flag_mod_for_compliance') {
+                        payload = {
+                            mod_id: args?.p_mod_id || args?.mod_id,
+                            tier: args?.p_tier || args?.tier || 1,
+                            reason: args?.p_reason || args?.reason || '',
+                        };
                     } else if (fnName === 'secure_sever_spoke_cord' || fnName === 'secure_update_spoke_uplink') {
                         payload = args.p_payload || {};
                     } else if (fnName === 'secure_upsert_cloud_file') {

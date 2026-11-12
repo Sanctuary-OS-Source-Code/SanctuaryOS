@@ -307,7 +307,7 @@ export default function ArtifactResolutionSidePanel({
                       <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
                         {t("icon_link", "link")}
                       </span>
-                      {t("bp_status_unstable", "Dependent")}
+                      {t("badge_dependent_mod", "Dependent")}
                     </span>
                   </div>
                 ))}

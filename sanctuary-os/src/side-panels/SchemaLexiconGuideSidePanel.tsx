@@ -67,22 +67,22 @@ const GLOSSARY_TOKEN_REFERENCE: Array<{
   casingHint: string;
   standard: string;
   sanctuary: string;
-  sims: string;
+  communityExample: string;
 }> = [
-  { token: "{Mod} / {Mods}", keyId: "term_mod / term_mods", casingHint: "{mod}, {MOD}", standard: "Mod / Mods", sanctuary: "Artifact / Artifacts", sims: "Mod / Mods" },
-  { token: "{Vault}", keyId: "term_vault", casingHint: "{vault}, {VAULT}", standard: "Library", sanctuary: "Vault", sims: "Mod Library" },
-  { token: "{Blueprint} / {Blueprints}", keyId: "term_blueprint / term_blueprints", casingHint: "{blueprint}", standard: "Play Set / Play Sets", sanctuary: "Blueprint / Blueprints", sims: "Play Set / Play Sets" },
-  { token: "{Mason} / {Masons}", keyId: "term_mason / term_masons", casingHint: "{mason}", standard: "Creator / Creators", sanctuary: "Mason / Masons", sims: "CC Creator / Creators" },
-  { token: "{Citizen} / {Citizens}", keyId: "term_citizen / term_citizens", casingHint: "{citizen}", standard: "Player / Players", sanctuary: "Citizen / Citizens", sims: "Simmer / Simmers" },
-  { token: "{Backups}", keyId: "term_backups", casingHint: "{backups}", standard: "Backups", sanctuary: "Time Capsule", sims: "Save Backups" },
-  { token: "{Lab}", keyId: "term_lab", casingHint: "{lab}", standard: "Sandbox", sanctuary: "Homestead", sims: "Mod Sandbox" },
-  { token: "{Settings}", keyId: "term_settings", casingHint: "{settings}", standard: "Settings", sanctuary: "System Preferences", sims: "Settings" },
-  { token: "{Nexus}", keyId: "term_nexus", casingHint: "{nexus}", standard: "Catalog", sanctuary: "The Nexus", sims: "Mod Catalog" },
-  { token: "{Chameleon} / {Chameleons}", keyId: "term_chameleon / term_chameleons", casingHint: "{chameleon}", standard: "Theme / Themes", sanctuary: "Chameleon / Chameleons", sims: "Theme / Themes" },
-  { token: "{Lexicon} / {Lexicons}", keyId: "term_lexicon / term_lexicons", casingHint: "{lexicon}", standard: "Language Pack / Packs", sanctuary: "Lexicon / Lexicons", sims: "Word Pack / Packs" },
-  { token: "{Dispatch} / {Dispatches}", keyId: "term_dispatch / term_dispatches", casingHint: "{dispatch}", standard: "Broadcast / Broadcasts", sanctuary: "Dispatch / Dispatches", sims: "News Post / Posts" },
-  { token: "{Delete}", keyId: "term_delete", casingHint: "{delete}", standard: "Delete", sanctuary: "Purge", sims: "Delete" },
-  { token: "{Remove}", keyId: "term_remove", casingHint: "{remove}", standard: "Remove", sanctuary: "Yeet", sims: "Remove" },
+  { token: "{Mod} / {Mods}", keyId: "term_mod / term_mods", casingHint: "{mod}, {MOD}", standard: "Mod / Mods", sanctuary: "Artifact / Artifacts", communityExample: "Plugin / Plugins" },
+  { token: "{Vault}", keyId: "term_vault", casingHint: "{vault}, {VAULT}", standard: "Library", sanctuary: "Vault", communityExample: "Mod Library" },
+  { token: "{Blueprint} / {Blueprints}", keyId: "term_blueprint / term_blueprints", casingHint: "{blueprint}", standard: "Play Set / Play Sets", sanctuary: "Blueprint / Blueprints", communityExample: "Modpack / Modpacks" },
+  { token: "{Mason} / {Masons}", keyId: "term_mason / term_masons", casingHint: "{mason}", standard: "Creator / Creators", sanctuary: "Mason / Masons", communityExample: "Author / Authors" },
+  { token: "{Citizen} / {Citizens}", keyId: "term_citizen / term_citizens", casingHint: "{citizen}", standard: "User / Users", sanctuary: "Citizen / Citizens", communityExample: "Player / Players" },
+  { token: "{Backups}", keyId: "term_backups", casingHint: "{backups}", standard: "Backups", sanctuary: "Time Capsule", communityExample: "Save Snapshots" },
+  { token: "{Lab}", keyId: "term_lab", casingHint: "{lab}", standard: "Testing Lab", sanctuary: "Homestead", communityExample: "Sandbox" },
+  { token: "{Settings}", keyId: "term_settings", casingHint: "{settings}", standard: "Settings", sanctuary: "System Preferences", communityExample: "Options" },
+  { token: "{Nexus}", keyId: "term_nexus", casingHint: "{nexus}", standard: "Marketplace", sanctuary: "The Nexus", communityExample: "Workshop" },
+  { token: "{Chameleon} / {Chameleons}", keyId: "term_chameleon / term_chameleons", casingHint: "{chameleon}", standard: "Theme / Themes", sanctuary: "Chameleon / Chameleons", communityExample: "Skin / Skins" },
+  { token: "{Lexicon} / {Lexicons}", keyId: "term_lexicon / term_lexicons", casingHint: "{lexicon}", standard: "Language / Languages", sanctuary: "Lexicon / Lexicons", communityExample: "Word Pack / Packs" },
+  { token: "{Dispatch} / {Dispatches}", keyId: "term_dispatch / term_dispatches", casingHint: "{dispatch}", standard: "Post / Posts", sanctuary: "Transmission / Transmissions", communityExample: "Announcement / Posts" },
+  { token: "{Delete}", keyId: "term_delete", casingHint: "{delete}", standard: "Delete", sanctuary: "Purge", communityExample: "Delete" },
+  { token: "{Remove}", keyId: "term_remove", casingHint: "{remove}", standard: "Remove", sanctuary: "Yeet", communityExample: "Unload" },
 ];
 
 export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelProps> = ({
@@ -553,13 +553,13 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
   // ===========================================================================
   const lexiconCoreTabFields: FieldDocItem[] = [
     {
-      label: t("lex_studio_load_preset_dropdown", "Apply Terms From {Lexicon}..."),
-      jsonKey: "Header Preset Selector",
+      label: t("lex_studio_quick_fill_vocab", "Quick-Fill From Preset..."),
+      jsonKey: "Vocabulary Preset Selector",
       desc: t(
         "lex_doc_preset_dropdown_desc",
-        "1-click dropdown in the top header that populates all 21 Core {Glossary} Terms from Standard English, Sanctuary Sci-Fi, Sims Friendly, or any installed community {Lexicon}."
+        "1-click dropdown in Core Vocabulary that populates all 21 Core {Glossary} Terms from Standard English, Sanctuary Sci-Fi, or any installed community {Lexicon}."
       ),
-      example: "Standard (Mod) • Sanctuary (Artifact) • Sims (CC / Mod)",
+      example: "Standard (Mod) • Sanctuary (Artifact) • Community (Plugin)",
     },
     {
       label: t("lex_studio_group_assets", "Core Assets & Locations (6 Fields)"),
@@ -577,7 +577,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "lex_doc_group_roles_desc",
         "Controls the singular/plural nouns for {Citizen}/{Citizens} (Players), {Mason}/{Masons} (Creators), and {Dispatch}/{Dispatches} (News Broadcasts)."
       ),
-      example: '"{Citizen}" → "Simmer", "{Mason}" → "CC Creator"',
+      example: '"{Citizen}" → "Player", "{Mason}" → "Modder"',
     },
     {
       label: t("lex_studio_group_system", "System Modules, Themes & Actions (9 Fields)"),
@@ -610,56 +610,56 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
 
   const lexiconModuleFieldAnatomy: FieldDocItem[] = [
     {
-      label: t("lex_doc_field_header_title", "Humanized Field Label & Raw JSON Key"),
-      jsonKey: "Label + key_id",
+      label: t("lex_doc_source_ref_title", "Always-Visible Default English Reference"),
+      jsonKey: "Default + key_id",
       desc: t(
-        "lex_doc_field_header_desc",
-        "The top-left of every string card displays a readable label alongside the exact JSON key in monospace font so you can search by either name."
+        "lex_doc_source_ref_desc",
+        "Every UI String card keeps the Standard English baseline text visible above your input at all times so you never lose sight of the source phrase after typing a translation or custom override."
       ),
-      example: "Asset Desc  asset_desc",
+      example: 'Default: "Export {Blueprint}" → Override: "Export Modpack"',
     },
     {
-      label: t("lex_doc_field_placeholder_title", "Baseline Fallback Placeholder"),
+      label: t("lex_doc_field_placeholder_title", "Sparse Delta Inheritance"),
       jsonKey: "en-default.json Baseline",
       desc: t(
         "lexicon_guide_parity_fallback_desc",
-        "Every {Lexicon} pack inherits automatically from en-default.json. If a key is left blank or missing in your custom pack, Sanctuary OS seamlessly falls back to the standard English baseline — and still interpolates your custom Core {Glossary} Terms into that fallback string!"
+        "Every {Lexicon} pack inherits automatically from en-default.json. Leaving any string blank keeps your pack lightweight while still interpolating your 21 Core Vocabulary terms automatically."
       ),
-      example: "Blank input = Uses en-default.json automatically",
+      example: "Blank input = Inherits en-default.json + Core Terms",
     },
     {
-      label: t("lexicon_guide_t3_title", "Live Interpolation Readout (→ ...)"),
-      jsonKey: "→ Live Preview",
+      label: t("lexicon_guide_t3_title", "Live Token Preview"),
+      jsonKey: "Preview: ...",
       desc: t(
         "lexicon_guide_t3_desc",
-        "Whenever a string contains a {Glossary} token such as {Vault} or {Blueprint}, the Visual Studio displays a live cyan/emerald preview badge (→ ...) underneath the input field showing how the final sentence will read with your current Core Terms."
+        "Whenever a string contains a token such as {Vault} or {Blueprint}, the card displays a live preview underneath the input showing how the final sentence reads with your current Core Vocabulary."
       ),
       example: '"No {blueprints} available" → "No modpacks available"',
     },
     {
-      label: t("lex_doc_field_actions_title", "Sanctuary Preset Chip & Reset Chip"),
-      jsonKey: "Sanctuary / Reset",
+      label: t("lex_doc_copy_reset_title", "Edit Copy & 1-Click Reset"),
+      jsonKey: "Edit Copy / Reset",
       desc: t(
-        "lex_doc_field_actions_desc",
-        "Click the Sanctuary chip on any field card to load the sci-fi phrasing from en-sanctuary.json for that single line, or click Reset on any customized field to revert it to default."
+        "lex_doc_copy_reset_desc",
+        "Click Edit Copy on any default card to copy the English phrase into the input for quick tweaking, or click Reset on any customized card to remove the override and inherit the default again."
       ),
-      example: "1-click per-field Sanctuary phrasing or Reset",
+      example: "1-click Edit Copy or Reset to default",
     },
     {
-      label: t("lex_doc_search_filter_title", "Search Bar & Customized Filter Toggle"),
-      jsonKey: "Search + Customized",
+      label: t("lex_doc_search_filter_title", "Unified Global Search & Category Pills"),
+      jsonKey: "All • Customized • Untranslated",
       desc: t(
         "lex_doc_search_filter_desc",
-        "Filter all 1,700+ OS strings in real time by key ID, English text, or translated text, or toggle Customized to view only the strings you have modified."
+        "Search all 5,600+ interface strings at once across every section, filter by section pills (Navigation, {Vault}, {Blueprints}, {Lab}, etc.), or switch between All, Customized, and Untranslated."
       ),
-      example: "Section badge shows Customized / Total (e.g. 4 / 26)",
+      example: "Instant global search without collapsed accordions",
     },
     {
       label: t("lexicon_guide_parity_brand_title", "Protected Brand Identity Keys"),
       jsonKey: "Keepers Core → Title Area",
       desc: t(
         "lexicon_guide_parity_brand_desc",
-        "To prevent language packs from accidentally overwriting your OS branding, the 3 core brand identity keys (Two-Tone OS Title, Rotating Subtitles, and OS Logo) are managed exclusively in Keepers Core → Core Aesthetics → Title Area."
+        "To prevent language packs from accidentally overwriting OS branding, the 3 core brand identity keys (Two-Tone OS Title, Rotating Subtitles, and OS Logo) are managed exclusively in Keepers Core → Core Aesthetics → Title Area."
       ),
       example: "brand_title_primary • brand_subtitles_list • icon_logo",
     },
@@ -667,40 +667,40 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
 
   const lexiconToolsTabFields: FieldDocItem[] = [
     {
-      label: t("lex_studio_meta_btn", "Pack Metadata (Name, Language, Author, Version)"),
+      label: t("lex_studio_auto_translate_clean_title", "1-Click Language Auto-Translate"),
+      jsonKey: "Starter / Remaining / All",
+      desc: t(
+        "lex_doc_auto_translate_desc",
+        "Select any of 28+ languages and translate Starter strings (~350 core navigation & common buttons), Remaining untranslated strings, or the Full Pack automatically while preserving {Mod}, {Vault}, and variable tokens."
+      ),
+      example: "Spanish (Español) • Starter or Remaining Scope",
+    },
+    {
+      label: t("lex_studio_batch_btn", "Batch Find & Replace with Live Preview"),
+      jsonKey: "Find / Replace / Preview",
+      desc: t(
+        "lex_doc_batch_desc",
+        "Find and replace words across your Customized strings (or across all OS strings) with Whole Word and Match Case switches—plus a live before-and-after diff preview before applying."
+      ),
+      example: 'Preview: "Save Play Set" → "Save Modpack"',
+    },
+    {
+      label: t("lex_studio_meta_btn", "Pack Metadata & Sparse Storage Cleanup"),
       jsonKey: "_meta_name / _meta_lang / _meta_author / _meta_version",
       desc: t(
         "lex_doc_meta_desc",
-        "Defines your {Lexicon} pack's display title, ISO language code (e.g. en, es, fr, de), creator attribution, and version number shown in {Nexus} and {Settings}."
+        "Configure your pack's display name, searchable language, author, and version—plus 1-click cleanup if any redundant or empty keys are detected."
       ),
-      example: '"_meta_name": "English: Sanctuary", "_meta_lang": "en"',
+      example: '"_meta_name": "Spanish (Community)", "_meta_lang": "Spanish"',
     },
     {
-      label: t("lex_studio_batch_btn", "Batch Find & Replace (Whole Word & Match Case)"),
-      jsonKey: "Find / Replace / Toggles",
-      desc: t(
-        "lex_doc_batch_desc",
-        "Search for any word or phrase across all 1,700+ strings and replace every occurrence in one click. Toggle Whole Word or Match Case using the Liquid Glass switches, and preview the exact match count on the Replace (N) button before applying."
-      ),
-      example: 'Find: "Player" → Replace: "{Citizen}"',
-    },
-    {
-      label: t("lex_studio_icon_builder_title", "Guided OS Icon Override Builder"),
+      label: t("lex_studio_icon_overrides_title", "Icon Overrides & Custom Schema Keys"),
       jsonKey: "icon_<glyph> → replacement",
       desc: t(
         "lex_doc_icon_builder_desc",
-        "No need to guess icon keys: 1) Pick any OS icon from the 'Select OS Icon to Override' dropdown, 2) Click 'Choose Replacement Icon' to open the visual Material Symbol picker, and 3) Click Apply."
+        "View active icon overrides at a glance, swap any Material Symbol visually using the Guided Icon Override Builder, or add custom category lexicon keys."
       ),
       example: '"icon_delete": "delete_forever"',
-    },
-    {
-      label: t("lex_doc_icon_browser_title", "Category Icon Browser & Custom Text Keys"),
-      jsonKey: "Category Filter + Custom Key ID",
-      desc: t(
-        "lex_doc_icon_browser_desc",
-        "Browse OS icons by category (Core OS, UI Navigation, Files & Storage, etc.) or filter by name, click Edit on any card to swap its glyph visually, or add custom text keys at the bottom."
-      ),
-      example: "Filter by 'shield' or 'folder' → Click Edit",
     },
   ];
 
@@ -819,7 +819,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
               variant="filter"
               className="!w-full"
               icon={t("icon_auto_awesome", "auto_awesome")}
-              label={t("lex_studio_cat_glossary", "Core Terms")}
+              label={t("lex_studio_tab_vocab", "Core Vocabulary")}
               value={t("lexicon_guide_tab_tokens_val", "21 Tokens")}
               isActive={lexiconTab === "tokens"}
               onClick={() => setLexiconTab("tokens")}
@@ -827,8 +827,8 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
             <DashboardStatTile
               variant="filter"
               className="!w-full"
-              icon={t("icon_dashboard", "dashboard")}
-              label={t("lex_studio_tab_modules", "OS Modules")}
+              icon={t("icon_edit_note", "edit_note")}
+              label={t("lex_studio_tab_strings", "UI Strings")}
               value={`06 ${t("fields", "Fields")}`}
               isActive={lexiconTab === "fields"}
               onClick={() => setLexiconTab("fields")}
@@ -836,8 +836,8 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
             <DashboardStatTile
               variant="filter"
               className="!w-full"
-              icon={t("icon_handyman", "handyman")}
-              label={t("lex_studio_tab_tools", "Pack & Tools")}
+              icon={t("icon_translate", "translate")}
+              label={t("lex_studio_tab_translate", "Translate & Replace")}
               value={`04 ${t("fields", "Fields")}`}
               isActive={lexiconTab === "tools"}
               onClick={() => setLexiconTab("tools")}
@@ -928,7 +928,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         {!isSchema && lexiconTab === "tokens" && (
           <div className="flex flex-col gap-5 animate-in fade-in duration-200">
             <UniversalGroup
-              title={t("lexicon_guide_tab1_card_title", "Tab 1 — Core Terms (21 Master Nouns)")}
+              title={t("lexicon_guide_tab1_card_title", "Tab 1 — Core Vocabulary (21 Master Nouns)")}
               icon={t("icon_auto_awesome", "auto_awesome")}
             >
               <FieldReferenceGrid items={lexiconCoreTabFields} />
@@ -939,8 +939,8 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         {!isSchema && lexiconTab === "fields" && (
           <div className="flex flex-col gap-5 animate-in fade-in duration-200">
             <UniversalGroup
-              title={t("lexicon_guide_tab2_card_title", "Tab 2 & Tab 3 — OS Modules & Sidebar Field Cards")}
-              icon={t("icon_dashboard", "dashboard")}
+              title={t("lexicon_guide_tab2_v2_title", "Tab 2 — Unified UI Strings Browser")}
+              icon={t("icon_edit_note", "edit_note")}
             >
               <FieldReferenceGrid items={lexiconModuleFieldAnatomy} />
             </UniversalGroup>
@@ -950,8 +950,8 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         {!isSchema && lexiconTab === "tools" && (
           <div className="flex flex-col gap-5 animate-in fade-in duration-200">
             <UniversalGroup
-              title={t("lexicon_guide_tab4_card_title", "Tab 4 — Pack Metadata, Batch Find & Replace & Icon Overrides")}
-              icon={t("icon_handyman", "handyman")}
+              title={t("lexicon_guide_tab3_v2_title", "Tab 3 & Tab 4 — Auto-Translate, Batch Replace & Pack Info")}
+              icon={t("icon_translate", "translate")}
             >
               <FieldReferenceGrid items={lexiconToolsTabFields} />
             </UniversalGroup>
@@ -1017,10 +1017,10 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
                       </div>
                       <div className="glass-panel rounded-xl px-2.5 py-1.5 border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col">
                         <span className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)]">
-                          {t("lex_studio_preset_sims", "Sims")}
+                          {t("example", "Example")}
                         </span>
                         <span className="text-[11px] font-bold text-[var(--text)] truncate">
-                          {row.sims}
+                          {row.communityExample}
                         </span>
                       </div>
                     </div>

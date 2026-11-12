@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../supabase';
 import { SidePanelContext } from "./layout";
 import { HoverTooltip } from "./alerts";
+import { formatDisplayName } from "./stringUtils";
+import { getFileLabel } from "./modUtils";
 export function CustomDropdown({
   value,
   selectedValues: selectedValuesProp,
@@ -967,6 +969,7 @@ export function ModSearchDropdown({
   className,
 }: any) {
   const { t } = useLexicon();
+  const activeGameSchema = useStore((s) => s.activeGameSchema);
   const [isOpen, setIsOpen] = useState(false);
   const instanceId = React.useId();
   const [query, setQuery] = useState("");
@@ -1038,7 +1041,7 @@ export function ModSearchDropdown({
       if (seen.has(key)) continue;
       seen.add(key);
       out.push(m);
-      if (out.length >= 10) break;
+      if (out.length >= 25) break;
     }
     return out;
   }, [isOpen, selectedItem, modList, query]);
@@ -1050,7 +1053,10 @@ export function ModSearchDropdown({
           ref={inputRef}
           type="text"
           value={
-            selectedItem ? selectedItem.displayName || selectedItem.name : query
+            selectedItem
+              ? selectedItem.displayName ||
+                formatDisplayName(selectedItem.name, t, activeGameSchema)
+              : query
           }
           onChange={(e) => {
             if (!selectedItem) setQuery(e.target.value);
@@ -1115,41 +1121,57 @@ export function ModSearchDropdown({
                 } as React.CSSProperties}
               >
                 <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar flex flex-col p-1.5 gap-1">
-                  {results.map((m: any, idx: number) => (
-                    <button
-                      key={`${m.hash || m.name}-${idx}`}
-                      type="button"
-                      onClick={() => {
-                        onSelect(m);
-                        setQuery("");
-                        setIsOpen(false);
-                      }}
-                      className="sa-dropdown-item w-full text-left px-3 py-2 flex flex-col gap-0.5 cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-[var(--text)] capitalize">
-                          {m.displayName || m.name.split("/").pop()}
-                        </span>
-                        {m.file_extension && (
-                          <span className="px-1.5 py-0.5 rounded bg-transparent text-[9px] font-mono opacity-80 capitalize border border-[color-mix(in_srgb,var(--text)_20%,transparent)]">
-                            {m.file_extension}
+                  {results.map((m: any, idx: number) => {
+                    const rawName = String(m.name || "").trim();
+                    const cleanTitle =
+                      m.displayName || formatDisplayName(rawName, t, activeGameSchema);
+                    const extLabel =
+                      m.file_extension ||
+                      (rawName.includes(".") ? getFileLabel(rawName, activeGameSchema) : "");
+                    const verLabel = m.version_label || m.version;
+                    const authorLabel = m.master_author || m.author;
+                    const rawId = String(m.id || m.dbId || m.hash || "").trim();
+                    const subMeta = verLabel
+                      ? `${t("shared_versions_prefix", "Version(s):")} ${verLabel}`
+                      : authorLabel
+                        ? authorLabel
+                        : m.created_at
+                          ? `${t("shared_created_prefix", "Created:")} ${new Date(m.created_at).toLocaleDateString()}`
+                          : rawId
+                            ? `${t("landing_id_prefix", "ID: ")}${rawId.substring(0, 8).toUpperCase()}`
+                            : rawName.split(/[\\/]/).pop() || "";
+                    return (
+                      <button
+                        key={`${m.hash || m.name}-${idx}`}
+                        type="button"
+                        onClick={() => {
+                          onSelect(m);
+                          setQuery("");
+                          setIsOpen(false);
+                        }}
+                        className="sa-dropdown-item w-full text-left px-3 py-2 flex flex-col gap-0.5 cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <span className="text-xs font-bold text-[var(--text)] truncate">
+                            {cleanTitle}
+                          </span>
+                          {extLabel && extLabel !== "UNKNOWN" && (
+                            <span className="px-1.5 py-0.5 rounded bg-transparent text-[9px] font-mono opacity-80 uppercase border border-[color-mix(in_srgb,var(--text)_18%,transparent)] shrink-0">
+                              {extLabel}
+                            </span>
+                          )}
+                        </div>
+                        {subMeta && (
+                          <span className="text-[10px] font-mono text-[var(--subtext)] opacity-70 truncate">
+                            {subMeta}
                           </span>
                         )}
-                      </div>
-                      <span className="text-[10px] font-mono text-[var(--subtext)] opacity-70">
-                        {m.version_label
-                          ? `${t("shared_versions_prefix", "Version(s):") || "Version(s):"} ${m.version_label}`
-                          : m.master_author ||
-                            m.author ||
-                            (m.created_at
-                              ? `${t("shared_created_prefix", "Created:") || "Created:"} ${new Date(m.created_at).toLocaleDateString()}`
-                              : `${t("landing_id_prefix", "ID: ") || "ID:"} ${m.id?.substring(0, 8).toUpperCase()}`)}
-                      </span>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                   {results.length === 0 && (
                     <div className="p-4 text-center text-xs text-[var(--subtext)] font-semibold capitalize opacity-70">
-                      {t("shared_no_signatures", "No Signatures Found") || "No matching mods found"}
+                      {t("shared_no_signatures", "No Signatures Found")}
                     </div>
                   )}
                 </div>
@@ -1164,10 +1186,12 @@ export function ModSearchDropdown({
 export function CustomComplianceDropdown({
   value,
   onChange,
+  minTier = 0,
   maxTier = 5,
 }: {
   value: number;
   onChange: (val: number) => void;
+  minTier?: number;
   maxTier?: number;
 }) {
   const { t } = useLexicon();
@@ -1180,7 +1204,7 @@ export function CustomComplianceDropdown({
     { id: 5, label: t("tier_5_label", "Malware (T5)") || "Malware (Tier 5)" },
   ];
 
-  const options = allOptions.filter((opt) => opt.id <= maxTier);
+  const options = allOptions.filter((opt) => opt.id >= minTier && opt.id <= maxTier);
 
   return (
     <div className="w-full">

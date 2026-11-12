@@ -142,8 +142,20 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       let targetId = null;
       let targetName = null;
 
+      const manualStatus = manualTier === 5 ? 'blacklisted' : manualTier === 0 ? 'verified' : 'verified';
+      const cleanManualReason = registryReason.trim();
+
       if (manualSelectedMod) {
-        const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: manualSelectedMod.id, compliance_tier: manualTier } });
+        const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+          p_token: useStore.getState().session?.access_token || '',
+          p_target: 'mods',
+          p_payload: {
+            id: manualSelectedMod.id,
+            compliance_tier: manualTier,
+            status: manualStatus,
+            status_reason: cleanManualReason,
+          },
+        });
         if (error) throw error;
         targetId = manualSelectedMod.id;
         targetName = manualSelectedMod.name;
@@ -153,13 +165,33 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q);
 
         if (isUUID) {
-          const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: q, name: 'Manual Flag (Unknown)', compliance_tier: manualTier } });
+          const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+            p_token: useStore.getState().session?.access_token || '',
+            p_target: 'mods',
+            p_payload: {
+              id: q,
+              name: 'Manual Flag (Unknown)',
+              compliance_tier: manualTier,
+              status: manualStatus,
+              status_reason: cleanManualReason,
+            },
+          });
           if (error) throw error;
           targetId = q;
           targetName = q;
         } else if (isHash) {
           const newId = crypto.randomUUID();
-          const { error: modErr } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: newId, name: 'Manual Flag (Hash)', compliance_tier: manualTier } });
+          const { error: modErr } = await supabase.rpc('secure_upsert_cloud_file', {
+            p_token: useStore.getState().session?.access_token || '',
+            p_target: 'mods',
+            p_payload: {
+              id: newId,
+              name: 'Manual Flag (Hash)',
+              compliance_tier: manualTier,
+              status: manualStatus,
+              status_reason: cleanManualReason,
+            },
+          });
           if (modErr) throw modErr;
           const { error: verErr } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mod_versions', p_payload: { mod_id: newId, dna_hash: q, version_label: 'unknown' } });
           if (verErr) throw verErr;
@@ -167,7 +199,17 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
           targetName = q;
         } else {
           const newId = crypto.randomUUID();
-          const { error: modErr } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: newId, name: q, compliance_tier: manualTier } });
+          const { error: modErr } = await supabase.rpc('secure_upsert_cloud_file', {
+            p_token: useStore.getState().session?.access_token || '',
+            p_target: 'mods',
+            p_payload: {
+              id: newId,
+              name: q,
+              compliance_tier: manualTier,
+              status: manualStatus,
+              status_reason: cleanManualReason,
+            },
+          });
           if (modErr) throw modErr;
           targetId = newId;
           targetName = q;

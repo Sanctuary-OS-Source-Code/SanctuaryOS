@@ -1,17 +1,24 @@
-import { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { ViewHeader, HoverTabDrawer, VerticalTabButton, SidebarFooterButton } from './shared';
-import { IdentityMatrix } from './IdentityMatrix';
-import { WayfinderChameleons } from './hub-components/WayfinderChameleons';
-import KeepersActiveGames from './hub-components/KeepersActiveGames';
-import { KeeperCommandScreen } from "./hub-components/CommandScreens";
-import KeepersSupportTickets from './hub-components/KeepersSupportTickets';
-import { KeepersDispatchEditor } from './hub-components/KeepersDispatchEditor';
-import KeepersWebDirectivesEditor from './hub-components/KeepersWebDirectivesEditor';
-import KeepersHeuristicsOversight from './hub-components/KeepersHeuristicsOversight';
+import { KeeperCommandScreen } from "./hub-components/command-screens/KeeperCommandScreen";
 import { FileVerificationSidePanel } from './side-panels/ArchitectSidePanels';
 import { openSanctuaryScreenshotTour } from './side-panels/ScreenshotTourSidePanel';
+
+const IdentityMatrix = React.lazy(() =>
+  import('./IdentityMatrix').then((m) => ({ default: m.IdentityMatrix }))
+);
+const WayfinderChameleons = React.lazy(() =>
+  import('./hub-components/WayfinderChameleons').then((m) => ({ default: m.WayfinderChameleons }))
+);
+const KeepersActiveGames = React.lazy(() => import('./hub-components/KeepersActiveGames'));
+const KeepersSupportTickets = React.lazy(() => import('./hub-components/KeepersSupportTickets'));
+const KeepersDispatchEditor = React.lazy(() =>
+  import('./hub-components/KeepersDispatchEditor').then((m) => ({ default: m.KeepersDispatchEditor }))
+);
+const KeepersWebDirectivesEditor = React.lazy(() => import('./hub-components/KeepersWebDirectivesEditor'));
+const KeepersHeuristicsOversight = React.lazy(() => import('./hub-components/KeepersHeuristicsOversight'));
 
 export default function KeepersCore() {
   const { t } = useLexicon();
@@ -73,8 +80,7 @@ export default function KeepersCore() {
             onClick: () => setIsVerifyPanelOpen(true)
           }
         ]}
-      >
-      </ViewHeader>
+      />
 
       <div className="md:hidden">
         <HoverTabDrawer
@@ -104,46 +110,53 @@ export default function KeepersCore() {
       </div>
 
       <div className="w-full flex-1 flex flex-col min-h-0">
-        {activeTab === "command_center" && <KeeperCommandScreen setTab={setActiveTab} />}
-        {activeTab === "keepers_comms" && <KeepersDispatchEditor authorId="system" authorProfileId="system" />}
-        {isWebLandingTab && (
-          <KeepersWebDirectivesEditor
-            initialTab={
-              activeTab === "web_news"
-                ? "news"
-                : activeTab === "web_legal"
-                ? "legal"
-                : undefined
-            }
+        {activeTab === "command_center" && (
+          <KeeperCommandScreen
+            setTab={setActiveTab}
+            onOpenVerifyHash={() => setIsVerifyPanelOpen(true)}
           />
         )}
-        {["active_games", "partner_apps", "ide", "schemas", "audit_logs"].includes(activeTab) && (
-          <KeepersActiveGames
-            initialTab={
-              activeTab === "ide" || activeTab === "schemas"
-                ? "schemas"
-                : activeTab === "audit_logs"
-                  ? "audit_logs"
-                  : activeTab === "partner_apps"
-                    ? "applications"
-                    : "overview"
-            }
-          />
-        )}
-        {(activeTab === "identities" || activeTab === "keeper_apps") && (
-          <IdentityMatrix
-            isWayfinder={false}
-            isKeepers={true}
-            initialFilterRole={
-              activeTab === "keeper_apps" ? "keeper_apps" : "overview"
-            }
-          />
-        )}
-        {activeTab === "heuristics" && <KeepersHeuristicsOversight />}
-        {(activeTab === "support" || activeTab === "support_settings") && (
-          <KeepersSupportTickets initialTab={activeTab === "support_settings" ? "settings" : undefined} />
-        )}
-        {activeTab === "chameleons" && <WayfinderChameleons isKeepers={true} />}
+        <Suspense fallback={null}>
+          {activeTab === "keepers_comms" && <KeepersDispatchEditor authorId="system" authorProfileId="system" />}
+          {isWebLandingTab && (
+            <KeepersWebDirectivesEditor
+              initialTab={
+                activeTab === "web_news"
+                  ? "news"
+                  : activeTab === "web_legal"
+                  ? "legal"
+                  : undefined
+              }
+            />
+          )}
+          {["active_games", "partner_apps", "ide", "schemas", "audit_logs"].includes(activeTab) && (
+            <KeepersActiveGames
+              initialTab={
+                activeTab === "ide" || activeTab === "schemas"
+                  ? "schemas"
+                  : activeTab === "audit_logs"
+                    ? "audit_logs"
+                    : activeTab === "partner_apps"
+                      ? "applications"
+                      : "overview"
+              }
+            />
+          )}
+          {(activeTab === "identities" || activeTab === "keeper_apps") && (
+            <IdentityMatrix
+              isWayfinder={false}
+              isKeepers={true}
+              initialFilterRole={
+                activeTab === "keeper_apps" ? "keeper_apps" : "overview"
+              }
+            />
+          )}
+          {activeTab === "heuristics" && <KeepersHeuristicsOversight />}
+          {(activeTab === "support" || activeTab === "support_settings") && (
+            <KeepersSupportTickets initialTab={activeTab === "support_settings" ? "settings" : undefined} />
+          )}
+          {activeTab === "chameleons" && <WayfinderChameleons isKeepers={true} />}
+        </Suspense>
       </div>
 
       <FileVerificationSidePanel

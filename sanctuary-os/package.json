@@ -3,10 +3,12 @@
   "version": "0.6.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "build:web:public": "vite build --mode production",
-    "build:web:beta": "vite build --mode beta",
+    "lexicon:sync": "node scripts/sync-lexicons.mjs",
+    "dev": "node scripts/sync-lexicons.mjs && node scripts/pull-spoke-schemas.mjs && vite",
+    "pull-schemas": "node scripts/pull-spoke-schemas.mjs",
+    "build": "node scripts/sync-lexicons.mjs && node scripts/pull-spoke-schemas.mjs && tsc && vite build",
+    "build:web:public": "node scripts/sync-lexicons.mjs && node scripts/pull-spoke-schemas.mjs && vite build --mode production",
+    "build:web:beta": "node scripts/sync-lexicons.mjs && node scripts/pull-spoke-schemas.mjs && vite build --mode beta",
     "preview": "vite preview",
     "kill-os": "taskkill /IM sanctuary-os.exe /F || exit 0",
     "tauri": "tauri"

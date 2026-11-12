@@ -366,10 +366,23 @@ const CITIZEN_TABLES = new Set([
   'citizen_staging_queue',
 ]);
 
+const spokeGameConfigCache = new Map<string, { game: any; serviceKey: string | null; expiresAt: number }>();
+const SPOKE_GAME_CACHE_TTL_MS = 45_000;
+
+function invalidateSpokeGameConfigCache() {
+  spokeGameConfigCache.clear();
+}
+
 async function resolveGameWithServiceKey(supabaseAdmin: any, gameIdOrSchema: string) {
+  const cacheKey = String(gameIdOrSchema || '').trim().toLowerCase();
+  const cached = spokeGameConfigCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { game: cached.game, serviceKey: cached.serviceKey, error: null };
+  }
+
   let gameQuery = supabaseAdmin
     .from('sanctuary_games')
-    .select('id, name, schema_id, supabase_url, supabase_anon_key, is_active, donation_url, payment_processor');
+    .select('id, name, schema_id, supabase_url, supabase_anon_key, is_active, is_keepers_only, donation_url, payment_processor');
 
   if (UUID_REGEX.test(gameIdOrSchema)) {
     gameQuery = gameQuery.eq('id', gameIdOrSchema);
@@ -389,6 +402,10 @@ async function resolveGameWithServiceKey(supabaseAdmin: any, gameIdOrSchema: str
     .maybeSingle();
 
   const serviceKey = (secretRow?.supabase_service_key || '').trim() || null;
+  const entry = { game, serviceKey, expiresAt: Date.now() + SPOKE_GAME_CACHE_TTL_MS };
+  spokeGameConfigCache.set(cacheKey, entry);
+  if (game.id) spokeGameConfigCache.set(String(game.id).toLowerCase(), entry);
+  if (game.schema_id) spokeGameConfigCache.set(String(game.schema_id).toLowerCase(), entry);
   return { game, serviceKey, error: null };
 }
 
@@ -809,8 +826,7 @@ serve(async (req) => {
         supabase_service_key,
         icon,
         is_active,
-        donation_url,
-        payment_processor,
+        is_keepers_only,
         clear_service_key,
       } = payload || {}
 
@@ -835,8 +851,7 @@ serve(async (req) => {
         icon: icon ?? '',
         is_active: is_active !== undefined ? Boolean(is_active) : true,
       }
-      if (donation_url !== undefined) publicRow.donation_url = donation_url
-      if (payment_processor !== undefined) publicRow.payment_processor = payment_processor
+      if (is_keepers_only !== undefined) publicRow.is_keepers_only = Boolean(is_keepers_only)
 
       let savedGame: any = null
       if (targetGameUuid && UUID_REGEX.test(String(targetGameUuid))) {
@@ -844,7 +859,7 @@ serve(async (req) => {
           .from('sanctuary_games')
           .update(publicRow)
           .eq('id', targetGameUuid)
-          .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active, donation_url, payment_processor, created_at')
+          .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active, is_keepers_only, created_at')
           .single()
         if (error) throw error
         savedGame = data
@@ -852,7 +867,7 @@ serve(async (req) => {
         const { data, error } = await supabaseAdmin
           .from('sanctuary_games')
           .insert([publicRow])
-          .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active, donation_url, payment_processor, created_at')
+          .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active, is_keepers_only, created_at')
           .single()
         if (error) throw error
         savedGame = data
@@ -885,6 +900,7 @@ serve(async (req) => {
         .eq('game_id', savedGame.id)
         .maybeSingle()
 
+      invalidateSpokeGameConfigCache();
       return new Response(
         JSON.stringify({
           success: true,
@@ -1074,29 +1090,50 @@ serve(async (req) => {
       throw new Error('Game DB not found: ' + (gameError?.message || 'No row') + ' | ID was: ' + game_id)
     }
 
-    if (!gameServiceKey) {
-      if (action === 'sever_spoke_cord' && hubRole === 'keeper') {
-        await supabaseAdmin
-          .from('sanctuary_games')
-          .update({ is_active: false })
-          .eq('id', game.id)
-        await supabaseAdmin
-          .from('sanctuary_game_secrets')
-          .delete()
-          .eq('game_id', game.id)
-        await supabaseAdmin.from('audit_logs').insert({
-          action: 'Keeper Severed Spoke Uplink (Cut the Cord)',
-          target_table: 'sanctuary_games',
-          target_name: game.name || game.schema_id,
-          actor_id: v_user_id,
-          reason: payload?.reason || 'Keeper Severance Protocol',
-          game_name: 'Keeper Hub'
-        })
-        return new Response(JSON.stringify({ success: true, severed_by: 'keeper', schema_id: game.schema_id }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        })
+    if (game.is_keepers_only === true && hubRole !== 'keeper') {
+      throw new Error('Forbidden: This Spoke is restricted to Keepers Core')
+    }
+
+    if (action === 'sever_spoke_cord' && hubRole === 'keeper') {
+      const severReason = payload?.reason?.trim() || 'Keeper Severance Protocol (Cut the Cord)'
+      if (gameServiceKey && SUPABASE_URL_REGEX.test(String(game.supabase_url || '').trim())) {
+        try {
+          const bestEffortSpokeDb = createClient(game.supabase_url, gameServiceKey, SERVER_AUTH_OPTS)
+          await bestEffortSpokeDb.from('audit_logs').insert({
+            action: 'Keeper Severed Spoke Uplink (Cut the Cord)',
+            target_table: 'sanctuary_games',
+            target_name: game.name || game.schema_id,
+            actor_id: v_user_id,
+            reason: severReason,
+          })
+        } catch (e) {
+          console.warn('Best-effort Spoke audit log warning on Keeper sever:', e)
+        }
       }
+      await supabaseAdmin
+        .from('sanctuary_games')
+        .update({ is_active: false })
+        .eq('id', game.id)
+      await supabaseAdmin
+        .from('sanctuary_game_secrets')
+        .delete()
+        .eq('game_id', game.id)
+      await supabaseAdmin.from('audit_logs').insert({
+        action: 'Keeper Severed Spoke Uplink (Cut the Cord)',
+        target_table: 'sanctuary_games',
+        target_name: game.name || game.schema_id,
+        actor_id: v_user_id,
+        reason: severReason,
+        game_name: game.name || game.schema_id || 'Keeper Hub',
+      })
+      invalidateSpokeGameConfigCache();
+      return new Response(JSON.stringify({ success: true, severed_by: 'keeper', schema_id: game.schema_id }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
+    if (!gameServiceKey) {
       throw new Error('Game DB service key not configured - connection rejected')
     }
 
@@ -1154,15 +1191,27 @@ serve(async (req) => {
 
     const callerSpokeRole = (callerSpokeProfile?.role || 'citizen').toLowerCase()
     const isCallerBanned = Boolean(hubIsBanned || callerSpokeProfile?.is_banned)
-    const isCallerStaff = hubRole === 'keeper' || STAFF_ROLES.includes(callerSpokeRole)
-    const isCallerCreatorOrStaff = hubRole === 'keeper' || CREATOR_OR_STAFF_ROLES.includes(callerSpokeRole)
+    const isFoundryTestNodeKeeper = hubRole === 'keeper' && Boolean(game?.is_keepers_only)
+    const isCallerStaff = isFoundryTestNodeKeeper || STAFF_ROLES.includes(callerSpokeRole)
+    const isCallerCreatorOrStaff = isFoundryTestNodeKeeper || CREATOR_OR_STAFF_ROLES.includes(callerSpokeRole)
+    const isArchitectOnlyStaff =
+      (callerSpokeRole === 'architect' || callerSpokeRole === 'senior_architect') &&
+      !isFoundryTestNodeKeeper
+    const isOversightOnlyStaff =
+      callerSpokeRole === 'oversight' && !isFoundryTestNodeKeeper
 
+    let cachedMasonIdsPromise: Promise<Set<string>> | null = null;
     async function getCallerOwnedMasonIds(): Promise<Set<string>> {
-      const { data: mRows } = await gameDb
-        .from('masons')
-        .select('id')
-        .eq('profile_id', v_user_id)
-      return new Set((mRows || []).map((r: any) => String(r.id)))
+      if (!cachedMasonIdsPromise) {
+        cachedMasonIdsPromise = (async () => {
+          const { data: mRows } = await gameDb
+            .from('masons')
+            .select('id')
+            .eq('profile_id', v_user_id)
+          return new Set((mRows || []).map((r: any) => String(r.id)))
+        })();
+      }
+      return cachedMasonIdsPromise;
     }
 
     let resultData = null;
@@ -1181,7 +1230,7 @@ serve(async (req) => {
         if (!target_user_id || !updates) throw new Error('Missing target_user_id or updates')
 
         const isSelfBan = target_user_id === v_user_id && updates.is_banned === true && Object.keys(updates).every(k => ['is_banned', 'blacklist_reason'].includes(k))
-        const isKeeperOrWayfinder = hubRole === 'keeper' || callerSpokeRole === 'wayfinder'
+        const isKeeperOrWayfinder = isFoundryTestNodeKeeper || callerSpokeRole === 'wayfinder'
         const isOversight = callerSpokeRole === 'oversight'
         const isArchitectMasonPromote = (callerSpokeRole === 'architect' || callerSpokeRole === 'senior_architect') && Object.keys(updates).length === 1 && updates.role === 'mason'
 
@@ -1448,6 +1497,50 @@ serve(async (req) => {
         const rawRows = (isArrayInput ? payload_data : [payload_data]).map((r) =>
           normalizeSpokeTableRow(cleanTable, r)
         )
+
+        // Architects flagging Tier 1-4 on mods/collections always route to Oversight Compliance as 'pending'
+        if (isArchitectOnlyStaff && (cleanTable === 'mods' || cleanTable === 'collections')) {
+          for (const row of rawRows) {
+            if (row && typeof row === 'object' && Number(row.compliance_tier || 0) >= 1) {
+              row.compliance_tier = Math.min(4, Math.max(1, Math.round(Number(row.compliance_tier))))
+              row.status = 'pending'
+            }
+          }
+        }
+
+        // Oversight cannot link/unlink Mason entities belonging to Wayfinder/Oversight/Admin accounts
+        if (isOversightOnlyStaff && cleanTable === 'masons') {
+          for (const row of rawRows) {
+            if (!row || typeof row !== 'object') continue
+            if (row.profile_id) {
+              const { data: targetProf } = await gameDb
+                .from('profiles')
+                .select('role')
+                .eq('id', row.profile_id)
+                .maybeSingle()
+              if (targetProf && ['wayfinder', 'oversight', 'admin'].includes(String(targetProf.role || '').toLowerCase())) {
+                throw new Error('Forbidden: Oversight cannot link Creators to Wayfinder or Oversight accounts')
+              }
+            }
+            if (row.id) {
+              const { data: exMason } = await gameDb
+                .from('masons')
+                .select('profile_id')
+                .eq('id', row.id)
+                .maybeSingle()
+              if (exMason?.profile_id) {
+                const { data: exProf } = await gameDb
+                  .from('profiles')
+                  .select('role')
+                  .eq('id', exMason.profile_id)
+                  .maybeSingle()
+                if (exProf && ['wayfinder', 'oversight', 'admin'].includes(String(exProf.role || '').toLowerCase())) {
+                  throw new Error('Forbidden: Oversight cannot modify Creator records owned by Wayfinder or Oversight')
+                }
+              }
+            }
+          }
+        }
 
         // Strict row-ownership & anti-IDOR enforcement for non-staff callers
         if (!isCallerStaff) {
@@ -1835,6 +1928,91 @@ serve(async (req) => {
         resultData = { success: true };
         break;
       }
+      case 'wayfinder_update_spoke_donations': {
+        // Strictly isolated to the Spoke's own Wayfinder — Hub Keepers cannot view or alter Spoke donation configs
+        if (callerSpokeRole !== 'wayfinder') {
+          throw new Error('Forbidden: Only the Spoke Wayfinder can manage Spoke donation settings.')
+        }
+        const cleanDonUrl = typeof payload?.donation_url === 'string' ? payload.donation_url.trim() : ''
+        const rawProc = typeof payload?.payment_processor === 'string' ? payload.payment_processor.trim().toUpperCase() : 'STRIPE'
+        const cleanProc = rawProc === 'SANDBOX' || !rawProc ? 'STRIPE' : rawProc
+        const goalCents = Math.max(0, Math.round(Number(payload?.monthly_goal_cents) || 0))
+        const coveredCents = Math.max(0, Math.round(Number(payload?.monthly_covered_cents) || 0))
+
+        const { error: updateDonErr } = await supabaseAdmin
+          .from('sanctuary_games')
+          .update({
+            donation_url: cleanDonUrl || null,
+            payment_processor: cleanProc,
+          })
+          .eq('id', game.id)
+        if (updateDonErr) throw updateDonErr
+
+        const schemaKey = String(game.schema_id || game.id || 'default').toLowerCase()
+        const broadcastTitle = `SPOKE_DONATION_${schemaKey.toUpperCase()}`
+        const payloadStr = JSON.stringify({
+          schema_id: schemaKey,
+          game_id: game.id,
+          donation_url: cleanDonUrl,
+          payment_processor: cleanProc,
+          monthly_goal_cents: goalCents,
+          monthly_covered_cents: coveredCents,
+          spoke_cost_breakdown: payload?.spoke_cost_breakdown,
+          updated_at: new Date().toISOString(),
+        })
+
+        const { data: existingBroadcast } = await supabaseAdmin
+          .from('keeper_system_broadcasts')
+          .select('id')
+          .eq('category', 'SpokeDonationConfig')
+          .eq('title', broadcastTitle)
+          .limit(1)
+          .maybeSingle()
+
+        if (existingBroadcast?.id) {
+          await supabaseAdmin
+            .from('keeper_system_broadcasts')
+            .update({
+              description: payloadStr,
+              message: payloadStr,
+              target_audience: 'Internal_Pipeline',
+              is_active: true,
+            })
+            .eq('id', existingBroadcast.id)
+        } else {
+          await supabaseAdmin.from('keeper_system_broadcasts').insert([
+            {
+              title: broadcastTitle,
+              category: 'SpokeDonationConfig',
+              description: payloadStr,
+              message: payloadStr,
+              target_audience: 'Internal_Pipeline',
+              is_active: true,
+              is_pinned: false,
+            },
+          ])
+        }
+
+        try {
+          await gameDb.from('audit_logs').insert({
+            action: 'Updated Spoke Donation Settings',
+            target_table: 'sanctuary_games',
+            target_name: game.name || game.schema_id,
+            actor_id: v_user_id,
+            reason: `Payment processor: ${cleanProc}`,
+          })
+        } catch (e) {
+          console.warn('Spoke audit log warning on donation update:', e)
+        }
+
+        invalidateSpokeGameConfigCache()
+        resultData = {
+          success: true,
+          donation_url: cleanDonUrl || null,
+          payment_processor: cleanProc,
+        }
+        break;
+      }
       case 'sever_spoke_cord': {
         if (hubRole !== 'keeper' && callerSpokeRole !== 'wayfinder') {
           throw new Error('Forbidden: Only the Spoke Wayfinder or a Core OS Keeper can sever the uplink cord.')
@@ -1881,6 +2059,7 @@ serve(async (req) => {
           .delete()
           .eq('game_id', game.id)
 
+        invalidateSpokeGameConfigCache()
         resultData = {
           success: true,
           severed_by: callerSpokeRole === 'wayfinder' ? 'wayfinder' : 'keeper',
@@ -1888,9 +2067,90 @@ serve(async (req) => {
         }
         break;
       }
+      case 'flag_mod_for_compliance': {
+        if (isCallerBanned) throw new Error('Forbidden: Account is suspended')
+        const modId = String(payload?.mod_id || '').trim()
+        const rawTier = Math.round(Number(payload?.tier || 1))
+        const requestedTier = Math.min(4, Math.max(1, Number.isFinite(rawTier) ? rawTier : 1))
+        const cleanReason = String(payload?.reason || '').trim().slice(0, 1000) || `Flagged Tier ${requestedTier} for Compliance Review`
+
+        if (!modId) {
+          throw new Error('Missing mod_id')
+        }
+
+        const { data: existingMod, error: fetchModErr } = await gameDb
+          .from('mods')
+          .select('id, name, compliance_tier, status, status_reason')
+          .eq('id', modId)
+          .maybeSingle()
+
+        if (fetchModErr) throw fetchModErr
+        if (!existingMod) throw new Error('Target artifact not found in Spoke registry')
+
+        const currentTier = Number(existingMod.compliance_tier || 0)
+        const currentStatusLower = String(existingMod.status || '').toLowerCase()
+        const isCurrentlyPending = ['pending', 'under_review', 'unverified'].includes(currentStatusLower)
+        const isConfirmedActiveOrBlocked = currentTier >= 1 && !isCurrentlyPending
+
+        const roleTag = isCallerStaff ? callerSpokeRole.toUpperCase() : (callerSpokeRole === 'mason' ? 'MASON' : 'CITIZEN')
+        const taggedReason = `[${roleTag} FLAG - TIER ${requestedTier}] ${cleanReason}`
+
+        let updatedMod = existingMod
+        if (!isConfirmedActiveOrBlocked || (isCallerStaff && requestedTier > currentTier)) {
+          const nextTier = isCurrentlyPending ? Math.max(currentTier, requestedTier) : requestedTier
+          const nextStatus =
+            callerSpokeRole === 'oversight' || callerSpokeRole === 'wayfinder' || isFoundryTestNodeKeeper
+              ? (isCurrentlyPending ? 'pending' : 'verified')
+              : 'pending'
+
+          let updRes = await gameDb
+            .from('mods')
+            .update({
+              compliance_tier: nextTier,
+              status: nextStatus,
+              status_reason: taggedReason,
+            })
+            .eq('id', modId)
+            .select()
+            .maybeSingle()
+
+          if (updRes.error && String(updRes.error.message || '').includes('status_reason')) {
+            updRes = await gameDb
+              .from('mods')
+              .update({
+                compliance_tier: nextTier,
+                status: nextStatus,
+              })
+              .eq('id', modId)
+              .select()
+              .maybeSingle()
+          }
+          if (updRes.error) throw updRes.error
+          if (updRes.data) updatedMod = updRes.data
+        }
+
+        try {
+          await gameDb.from('audit_logs').insert({
+            action: `Flagged Artifact for Compliance (Tier ${requestedTier})`,
+            target_table: 'mods',
+            target_name: existingMod.name || modId,
+            actor_id: v_user_id,
+            reason: taggedReason,
+          })
+        } catch (auditErr) {
+          console.warn('Compliance flag audit log warning:', auditErr)
+        }
+
+        resultData = {
+          success: true,
+          queued_pending: true,
+          mod: updatedMod,
+        }
+        break;
+      }
       case 'update_spoke_uplink': {
-        if (hubRole !== 'keeper' && callerSpokeRole !== 'wayfinder') {
-          throw new Error('Forbidden: Only the Spoke Wayfinder or a Core OS Keeper can update Spoke uplink keys.')
+        if (!isFoundryTestNodeKeeper && callerSpokeRole !== 'wayfinder') {
+          throw new Error('Forbidden: Only the Spoke Wayfinder can update Spoke uplink keys.')
         }
         const newUrl = (payload?.supabase_url?.trim() || game.supabase_url || '').replace(/\/+$/, '')
         const newAnonKey = payload?.supabase_anon_key?.trim() || game.supabase_anon_key
@@ -1942,397 +2202,467 @@ serve(async (req) => {
           })
         } catch (e) {}
 
+        invalidateSpokeGameConfigCache()
         resultData = { success: true, schema_id: game.schema_id }
         break;
       }
-      case 'spoke_query': {
-        const cleanTable = String(payload?.table || '').trim().toLowerCase()
-        const op = String(payload?.op || 'select').trim().toLowerCase()
-        if (!cleanTable) throw new Error('Missing table for spoke_query')
-        if (cleanTable === 'auth.users' || cleanTable === 'hardware_bans') {
-          throw new Error('Forbidden table target')
-        }
-
-        const isKnownSpokeTable =
-          cleanTable === 'profiles' ||
-          cleanTable === 'pwa_push_subscriptions' ||
-          STAFF_ONLY_TABLES.has(cleanTable) ||
-          CREATOR_OR_STAFF_TABLES.has(cleanTable) ||
-          CITIZEN_TABLES.has(cleanTable)
-
-        if (!isKnownSpokeTable) {
-          throw new Error(`Forbidden: Table ${cleanTable} is not in the Spoke registry`)
-        }
-
-        if (op === 'select') {
-          const selectColumns = typeof payload?.selectColumns === 'string' && payload.selectColumns.trim()
-            ? payload.selectColumns
-            : '*'
-          const selectOpts = payload?.selectOpts && typeof payload.selectOpts === 'object'
-            ? payload.selectOpts
-            : undefined
-
-          if (cleanTable === 'malware_reports' && !isCallerStaff) {
-            throw new Error('Forbidden: Staff clearance required to view malware reports')
+      case 'spoke_query':
+      case 'spoke_query_batch': {
+        const executeSingleSpokeQuery = async (specPayload: any) => {
+          const payload = specPayload || {}
+          const cleanTable = String(payload?.table || '').trim().toLowerCase()
+          const op = String(payload?.op || 'select').trim().toLowerCase()
+          if (!cleanTable) throw new Error('Missing table for spoke_query')
+          if (cleanTable === 'auth.users' || cleanTable === 'hardware_bans') {
+            throw new Error('Forbidden table target')
           }
 
-          if (cleanTable === 'notifications' || cleanTable === 'pwa_push_subscriptions') {
-            let q = gameDb.from(cleanTable).select(selectColumns, selectOpts).eq('user_id', v_user_id)
-            q = applySpokeQueryModifiers(q, payload)
-            const res = await q
-            if (res.error) throw res.error
-            resultData = { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
-            break
+          const isKnownSpokeTable =
+            cleanTable === 'profiles' ||
+            cleanTable === 'pwa_push_subscriptions' ||
+            STAFF_ONLY_TABLES.has(cleanTable) ||
+            CREATOR_OR_STAFF_TABLES.has(cleanTable) ||
+            CITIZEN_TABLES.has(cleanTable)
+
+          if (!isKnownSpokeTable) {
+            throw new Error(`Forbidden: Table ${cleanTable} is not in the Spoke registry`)
           }
 
-          if (cleanTable === 'sanctuary_tickets' && !isCallerStaff) {
-            if (callerSpokeRole === 'mason') {
-              const ownedMasons = await getCallerOwnedMasonIds()
-              const masonIdsArr = [v_user_id, ...Array.from(ownedMasons)]
-              const { data: modRows } = await gameDb
-                .from('mods')
-                .select('id')
-                .in('mason_id', masonIdsArr)
-              const ownedModIds = new Set((modRows || []).map((m: any) => String(m.id)))
+          if (op === 'select') {
+            const selectColumns = typeof payload?.selectColumns === 'string' && payload.selectColumns.trim()
+              ? payload.selectColumns
+              : '*'
+            const selectOpts = payload?.selectOpts && typeof payload.selectOpts === 'object'
+              ? payload.selectOpts
+              : undefined
 
-              let q = gameDb.from('sanctuary_tickets').select(selectColumns === '*' ? '*' : '*')
-              q = applySpokeQueryModifiers(q, { ...payload, singleMode: null })
+            if (cleanTable === 'malware_reports' && !isCallerStaff) {
+              throw new Error('Forbidden: Staff clearance required to view malware reports')
+            }
+
+            if (cleanTable === 'notifications' || cleanTable === 'pwa_push_subscriptions') {
+              let q = gameDb.from(cleanTable).select(selectColumns, selectOpts).eq('user_id', v_user_id)
+              q = applySpokeQueryModifiers(q, payload)
               const res = await q
               if (res.error) throw res.error
-              const rows = (Array.isArray(res.data) ? res.data : []).filter((t: any) => {
-                if (!t) return false
-                if (t.author_id === v_user_id || t.assigned_to === v_user_id) return true
-                const meta = t.metadata || {}
-                if (meta.target_user_id === v_user_id || meta.target_mason === v_user_id || meta.mason_id === v_user_id) return true
-                if (meta.target_mason && ownedMasons.has(String(meta.target_mason))) return true
-                if (meta.mason_id && ownedMasons.has(String(meta.mason_id))) return true
-                if (meta.target_mod_id && ownedModIds.has(String(meta.target_mod_id))) return true
-                return false
-              })
-              const finalData =
-                selectOpts?.head
-                  ? null
-                  : payload?.singleMode === 'single' || payload?.singleMode === 'maybeSingle'
-                    ? (rows[0] ?? null)
-                    : rows
-              resultData = { __spoke_query_v1: true, data: finalData, count: rows.length }
-              break
+              return { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
             }
 
-            let q = gameDb.from('sanctuary_tickets').select(selectColumns, selectOpts).eq('author_id', v_user_id)
-            q = applySpokeQueryModifiers(q, payload)
-            const res = await q
-            if (res.error) throw res.error
-            resultData = { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
-            break
-          }
+            if (cleanTable === 'sanctuary_tickets' && !isCallerStaff) {
+              if (callerSpokeRole === 'mason') {
+                const ownedMasons = await getCallerOwnedMasonIds()
+                const masonIdsArr = [v_user_id, ...Array.from(ownedMasons)]
+                const { data: modRows } = await gameDb
+                  .from('mods')
+                  .select('id')
+                  .in('mason_id', masonIdsArr)
+                const ownedModIds = new Set((modRows || []).map((m: any) => String(m.id)))
 
-          if ((cleanTable === 'nexus_reports' || cleanTable === 'blueprint_reports' || cleanTable === 'content_flags') && !isCallerStaff) {
-            if (callerSpokeRole === 'mason' && (cleanTable === 'nexus_reports' || cleanTable === 'blueprint_reports')) {
-              const ownedMasons = await getCallerOwnedMasonIds()
-              let ownedTargetIds = new Set<string>()
-              if (cleanTable === 'nexus_reports') {
-                const { data: myAssets } = await gameDb
-                  .from('nexus_assets')
-                  .select('id')
-                  .eq('author_id', v_user_id)
-                ownedTargetIds = new Set((myAssets || []).map((a: any) => String(a.id)))
-              } else {
-                const masonFilterIds = [v_user_id, ...Array.from(ownedMasons)]
-                const { data: myBps } = await gameDb
-                  .from('blueprints')
-                  .select('id')
-                  .in('mason_id', masonFilterIds)
-                ownedTargetIds = new Set((myBps || []).map((b: any) => String(b.id)))
+                let q = gameDb.from('sanctuary_tickets').select(selectColumns === '*' ? '*' : '*')
+                q = applySpokeQueryModifiers(q, { ...payload, singleMode: null })
+                const res = await q
+                if (res.error) throw res.error
+                const rows = (Array.isArray(res.data) ? res.data : []).filter((t: any) => {
+                  if (!t) return false
+                  if (t.author_id === v_user_id || t.assigned_to === v_user_id) return true
+                  const meta = t.metadata || {}
+                  if (meta.target_user_id === v_user_id || meta.target_mason === v_user_id || meta.mason_id === v_user_id) return true
+                  if (meta.target_mason && ownedMasons.has(String(meta.target_mason))) return true
+                  if (meta.mason_id && ownedMasons.has(String(meta.mason_id))) return true
+                  if (meta.target_mod_id && ownedModIds.has(String(meta.target_mod_id))) return true
+                  return false
+                })
+                const finalData =
+                  selectOpts?.head
+                    ? null
+                    : payload?.singleMode === 'single' || payload?.singleMode === 'maybeSingle'
+                      ? (rows[0] ?? null)
+                      : rows
+                return { __spoke_query_v1: true, data: finalData, count: rows.length }
               }
-              let q = gameDb.from(cleanTable).select(selectColumns)
-              q = applySpokeQueryModifiers(q, { ...payload, singleMode: null })
+
+              let q = gameDb.from('sanctuary_tickets').select(selectColumns, selectOpts).eq('author_id', v_user_id)
+              q = applySpokeQueryModifiers(q, payload)
               const res = await q
               if (res.error) throw res.error
-              const fkField = cleanTable === 'nexus_reports' ? 'asset_id' : 'blueprint_id'
-              const rows = (Array.isArray(res.data) ? res.data : []).filter(
-                (r: any) => r && (r.reporter_id === v_user_id || (r[fkField] && ownedTargetIds.has(String(r[fkField]))))
-              )
-              const finalData =
-                selectOpts?.head
-                  ? null
-                  : payload?.singleMode === 'single' || payload?.singleMode === 'maybeSingle'
-                    ? (rows[0] ?? null)
-                    : rows
-              resultData = { __spoke_query_v1: true, data: finalData, count: rows.length }
-              break
+              return { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
             }
 
-            let q = gameDb.from(cleanTable).select(selectColumns, selectOpts).eq('reporter_id', v_user_id)
+            if ((cleanTable === 'nexus_reports' || cleanTable === 'blueprint_reports' || cleanTable === 'content_flags') && !isCallerStaff) {
+              if (callerSpokeRole === 'mason' && (cleanTable === 'nexus_reports' || cleanTable === 'blueprint_reports')) {
+                const ownedMasons = await getCallerOwnedMasonIds()
+                let ownedTargetIds = new Set<string>()
+                if (cleanTable === 'nexus_reports') {
+                  const { data: myAssets } = await gameDb
+                    .from('nexus_assets')
+                    .select('id')
+                    .eq('author_id', v_user_id)
+                  ownedTargetIds = new Set((myAssets || []).map((a: any) => String(a.id)))
+                } else {
+                  const masonFilterIds = [v_user_id, ...Array.from(ownedMasons)]
+                  const { data: myBps } = await gameDb
+                    .from('blueprints')
+                    .select('id')
+                    .in('mason_id', masonFilterIds)
+                  ownedTargetIds = new Set((myBps || []).map((b: any) => String(b.id)))
+                }
+                let q = gameDb.from(cleanTable).select(selectColumns)
+                q = applySpokeQueryModifiers(q, { ...payload, singleMode: null })
+                const res = await q
+                if (res.error) throw res.error
+                const fkField = cleanTable === 'nexus_reports' ? 'asset_id' : 'blueprint_id'
+                const rows = (Array.isArray(res.data) ? res.data : []).filter(
+                  (r: any) => r && (r.reporter_id === v_user_id || (r[fkField] && ownedTargetIds.has(String(r[fkField]))))
+                )
+                const finalData =
+                  selectOpts?.head
+                    ? null
+                    : payload?.singleMode === 'single' || payload?.singleMode === 'maybeSingle'
+                      ? (rows[0] ?? null)
+                      : rows
+                return { __spoke_query_v1: true, data: finalData, count: rows.length }
+              }
+
+              let q = gameDb.from(cleanTable).select(selectColumns, selectOpts).eq('reporter_id', v_user_id)
+              q = applySpokeQueryModifiers(q, payload)
+              const res = await q
+              if (res.error) throw res.error
+              return { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
+            }
+
+            let q = gameDb.from(cleanTable).select(selectColumns, selectOpts)
             q = applySpokeQueryModifiers(q, payload)
             const res = await q
             if (res.error) throw res.error
-            resultData = { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
-            break
+            return { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
           }
 
-          let q = gameDb.from(cleanTable).select(selectColumns, selectOpts)
-          q = applySpokeQueryModifiers(q, payload)
-          const res = await q
-          if (res.error) throw res.error
-          resultData = { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
-          break
-        }
-
-        // Mutations: insert | upsert | update | delete
-        if (cleanTable === 'profiles') {
-          if (op !== 'update') throw new Error('Forbidden direct profile operation')
-          const rawVals = payload?.values && typeof payload.values === 'object' ? payload.values : {}
-          const isSelfBanOnly =
-            Object.keys(rawVals).length > 0 &&
-            rawVals.is_banned === true &&
-            Object.keys(rawVals).every((k) => ['is_banned', 'blacklist_reason'].includes(k))
-          if (!isCallerStaff && !isSelfBanOnly) {
-            throw new Error('Forbidden: Insufficient permissions to update Spoke profile')
-          }
-          let q = gameDb.from('profiles').update(
-            isSelfBanOnly
-              ? { is_banned: true, blacklist_reason: rawVals.blacklist_reason ?? null }
-              : rawVals
-          )
-          if (!isCallerStaff) {
-            q = q.eq('id', v_user_id)
-          } else {
-            q = applySpokeQueryFilters(q, payload?.filters || [])
-          }
-          if (payload?.returnSelect !== null && payload?.returnSelect !== undefined) {
-            q = q.select(payload.returnSelect || '*')
-            if (payload?.singleMode === 'single') q = q.single()
-            else if (payload?.singleMode === 'maybeSingle') q = q.maybeSingle()
-          }
-          const res = await q
-          if (res.error) throw res.error
-          resultData = { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
-          break
-        }
-
-        if (isCallerBanned) {
-          throw new Error('Forbidden: Account is suspended')
-        }
-
-        if (STAFF_ONLY_TABLES.has(cleanTable) && !isCallerStaff) {
-          throw new Error(`Forbidden: Staff clearance required to modify ${cleanTable}`)
-        }
-        if (CREATOR_OR_STAFF_TABLES.has(cleanTable) && !isCallerCreatorOrStaff) {
-          throw new Error(`Forbidden: Creator or Staff role required to modify ${cleanTable}`)
-        }
-        if (
-          !STAFF_ONLY_TABLES.has(cleanTable) &&
-          !CREATOR_OR_STAFF_TABLES.has(cleanTable) &&
-          !CITIZEN_TABLES.has(cleanTable) &&
-          cleanTable !== 'pwa_push_subscriptions'
-        ) {
-          throw new Error(`Forbidden: Table ${cleanTable} cannot be modified`)
-        }
-
-        if (op === 'insert' || op === 'upsert') {
-          const isArr = Array.isArray(payload?.values)
-          const rows = (isArr ? payload.values : [payload?.values]).map((r: any) =>
-            normalizeSpokeTableRow(cleanTable, r)
-          )
-          if (!isCallerStaff) {
-            const ownedMasons =
-              cleanTable === 'masons' ||
-              cleanTable === 'mason_posts' ||
-              cleanTable === 'collections' ||
-              cleanTable === 'blueprints'
-                ? await getCallerOwnedMasonIds()
-                : new Set<string>()
-            for (const row of rows) {
-              if (!row || typeof row !== 'object') throw new Error('Invalid payload row')
-              if (cleanTable === 'audit_logs') {
-                row.actor_id = v_user_id
-                delete row.id
-              } else if (cleanTable === 'mason_post_comments') {
-                if (callerSpokeProfile?.is_comm_banned) {
-                  throw new Error('Forbidden: Community posting privileges are suspended')
-                }
-                row.author_id = v_user_id
-                delete row.is_hidden
-              } else if (
-                cleanTable === 'mason_post_likes' ||
-                cleanTable === 'mason_post_views' ||
-                cleanTable === 'dispatch_poll_votes' ||
-                cleanTable === 'pwa_push_subscriptions'
-              ) {
-                row.user_id = v_user_id
-              } else if (cleanTable === 'blueprints') {
-                if (row.mason_id && row.mason_id !== v_user_id && !ownedMasons.has(String(row.mason_id))) {
-                  throw new Error('Forbidden: Blueprint mason_id must belong to caller')
-                }
-                if (!row.mason_id) row.mason_id = v_user_id
-              } else if (cleanTable === 'nexus_assets') {
-                row.author_id = v_user_id
-                delete row.is_community_default
-              } else if (cleanTable === 'sanctuary_tickets') {
-                row.author_id = v_user_id
-                delete row.assigned_to
-              } else if (
-                cleanTable === 'content_flags' ||
-                cleanTable === 'nexus_reports' ||
-                cleanTable === 'blueprint_reports'
-              ) {
-                row.reporter_id = v_user_id
-                delete row.resolved_by
-                delete row.resolution_note
-              } else if (cleanTable === 'scout_suggestions') {
-                row.submitter_id = v_user_id
-              } else if (cleanTable === 'notifications') {
-                row.actor_id = v_user_id
-              } else if (cleanTable === 'masons') {
-                delete row.is_verified
-                delete row.followers_count
-                row.profile_id = v_user_id
-              } else if (cleanTable === 'mason_posts' || cleanTable === 'collections') {
-                if (!row.mason_id || !ownedMasons.has(String(row.mason_id))) {
-                  throw new Error(`Forbidden: ${cleanTable} mason_id must belong to your Creator profile`)
-                }
-                if (cleanTable === 'collections') delete row.is_official
-              }
+          // Mutations: insert | upsert | update | delete
+          if (cleanTable === 'profiles') {
+            if (op !== 'update') throw new Error('Forbidden direct profile operation')
+            const rawVals = payload?.values && typeof payload.values === 'object' ? payload.values : {}
+            const isSelfBanOnly =
+              Object.keys(rawVals).length > 0 &&
+              rawVals.is_banned === true &&
+              Object.keys(rawVals).every((k) => ['is_banned', 'blacklist_reason'].includes(k))
+            if (!isCallerStaff && !isSelfBanOnly) {
+              throw new Error('Forbidden: Insufficient permissions to update Spoke profile')
             }
-          }
-
-          let currentBody: any = isArr ? rows : rows[0]
-          let resData: any = null
-          let resErr: any = null
-          for (let attempt = 0; attempt < 5; attempt++) {
-            let q =
-              op === 'upsert'
-                ? gameDb.from(cleanTable).upsert(currentBody, payload?.upsertOpts || undefined)
-                : gameDb.from(cleanTable).insert(currentBody)
+            let q = gameDb.from('profiles').update(
+              isSelfBanOnly
+                ? { is_banned: true, blacklist_reason: rawVals.blacklist_reason ?? null }
+                : rawVals
+            )
+            if (!isCallerStaff) {
+              q = q.eq('id', v_user_id)
+            } else {
+              q = applySpokeQueryFilters(q, payload?.filters || [])
+            }
             if (payload?.returnSelect !== null && payload?.returnSelect !== undefined) {
               q = q.select(payload.returnSelect || '*')
               if (payload?.singleMode === 'single') q = q.single()
               else if (payload?.singleMode === 'maybeSingle') q = q.maybeSingle()
             }
             const res = await q
-            resData = res.data
-            resErr = res.error
-            if (!resErr) break
-            const missingCol = String(resErr.message || '').match(/Could not find the '([^']+)' column/i)?.[1]
-            if (missingCol) {
-              if (Array.isArray(currentBody)) {
-                currentBody = currentBody.map((r: any) => {
-                  if (r && typeof r === 'object') {
-                    const next = { ...r }
-                    delete next[missingCol]
-                    return next
+            if (res.error) throw res.error
+            return { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
+          }
+
+          if (isCallerBanned) {
+            throw new Error('Forbidden: Account is suspended')
+          }
+
+          if (STAFF_ONLY_TABLES.has(cleanTable) && !isCallerStaff) {
+            throw new Error(`Forbidden: Staff clearance required to modify ${cleanTable}`)
+          }
+          if (CREATOR_OR_STAFF_TABLES.has(cleanTable) && !isCallerCreatorOrStaff) {
+            throw new Error(`Forbidden: Creator or Staff role required to modify ${cleanTable}`)
+          }
+          if (
+            !STAFF_ONLY_TABLES.has(cleanTable) &&
+            !CREATOR_OR_STAFF_TABLES.has(cleanTable) &&
+            !CITIZEN_TABLES.has(cleanTable) &&
+            cleanTable !== 'pwa_push_subscriptions'
+          ) {
+            throw new Error(`Forbidden: Table ${cleanTable} cannot be modified`)
+          }
+
+          if (op === 'insert' || op === 'upsert') {
+            const isArr = Array.isArray(payload?.values)
+            const rows = (isArr ? payload.values : [payload?.values]).map((r: any) =>
+              normalizeSpokeTableRow(cleanTable, r)
+            )
+            if (!isCallerStaff) {
+              const ownedMasons =
+                cleanTable === 'masons' ||
+                cleanTable === 'mason_posts' ||
+                cleanTable === 'collections' ||
+                cleanTable === 'blueprints'
+                  ? await getCallerOwnedMasonIds()
+                  : new Set<string>()
+              for (const row of rows) {
+                if (!row || typeof row !== 'object') throw new Error('Invalid payload row')
+                if (cleanTable === 'audit_logs') {
+                  row.actor_id = v_user_id
+                  delete row.id
+                } else if (cleanTable === 'mason_post_comments') {
+                  if (callerSpokeProfile?.is_comm_banned) {
+                    throw new Error('Forbidden: Community posting privileges are suspended')
                   }
-                  return r
-                })
-                continue
-              } else if (currentBody && typeof currentBody === 'object' && Object.prototype.hasOwnProperty.call(currentBody, missingCol)) {
-                delete currentBody[missingCol]
-                continue
+                  row.author_id = v_user_id
+                  delete row.is_hidden
+                } else if (
+                  cleanTable === 'mason_post_likes' ||
+                  cleanTable === 'mason_post_views' ||
+                  cleanTable === 'dispatch_poll_votes' ||
+                  cleanTable === 'pwa_push_subscriptions'
+                ) {
+                  row.user_id = v_user_id
+                } else if (cleanTable === 'blueprints') {
+                  if (row.mason_id && row.mason_id !== v_user_id && !ownedMasons.has(String(row.mason_id))) {
+                    throw new Error('Forbidden: Blueprint mason_id must belong to caller')
+                  }
+                  if (!row.mason_id) row.mason_id = v_user_id
+                } else if (cleanTable === 'nexus_assets') {
+                  row.author_id = v_user_id
+                  delete row.is_community_default
+                } else if (cleanTable === 'sanctuary_tickets') {
+                  row.author_id = v_user_id
+                  delete row.assigned_to
+                } else if (
+                  cleanTable === 'content_flags' ||
+                  cleanTable === 'nexus_reports' ||
+                  cleanTable === 'blueprint_reports'
+                ) {
+                  row.reporter_id = v_user_id
+                  delete row.resolved_by
+                  delete row.resolution_note
+                } else if (cleanTable === 'scout_suggestions') {
+                  row.submitter_id = v_user_id
+                } else if (cleanTable === 'notifications') {
+                  row.actor_id = v_user_id
+                } else if (cleanTable === 'masons') {
+                  delete row.is_verified
+                  delete row.followers_count
+                  row.profile_id = v_user_id
+                } else if (cleanTable === 'mason_posts' || cleanTable === 'collections') {
+                  if (!row.mason_id || !ownedMasons.has(String(row.mason_id))) {
+                    throw new Error(`Forbidden: ${cleanTable} mason_id must belong to your Creator profile`)
+                  }
+                  if (cleanTable === 'collections') delete row.is_official
+                }
               }
             }
-            break
-          }
-          if (resErr) {
-            if (resErr.code === '23505' && cleanTable === 'mason_post_views') {
-              resultData = { __spoke_query_v1: true, data: [currentBody], count: 1 }
+
+            if (isArchitectOnlyStaff && (cleanTable === 'mods' || cleanTable === 'collections')) {
+              for (const row of rows) {
+                if (row && typeof row === 'object' && Number(row.compliance_tier || 0) >= 1) {
+                  row.compliance_tier = Math.min(4, Math.max(1, Math.round(Number(row.compliance_tier))))
+                  row.status = 'pending'
+                }
+              }
+            }
+
+            if (isOversightOnlyStaff && cleanTable === 'masons') {
+              for (const row of rows) {
+                if (row?.profile_id) {
+                  const { data: targetProf } = await gameDb
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', row.profile_id)
+                    .maybeSingle()
+                  if (targetProf && ['wayfinder', 'oversight', 'admin'].includes(String(targetProf.role || '').toLowerCase())) {
+                    throw new Error('Forbidden: Oversight cannot link Creators to Wayfinder or Oversight accounts')
+                  }
+                }
+              }
+            }
+
+            let currentBody: any = isArr ? rows : rows[0]
+            let resData: any = null
+            let resErr: any = null
+            for (let attempt = 0; attempt < 5; attempt++) {
+              let q =
+                op === 'upsert'
+                  ? gameDb.from(cleanTable).upsert(currentBody, payload?.upsertOpts || undefined)
+                  : gameDb.from(cleanTable).insert(currentBody)
+              if (payload?.returnSelect !== null && payload?.returnSelect !== undefined) {
+                q = q.select(payload.returnSelect || '*')
+                if (payload?.singleMode === 'single') q = q.single()
+                else if (payload?.singleMode === 'maybeSingle') q = q.maybeSingle()
+              }
+              const res = await q
+              resData = res.data
+              resErr = res.error
+              if (!resErr) break
+              const missingCol = String(resErr.message || '').match(/Could not find the '([^']+)' column/i)?.[1]
+              if (missingCol) {
+                if (Array.isArray(currentBody)) {
+                  currentBody = currentBody.map((r: any) => {
+                    if (r && typeof r === 'object') {
+                      const next = { ...r }
+                      delete next[missingCol]
+                      return next
+                    }
+                    return r
+                  })
+                  continue
+                } else if (currentBody && typeof currentBody === 'object' && Object.prototype.hasOwnProperty.call(currentBody, missingCol)) {
+                  delete currentBody[missingCol]
+                  continue
+                }
+              }
               break
             }
-            throw resErr
-          }
-          resultData = { __spoke_query_v1: true, data: resData, count: null }
-          break
-        }
-
-        if (op === 'update' || op === 'delete') {
-          if (cleanTable === 'audit_logs') {
-            throw new Error('Forbidden: Audit logs are immutable')
-          }
-          if (!Array.isArray(payload?.filters) || payload.filters.length === 0) {
-            throw new Error(`Refusing unfiltered ${op} on ${cleanTable}`)
-          }
-
-          let updateVals = payload?.values && typeof payload.values === 'object'
-            ? { ...payload.values }
-            : {}
-
-          if (!isCallerStaff) {
-            if (cleanTable === 'masons') {
-              delete updateVals.is_verified
-              delete updateVals.followers_count
-              delete updateVals.profile_id
-            } else if (cleanTable === 'nexus_assets') {
-              delete updateVals.is_community_default
-              delete updateVals.author_id
-            } else if (cleanTable === 'collections') {
-              delete updateVals.is_official
-            } else if (cleanTable === 'mason_post_comments') {
-              delete updateVals.is_hidden
-              delete updateVals.author_id
-            }
-          }
-
-          let q = op === 'update'
-            ? gameDb.from(cleanTable).update(updateVals)
-            : gameDb.from(cleanTable).delete()
-
-          q = applySpokeQueryFilters(q, payload.filters)
-
-          if (!isCallerStaff) {
-            const ownedMasons = await getCallerOwnedMasonIds()
-            if (cleanTable === 'mason_post_comments') {
-              q = q.eq('author_id', v_user_id)
-            } else if (
-              cleanTable === 'mason_post_likes' ||
-              cleanTable === 'dispatch_poll_votes' ||
-              cleanTable === 'notifications' ||
-              cleanTable === 'pwa_push_subscriptions'
-            ) {
-              q = q.eq('user_id', v_user_id)
-            } else if (cleanTable === 'nexus_assets') {
-              q = q.eq('author_id', v_user_id)
-            } else if (cleanTable === 'masons') {
-              q = q.eq('profile_id', v_user_id)
-            } else if (cleanTable === 'mason_posts' || cleanTable === 'collections') {
-              const mIds = Array.from(ownedMasons)
-              if (mIds.length === 0) throw new Error('Forbidden: No owned Creator profile')
-              q = q.in('mason_id', mIds)
-            } else if (cleanTable === 'blueprints') {
-              const mIds = [v_user_id, ...Array.from(ownedMasons)]
-              q = q.in('mason_id', mIds)
-            } else if (cleanTable === 'sanctuary_tickets') {
-              if (op === 'delete') throw new Error('Forbidden: Citizens/Creators cannot delete tickets')
-              if (callerSpokeRole !== 'mason') {
-                q = q.eq('author_id', v_user_id)
+            if (resErr) {
+              if (resErr.code === '23505' && cleanTable === 'mason_post_views') {
+                return { __spoke_query_v1: true, data: [currentBody], count: 1 }
               }
-            } else if (
-              cleanTable === 'nexus_reports' ||
-              cleanTable === 'blueprint_reports'
-            ) {
-              if (op === 'delete' || callerSpokeRole !== 'mason') {
+              throw resErr
+            }
+            return { __spoke_query_v1: true, data: resData, count: null }
+          }
+
+          if (op === 'update' || op === 'delete') {
+            if (cleanTable === 'audit_logs') {
+              throw new Error('Forbidden: Audit logs are immutable')
+            }
+            if (!Array.isArray(payload?.filters) || payload.filters.length === 0) {
+              throw new Error(`Refusing unfiltered ${op} on ${cleanTable}`)
+            }
+
+            let updateVals = payload?.values && typeof payload.values === 'object'
+              ? { ...payload.values }
+              : {}
+
+            if (isArchitectOnlyStaff && op === 'update' && (cleanTable === 'mods' || cleanTable === 'collections')) {
+              if (Number(updateVals.compliance_tier || 0) >= 1) {
+                updateVals.compliance_tier = Math.min(4, Math.max(1, Math.round(Number(updateVals.compliance_tier))))
+                updateVals.status = 'pending'
+              }
+            }
+
+            if (isOversightOnlyStaff && cleanTable === 'masons' && updateVals.profile_id) {
+              const { data: targetProf } = await gameDb
+                .from('profiles')
+                .select('role')
+                .eq('id', updateVals.profile_id)
+                .maybeSingle()
+              if (targetProf && ['wayfinder', 'oversight', 'admin'].includes(String(targetProf.role || '').toLowerCase())) {
+                throw new Error('Forbidden: Oversight cannot link Creators to Wayfinder or Oversight accounts')
+              }
+            }
+
+            if (!isCallerStaff) {
+              if (cleanTable === 'masons') {
+                delete updateVals.is_verified
+                delete updateVals.followers_count
+                delete updateVals.profile_id
+              } else if (cleanTable === 'nexus_assets') {
+                delete updateVals.is_community_default
+                delete updateVals.author_id
+              } else if (cleanTable === 'collections') {
+                delete updateVals.is_official
+                if (Number(updateVals.compliance_tier || 0) >= 1) {
+                  updateVals.compliance_tier = Math.min(4, Math.max(1, Math.round(Number(updateVals.compliance_tier))))
+                  updateVals.status = 'pending'
+                }
+              } else if (cleanTable === 'mods') {
+                if (Number(updateVals.compliance_tier || 0) >= 1) {
+                  updateVals.compliance_tier = Math.min(4, Math.max(1, Math.round(Number(updateVals.compliance_tier))))
+                  updateVals.status = 'pending'
+                }
+              } else if (cleanTable === 'mason_post_comments') {
+                delete updateVals.is_hidden
+                delete updateVals.author_id
+              }
+            }
+
+            let q = op === 'update'
+              ? gameDb.from(cleanTable).update(updateVals)
+              : gameDb.from(cleanTable).delete()
+
+            q = applySpokeQueryFilters(q, payload.filters)
+
+            if (!isCallerStaff) {
+              const ownedMasons = await getCallerOwnedMasonIds()
+              if (cleanTable === 'mason_post_comments') {
+                q = q.eq('author_id', v_user_id)
+              } else if (
+                cleanTable === 'mason_post_likes' ||
+                cleanTable === 'dispatch_poll_votes' ||
+                cleanTable === 'notifications' ||
+                cleanTable === 'pwa_push_subscriptions'
+              ) {
+                q = q.eq('user_id', v_user_id)
+              } else if (cleanTable === 'nexus_assets') {
+                q = q.eq('author_id', v_user_id)
+              } else if (cleanTable === 'masons') {
+                q = q.eq('profile_id', v_user_id)
+              } else if (cleanTable === 'mason_posts' || cleanTable === 'collections') {
+                const mIds = Array.from(ownedMasons)
+                if (mIds.length === 0) throw new Error('Forbidden: No owned Creator profile')
+                q = q.in('mason_id', mIds)
+              } else if (cleanTable === 'mods') {
+                if (op === 'delete') throw new Error('Forbidden: Creators cannot delete cloud registry artifacts directly')
+                const mIds = Array.from(ownedMasons)
+                if (mIds.length === 0) throw new Error('Forbidden: No owned Creator profile')
+                q = q.in('mason_id', mIds)
+              } else if (cleanTable === 'blueprints') {
+                const mIds = [v_user_id, ...Array.from(ownedMasons)]
+                q = q.in('mason_id', mIds)
+              } else if (cleanTable === 'sanctuary_tickets') {
+                if (op === 'delete') throw new Error('Forbidden: Citizens/Creators cannot delete tickets')
+                if (callerSpokeRole !== 'mason') {
+                  q = q.eq('author_id', v_user_id)
+                }
+              } else if (
+                cleanTable === 'nexus_reports' ||
+                cleanTable === 'blueprint_reports'
+              ) {
+                if (op === 'delete' || callerSpokeRole !== 'mason') {
+                  throw new Error(`Forbidden: Staff clearance required to ${op} ${cleanTable}`)
+                }
+              } else if (
+                cleanTable === 'content_flags' ||
+                cleanTable === 'malware_reports'
+              ) {
                 throw new Error(`Forbidden: Staff clearance required to ${op} ${cleanTable}`)
               }
-            } else if (
-              cleanTable === 'content_flags' ||
-              cleanTable === 'malware_reports'
-            ) {
-              throw new Error(`Forbidden: Staff clearance required to ${op} ${cleanTable}`)
             }
+
+            if (payload?.returnSelect !== null && payload?.returnSelect !== undefined) {
+              q = q.select(payload.returnSelect || '*')
+              if (payload?.singleMode === 'single') q = q.single()
+              else if (payload?.singleMode === 'maybeSingle') q = q.maybeSingle()
+            }
+
+            const res = await q
+            if (res.error) throw res.error
+            return { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
           }
 
-          if (payload?.returnSelect !== null && payload?.returnSelect !== undefined) {
-            q = q.select(payload.returnSelect || '*')
-            if (payload?.singleMode === 'single') q = q.single()
-            else if (payload?.singleMode === 'maybeSingle') q = q.maybeSingle()
-          }
+          throw new Error(`Unsupported spoke_query op: ${op}`)
+        }
 
-          const res = await q
-          if (res.error) throw res.error
-          resultData = { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
+        if (action === 'spoke_query_batch') {
+          const queries = Array.isArray(payload?.queries) ? payload.queries.slice(0, 32) : []
+          const results = await Promise.all(
+            queries.map(async (qSpec: any) => {
+              try {
+                const out = await executeSingleSpokeQuery(qSpec)
+                return { ok: true, ...out }
+              } catch (err: any) {
+                return { ok: false, error: err?.message || String(err), original_error: err }
+              }
+            })
+          )
+          resultData = { __spoke_batch_v1: true, results }
           break
         }
 
-        throw new Error(`Unsupported spoke_query op: ${op}`)
+        resultData = await executeSingleSpokeQuery(payload)
+        break
       }
       default:
         throw new Error('Unknown action: ' + action)

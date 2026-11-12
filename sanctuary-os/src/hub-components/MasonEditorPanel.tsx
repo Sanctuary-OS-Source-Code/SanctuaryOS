@@ -130,6 +130,7 @@ export default function MasonEditorPanel({
   const isLexiconActive = Boolean(
     !isTitleAreaActive &&
       (activeFile?.content?.includes("_meta_lang") ||
+        activeFile?.content?.includes("_meta_name") ||
         activeFile?.content?.includes('"a_citizen"') ||
         activeFile?.content?.includes('"term_mod"') ||
         activeFile?.name?.match(/^[a-z]{2}-.+\.json$/i) !== null ||
@@ -431,7 +432,7 @@ export default function MasonEditorPanel({
         }
         subtitle={
           isLexiconActive
-            ? t("lex_studio_glossary_title", "Core Terminology Matrix")
+            ? t("lex_studio_subtitle", "{Lexicon} Studio")
             : isSchemaActive
               ? t("schema_studio_title", "Master Schema Studio")
               : t("mason_ide_subtitle", "Development & Localization Environment")

@@ -37,7 +37,9 @@ import {
 } from "./components/LabVerificationGate";
 import {
   KnownErrorDiagnosisBanner,
+  KnownErrorFilterPopoverContent,
   KnownErrorRulesManager,
+  KnownErrorSortField,
   getExceptionRules,
   matchExceptionRules,
   NormalizedRuleSeverity,
@@ -87,6 +89,9 @@ export function HomesteadDiagnostics({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filterTab, setFilterTab] = useState<"overview" | "pending" | "completed" | "known_errors">("overview");
   const [knownErrorFilter, setKnownErrorFilter] = useState<"all" | NormalizedRuleSeverity>("all");
+  const [knownErrorLabBehavior, setKnownErrorLabBehavior] = useState<"all" | "fails" | "ignored">("all");
+  const [knownErrorFileHint, setKnownErrorFileHint] = useState<string>("all");
+  const [knownErrorSort, setKnownErrorSort] = useState<KnownErrorSortField>("severity");
   const [visibleCount, setVisibleCount] = useState(100);
   const [submittedLog, setSubmittedLog] = useState<string>("");
   const [diagLogViewTab, setDiagLogViewTab] = useState<"REPORT" | "REAL_LOG">("REPORT");
@@ -1012,13 +1017,43 @@ export function HomesteadDiagnostics({
         headerIconColorClass="theme-text-accent"
         search={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder={(t("search_ph", "Search {mods}...") || "Search diagnostics...") as string}
+        searchPlaceholder={
+          filterTab === "known_errors"
+            ? (t("exc_rules_search_short_ph", "Search errors or paste log...") as string)
+            : ((t("search_ph", "Search {mods}...") || "Search diagnostics...") as string)
+        }
         hideSearch={filterTab === "overview"}
         activeTab={filterTab}
         onTabChange={(tabId: string) => setFilterTab(tabId as any)}
         tabs={tabs}
+        primaryPopover={
+          filterTab === "known_errors"
+            ? {
+                icon: t("icon_tune", "tune"),
+                label: t("filters", "Filters") as string,
+                isActive:
+                  knownErrorFilter !== "all" ||
+                  knownErrorLabBehavior !== "all" ||
+                  knownErrorFileHint !== "all" ||
+                  knownErrorSort !== "severity",
+                content: (
+                  <KnownErrorFilterPopoverContent
+                    rules={getExceptionRules(activeGameSchema)}
+                    severityFilter={knownErrorFilter}
+                    onSeverityFilterChange={setKnownErrorFilter}
+                    labBehaviorFilter={knownErrorLabBehavior}
+                    onLabBehaviorFilterChange={setKnownErrorLabBehavior}
+                    fileHintFilter={knownErrorFileHint}
+                    onFileHintFilterChange={setKnownErrorFileHint}
+                    sortBy={knownErrorSort}
+                    onSortByChange={setKnownErrorSort}
+                  />
+                ),
+              }
+            : undefined
+        }
         actions={
-          canRunOrEdit && filterTab === "known_errors"
+          filterTab === "known_errors" && canRunOrEdit
             ? [
                 {
                   id: "add_game_bug",
@@ -1112,12 +1147,21 @@ export function HomesteadDiagnostics({
           <div className="flex flex-col gap-6 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <KnownErrorRulesManager
               searchQuery={searchTerm}
+              onClearSearch={() => {
+                setSearchTerm("");
+                setKnownErrorFilter("all");
+                setKnownErrorLabBehavior("all");
+                setKnownErrorFileHint("all");
+              }}
               canEdit={canRunOrEdit}
               externalTriggerCreate={triggerCreateRule}
               externalTriggerCreateGameBug={triggerCreateGameBug}
               hideTopBarButton={true}
               severityFilter={knownErrorFilter}
               onSeverityFilterChange={setKnownErrorFilter}
+              labBehaviorFilter={knownErrorLabBehavior}
+              fileHintFilter={knownErrorFileHint}
+              sortBy={knownErrorSort}
             />
           </div>
         )}

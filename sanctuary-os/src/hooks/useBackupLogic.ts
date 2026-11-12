@@ -83,6 +83,9 @@ export function useBackupLogic(detectGameVersion: () => void) {
 
   const triggerFullEngineBackup = async (keepPreviousCompleted = false) => {
     const config: any = await invoke("get_saved_coordinates");
+    if (!config?.live_path || !config?.vault_path) return;
+    const liveVersion =
+      useStore.getState().selectedVersion || selectedVersion || "Local";
     if (!keepPreviousCompleted) {
       useModalStore.getState().setCompletedBackups([]);
       useModalStore.getState().setIsDefconBackupSession(false);
@@ -93,7 +96,7 @@ export function useBackupLogic(detectGameVersion: () => void) {
     try {
       const createdName = await invoke<string>("backup_engine_full", {
         livePath: config.live_path,
-        version: selectedVersion,
+        version: liveVersion,
       });
       if (createdName && typeof createdName === "string") {
         const cleanName = createdName.replace(/^Secured:\s*/i, "").trim();
@@ -115,6 +118,8 @@ export function useBackupLogic(detectGameVersion: () => void) {
     const config: any = await invoke("get_saved_coordinates");
     const state = useStore.getState();
     const docsBase = state.docsPath || config?.docs_path || config?.user_data_path || "";
+    if (!docsBase || !config?.vault_path) return;
+    const liveVersion = state.selectedVersion || selectedVersion || "Local";
     if (!keepPreviousCompleted) {
       useModalStore.getState().setCompletedBackups([]);
       useModalStore.getState().setIsDefconBackupSession(false);
@@ -131,7 +136,7 @@ export function useBackupLogic(detectGameVersion: () => void) {
     try {
       const createdName = await invoke<string>("backup_universe", {
         docsPath: docsBase,
-        version: selectedVersion,
+        version: liveVersion,
         gameSchema: state.activeGameSchema,
       });
       if (createdName && typeof createdName === "string") {

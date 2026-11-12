@@ -47,6 +47,25 @@ fn sync_security_definitions(
 fn reveal_main_window(app: tauri::AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.show();
+        #[cfg(target_os = "linux")]
+        {
+            let in_gamescope = std::env::var_os("GAMESCOPE_WAYLAND_DISPLAY").is_some();
+            if let Ok(Some(monitor)) = win.current_monitor() {
+                let scale = monitor.scale_factor();
+                let phys = monitor.size();
+                let logical_w = (phys.width as f64) / scale;
+                let logical_h = (phys.height as f64) / scale;
+                if in_gamescope || (logical_w <= 1366.0 && logical_h <= 840.0) {
+                    let _ = win.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                        width: logical_w,
+                        height: logical_h,
+                    }));
+                    let _ = win.maximize();
+                }
+            } else if in_gamescope {
+                let _ = win.maximize();
+            }
+        }
         let _ = win.set_focus();
     }
 }
@@ -221,6 +240,25 @@ fn main() {
 
         let is_appimage =
             std::env::var_os("APPIMAGE").is_some() || std::env::var_os("APPDIR").is_some();
+        let in_gamescope_or_steam = std::env::var_os("GAMESCOPE_WAYLAND_DISPLAY").is_some()
+            || std::env::var_os("SteamGameId").is_some()
+            || std::env::var_os("SteamAppId").is_some();
+
+        // When launched as a Non-Steam Game on Steam Deck (Gamescope) or via Steam Input,
+        // Gamescope exports both DISPLAY (XWayland) and WAYLAND_DISPLAY. Forcing X11 while
+        // clearing WAYLAND_DISPLAY ensures GTK, WebKitWebProcess, Steam Overlay, and Gamescope's
+        // XWayland window/controller focus router all bind to the exact same X11 surface.
+        if in_gamescope_or_steam && std::env::var_os("DISPLAY").is_some() {
+            if std::env::var_os("GDK_BACKEND").is_none() {
+                std::env::set_var("GDK_BACKEND", "x11");
+            }
+            if std::env::var("GDK_BACKEND")
+                .map(|v| v.eq_ignore_ascii_case("x11"))
+                .unwrap_or(false)
+            {
+                std::env::remove_var("WAYLAND_DISPLAY");
+            }
+        }
 
         // When running inside an Ubuntu-built AppImage on SteamOS / Arch / Fedora, AppRun puts
         // $APPDIR/usr/lib first in LD_LIBRARY_PATH, causing Ubuntu's older libwayland / libgbm /
@@ -237,6 +275,9 @@ fn main() {
             }
             if std::env::var_os("GDK_BACKEND").is_none() {
                 std::env::set_var("GDK_BACKEND", "x11");
+            }
+            if in_gamescope_or_steam && std::env::var_os("DISPLAY").is_some() {
+                std::env::remove_var("WAYLAND_DISPLAY");
             }
 
             let host_lib_dirs = ["/usr/lib", "/usr/lib64", "/usr/lib/x86_64-linux-gnu"];
@@ -338,8 +379,7 @@ fn main() {
                 std::thread::sleep(std::time::Duration::from_millis(1500));
                 if let Some(win) = handle.get_webview_window("main") {
                     if !win.is_visible().unwrap_or(true) {
-                        let _ = win.show();
-                        let _ = win.set_focus();
+                        reveal_main_window(handle.clone());
                     }
                 }
             });

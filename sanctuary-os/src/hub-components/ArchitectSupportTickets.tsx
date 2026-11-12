@@ -9,6 +9,12 @@ import { UniversalCard } from "../components/universal/UniversalCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid } from "../components/layouts/ElevatedHubLayout";
 import SASupportSettings from "./SASupportSettings";
+import {
+  isTicketOpenStatus,
+  isTicketClaimedBy,
+  isTicketVisibleToStaff,
+  invalidateHubCommandCache,
+} from "../utils/hubCommandCache";
 
 interface Ticket {
   id: string;
@@ -126,10 +132,20 @@ export default function ArchitectSupportTickets({
       let finalTickets = mergedTickets;
       if (userRole !== "mason") {
         finalTickets = mergedTickets.filter(t => {
+          if (!isTicketVisibleToStaff(t, currentUserId)) return false;
+
           const rawTargetModId = t.target_mod_id || t.metadata?.target_mod_id;
           const resolvedModId = rawTargetModId ? (modAuthorMap[`HASH_MAP_${rawTargetModId}`] || rawTargetModId) : null;
           const targetModTier = resolvedModId ? Number(modAuthorMap[`TIER_${resolvedModId}`] || 0) : 0;
           if (userRole === 'architect' && targetModTier > 0) return false;
+
+          const claimer = isTicketClaimedBy(t);
+          const claimedRole = t.metadata?.claimed_role
+            ? String(t.metadata.claimed_role).toLowerCase()
+            : "";
+          if (claimer && claimedRole) {
+            return claimedRole === userRole;
+          }
 
           const typeStr = t.ticket_type || t.category;
           const cat = catData?.find((c: any) => c.category_name === typeStr || c.category_code === typeStr);
@@ -220,14 +236,14 @@ export default function ArchitectSupportTickets({
 
   useEffect(() => {
     fetchTickets();
-  }, []);
+  }, [currentUserId, userRole]);
 
   const handleTakeAction = async (actionType: "RESOLVED" | "REJECTED" | "ESCALATED" | "PENDING", reason: string) => {
     if (!selectedTicket) return;
 
     const newStatus = actionType.toUpperCase();
 
-    const newMetadata = {
+    const newMetadata: Record<string, any> = {
       ...(selectedTicket.metadata || {}),
       action_log: [
         ...(selectedTicket.metadata?.action_log || []),
@@ -240,8 +256,12 @@ export default function ArchitectSupportTickets({
       ]
     };
 
-    if (actionType === "ESCALATED") {
+    if (actionType === "ESCALATED" || actionType === "RESOLVED" || actionType === "REJECTED") {
       delete newMetadata.claimed_by;
+      delete newMetadata.claimed_role;
+    } else if (actionType === "PENDING" && currentUserId && userRole !== "mason") {
+      newMetadata.claimed_by = currentUserId;
+      newMetadata.claimed_role = userRole;
     }
 
     const { error } = await supabase
@@ -259,7 +279,7 @@ export default function ArchitectSupportTickets({
 
     useStore.getState().pushStatus(t("auto_ticket_status_updated_39", "Ticket status updated."), "success");
 
-    if (userRole === "architect") {
+    if (userRole === "architect" || userRole === "oversight" || userRole === "wayfinder") {
       logArchitectAction(
         `Support Ticket ${actionType}: ${reason}`,
         'sanctuary_tickets',
@@ -273,15 +293,21 @@ export default function ArchitectSupportTickets({
         }
       );
     }
+    invalidateHubCommandCache();
     setSelectedTicket(null);
     fetchTickets();
   };
 
   const handleClaimTicket = async () => {
     if (!selectedTicket || !currentUserId) return;
-    const newMetadata = { ...(selectedTicket.metadata || {}), claimed_by: currentUserId };
+    const newMetadata = {
+      ...(selectedTicket.metadata || {}),
+      claimed_by: currentUserId,
+      ...(userRole !== "mason" ? { claimed_role: userRole } : {}),
+    };
     const { error } = await supabase.from('sanctuary_tickets').update({ metadata: newMetadata }).eq('id', selectedTicket.id);
     if (!error) {
+      invalidateHubCommandCache();
       setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
       fetchTickets();
       useStore.getState().pushStatus(t("ticket_claim", "Claim Ticket") || "Ticket Claimed", "success");
@@ -292,17 +318,29 @@ export default function ArchitectSupportTickets({
     if (!selectedTicket || !currentUserId) return;
     const newMetadata = { ...(selectedTicket.metadata || {}) };
     delete newMetadata.claimed_by;
+    delete newMetadata.claimed_role;
     const { error } = await supabase.from('sanctuary_tickets').update({ metadata: newMetadata }).eq('id', selectedTicket.id);
     if (!error) {
+      invalidateHubCommandCache();
       setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
       fetchTickets();
       useStore.getState().pushStatus(t("ticket_release", "Release Ticket") || "Ticket Released", "success");
     }
   };
 
-  const newCount = tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status) || !t.status).length;
-  const pendingCount = tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)).length;
-  const closedCount = tickets.filter(t => ['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)).length;
+  const isClosedTicket = (tk: Ticket) => !isTicketOpenStatus(tk.status);
+  const isClaimedTicket = (tk: Ticket) => {
+    if (isClosedTicket(tk)) return false;
+    if (userRole === "mason") {
+      return ["PENDING", "INVESTIGATING"].includes(String(tk.status || "").toUpperCase());
+    }
+    return Boolean(currentUserId) && isTicketClaimedBy(tk) === String(currentUserId);
+  };
+  const isUnclaimedOpenTicket = (tk: Ticket) => !isClosedTicket(tk) && !isClaimedTicket(tk);
+
+  const newCount = tickets.filter(isUnclaimedOpenTicket).length;
+  const pendingCount = tickets.filter(isClaimedTicket).length;
+  const closedCount = tickets.filter(isClosedTicket).length;
 
   const tabs = [
     {
@@ -313,7 +351,7 @@ export default function ArchitectSupportTickets({
     },
     {
       id: "new",
-      label: t("badge_new", "NEW") || "New",
+      label: t("new", "New"),
       icon: t("icon_new_releases", "new_releases"),
       number: newCount.toString(),
       colorClass: "text-[var(--danger)]",
@@ -413,6 +451,14 @@ export default function ArchitectSupportTickets({
               </span>
               <span>{statusLabel}</span>
             </div>
+            {userRole !== "mason" && isClaimedTicket(ticket) && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                  {t("icon_assignment_ind", "assignment_ind")}
+                </span>
+                <span>{t("ticket_tab_claimed", "Claimed")}</span>
+              </div>
+            )}
             {(ticket.metadata?.expedited_support || ticket.metadata?.urgent) && (
               <div className={VAULT_CHIP_CLASS}>
                 <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
@@ -467,15 +513,58 @@ export default function ArchitectSupportTickets({
   };
 
   const renderLanding = () => {
-    const newTickets = tickets.filter(t => ['NEW', 'OPEN', 'new', 'open'].includes(t.status) || !t.status);
-    const pendingTickets = tickets.filter(t => ['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status));
+    const claimedTickets = tickets.filter(isClaimedTicket);
+    const newTickets = tickets.filter(isUnclaimedOpenTicket);
 
     return (
       <HubOverviewLanding>
         <HubOverviewSection
+          title={
+            userRole === "mason"
+              ? t("in_progress", "In Progress")
+              : t("ticket_tab_claimed", "Claimed")
+          }
+          icon={
+            userRole === "mason"
+              ? t("icon_pending_actions", "pending_actions")
+              : t("icon_assignment_ind", "assignment_ind")
+          }
+          iconColorClass="text-[var(--warning)]"
+          headerAction={
+            <button
+              type="button"
+              onClick={() => setActiveFilter("pending")}
+              title={t("ticket_tab_claimed", "Claimed")}
+              className="px-3 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_arrow_forward", "arrow_forward")}
+              </span>
+            </button>
+          }
+          isEmpty={claimedTickets.length === 0}
+          emptyIcon={t("icon_done_all", "done_all")}
+          emptyTitle={t("no_claimed_tickets", "No Claimed Tickets")}
+        >
+          {claimedTickets.slice(0, 6).map(renderTicketCard)}
+        </HubOverviewSection>
+
+        <HubOverviewSection
           title={t("recent_new_reports", "Recent New Reports") || "Recent New"}
           icon={t("icon_new_releases", "new_releases")}
           iconColorClass="text-[var(--danger)]"
+          headerAction={
+            <button
+              type="button"
+              onClick={() => setActiveFilter("new")}
+              title={t("recent_new_reports", "Recent New Reports")}
+              className="px-3 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_arrow_forward", "arrow_forward")}
+              </span>
+            </button>
+          }
           isEmpty={newTickets.length === 0}
           emptyIcon={t("icon_support_agent", "support_agent")}
           emptyTitle={
@@ -485,17 +574,6 @@ export default function ArchitectSupportTickets({
           }
         >
           {newTickets.slice(0, 6).map(renderTicketCard)}
-        </HubOverviewSection>
-
-        <HubOverviewSection
-          title={t("recent_pending", "Recent Pending") || "Recent Pending"}
-          icon={t("icon_pending_actions", "pending_actions")}
-          iconColorClass="text-[var(--warning)]"
-          isEmpty={pendingTickets.length === 0}
-          emptyIcon={t("icon_done_all", "done_all")}
-          emptyTitle={t("no_tickets", "No Support Tickets") || "No Pending Tickets"}
-        >
-          {pendingTickets.slice(0, 6).map(renderTicketCard)}
         </HubOverviewSection>
       </HubOverviewLanding>
     );
@@ -511,17 +589,12 @@ export default function ArchitectSupportTickets({
       if (!(t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q))) return false;
     }
 
-    const isClaimedByMe = t.metadata?.claimed_by === currentUserId;
-    const isClaimedByOther = t.metadata?.claimed_by && !isClaimedByMe;
-
     if (activeFilter === "new") {
-      if (!(['NEW', 'OPEN', 'new', 'open'].includes(t.status) || !t.status)) return false;
-      if (isClaimedByOther || isClaimedByMe) return false;
+      return isUnclaimedOpenTicket(t);
     } else if (activeFilter === "pending") {
-      if (!(['NEW', 'OPEN', 'new', 'open', 'PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status) || !t.status)) return false;
-      if (!isClaimedByMe && !['PENDING', 'ESCALATED', 'INVESTIGATING', 'pending', 'escalated', 'investigating'].includes(t.status)) return false;
+      return isClaimedTicket(t);
     } else if (activeFilter === "closed") {
-      if (!['RESOLVED', 'REJECTED', 'CLOSED', 'resolved', 'rejected', 'closed'].includes(t.status)) return false;
+      return isClosedTicket(t);
     }
 
     return true;

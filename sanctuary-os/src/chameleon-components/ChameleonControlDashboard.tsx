@@ -694,8 +694,9 @@ export function ChameleonControlDashboard({
                             key={idx}
                             className="h-7 rounded-lg border border-white/20 shadow-sm transition-transform group-hover:scale-[1.02]"
                             style={{ backgroundColor: sw.color }}
-                            title={`${sw.label}: ${sw.color}`}
-                          />
+                          >
+                            <HoverTooltip title={`${sw.label}: ${sw.color}`} />
+                          </div>
                         ))}
                       </div>
                     </button>

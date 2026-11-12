@@ -109,9 +109,13 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
     }
   };
 
+  const isComplianceFlagged = Number(editForm.compliance_tier || 0) >= 1;
+  const isApproveLocked =
+    !isComplianceFlagged && requireMasonLabTest && (!isActiveVerified || isActiveFailed);
+
   const handleApprove = async () => {
     if (!activeMod) return;
-    if (requireMasonLabTest && (!isActiveVerified || isActiveFailed)) {
+    if (isApproveLocked) {
       if (setStatus) {
         setStatus(
           isActiveFailed
@@ -123,22 +127,40 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
     }
     setIsProcessing(true);
 
+    const targetTier = Math.min(4, Math.max(0, Number(editForm.compliance_tier || 0)));
     const updatedPayload = {
       ...editForm,
-      status: 'verified'
+      compliance_tier: targetTier,
+      status: targetTier >= 1 ? 'pending' : 'verified',
+      ...(targetTier >= 1
+        ? {
+            status_reason: `[ARCHITECT MASON QUEUE] Flagged Tier ${targetTier} for Oversight Compliance review`,
+          }
+        : {}),
     };
     const { error } = await supabase.from('mods').update(updatedPayload).eq('id', activeMod.id);
 
     if (!error) {
       await logArchitectAction(
-        'Updated Mod Metadata',
+        targetTier >= 1 ? 'Flagged Mod for Oversight Compliance' : 'Updated Mod Metadata',
         'mods',
         activeMod.name,
-        undefined,
+        targetTier >= 1 ? `Flagged Tier ${targetTier} (Pending)` : undefined,
         'Architect Console',
         false,
         computeAuditDiff(activeMod, updatedPayload)
       );
+      if (targetTier >= 1) {
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "nexus_mod_flagged_compliance_toast",
+              "{Mod} flagged for Oversight Compliance review (Pending)."
+            ),
+            "warning"
+          );
+      }
       setActiveMod(null);
       fetchData();
     } else {
@@ -313,19 +335,21 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
               disabled={isProcessing}
             />
             <PanelHeaderButton
-              icon={requireMasonLabTest && (!isActiveVerified || isActiveFailed) ? t("icon_lock", "lock") : t("icon_check", "check")}
-              variant="success"
+              icon={isApproveLocked ? t("icon_lock", "lock") : isComplianceFlagged ? t("icon_policy", "policy") : t("icon_check", "check")}
+              variant={isComplianceFlagged ? "warning" : "success"}
               tooltip={
-                requireMasonLabTest && (!isActiveVerified || isActiveFailed)
+                isApproveLocked
                   ? (isActiveFailed
                       ? t("lab_gate_failed_reject_only_msg", "Fatal error detected — Reject Only")
                       : t("lab_gate_locked_architect_msg", "Approval Locked: Timed Lab test required"))
                   : isProcessing
                   ? t("btn_saving", "Saving...")
+                  : isComplianceFlagged
+                  ? t("submit_compliance_flag_btn", "Submit to Oversight Compliance")
                   : t("ui_btn_approve", "Approve")
               }
               onClick={handleApprove}
-              disabled={isProcessing || (requireMasonLabTest && (!isActiveVerified || isActiveFailed))}
+              disabled={isProcessing || isApproveLocked}
             />
           </PanelHeaderGroup>
         }

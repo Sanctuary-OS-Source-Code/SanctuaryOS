@@ -75,6 +75,11 @@ export function AuditLogViewer({
         osRole === "core_dev" ||
         osRole === "admin")
   );
+  // Oversight are strictly Audit Log reviewers/exporters; destructive retention pruning belongs to Wayfinders (Spoke) or Keepers (Core Hub)
+  const canManageRetention = Boolean(
+    effectiveIsKeepers ||
+      ["wayfinder", "admin"].includes(String(userRole || "").toLowerCase())
+  );
 
   const [logs, setLogs] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
@@ -141,10 +146,11 @@ export function AuditLogViewer({
 
   const getTimeCutoffIso = (rangeKey: string): string | null => {
     const now = Date.now();
-    if (rangeKey === "24h") return new Date(now - 24 * 60 * 60 * 1000).toISOString();
-    if (rangeKey === "7d") return new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
-    if (rangeKey === "30d") return new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
-    if (rangeKey === "90d") return new Date(now - 90 * 24 * 60 * 60 * 1000).toISOString();
+    const norm = String(rangeKey || "").toLowerCase();
+    if (norm === "24h") return new Date(now - 24 * 60 * 60 * 1000).toISOString();
+    if (norm === "7d") return new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+    if (norm === "30d") return new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
+    if (norm === "90d") return new Date(now - 90 * 24 * 60 * 60 * 1000).toISOString();
     return null;
   };
 
@@ -1365,10 +1371,18 @@ export function AuditLogViewer({
           headerActions={
             <PanelHeaderGroup>
               <PanelHeaderButton
-                icon={t("icon_auto_delete", "auto_delete")}
-                tooltip={t("audit_retention_btn", "Storage & Retention")}
-                onClick={() => setIsRetentionOpen(true)}
+                icon={t("icon_download", "download")}
+                tooltip={t("audit_export_json", "Export Archive (JSON)")}
+                disabled={isExporting}
+                onClick={() => handleExportArchive("json")}
               />
+              {canManageRetention && (
+                <PanelHeaderButton
+                  icon={t("icon_auto_delete", "auto_delete")}
+                  tooltip={t("audit_retention_btn", "Storage & Retention")}
+                  onClick={() => setIsRetentionOpen(true)}
+                />
+              )}
             </PanelHeaderGroup>
           }
         >
@@ -1576,11 +1590,21 @@ export function AuditLogViewer({
       ]}
       actions={[
         {
-          id: "audit_retention",
-          icon: t("icon_auto_delete", "auto_delete"),
-          label: t("audit_retention_btn", "Storage & Retention"),
-          onClick: () => setIsRetentionOpen(true),
+          id: "audit_export",
+          icon: t("icon_download", "download"),
+          label: t("audit_export_json", "Export JSON"),
+          onClick: () => handleExportArchive("json"),
         },
+        ...(canManageRetention
+          ? [
+              {
+                id: "audit_retention",
+                icon: t("icon_auto_delete", "auto_delete"),
+                label: t("audit_retention_btn", "Storage & Retention"),
+                onClick: () => setIsRetentionOpen(true),
+              },
+            ]
+          : []),
       ]}
       primaryPopover={
         filterAction !== "overview"

@@ -36,7 +36,7 @@ import { NexusUpdatesChecker } from "./NexusUpdatesChecker";
 import CommandCenter from "./CommandCenter";
 import { DevBuildClearanceGate } from "./components/DevBuildClearanceGate";
 import { ElevatedPasskeyGate, CompanionPasskeyHandshakeApprover } from "./components/ElevatedPasskeyGate";
-import { getCitizenSecurityPolicy } from "./utils/passkeyUtils";
+import { getCitizenSecurityPolicy, fetchMfaSecurityState } from "./utils/passkeyUtils";
 import Vault from "./Vault";
 import { scrubLogUserData, buildFormattedLabReportText, extractReportLoadoutFromLogAndContext } from "./utils/logScrubber";
 import { matchExceptionRules } from "./components/KnownErrorDiagnosisBanner";
@@ -236,6 +236,14 @@ function App() {
       invoke('update_active_game_schema', { schema: activeGameSchema }).catch(console.error);
     }
   }, [activeGameSchema]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const warmTimer = setTimeout(() => {
+      fetchMfaSecurityState().catch(() => {});
+    }, 300);
+    return () => clearTimeout(warmTimer);
+  }, [session?.user?.id]);
 
 
 
@@ -1026,6 +1034,10 @@ function App() {
           allow_write: metaAllowWriteInput || false,
           is_paid: metaIsPaidInput || false,
           is_early_access: metaIsEarlyAccessInput || false,
+          status_reason:
+            extraOverrides?.status_reason !== undefined
+              ? extraOverrides.status_reason
+              : metaStatusMsgInput?.trim() || undefined,
           requiredDLC: fetchedManifest?.atomic_logic?.required_dlc || extraOverrides?.requiredDLC || (activeDossier as any).requiredDLC,
           ...(extraOverrides || {}),
           is_user_dossier: true,
@@ -1087,6 +1099,10 @@ function App() {
                 category_override: overrides.category_override || m.category_override,
                 compatible_versions: overrides.compatible_versions || m.compatible_versions,
                 requiredDLC: overrides.requiredDLC || m.requiredDLC,
+                ...(overrides.status !== undefined ? { status: overrides.status } : {}),
+                ...(overrides.status_reason !== undefined
+                  ? { status_reason: overrides.status_reason }
+                  : {}),
                 isLocalOverride: true,
                 flavors: updatedFlavors,
               };
@@ -2049,7 +2065,7 @@ function App() {
       }, 10000);
     }
   }, []);
-  const { toggleInActiveSet, deletePlaySet, renamePlaySet, importPlaySet, finalizeImport, equipPlaySet, getMissingStrings, ignoreMissingString, purgeMissingString } = usePlaySetLogic();
+  const { toggleInActiveSet, deletePlaySet, renamePlaySet, importPlaySet, finalizeImport, equipPlaySet } = usePlaySetLogic();
   const { handleSmartSearch, triggerShelter, restoreMod, purgeMod } = useModActions(openUrl, fetchVault, runRadarSweep, activeSetName, equipPlaySet, setShelterActive);
   async function fetchCloudLabQueue() {
     try {
@@ -3191,7 +3207,12 @@ function App() {
 
 
 
-  const { handleQuickLaunch } = useLaunchLogic(askCustom, triggerPrePatchSnapshot, equipPlaySet);
+  const { handleQuickLaunch } = useLaunchLogic(
+    askCustom,
+    triggerPrePatchSnapshot,
+    equipPlaySet,
+    triggerFullEngineBackup,
+  );
 
   useDefconRadar(t, askCustom, triggerPrePatchSnapshot, triggerFullEngineBackup);
   useGlobalListeners(fetchBackups, askCustom, t, triggerPrePatchSnapshot, triggerFullEngineBackup, ignoredHashesRef);
@@ -3686,12 +3707,14 @@ function App() {
               dbId: item.dbId || matched.dbId,
               compatible_versions: item.compatible_versions || matched.compatible_versions,
               requiredDLC: item.requiredDLC || matched.requiredDLC,
-              status_reason: item.status_reason || item._alert_reason || matched.status_reason,
+              status_reason: item.status_reason || matched.status_reason,
+              _alert_reason: item._alert_reason,
             }
           : {
               ...item,
               name: item.name || strippedName || item.displayName || "",
-              status_reason: item.status_reason || item._alert_reason,
+              status_reason: item.status_reason,
+              _alert_reason: item._alert_reason,
             };
       };
 
@@ -3712,17 +3735,25 @@ function App() {
             resolvedFlavors[0]?.dbId ||
             ""
         ).split("@")[0];
-        const virtualMatch = displayModList.find(
-          (dm: any) =>
-            dm?.isVirtual &&
-            !dm?.isCollection &&
-            ((famId &&
+        const isCollectionTarget = Boolean(
+          rawTarget?._isCollectionGroup || rawTarget?.isCollection
+        );
+        const setTargetId = String(rawTarget?.setId || rawTarget?.dbId || "").trim();
+        const virtualMatch = displayModList.find((dm: any) => {
+          if (!dm?.isVirtual) return false;
+          if (isCollectionTarget && dm.isCollection) {
+            return Boolean(setTargetId && String(dm.dbId || "").trim() === setTargetId);
+          }
+          if (dm.isCollection) return false;
+          return (
+            (famId &&
               (String(dm.dbId || "").split("@")[0] === famId ||
                 String(dm.baseFamilyId || "").split("@")[0] === famId)) ||
-              (rawTarget?.displayName &&
-                String(dm.displayName || "").toLowerCase() ===
-                  String(rawTarget.displayName).toLowerCase()))
-        );
+            (rawTarget?.displayName &&
+              String(dm.displayName || "").toLowerCase() ===
+                String(rawTarget.displayName).toLowerCase())
+          );
+        });
         const primaryRef = resolvedFlavors[0] || {};
         resolvedMod = {
           ...(virtualMatch || {}),
@@ -3742,8 +3773,8 @@ function App() {
             rawTarget.displayName ||
             "",
           flavors: resolvedFlavors,
-          status_reason:
-            rawTarget.status_reason || rawTarget._alert_reason || primaryRef.status_reason,
+          status_reason: rawTarget.status_reason || primaryRef.status_reason,
+          _alert_reason: rawTarget._alert_reason || primaryRef._alert_reason,
         };
       } else {
         resolvedMod = resolveSingleMod(rawTarget);
@@ -4165,9 +4196,6 @@ function App() {
                               activePlaySetIndex={activePlaySetIndex}
                               setActivePlaySetIndex={setActivePlaySetIndex}
                               toggleInActiveSet={toggleInActiveSet}
-                              getMissingStrings={getMissingStrings}
-                              ignoreMissingString={ignoreMissingString}
-                              purgeMissingString={purgeMissingString}
                             />
                           ) : (
                             <StagingPayloadEditor

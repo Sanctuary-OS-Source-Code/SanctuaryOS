@@ -37,6 +37,12 @@ export function SharedMetadataEditorSidePanel({
 }) {
   const { t } = useLexicon();
   const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const userRole = useStore((state) => state.userRole);
+  const canFinalizeCompliance =
+    isOversight &&
+    ["oversight", "wayfinder", "admin", "keeper"].includes(
+      String(userRole || "").toLowerCase()
+    );
   const [modForm, setModForm] = useState<any>(null);
   const [originalMod, setOriginalMod] = useState<any>(null);
   const [isCommitting, setIsCommitting] = useState(false);
@@ -107,12 +113,23 @@ export function SharedMetadataEditorSidePanel({
     if (!modForm) return;
     setIsCommitting(true);
     try {
+      const targetTier = Number(modForm.compliance_tier || 0);
+      const shouldRoutePending = !canFinalizeCompliance && targetTier >= 1;
+      const rawReason = String(modForm.status_reason || "").trim();
+      const cleanedReason =
+        (modForm.status === "stable" || modForm.status === "verified") &&
+        /^\[ARCHITECT\b/i.test(rawReason)
+          ? null
+          : rawReason || null;
       const updatedPayload = {
         name: modForm.name,
         category_override: modForm.category_override,
         sub_type: modForm.sub_type,
         file_extension: modForm.file_extension,
-        status: modForm.status,
+        status: shouldRoutePending ? "pending" : modForm.status,
+        status_reason: shouldRoutePending
+          ? `[ARCHITECT METADATA EDITOR] Flagged Tier ${Math.min(4, targetTier)} for Oversight Compliance review`
+          : cleanedReason,
         url: modForm.url,
         image_url: modForm.image_url,
         latest_version: modForm.latest_version,
@@ -120,7 +137,7 @@ export function SharedMetadataEditorSidePanel({
         compatible_versions: modForm.compatible_versions,
         family_slug: modForm.family_slug,
         mason_id: modForm.mason_id,
-        compliance_tier: modForm.compliance_tier,
+        compliance_tier: shouldRoutePending ? Math.min(4, targetTier) : targetTier,
         folder_structure: modForm.folder_structure || [],
         is_paid: modForm.is_paid || false,
         is_early_access: modForm.is_early_access || false,
@@ -131,14 +148,25 @@ export function SharedMetadataEditorSidePanel({
         .update(updatedPayload)
         .eq("id", modForm.id);
       await logArchitectAction(
-        "Updated Mod Metadata",
+        shouldRoutePending ? "Flagged Mod for Oversight Compliance" : "Updated Mod Metadata",
         "mods",
         modForm.name || modForm.id,
-        undefined,
-        "Architect Console",
+        shouldRoutePending ? `Flagged Tier ${Math.min(4, targetTier)} (Pending)` : undefined,
+        canFinalizeCompliance ? "Oversight Command" : "Architect Console",
         false,
         computeAuditDiff(originalMod || activeMod, updatedPayload)
       );
+      if (shouldRoutePending) {
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "nexus_mod_flagged_compliance_toast",
+              "{Mod} flagged for Oversight Compliance review (Pending)."
+            ),
+            "warning"
+          );
+      }
       if (onModUpdated) onModUpdated();
     } catch (err) {
       console.error(err);
@@ -383,6 +411,47 @@ export function SharedMetadataEditorSidePanel({
                     maxTier={4}
                   />
                 </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label
+                  className={`text-[10px] font-black uppercase tracking-widest px-1 flex items-center gap-1.5 ${
+                    modForm.status === "corrupted" || modForm.status === "broken"
+                      ? "text-[var(--danger)]"
+                      : modForm.status === "unstable"
+                        ? "text-[var(--warning)]"
+                        : "text-[var(--subtext)] opacity-75"
+                  }`}
+                >
+                  <span className="material-symbols-outlined !text-[13px]">
+                    {t("icon_report_problem", "report_problem")}
+                  </span>
+                  {t(
+                    "label_status_issue_details",
+                    "Issue & Cause Details (Corrupted / Unstable)"
+                  )}
+                </label>
+                <textarea
+                  value={
+                    /^\[ARCHITECT\b/i.test(String(modForm.status_reason || "").trim())
+                      ? ""
+                      : modForm.status_reason || ""
+                  }
+                  onChange={(e) =>
+                    setModForm({ ...modForm, status_reason: e.target.value })
+                  }
+                  placeholder={t(
+                    "ph_status_issue_details",
+                    "Explain what the issue is and what is causing it (shown on {Citizen} Alerts & {Mod} Dossier)..."
+                  )}
+                  className={`w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-xs font-semibold min-h-[76px] resize-y border focus:outline-none custom-scrollbar ${
+                    modForm.status === "corrupted" || modForm.status === "broken"
+                      ? "border-[color-mix(in_srgb,var(--danger)_35%,transparent)] focus:border-[var(--danger)]"
+                      : modForm.status === "unstable"
+                        ? "border-[color-mix(in_srgb,var(--warning)_35%,transparent)] focus:border-[var(--warning)]"
+                        : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[var(--accent)]"
+                  }`}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">

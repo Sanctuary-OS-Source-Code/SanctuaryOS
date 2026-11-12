@@ -625,6 +625,7 @@ export function MasonSandbox({
         sub_type: activeMod.sub_type,
         file_extension: activeMod.file_extension,
         status: activeMod.status,
+        status_reason: String(activeMod.status_reason || "").trim() || null,
         created_at: activeMod.created_at,
         updated_at: new Date().toISOString(),
         compliance_tier: activeMod.compliance_tier,
@@ -728,6 +729,7 @@ export function MasonSandbox({
           sub_type: activeMod.sub_type || null,
           file_extension: activeMod.file_extension || null,
           status: activeMod.status || "unverified",
+          status_reason: String(activeMod.status_reason || "").trim() || null,
           created_at: activeMod.created_at || new Date().toISOString(),
           updated_at: activeMod.updated_at || new Date().toISOString(),
           compatible_versions: activeMod.compatible_versions || [],
@@ -1563,69 +1565,110 @@ export function MasonSandbox({
                   />
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                    {t("cc_cover_url", "Cover URL")}
-                  </label>
-                  <input
-                    value={activeMod.image_url || ""}
-                    onChange={(e) => setActiveMod({ ...activeMod, image_url: e.target.value })}
-                    className="glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-full">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                      {t("cc_cover_url", "Cover URL")}
+                    </label>
+                    <input
+                      value={activeMod.image_url || ""}
+                      onChange={(e) => setActiveMod({ ...activeMod, image_url: e.target.value })}
+                      className="glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                      {t("ui_url", "URL")}
+                    </label>
+                    <input
+                      value={activeMod.url || ""}
+                      onChange={(e) => setActiveMod({ ...activeMod, url: e.target.value })}
+                      className="glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent"
+                    />
+                  </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                    {t("ui_url", "URL")}
-                  </label>
-                  <input
-                    value={activeMod.url || ""}
-                    onChange={(e) => setActiveMod({ ...activeMod, url: e.target.value })}
-                    className="glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-full">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                      {t("label_condition", "Status")}
+                    </label>
+                    <MasonStatusDropdown
+                      value={activeMod.status || "unverified"}
+                      onChange={(newStatus: string) => setActiveMod({ ...activeMod, status: newStatus })}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                      {t("registry_col_safety", "Safety Tier")}
+                    </label>
+                    <CustomComplianceDropdown
+                      value={activeMod.compliance_tier || 0}
+                      onChange={(newTier: number) =>
+                        setActiveMod({ ...activeMod, compliance_tier: newTier })
+                      }
+                      maxTier={4}
+                    />
+                  </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                    {t("label_condition", "Status")}
+                <div className="flex flex-col gap-2 col-span-full">
+                  <label
+                    className={`text-[9px] font-black uppercase tracking-widest ml-2 flex items-center gap-1.5 ${
+                      activeMod.status === "corrupted" || activeMod.status === "broken"
+                        ? "text-[var(--danger)]"
+                        : activeMod.status === "unstable"
+                          ? "text-[var(--warning)]"
+                          : "text-[var(--subtext)] opacity-60"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[13px]">
+                      {t("icon_report_problem", "report_problem")}
+                    </span>
+                    {t(
+                      "label_status_issue_details",
+                      "Issue & Cause Details (Corrupted / Unstable)"
+                    )}
                   </label>
-                  <MasonStatusDropdown
-                    value={activeMod.status || "unverified"}
-                    onChange={(newStatus: string) => setActiveMod({ ...activeMod, status: newStatus })}
-                  />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                    {t("registry_col_safety", "Safety Tier")}
-                  </label>
-                  <CustomComplianceDropdown
-                    value={activeMod.compliance_tier || 0}
-                    onChange={(newTier: number) =>
-                      setActiveMod({ ...activeMod, compliance_tier: newTier })
+                  <textarea
+                    value={
+                      /^\[ARCHITECT\b/i.test(String(activeMod.status_reason || "").trim())
+                        ? ""
+                        : activeMod.status_reason || ""
                     }
-                    maxTier={4}
+                    onChange={(e) =>
+                      setActiveMod({ ...activeMod, status_reason: e.target.value })
+                    }
+                    placeholder={t(
+                      "ph_status_issue_details",
+                      "Explain what the issue is and what is causing it (shown on {Citizen} Alerts & {Mod} Dossier)..."
+                    )}
+                    className="glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-xs font-semibold min-h-[76px] custom-scrollbar resize-y border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:theme-border-accent"
                   />
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                    {t("uploaded_date", "Uploaded Date")}
-                  </label>
-                  <CustomDatePicker
-                    value={activeMod.created_at || null}
-                    onChange={(date) => setActiveMod({ ...activeMod, created_at: date })}
-                  />
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-full">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                      {t("uploaded_date", "Uploaded Date")}
+                    </label>
+                    <CustomDatePicker
+                      value={activeMod.created_at || null}
+                      onChange={(date) => setActiveMod({ ...activeMod, created_at: date })}
+                    />
+                  </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                    {t("updated_date", "Updated Date")}
-                  </label>
-                  <CustomDatePicker
-                    value={activeMod.updated_at || null}
-                    onChange={(date) => setActiveMod({ ...activeMod, updated_at: date })}
-                  />
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
+                      {t("updated_date", "Updated Date")}
+                    </label>
+                    <CustomDatePicker
+                      value={activeMod.updated_at || null}
+                      onChange={(date) => setActiveMod({ ...activeMod, updated_at: date })}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 col-span-full">

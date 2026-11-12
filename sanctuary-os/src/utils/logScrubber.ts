@@ -821,26 +821,103 @@ export function resolveRealReportMod(
   return candidates[0];
 }
 
+const CLEAN_MOD_ACRONYMS = new Set([
+  "UI",
+  "CAS",
+  "BB",
+  "CC",
+  "MC",
+  "MCCC",
+  "WW",
+  "NWP",
+  "XML",
+  "JSON",
+  "INI",
+  "CFG",
+  "API",
+  "SDK",
+  "DLC",
+  "HD",
+  "HQ",
+  "NONHQ",
+  "UHD",
+  "4K",
+  "2K",
+  "2D",
+  "3D",
+  "DX9",
+  "DX11",
+  "DX12",
+  "FPS",
+  "VRAM",
+  "RAM",
+  "CPU",
+  "GPU",
+  "NPC",
+  "AI",
+  "OS",
+  "S4CL",
+]);
+
+function formatReadableModName(raw: string): string {
+  const spaced = String(raw || "")
+    .replace(/([\]})])([A-Za-z0-9])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!spaced) return "";
+
+  return spaced
+    .split(" ")
+    .map((token) => {
+      const match = token.match(/^([([{'‘’"“”]*)(.*?)([)\]}'‘’"“”:,.;!?]*)$/);
+      if (!match) return token;
+      const [, prefix, core, suffix] = match;
+      if (!core) return token;
+
+      const upperCore = core.toUpperCase();
+      if (CLEAN_MOD_ACRONYMS.has(upperCore)) {
+        return `${prefix}${upperCore}${suffix}`;
+      }
+      if (/[A-Za-z]/.test(core) && /\d/.test(core)) {
+        return `${prefix}${upperCore}${suffix}`;
+      }
+      if (core.length <= 1) {
+        return `${prefix}${upperCore}${suffix}`;
+      }
+      if (core === core.toLowerCase() || core === core.toUpperCase()) {
+        return `${prefix}${core.charAt(0).toUpperCase()}${core.slice(1).toLowerCase()}${suffix}`;
+      }
+      return `${prefix}${core}${suffix}`;
+    })
+    .join(" ");
+}
+
 /**
  * Cleans a mod's base display name (stripping file extensions and redundant trailing _Scripts suffix
  * since the [ext] tag explicitly shows the file type).
  */
 export function getCleanModBaseName(m: any, activeGameSchema?: any): string {
-  if (!m) return "UNKNOWN";
+  if (!m) return "Unknown";
   const raw =
     typeof m === "string"
       ? m
-      : m.displayName || m.name || "UNKNOWN";
+      : m.displayName || m.name || "Unknown";
   const schema = activeGameSchema || useStore.getState().activeGameSchema;
-  return String(raw)
+  const stripped = String(raw)
     .split(/[\\/]/)
     .pop()!
+    .replace(/\s*\[[a-z0-9._-]{1,16}\](?:\s*\([^)]*\))?$/i, "")
     .replace(getExtensionRegex(schema), "")
     .replace(/\.(scripts?|zip|rar|7z|tar|gz|dll|asi|so|dylib)$/i, "")
     .replace(/_/g, " ")
     .replace(/\s+scripts?$/i, "")
-    .trim()
-    .toUpperCase();
+    .trim();
+
+  return formatReadableModName(stripped) || stripped || "Unknown";
 }
 
 /**

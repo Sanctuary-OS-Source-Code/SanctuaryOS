@@ -434,6 +434,7 @@ export function UniversalCard({
   return (
     <div
       className={containerClasses}
+      data-sa-clickable={!isDisabled && Boolean(onClick || onContextMenu) ? "true" : undefined}
       onClick={isDisabled ? undefined : onClick}
       onContextMenu={isDisabled ? undefined : onContextMenu}
       style={

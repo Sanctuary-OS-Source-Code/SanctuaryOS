@@ -276,6 +276,20 @@ function devLexiconSyncPlugin() {
         });
       });
 
+      const writeJsonIfChanged = (filePath: string, dataObj: any): boolean => {
+        const serialized = JSON.stringify(dataObj, null, 2) + '\n';
+        if (fs.existsSync(filePath)) {
+          const existing = fs.readFileSync(filePath, 'utf-8');
+          if (existing.trim() === serialized.trim()) {
+            return false;
+          }
+        } else {
+          fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        }
+        fs.writeFileSync(filePath, serialized, 'utf-8');
+        return true;
+      };
+
       server.middlewares.use('/__update-lexicon', (req: any, res: any) => {
         if (!verifyDevMiddlewareRequest(req, res)) return;
         if (req.method === 'POST') {
@@ -284,32 +298,22 @@ function devLexiconSyncPlugin() {
           req.on('end', () => {
             try {
               const data = JSON.parse(body);
-              const id = String(data.id || data.file || "").trim();
+              const rawId = String(data.id || data.file || '').trim().replace(/\.json$/i, '');
               const { content } = data;
-              if (id.match(/^[a-z]{2}-[a-z0-9_-]+\.json$/i) || id.match(/^[a-z0-9_-]+$/i)) {
-                 const fileName = id.endsWith('.json') ? id : `${id}.json`;
-                 const lexiconsRoot = path.resolve(__dirname, 'src/lexicons');
-                 const filePath = path.resolve(lexiconsRoot, fileName);
-                 if (!filePath.startsWith(lexiconsRoot + path.sep)) {
-                   res.statusCode = 403;
-                   res.end('Forbidden');
-                   return;
-                 }
-                 const newContentStr = JSON.stringify(content, null, 2);
-                 let shouldWrite = true;
-                 if (fs.existsSync(filePath)) {
-                    const existingContent = fs.readFileSync(filePath, 'utf-8');
-                    if (existingContent === newContentStr) {
-                       shouldWrite = false;
-                    }
-                 }
-                 if (shouldWrite) {
-                    fs.writeFileSync(filePath, newContentStr);
-                 }
+              // Core Hub ONLY: Spoke lexicons do not auto-sync to local source files
+              if ((rawId === 'en-default' || rawId === 'en-sanctuary') && content && typeof content === 'object') {
+                const lexiconsRoot = path.resolve(__dirname, 'src/lexicons');
+                const filePath = path.resolve(lexiconsRoot, `${rawId}.json`);
+                if (!filePath.startsWith(lexiconsRoot + path.sep)) {
+                  res.statusCode = 403;
+                  res.end('Forbidden');
+                  return;
+                }
+                writeJsonIfChanged(filePath, content);
               }
               res.statusCode = 200;
               res.end('OK');
-            } catch(e) {
+            } catch {
               res.statusCode = 500;
               res.end('Error');
             }
@@ -318,6 +322,98 @@ function devLexiconSyncPlugin() {
         }
         res.statusCode = 405;
         res.end('Method not allowed');
+      });
+
+      server.middlewares.use('/__sync-core-assets', (req: any, res: any) => {
+        if (!verifyDevMiddlewareRequest(req, res)) return;
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk: any) => { body += chunk; });
+        req.on('end', () => {
+          res.setHeader('Content-Type', 'application/json');
+          try {
+            const payload = JSON.parse(body || '{}');
+            const kind = String(payload.kind || '').trim();
+            const rawId = String(payload.id || '').trim().replace(/\.json$/i, '');
+            const content = payload.content;
+
+            if (!content || typeof content !== 'object') {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: 'Invalid content object' }));
+              return;
+            }
+
+            let updated = false;
+
+            if (kind === 'core_lexicon') {
+              if (rawId !== 'en-default' && rawId !== 'en-sanctuary') {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'Only Core Hub lexicons (en-default, en-sanctuary) cross-sync' }));
+                return;
+              }
+              const lexiconsRoot = path.resolve(__dirname, 'src/lexicons');
+              const targetPath = path.resolve(lexiconsRoot, `${rawId}.json`);
+              if (!targetPath.startsWith(lexiconsRoot + path.sep)) {
+                res.statusCode = 403;
+                res.end(JSON.stringify({ error: 'Forbidden' }));
+                return;
+              }
+              updated = writeJsonIfChanged(targetPath, content);
+            } else if (kind === 'core_themes') {
+              const targetPath = path.resolve(__dirname, 'src/data/core_themes.json');
+              updated = writeJsonIfChanged(targetPath, content);
+            } else if (kind === 'default_schema') {
+              const cleanDefault = {
+                ...content,
+                id: 'default',
+                game_id: content.game_id && String(content.game_id).trim() ? content.game_id : 'default',
+              };
+              const dataSchemaPath = path.resolve(__dirname, 'src/data/schemas/default.json');
+              const rootSchemaPath = path.resolve(__dirname, 'schema.json');
+              const u1 = writeJsonIfChanged(dataSchemaPath, cleanDefault);
+              const u2 = writeJsonIfChanged(rootSchemaPath, cleanDefault);
+              updated = u1 || u2;
+            } else if (kind === 'spoke_schema_snapshot') {
+              const safeId = rawId.toLowerCase();
+              if (!safeId || safeId === 'default' || !/^[a-z0-9_-]+$/.test(safeId)) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'Invalid Spoke schema ID' }));
+                return;
+              }
+              const schemasRoot = path.resolve(__dirname, 'src/data/schemas');
+              const targetPath = path.resolve(schemasRoot, `${safeId}.json`);
+              if (!targetPath.startsWith(schemasRoot + path.sep)) {
+                res.statusCode = 403;
+                res.end(JSON.stringify({ error: 'Forbidden' }));
+                return;
+              }
+              const cleanSpokeSchema = {
+                ...content,
+                id: content.id || safeId,
+                game_id:
+                  content.game_id && String(content.game_id).trim()
+                    ? content.game_id
+                    : content.id || safeId,
+              };
+              updated = writeJsonIfChanged(targetPath, cleanSpokeSchema);
+            } else {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: 'Unsupported asset sync kind' }));
+              return;
+            }
+
+            res.statusCode = 200;
+            res.end(JSON.stringify({ ok: true, updated }));
+          } catch (e: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: e?.message || 'Failed to sync asset' }));
+          }
+        });
       });
 
       server.middlewares.use('/__sync-directives', (req: any, res: any) => {

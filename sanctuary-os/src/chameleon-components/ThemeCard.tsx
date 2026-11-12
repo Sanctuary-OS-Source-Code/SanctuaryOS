@@ -3,7 +3,13 @@ import { useLexicon } from '../LexiconContext';
 import { getLuminance } from './ChameleonShared';
 import { DEFAULT_CORE_THEMES, computeGlassOpticalVars } from '../ThemeContext';
 import { UniversalCard } from '../components/universal/UniversalCard';
-import { HoverTooltip, isScriptExtension, getExtensionRegex, VAULT_CHIP_CLASS } from '../shared';
+import {
+  HoverTooltip,
+  isScriptExtension,
+  getExtensionRegex,
+  VAULT_CHIP_CLASS,
+  filterBlueprintModArtifacts,
+} from '../shared';
 import { useStore } from '../store';
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from '../ContextMenu';
 
@@ -587,16 +593,19 @@ export function DynamicLexiconPreviewBanner({
   );
 }
 
-export function DynamicBlueprintPreviewBanner({
+export const DynamicBlueprintPreviewBanner = React.memo(function DynamicBlueprintPreviewBanner({
   data,
   heightClass = 'h-32',
+  countOverride,
   children,
 }: {
   data: any;
   heightClass?: string;
+  countOverride?: number;
   children?: React.ReactNode;
 }) {
   const { t } = useLexicon();
+  const activeGameSchema = useStore((s) => s.activeGameSchema);
   const rawArtifactsList: any[] =
     data?.artifacts ||
     data?.originalBlueprint?.artifacts ||
@@ -605,33 +614,10 @@ export function DynamicBlueprintPreviewBanner({
     [];
   const rawArtifacts = React.useMemo(() => {
     if (!Array.isArray(rawArtifactsList)) return [];
-    const seen = new Set<string>();
-    const out: any[] = [];
-    for (let i = 0; i < rawArtifactsList.length; i++) {
-      const item = rawArtifactsList[i];
-      const rawName =
-        typeof item === 'string'
-          ? item
-          : String(item?.name || item?.filename || item?.path || item?.displayName || '');
-      if (
-        !rawName ||
-        rawName.startsWith('FOLDER_') ||
-        rawName.startsWith('SET_') ||
-        rawName.startsWith('LOCAL_SET_')
-      ) {
-        continue;
-      }
-      const lastSlash = Math.max(rawName.lastIndexOf('/'), rawName.lastIndexOf('\\'));
-      const cleanLower = (
-        lastSlash >= 0 ? rawName.slice(lastSlash + 1) || rawName : rawName
-      ).toLowerCase();
-      if (!cleanLower || seen.has(cleanLower)) continue;
-      seen.add(cleanLower);
-      out.push(item);
-    }
-    return out;
-  }, [rawArtifactsList]);
-  const modCount = rawArtifacts.length;
+    return filterBlueprintModArtifacts(rawArtifactsList, activeGameSchema);
+  }, [rawArtifactsList, activeGameSchema]);
+  const modCount =
+    typeof countOverride === 'number' ? countOverride : rawArtifacts.length;
   const gameVer =
     data?.game_version ||
     data?.originalBlueprint?.game_version ||
@@ -639,30 +625,36 @@ export function DynamicBlueprintPreviewBanner({
     '';
 
   const rowCount = modCount > 0 ? Math.min(modCount, 3) : 1;
-  const previewRows = Array.from({ length: rowCount }, (_, idx) => {
-    const item = rawArtifacts[idx];
-    const rawLabel =
-      typeof item === 'string'
-        ? item
-        : item?.displayName || item?.name || item?.filename || '';
-    const cleanLabel = rawLabel
-      ? String(rawLabel)
-        .split(/[\\/]/)
-        .pop()!
-        .replace(/\.[^/.]+$/, '')
-        .replace(/(?:[\s_-]+|^)v?\d+(?:\.\d+)+[a-zA-Z0-9_-]*$/i, '')
-        .replace(/[_-]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-      : `${t('term_mod', 'Mod')} #0${idx + 1}`;
-    const isScript = String(rawLabel).toLowerCase().includes('script');
-    return {
-      seq: `0${idx + 1}`,
-      label: cleanLabel,
-      isScript,
-      hasReal: Boolean(rawLabel),
-    };
-  });
+  const previewRows = React.useMemo(
+    () =>
+      Array.from({ length: rowCount }, (_, idx) => {
+        const item = rawArtifacts[idx];
+        const rawLabel =
+          typeof item === 'string'
+            ? item
+            : item?.displayName || item?.name || item?.filename || '';
+        const cleanLabel = rawLabel
+          ? String(rawLabel)
+              .split(/[\\/]/)
+              .pop()!
+              .replace(/\.[^/.]+$/, '')
+              .replace(/(?:[\s_-]+|^)v?\d+(?:\.\d+)+[a-zA-Z0-9_-]*$/i, '')
+              .replace(/[_-]+/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim()
+          : `${t('term_mod', 'Mod')} #0${idx + 1}`;
+        const isScript =
+          isScriptExtension(String(rawLabel), activeGameSchema) ||
+          String(rawLabel).toLowerCase().includes('script');
+        return {
+          seq: `0${idx + 1}`,
+          label: cleanLabel,
+          isScript,
+          hasReal: Boolean(rawLabel),
+        };
+      }),
+    [rowCount, rawArtifacts, activeGameSchema, t]
+  );
 
   return (
     <div
@@ -717,7 +709,7 @@ export function DynamicBlueprintPreviewBanner({
       {children}
     </div>
   );
-}
+});
 
 export function DynamicTemplatePreviewBanner({
   data,

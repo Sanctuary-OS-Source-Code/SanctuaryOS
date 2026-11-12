@@ -37,7 +37,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     setLoading(true);
     const { data } = await supabase
       .from('mods')
-      .select('id, name, master_author, compliance_tier, status, mason_id')
+      .select('id, name, master_author, compliance_tier, status, status_reason, mason_id, image_url')
       .or('compliance_tier.in.(1,2,3,4,5),status.in.(under_review,pending,blacklisted,quarantined)')
       .order('compliance_tier', { ascending: false });
 
@@ -61,14 +61,25 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       setStatus(t("identities_req_reason", "Reason is required."));
       return;
     }
+    setIsSubmitting(true);
     setLoading(true);
     try {
-      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: mod.id, compliance_tier: 0, status: 'verified' } });
+      const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+        p_token: useStore.getState().session?.access_token || '',
+        p_target: 'mods',
+        p_payload: {
+          id: mod.id,
+          compliance_tier: 0,
+          status: 'verified',
+          status_reason: editReason.trim(),
+        },
+      });
+      if (error) throw error;
       await logArchitectAction(
         `Cleared compliance flag for artifact: ${mod.name}`,
         'mods',
         mod.name || mod.id,
-        editReason,
+        editReason.trim(),
         'Oversight Compliance',
         false,
         {
@@ -77,10 +88,14 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         }
       );
       setEditReason("");
+      setSelectedMod(null);
       fetchMods();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setStatus(`${t("identities_failed_prefix", "Failed:")} ${err?.message || String(err)}`);
       setLoading(false);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -90,26 +105,43 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       setStatus(t("identities_req_reason", "Reason is required."));
       return;
     }
+    const confirmedTier = Math.max(1, Math.min(5, Number(editTier || mod.compliance_tier || 1)));
+    const confirmedStatus = confirmedTier === 5 ? 'blacklisted' : 'verified';
+    setIsSubmitting(true);
     setLoading(true);
     try {
-      await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: mod.id, compliance_tier: 2, status: 'blacklisted' } });
+      const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+        p_token: useStore.getState().session?.access_token || '',
+        p_target: 'mods',
+        p_payload: {
+          id: mod.id,
+          compliance_tier: confirmedTier,
+          status: confirmedStatus,
+          status_reason: editReason.trim(),
+        },
+      });
+      if (error) throw error;
       await logArchitectAction(
-        `Set compliance flag for artifact: ${mod.name} to Tier 2`,
+        `Confirmed compliance classification for artifact: ${mod.name} (Tier ${confirmedTier})`,
         'mods',
         mod.name || mod.id,
-        editReason,
+        editReason.trim(),
         'Oversight Compliance',
         false,
         {
-          compliance_tier: { from: mod.compliance_tier, to: 2 },
-          status: { from: mod.status || 'verified', to: 'blacklisted' }
+          compliance_tier: { from: mod.compliance_tier, to: confirmedTier },
+          status: { from: mod.status || 'pending', to: confirmedStatus }
         }
       );
       setEditReason("");
+      setSelectedMod(null);
       fetchMods();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setStatus(`${t("identities_failed_prefix", "Failed:")} ${err?.message || String(err)}`);
       setLoading(false);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -117,14 +149,14 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
 
   const handleOpenPanel = (mod: any) => {
     setSelectedMod(mod);
-    setEditTier(mod.compliance_tier);
+    setEditTier(Number(mod.compliance_tier || 1));
     setEditReason("");
     setStatus("");
   };
 
-  const handleSaveTier = async () => {
+  const handleSaveTier = async (forceQuarantine = false) => {
     if (!selectedMod) return;
-    if (editTier !== selectedMod.compliance_tier && !editReason.trim()) {
+    if (!editReason.trim()) {
       setStatus(t("identities_req_reason", "Reason is required when changing compliance tier."));
       return;
     }
@@ -133,7 +165,17 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     setStatus(t("identities_updating", "Updating..."));
 
     try {
-      const { error } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mods', p_payload: { id: selectedMod.id, compliance_tier: editTier } });
+      const nextStatus = forceQuarantine || editTier === 5 ? 'blacklisted' : 'verified';
+      const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+        p_token: useStore.getState().session?.access_token || '',
+        p_target: 'mods',
+        p_payload: {
+          id: selectedMod.id,
+          compliance_tier: editTier,
+          status: nextStatus,
+          status_reason: editReason.trim(),
+        },
+      });
       if (error) throw error;
 
       await logArchitectAction(
@@ -144,7 +186,8 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         'Oversight Compliance',
         false,
         {
-          compliance_tier: { from: selectedMod.compliance_tier, to: editTier }
+          compliance_tier: { from: selectedMod.compliance_tier, to: editTier },
+          status: { from: selectedMod.status, to: nextStatus },
         }
       );
 
@@ -295,6 +338,13 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
           title={t("recent_pending", "Recent Pending")}
           icon={t("icon_policy", "policy")}
           iconColorClass="text-[var(--danger)]"
+          headerAction={
+            <PanelHeaderButton
+              icon={t("icon_arrow_forward", "arrow_forward")}
+              tooltip={t("pending", "Pending")}
+              onClick={() => setFilterStatus("pending")}
+            />
+          }
           isEmpty={pendingMods.length === 0}
           emptyIcon={t("icon_policy", "policy")}
           emptyTitle={t("comp_no_alerts", "No Alerts")}
@@ -306,6 +356,13 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
           title={t("recent_live", "Recent Active")}
           icon={t("icon_verified", "verified")}
           iconColorClass="text-[var(--success)]"
+          headerAction={
+            <PanelHeaderButton
+              icon={t("icon_arrow_forward", "arrow_forward")}
+              tooltip={t("status_active", "Active")}
+              onClick={() => setFilterStatus("active")}
+            />
+          }
           isEmpty={activeMods.length === 0}
           emptyIcon={t("icon_verified", "verified")}
           emptyTitle={t("comp_no_alerts", "No Alerts")}
@@ -318,6 +375,13 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
           icon={t("icon_block", "block")}
           iconColorClass="text-[var(--warning)]"
           className="col-span-1 xl:col-span-2"
+          headerAction={
+            <PanelHeaderButton
+              icon={t("icon_arrow_forward", "arrow_forward")}
+              tooltip={t("tab_inactive", "Inactive")}
+              onClick={() => setFilterStatus("inactive")}
+            />
+          }
           isEmpty={inactiveMods.length === 0}
           emptyIcon={t("icon_block", "block")}
           emptyTitle={t("comp_no_alerts", "No Alerts")}
@@ -403,21 +467,21 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         widthClass="w-[90vw] md:w-[680px]"
         headerActions={
           <PanelHeaderGroup>
-            {(selectedMod?.status === 'pending' || selectedMod?.status === 'under_review') ? (
+            {["pending", "under_review", "unverified"].includes(String(selectedMod?.status || "").toLowerCase()) ? (
               <>
                 <PanelHeaderButton
                   icon={t("icon_check_circle", "check_circle")}
-                  tooltip={t("btn_clear_flag", "Clear Flag")}
+                  tooltip={t("btn_clear_flag", "Clear Flag (Tier 0)")}
                   variant="success"
                   disabled={isSubmitting || !editReason.trim()}
-                  onClick={(e: React.MouseEvent) => { e.preventDefault(); handleClearFlag(e, selectedMod); setSelectedMod(null); }}
+                  onClick={(e: React.MouseEvent) => { e.preventDefault(); handleClearFlag(e, selectedMod); }}
                 />
                 <PanelHeaderButton
-                  icon={t("icon_flag", "flag")}
-                  tooltip={t("btn_set_flag", "Set Flag")}
-                  variant="error"
+                  icon={t("icon_verified", "verified")}
+                  tooltip={t("btn_confirm_compliance", "Confirm Compliance Tier")}
+                  variant="accent"
                   disabled={isSubmitting || !editReason.trim()}
-                  onClick={(e: React.MouseEvent) => { e.preventDefault(); handleSetFlag(e, selectedMod); setSelectedMod(null); }}
+                  onClick={(e: React.MouseEvent) => { e.preventDefault(); handleSetFlag(e, selectedMod); }}
                 />
               </>
             ) : (
@@ -426,10 +490,51 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
                 tooltip={isSubmitting ? t("identities_updating", "Updating...") : t("ui_btn_commit", "Commit")}
                 variant="accent"
                 disabled={isSubmitting || !editReason.trim()}
-                onClick={handleSaveTier}
+                onClick={() => handleSaveTier(false)}
               />
             )}
           </PanelHeaderGroup>
+        }
+        footer={
+          selectedMod ? (
+            <div className="flex flex-wrap items-center justify-between gap-2.5 w-full">
+              <ActionButton
+                variant="glass"
+                icon={t("icon_check_circle", "check_circle")}
+                label={t("btn_clear_flag", "Clear Flag")}
+                disabled={isSubmitting || !editReason.trim()}
+                onClick={(e: React.MouseEvent) => handleClearFlag(e, selectedMod)}
+              />
+              <div className="flex items-center gap-2.5">
+                <ActionButton
+                  variant="danger"
+                  icon={t("icon_block", "block")}
+                  label={t("quarantine", "Quarantine")}
+                  disabled={isSubmitting || !editReason.trim()}
+                  onClick={() => handleSaveTier(true)}
+                />
+                <ActionButton
+                  variant="primary"
+                  icon={t("icon_verified", "verified")}
+                  label={
+                    ["pending", "under_review", "unverified"].includes(
+                      String(selectedMod?.status || "").toLowerCase()
+                    )
+                      ? t("btn_confirm_compliance", "Confirm Compliance Tier")
+                      : t("save", "Save")
+                  }
+                  disabled={isSubmitting || !editReason.trim()}
+                  onClick={(e: React.MouseEvent) =>
+                    ["pending", "under_review", "unverified"].includes(
+                      String(selectedMod?.status || "").toLowerCase()
+                    )
+                      ? handleSetFlag(e, selectedMod)
+                      : handleSaveTier(false)
+                  }
+                />
+              </div>
+            </div>
+          ) : undefined
         }
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
@@ -478,6 +583,17 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
             label={t("label_modname", "{Mod} Name")}
             subtitle={`${t("lbl_uuid", "UUID")}: ${selectedMod?.id || ""}`}
           />
+
+          {selectedMod?.status_reason && (
+            <UniversalGroup
+              title={t("report_reason", "Reported / Flagged Context")}
+              icon={t("icon_report", "report")}
+            >
+              <p className="text-xs font-bold text-[var(--text)] leading-relaxed whitespace-pre-wrap break-words m-0">
+                {selectedMod.status_reason}
+              </p>
+            </UniversalGroup>
+          )}
 
           <UniversalGroup title={t("comp_enforcement", "Compliance Enforcement")} icon={t("icon_policy", "policy")}>
             <div className="flex flex-col gap-1.5 relative z-50">

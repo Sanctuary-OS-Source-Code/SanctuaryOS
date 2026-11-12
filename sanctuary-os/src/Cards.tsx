@@ -133,7 +133,7 @@ export function ArtifactCard({
     }
     if (rawStatus === "verified" || rawStatus === "approved") {
       return {
-        label: t("verified", "Verified"),
+        label: t("status_stable", "Stable"),
         icon: t("icon_verified", "verified"),
         iconColor: "text-[var(--success)]",
       };
@@ -482,12 +482,57 @@ export function VaultCard({
     masonNameFallback ||
     t("mason", "{Mason}");
 
+  const rawSetStatus = String(setItem?.status || "")
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .trim();
+
+  const setStatusMeta = (() => {
+    if (rawSetStatus === "corrupted" || rawSetStatus === "broken") {
+      return {
+        label: t("status_corrupted", "Corrupted"),
+        icon: t("icon_error", "error"),
+        iconColor: "text-[var(--danger)]",
+      };
+    }
+    if (rawSetStatus === "under review") {
+      return {
+        label: t("status_dd_review", "Under Review"),
+        icon: t("icon_policy", "policy"),
+        iconColor: "text-[var(--accent)]",
+      };
+    }
+    if (rawSetStatus === "pending") {
+      return {
+        label: t("pending", "Pending"),
+        icon: t("icon_schedule", "schedule"),
+        iconColor: "text-[var(--warning)]",
+      };
+    }
+    if (
+      rawSetStatus === "unknown" ||
+      rawSetStatus === "unverified" ||
+      (!rawSetStatus && !setItem?.is_official)
+    ) {
+      return {
+        label: t("unknown", "Unknown"),
+        icon: t("icon_help", "help"),
+        iconColor: "text-[var(--subtext)]",
+      };
+    }
+    return {
+      label: t("status_stable", "Stable"),
+      icon: t("icon_verified", "verified"),
+      iconColor: "text-[var(--success)]",
+    };
+  })();
+
   const statusChip = (
     <div className={VAULT_CHIP_CLASS}>
-      <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-        {t("icon_verified", "verified")}
+      <span className={`material-symbols-outlined !text-[12px] ${setStatusMeta.iconColor}`}>
+        {setStatusMeta.icon}
       </span>
-      <span>{t("verified", "Verified")}</span>
+      <span>{setStatusMeta.label}</span>
     </div>
   );
 

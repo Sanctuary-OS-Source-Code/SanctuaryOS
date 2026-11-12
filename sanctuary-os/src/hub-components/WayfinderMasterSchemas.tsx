@@ -25,7 +25,7 @@ import {
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import MasonEditorPanel from "./MasonEditorPanel";
-import { useMasonFiles } from "../hooks/useMasonFiles";
+import { useMasonFiles, clearIdeCachedDraft } from "../hooks/useMasonFiles";
 import {
   deepCountKeys,
   deepCompare,
@@ -55,6 +55,7 @@ import WayfinderKeeperTickets from "../WayfinderKeeperTickets";
 import TicketDossierSidePanel from "../side-panels/TicketDossierSidePanel";
 import WayfinderSupportSidePanel from "../side-panels/WayfinderSupportSidePanel";
 import { WayfinderDonationSetupSidePanel } from "../side-panels/WayfinderSidePanels";
+import { postDevCoreAssetSync } from "../utils/devAssetSync";
 
 const STANDALONE_MANUAL_SNIPPET = `export const SANCTUARY_CONFIG = {
   uplinkBundle: "",
@@ -78,6 +79,8 @@ export default function WayfinderMasterSchemas({
   const { t } = useLexicon();
   const session = useStore((state: any) => state.session);
   const pushStatus = useStore((state: any) => state.pushStatus);
+  const userRole = useStore((state: any) => state.userRole);
+  const canManageSpokeDonations = userRole === "wayfinder";
   const workspaces = useStore((state: any) => state.workspaces);
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
   const activeWs = (workspaces || []).find((w: any) => w.id === activeWorkspaceId);
@@ -109,7 +112,7 @@ export default function WayfinderMasterSchemas({
   >(() => {
     if (initialTab === "spoke_sever") return "sever";
     if (initialTab === "forking_help") return "forking";
-    if (initialTab === "donations") return "donations";
+    if (initialTab === "donations" && canManageSpokeDonations) return "donations";
     return null;
   });
 
@@ -118,8 +121,8 @@ export default function WayfinderMasterSchemas({
     setActiveTab(resolveInitialTab(initialTab));
     if (initialTab === "spoke_sever") setActiveSpokePanel("sever");
     else if (initialTab === "forking_help") setActiveSpokePanel("forking");
-    else if (initialTab === "donations") setActiveSpokePanel("donations");
-  }, [initialTab]);
+    else if (initialTab === "donations" && canManageSpokeDonations) setActiveSpokePanel("donations");
+  }, [initialTab, canManageSpokeDonations]);
 
   // Spoke Setup & Uplink State
   const [uplinkUrl, setUplinkUrl] = useState("");
@@ -314,14 +317,14 @@ export default function WayfinderMasterSchemas({
       try {
         const targetClient = getActiveGameClient();
         if (targetClient) {
-          const { data: lData } = await targetClient
+          const { data: lData, count: exactCount } = await targetClient
             .from("audit_logs")
-            .select("*")
+            .select("*", { count: "exact" })
             .order("created_at", { ascending: false })
-            .limit(100);
+            .limit(25);
           if (lData) {
             const spokeLogs = lData.filter((r: any) => !isCoreOnlyAuditRow(r));
-            setAuditLogsCount(spokeLogs.length);
+            setAuditLogsCount(exactCount !== null ? exactCount : spokeLogs.length);
             setOverviewAuditLogs(spokeLogs);
           }
         }
@@ -347,9 +350,9 @@ export default function WayfinderMasterSchemas({
       setProcessor(proc === "SANDBOX" ? "STRIPE" : proc);
     }
     if (activeWs?.schema_id) {
-      const { data } = await supabase
+      const { data } = await supabaseAuth
         .from("sanctuary_games")
-        .select("donation_url, payment_processor")
+        .select("id, donation_url, payment_processor")
         .ilike("schema_id", activeWs.schema_id)
         .maybeSingle();
       if (data) {
@@ -478,6 +481,8 @@ export default function WayfinderMasterSchemas({
     const file = openFiles[activeFileIndex];
     try {
       const parsed = JSON.parse(file.content);
+      delete parsed.name;
+      delete parsed.archive_containers;
       if (!parsed.schema_version || typeof parsed.schema_version !== "number")
         parsed.schema_version = 0;
       parsed.schema_version++;
@@ -487,7 +492,11 @@ export default function WayfinderMasterSchemas({
 
       const payload = {
         id: fileId,
-        name: parsed.manifest_name || fileId,
+        name:
+          parsed.display_name ||
+          parsed.manifest_name ||
+          activeWs?.name ||
+          fileId,
         schema_data: parsed,
         version: parsed.schema_version || 1,
         updated_at: new Date().toISOString(),
@@ -506,10 +515,29 @@ export default function WayfinderMasterSchemas({
         if (error) throw error;
       }
 
-      if (fileId === useStore.getState().activeGameSchema?.id) {
+      try {
+        localStorage.setItem(`sanctuary_master_schema_${fileId}`, JSON.stringify(parsed));
+        localStorage.setItem(
+          `sanctuary_master_schema_${fileId.toLowerCase()}`,
+          JSON.stringify(parsed)
+        );
+      } catch {}
+
+      if (import.meta.env.DEV && fileId.toLowerCase() !== "default") {
+        await postDevCoreAssetSync({
+          kind: "spoke_schema_snapshot",
+          id: fileId.toLowerCase(),
+          content: parsed,
+        });
+      }
+
+      if (
+        String(fileId).toLowerCase() ===
+        String(useStore.getState().activeGameSchema?.id || "").toLowerCase()
+      ) {
         useStore
           .getState()
-          .setActiveGameSchema(getSafeSchema(parsed, parsed.id || "default_schema"));
+          .setActiveGameSchema(getSafeSchema(parsed, parsed.id || fileId));
       }
 
       await logArchitectAction(
@@ -525,11 +553,14 @@ export default function WayfinderMasterSchemas({
         }
       );
 
+      clearIdeCachedDraft(file.path);
+
       const newFiles = [...openFiles];
       newFiles[activeFileIndex].content = updatedContent;
       newFiles[activeFileIndex].originalContent = updatedContent;
       setOpenFiles(newFiles);
       setActiveVersionTimestamp(null);
+      mason.fetchFiles();
       pushStatus(t("alert_saved", "Saved"), "success");
     } catch {
       pushStatus(t("alert_error", "Error"), "error");
@@ -625,7 +656,7 @@ export default function WayfinderMasterSchemas({
     }
   };
 
-  const spokeAndSchemaCount = 3 + (schemaFiles?.length || 0);
+  const spokeAndSchemaCount = (canManageSpokeDonations ? 3 : 2) + (schemaFiles?.length || 0);
   const guidesAndLegalCount = 4;
   const totalOverviewItems =
     spokeAndSchemaCount + guidesAndLegalCount + ticketsCount;
@@ -2084,7 +2115,7 @@ export default function WayfinderMasterSchemas({
     );
   });
 
-  const missingDonationLink = !donationUrl.trim();
+  const missingDonationLink = canManageSpokeDonations && !donationUrl.trim();
   const missingSpokeUplink = !activeWs?.supabase_url && !uplinkUrl.trim();
   const hasAnyAnomalies =
     missingDonationLink ||
@@ -2288,7 +2319,7 @@ export default function WayfinderMasterSchemas({
           >
             {recentlyUpdatedSchemas.slice(0, 2).map(renderSchemaFileCard)}
             {renderSpokeSetupCard()}
-            {Boolean(donationUrl.trim()) && renderDonationsCard()}
+            {canManageSpokeDonations && Boolean(donationUrl.trim()) && renderDonationsCard()}
           </HubOverviewSection>
 
           <HubOverviewSection
@@ -2592,7 +2623,8 @@ export default function WayfinderMasterSchemas({
               ) &&
               renderSpokeSeverCard()}
 
-            {showSpokeOps &&
+            {canManageSpokeDonations &&
+              showSpokeOps &&
               matchesQuery(
                 `${t("wf_donation_panel_title", "Non-Custodial Community Donations")} ${processor}`
               ) &&
@@ -3241,13 +3273,15 @@ export default function WayfinderMasterSchemas({
       </SidePanel>
 
       {/* SidePanel 4: Partner Community Donations (Reworked with Cost & Spending Report + Processor & Checkout Sub-Tabs) */}
-      <WayfinderDonationSetupSidePanel
-        isOpen={activeSpokePanel === "donations"}
-        onClose={() => {
-          setActiveSpokePanel(null);
-          loadDonationConfig();
-        }}
-      />
+      {canManageSpokeDonations && (
+        <WayfinderDonationSetupSidePanel
+          isOpen={activeSpokePanel === "donations"}
+          onClose={() => {
+            setActiveSpokePanel(null);
+            loadDonationConfig();
+          }}
+        />
+      )}
 
       {/* Keepers Support SidePanels (Always mounted so Overview ticket clicks also open Dossier) */}
       <TicketDossierSidePanel
@@ -3287,6 +3321,7 @@ export default function WayfinderMasterSchemas({
         saveFile={saveFile}
         openFiles={openFiles}
         closeFile={closeFile}
+        discardChanges={mason.discardChanges}
         splitRatio={splitRatio}
         isLight={isLight}
         addMissingStrings={addMissingStrings}

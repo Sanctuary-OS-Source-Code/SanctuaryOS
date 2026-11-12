@@ -8,9 +8,10 @@ import { SignatureQueueSidePanel } from "./side-panels/SignatureQueueSidePanel";
 import SidePanelBrowser from "./side-panels/SidePanelBrowser";
 import { SystemStatusBar } from "./app-modals/SystemStatusBar";
 import { GlobalWorkbenchSidePanelHost } from "./app-modals/GlobalWorkbenchSidePanelHost";
-import { getExtensionRegex, handleOpenUrl } from "./shared";
+import { handleOpenUrl } from "./shared";
 import { useConflictOverride } from "./hooks/usePlaySetLogic";
 import { isDesktop } from "./utils/envUtils";
+import { resolveActiveBlueprintMods } from "./side-panels/CommandIncompatiblePanel";
 
 const MissingImportsAlert = React.lazy(() =>
   import("./side-panels/MissingImportsAlert").then((m) => ({ default: m.MissingImportsAlert }))
@@ -142,42 +143,13 @@ export const AppModals = React.memo(function AppModals(props: any) {
 
   const activeBlueprintMods = React.useMemo(() => {
     if (!needsBlueprintMods || !activePlaySet) return [];
-    const safeMods = Array.isArray(activePlaySet.mods) ? activePlaySet.mods : [];
-    const safeList = Array.isArray(modList) ? modList : [];
-    const extRegex = getExtensionRegex(activeGameSchema);
-
-    const exactMatchMap = new Map();
-    const baseMatchMap = new Map();
-    
-    for (const m of safeList) {
-        if (!m.name) continue;
-        const exactKey = m.name.toLowerCase().replace(/\\/g, '/');
-        exactMatchMap.set(exactKey, m);
-        
-        const baseKey = m.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
-        if (baseKey) {
-            if (!baseMatchMap.has(baseKey)) {
-                baseMatchMap.set(baseKey, m);
-            }
-        }
-    }
-
-    return safeMods.map((rawMod: any) => {
-      const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
-      const cleanModName = modName.replace(/^(sanctuary[/\\])+/i, '');
-      const modNameLow = cleanModName.toLowerCase().replace(/\\/g, '/');
-      
-      const exactMatch = exactMatchMap.get(modNameLow);
-      if (exactMatch) return { ...exactMatch, _originalSetName: modName };
-
-      const mBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
-      
-      const baseMatch = mBase ? baseMatchMap.get(mBase) : undefined;
-      if (baseMatch) return { ...baseMatch, _originalSetName: modName };
-
-      return { id: `missing-${modName}`, name: modName, isFallback: true, color: 'theme-border-danger', physical_path: null, hash: 'vlocal' };
-    });
-  }, [needsBlueprintMods, activePlaySet, modList, activeGameSchema]);
+    return resolveActiveBlueprintMods(
+      activePlaySet.mods,
+      modList,
+      activeGameSchema,
+      networkUpdates
+    );
+  }, [needsBlueprintMods, activePlaySet, modList, activeGameSchema, networkUpdates]);
 
   const activeUpdates = React.useMemo(() => {
     const rawUpdates = activeBlueprintMods.filter((m: any) => m.hasUpdate).map((m: any) => ({

@@ -14,7 +14,7 @@ import {
   InlineFilterGroup,
   DashboardStatTile,
   handleOpenUrl,
-  deduplicateBlueprintArtifacts,
+  filterBlueprintModArtifacts,
   stripPriorityTierPrefix,
 } from "./shared";
 import { useStore } from "./store";
@@ -73,7 +73,8 @@ export default function BlueprintArchitect({
 
   const extRegex = useMemo(() => getExtensionRegex(activeGameSchema), [activeGameSchema]);
   const activeMods = useMemo(() => {
-    const safeMods = deduplicateBlueprintArtifacts(playSet?.mods, activeGameSchema);
+    if (!isOpen) return [];
+    const safeMods = filterBlueprintModArtifacts(playSet?.mods, activeGameSchema);
     const safeList = Array.isArray(modList) ? modList : [];
 
     const exactMatchMap = new Map();
@@ -106,19 +107,22 @@ export default function BlueprintArchitect({
 
       return { name: modName, isFallback: true, _originalSetName: modName };
     });
-  }, [playSet?.mods, modList, extRegex, activeGameSchema]);
+  }, [isOpen, playSet?.mods, modList, extRegex, activeGameSchema]);
 
   const activeConflicts = useMemo(() => {
+    if (!isOpen) return [];
     return resolveBlueprintConflicts(playSet?.name, activeMods, ignoredGlobal, t);
-  }, [playSet?.name, activeMods, ignoredGlobal, t, radarCacheTick]);
+  }, [isOpen, playSet?.name, activeMods, ignoredGlobal, t, radarCacheTick]);
 
   const rawUpdates = useMemo(() => {
+    if (!isOpen) return [];
     return activeMods.filter((m: any) => !m.isFallback && Boolean(m.hasUpdate && m.newVersion));
-  }, [activeMods]);
+  }, [isOpen, activeMods]);
 
   const groupedUpdates = useMemo(() => groupUpdateMods(rawUpdates), [rawUpdates]);
 
   const rawBrokenMods = useMemo(() => {
+    if (!isOpen) return [];
     return activeMods
       .map((mod: any) =>
         evaluateModIssues(mod, {
@@ -136,7 +140,7 @@ export default function BlueprintArchitect({
         if (a._alert_type === "amber" && b._alert_type === "red") return 1;
         return 0;
       });
-  }, [activeMods, selectedVersion, ownedDLC, maskedDLC, t, activeGameSchema]);
+  }, [isOpen, activeMods, selectedVersion, ownedDLC, maskedDLC, t, activeGameSchema]);
 
   const groupedBrokenMods = useMemo(() => groupBrokenMods(rawBrokenMods), [rawBrokenMods]);
 
@@ -183,12 +187,22 @@ export default function BlueprintArchitect({
 
   const applyConflictOverride = useConflictOverride();
 
+  const schemaPriorityTiers = useMemo(
+    () =>
+      Array.isArray(activeGameSchema?.load_order?.priority_tiers)
+        ? activeGameSchema.load_order.priority_tiers
+        : [],
+    [activeGameSchema]
+  );
+
   const getPriorityDrop = (modData: any) => {
-    if (!modData || modData.isFallback || !allow_write) return null;
+    if (!modData || modData.isFallback || !allow_write || schemaPriorityTiers.length === 0) {
+      return null;
+    }
     let currentPriority = "";
     if (modData.path) {
       const firstPart = modData.path.split(/[/\\]/)[0];
-      if (["!Sanctuary", "!Sanctuary2", "!Sanctuary3"].includes(firstPart)) {
+      if (schemaPriorityTiers.includes(firstPart)) {
         currentPriority = firstPart;
       }
     }
@@ -207,9 +221,10 @@ export default function BlueprintArchitect({
           }}
           options={[
             { id: "", label: t("bp_priority_default", "Standard Priority") },
-            { id: "!Sanctuary", label: t("bp_priority_sanctuary", "Priority 1") },
-            { id: "!Sanctuary2", label: t("bp_priority_sanctuary2", "Priority 2") },
-            { id: "!Sanctuary3", label: t("bp_priority_sanctuary3", "Priority 3") },
+            ...schemaPriorityTiers.map((folder: string, idx: number) => ({
+              id: folder,
+              label: `${t("priority_tier", "Priority")} ${idx + 1} (${folder})`,
+            })),
           ]}
         />
       </div>

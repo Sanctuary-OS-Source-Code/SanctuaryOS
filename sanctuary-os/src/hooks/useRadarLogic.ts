@@ -4,7 +4,7 @@ import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase, supabaseAuth, getActiveGameClient, submitThreatManifestToSpoke } from "../supabase";
-import { isVersionMatch, getExtensionRegex, parseStringArray } from "../shared";
+import { isVersionMatch, getExtensionRegex, parseStringArray, isScriptExtension, formatDisplayName } from "../shared";
 import { hashString } from "../lib/cryptoUtils";
 import { useState, useEffect, useRef } from "react";
 import { useModalStore } from "../store/modalStore";
@@ -424,7 +424,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             const [verRes, fRes, cRes] = await Promise.all([
               supabase
                 .from("mod_versions")
-                .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, file_extension, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, compliance_tier, mason_id, created_at, updated_at, folder_structure, masons(name))")
+                .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, status_reason, compatible_versions, file_extension, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, compliance_tier, mason_id, created_at, updated_at, folder_structure, masons(name))")
                 .in("dna_hash", chunk),
               supabase
                 .from("flavor_group_members")
@@ -441,7 +441,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               console.warn("Schema mismatch detected, falling back to safe query...");
               const fallback = await supabase
                 .from("mod_versions")
-                .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, file_extension, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, mason_id, created_at, updated_at, folder_structure, masons(name))")
+                .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, status_reason, compatible_versions, file_extension, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, mason_id, created_at, updated_at, folder_structure, masons(name))")
                 .in("dna_hash", chunk);
               data = fallback.data as any;
             }
@@ -545,7 +545,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                 const [gRes, cgRes, pRes] = await Promise.all([
                   supabase.from("flavor_groups").select("id, name").in("id", chunk),
                   supabase.from("community_groups").select("id, name").in("id", chunk),
-                  supabase.from("mods").select("id, name, master_author, mason_id, masons(name), image_url, url, description, category_override, compatible_versions, created_at").in("id", chunk)
+                  supabase.from("mods").select("id, name, status, status_reason, master_author, mason_id, masons(name), image_url, url, description, category_override, compatible_versions, created_at").in("id", chunk)
                 ]);
                 gResults.push(...((gRes.data as any[]) || []));
                 cgResults.push(...((cgRes.data as any[]) || []));
@@ -562,6 +562,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                 const pmMasonName = Array.isArray(pm.masons) ? pm.masons[0]?.name : pm.masons?.name;
                 parentNameMap[String(pm.id)] = {
                   name: pm.name,
+                  status: pm.status || null,
+                  status_reason: pm.status_reason || null,
                   author: pmMasonName || pm.master_author || null,
                   mason_id: pm.mason_id,
                   image_url: pm.image_url,
@@ -608,13 +610,15 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           await runInBatches(pIds, 200, 0, async (chunk) => {
             const { data } = await supabase
                 .from("mods")
-                .select("id, name, master_author, mason_id, masons(name), image_url, url, description, category_override, compatible_versions, created_at")
+                .select("id, name, status, status_reason, master_author, mason_id, masons(name), image_url, url, description, category_override, compatible_versions, created_at")
                 .in("id", chunk);
             
             ((data as any[]) || []).forEach((pm: any) => {
               const pmMasonName = Array.isArray(pm.masons) ? pm.masons[0]?.name : pm.masons?.name;
               parentNameMap[String(pm.id)] = {
                 name: pm.name,
+                status: pm.status || null,
+                status_reason: pm.status_reason || null,
                 author: pmMasonName || pm.master_author || null,
                 mason_id: pm.mason_id,
                 image_url: pm.image_url,
@@ -960,45 +964,48 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const cm = isRestricted ? null : rawCm;
         const dbM = isRestricted ? null : rawDbM;
         const f = isRestricted ? undefined : flavorMap.get(String(m.hash));
+        const cg = isRestricted ? undefined : communityMap.get(String(m.hash));
         
         const dbId = dbM?.id ? String(dbM.id) : null;
         const myParentRels = dbId ? (parentRelMap.get(dbId) || []) : [];
         const myChildRels = dbId ? (childRelMap.get(dbId) || []) : [];
         
-        const twinRel = myParentRels.find((r: any) => r.relationship_type === "twin");
-        const addonRel = myParentRels.find((r: any) => r.relationship_type === "addon");
-        const childTwinRel = myChildRels.find((r: any) => r.relationship_type === "twin");
+        const isFamilyRel = (rt: any) =>
+          rt === "twin" ||
+          rt === "addon" ||
+          rt === "flavor" ||
+          rt === "beta" ||
+          rt === "set_item" ||
+          rt === "module";
+        const directParentRel = myParentRels.find((r: any) => isFamilyRel(r.relationship_type));
         
-        let bId = dbId || (f ? String(f.group_id) : null);
-        if (addonRel) {
-            bId = String(addonRel.parent_id);
-        } else if (twinRel) {
-            bId = String(twinRel.parent_id) < String(twinRel.child_id) ? String(twinRel.parent_id) : String(twinRel.child_id);
-        } else if (childTwinRel) {
-            bId = String(childTwinRel.parent_id) < String(childTwinRel.child_id) ? String(childTwinRel.parent_id) : String(childTwinRel.child_id);
+        let bId = dbId || (f ? String(f.group_id) : cg ? String(cg.group_id) : null);
+        if (directParentRel && directParentRel.parent_id) {
+          bId = String(directParentRel.parent_id);
         }
 
+        const visitedBoss1 = new Set<string>(dbId ? [dbId] : []);
+        if (bId) visitedBoss1.add(bId);
         let isTracingBoss1 = true;
         let safetyTraceCount1 = 0;
         
-        while (isTracingBoss1 && bId && safetyTraceCount1 < 5) {
-            const nextLevelRels = parentRelMap.get(bId) || [];
-            const nextAddonRel = nextLevelRels.find((r: any) => r.relationship_type === "addon");
-            const nextTwinRel = nextLevelRels.find((r: any) => r.relationship_type === "twin");
-            
-            let upperBossId = null;
-            if (nextAddonRel) {
-                upperBossId = String(nextAddonRel.parent_id);
-            } else if (nextTwinRel) {
-                upperBossId = String(nextTwinRel.parent_id) < String(nextTwinRel.child_id) ? String(nextTwinRel.parent_id) : String(nextTwinRel.child_id);
-            }
+        while (isTracingBoss1 && bId && safetyTraceCount1 < 6) {
+          const nextLevelRels = parentRelMap.get(bId) || [];
+          const nextParentRel = nextLevelRels.find((r: any) => isFamilyRel(r.relationship_type));
+          const upperBossId = nextParentRel?.parent_id ? String(nextParentRel.parent_id) : null;
 
-            if (upperBossId && upperBossId !== bId) {
-                bId = upperBossId; 
-                safetyTraceCount1++;
+          if (upperBossId && upperBossId !== bId) {
+            if (visitedBoss1.has(upperBossId)) {
+              bId = Array.from(visitedBoss1).sort()[0];
+              isTracingBoss1 = false;
             } else {
-                isTracingBoss1 = false; 
+              visitedBoss1.add(upperBossId);
+              bId = upperBossId;
+              safetyTraceCount1++;
             }
+          } else {
+            isTracingBoss1 = false;
+          }
         }
 
         if (bId && cm && cm.version_label && !cm.version_label.includes(',')) {
@@ -1117,6 +1124,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const twinRel = myParentRels.find((r: any) => r.relationship_type === "twin");
         const betaRel = myParentRels.find((r: any) => r.relationship_type === "beta");
         const addonRel = myParentRels.find((r: any) => r.relationship_type === "addon");
+        const flavorRel = myParentRels.find((r: any) => r.relationship_type === "flavor");
+        const moduleRel = myParentRels.find((r: any) => r.relationship_type === "module");
         const setItemRel = myParentRels.find((r: any) => r.relationship_type === "set_item");
         
         const childTwinRel = myChildRels.find((r: any) => r.relationship_type === "twin");
@@ -1151,7 +1160,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                     (typeof d === "object" && (d?.name || d?.id)) ||
                     String(depRef),
                   min_version: typeof d === "object" ? d.min_version : undefined,
-                  url: null,
+                  url:
+                    (typeof d === "object" && (d?.url || d?.download_url)) ||
+                    matchedLocal?.url ||
+                    null,
                 };
               })
             : []),
@@ -1164,7 +1176,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                   id: String(matchedLocal?.hash || addonHash),
                   hash: String(matchedLocal?.hash || addonHash),
                   name: matchedLocal?.name?.split(/[\\/]/).pop() || String(addonHash),
-                  url: null,
+                  url: matchedLocal?.url || null,
                 };
               })
             : []),
@@ -1206,25 +1218,31 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         let myBossId = dbId;
         let myRelType = null;
         if (twinRel) {
-          myBossId = String(twinRel.parent_id) < String(twinRel.child_id) ? String(twinRel.parent_id) : String(twinRel.child_id);
-          myRelType = "twin";
-        } else if (childTwinRel) {
-          myBossId = String(childTwinRel.parent_id) < String(childTwinRel.child_id) ? String(childTwinRel.parent_id) : String(childTwinRel.child_id);
+          myBossId = String(twinRel.parent_id);
           myRelType = "twin";
         } else if (addonRel) {
           myBossId = String(addonRel.parent_id);
           myRelType = "addon";
+        } else if (flavorRel) {
+          myBossId = String(flavorRel.parent_id);
+          myRelType = "flavor";
+        } else if (moduleRel) {
+          myBossId = String(moduleRel.parent_id);
+          myRelType = "module";
         } else if (setItemRel) {
           myBossId = String(setItemRel.parent_id);
           myRelType = "set_item";
         } else if (betaRel) {
-          myBossId = String(betaRel.parent_id) < String(betaRel.child_id) ? String(betaRel.parent_id) : String(betaRel.child_id);
+          myBossId = String(betaRel.parent_id);
           myRelType = "beta";
+        } else if (childTwinRel) {
+          myRelType = "twin";
         } else if (childBetaRel) {
-          myBossId = String(childBetaRel.parent_id) < String(childBetaRel.child_id) ? String(childBetaRel.parent_id) : String(childBetaRel.child_id);
           myRelType = "core";
         } else if (myFlavor) {
           myBossId = String(myFlavor.group_id);
+        } else if (myCommunityGroup) {
+          myBossId = String(myCommunityGroup.group_id);
         } else if (modEdgeLogic?.artifact_id && Array.isArray(modEdgeLogic?.flavors) && modEdgeLogic.flavors.length > 0) {
           myBossId = `edge_flavor_${modEdgeLogic.artifact_id}`;
           flavorGroupNames[myBossId] =
@@ -1247,27 +1265,35 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           }
         }
 
+        const isFamilyRel2 = (rt: any) =>
+          rt === "twin" ||
+          rt === "addon" ||
+          rt === "flavor" ||
+          rt === "beta" ||
+          rt === "set_item" ||
+          rt === "module";
+        const visitedBoss2 = new Set<string>(dbId ? [dbId] : []);
+        if (myBossId) visitedBoss2.add(myBossId);
         let isTracingBoss2 = true;
         let safetyTraceCount2 = 0;
         
-        while (isTracingBoss2 && myBossId && safetyTraceCount2 < 5) {
-            const nextLevelRels = parentRelMap.get(myBossId) || [];
-            const nextAddonRel = nextLevelRels.find((r: any) => r.relationship_type === "addon");
-            const nextTwinRel = nextLevelRels.find((r: any) => r.relationship_type === "twin");
-            
-            let upperBossId = null;
-            if (nextAddonRel) {
-                upperBossId = String(nextAddonRel.parent_id);
-            } else if (nextTwinRel) {
-                upperBossId = String(nextTwinRel.parent_id) < String(nextTwinRel.child_id) ? String(nextTwinRel.parent_id) : String(nextTwinRel.child_id);
-            }
+        while (isTracingBoss2 && myBossId && safetyTraceCount2 < 6) {
+          const nextLevelRels = parentRelMap.get(myBossId) || [];
+          const nextParentRel = nextLevelRels.find((r: any) => isFamilyRel2(r.relationship_type));
+          const upperBossId = nextParentRel?.parent_id ? String(nextParentRel.parent_id) : null;
 
-            if (upperBossId && upperBossId !== myBossId) {
-                myBossId = upperBossId; 
-                safetyTraceCount2++;
+          if (upperBossId && upperBossId !== myBossId) {
+            if (visitedBoss2.has(upperBossId)) {
+              myBossId = Array.from(visitedBoss2).sort()[0];
+              isTracingBoss2 = false;
             } else {
-                isTracingBoss2 = false; 
+              visitedBoss2.add(upperBossId);
+              myBossId = upperBossId;
+              safetyTraceCount2++;
             }
+          } else {
+            isTracingBoss2 = false;
+          }
         }
         
         const originalDir = mod.name.substring(0, Math.max(mod.name.lastIndexOf("\\"), mod.name.lastIndexOf("/")));
@@ -1488,25 +1514,42 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               }
             : {}),
           status:
-            edgeStatusNorm === "broken" || edgeStatusNorm === "corrupted"
-              ? "broken"
-              : edgeStatusNorm === "obsolete"
-                ? "obsolete"
-                : edgeStatusNorm === "unstable"
-                  ? "unstable"
-                  : dbMod
-                    ? dbMod.status === "stable" || dbMod.status === "verified"
-                      ? t("status_stable", "STABLE")
-                      : dbMod.status === "unverified"
-                        ? (modEdgeLogic || candidateStaticManifestUrl)
+            modLocalOvr?.status === "corrupted" || modLocalOvr?.status === "broken"
+              ? "corrupted"
+              : modLocalOvr?.status === "unstable"
+                ? "unstable"
+                : edgeStatusNorm === "broken" || edgeStatusNorm === "corrupted"
+                  ? "broken"
+                  : edgeStatusNorm === "obsolete"
+                    ? "obsolete"
+                    : edgeStatusNorm === "unstable"
+                      ? "unstable"
+                      : dbMod
+                        ? dbMod.status === "stable" || dbMod.status === "verified"
                           ? t("status_stable", "STABLE")
-                          : t("unverified", "Unverified")
-                        : dbMod.status
-                    : (modEdgeLogic || candidateStaticManifestUrl)
-                      ? t("status_stable", "STABLE")
-                      : (detectedComplianceTier >= 1 && detectedComplianceTier <= 4) || mod.status?.includes("EXPLICIT LOCAL")
-                        ? "🚫 EXPLICIT LOCAL"
-                        : t("badge_local", "Local"),
+                          : dbMod.status === "unverified"
+                            ? (modEdgeLogic || candidateStaticManifestUrl)
+                              ? t("status_stable", "STABLE")
+                              : t("unverified", "Unverified")
+                            : dbMod.status
+                        : (modEdgeLogic || candidateStaticManifestUrl)
+                          ? t("status_stable", "STABLE")
+                          : (detectedComplianceTier >= 1 && detectedComplianceTier <= 4) || mod.status?.includes("EXPLICIT LOCAL")
+                            ? "🚫 EXPLICIT LOCAL"
+                            : t("badge_local", "Local"),
+          status_reason: (() => {
+            const cand =
+              modLocalOvr?.status_reason !== undefined
+                ? modLocalOvr.status_reason
+                : effectiveDbMod?.status_reason ||
+                  dbMod?.status_reason ||
+                  modEdgeLogic?.status_reason ||
+                  mod.status_reason ||
+                  "";
+            const trimmed = String(cand || "").trim();
+            if (!trimmed || /^\[ARCHITECT\b/i.test(trimmed)) return undefined;
+            return trimmed;
+          })(),
           color:
             edgeStatusNorm === "broken" || edgeStatusNorm === "corrupted" || edgeStatusNorm === "obsolete"
               ? "var(--danger)"
@@ -1602,6 +1645,67 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           });
         }
       });
+      // Unify standalone Script + Module atomic twin pairs (e.g. separate Cloud records with no explicit twin row yet)
+      const initialFamCounts = new Map<string, number>();
+      for (const m of physicalMods) {
+        if (m?.familyId) {
+          const fid = String(m.familyId);
+          initialFamCounts.set(fid, (initialFamCounts.get(fid) || 0) + 1);
+        }
+      }
+      const normalizeTwinStem = (raw: string) =>
+        formatDisplayName(raw, undefined, activeGameSchema)
+          .replace(
+            /(\s+scripts|\s+script|_scripts|_script|\s+addons|\s+addon|\s+add-on|_addon|\s+modules|\s+module|_module|\s+core|_core|\s+base|_base|\s+main|_main|\s+part\s*\d+|\s+pt\s*\d+)$/i,
+            ""
+          )
+          .replace(/[_\s-]+/g, " ")
+          .trim()
+          .toLowerCase();
+
+      const standaloneTwinBuckets = new Map<string, any[]>();
+      for (const m of physicalMods) {
+        if (!m || m.setId) continue;
+        const fid = String(m.familyId || "");
+        const bfid = fid.split("@")[0];
+        if (
+          (initialFamCounts.get(fid) || 0) > 1 ||
+          flavorGroupNames[bfid] ||
+          communityGroupNames[bfid]
+        ) {
+          continue;
+        }
+        const stem = normalizeTwinStem(m.displayName || m.name || "");
+        if (stem.length < 3) continue;
+        const list = standaloneTwinBuckets.get(stem) || [];
+        list.push(m);
+        standaloneTwinBuckets.set(stem, list);
+      }
+
+      standaloneTwinBuckets.forEach((bucket) => {
+        if (bucket.length < 2) return;
+        const hasScript = bucket.some((bm) =>
+          isScriptExtension(String(bm.name || ""), activeGameSchema)
+        );
+        const hasNonScript = bucket.some(
+          (bm) => !isScriptExtension(String(bm.name || ""), activeGameSchema)
+        );
+        if (!hasScript || !hasNonScript) return;
+        const primary =
+          bucket.find(
+            (bm) => !isScriptExtension(String(bm.name || ""), activeGameSchema) && bm.dbId
+          ) ||
+          bucket.find((bm) => bm.dbId) ||
+          bucket[0];
+        const unifiedFamId = String(primary.familyId);
+        const unifiedBaseFamId = String(primary.baseFamilyId || unifiedFamId.split("@")[0]);
+        for (const bm of bucket) {
+          bm.familyId = unifiedFamId;
+          bm.baseFamilyId = unifiedBaseFamId;
+          if (!bm.relationshipType) bm.relationshipType = "twin";
+        }
+      });
+
       const familyMembersMap = new Map<string, any[]>();
       physicalMods.forEach(m => {
           if (m.familyId) {
@@ -1616,13 +1720,16 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const familyMembers = familyMembersMap.get(String(fId)) || [];
         const baseFId = fId.split('@')[0];
         const isFlavorFolder = !!flavorGroupNames[String(baseFId)] && !parentNameMap[String(baseFId)];
+        const isCommunityFolder = !!communityGroupNames[String(baseFId)] && !parentNameMap[String(baseFId)];
         
-        if (familyMembers.length <= 1 && !isFlavorFolder) return;
+        if (familyMembers.length <= 1 && !isFlavorFolder && !isCommunityFolder) return;
         
         const pData = parentNameMap[String(baseFId)] || {
           name: isFlavorFolder
             ? flavorGroupNames[String(baseFId)]
-            : familyMembers[0].displayName,
+            : isCommunityFolder
+              ? communityGroupNames[String(baseFId)]
+              : familyMembers[0].displayName,
           author: familyMembers[0].author,
         };
         const virtualOvr = earlyLocalOvr["virtual_" + fId];
@@ -1630,7 +1737,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           familyMembers.find((fm: any) => fm.isLocalOverride && fm.is_user_dossier) ||
           familyMembers.find((fm: any) => fm.isLocalOverride);
           const safeName = virtualOvr?.displayName || pData.name || t("status_unknown_folder", "Unknown Folder");
-          const brokenCount = familyMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("broken")).length;
+          const brokenCount = familyMembers.filter((m) => {
+            const s = typeof m.status === "string" ? m.status.toLowerCase() : "";
+            return s.includes("broken") || s.includes("corrupted") || s.includes("obsolete");
+          }).length;
           const unstableCount = familyMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
           const stableCount = familyMembers.filter((m) => m.status === (t("status_stable", "STABLE"))).length;
           const isAllStable = stableCount === familyMembers.length;
@@ -1734,6 +1844,17 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               "v.Local",
             mason_id: pData.mason_id || (familyMembers.length > 0 ? familyMembers[0].mason_id : null),
             status: folderStatus,
+            status_reason: (() => {
+              const cand =
+                virtualOvr?.status_reason ??
+                dossierMember?.status_reason ??
+                pData.status_reason ??
+                familyMembers.find((fm: any) => fm.status_reason)?.status_reason ??
+                "";
+              const trimmed = String(cand || "").trim();
+              if (!trimmed || /^\[ARCHITECT\b/i.test(trimmed)) return undefined;
+              return trimmed;
+            })(),
             color: isFlavorFolder ? "var(--warning)" : "var(--accent)",
             isSynced: true,
             isLocalOverride: !!(virtualOvr || dossierMember),

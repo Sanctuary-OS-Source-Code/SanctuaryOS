@@ -3,6 +3,7 @@ import { isDesktop, isLinuxDesktop } from "./envUtils";
 import { packageBlueprintLoadOrder } from "../hooks/usePlaySetLogic";
 import { triggerPwaWebPush } from "./webPushClient";
 import { useStore } from "../store";
+import { useModalStore } from "../store/modalStore";
 
 export interface StagedArtifactItem {
   id: string;
@@ -138,10 +139,12 @@ async function maybeCompressBytes(input: Uint8Array): Promise<Uint8Array> {
   }
   try {
     const cs = new CompressionStream("gzip");
+    const readPromise = new Response(cs.readable).arrayBuffer();
     const writer = cs.writable.getWriter();
-    await writer.write(input as unknown as BufferSource);
-    await writer.close();
-    const compressedBuf = await new Response(cs.readable).arrayBuffer();
+    const writePromise = writer
+      .write(input as unknown as BufferSource)
+      .then(() => writer.close());
+    const [compressedBuf] = await Promise.all([readPromise, writePromise]);
     return new Uint8Array(compressedBuf);
   } catch {
     return input;
@@ -157,10 +160,12 @@ async function maybeDecompressBytes(input: Uint8Array): Promise<Uint8Array> {
   ) {
     try {
       const ds = new DecompressionStream("gzip");
+      const readPromise = new Response(ds.readable).arrayBuffer();
       const writer = ds.writable.getWriter();
-      await writer.write(input as unknown as BufferSource);
-      await writer.close();
-      const decompressedBuf = await new Response(ds.readable).arrayBuffer();
+      const writePromise = writer
+        .write(input as unknown as BufferSource)
+        .then(() => writer.close());
+      const [decompressedBuf] = await Promise.all([readPromise, writePromise]);
       return new Uint8Array(decompressedBuf);
     } catch {
       return input;
@@ -1167,6 +1172,12 @@ export async function pushEncryptedStagingPayload(
       .single();
 
     if (error) throw error;
+    if (!data?.id) {
+      return {
+        success: false,
+        error: "Cloud staging queue unavailable for active workspace.",
+      };
+    }
 
     triggerPwaWebPush({
       type: "blueprint_staging",
@@ -1319,6 +1330,13 @@ export async function stageFullBlueprintToRigQueue(
     const enrichedArtifacts: StagedArtifactItem[] =
       packagedLO.enrichAndSortArtifacts(rawModObjects);
 
+    if (enrichedArtifacts.length === 0) {
+      return {
+        success: false,
+        error: "Cannot stage an empty Blueprint with 0 linked items.",
+      };
+    }
+
     // Enrich any items that have a DNA hash and are missing a creator URL from Spoke mod_versions (including Tier 1-4!)
     const hashesMissingUrl = Array.from(
       new Set(
@@ -1331,20 +1349,31 @@ export async function stageFullBlueprintToRigQueue(
 
     if (hashesMissingUrl.length > 0) {
       const dbByHash = new Map<string, any>();
-      const chunkSize = 150;
+      const chunkSize = 60;
+      const chunks: string[][] = [];
       for (let i = 0; i < hashesMissingUrl.length; i += chunkSize) {
-        const chunk = hashesMissingUrl.slice(i, i + chunkSize);
-        const { data: vData } = await supabase
-          .from("mod_versions")
-          .select(
-            "dna_hash, version_label, mods(id, is_paid, is_early_access, url, master_author, compliance_tier, category_override)"
+        chunks.push(hashesMissingUrl.slice(i, i + chunkSize));
+      }
+      const batchConcurrency = 4;
+      for (let b = 0; b < chunks.length; b += batchConcurrency) {
+        const batch = chunks.slice(b, b + batchConcurrency);
+        const results = await Promise.all(
+          batch.map((chunk) =>
+            supabase
+              .from("mod_versions")
+              .select(
+                "dna_hash, version_label, mods(id, is_paid, is_early_access, url, master_author, compliance_tier, category_override)"
+              )
+              .in("dna_hash", chunk)
           )
-          .in("dna_hash", chunk);
-        if (Array.isArray(vData)) {
-          vData.forEach((row: any) => {
-            if (row?.dna_hash) dbByHash.set(String(row.dna_hash), row);
-          });
-        }
+        );
+        results.forEach(({ data: vData }) => {
+          if (Array.isArray(vData)) {
+            vData.forEach((row: any) => {
+              if (row?.dna_hash) dbByHash.set(String(row.dna_hash), row);
+            });
+          }
+        });
       }
 
       if (dbByHash.size > 0) {
@@ -1399,8 +1428,45 @@ export async function stageFullBlueprintToRigQueue(
       // Mark completed on the sending rig so it doesn't prompt this rig to re-deploy its own Blueprint,
       // while remaining pending in the cloud for the user's Steam Deck / other rigs!
       markStagingRowDeployedLocally(res.rowId);
+
+      // Immediately hydrate volatileSignatureQueues so the Rig Beam Pipeline UI updates instantaneously
+      try {
+        const optimisticResolved: ResolvedStagedPayload = {
+          rowId: res.rowId,
+          createdAt: payload.stagedAt,
+          isCompletedLocally: true,
+          payload,
+          resolvedItems: enrichedArtifacts.map((it) => ({
+            ...it,
+            isOwned: true,
+            localModName: it.name,
+            localHash: it.hash,
+            selected: true,
+          })),
+        };
+        const modalState = useModalStore.getState();
+        const targetKey = normalizeBpKey(
+          payload.targetDesktopBlueprint || payload.blueprintName
+        );
+        const prevList = Array.isArray(modalState.volatileSignatureQueues)
+          ? (modalState.volatileSignatureQueues as ResolvedStagedPayload[])
+          : [];
+        const filteredPrev = prevList.filter((q) => {
+          if (q?.rowId === res.rowId) return false;
+          const qKey = normalizeBpKey(
+            q?.payload?.targetDesktopBlueprint || q?.payload?.blueprintName || ""
+          );
+          return !targetKey || qKey !== targetKey;
+        });
+        const nextQueues = [optimisticResolved, ...filteredPrev];
+        modalState.setVolatileSignatureQueues(nextQueues);
+        if (!modalState.volatileSignatureQueue) {
+          modalState.setVolatileSignatureQueue(optimisticResolved);
+        }
+      } catch {}
+
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("sanctuary-poll-staging-queue"));
+        window.dispatchEvent(new CustomEvent("sanctuary-poll-staging-queue"));
       }
       return { success: true, rowId: res.rowId, count: enrichedArtifacts.length };
     }

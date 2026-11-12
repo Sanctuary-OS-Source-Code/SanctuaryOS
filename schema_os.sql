@@ -133,6 +133,7 @@ CREATE TABLE public.sanctuary_games (
     donation_url TEXT,
     payment_processor TEXT DEFAULT 'custom',
     is_active BOOLEAN DEFAULT true,
+    is_keepers_only BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -1592,14 +1593,71 @@ CREATE POLICY "hub_sanctuary_theme_images_delete" ON public.sanctuary_theme_imag
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_staff());
 
 -- Spoke Registry & Global Security
-CREATE POLICY "hub_sanctuary_games_select" ON public.sanctuary_games
-    FOR SELECT TO public USING (true);
+CREATE POLICY "hub_sanctuary_games_select_anon" ON public.sanctuary_games
+    FOR SELECT TO anon USING (COALESCE(is_keepers_only, false) = false);
+CREATE POLICY "hub_sanctuary_games_select_auth" ON public.sanctuary_games
+    FOR SELECT TO authenticated USING (COALESCE(is_keepers_only, false) = false OR sanctuary_internal.is_hub_keeper());
 CREATE POLICY "hub_sanctuary_games_insert" ON public.sanctuary_games
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_keeper());
 CREATE POLICY "hub_sanctuary_games_update" ON public.sanctuary_games
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_keeper()) WITH CHECK (sanctuary_internal.is_hub_keeper());
 CREATE POLICY "hub_sanctuary_games_delete" ON public.sanctuary_games
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_keeper());
+
+-- Isolate Spoke Donation Configuration strictly to Spoke Wayfinders (via game-gateway service_role); Hub Keepers cannot alter Spoke donations
+CREATE OR REPLACE FUNCTION sanctuary_internal.protect_spoke_donation_fields()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    IF COALESCE(current_setting('request.jwt.claim.role', true), auth.role()) = 'authenticated' THEN
+        IF TG_OP = 'INSERT' THEN
+            NEW.donation_url := NULL;
+            NEW.payment_processor := 'STRIPE';
+        ELSIF TG_OP = 'UPDATE' THEN
+            NEW.donation_url := OLD.donation_url;
+            NEW.payment_processor := OLD.payment_processor;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_protect_spoke_donation_fields ON public.sanctuary_games;
+CREATE TRIGGER trg_protect_spoke_donation_fields
+    BEFORE INSERT OR UPDATE ON public.sanctuary_games
+    FOR EACH ROW EXECUTE FUNCTION sanctuary_internal.protect_spoke_donation_fields();
+
+CREATE OR REPLACE FUNCTION sanctuary_internal.protect_spoke_donation_broadcasts()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    IF COALESCE(current_setting('request.jwt.claim.role', true), auth.role()) = 'authenticated' THEN
+        IF TG_OP = 'DELETE' THEN
+            IF OLD.category = 'SpokeDonationConfig' THEN
+                RAISE EXCEPTION 'Forbidden: Spoke donation configuration is isolated to the Spoke Wayfinder';
+            END IF;
+            RETURN OLD;
+        ELSIF NEW.category = 'SpokeDonationConfig' OR (TG_OP = 'UPDATE' AND OLD.category = 'SpokeDonationConfig') THEN
+            RAISE EXCEPTION 'Forbidden: Spoke donation configuration is isolated to the Spoke Wayfinder';
+        END IF;
+    END IF;
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_protect_spoke_donation_broadcasts ON public.keeper_system_broadcasts;
+CREATE TRIGGER trg_protect_spoke_donation_broadcasts
+    BEFORE INSERT OR UPDATE OR DELETE ON public.keeper_system_broadcasts
+    FOR EACH ROW EXECUTE FUNCTION sanctuary_internal.protect_spoke_donation_broadcasts();
 
 CREATE POLICY "hub_hardware_bans_select" ON public.hardware_bans
     FOR SELECT TO public USING (true);

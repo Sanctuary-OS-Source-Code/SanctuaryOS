@@ -1,141 +1,64 @@
 import { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { mkdir, writeTextFile, readDir, readTextFile, readFile, remove, exists } from '@tauri-apps/plugin-fs';
-import { supabase } from './supabase';
+import { supabaseAuth } from './supabase';
 import { createClient } from '@supabase/supabase-js';
 import { isDesktop, isLinuxDesktop } from './utils/envUtils';
 import { isRootDomain } from './utils/routingUtils';
+import coreThemesJson from './data/core_themes.json';
+import spokeThemesFallbackJson from './data/spoke_themes_fallback.json';
+import { postDevCoreAssetSync } from './utils/devAssetSync';
 
 import { useStore } from './store';
 
-export const DEFAULT_CORE_THEMES: any = {
-  // Flagship Premium Dark — Smoked Sapphire Liquid Glass
-  architect: {
-    name: "Architect", bg: "#040812", sidebar: "#040812", sidebartext: "#f8fafc", accent: "#38bdf8",
-    text: "#f8fafc", subtext: "#b4c3d8", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
-    panelTint: "#060d1f", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.14", glassBlur: "40px", glassSaturation: "190%", glassRefraction: "105%", glassBezel: "100%",
-    glassBorderOpacity: "0.24", glassSpecular: "0.38", glassShadow: "0.44", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.45)",
-    bgGradient: "transparent",
-    bgImage: "/themes/architect.png",
-    animated: true, ambientOrb: false, ambientNoise: false,
-    volumetricOrbs: [],
-    fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
-    fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
-  },
-  // Flagship Premium Light — Alabaster Crystal Quartz
-  radiant: {
-    name: "Radiant", bg: "#f4f6fb", sidebar: "#f8faff", sidebartext: "#0f172a", accent: "#6366f1",
-    text: "#0f172a", subtext: "#334155", success: "#059669", warning: "#d97706", danger: "#dc2626",
-    panelTint: "#f8faff", headerText: "#0f172a", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.22", glassBlur: "42px", glassSaturation: "180%", glassRefraction: "95%", glassBezel: "95%",
-    glassBorderOpacity: "0.26", glassSpecular: "0.36", glassShadow: "0.18", radius: "1.25rem", shadowColor: "rgba(15,23,42,0.10)",
-    bgGradient: "transparent",
-    bgImage: "/themes/radiant.png",
-    animated: true, ambientOrb: false, ambientNoise: false,
-    volumetricOrbs: [],
-    fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
-    fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
-  },
-  // Official Partner Community Light Theme ("Plumbob Crystal" — Daylight Studio & Emerald Quartz)
-  sims4: {
-    name: "Plumbob Crystal", badge: "Partner Pack", bg: "#eefbf5", sidebar: "#f4fdf9", sidebartext: "#0f2922", accent: "#10b981",
-    text: "#0f2922", subtext: "#27493d", success: "#059669", warning: "#d97706", danger: "#e11d48",
-    panelTint: "#f4fdf9", headerText: "#0f2922", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.22", glassBlur: "40px", glassSaturation: "180%", glassRefraction: "95%", glassBezel: "95%",
-    glassBorderOpacity: "0.26", glassSpecular: "0.36", glassShadow: "0.18", radius: "1.375rem", shadowColor: "rgba(6,78,59,0.10)",
-    bgGradient: "transparent",
-    bgImage: "/themes/sims4.png",
-    animated: true, ambientOrb: false, ambientNoise: false,
-    volumetricOrbs: [],
-    fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
-    fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
-  },
-  // Official Partner Community Dark Theme ("Plumbob Nocturne" — Midnight Crystal Lattice)
-  sims4_dark: {
-    name: "Plumbob Nocturne", badge: "Partner Pack", bg: "#020a06", sidebar: "#030e09", sidebartext: "#ecfdf5", accent: "#10b981",
-    text: "#ecfdf5", subtext: "#a3ceb9", success: "#10b981", warning: "#f59e0b", danger: "#f43f5e",
-    panelTint: "#051910", headerText: "#ecfdf5", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.15", glassBlur: "40px", glassSaturation: "195%", glassRefraction: "105%", glassBezel: "100%",
-    glassBorderOpacity: "0.24", glassSpecular: "0.38", glassShadow: "0.44", radius: "1.375rem", shadowColor: "rgba(0,0,0,0.48)",
-    bgGradient: "transparent",
-    bgImage: "/themes/sims4_dark.png",
-    animated: true, ambientOrb: false, ambientNoise: false,
-    volumetricOrbs: [],
-    fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
-    fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
-  },
-  // Midnight Boreal Crystal
-  aurora: {
-    name: "Aurora", bg: "#030712", sidebar: "#030712", sidebartext: "#f8fafc", accent: "#06b6d4",
-    text: "#f8fafc", subtext: "#b4c3d8", success: "#10b981", warning: "#f59e0b", danger: "#ef4444",
-    panelTint: "#061326", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.14", glassBlur: "40px", glassSaturation: "195%", glassRefraction: "110%", glassBezel: "105%",
-    glassBorderOpacity: "0.24", glassSpecular: "0.38", glassShadow: "0.42", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.45)",
-    bgGradient: "transparent",
-    bgImage: "/themes/aurora.png",
-    animated: true, ambientOrb: false, ambientNoise: false,
-    volumetricOrbs: [],
-    fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
-    fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
-  },
-  // Encrypted Hardware Vault & Kernel Matrix
-  bunker: {
-    name: "Bunker", bg: "#020604", sidebar: "#020604", sidebartext: "#ecfdf5", accent: "#10b981",
-    text: "#ecfdf5", subtext: "#9dc6b2", success: "#10b981", warning: "#f59e0b", danger: "#f43f5e",
-    panelTint: "#05120b", headerText: "#ecfdf5", fontFamily: "'JetBrains Mono', monospace", fontSizeBase: "16px",
-    glassOpacity: "0.18", glassBlur: "34px", glassSaturation: "180%", glassRefraction: "95%", glassBezel: "95%",
-    glassBorderOpacity: "0.26", glassSpecular: "0.36", glassShadow: "0.52", radius: "0.75rem", shadowColor: "rgba(0,0,0,0.52)",
-    bgGradient: "transparent",
-    bgImage: "/themes/bunker.png",
-    animated: true, ambientOrb: false, ambientNoise: false, scanlines: true,
-    volumetricOrbs: [],
-    fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
-    fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
-  },
-  // Retro 80s Miami Vice Outrun
-  synthwave: {
-    name: "Miami Vice", bg: "#090214", sidebar: "#090214", sidebartext: "#fdf2f8", accent: "#f43f5e",
-    text: "#fdf2f8", subtext: "#d8bee6", success: "#10b981", warning: "#facc15", danger: "#fb7185",
-    panelTint: "#160729", headerText: "#ffffff", fontFamily: "'Rajdhani', sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.14", glassBlur: "38px", glassSaturation: "210%", glassRefraction: "115%", glassBezel: "105%",
-    glassBorderOpacity: "0.26", glassSpecular: "0.40", glassShadow: "0.46", radius: "1.125rem", shadowColor: "rgba(0,0,0,0.48)",
-    bgGradient: "transparent",
-    bgImage: "/themes/synthwave.png",
-    animated: true, ambientOrb: false, ambientNoise: false,
-    volumetricOrbs: [],
-    fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
-    fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
-  },
-  // Muted Developer Palette & Nocturne Twilight
-  dracula: {
-    name: "Dracula", bg: "#191a24", sidebar: "#14151e", sidebartext: "#f8f8f2", accent: "#bd93f9",
-    text: "#f8f8f2", subtext: "#b2bde0", success: "#50fa7b", warning: "#ffb86c", danger: "#ff5555",
-    panelTint: "#282a36", headerText: "#f8f8f2", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.16", glassBlur: "38px", glassSaturation: "185%", glassRefraction: "100%", glassBezel: "100%",
-    glassBorderOpacity: "0.24", glassSpecular: "0.36", glassShadow: "0.46", radius: "1.0rem", shadowColor: "rgba(0,0,0,0.48)",
-    bgGradient: "transparent",
-    bgImage: "/themes/dracula.png",
-    animated: true, ambientOrb: false, ambientNoise: false,
-    volumetricOrbs: [],
-    fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
-    fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
-  },
-  // Pure Window-Pane Optical Crystal (OS Desktop Passthrough)
-  true_glass: {
-    name: "True Glass", bg: "transparent", sidebar: "#050b16", sidebartext: "#f8fafc", accent: "#7dd3fc",
-    text: "#ffffff", subtext: "#cbd5e1", success: "#34d399", warning: "#fbbf24", danger: "#f87171",
-    panelTint: "#081224", headerText: "#ffffff", fontFamily: "Inter, sans-serif", fontSizeBase: "16px",
-    glassOpacity: "0.08", glassBlur: "46px", glassSaturation: "205%", glassRefraction: "135%", glassBezel: "115%",
-    glassBorderOpacity: "0.28", glassSpecular: "0.42", glassShadow: "0.38", radius: "1.25rem", shadowColor: "rgba(0,0,0,0.36)",
-    bgGradient: "transparent",
-    bgImage: "",
-    transparentWindow: true,
-    animated: true, ambientOrb: false, ambientNoise: false,
-    volumetricOrbs: [],
-    fontSizeHeader: "1.875rem", fontSizeSubheader: "1.5rem", fontSizeTitle: "1.25rem", fontSizeSubtitle: "1.125rem",
-    fontSizeText: "1rem", fontSizeSubtext: "0.75rem", fontSizeSidebar: "10px", sidebarWidth: "260px"
+export const CORE_THEMES_CACHE_KEY = 'sanctuary_cached_core_themes_v1';
+export const SPOKE_THEMES_CACHE_KEY = 'sanctuary_cached_spoke_themes_v1';
+export const DEFAULT_CORE_THEMES: Record<string, any> = coreThemesJson as Record<string, any>;
+
+const readCachedCoreThemes = (): Record<string, any> => {
+  try {
+    const raw = localStorage.getItem(CORE_THEMES_CACHE_KEY);
+    if (!raw) return { ...DEFAULT_CORE_THEMES };
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      return { ...DEFAULT_CORE_THEMES, ...parsed };
+    }
+  } catch { }
+  return { ...DEFAULT_CORE_THEMES };
+};
+
+const readOfflineSpokeThemesFallback = (workspacesList: any[], wsId: string): Record<string, any> => {
+  const result: Record<string, any> = {};
+  try {
+    const rawCached = localStorage.getItem(SPOKE_THEMES_CACHE_KEY);
+    if (rawCached) {
+      const parsed = JSON.parse(rawCached);
+      if (parsed && typeof parsed === 'object') {
+        Object.assign(result, parsed);
+      }
+    }
+  } catch { }
+
+  const candidateSchemaKeys = new Set<string>();
+  if (wsId && wsId !== 'default' && wsId !== 'default_workspace') {
+    candidateSchemaKeys.add(String(wsId).trim().toLowerCase());
   }
+  for (const ws of Array.isArray(workspacesList) ? workspacesList : []) {
+    if (!ws || ws.id === 'default_workspace') continue;
+    if (ws.schema_id) candidateSchemaKeys.add(String(ws.schema_id).trim().toLowerCase());
+    if (ws.id) candidateSchemaKeys.add(String(ws.id).trim().toLowerCase());
+  }
+  for (const key of candidateSchemaKeys) {
+    const pack = (spokeThemesFallbackJson as Record<string, any>)[key];
+    if (pack && typeof pack === 'object') {
+      for (const [themeId, themeVal] of Object.entries(pack)) {
+        if (!result[themeId] && !DEFAULT_CORE_THEMES[themeId]) {
+          result[themeId] = { ...(themeVal as any), id: themeId };
+        }
+      }
+    }
+  }
+  return result;
 };
 
 const parseHexToRgb = (hexStr: string, fallback: [number, number, number]): [number, number, number] => {
@@ -440,8 +363,6 @@ const BUILTIN_WALLPAPER_BAR_PALETTES: Record<string, { topHex: string; bottomHex
   '/themes/bunker.png': { topHex: '#365345', bottomHex: '#192e21' },
   '/themes/dracula.png': { topHex: '#211632', bottomHex: '#262646' },
   '/themes/radiant.png': { topHex: '#dfe5f2', bottomHex: '#d8deec' },
-  '/themes/sims4.png': { topHex: '#c6e8f5', bottomHex: '#bce8d6' },
-  '/themes/sims4_dark.png': { topHex: '#072430', bottomHex: '#07221c' },
   '/themes/synthwave.png': { topHex: '#141236', bottomHex: '#291d48' },
 };
 
@@ -506,6 +427,14 @@ export function harmonizeBarColorWithTheme(
 }
 
 export function resolveThemeDominantBarColors(themeObj: any): { topHex: string; bottomHex: string } {
+  if (
+    typeof themeObj?.topBarHex === 'string' &&
+    /^#[0-9a-fA-F]{6}$/.test(themeObj.topBarHex.trim()) &&
+    typeof themeObj?.bottomBarHex === 'string' &&
+    /^#[0-9a-fA-F]{6}$/.test(themeObj.bottomBarHex.trim())
+  ) {
+    return { topHex: themeObj.topBarHex.trim(), bottomHex: themeObj.bottomBarHex.trim() };
+  }
   const bgImg = typeof themeObj?.bgImage === 'string' ? themeObj.bgImage.trim().split('?')[0] : '';
   if (bgImg && BUILTIN_WALLPAPER_BAR_PALETTES[bgImg]) {
     return BUILTIN_WALLPAPER_BAR_PALETTES[bgImg];
@@ -667,6 +596,8 @@ const ALLOWED_THEME_TOKEN_KEYS = new Set<string>([
   'bgImage',
   'bgImageFile',
   'bgGradient',
+  'topBarHex',
+  'bottomBarHex',
 ]);
 
 function isPrivateOrLoopbackHostname(hostname: string): boolean {
@@ -943,14 +874,15 @@ function writeSharedThemeMap(wsId: string, suffix: 'custom_themes' | 'dev_themes
 export const ThemeProvider = ({ children }: any) => {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const workspaces = useStore((state) => state.workspaces) || [];
+  const osRole = useStore((state) => state.osRole);
   const isWebHubRoot = !isDesktop() && isRootDomain();
   const wsId = isWebHubRoot
     ? 'default_workspace'
     : (activeWorkspaceId || localStorage.getItem('sanctuary_last_active_workspace') || 'default');
 
   const [useGlobalThemeState, setUseGlobalThemeState] = useState(() => localStorage.getItem('sanctuary_use_global_theme') === 'true');
-  const [CORE_THEMES, setCoreThemes] = useState<any>(DEFAULT_CORE_THEMES);
-  const [gameThemes, setGameThemes] = useState<any>({});
+  const [CORE_THEMES, setCoreThemes] = useState<any>(() => readCachedCoreThemes());
+  const [gameThemes, setGameThemes] = useState<any>(() => readOfflineSpokeThemesFallback(workspaces, wsId));
   const [customThemes, setCustomThemes] = useState(() => readSharedThemeMap(wsId, 'custom_themes'));
   const [devThemes, setDevThemes] = useState(() => readSharedThemeMap(wsId, 'dev_themes'));
   const [activeThemeIdState, setActiveThemeIdState] = useState(() => {
@@ -1000,26 +932,69 @@ export const ThemeProvider = ({ children }: any) => {
   useEffect(() => {
     const fetchCoreThemes = async () => {
       try {
-        const { data, error } = await supabase.from('sanctuary_themes').select('*');
+        if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
+
+        // Pull Core OS Themes from Keepers Core Hub for ALL users; src/data/core_themes.json is strictly offline fallback.
+        const { data, error } = await supabaseAuth.from('sanctuary_themes').select('*');
         if (error) throw error;
         if (data && data.length > 0) {
-          const fetchedThemes: any = { ...DEFAULT_CORE_THEMES };
+          const fetchedThemes: Record<string, any> = { ...DEFAULT_CORE_THEMES };
+          const cloudIds = new Set<string>();
           data.forEach((row: any) => {
-            // ONLY load from cloud if it's NOT a built-in core theme.
-            // This protects the premium local aesthetic from being ruined by old database strings.
-            if (!DEFAULT_CORE_THEMES[row.id]) {
-              const sanitized = sanitizeThemeObject(row.theme_data || {});
-              fetchedThemes[row.id] = { ...sanitized, id: row.id, name: row.name, badgeKey: "badge_community_defaults" };
-            }
+            if (!row?.id || row.id === 'theme_1788994757269') return;
+            cloudIds.add(row.id);
+            const isBuiltinCore = Boolean(DEFAULT_CORE_THEMES[row.id]);
+            const sanitized = sanitizeThemeObject(row.theme_data || {});
+            fetchedThemes[row.id] = {
+              ...(isBuiltinCore ? DEFAULT_CORE_THEMES[row.id] : {}),
+              ...sanitized,
+              id: row.id,
+              name: row.name || DEFAULT_CORE_THEMES[row.id]?.name || row.id,
+              ...(isBuiltinCore ? {} : { badgeKey: "badge_community_defaults" }),
+            };
           });
+
+          try {
+            localStorage.setItem(CORE_THEMES_CACHE_KEY, JSON.stringify(fetchedThemes));
+          } catch { }
           setCoreThemes(fetchedThemes);
+
+          if (import.meta.env.DEV) {
+            const isKeeper = useStore.getState().osRole === 'keeper';
+            if (isKeeper) {
+              for (const [coreId, coreData] of Object.entries(DEFAULT_CORE_THEMES)) {
+                if (!cloudIds.has(coreId)) {
+                  await supabaseAuth.from('sanctuary_themes').upsert({
+                    id: coreId,
+                    name: coreData?.name || coreId,
+                    version: 1,
+                    theme_data: coreData,
+                    updated_at: new Date().toISOString(),
+                  } as any);
+                }
+              }
+            }
+            const diskCoreMap: Record<string, any> = {};
+            for (const coreId of Object.keys(DEFAULT_CORE_THEMES)) {
+              if (fetchedThemes[coreId]) {
+                const { id: _omitId, badgeKey: _omitBadgeKey, ...cleanTheme } = fetchedThemes[coreId];
+                diskCoreMap[coreId] = cleanTheme;
+              }
+            }
+            if (Object.keys(diskCoreMap).length > 0) {
+              await postDevCoreAssetSync({
+                kind: 'core_themes',
+                content: diskCoreMap,
+              });
+            }
+          }
         }
       } catch (err) {
-        console.error("Failed to fetch cloud themes", err);
+        console.error("Failed to fetch Core Hub themes", err);
       }
     };
     fetchCoreThemes();
-  }, []);
+  }, [osRole]);
 
   useEffect(() => {
     const isValidHttpUrl = (raw?: string) => {
@@ -1056,20 +1031,31 @@ export const ThemeProvider = ({ children }: any) => {
 
     const fetchGameThemes = async () => {
       try {
+        if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") {
+          setGameThemes(readOfflineSpokeThemesFallback(workspaces, wsId));
+          return;
+        }
+
+        const isKeeper = osRole === 'keeper';
         const fetchedGameThemes: Record<string, any> = {};
         const queriedUrls = new Set<string>();
-        const targets: Array<{ url: string; anonKey: string; suffix: string; badge: string }> = [];
+        const keepersOnlyUrls = new Set<string>();
+        const targets: Array<{ url: string; anonKey: string; suffix: string; badge: string; schemaKey: string }> = [];
 
-        // 1. Collect public Spoke databases
+        // 1. Collect registered Spoke databases from Core Hub (`supabaseAuth`)
         try {
-          const { data: publicGames } = await supabase
+          const { data: publicGames } = await supabaseAuth
             .from('sanctuary_games')
-            .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active')
+            .select('id, name, schema_id, supabase_url, supabase_anon_key, icon, is_active, is_keepers_only')
             .eq('is_active', true);
           if (Array.isArray(publicGames)) {
             for (const game of publicGames) {
               if (!isValidHttpUrl(game.supabase_url) || !game.supabase_anon_key) continue;
               const cleanUrl = game.supabase_url.trim().replace(/\/+$/, '');
+              if (game.is_keepers_only === true && !isKeeper) {
+                keepersOnlyUrls.add(cleanUrl);
+                continue;
+              }
               if (queriedUrls.has(cleanUrl)) continue;
               queriedUrls.add(cleanUrl);
               targets.push({
@@ -1077,17 +1063,20 @@ export const ThemeProvider = ({ children }: any) => {
                 anonKey: game.supabase_anon_key,
                 suffix: String(game.id || game.name || 'game'),
                 badge: game.name || 'Community',
+                schemaKey: String(game.schema_id || '').trim().toLowerCase(),
               });
             }
           }
         } catch (err) {
-          console.warn('Failed to fetch public game databases', err);
+          console.warn('Failed to fetch Spoke databases from Core Hub', err);
         }
 
-        // 2. Collect user Workspace Spoke overrides
+        // 2. Collect user Workspace Spoke overrides (respecting Keepers-only visibility)
         for (const ws of workspaces) {
           if (ws.id === 'default_workspace' || !isValidHttpUrl(ws.supabase_url) || !ws.supabase_anon_key) continue;
+          if (ws.is_keepers_only === true && !isKeeper) continue;
           const cleanUrl = ws.supabase_url.trim().replace(/\/+$/, '');
+          if (keepersOnlyUrls.has(cleanUrl) && !isKeeper) continue;
           if (queriedUrls.has(cleanUrl)) continue;
           queriedUrls.add(cleanUrl);
           targets.push({
@@ -1095,22 +1084,31 @@ export const ThemeProvider = ({ children }: any) => {
             anonKey: ws.supabase_anon_key,
             suffix: String(ws.id || 'ws'),
             badge: ws.name || ws.display_name || 'Community',
+            schemaKey: String(ws.schema_id || ws.id || '').trim().toLowerCase(),
           });
         }
 
-        // Parallelize all Spoke theme queries with Promise.allSettled
+        // Parallelize all Spoke theme queries with Promise.allSettled (NO dev auto-sync for Spokes)
         const settled = await Promise.allSettled(
           targets.map(async (target) => {
             const client = getReadOnlyThemeClient(target.url, target.anonKey, target.suffix);
             const { data, error } = await client.from('sanctuary_themes').select('*');
-            if (error || !Array.isArray(data)) return { badge: target.badge, rows: [] };
-            return { badge: target.badge, rows: data };
+            if (error || !Array.isArray(data)) return { badge: target.badge, schemaKey: target.schemaKey, rows: [] };
+            return { badge: target.badge, schemaKey: target.schemaKey, rows: data };
           })
         );
 
         for (const res of settled) {
           if (res.status !== 'fulfilled') continue;
-          const { badge, rows } = res.value;
+          const { badge, schemaKey, rows } = res.value;
+          if (rows.length === 0 && schemaKey && (spokeThemesFallbackJson as Record<string, any>)[schemaKey]) {
+            for (const [fId, fTheme] of Object.entries((spokeThemesFallbackJson as Record<string, any>)[schemaKey])) {
+              if (!DEFAULT_CORE_THEMES[fId]) {
+                fetchedGameThemes[fId] = { ...(fTheme as any), id: fId, badge: (fTheme as any)?.badge || badge };
+              }
+            }
+            continue;
+          }
           for (const row of rows) {
             if (!row?.id || row.id === 'theme_1788994757269') continue;
             if (!DEFAULT_CORE_THEMES[row.id]) {
@@ -1119,27 +1117,34 @@ export const ThemeProvider = ({ children }: any) => {
                 ...sanitized,
                 id: row.id,
                 name: row.name,
-                badge,
+                badge: sanitized.badge || badge,
               };
             }
           }
         }
 
-        setGameThemes(fetchedGameThemes);
+        if (Object.keys(fetchedGameThemes).length > 0) {
+          try {
+            localStorage.setItem(SPOKE_THEMES_CACHE_KEY, JSON.stringify(fetchedGameThemes));
+          } catch { }
+          setGameThemes(fetchedGameThemes);
+        } else {
+          setGameThemes(readOfflineSpokeThemesFallback(workspaces, wsId));
+        }
       } catch (err) {
         console.error("Failed to fetch game themes", err);
-        setGameThemes({});
+        setGameThemes(readOfflineSpokeThemesFallback(workspaces, wsId));
       }
     };
     fetchGameThemes();
-  }, [wsId, workspaces]);
+  }, [wsId, workspaces, osRole]);
 
-  const mergedCoreThemes = useMemo(() => ({ ...CORE_THEMES, ...DEFAULT_CORE_THEMES }), [CORE_THEMES]);
+  const mergedCoreThemes = useMemo(() => ({ ...DEFAULT_CORE_THEMES, ...CORE_THEMES }), [CORE_THEMES]);
   const allThemes = useMemo(
     () => ({ ...mergedCoreThemes, ...gameThemes, ...devThemes, ...customThemes }),
     [mergedCoreThemes, gameThemes, devThemes, customThemes]
   );
-  const resolvedThemeId = activeThemeIdState === 'theme_1788994757269' ? 'sims4_dark' : activeThemeIdState;
+  const resolvedThemeId = activeThemeIdState;
   const currentThemeRaw = allThemes[resolvedThemeId] || DEFAULT_CORE_THEMES.architect;
 
   const sanitizeSemanticChannel = (key: 'success' | 'warning' | 'danger', hex: string) => {

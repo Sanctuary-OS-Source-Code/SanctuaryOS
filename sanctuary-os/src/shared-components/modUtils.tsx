@@ -181,9 +181,13 @@ export const isModBinaryExtension = (filename: string, schema?: any): boolean =>
   const low = filename.toLowerCase();
   const effectiveSchema = schema || useStore.getState().activeGameSchema;
   if (effectiveSchema?.extensions?.supported && Array.isArray(effectiveSchema.extensions.supported)) {
-    const containers: string[] = Array.isArray(effectiveSchema?.archive_containers)
-      ? effectiveSchema.archive_containers
-      : [];
+    const containers: string[] = Array.isArray(
+      effectiveSchema?.extensions?.archive_containers
+    )
+      ? effectiveSchema.extensions.archive_containers
+      : Array.isArray(effectiveSchema?.archive_containers)
+        ? effectiveSchema.archive_containers
+        : [];
     const configs: string[] = Array.isArray(effectiveSchema?.extensions?.config_extensions)
       ? effectiveSchema.extensions.config_extensions
       : [];
@@ -717,11 +721,168 @@ const getPriorityTierWeight = (rawStr: string, activeGameSchema?: any): number =
   return 0;
 };
 
+interface CompiledBlueprintSchemaRules {
+  pathManifest: string;
+  loManifest: string;
+  cacheFileSet: Set<string>;
+  scriptExts: string[];
+  ignoredExts: string[];
+  vaultVisibleExts: string[];
+  nonVisibleArchiveExts: string[];
+  supportedExts: string[];
+}
+
+const compiledBlueprintSchemaCache = new WeakMap<object, CompiledBlueprintSchemaRules>();
+
+function getCompiledBlueprintSchemaRules(schema: any): CompiledBlueprintSchemaRules {
+  if (schema && typeof schema === "object") {
+    const hit = compiledBlueprintSchemaCache.get(schema);
+    if (hit) return hit;
+  }
+  const normExt = (ext: any): string => {
+    const s = String(ext || "").trim().toLowerCase();
+    if (!s) return "";
+    return s.startsWith(".") ? s : `.${s}`;
+  };
+  const pathManifest =
+    String(schema?.paths?.manifest_file || "")
+      .split(/[\\/]/)
+      .pop()
+      ?.trim()
+      .toLowerCase() || "";
+  const loManifest =
+    String(schema?.load_order?.manifest_file || "")
+      .split(/[\\/]/)
+      .pop()
+      ?.trim()
+      .toLowerCase() || "";
+  const cacheFileSet = new Set<string>();
+  const cacheFiles: any[] = Array.isArray(schema?.extensions?.cache_files)
+    ? schema.extensions.cache_files
+    : [];
+  for (let i = 0; i < cacheFiles.length; i++) {
+    const cf = String(cacheFiles[i] || "")
+      .split(/[\\/]/)
+      .pop()
+      ?.trim()
+      .toLowerCase();
+    if (cf) cacheFileSet.add(cf);
+  }
+  const scriptExts: string[] = Array.isArray(schema?.extensions?.script_extensions)
+    ? schema.extensions.script_extensions.map(normExt).filter(Boolean)
+    : [];
+  const ignoredExts: string[] = Array.isArray(schema?.extensions?.ignore_unidentified)
+    ? schema.extensions.ignore_unidentified.map(normExt).filter(Boolean)
+    : [];
+  const vaultVisibleExts: string[] = Array.isArray(schema?.extensions?.vault_visible)
+    ? schema.extensions.vault_visible.map(normExt).filter(Boolean)
+    : [];
+  const archiveExts: string[] = Array.isArray(schema?.extensions?.archive_containers)
+    ? schema.extensions.archive_containers.map(normExt).filter(Boolean)
+    : Array.isArray(schema?.archive_containers)
+      ? schema.archive_containers.map(normExt).filter(Boolean)
+      : [];
+  const nonVisibleArchiveExts = archiveExts.filter(
+    (ext) => !vaultVisibleExts.includes(ext)
+  );
+  const supportedExts: string[] = Array.isArray(schema?.extensions?.supported)
+    ? schema.extensions.supported.map(normExt).filter(Boolean)
+    : [];
+
+  const compiled: CompiledBlueprintSchemaRules = {
+    pathManifest,
+    loManifest,
+    cacheFileSet,
+    scriptExts,
+    ignoredExts,
+    vaultVisibleExts,
+    nonVisibleArchiveExts,
+    supportedExts,
+  };
+  if (schema && typeof schema === "object") {
+    compiledBlueprintSchemaCache.set(schema, compiled);
+  }
+  return compiled;
+}
+
+const HAS_FILE_EXT_RE = /\.[0-9]*[a-z][a-z0-9]*$/i;
+const NO_SCHEMA_SENTINEL = {};
+const filteredBlueprintArtifactsCache = new WeakMap<
+  readonly any[],
+  WeakMap<object, any[]>
+>();
+
+export const isBlueprintModArtifact = (
+  rawItem: any,
+  activeGameSchema?: any
+): boolean => {
+  if (isVirtualBlueprintMarker(rawItem)) return false;
+  const rawStr =
+    typeof rawItem === "string"
+      ? rawItem.trim()
+      : String(
+          rawItem?.name ||
+            rawItem?.path ||
+            rawItem?.filename ||
+            rawItem?.id ||
+            ""
+        ).trim();
+  if (!rawStr) return false;
+
+  const lastSlash = Math.max(rawStr.lastIndexOf("/"), rawStr.lastIndexOf("\\"));
+  const cleanName = (
+    lastSlash >= 0 ? rawStr.slice(lastSlash + 1) || rawStr : rawStr
+  ).trim();
+  if (!cleanName) return false;
+
+  const lowerName = cleanName.toLowerCase();
+  if (lowerName.includes(".sanctuary.") || lowerName === "override.json") {
+    return false;
+  }
+  const baseNoExt = cleanName.replace(/\.[^/.]+$/, "").trim().toUpperCase();
+  if (baseNoExt === "FILTERS") return false;
+
+  const schema = activeGameSchema ?? useStore.getState().activeGameSchema;
+  if (!schema) return true;
+
+  const rules = getCompiledBlueprintSchemaRules(schema);
+  if (rules.pathManifest && lowerName === rules.pathManifest) return false;
+  if (rules.loManifest && lowerName === rules.loManifest) return false;
+  if (rules.cacheFileSet.has(lowerName)) return false;
+
+  const isScript = rules.scriptExts.some((ext) => lowerName.endsWith(ext));
+  if (!isScript && rules.ignoredExts.some((ext) => lowerName.endsWith(ext))) {
+    return false;
+  }
+  if (
+    rules.nonVisibleArchiveExts.length > 0 &&
+    rules.nonVisibleArchiveExts.some((ext) => lowerName.endsWith(ext))
+  ) {
+    return false;
+  }
+
+  const hasFileExt = HAS_FILE_EXT_RE.test(cleanName);
+  if (rules.supportedExts.length > 0 && hasFileExt) {
+    if (!rules.supportedExts.some((ext) => lowerName.endsWith(ext))) {
+      return false;
+    }
+  }
+
+  if (rules.vaultVisibleExts.length > 0 && hasFileExt && !isScript) {
+    if (!rules.vaultVisibleExts.some((ext) => lowerName.endsWith(ext))) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 export function deduplicateBlueprintArtifacts<T = any>(
   rawList: T[] | undefined | null,
   activeGameSchema?: any
 ): T[] {
   if (!Array.isArray(rawList) || rawList.length === 0) return [];
+  const schema = activeGameSchema ?? useStore.getState().activeGameSchema;
   const byCleanKey = new Map<string, { item: T; weight: number }>();
 
   for (let i = 0; i < rawList.length; i++) {
@@ -737,7 +898,7 @@ export function deduplicateBlueprintArtifacts<T = any>(
     const key = cleanName.toLowerCase();
     if (!key) continue;
 
-    const weight = getPriorityTierWeight(rawStr, activeGameSchema);
+    const weight = getPriorityTierWeight(rawStr, schema);
     const existing = byCleanKey.get(key);
     if (!existing || weight > existing.weight) {
       byCleanKey.set(key, { item, weight });
@@ -747,11 +908,40 @@ export function deduplicateBlueprintArtifacts<T = any>(
   return Array.from(byCleanKey.values()).map((entry) => entry.item);
 }
 
+export function filterBlueprintModArtifacts<T = any>(
+  rawList: T[] | undefined | null,
+  activeGameSchema?: any
+): T[] {
+  if (!Array.isArray(rawList) || rawList.length === 0) return [];
+  const schema = activeGameSchema ?? useStore.getState().activeGameSchema;
+  const schemaKey: object =
+    schema && typeof schema === "object" ? schema : NO_SCHEMA_SENTINEL;
+
+  let bySchema = filteredBlueprintArtifactsCache.get(rawList);
+  if (bySchema) {
+    const cached = bySchema.get(schemaKey);
+    if (cached) return cached as T[];
+  }
+
+  const deduped = deduplicateBlueprintArtifacts(rawList, schema);
+  const result =
+    deduped.length === 0
+      ? []
+      : deduped.filter((item) => isBlueprintModArtifact(item, schema));
+
+  if (!bySchema) {
+    bySchema = new WeakMap<object, any[]>();
+    filteredBlueprintArtifactsCache.set(rawList, bySchema);
+  }
+  bySchema.set(schemaKey, result);
+  return result;
+}
+
 export const countBlueprintArtifacts = (
   rawList: any[] | undefined | null,
   activeGameSchema?: any
 ): number => {
-  return deduplicateBlueprintArtifacts(rawList, activeGameSchema).length;
+  return filterBlueprintModArtifacts(rawList, activeGameSchema).length;
 };
 
 

@@ -51,7 +51,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                     const ticketMasonId = t.metadata?.mason_id;
                     const targetMod = t.metadata?.target_mod_id;
 
-                    if (user && (targetUser === user.id || targetMason === user.id || ticketMasonId === user.id || t.author_id === user.id)) return true;
+                    if (user && (targetUser === user.id || targetMason === user.id || ticketMasonId === user.id)) return true;
                     if (masonId && (targetUser === masonId || targetMason === masonId || ticketMasonId === masonId)) return true;
                     if (targetMod && masonModIds.includes(targetMod)) return true;
 
@@ -155,7 +155,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                         const ticketMasonId = t.metadata?.mason_id;
                         const targetMod = t.metadata?.target_mod_id;
 
-                        if (user && (targetUser === user.id || targetMason === user.id || ticketMasonId === user.id || t.author_id === user.id)) return true;
+                        if (user && (targetUser === user.id || targetMason === user.id || ticketMasonId === user.id)) return true;
                         if (masonId && (targetUser === masonId || targetMason === masonId || ticketMasonId === masonId)) return true;
                         if (targetMod && masonModIds.includes(targetMod)) return true;
 

@@ -24,6 +24,20 @@ import {
   HubOverviewSection,
 } from "../components/layouts/ElevatedHubLayout";
 
+function resolveCollectionStatus(
+  s: any
+): "stable" | "under_review" | "pending" | "corrupted" | "unknown" {
+  const raw = String(s?.status || "")
+    .toLowerCase()
+    .trim();
+  if (raw === "stable" || raw === "verified") return "stable";
+  if (raw === "under_review" || raw === "under review") return "under_review";
+  if (raw === "pending") return "pending";
+  if (raw === "corrupted" || raw === "broken") return "corrupted";
+  if (!raw && s?.is_official && Number(s?.compliance_tier || 0) === 0) return "stable";
+  return "unknown";
+}
+
 export function MasonCollectionBuilder({
   masonId,
   masonName,
@@ -87,6 +101,7 @@ export function MasonCollectionBuilder({
       mason_id: masonId,
       is_official: true,
       compliance_tier: setTier,
+      status: setTier >= 1 ? "pending" : "stable",
     };
     const { data, error } = await supabase
       .from("collections")
@@ -119,7 +134,7 @@ export function MasonCollectionBuilder({
       name: activeSet.name,
       image_url: activeSet.image_url,
       url: activeSet.url,
-      status: activeSet.status,
+      status: resolveCollectionStatus(activeSet),
       compliance_tier: activeSet.compliance_tier,
     };
     const { error } = await supabase
@@ -229,12 +244,9 @@ export function MasonCollectionBuilder({
   };
 
   const filteredSets = sets.filter((s: any) => {
-    if (activeTab === "overview") {
-      // Do not filter by status
-    } else if (activeTab === "unknown") {
-      if (s.status && s.status !== "unknown") return false;
-    } else {
-      if (s.status !== activeTab) return false;
+    const resolvedStatus = resolveCollectionStatus(s);
+    if (activeTab !== "overview" && resolvedStatus !== activeTab) {
+      return false;
     }
     if (tierFilter !== "ALL" && s.compliance_tier !== parseInt(tierFilter)) return false;
     return s.name?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -252,37 +264,40 @@ export function MasonCollectionBuilder({
       id: "stable",
       label: t("status_stable", "Stable"),
       icon: t("icon_verified", "verified"),
-      number: sets.filter((s) => s.status === "stable").length.toString(),
+      number: sets.filter((s) => resolveCollectionStatus(s) === "stable").length.toString(),
     },
     {
       id: "under_review",
       label: t("status_dd_review", "Under Review"),
       icon: t("icon_policy", "policy"),
-      number: sets.filter((s) => s.status === "under_review").length.toString(),
+      number: sets.filter((s) => resolveCollectionStatus(s) === "under_review").length.toString(),
     },
     {
       id: "pending",
       label: t("pending", "Pending"),
       icon: t("icon_schedule", "schedule"),
-      number: sets.filter((s) => s.status === "pending").length.toString(),
+      number: sets.filter((s) => resolveCollectionStatus(s) === "pending").length.toString(),
     },
     {
       id: "unknown",
       label: t("unknown", "Unknown"),
       icon: t("icon_help", "help"),
-      number: sets.filter((s) => s.status === "unknown" || !s.status).length.toString(),
+      number: sets.filter((s) => resolveCollectionStatus(s) === "unknown").length.toString(),
     },
     {
       id: "corrupted",
       label: t("status_corrupted", "Corrupted"),
       icon: t("icon_warning", "warning"),
-      number: sets.filter((s) => s.status === "corrupted").length.toString(),
+      number: sets.filter((s) => resolveCollectionStatus(s) === "corrupted").length.toString(),
     },
   ];
 
   const renderLanding = () => {
     const flaggedSets = sets
-      .filter((s) => s.status === "corrupted" || s.status === "unknown")
+      .filter((s) => {
+        const st = resolveCollectionStatus(s);
+        return st === "corrupted" || st === "unknown";
+      })
       .slice(0, 4);
     return (
       <HubOverviewLanding>
@@ -290,59 +305,43 @@ export function MasonCollectionBuilder({
           icon={t("icon_history", "history")}
           iconColorClass="text-[var(--accent)]"
           title={t("recent_activity", "Recent Activity")}
+          isEmpty={sets.length === 0}
+          emptyIcon={t("icon_collections_bookmark", "collections_bookmark")}
+          emptyTitle={t("cc_no_sets", "No collections found")}
         >
-          {sets.length === 0 ? (
-            <EmptyState
-              icon={t("icon_collections_bookmark", "collections_bookmark")}
-              title={t("cc_no_sets", "No collections found")}
-              className="py-8"
+          {sets.slice(0, 4).map((setItem) => (
+            <VaultCard
+              key={setItem.id}
+              setItem={setItem}
+              activeSetId={activeSet?.id}
+              onClick={() => {
+                setActiveSet(setItem);
+                fetchMembers(setItem.id);
+              }}
+              masonNameFallback={masonName}
             />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-              {sets.slice(0, 4).map((setItem) => (
-                <div key={setItem.id} className="w-full">
-                  <VaultCard
-                    setItem={setItem}
-                    activeSetId={activeSet?.id}
-                    onClick={() => {
-                      setActiveSet(setItem);
-                      fetchMembers(setItem.id);
-                    }}
-                    masonNameFallback={masonName}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          ))}
         </HubOverviewSection>
         <HubOverviewSection
           icon={t("icon_warning", "warning")}
           iconColorClass="text-[var(--warning)]"
           title={t("title_issues", "Flags & Issues")}
+          isEmpty={flaggedSets.length === 0}
+          emptyIcon={t("icon_collections_bookmark", "collections_bookmark")}
+          emptyTitle={t("cc_no_sets", "No issues detected")}
         >
-          {flaggedSets.length === 0 ? (
-            <EmptyState
-              icon={t("icon_collections_bookmark", "collections_bookmark")}
-              title={t("cc_no_sets", "No issues detected")}
-              className="py-8"
+          {flaggedSets.map((setItem) => (
+            <VaultCard
+              key={setItem.id}
+              setItem={setItem}
+              activeSetId={activeSet?.id}
+              onClick={() => {
+                setActiveSet(setItem);
+                fetchMembers(setItem.id);
+              }}
+              masonNameFallback={masonName}
             />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-              {flaggedSets.map((setItem) => (
-                <div key={setItem.id} className="w-full">
-                  <VaultCard
-                    setItem={setItem}
-                    activeSetId={activeSet?.id}
-                    onClick={() => {
-                      setActiveSet(setItem);
-                      fetchMembers(setItem.id);
-                    }}
-                    masonNameFallback={masonName}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          ))}
         </HubOverviewSection>
       </HubOverviewLanding>
     );
@@ -524,7 +523,7 @@ export function MasonCollectionBuilder({
                 "architect_collections_desc",
                 "Registry review, metadata governance, and conflict triage"
               )}
-              badge={(activeSet.status || "unknown").replace(/_/g, " ").toUpperCase()}
+              badge={resolveCollectionStatus(activeSet).replace(/_/g, " ").toUpperCase()}
               badgeIcon={t("icon_verified", "verified")}
               variant="accent"
             >
@@ -599,7 +598,7 @@ export function MasonCollectionBuilder({
                   </label>
                   <CustomDropdown
                     disableTint={true}
-                    value={activeSet.status || "unknown"}
+                    value={resolveCollectionStatus(activeSet)}
                     onChange={(v: string[]) =>
                       setActiveSet({ ...activeSet, status: v[0] })
                     }
@@ -782,10 +781,12 @@ export function CollectionForge({ setStatus }: any) {
 
   const createSet = async () => {
     if (!setName) return;
+    const targetTier = Math.min(4, Math.max(0, Number(setTier || 0)));
     const payload: any = {
       name: setName,
       is_official: true,
-      compliance_tier: setTier,
+      compliance_tier: targetTier,
+      status: targetTier >= 1 ? "pending" : "stable",
       mason_id: setMasonId && setMasonId.trim() !== "" ? setMasonId : null,
       url: setSetUrl && setSetUrl.trim() !== "" ? setSetUrl : null,
     };
@@ -818,13 +819,14 @@ export function CollectionForge({ setStatus }: any) {
     if (!activeSet) return;
     setIsSaving(true);
     const prevSet = sets.find((s) => s.id === activeSet.id) || activeSet;
+    const targetTier = Math.min(4, Math.max(0, Number(activeSet.compliance_tier || 0)));
     const updatedPayload = {
       name: activeSet.name,
       image_url: activeSet.image_url,
       url: activeSet.url,
       mason_id: activeSet.mason_id,
-      status: activeSet.status,
-      compliance_tier: activeSet.compliance_tier,
+      status: targetTier >= 1 ? "pending" : resolveCollectionStatus(activeSet),
+      compliance_tier: targetTier,
     };
     const { error } = await supabase
       .from("collections")
@@ -943,12 +945,9 @@ export function CollectionForge({ setStatus }: any) {
 
   const filteredSets = sets.filter((s: any) => {
     if (Number(s?.compliance_tier || 0) > 0) return false;
-    if (filterTab === "overview") {
-      // Do not filter by status
-    } else if (filterTab === "unknown") {
-      if (s.status && s.status !== "unknown") return false;
-    } else {
-      if (s.status !== filterTab) return false;
+    const resolvedStatus = resolveCollectionStatus(s);
+    if (filterTab !== "overview" && resolvedStatus !== filterTab) {
+      return false;
     }
 
     if (tierFilter !== "ALL" && s.compliance_tier !== parseInt(tierFilter)) return false;
@@ -956,7 +955,10 @@ export function CollectionForge({ setStatus }: any) {
   });
 
   const flaggedSets = sets
-    .filter((s) => s.status === "corrupted" || s.status === "unknown")
+    .filter((s) => {
+      const st = resolveCollectionStatus(s);
+      return st === "corrupted" || st === "unknown";
+    })
     .slice(0, 4);
 
   return (
@@ -986,33 +988,33 @@ export function CollectionForge({ setStatus }: any) {
             id: "stable",
             label: t("status_stable", "Stable"),
             icon: t("icon_verified", "verified"),
-            number: sets.filter((s) => s.status === "stable").length.toString(),
+            number: sets.filter((s) => resolveCollectionStatus(s) === "stable").length.toString(),
           },
           {
             id: "under_review",
             label: t("status_dd_review", "Under Review"),
             icon: t("icon_policy", "policy"),
-            number: sets.filter((s) => s.status === "under_review").length.toString(),
+            number: sets.filter((s) => resolveCollectionStatus(s) === "under_review").length.toString(),
           },
           {
             id: "pending",
             label: t("pending", "Pending"),
             icon: t("icon_schedule", "schedule"),
-            number: sets.filter((s) => s.status === "pending").length.toString(),
+            number: sets.filter((s) => resolveCollectionStatus(s) === "pending").length.toString(),
           },
           {
             id: "unknown",
             label: t("unknown", "Unknown"),
             icon: t("icon_help", "help"),
             number: sets
-              .filter((s) => s.status === "unknown" || !s.status)
+              .filter((s) => resolveCollectionStatus(s) === "unknown")
               .length.toString(),
           },
           {
             id: "corrupted",
             label: t("status_corrupted", "Corrupted"),
             icon: t("icon_warning", "warning"),
-            number: sets.filter((s) => s.status === "corrupted").length.toString(),
+            number: sets.filter((s) => resolveCollectionStatus(s) === "corrupted").length.toString(),
           },
         ]}
         hideSearch={filterTab === "overview"}
@@ -1069,53 +1071,37 @@ export function CollectionForge({ setStatus }: any) {
               icon={t("icon_history", "history")}
               iconColorClass="text-[var(--accent)]"
               title={t("recent_activity", "Recent Activity")}
+              isEmpty={sets.length === 0}
+              emptyIcon={t("icon_collections_bookmark", "collections_bookmark")}
+              emptyTitle={t("cc_no_sets", "No collections found")}
             >
-              {sets.length === 0 ? (
-                <EmptyState
-                  icon={t("icon_collections_bookmark", "collections_bookmark")}
-                  title={t("cc_no_sets", "No collections found")}
-                  className="py-8"
+              {sets.slice(0, 4).map((setItem) => (
+                <VaultCard
+                  key={setItem.id}
+                  setItem={setItem}
+                  activeSetId={activeSet?.id}
+                  onClick={() => handleSelectSet(setItem)}
+                  masonsList={masonsList}
                 />
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                  {sets.slice(0, 4).map((setItem) => (
-                    <div key={setItem.id} className="w-full">
-                      <VaultCard
-                        setItem={setItem}
-                        activeSetId={activeSet?.id}
-                        onClick={() => handleSelectSet(setItem)}
-                        masonsList={masonsList}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+              ))}
             </HubOverviewSection>
             <HubOverviewSection
               icon={t("icon_warning", "warning")}
               iconColorClass="text-[var(--warning)]"
               title={t("title_issues", "Flags & Issues")}
+              isEmpty={flaggedSets.length === 0}
+              emptyIcon={t("icon_collections_bookmark", "collections_bookmark")}
+              emptyTitle={t("cc_no_sets", "No Issues Detected")}
             >
-              {flaggedSets.length === 0 ? (
-                <EmptyState
-                  icon={t("icon_collections_bookmark", "collections_bookmark")}
-                  title={t("cc_no_sets", "No Issues Detected")}
-                  className="py-8"
+              {flaggedSets.map((setItem) => (
+                <VaultCard
+                  key={setItem.id}
+                  setItem={setItem}
+                  activeSetId={activeSet?.id}
+                  onClick={() => handleSelectSet(setItem)}
+                  masonsList={masonsList}
                 />
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6">
-                  {flaggedSets.map((setItem) => (
-                    <div key={setItem.id} className="w-full">
-                      <VaultCard
-                        setItem={setItem}
-                        activeSetId={activeSet?.id}
-                        onClick={() => handleSelectSet(setItem)}
-                        masonsList={masonsList}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+              ))}
             </HubOverviewSection>
           </HubOverviewLanding>
         ) : (
@@ -1279,7 +1265,7 @@ export function CollectionForge({ setStatus }: any) {
                 "architect_collections_desc",
                 "Registry review, metadata governance, and conflict triage"
               )}
-              badge={(activeSet.status || "unknown").replace(/_/g, " ").toUpperCase()}
+              badge={resolveCollectionStatus(activeSet).replace(/_/g, " ").toUpperCase()}
               badgeIcon={t("icon_verified", "verified")}
               variant="accent"
             >
@@ -1357,7 +1343,7 @@ export function CollectionForge({ setStatus }: any) {
                   </label>
                   <CustomDropdown
                     disableTint={true}
-                    value={activeSet.status || "unknown"}
+                    value={resolveCollectionStatus(activeSet)}
                     onChange={(v: string[]) =>
                       setActiveSet({ ...activeSet, status: v[0] })
                     }

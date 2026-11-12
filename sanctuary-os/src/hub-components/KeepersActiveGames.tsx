@@ -8,6 +8,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   CustomDropdown,
+  HoverTooltip,
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
@@ -29,7 +30,7 @@ import {
 } from "../components/layouts/ElevatedHubLayout";
 import MasonFileBrowser from "./MasonFileBrowser";
 import MasonEditorPanel from "./MasonEditorPanel";
-import { useMasonFiles } from "../hooks/useMasonFiles";
+import { useMasonFiles, clearIdeCachedDraft } from "../hooks/useMasonFiles";
 import {
   deepCountKeys,
   deepCompare,
@@ -40,6 +41,8 @@ import { useTheme } from "../ThemeContext";
 import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from "../utils/monacoTheme";
 import { AuditLogViewer } from "../side-panels/SAAuditLogViewer";
 import TicketDossierSidePanel from "../side-panels/TicketDossierSidePanel";
+import { DEFAULT_SCHEMA_CACHE_KEY } from "../utils/bundledSchemas";
+import { postDevCoreAssetSync } from "../utils/devAssetSync";
 
 export default function KeepersActiveGames({
   initialTab = "overview",
@@ -58,11 +61,11 @@ export default function KeepersActiveGames({
   const [activeTab, setActiveTab] = useState<
     "overview" | "workspaces" | "applications" | "schemas" | "audit_logs"
   >(initialTab);
-  const [workspaceStatusFilter, setWorkspaceStatusFilter] = useState<"all" | "active" | "inactive">(
-    "all"
-  );
+  const [workspaceStatusFilter, setWorkspaceStatusFilter] = useState<
+    "all" | "active" | "inactive" | "keepers_only"
+  >("all");
   const [auditFilterAction, setAuditFilterAction] = useState("ALL");
-  const [auditScopeFilter, setAuditScopeFilter] = useState("ALL");
+  const auditScopeFilter = "CORE";
   const [auditTimeRange, setAuditTimeRange] = useState("ALL");
   const openAuditRetentionRef = useRef<(() => void) | null>(null);
 
@@ -71,6 +74,12 @@ export default function KeepersActiveGames({
   }, [initialTab]);
 
   const [sidePanelMode, setSidePanelMode] = useState<"add" | "edit" | null>(null);
+  const [severTargetGame, setSeverTargetGame] = useState<any | null>(null);
+  const [severReason, setSeverReason] = useState("");
+  const [severConfirmText, setSeverConfirmText] = useState("");
+  const [confirmSever, setConfirmSever] = useState(false);
+  const [isSevering, setIsSevering] = useState(false);
+  const severArmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [formData, setFormData] = useState({
     id: "",
     name: "",
@@ -80,9 +89,8 @@ export default function KeepersActiveGames({
     supabase_service_key: "",
     icon: "",
     is_active: true,
+    is_keepers_only: false,
     founder_identifier: "",
-    donation_url: "",
-    payment_processor: "STRIPE",
   });
   const [bundleInput, setBundleInput] = useState("");
   const [verifyingHandshake, setVerifyingHandshake] = useState(false);
@@ -101,7 +109,7 @@ export default function KeepersActiveGames({
   });
 
   const {
-    files: schemaFiles,
+    files: rawSchemaFiles,
     showTimeline,
     setShowTimeline,
     problemsList,
@@ -143,8 +151,14 @@ export default function KeepersActiveGames({
     handleDeleteFile,
     handleRenameSubmit,
     handleCreateSubmit,
-    handleImport,
   } = mason;
+
+  const schemaFiles = (rawSchemaFiles || []).filter(
+    (f: any) =>
+      String(f?.name || f?.path || "")
+        .replace(/\.json$/i, "")
+        .toLowerCase() === "default"
+  );
 
   const isResizing = useRef(false);
 
@@ -190,20 +204,22 @@ export default function KeepersActiveGames({
     fetchGames();
     supabaseAuth
       .from("audit_logs")
-      .select("id")
-      .limit(30)
-      .then(({ data }) => {
-        if (data) setAuditLogsCount(data.length);
+      .select("id", { count: "exact", head: true })
+      .then(({ count }) => {
+        if (count !== null) setAuditLogsCount(count);
       });
+    return () => {
+      if (severArmTimerRef.current) clearTimeout(severArmTimerRef.current);
+    };
   }, []);
 
   const fetchGames = async () => {
     setLoading(true);
     const [{ data, error }, { data: appsData }] = await Promise.all([
-      supabase
+      supabaseAuth
         .from("sanctuary_games")
         .select(
-          "id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor"
+          "id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, is_keepers_only"
         )
         .order("created_at", { ascending: false }),
       supabaseAuth
@@ -278,14 +294,15 @@ export default function KeepersActiveGames({
     }
   };
 
-  const handleCopyUplinkBundle = () => {
+  const handleCopyUplinkBundle = (source?: any) => {
+    const target = source && typeof source === "object" && "schema_id" in source ? source : formData;
     const payload = {
-      name: formData.name,
-      schema_id: formData.schema_id,
-      supabase_url: formData.supabase_url,
-      supabase_anon_key: formData.supabase_anon_key,
-      supabase_service_key: formData.supabase_service_key,
-      founder_identifier: formData.founder_identifier || undefined,
+      name: target.name,
+      schema_id: target.schema_id,
+      supabase_url: target.supabase_url,
+      supabase_anon_key: target.supabase_anon_key,
+      supabase_service_key: target.supabase_service_key || undefined,
+      founder_identifier: target.founder_identifier || undefined,
     };
     const token = "SANCTUARY-UPLINK://" + btoa(JSON.stringify(payload));
     navigator.clipboard.writeText(token);
@@ -375,8 +392,7 @@ export default function KeepersActiveGames({
       supabase_service_key: formData.supabase_service_key?.trim() || undefined,
       icon: formData.icon,
       is_active: formData.is_active,
-      donation_url: formData.donation_url,
-      payment_processor: formData.payment_processor,
+      is_keepers_only: Boolean(formData.is_keepers_only),
     };
 
     const result: any = await supabaseAuth.functions.invoke("game-gateway", {
@@ -402,6 +418,7 @@ export default function KeepersActiveGames({
             schema_id: { to: formData.schema_id.trim().toUpperCase() },
             supabase_url: { to: formData.supabase_url.trim() },
             is_active: { to: formData.is_active },
+            is_keepers_only: { to: Boolean(formData.is_keepers_only) },
           }
         );
       } else if (sidePanelMode === "edit") {
@@ -417,19 +434,13 @@ export default function KeepersActiveGames({
             schema_id: { from: prevGame?.schema_id, to: formData.schema_id.trim().toUpperCase() },
             supabase_url: { from: prevGame?.supabase_url, to: formData.supabase_url.trim() },
             is_active: { from: prevGame?.is_active, to: formData.is_active },
+            is_keepers_only: {
+              from: Boolean(prevGame?.is_keepers_only),
+              to: Boolean(formData.is_keepers_only),
+            },
           }
         );
       }
-      try {
-        const { savePartnerCommunityDonationConfig } = await import("../utils/supporterManager");
-        const savedGameId = result?.data?.game?.id || result?.data?.id || formData.id || undefined;
-        await savePartnerCommunityDonationConfig({
-          gameId: savedGameId,
-          schemaId: formData.schema_id.trim().toUpperCase(),
-          donationUrl: formData.donation_url,
-          paymentProcessor: formData.payment_processor,
-        });
-      } catch {}
       setSidePanelMode(null);
       setHandshakeStatus(null);
       setFormData({
@@ -441,9 +452,8 @@ export default function KeepersActiveGames({
         supabase_service_key: "",
         icon: "",
         is_active: true,
+        is_keepers_only: false,
         founder_identifier: "",
-        donation_url: "",
-        payment_processor: "STRIPE",
       });
       await fetchGames();
       await syncGameDatabases();
@@ -455,7 +465,7 @@ export default function KeepersActiveGames({
   const handleDeleteGame = async (id: string, name: string) => {
     if (!window.confirm(t("ui_confirm_deprecate_game", "Deprecate and remove this Game Database?")))
       return;
-    const { error } = await supabase.from("sanctuary_games").delete().eq("id", id);
+    const { error } = await supabaseAuth.from("sanctuary_games").delete().eq("id", id);
     if (!error) {
       logArchitectAction(
         `Deprecated Game Database`,
@@ -472,7 +482,7 @@ export default function KeepersActiveGames({
   };
 
   const handleToggleActive = async (id: string, name: string, currentStatus: boolean) => {
-    const { error } = await supabase
+    const { error } = await supabaseAuth
       .from("sanctuary_games")
       .update({ is_active: !currentStatus })
       .eq("id", id);
@@ -491,41 +501,103 @@ export default function KeepersActiveGames({
     await syncGameDatabases();
   };
 
-  const handleSeverFDW = async (schema_id: string, name: string, id: string) => {
-    if (
-      !window.confirm(
-        t(
-          "ui_confirm_sever_fdw",
-          "Cut the cord and sever this Spoke connection? This deactivates the workspace and scrubs its service key from the Hub."
-        )
-      )
-    )
-      return;
-    try {
-      await supabase.rpc("secure_sever_spoke_cord", {
-        p_game_id: id || schema_id,
-        p_payload: { reason: "Keeper Executed Severance Protocol" },
-      });
-      await supabase
-        .from("sanctuary_games")
-        .update({ is_active: false, supabase_service_key: null })
-        .eq("id", id);
+  const handleToggleKeepersOnly = async (id: string, name: string, currentStatus: boolean) => {
+    const nextVal = !Boolean(currentStatus);
+    const { error } = await supabaseAuth
+      .from("sanctuary_games")
+      .update({ is_keepers_only: nextVal })
+      .eq("id", id);
+    if (!error) {
       logArchitectAction(
-        `Severed Spoke Uplink (Cut the Cord)`,
+        `${nextVal ? "Cloaked (Keepers-Only)" : "Uncloaked (Public)"} Game Database`,
         "sanctuary_games",
         name,
         undefined,
         "Keeper Hub",
         true,
+        { is_keepers_only: { from: Boolean(currentStatus), to: nextVal } }
+      );
+      useStore
+        .getState()
+        .pushStatus(
+          nextVal
+            ? t(
+                "spoke_keepers_only_enabled_toast",
+                "Spoke hidden from public — visible to Keepers Core only."
+              )
+            : t(
+                "spoke_keepers_only_disabled_toast",
+                "Spoke visibility restored to public network."
+              ),
+          "info"
+        );
+    }
+    await fetchGames();
+    await syncGameDatabases();
+  };
+
+  const openSeverSpokePanel = (game: any) => {
+    if (severArmTimerRef.current) clearTimeout(severArmTimerRef.current);
+    setConfirmSever(false);
+    setSeverConfirmText("");
+    setSeverReason("");
+    setSeverTargetGame(game);
+  };
+
+  const isSeverPhraseValid = severConfirmText.trim().toUpperCase() === "CUT THE CORD";
+
+  const handleExecuteSeverCord = async () => {
+    if (!severTargetGame || !isSeverPhraseValid) return;
+    if (!confirmSever) {
+      setConfirmSever(true);
+      if (severArmTimerRef.current) clearTimeout(severArmTimerRef.current);
+      severArmTimerRef.current = setTimeout(() => setConfirmSever(false), 6000);
+      return;
+    }
+
+    setIsSevering(true);
+    try {
+      const targetId = severTargetGame.id || severTargetGame.schema_id;
+      const reasonText =
+        severReason.trim() || "Keeper Executed Severance Protocol (Cut the Cord)";
+      const res: any = await supabase.rpc("secure_sever_spoke_cord", {
+        p_game_id: targetId,
+        p_payload: { reason: reasonText },
+      });
+      if (res?.error || res?.data?.error) {
+        throw new Error(res?.error?.message || res?.data?.error);
+      }
+
+      logArchitectAction(
+        `Severed Spoke Uplink (Cut the Cord)`,
+        "sanctuary_games",
+        severTargetGame.name || severTargetGame.schema_id,
+        reasonText,
+        "Keeper Hub",
+        true,
         {
-          is_active: { from: true, to: false },
+          is_active: { from: Boolean(severTargetGame.is_active !== false), to: false },
           uplink_status: { from: "Connected", to: "Severed" },
         }
       );
+
       useStore.getState().pushStatus(t("ui_fdw_severed", "Spoke uplink severed."), "info");
-    } catch {}
-    await fetchGames();
-    await syncGameDatabases();
+      setConfirmSever(false);
+      setSeverConfirmText("");
+      setSeverReason("");
+      setSeverTargetGame(null);
+      await fetchGames();
+      await syncGameDatabases();
+    } catch (err: any) {
+      useStore
+        .getState()
+        .pushStatus(
+          `${t("identities_failed_prefix", "Error:")} ${err?.message || "Failed to sever uplink"}`,
+          "error"
+        );
+    } finally {
+      setIsSevering(false);
+    }
   };
 
   // Schema Editor Save & Validation
@@ -534,16 +606,26 @@ export default function KeepersActiveGames({
     const file = openFiles[activeFileIndex];
     try {
       const parsed = JSON.parse(file.content);
+      const fileId = file.name.replace(/\.json$/i, "");
+      if (fileId.toLowerCase() === "default") {
+        parsed.id = "default";
+        parsed.game_id = "default";
+        parsed.display_name = parsed.display_name || "Default Master Schema";
+      }
+      delete parsed.name;
+      delete parsed.archive_containers;
       if (!parsed.schema_version || typeof parsed.schema_version !== "number")
         parsed.schema_version = 0;
       parsed.schema_version++;
 
       const updatedContent = JSON.stringify(parsed, null, 2);
-      const fileId = file.name.replace(/\.json$/i, "");
 
       const payload = {
         id: fileId,
-        name: parsed.manifest_name || fileId,
+        name:
+          parsed.display_name ||
+          parsed.manifest_name ||
+          (fileId.toLowerCase() === "default" ? "Default Master Schema" : fileId),
         schema_data: parsed,
         version: parsed.schema_version || 1,
         updated_at: new Date().toISOString(),
@@ -552,10 +634,24 @@ export default function KeepersActiveGames({
       const { error } = await supabaseAuth.from("sanctuary_schemas").upsert(payload as any);
       if (error) throw error;
 
+      clearIdeCachedDraft(file.path);
+
+      if (fileId.toLowerCase() === "default") {
+        try {
+          localStorage.setItem(DEFAULT_SCHEMA_CACHE_KEY, JSON.stringify(parsed));
+        } catch {}
+        if (import.meta.env.DEV) {
+          await postDevCoreAssetSync({
+            kind: "default_schema",
+            content: parsed,
+          });
+        }
+      }
+
       if (fileId === useStore.getState().activeGameSchema?.id) {
         useStore
           .getState()
-          .setActiveGameSchema(getSafeSchema(parsed, parsed.id || "default_schema"));
+          .setActiveGameSchema(getSafeSchema(parsed, parsed.id || "default"));
       }
 
       const newFiles = [...openFiles];
@@ -563,6 +659,7 @@ export default function KeepersActiveGames({
       newFiles[activeFileIndex].originalContent = updatedContent;
       setOpenFiles(newFiles);
       setActiveVersionTimestamp(null);
+      mason.fetchFiles();
       pushStatus(t("alert_saved", "Saved"), "success");
     } catch {
       pushStatus(t("alert_error", "Error"), "error");
@@ -578,7 +675,13 @@ export default function KeepersActiveGames({
     completelyMissing: number;
     deprecated: number;
   } | null = null;
-  if (activeFile && referenceData && Object.keys(referenceData).length > 0) {
+  const isEditingDefaultBaseline = activeFile?.name.toLowerCase() === "default.json";
+  if (
+    activeFile &&
+    !isEditingDefaultBaseline &&
+    referenceData &&
+    Object.keys(referenceData).length > 0
+  ) {
     try {
       const parsed = JSON.parse(activeFile.content);
       const total = deepCountKeys(referenceData);
@@ -694,6 +797,7 @@ export default function KeepersActiveGames({
   const filteredGames = games.filter((g) => {
     if (workspaceStatusFilter === "active" && g.is_active === false) return false;
     if (workspaceStatusFilter === "inactive" && g.is_active !== false) return false;
+    if (workspaceStatusFilter === "keepers_only" && g.is_keepers_only !== true) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!(g.name?.toLowerCase().includes(q) || g.schema_id?.toLowerCase().includes(q)))
@@ -704,48 +808,56 @@ export default function KeepersActiveGames({
 
   const renderGameCard = (game: any) => {
     const isActive = game.is_active !== false;
+    const isKeepersOnly = game.is_keepers_only === true;
+    const isLivePartnerSpoke = !isKeepersOnly && isActive && Boolean(game.supabase_url);
+    const openEditGame = () => {
+      setHandshakeStatus(null);
+      setFormData({
+        id: game.id,
+        name: game.name || "",
+        schema_id: game.schema_id || "",
+        supabase_url: game.supabase_url || "",
+        supabase_anon_key: game.supabase_anon_key || "",
+        supabase_service_key: game.supabase_service_key || "",
+        icon: game.icon || "",
+        is_active: game.is_active !== false,
+        is_keepers_only: Boolean(game.is_keepers_only),
+        founder_identifier: "",
+      });
+      setSidePanelMode("edit");
+    };
     return (
       <UniversalCard
         key={game.id}
         onClick={() => {
-          setHandshakeStatus(null);
-          setFormData({
-            id: game.id,
-            name: game.name || "",
-            schema_id: game.schema_id || "",
-            supabase_url: game.supabase_url || "",
-            supabase_anon_key: game.supabase_anon_key || "",
-            supabase_service_key: game.supabase_service_key || "",
-            icon: game.icon || "",
-            is_active: game.is_active !== false,
-            founder_identifier: "",
-            donation_url: game.donation_url || "",
-            payment_processor: (game.payment_processor || "STRIPE").toUpperCase(),
-          });
-          setSidePanelMode("edit");
+          if (isLivePartnerSpoke) {
+            openSeverSpokePanel(game);
+          } else {
+            openEditGame();
+          }
         }}
         onContextMenu={(e) => {
           openSanctuaryContextMenu(e, [
+            ...(!isLivePartnerSpoke
+              ? [
+                  {
+                    label: t("edit", "Edit"),
+                    icon: t("icon_edit", "edit"),
+                    onClick: openEditGame,
+                  },
+                ]
+              : []),
             {
-              label: t("edit", "Edit"),
-              icon: t("icon_edit", "edit"),
-              onClick: () => {
-                setHandshakeStatus(null);
-                setFormData({
-                  id: game.id,
-                  name: game.name || "",
-                  schema_id: game.schema_id || "",
-                  supabase_url: game.supabase_url || "",
-                  supabase_anon_key: game.supabase_anon_key || "",
-                  supabase_service_key: game.supabase_service_key || "",
-                  icon: game.icon || "",
-                  is_active: game.is_active !== false,
-                  founder_identifier: "",
-                  donation_url: game.donation_url || "",
-                  payment_processor: (game.payment_processor || "STRIPE").toUpperCase(),
-                });
-                setSidePanelMode("edit");
-              },
+              label: t("spoke_keepers_only_toggle", "Keepers-Only Spoke (Dev / Test Server)"),
+              icon: isKeepersOnly
+                ? t("icon_visibility", "visibility")
+                : t("icon_visibility_off", "visibility_off"),
+              onClick: () => handleToggleKeepersOnly(game.id, game.name, isKeepersOnly),
+            },
+            {
+              label: t("wf_card_spoke_sever_title", "Spoke Sever (Cut the Cord)"),
+              icon: t("icon_link_off", "link_off"),
+              onClick: () => openSeverSpokePanel(game),
             },
             {
               divider: true,
@@ -762,7 +874,7 @@ export default function KeepersActiveGames({
         title={game.name}
         subtitle={game.supabase_url || game.schema_id}
         imageOverlay={
-          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[85%] z-30 pointer-events-none">
             <div className={VAULT_CHIP_CLASS}>
               <span
                 className={`material-symbols-outlined !text-[12px] ${
@@ -777,6 +889,14 @@ export default function KeepersActiveGames({
                 {isActive ? t("filter_active", "Active") : t("filter_inactive", "Inactive")}
               </span>
             </div>
+            {isKeepersOnly && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                  {t("icon_visibility_off", "visibility_off")}
+                </span>
+                <span>{t("lex_studio_keepers_only_short", "Keepers Only")}</span>
+              </div>
+            )}
           </div>
         }
         badges={
@@ -789,51 +909,87 @@ export default function KeepersActiveGames({
                 <span>{game.schema_id}</span>
               </div>
             )}
-            <div className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-                {t("icon_volunteer_activism", "volunteer_activism")}
-              </span>
-              <span>{(game.payment_processor || "STRIPE").toUpperCase()}</span>
-            </div>
           </>
         }
         actions={
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                handleToggleActive(game.id, game.name, game.is_active);
+                handleToggleKeepersOnly(game.id, game.name, isKeepersOnly);
               }}
-              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:scale-110 group"
+              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border hover:scale-110 ${
+                isKeepersOnly
+                  ? "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
+                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--warning)_40%,transparent)]"
+              }`}
             >
               <span className="material-symbols-outlined !text-[14px]">
-                {game.is_active === false
-                  ? t("icon_toggle_off", "toggle_off")
-                  : t("icon_toggle_on", "toggle_on")}
+                {isKeepersOnly
+                  ? t("icon_visibility_off", "visibility_off")
+                  : t("icon_visibility", "visibility")}
               </span>
+              <HoverTooltip
+                title={t(
+                  "spoke_keepers_only_toggle",
+                  "Keepers-Only Spoke (Dev / Test Server)"
+                )}
+              />
             </button>
+            {!isLivePartnerSpoke && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleActive(game.id, game.name, game.is_active);
+                }}
+                className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:scale-110"
+              >
+                <span className="material-symbols-outlined !text-[14px]">
+                  {game.is_active === false
+                    ? t("icon_toggle_off", "toggle_off")
+                    : t("icon_toggle_on", "toggle_on")}
+                </span>
+                <HoverTooltip
+                  title={
+                    isActive
+                      ? t("filter_active", "Active")
+                      : t("filter_inactive", "Inactive")
+                  }
+                />
+              </button>
+            )}
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                handleSeverFDW(game.schema_id, game.name, game.id);
+                openSeverSpokePanel(game);
               }}
-              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--warning)_40%,transparent)] hover:scale-110 group"
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--warning)_40%,transparent)] hover:scale-110"
             >
               <span className="material-symbols-outlined !text-[14px]">
                 {t("icon_link_off", "link_off")}
               </span>
+              <HoverTooltip
+                title={t("wf_card_spoke_sever_title", "Spoke Sever (Cut the Cord)")}
+              />
             </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteGame(game.id, game.name);
-              }}
-              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:scale-110 group"
-            >
-              <span className="material-symbols-outlined !text-[14px]">
-                {t("icon_delete", "delete")}
-              </span>
-            </button>
+            {!isLivePartnerSpoke && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteGame(game.id, game.name);
+                }}
+                className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:scale-110"
+              >
+                <span className="material-symbols-outlined !text-[14px]">
+                  {t("icon_delete", "delete")}
+                </span>
+                <HoverTooltip title={t("btn_delete", "{Delete}")} />
+              </button>
+            )}
           </div>
         }
         footer={
@@ -847,7 +1003,10 @@ export default function KeepersActiveGames({
                 : t("oversight_na", "N/A")}
             </span>
             <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 shrink-0">
-              {t("icon_edit", "Edit")} <span className="text-base leading-none">&rarr;</span>
+              {isLivePartnerSpoke
+                ? t("wf_card_spoke_sever_short", "Compliance")
+                : t("icon_edit", "Edit")}{" "}
+              <span className="text-base leading-none">&rarr;</span>
             </span>
           </div>
         }
@@ -882,9 +1041,8 @@ export default function KeepersActiveGames({
               supabase_service_key: "",
               icon: "",
               is_active: true,
+              is_keepers_only: false,
               founder_identifier: "",
-              donation_url: "",
-              payment_processor: "STRIPE",
             });
             setSidePanelMode("add");
           },
@@ -892,28 +1050,7 @@ export default function KeepersActiveGames({
       ];
     }
     if (activeTab === "schemas") {
-      return [
-        {
-          id: "create_schema",
-          icon: (
-            <span className="material-symbols-outlined !text-[20px]">
-              {t("icon_add", "add")}
-            </span>
-          ),
-          label: t("auto_create_file", "Create") as string,
-          onClick: () => setIsCreatePanelOpen(true),
-        },
-        {
-          id: "import_schema",
-          icon: (
-            <span className="material-symbols-outlined !text-[20px]">
-              {t("icon_upload", "upload")}
-            </span>
-          ),
-          label: t("import_file", "Import") as string,
-          onClick: handleImport,
-        },
-      ];
+      return undefined;
     }
     if (activeTab === "audit_logs") {
       return [
@@ -952,6 +1089,7 @@ export default function KeepersActiveGames({
                 { id: "all", label: t("filter_all", "All") },
                 { id: "active", label: t("filter_active", "Active") },
                 { id: "inactive", label: t("filter_inactive", "Inactive") },
+                { id: "keepers_only", label: t("lex_studio_keepers_only_short", "Keepers Only") },
               ]}
             />
           </div>
@@ -965,21 +1103,6 @@ export default function KeepersActiveGames({
         content: (
           <div className="flex flex-col w-[280px] p-4 max-w-[calc(100vw-40px)] gap-3">
             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-              {t("audit_log_scope", "Log Scope")}
-            </span>
-            <CustomDropdown
-              flat={true}
-              disableTint={true}
-              variant="pill"
-              value={auditScopeFilter}
-              onChange={(v: string[]) => setAuditScopeFilter(v[0] || "ALL")}
-              options={[
-                { id: "ALL", label: t("audit_scope_all", "All Logs (Core + Spokes)") },
-                { id: "CORE", label: t("audit_scope_core", "Keepers Core Only") },
-                { id: "SPOKES", label: t("audit_scope_spokes", "Community Spokes Only") },
-              ]}
-            />
-            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mt-1">
               {t("auto_filter_logs", "Action Type")}
             </span>
             <CustomDropdown
@@ -1001,10 +1124,10 @@ export default function KeepersActiveGames({
               onChange={(v: string[]) => setAuditTimeRange(v[0] || "ALL")}
               options={[
                 { id: "ALL", label: t("audit_time_all", "All Time") },
-                { id: "24H", label: t("audit_time_24h", "Last 24 Hours") },
-                { id: "7D", label: t("audit_time_7d", "Last 7 Days") },
-                { id: "30D", label: t("audit_time_30d", "Last 30 Days") },
-                { id: "90D", label: t("audit_time_90d", "Last 90 Days") },
+                { id: "24h", label: t("audit_time_24h", "Last 24 Hours") },
+                { id: "7d", label: t("audit_time_7d", "Last 7 Days") },
+                { id: "30d", label: t("audit_time_30d", "Last 30 Days") },
+                { id: "90d", label: t("audit_time_90d", "Last 90 Days") },
               ]}
             />
           </div>
@@ -1110,10 +1233,20 @@ export default function KeepersActiveGames({
                 iconColorClass="text-[var(--accent)]"
               />
               <StatBox
-                label={t("wf_donation_processor_label", "Payment Processor")}
-                value={formData.payment_processor || "STRIPE"}
-                icon={t("icon_volunteer_activism", "volunteer_activism")}
-                iconColorClass="text-[var(--success)]"
+                label={t("tab_network", "Network")}
+                value={
+                  formData.is_keepers_only
+                    ? t("lex_studio_keepers_only_short", "Keepers Only")
+                    : t("release_notes_meta_channel_public", "Public")
+                }
+                icon={
+                  formData.is_keepers_only
+                    ? t("icon_visibility_off", "visibility_off")
+                    : t("icon_visibility", "visibility")
+                }
+                iconColorClass={
+                  formData.is_keepers_only ? "text-[var(--warning)]" : "text-[var(--success)]"
+                }
               />
             </div>
           </SidePanelHeroCard>
@@ -1192,6 +1325,19 @@ export default function KeepersActiveGames({
               icon={t("icon_dns", "dns")}
               variant="success"
             />
+            <SidePanelPillToggle
+              checked={Boolean(formData.is_keepers_only)}
+              onChange={(checked) => setFormData({ ...formData, is_keepers_only: checked })}
+              label={t("spoke_keepers_only_toggle", "Keepers-Only Spoke (Dev / Test Server)")}
+              icon={t("icon_visibility_off", "visibility_off")}
+              variant="warning"
+            />
+            <p className="text-[11px] font-medium text-[var(--subtext)] leading-relaxed px-1 m-0">
+              {t(
+                "spoke_keepers_only_desc",
+                "Hide this Spoke from all {Citizens}, {Masons}, and Wayfinders. Only Keepers Core accounts can see or connect to this workspace."
+              )}
+            </p>
           </UniversalGroup>
 
           <UniversalGroup
@@ -1231,7 +1377,7 @@ export default function KeepersActiveGames({
                 variant="glass"
                 icon={t("icon_content_copy", "content_copy")}
                 label={t("spoke_copy_uplink_bundle", "Copy Uplink Bundle")}
-                onClick={handleCopyUplinkBundle}
+                onClick={() => handleCopyUplinkBundle()}
               />
               <ActionButton
                 variant="glass"
@@ -1252,8 +1398,8 @@ export default function KeepersActiveGames({
           </UniversalGroup>
 
           <UniversalGroup
-            title={t("spoke_founder_label", "Founding Community & Non-Custodial Donations")}
-            icon={t("icon_volunteer_activism", "volunteer_activism")}
+            title={t("spoke_founder_label", "Founding Community Manager (Username or UUID)")}
+            icon={t("icon_manage_accounts", "manage_accounts")}
           >
             <UniversalInput
               label={t("spoke_founder_label", "Founding Community Manager (Username or UUID)")}
@@ -1265,29 +1411,161 @@ export default function KeepersActiveGames({
                 "Optional: Hub username or UUID to auto-promote to Wayfinder"
               )}
             />
-            <UniversalInput
-              label={t("wf_donation_processor_label", "Community Payment Processor")}
-              type="text"
-              value={formData.payment_processor}
-              onChange={(val) => setFormData({ ...formData, payment_processor: val })}
-              placeholder={t(
-                "wf_donation_processor_label",
-                "STRIPE / KO-FI / PATREON / PAYPAL"
-              )}
+          </UniversalGroup>
+        </div>
+      </SidePanel>
+
+      {/* High-Friction Spoke Sever (Cut the Cord) SidePanel */}
+      <SidePanel
+        isOpen={Boolean(severTargetGame)}
+        onClose={() => {
+          if (severArmTimerRef.current) clearTimeout(severArmTimerRef.current);
+          setConfirmSever(false);
+          setSeverConfirmText("");
+          setSeverReason("");
+          setSeverTargetGame(null);
+        }}
+        title={t("wf_card_spoke_sever_title", "Spoke Sever (Cut the Cord)")}
+        subtitle={t("wf_badge_sovereign", "Bilateral Sovereignty")}
+        icon={t("icon_link_off", "link_off")}
+        iconColorClass="text-[var(--danger)]"
+        widthClass="w-[90vw] md:w-[680px]"
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_content_copy", "content_copy")}
+              tooltip={t("spoke_copy_uplink_bundle", "Copy Uplink Bundle")}
+              onClick={() => handleCopyUplinkBundle(severTargetGame)}
             />
-            <UniversalInput
-              label={t(
-                "wf_donation_url_label",
-                "Donation / Checkout URL (Leave blank to hide from directory)"
-              )}
-              type="text"
-              value={formData.donation_url}
-              onChange={(val) => setFormData({ ...formData, donation_url: val })}
-              placeholder={t(
-                "wf_donation_url_ph",
-                "https://donate.stripe.com/... or https://ko-fi.com/..."
-              )}
-            />
+          </PanelHeaderGroup>
+        }
+      >
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={t("icon_link_off", "link_off")}
+            overline={severTargetGame?.name || severTargetGame?.schema_id || "SPOKE"}
+            title={t("wf_cut_cord_title", "Cut the Cord (Sever Sanctuary Uplink)")}
+            description={t(
+              "wf_cut_cord_desc",
+              "Unilaterally sever this community's Spoke database from the Sanctuary OS Hub. This immediately deactivates the workspace on the global network and scrubs its Service Role Key from Keepers Core while leaving 100% of the Spoke database intact."
+            )}
+            badge={severTargetGame?.schema_id || "SPOKE"}
+            variant="danger"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <StatBox
+                label={t("wf_sever_key_custody_lbl", "Service Key Custody")}
+                value={t("wf_sever_key_custody_val", "Scrubbed on Sever")}
+                icon={t("icon_security", "security")}
+                iconColorClass="text-[var(--danger)]"
+              />
+              <StatBox
+                label={t("wf_sever_data_ownership_lbl", "Spoke Database")}
+                value={t("wf_badge_100_data", "100% Data Retained")}
+                icon={t("icon_database", "database")}
+                iconColorClass="text-[var(--success)]"
+              />
+            </div>
+          </SidePanelHeroCard>
+
+          <UniversalGroup
+            title={t("wf_sever_backup_title", "Pre-Severance Uplink Backup")}
+            icon={t("icon_content_copy", "content_copy")}
+          >
+            <div className="flex flex-col gap-3 w-full">
+              <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                {t(
+                  "wf_sever_backup_desc",
+                  "Copy the SANCTUARY-UPLINK:// bundle before severing if you plan to reconnect later or archive the node's public connection metadata."
+                )}
+              </p>
+              <ActionButton
+                variant="glass"
+                icon={t("icon_content_copy", "content_copy")}
+                onClick={() => handleCopyUplinkBundle(severTargetGame)}
+                className="w-full justify-center !py-3"
+              >
+                {t("spoke_copy_uplink_bundle", "Copy Uplink Bundle")}
+              </ActionButton>
+            </div>
+          </UniversalGroup>
+
+          <UniversalGroup
+            title={t("wf_cut_cord_title", "Cut the Cord (Sever Sanctuary Uplink)")}
+            icon={t("icon_link_off", "link_off")}
+            headerColorClass="text-[var(--danger)]"
+          >
+            <div className="flex flex-col gap-4 w-full">
+              <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-[var(--danger)]">
+                  <span className="material-symbols-outlined !text-[16px]">
+                    {t("icon_warning", "warning")}
+                  </span>
+                  <span className="text-xs font-black uppercase tracking-wider">
+                    {t(
+                      "wf_sever_warning_title",
+                      "Permanent Network Severance & Auth Architecture Warning"
+                    )}
+                  </span>
+                </div>
+                <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                  {t(
+                    "wf_sever_warning_desc",
+                    "Cutting the cord immediately deactivates the Spoke on the Sanctuary OS Hub and permanently scrubs its Service Role Key from Keepers Core. 100% of the Spoke database tables remain intact in the community's own Supabase project."
+                  )}
+                </p>
+              </div>
+
+              <input
+                type="text"
+                value={severReason}
+                onChange={(e) => setSeverReason(e.target.value)}
+                placeholder={t(
+                  "wf_cut_cord_reason_ph",
+                  "Optional reason for severing the uplink (logged to Audit Trail)..."
+                )}
+                className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] focus:outline-none focus:border-[var(--danger)]"
+              />
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--danger)] ml-1">
+                  {t(
+                    "wf_sever_type_confirm_label",
+                    'Type "CUT THE CORD" to unlock severance'
+                  )}
+                </label>
+                <input
+                  type="text"
+                  value={severConfirmText}
+                  onChange={(e) => {
+                    setSeverConfirmText(e.target.value);
+                    setConfirmSever(false);
+                  }}
+                  placeholder={t("wf_sever_type_confirm_ph", "CUT THE CORD")}
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono font-black uppercase tracking-wider text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] focus:outline-none focus:border-[var(--danger)]"
+                />
+              </div>
+
+              <ActionButton
+                variant="danger"
+                icon={t("icon_link_off", "link_off")}
+                onClick={handleExecuteSeverCord}
+                disabled={isSevering || !isSeverPhraseValid}
+                className={`w-full justify-center !py-3.5 ${confirmSever ? "animate-pulse" : ""}`}
+              >
+                {!isSeverPhraseValid
+                  ? t(
+                      "wf_sever_btn_locked",
+                      'Type "CUT THE CORD" Above to Unlock'
+                    )
+                  : confirmSever
+                    ? t(
+                        "wf_cut_cord_confirm_btn",
+                        "Confirm: Click Again to Permanently Sever Uplink"
+                      )
+                    : t("wf_cut_cord_btn", "Cut the Cord (Double-Click to Sever)")}
+              </ActionButton>
+            </div>
           </UniversalGroup>
         </div>
       </SidePanel>
@@ -1345,10 +1623,22 @@ export default function KeepersActiveGames({
                     imageOverlay={
                       <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
                         <div className={VAULT_CHIP_CLASS}>
-                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                            {t("icon_cloud_done", "cloud_done")}
+                          <span
+                            className={`material-symbols-outlined !text-[12px] ${
+                              file.hasUnsavedDraft
+                                ? "text-[var(--warning)]"
+                                : "text-[var(--accent)]"
+                            }`}
+                          >
+                            {file.hasUnsavedDraft
+                              ? t("icon_warning", "warning")
+                              : t("icon_cloud_done", "cloud_done")}
                           </span>
-                          <span>{t("synced", "Synced")}</span>
+                          <span>
+                            {file.hasUnsavedDraft
+                              ? t("unsaved_changes", "Unsaved")
+                              : t("synced", "Synced")}
+                          </span>
                         </div>
                       </div>
                     }
@@ -1490,7 +1780,7 @@ export default function KeepersActiveGames({
             title={t("chameleons_overview_anomalies", "Anomalies")}
             isEmpty={
               games.filter(
-                (g) => g.is_active === false || !g.supabase_url || !g.donation_url?.trim()
+                (g) => g.is_active === false || !g.supabase_url
               ).length === 0 &&
               (schemaFiles || []).filter((f: any) => f.hasUnsavedDraft).length === 0 &&
               !loading
@@ -1500,7 +1790,7 @@ export default function KeepersActiveGames({
             gridClassName="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
             {games
-              .filter((g) => g.is_active === false || !g.supabase_url || !g.donation_url?.trim())
+              .filter((g) => g.is_active === false || !g.supabase_url)
               .slice(0, 4)
               .map(renderGameCard)}
             {(schemaFiles || [])
@@ -1678,9 +1968,8 @@ export default function KeepersActiveGames({
                               supabase_service_key: "",
                               icon: "",
                               is_active: true,
+                              is_keepers_only: false,
                               founder_identifier: meta.lead_contact || "",
-                              donation_url: "",
-                              payment_processor: "STRIPE",
                             });
                             setSidePanelMode("add");
                           }}
@@ -1770,6 +2059,7 @@ export default function KeepersActiveGames({
         saveFile={saveFile}
         openFiles={openFiles}
         closeFile={closeFile}
+        discardChanges={mason.discardChanges}
         splitRatio={splitRatio}
         isLight={isLight}
         addMissingStrings={addMissingStrings}

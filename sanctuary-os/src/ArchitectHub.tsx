@@ -1,21 +1,34 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, ActionButton, openModDossier } from "./shared";
-import ArchitectSupportTickets from "./hub-components/ArchitectSupportTickets";
 import { useLexicon } from "./LexiconContext";
-import MasonPostViewer from "./side-panels/MasonPostViewer";
-import ArchitectTemplateOversight from "./hub-components/ArchitectTemplateOversight";
 import { SharedMetadataEditorSidePanel } from "./side-panels/SharedMetadataEditorSidePanel";
-import { ArchitectRegistry, prefetchArchitectRegistry } from "./hub-components/SharedRegistry";
-import { ArchitectCommandScreen } from "./hub-components/CommandScreens";
-import { CollectionForge } from "./hub-components/SharedCollections";
-import { ScoutQueue } from "./hub-components/ArchitectScoutQueue";
-import { MasonQueue } from "./ArchitectMasonQueue";
-import { HomesteadDiagnostics } from "./ArchitectHomesteadDiagnostics";
+import { ArchitectCommandScreen } from "./hub-components/command-screens/ArchitectCommandScreen";
 import { FileVerificationSidePanel } from "./side-panels/ArchitectSidePanels";
-import { NexusReportsViewer } from "./side-panels/NexusReportsViewer";
 import { useStore } from "./store";
 
-export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDossier, onOpenMasonProfile, setStatus }: any) {
+const MasonPostViewer = React.lazy(() => import("./side-panels/MasonPostViewer"));
+const ArchitectSupportTickets = React.lazy(() => import("./hub-components/ArchitectSupportTickets"));
+const ArchitectTemplateOversight = React.lazy(() => import("./hub-components/ArchitectTemplateOversight"));
+const ArchitectRegistry = React.lazy(() =>
+  import("./hub-components/SharedRegistry").then((m) => ({ default: m.ArchitectRegistry }))
+);
+const CollectionForge = React.lazy(() =>
+  import("./hub-components/SharedCollections").then((m) => ({ default: m.CollectionForge }))
+);
+const ScoutQueue = React.lazy(() =>
+  import("./hub-components/ArchitectScoutQueue").then((m) => ({ default: m.ScoutQueue }))
+);
+const MasonQueue = React.lazy(() =>
+  import("./ArchitectMasonQueue").then((m) => ({ default: m.MasonQueue }))
+);
+const HomesteadDiagnostics = React.lazy(() =>
+  import("./ArchitectHomesteadDiagnostics").then((m) => ({ default: m.HomesteadDiagnostics }))
+);
+const NexusReportsViewer = React.lazy(() =>
+  import("./side-panels/NexusReportsViewer").then((m) => ({ default: m.NexusReportsViewer }))
+);
+
+export default function ArchitectHub({ userRole: _userRole, equipPlaySet: _equipPlaySet, modList, onOpenDossier, onOpenMasonProfile, setStatus }: any) {
   const { t } = useLexicon();
   const activeTab = useStore((state) => state.architectActiveTab);
   const setActiveTab = useStore((state) => state.setArchitectActiveTab);
@@ -35,7 +48,12 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
   );
 
   useEffect(() => {
-    prefetchArchitectRegistry(false);
+    const timer = setTimeout(() => {
+      import("./hub-components/SharedRegistry")
+        .then((m) => m.prefetchArchitectRegistry(false))
+        .catch(() => {});
+    }, 1500);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -172,60 +190,75 @@ export default function ArchitectHub({ userRole, equipPlaySet, modList, onOpenDo
 
       <div className="w-full flex-1 flex flex-col min-h-0">
         {activeTab === "command_center" && (
-          <ArchitectCommandScreen setStatus={setStatus} onNavigate={handleNavigate} setViewingPost={setViewingPost} />
-        )}
-        {activeTab === "registry" && (
-          <ArchitectRegistry
+          <ArchitectCommandScreen
             setStatus={setStatus}
-            isActiveTab={true}
-            initialSearch={registrySearch}
-            onClearSearch={() => setRegistrySearch("")}
-            initialActiveMod={registryTargetMod || inspectMod}
-            onClearActiveMod={() => {
-              setRegistryTargetMod(null);
-              setInspectMod(null);
-            }}
-            modList={tier0ModList}
-          />
-        )}
-        {activeTab === "collections" && <CollectionForge setStatus={setStatus} />}
-        {activeTab === "queue" && <ScoutQueue modList={tier0ModList} setStatus={setStatus} />}
-        {activeTab === "mason_queue" && <MasonQueue modList={tier0ModList} setStatus={setStatus} />}
-        {activeTab === "template_oversight" && <ArchitectTemplateOversight />}
-        {activeTab === "nexus_reports" && (
-          <NexusReportsViewer
-            onOpenDossier={
-              onOpenDossier ||
-              ((report: any) => {
-                const target = report?.metadata?.asset_full || report?.target_id || report;
-                if (target) {
-                  openModDossier(
-                    typeof target === "object" ? { ...target, isNexusView: true } : target
-                  );
-                }
-              })
-            }
-          />
-        )}
-        {activeTab === "support_tickets" && (
-          <ArchitectSupportTickets
-            setStatus={setStatus}
-            onEditMetadata={(hash) => {
-              setMetadataEditorInitialId(hash);
+            onNavigate={handleNavigate}
+            setViewingPost={setViewingPost}
+            onOpenVerifyHash={() => setIsVerifyPanelOpen(true)}
+            onOpenMetadataEditor={(hashOrId: string) => {
+              setMetadataEditorInitialId(hashOrId);
               setIsMetadataEditorOpen(true);
             }}
           />
         )}
-        {activeTab === "lab" && <HomesteadDiagnostics modList={tier0ModList} setStatus={setStatus} />}
+        <Suspense fallback={null}>
+          {activeTab === "registry" && (
+            <ArchitectRegistry
+              setStatus={setStatus}
+              isActiveTab={true}
+              initialSearch={registrySearch}
+              onClearSearch={() => setRegistrySearch("")}
+              initialActiveMod={registryTargetMod || inspectMod}
+              onClearActiveMod={() => {
+                setRegistryTargetMod(null);
+                setInspectMod(null);
+              }}
+              modList={tier0ModList}
+            />
+          )}
+          {activeTab === "collections" && <CollectionForge setStatus={setStatus} />}
+          {activeTab === "queue" && <ScoutQueue modList={tier0ModList} setStatus={setStatus} />}
+          {activeTab === "mason_queue" && <MasonQueue modList={tier0ModList} setStatus={setStatus} />}
+          {activeTab === "template_oversight" && <ArchitectTemplateOversight />}
+          {activeTab === "nexus_reports" && (
+            <NexusReportsViewer
+              hubRole="architect"
+              onOpenDossier={
+                onOpenDossier ||
+                ((report: any) => {
+                  const target = report?.metadata?.asset_full || report?.target_id || report;
+                  if (target) {
+                    openModDossier(
+                      typeof target === "object" ? { ...target, isNexusView: true } : target
+                    );
+                  }
+                })
+              }
+            />
+          )}
+          {activeTab === "support_tickets" && (
+            <ArchitectSupportTickets
+              setStatus={setStatus}
+              onEditMetadata={(hash) => {
+                setMetadataEditorInitialId(hash);
+                setIsMetadataEditorOpen(true);
+              }}
+            />
+          )}
+          {activeTab === "lab" && <HomesteadDiagnostics modList={tier0ModList} setStatus={setStatus} />}
+        </Suspense>
       </div>
-      {viewingPost && (
-        <MasonPostViewer
-          post={viewingPost}
-          onClose={() => setViewingPost(null)}
-          userId="architect"
-          onOpenMasonProfile={onOpenMasonProfile}
-        />
-      )}
+      <Suspense fallback={null}>
+        {viewingPost && (
+          <MasonPostViewer
+            post={viewingPost}
+            onClose={() => setViewingPost(null)}
+            userId="architect"
+            onOpenMasonProfile={onOpenMasonProfile}
+            initialFocusCommentId={viewingPost.scrollToCommentId || viewingPost.initialFocusCommentId || null}
+          />
+        )}
+      </Suspense>
 
       <SharedMetadataEditorSidePanel
         isOpen={isMetadataEditorOpen}

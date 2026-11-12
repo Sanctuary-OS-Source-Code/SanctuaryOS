@@ -412,13 +412,24 @@ export function ArchitectRegistry({
         originalMod && originalMod.id === activeMod.id
           ? originalMod
           : cloudMods.find((m) => m.id === activeMod.id) || null;
+      const targetTier = Math.min(4, Math.max(0, Number(activeMod.compliance_tier || 0)));
+      const isComplianceFlagged = targetTier >= 1;
+      const rawReason = String(activeMod.status_reason || "").trim();
+      const cleanedReason =
+        (activeMod.status === "stable" || activeMod.status === "verified") &&
+        /^\[ARCHITECT\b/i.test(rawReason)
+          ? null
+          : rawReason || null;
       const updatedPayload = {
         id: activeMod.id,
         name: activeMod.name,
         category_override: activeMod.category_override,
         sub_type: activeMod.sub_type,
         file_extension: activeMod.file_extension,
-        status: activeMod.status,
+        status: isComplianceFlagged ? "pending" : activeMod.status,
+        status_reason: isComplianceFlagged
+          ? `[ARCHITECT REGISTRY] Flagged Tier ${targetTier} for Oversight Compliance review`
+          : cleanedReason,
         url: activeMod.url,
         image_url: activeMod.image_url,
         latest_version: activeMod.latest_version,
@@ -426,7 +437,7 @@ export function ArchitectRegistry({
         compatible_versions: activeMod.compatible_versions,
         family_slug: activeMod.family_slug,
         mason_id: activeMod.mason_id,
-        compliance_tier: activeMod.compliance_tier,
+        compliance_tier: targetTier,
         is_paid: activeMod.is_paid || false,
         is_early_access: activeMod.is_early_access || false,
         requiredDLC: activeMod.requiredDLC || [],
@@ -442,22 +453,32 @@ export function ArchitectRegistry({
       if (!error) {
         const diff = computeAuditDiff(beforeMod, updatedPayload);
         await logArchitectAction(
-          `Updated Mod Metadata`,
+          isComplianceFlagged ? `Flagged Mod for Oversight Compliance` : `Updated Mod Metadata`,
           `mods`,
           activeMod.name || activeMod.id,
-          undefined,
+          isComplianceFlagged ? `Flagged Tier ${targetTier} (Pending)` : undefined,
           "Architect Console",
           false,
           diff
         );
-        if (Number(updatedPayload.compliance_tier || 0) > 0) {
+        if (isComplianceFlagged) {
           setActiveMod(null);
           setOriginalMod(null);
         } else {
           setOriginalMod(JSON.parse(JSON.stringify(updatedPayload)));
         }
         if (setStatus) setStatus(`${t("icon_check_circle", "check_circle")} [${activeMod.name}] ${t("alert_saved", "Saved successfully!")}`);
-        useStore.getState().pushStatus(t("saved_success", "{Mod} Updated Successfully."), "success");
+        useStore
+          .getState()
+          .pushStatus(
+            isComplianceFlagged
+              ? t(
+                  "nexus_mod_flagged_compliance_toast",
+                  "{Mod} flagged for Oversight Compliance review (Pending)."
+                )
+              : t("saved_success", "{Mod} Updated Successfully."),
+            isComplianceFlagged ? "warning" : "success"
+          );
         setPage(0);
         fetchData(true);
         fetchRelationships();
@@ -950,6 +971,47 @@ export function ArchitectRegistry({
                     maxTier={4}
                   />
                 </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label
+                  className={`text-[9px] font-black uppercase tracking-widest ml-1 flex items-center gap-1.5 ${
+                    activeMod.status === "corrupted" || activeMod.status === "broken"
+                      ? "text-[var(--danger)]"
+                      : activeMod.status === "unstable"
+                        ? "text-[var(--warning)]"
+                        : "text-[var(--subtext)] opacity-60"
+                  }`}
+                >
+                  <span className="material-symbols-outlined !text-[13px]">
+                    {t("icon_report_problem", "report_problem")}
+                  </span>
+                  {t(
+                    "label_status_issue_details",
+                    "Issue & Cause Details (Corrupted / Unstable)"
+                  )}
+                </label>
+                <textarea
+                  value={
+                    /^\[ARCHITECT\b/i.test(String(activeMod.status_reason || "").trim())
+                      ? ""
+                      : activeMod.status_reason || ""
+                  }
+                  onChange={(e) =>
+                    setActiveMod({ ...activeMod, status_reason: e.target.value })
+                  }
+                  placeholder={t(
+                    "ph_status_issue_details",
+                    "Explain what the issue is and what is causing it (shown on {Citizen} Alerts & {Mod} Dossier)..."
+                  )}
+                  className={`glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-xs font-semibold min-h-[76px] resize-y border focus:outline-none custom-scrollbar ${
+                    activeMod.status === "corrupted" || activeMod.status === "broken"
+                      ? "border-[color-mix(in_srgb,var(--danger)_35%,transparent)] focus:border-[var(--danger)]"
+                      : activeMod.status === "unstable"
+                        ? "border-[color-mix(in_srgb,var(--warning)_35%,transparent)] focus:border-[var(--warning)]"
+                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]"
+                  }`}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

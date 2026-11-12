@@ -185,14 +185,78 @@ fn extract_binary_chunk_keys(path: &Path, analyzer: &SchemaConflictAnalyzer) -> 
         }
     }
 
+    if table_offset == 0 || table_offset >= file_len {
+        return Vec::new();
+    }
+
+    if analyzer.bitmask_constant_header == Some(true) && key_size % 4 == 0 {
+        if table_offset.saturating_add(4) > file_len {
+            return Vec::new();
+        }
+        if file.seek(SeekFrom::Start(table_offset)).is_err()
+            || file.read_exact(&mut u32_buf).is_err()
+        {
+            return Vec::new();
+        }
+        let flags = read_u32_endian(&u32_buf, big_endian);
+        let key_slots = key_size / 4;
+        let mut const_slots: Vec<Option<[u8; 4]>> = vec![None; key_slots];
+        let mut const_count: u64 = 0;
+        for slot in 0..key_slots.min(8) {
+            if (flags & (1u32 << slot)) != 0 {
+                if file.read_exact(&mut u32_buf).is_err() {
+                    return Vec::new();
+                }
+                const_slots[slot] = Some(u32_buf);
+                const_count += 1;
+            }
+        }
+        let dynamic_entry_size = match entry_size.checked_sub(const_count * 4) {
+            Some(sz) if sz >= (key_size as u64).saturating_sub(const_count * 4) && sz > 0 => sz,
+            _ => return Vec::new(),
+        };
+        let entries_start = table_offset.saturating_add(4 + const_count * 4);
+        let total_dynamic_bytes = match bounded_count.checked_mul(dynamic_entry_size) {
+            Some(b) => b,
+            None => return Vec::new(),
+        };
+        if entries_start.saturating_add(total_dynamic_bytes) > file_len {
+            return Vec::new();
+        }
+
+        let mut keys = Vec::with_capacity(bounded_count.min(1024) as usize);
+        let mut entry_buf = vec![0u8; dynamic_entry_size as usize];
+        let mut full_key = vec![0u8; key_size];
+        for _ in 0..bounded_count {
+            if file.read_exact(&mut entry_buf).is_err() {
+                break;
+            }
+            let mut cursor = 0usize;
+            for slot in 0..key_slots {
+                let dst = &mut full_key[slot * 4..(slot + 1) * 4];
+                if let Some(fixed) = const_slots[slot] {
+                    dst.copy_from_slice(&fixed);
+                } else {
+                    if cursor + 4 > entry_buf.len() {
+                        return keys;
+                    }
+                    dst.copy_from_slice(&entry_buf[cursor..cursor + 4]);
+                    cursor += 4;
+                }
+            }
+            if full_key.iter().all(|&b| b == 0) {
+                continue;
+            }
+            keys.push(hex::encode(&full_key));
+        }
+        return keys;
+    }
+
     let total_table_bytes = match bounded_count.checked_mul(entry_size) {
         Some(b) => b,
         None => return Vec::new(),
     };
-    if table_offset == 0
-        || table_offset >= file_len
-        || table_offset.saturating_add(total_table_bytes) > file_len
-    {
+    if table_offset.saturating_add(total_table_bytes) > file_len {
         return Vec::new();
     }
 

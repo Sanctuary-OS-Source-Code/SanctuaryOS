@@ -43,7 +43,7 @@ const resolveCategoryIcon = (
    return t("icon_category", "category");
 };
 
-const WorkbenchCategoryBar = ({
+export const WorkbenchCategoryBar = ({
    categories,
    settings,
    selectedCategory,

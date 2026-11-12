@@ -107,7 +107,7 @@ export function SignatureQueueSidePanel({
     setKeepInCloud(val);
     try {
       localStorage.setItem("sanctuary_keep_queue_in_cloud", val ? "true" : "false");
-    } catch {}
+    } catch { }
   };
 
   // Cross-reference decrypted items against local Vault modList in volatile RAM
@@ -243,7 +243,7 @@ export function SignatureQueueSidePanel({
           candidateDecrypted.targetDesktopBlueprint &&
           !candidateDecrypted.isFullRigBlueprint
         ) {
-          shredCloudStagingRow(candidateRow.id, session).catch(() => {});
+          shredCloudStagingRow(candidateRow.id, session).catch(() => { });
           continue;
         }
 
@@ -298,31 +298,41 @@ export function SignatureQueueSidePanel({
         );
 
         if (hashesToFetch.length > 0) {
-          const chunkSize = 150;
+          const chunkSize = 60;
+          const chunks: string[][] = [];
           for (let i = 0; i < hashesToFetch.length; i += chunkSize) {
-            const chunk = hashesToFetch.slice(i, i + chunkSize);
-            const { data: vData } = await supabase
-              .from("mod_versions")
-              .select("dna_hash, mods(id, is_paid, is_early_access, url, master_author)")
-              .in("dna_hash", chunk);
-
-            if (Array.isArray(vData)) {
-              vData.forEach((dbRow: any) => {
-                const modRef = Array.isArray(dbRow.mods) ? dbRow.mods[0] : dbRow.mods;
-                if (!modRef) return;
-                enrichedItems.forEach((item, idx) => {
-                  if (item.hash === dbRow.dna_hash) {
-                    enrichedItems[idx] = {
-                      ...item,
-                      is_paid: item.is_paid ?? modRef.is_paid,
-                      is_early_access: item.is_early_access ?? modRef.is_early_access,
-                      url: item.url || modRef.url || "",
-                      author: item.author || modRef.master_author || "",
-                    };
-                  }
+            chunks.push(hashesToFetch.slice(i, i + chunkSize));
+          }
+          const batchConcurrency = 4;
+          for (let b = 0; b < chunks.length; b += batchConcurrency) {
+            const batch = chunks.slice(b, b + batchConcurrency);
+            const results = await Promise.all(
+              batch.map((chunk) =>
+                supabase
+                  .from("mod_versions")
+                  .select("dna_hash, mods(id, is_paid, is_early_access, url, master_author)")
+                  .in("dna_hash", chunk)
+              )
+            );
+            results.forEach(({ data: vData }) => {
+              if (Array.isArray(vData)) {
+                vData.forEach((dbRow: any) => {
+                  const modRef = Array.isArray(dbRow.mods) ? dbRow.mods[0] : dbRow.mods;
+                  if (!modRef) return;
+                  enrichedItems.forEach((item, idx) => {
+                    if (item.hash === dbRow.dna_hash) {
+                      enrichedItems[idx] = {
+                        ...item,
+                        is_paid: item.is_paid ?? modRef.is_paid,
+                        is_early_access: item.is_early_access ?? modRef.is_early_access,
+                        url: item.url || modRef.url || "",
+                        author: item.author || modRef.master_author || "",
+                      };
+                    }
+                  });
                 });
-              });
-            }
+              }
+            });
           }
         }
 
@@ -703,7 +713,11 @@ export function SignatureQueueSidePanel({
     const remaining = (volatileSignatureQueues || []).filter((q: any) => q?.rowId !== targetRowId);
     setVolatileSignatureQueues(remaining);
     if (remaining.length === 0) {
+      setVolatileSignatureQueue(null);
       setIsSignatureQueueOpen(false);
+    } else {
+      setActiveSignatureQueueIndex(0);
+      setVolatileSignatureQueue(remaining[0]);
     }
     setIsProcessing(false);
     useStore
@@ -810,7 +824,7 @@ export function SignatureQueueSidePanel({
         let localOverridesDirty = false;
         try {
           localOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
-        } catch {}
+        } catch { }
 
         nonAssetSelected.forEach((item) => {
           const cleanArtifactFile = (item.name || "").split(/[\\/]/).pop() || item.name;
@@ -872,7 +886,7 @@ export function SignatureQueueSidePanel({
         if (localOverridesDirty) {
           try {
             localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOverrides));
-          } catch {}
+          } catch { }
         }
 
         const { loadRules, modTiers, loadOrder, ignoredConflicts, formatModWithTier } = unpackBlueprintLoadOrder(
@@ -893,7 +907,7 @@ export function SignatureQueueSidePanel({
           useStore.getState().setIgnoredGlobal(mergedIgnored);
           try {
             localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(mergedIgnored));
-          } catch {}
+          } catch { }
         }
 
         const availableMods = rawAvailableMods.map((mName) => formatModWithTier(mName));
@@ -974,22 +988,22 @@ export function SignatureQueueSidePanel({
         const filteredExistingMods =
           removedItemsList.length > 0
             ? existingSetMods.filter((mEntry: any) => {
-                const rawM = typeof mEntry === "string" ? mEntry : String(mEntry?.name || "");
-                const cleanM =
-                  rawM
-                    .replace(/^[1-4]_[A-Za-z]+_/i, "")
-                    .split(/[\\/]/)
-                    .pop()
-                    ?.toLowerCase() || "";
-                const baseM = cleanM.replace(extRegex, "");
-                const normM = normalizeModKey(rawM);
-                const mHash = String(existingHashesMap[rawM] || "").toLowerCase();
-                if (cleanM && removedNamesLower.has(cleanM)) return false;
-                if (baseM && removedNamesLower.has(baseM)) return false;
-                if (normM && removedNormKeys.has(normM)) return false;
-                if (mHash && removedHashesLower.has(mHash)) return false;
-                return true;
-              })
+              const rawM = typeof mEntry === "string" ? mEntry : String(mEntry?.name || "");
+              const cleanM =
+                rawM
+                  .replace(/^[1-4]_[A-Za-z]+_/i, "")
+                  .split(/[\\/]/)
+                  .pop()
+                  ?.toLowerCase() || "";
+              const baseM = cleanM.replace(extRegex, "");
+              const normM = normalizeModKey(rawM);
+              const mHash = String(existingHashesMap[rawM] || "").toLowerCase();
+              if (cleanM && removedNamesLower.has(cleanM)) return false;
+              if (baseM && removedNamesLower.has(baseM)) return false;
+              if (normM && removedNormKeys.has(normM)) return false;
+              if (mHash && removedHashesLower.has(mHash)) return false;
+              return true;
+            })
             : existingSetMods;
 
         const mergedTargetMods =
@@ -1015,11 +1029,11 @@ export function SignatureQueueSidePanel({
           ignoredConflicts:
             existingTargetIdx !== -1
               ? Array.from(
-                  new Set([
-                    ...(playSets[existingTargetIdx]?.ignoredConflicts || []),
-                    ...ignoredConflicts,
-                  ])
-                )
+                new Set([
+                  ...(playSets[existingTargetIdx]?.ignoredConflicts || []),
+                  ...ignoredConflicts,
+                ])
+              )
               : ignoredConflicts,
           ignoredGhosts: playSets[existingTargetIdx]?.ignoredGhosts || [],
         };
@@ -1051,7 +1065,7 @@ export function SignatureQueueSidePanel({
             useStore.getState().activeSetName || finalName,
             useStore.getState().selectedVersion || "all",
             { playSets: updatedSets }
-          ).catch(() => {});
+          ).catch(() => { });
         }
 
         if (missingSelected.length > 0) {
@@ -1063,13 +1077,13 @@ export function SignatureQueueSidePanel({
           .pushStatus(
             keepInCloud
               ? t(
-                  "status_sig_queue_deployed_kept",
-                  "{Citizen} Signature verified: {Blueprint} deployed (payload kept in cloud for other devices)!"
-                )
+                "status_sig_queue_deployed_kept",
+                "{Citizen} Signature verified: {Blueprint} deployed (payload kept in cloud for other devices)!"
+              )
               : t(
-                  "status_sig_queue_deployed",
-                  "{Citizen} Signature verified: {Blueprint} deployed & cloud staging record shredded!"
-                ),
+                "status_sig_queue_deployed",
+                "{Citizen} Signature verified: {Blueprint} deployed & cloud staging record shredded!"
+              ),
             "success"
           );
       } else {
@@ -1083,18 +1097,18 @@ export function SignatureQueueSidePanel({
           .pushStatus(
             installedAssetCount > 0 && targets.length === 0
               ? t(
-                  "sig_queue_assets_installed_toast",
-                  "Installed staged Nexus Assets into Sanctuary OS!"
-                )
+                "sig_queue_assets_installed_toast",
+                "Installed staged Nexus Assets into Sanctuary OS!"
+              )
               : keepInCloud
                 ? t(
-                     "status_sig_queue_browser_kept",
-                     "{Citizen} Signature verified: Launching creator download pages (payload kept in cloud)!"
-                  )
+                  "status_sig_queue_browser_kept",
+                  "{Citizen} Signature verified: Launching creator download pages (payload kept in cloud)!"
+                )
                 : t(
-                    "status_sig_queue_browser_launched",
-                    "{Citizen} Signature verified: Launching creator download pages & shredding cloud record!"
-                  ),
+                  "status_sig_queue_browser_launched",
+                  "{Citizen} Signature verified: Launching creator download pages & shredding cloud record!"
+                ),
             "success"
           );
       }
@@ -1211,19 +1225,17 @@ export function SignatureQueueSidePanel({
       <div
         key={`${mod.id}_${idx}`}
         onClick={handleCardClick}
-        className={`glass-surface rounded-2xl p-4 border transition-all flex flex-col justify-between gap-3 cursor-pointer group ${
-          mod.selected
+        className={`glass-surface rounded-2xl p-4 border transition-all flex flex-col justify-between gap-3 cursor-pointer group ${mod.selected
             ? mod.isOwned || isNexusAsset
               ? "border-[color-mix(in_srgb,var(--success)_24%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)]"
               : "border-[color-mix(in_srgb,var(--warning)_28%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_55%,transparent)]"
             : "border-[color-mix(in_srgb,var(--text)_6%,transparent)] opacity-55"
-        }`}
+          }`}
       >
         <div className="flex items-start gap-3 min-w-0 w-full">
           <div
-            className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
-              mod.isOwned || isNexusAsset ? "text-[var(--success)]" : "text-[var(--warning)]"
-            }`}
+            className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${mod.isOwned || isNexusAsset ? "text-[var(--success)]" : "text-[var(--warning)]"
+              }`}
           >
             <span className="material-symbols-outlined !text-[20px]">
               {isNexusAsset
@@ -1238,11 +1250,15 @@ export function SignatureQueueSidePanel({
 
           <div className="flex flex-col gap-0.5 min-w-0 flex-1">
             <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate group-hover:text-[var(--accent)] transition-colors">
-              {cleanSearchName(mod.displayName || mod.name, activeGameSchema)}
+              {formatCleanModTitle(
+                cleanSearchName(mod.displayName || mod.name, activeGameSchema)
+              )}
             </span>
             <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
               <span className="truncate">
-                {customAuthor || t("unknown_mason", "Unknown {Mason}")}
+                {customAuthor
+                  ? formatCleanModTitle(customAuthor)
+                  : t("unknown_mason", "Unknown {Mason}")}
               </span>
               {mod.dependencyOf && (
                 <span className="text-[9px] font-bold text-[var(--accent)] truncate">
@@ -1265,672 +1281,702 @@ export function SignatureQueueSidePanel({
             )}
 
             {isNexusAsset ? (
-              <span
-                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]`}
-              >
-                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
-                  {t("icon_bolt", "bolt")}
+                <span className={VAULT_CHIP_CLASS}>
+                  <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
+                    {t("icon_bolt", "bolt")}
+                  </span>
+                  <span>{t("sig_queue_badge_direct_install", "Direct OS Install")}</span>
                 </span>
-                <span>{t("sig_queue_badge_direct_install", "Direct OS Install")}</span>
-              </span>
-            ) : mod.isOwned ? (
-              <span
-                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]`}
-              >
-                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
-                  {t("icon_check_circle", "check_circle")}
-                </span>
-                <span>{t("status_in_vault", "In {Vault}")}</span>
-              </span>
-            ) : (
-              <span
-                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]`}
-              >
-                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
-                  {t("icon_download", "download")}
-                </span>
-                <span>{t("sig_queue_badge_missing", "ACQUIRE")}</span>
-              </span>
+                ) : mod.isOwned ? (
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--success)]">
+                      {t("icon_check_circle", "check_circle")}
+                    </span>
+                    <span>{t("status_in_vault", "In {Vault}")}</span>
+                  </span>
+                  ) : (
+                    <span className={VAULT_CHIP_CLASS}>
+                      <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
+                        {t("icon_download", "download")}
+                      </span>
+                      <span>{t("sig_queue_badge_missing", "Acquire")}</span>
+                    </span>
             )}
 
-            {mod.isDependency && (
-              <span className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                  {t("icon_account_tree", "account_tree")}
-                </span>
-                <span>{t("staging_badge_dependency", "Dependency")}</span>
-              </span>
-            )}
+                    {mod.isDependency && (
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
+                          {t("icon_account_tree", "account_tree")}
+                        </span>
+                        <span>{t("staging_badge_dependency", "Dependency")}</span>
+                      </span>
+                    )}
 
-            {mod.is_early_access && (
-              <span className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
-                  {t("icon_science", "science")}
-                </span>
-                <span>{t("badge_early_access", "Early Access")}</span>
-              </span>
-            )}
+                    {mod.is_early_access && (
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--accent)]">
+                          {t("icon_science", "science")}
+                        </span>
+                        <span>{t("badge_early_access", "Early Access")}</span>
+                      </span>
+                    )}
 
-            {mod.is_paid && (
-              <span className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
-                  {t("icon_monetization_on", "monetization_on")}
-                </span>
-                <span>{t("badge_paid", "Paid")}</span>
-              </span>
-            )}
-          </div>
+                    {mod.is_paid && (
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">
+                          {t("icon_monetization_on", "monetization_on")}
+                        </span>
+                        <span>{t("badge_paid", "Paid")}</span>
+                      </span>
+                    )}
+                  </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenUrl(targetUrl);
-              }}
-              className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] rounded-lg transition-all group/btn relative cursor-pointer"
-            >
-              <span className="material-symbols-outlined !text-[14px]">
-                {t("icon_open_in_new", "open_in_new")}
-              </span>
-              <HoverTooltip
-                title={t("import_intel", "Open Creator Page")}
-                variant="default"
-                className="group-hover/btn:flex z-[200]"
-              />
-            </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenUrl(targetUrl);
+                      }}
+                      className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] rounded-lg transition-all group/btn relative cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {t("icon_open_in_new", "open_in_new")}
+                      </span>
+                      <HoverTooltip
+                        title={t("import_intel", "Open Creator Page")}
+                        variant="default"
+                        className="group-hover/btn:flex z-[200]"
+                      />
+                    </button>
 
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (mod.selected) {
-                  removeItemFromQueue(mod.id);
-                } else {
-                  toggleItemSelection(mod.id);
-                }
-              }}
-              className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] rounded-lg transition-all group/btn relative cursor-pointer"
-            >
-              <span className="material-symbols-outlined !text-[14px]">
-                {mod.selected ? t("icon_close", "close") : t("icon_undo", "undo")}
-              </span>
-              <HoverTooltip
-                title={
-                  mod.selected
-                    ? t("defcon_btn_skip", "Skip")
-                    : t("staging_btn_add_mod", "Add")
-                }
-                variant={mod.selected ? "danger" : "default"}
-                className="group-hover/btn:flex z-[200]"
-              />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (mod.selected) {
+                          removeItemFromQueue(mod.id);
+                        } else {
+                          toggleItemSelection(mod.id);
+                        }
+                      }}
+                      className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] rounded-lg transition-all group/btn relative cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined !text-[14px]">
+                        {mod.selected ? t("icon_close", "close") : t("icon_undo", "undo")}
+                      </span>
+                      <HoverTooltip
+                        title={
+                          mod.selected
+                            ? t("defcon_btn_skip", "Skip")
+                            : t("staging_btn_add_mod", "Add")
+                        }
+                        variant={mod.selected ? "danger" : "default"}
+                        className="group-hover/btn:flex z-[200]"
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
   };
 
-  return createPortal(
-    <SidePanel
-      isOpen={true}
-      onClose={() => setIsSignatureQueueOpen(false)}
-      title={t("sig_queue_title", "Signature Queue")}
-      subtitle={t("sig_queue_subtitle", "Volatile In-Memory Resolution • Awaiting {Citizen}'s Signature")}
-      icon={t("icon_draw", "draw")}
-      iconColorClass="text-[var(--accent)]"
-      widthClass="w-[90vw] md:w-[760px]"
-      backdropZ="z-[100000]"
-      panelZ="z-[100001]"
-    >
-      <div className="flex flex-col gap-3.5 mt-2 relative z-10 w-full pb-8">
-        {Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 1 && (
-          <UniversalGroup
-            title={`${t("sig_queue_select_queue", "Active {Blueprint} Queues")} (${volatileSignatureQueues.length})`}
-            icon={t("icon_layers", "layers")}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
-              {volatileSignatureQueues.map((qItem: ResolvedStagedPayload, qIdx: number) => {
-                const isSelectedQueue = qIdx === activeSignatureQueueIndex;
-                const addCnt = Array.isArray(qItem.resolvedItems) ? qItem.resolvedItems.length : 0;
-                const remCnt = Array.isArray(qItem.payload?.removedItems)
-                  ? qItem.payload.removedItems.length
-                  : 0;
-                return (
-                  <button
-                    key={qItem.rowId || qIdx}
-                    type="button"
-                    onClick={() => {
-                      setActiveSignatureQueueIndex(qIdx);
-                      setVisibleLimit(80);
-                    }}
-                    className={`glass-surface rounded-xl p-3 border text-left transition-all flex items-center justify-between gap-2.5 cursor-pointer ${
-                      isSelectedQueue
-                        ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
-                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span
-                        className={`material-symbols-outlined !text-[18px] shrink-0 ${
-                          isSelectedQueue ? "text-[var(--accent)]" : "text-[var(--subtext)]"
-                        }`}
-                      >
-                        {t("icon_map", "map")}
-                      </span>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-black text-[var(--text)] truncate">
-                          {qItem.payload?.blueprintName ||
-                            qItem.payload?.targetDesktopBlueprint ||
-                            t("staging_mode_blueprint", "Curated {Blueprint}")}
-                        </span>
-                        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
-                          {qItem.payload?.sourceDevice || "PWA / Web"}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {qItem.isCompletedLocally && (
-                        <span
-                          className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]`}
-                        >
-                          <span className="material-symbols-outlined !text-[11px]">
-                            {t("icon_check_circle", "check_circle")}
-                          </span>
-                          <span>{t("sig_queue_badge_completed_short", "Completed Here")}</span>
-                        </span>
-                      )}
-                      {addCnt > 0 && (
-                        <span
-                          className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]`}
-                        >
-                          +{addCnt}
-                        </span>
-                      )}
-                      {remCnt > 0 && (
-                        <span
-                          className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]`}
-                        >
-                          -{remCnt}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </UniversalGroup>
-        )}
-
-        <SidePanelHeroCard
-          icon={isBpMode ? t("icon_map", "map") : t("icon_download", "download")}
-          overline={`${queue.payload.sourceDevice || "PWA / Web"} • ${
-            isBpMode
-              ? t("staging_mode_blueprint", "Curated {Blueprint}")
-              : t("staging_mode_mod_queue", "{Mod} Download Queue")
-          }`}
-          title={
-            isBpMode ? (
-              isEditingBpTitle ? (
-                <input
-                  autoFocus
-                  type="text"
-                  value={queue.payload.blueprintName || ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setVolatileSignatureQueue((prev: ResolvedStagedPayload | null) =>
-                      prev ? { ...prev, payload: { ...prev.payload, blueprintName: val } } : null
-                    );
-                  }}
-                  onBlur={() => setIsEditingBpTitle(false)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === "Escape") {
-                      setIsEditingBpTitle(false);
-                    }
-                  }}
-                  placeholder={t("staging_payload_name_ph", "e.g. Weekend Loadout...")}
-                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] focus:border-[var(--accent)] rounded-xl px-3 py-1 text-sm font-black text-[var(--text)] outline-none transition-colors"
-                />
-              ) : (
-                <div
-                  onClick={() => setIsEditingBpTitle(true)}
-                  className="inline-flex items-center gap-2 cursor-pointer group/editname max-w-full"
-                >
-                  <span className="truncate">
-                    {queue.payload.blueprintName ||
-                      t("staging_mode_blueprint", "Curated {Blueprint}")}
-                  </span>
-                  <span className="material-symbols-outlined !text-[15px] text-[var(--subtext)] opacity-60 group-hover/editname:opacity-100 group-hover/editname:text-[var(--accent)] transition-all shrink-0">
-                    {t("icon_edit", "edit")}
-                  </span>
-                </div>
-              )
-            ) : (
-              t("staging_mode_mod_queue", "{Mod} Download Queue")
-            )
-          }
-          description={
-            queue.payload.notes ||
-            (missingSelected.length > 0
-              ? t(
-                  "sig_queue_step_browser_desc",
-                  "Opens missing {mods} in the Side Panel Browser to their {masons}' official download pages."
-                )
-              : t(
-                  "sig_queue_step_blueprint_desc",
-                  "Saves this {Blueprint} on your PC and automatically links any {mods} already in your {Vault}."
-                ))
-          }
-          badge={
-            queue.isCompletedLocally
-              ? t("sig_queue_badge_completed_local", "Completed Here • Pending on Other Systems")
-              : t("sig_queue_encrypted_badge", "AES-256-GCM DECRYPTED")
-          }
-          badgeIcon={
-            queue.isCompletedLocally
-              ? t("icon_check_circle", "check_circle")
-              : t("icon_encrypted", "encrypted")
-          }
-          badges={
-            depsCount > 0
-              ? [
-                  {
-                    label: `${depsCount} ${t("section_deps_title", "Deps")}`,
-                    icon: t("icon_account_tree", "account_tree"),
-                  },
-                ]
-              : []
-          }
-          variant={queue.isCompletedLocally ? "success" : "accent"}
-        />
-
-        {/* Filter Tiles & Search Bar */}
-        <div className="flex flex-col gap-3 w-full">
-          <div className="grid grid-cols-3 gap-3 w-full">
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              icon={t("icon_published_with_changes", "published_with_changes")}
-              label={t("sig_queue_tab_changes", "Changes & Alerts")}
-              number={totalChangesCount.toString()}
-              isActive={filterTab === "CHANGES"}
-              onClick={() => setFilterTab("CHANGES")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              icon={t("icon_download", "download")}
-              label={t("filter_missing", "Missing")}
-              number={totalMissingCount.toString()}
-              isActive={filterTab === "MISSING"}
-              onClick={() => setFilterTab("MISSING")}
-            />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              icon={t("icon_list", "list")}
-              label={t("filter_all", "All")}
-              number={totalAllCount.toString()}
-              isActive={filterTab === "ALL"}
-              onClick={() => setFilterTab("ALL")}
-            />
-          </div>
-          <ActionPill
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            searchPlaceholder={t("search_ph", "Search {mods}...")}
-          />
-        </div>
-
-        {/* Item-by-Item Diff Queue — Clearly Separated Into Yeeting, Needed, Ready in Vault, and In Blueprint */}
-        {filterTab !== "MISSING" &&
-          Array.isArray(queue.payload.removedItems) &&
-          queue.payload.removedItems.length > 0 && (
-          <UniversalGroup
-            title={`${t("sig_queue_group_removing", "Removing from {Blueprint}")} (${queue.payload.removedItems.length})`}
-            icon={t("icon_remove_circle_outline", "remove_circle_outline")}
-            headerColorClass="text-[var(--danger)]"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
-              {queue.payload.removedItems.map((remItem, rIdx) => (
-                <div
-                  key={`rem_${remItem.id || remItem.name}_${rIdx}`}
-                  className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--danger)]">
-                      <span className="material-symbols-outlined !text-[20px]">
-                        {t("icon_remove_circle_outline", "remove_circle_outline")}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate">
-                        {cleanSearchName(remItem.displayName || remItem.name, activeGameSchema)}
-                      </span>
-                      <span className="text-[10px] font-bold text-[var(--danger)] truncate">
-                        {t("staging_badge_removing", "Queued to {Remove}")}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVolatileSignatureQueue((prev: ResolvedStagedPayload | null) => {
-                        if (!prev) return null;
-                        return {
-                          ...prev,
-                          payload: {
-                            ...prev.payload,
-                            removedItems: (prev.payload.removedItems || []).filter(
-                              (_, idx) => idx !== rIdx
-                            ),
-                          },
-                        };
-                      });
-                    }}
-                    className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] rounded-lg transition-all cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined !text-[14px]">
-                      {t("icon_undo", "undo")}
-                    </span>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </UniversalGroup>
-        )}
-
-        {premiumItems.length > 0 && (
-          <UniversalGroup
-            title={`${t("premium_detected", "Premium {Mods} Detected")} (${premiumItems.length})`}
-            icon={t("icon_monetization_on", "monetization_on")}
-            headerColorClass="text-[var(--warning)]"
-            headerActions={
-              premiumItems.some((m) => m.selected) ? (
-                <ActionButton
-                  variant="glass"
-                  icon={t("icon_skip_next", "skip_next")}
-                  onClick={skipAllPremium}
-                  className="!px-3 !py-1.5"
-                >
-                  {t("btn_skip_premium", "Skip Premium")}
-                </ActionButton>
-              ) : undefined
-            }
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
-              {premiumItems.slice(0, visibleLimit).map((m, i) => renderArtifactRow(m, i))}
-            </div>
-          </UniversalGroup>
-        )}
-
-        {missingStandardItems.length > 0 && (
-          <UniversalGroup
-            title={`${t("sig_queue_group_missing", "Needed — Acquire from {Masons}")} (${missingStandardItems.length})`}
-            icon={t("icon_download", "download")}
-            headerColorClass="text-[var(--warning)]"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
-              {missingStandardItems.slice(0, visibleLimit).map((m, i) => renderArtifactRow(m, i))}
-            </div>
-            {missingStandardItems.length > visibleLimit && (
-              <div className="flex justify-center pt-3">
-                <ActionButton
-                  variant="glass"
-                  icon={t("icon_expand_more", "expand_more")}
-                  onClick={() => setVisibleLimit((prev) => prev + 80)}
-                >
-                  {`${t("load_more", "Load More")} (${missingStandardItems.length - visibleLimit})`}
-                </ActionButton>
-              </div>
-            )}
-          </UniversalGroup>
-        )}
-
-        {ownedStandardItems.length > 0 && (
-          <UniversalGroup
-            title={`${t("sig_queue_group_owned", "Ready in {Vault}")} (${ownedStandardItems.length})`}
-            icon={t("icon_check_circle", "check_circle")}
-            headerColorClass="text-[var(--success)]"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
-              {ownedStandardItems.slice(0, visibleLimit).map((m, i) => renderArtifactRow(m, i))}
-            </div>
-            {ownedStandardItems.length > visibleLimit && (
-              <div className="flex justify-center pt-3">
-                <ActionButton
-                  variant="glass"
-                  icon={t("icon_expand_more", "expand_more")}
-                  onClick={() => setVisibleLimit((prev) => prev + 80)}
-                >
-                  {`${t("load_more", "Load More")} (${ownedStandardItems.length - visibleLimit})`}
-                </ActionButton>
-              </div>
-            )}
-          </UniversalGroup>
-        )}
-
-        {filterTab === "ALL" && filteredExistingBpMods.length > 0 && (
-          <UniversalGroup
-            title={`${t("sig_queue_group_existing", "In {Blueprint}")} (${filteredExistingBpMods.length})`}
-            icon={t("icon_inventory_2", "inventory_2")}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
-              {filteredExistingBpMods.slice(0, visibleLimit).map((mod: any, eIdx: number) => (
-                <div
-                  key={`exist_${mod.hash || mod.name}_${eIdx}`}
-                  onClick={() => onOpenDossier?.(mod)}
-                  className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all flex items-center justify-between gap-3 cursor-pointer group"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-                      <span className="material-symbols-outlined !text-[20px]">
-                        {getModIcon(mod, activeGameSchema, t)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate group-hover:text-[var(--accent)] transition-colors">
-                        {cleanSearchName(mod.displayName || mod.name, activeGameSchema)}
-                      </span>
-                      <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
-                        <span className="truncate">
-                          {mod.author || t("filter_in_blueprint", "In {Blueprint}")}
-                        </span>
-                        {mod.is_paid && (
-                          <span className={`${VAULT_CHIP_CLASS} !px-1.5 !py-0.5`}>
-                            <span className="material-symbols-rounded !text-[11px] text-[var(--warning)]">
-                              {t("icon_monetization_on", "monetization_on")}
-                            </span>
-                            <span>{t("badge_paid", "Paid")}</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setVolatileSignatureQueue((prev: ResolvedStagedPayload | null) => {
-                        if (!prev) return null;
-                        const nextRem = [
-                          ...(prev.payload.removedItems || []),
-                          {
-                            id: String(mod.dbId || mod.hash || mod.name),
-                            name: mod.name,
-                            displayName: mod.displayName || mod.name,
-                            hash: mod.hash,
-                            author: mod.author,
-                          },
-                        ];
-                        return {
-                          ...prev,
-                          payload: {
-                            ...prev.payload,
-                            removedItems: nextRem,
-                          },
-                        };
-                      });
-                    }}
-                    className="h-7 px-2.5 shrink-0 flex items-center justify-center gap-1 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] rounded-lg text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined !text-[13px]">
-                      {t("icon_remove_circle_outline", "remove_circle_outline")}
-                    </span>
-                    <span>{t("btn_remove", "{Remove}")}</span>
-                  </button>
-                </div>
-              ))}
-            </div>
-            {filteredExistingBpMods.length > visibleLimit && (
-              <div className="flex justify-center pt-3">
-                <ActionButton
-                  variant="glass"
-                  icon={t("icon_expand_more", "expand_more")}
-                  onClick={() => setVisibleLimit((prev) => prev + 80)}
-                >
-                  {`${t("load_more", "Load More")} (${filteredExistingBpMods.length - visibleLimit})`}
-                </ActionButton>
-              </div>
-            )}
-          </UniversalGroup>
-        )}
-
-        {/* Citizen Signature, Shred vs Keep in Cloud Option, and In-Panel Action Buttons */}
-        <UniversalGroup
-          title={t("sig_queue_title", "Citizen Signature")}
-          icon={t("icon_verified_user", "verified_user")}
-        >
-          <div className="flex flex-col gap-3">
-            <div
-              onClick={() => handleSetKeepInCloud(!keepInCloud)}
-              className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-between gap-3 cursor-pointer transition-all"
+            return createPortal(
+            <SidePanel
+              isOpen={true}
+              onClose={() => setIsSignatureQueueOpen(false)}
+              title={t("sig_queue_title", "Signature Queue")}
+              subtitle={t("sig_queue_subtitle", "Volatile In-Memory Resolution • Awaiting {Citizen}'s Signature")}
+              icon={t("icon_draw", "draw")}
+              iconColorClass="text-[var(--accent)]"
+              widthClass="w-[90vw] md:w-[760px]"
+              backdropZ="z-[100000]"
+              panelZ="z-[100001]"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <div
-                  className={`w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${
-                    shredAfterDeploy ? "text-[var(--danger)]" : "text-[var(--success)]"
-                  }`}
-                >
-                  <span className="material-symbols-outlined !text-[18px]">
-                    {shredAfterDeploy
-                      ? t("icon_delete_sweep", "delete_sweep")
-                      : t("icon_cloud_done", "cloud_done")}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-xs font-black text-[var(--text)] tracking-tight leading-snug">
-                    {t("sig_queue_shred_after_deploy", "Shred After Deploy")}
-                  </span>
-                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 leading-relaxed">
-                    {shredAfterDeploy
-                      ? t(
-                          "sig_queue_shred_after_deploy_desc",
-                          "Immediately wipe the encrypted payload from the cloud once deployed."
-                        )
-                      : t(
-                          "sig_queue_leave_in_cloud_desc",
-                          "Keep encrypted payload in the cloud so you can also deploy it on a second PC."
-                        )}
-                  </span>
-                </div>
-              </div>
+              <div className="flex flex-col gap-3.5 mt-2 relative z-10 w-full pb-8">
+                {Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 1 && (
+                  <UniversalGroup
+                    title={`${t("sig_queue_select_queue", "Active {Blueprint} Queues")} (${volatileSignatureQueues.length})`}
+                    icon={t("icon_layers", "layers")}
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+                      {volatileSignatureQueues.map((qItem: ResolvedStagedPayload, qIdx: number) => {
+                        const isSelectedQueue = qIdx === activeSignatureQueueIndex;
+                        const addCnt = Array.isArray(qItem.resolvedItems) ? qItem.resolvedItems.length : 0;
+                        const remCnt = Array.isArray(qItem.payload?.removedItems)
+                          ? qItem.payload.removedItems.length
+                          : 0;
+                        return (
+                          <button
+                            key={qItem.rowId || qIdx}
+                            type="button"
+                            onClick={() => {
+                              setActiveSignatureQueueIndex(qIdx);
+                              setVisibleLimit(80);
+                            }}
+                            className={`glass-surface rounded-xl p-3 border text-left transition-all flex items-center justify-between gap-2.5 cursor-pointer ${isSelectedQueue
+                                ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
+                                : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                              }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span
+                                className={`material-symbols-outlined !text-[18px] shrink-0 ${isSelectedQueue ? "text-[var(--accent)]" : "text-[var(--subtext)]"
+                                  }`}
+                              >
+                                {t("icon_map", "map")}
+                              </span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-black text-[var(--text)] truncate">
+                                  {qItem.payload?.blueprintName ||
+                                    qItem.payload?.targetDesktopBlueprint ||
+                                    t("staging_mode_blueprint", "Curated {Blueprint}")}
+                                </span>
+                                <span className="text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
+                                  {qItem.payload?.sourceDevice || "PWA / Web"}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {qItem.isCompletedLocally && (
+                                    <span className={VAULT_CHIP_CLASS}>
+                                      <span className="material-symbols-outlined !text-[11px] text-[var(--success)]">
+                                        {t("icon_check_circle", "check_circle")}
+                                      </span>
+                                      <span>{t("sig_queue_badge_completed_short", "Completed Here")}</span>
+                                    </span>
+                      )}
+                                    {addCnt > 0 && (
+                                        <span className={`${VAULT_CHIP_CLASS} text-[var(--success)]`}>
+                                          +{addCnt}
+                                        </span>
+                      )}
+                                        {remCnt > 0 && (
+                                            <span className={`${VAULT_CHIP_CLASS} text-[var(--danger)]`}>
+                                              -{remCnt}
+                                            </span>
+                      )}
+                                          </div>
+                  </button>
+                                    );
+              })}
+                                  </div>
+                                </UniversalGroup>
+                              )}
 
-              <button
-                type="button"
-                role="switch"
-                aria-checked={shredAfterDeploy}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSetKeepInCloud(!keepInCloud);
-                }}
-                className={`sa-glass-toggle shrink-0 ${shredAfterDeploy ? "is-on" : ""}`}
-                style={{ "--toggle-accent": "var(--danger)" } as React.CSSProperties}
-              >
-                <span className="sa-glass-toggle-thumb" />
-              </button>
-            </div>
+                              <SidePanelHeroCard
+                                icon={isBpMode ? t("icon_map", "map") : t("icon_download", "download")}
+                                overline={`${queue.payload.sourceDevice || "PWA / Web"} • ${isBpMode
+                                    ? t("staging_mode_blueprint", "Curated {Blueprint}")
+                                    : t("staging_mode_mod_queue", "{Mod} Download Queue")
+                                  }`}
+                                title={
+                                  isBpMode ? (
+                                    isEditingBpTitle ? (
+                                      <input
+                                        autoFocus
+                                        type="text"
+                                        value={queue.payload.blueprintName || ""}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setVolatileSignatureQueue((prev: ResolvedStagedPayload | null) =>
+                                            prev ? { ...prev, payload: { ...prev.payload, blueprintName: val } } : null
+                                          );
+                                        }}
+                                        onBlur={() => setIsEditingBpTitle(false)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter" || e.key === "Escape") {
+                                            setIsEditingBpTitle(false);
+                                          }
+                                        }}
+                                        placeholder={t("staging_payload_name_ph", "e.g. Weekend Loadout...")}
+                                        className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] focus:border-[var(--accent)] rounded-xl px-3 py-1 text-sm font-black text-[var(--text)] outline-none transition-colors"
+                                      />
+                                    ) : (
+                                      <div
+                                        onClick={() => setIsEditingBpTitle(true)}
+                                        className="inline-flex items-center gap-2 cursor-pointer group/editname max-w-full"
+                                      >
+                                        <span className="truncate">
+                                          {queue.payload.blueprintName ||
+                                            t("staging_mode_blueprint", "Curated {Blueprint}")}
+                                        </span>
+                                        <span className="material-symbols-outlined !text-[15px] text-[var(--subtext)] opacity-60 group-hover/editname:opacity-100 group-hover/editname:text-[var(--accent)] transition-all shrink-0">
+                                          {t("icon_edit", "edit")}
+                                        </span>
+                                      </div>
+                                    )
+                                  ) : (
+                                    t("staging_mode_mod_queue", "{Mod} Download Queue")
+                                  )
+                                }
+                                description={
+                                  queue.payload.notes ||
+                                  (missingSelected.length > 0
+                                    ? t(
+                                      "sig_queue_step_browser_desc",
+                                      "Opens missing {mods} in the Side Panel Browser to their {masons}' official download pages."
+                                    )
+                                    : t(
+                                      "sig_queue_step_blueprint_desc",
+                                      "Saves this {Blueprint} on your PC and automatically links any {mods} already in your {Vault}."
+                                    ))
+                                }
+                                badge={
+                                  queue.isCompletedLocally
+                                    ? t("sig_queue_badge_completed_local", "Completed Here • Pending on Other Systems")
+                                    : t("sig_queue_encrypted_badge", "AES-256-GCM DECRYPTED")
+                                }
+                                badgeIcon={
+                                  queue.isCompletedLocally
+                                    ? t("icon_check_circle", "check_circle")
+                                    : t("icon_encrypted", "encrypted")
+                                }
+                                badges={
+                                  depsCount > 0
+                                    ? [
+                                      {
+                                        label: `${depsCount} ${t("section_deps_title", "Deps")}`,
+                                        icon: t("icon_account_tree", "account_tree"),
+                                      },
+                                    ]
+                                    : []
+                                }
+                                variant={queue.isCompletedLocally ? "success" : "accent"}
+        >
+                              <div className="pt-3 mt-1 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5 w-full">
+                                <div className="flex flex-wrap items-center gap-2 w-full">
+                                  <ActionButton
+                                    variant="primary"
+                                    icon={
+                                      isBpMode
+                                        ? t("icon_rocket_launch", "rocket_launch")
+                                        : t("icon_open_in_new", "open_in_new")
+                                    }
+                                    disabled={
+                                      isProcessing ||
+                                      (selectedItems.length === 0 &&
+                                        (!Array.isArray(queue.payload.removedItems) ||
+                                          queue.payload.removedItems.length === 0))
+                                    }
+                                    onClick={() => handleSignAndExecute(true)}
+                                    className="flex-1 min-w-[190px] justify-center !h-9 !text-[10.5px]"
+                                  >
+                                    {isBpMode
+                                      ? missingSelected.length > 0
+                                        ? t(
+                                          "sig_queue_btn_deploy_and_download",
+                                          "Deploy {Blueprint} & Open Missing Downloads"
+                                        )
+                                        : t("sig_queue_btn_deploy_blueprint", "Sign & Deploy {Blueprint}")
+                                      : t("sig_queue_btn_continue_browser", "Continue to Creator Pages")}
+                                  </ActionButton>
 
-            <div className="flex flex-col gap-2.5 w-full">
+                                  {isBpMode && (
+                                    <ActionButton
+                                      variant="glass"
+                                      icon={t("icon_save", "save")}
+                                      disabled={
+                                        isProcessing ||
+                                        (selectedItems.length === 0 &&
+                                          (!Array.isArray(queue.payload.removedItems) ||
+                                            queue.payload.removedItems.length === 0))
+                                      }
+                                      onClick={() => handleSignAndExecute(false)}
+                                      className="justify-center !h-9 !px-3.5 !text-[10px]"
+                                    >
+                                      {t("sig_queue_btn_save_blueprint_only", "Save {Blueprint} Only")}
+                                    </ActionButton>
+                                  )}
+
+                                  <ActionButton
+                                    variant="glass"
+                                    icon={t("icon_delete_forever", "delete_forever")}
+                                    disabled={isProcessing}
+                                    onClick={handleRejectAndShred}
+                                    className="justify-center !h-9 !px-3.5 !text-[10px] [&_span.material-symbols-outlined]:!text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)]"
+                                  >
+                                    {t("sig_queue_btn_reject_shred", "Reject & Shred")}
+                                  </ActionButton>
+                                </div>
+
+                                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                  <div
+                                    onClick={() => handleSetKeepInCloud(!keepInCloud)}
+                                    className="inline-flex items-center gap-2.5 cursor-pointer select-none group/shredopt"
+                                  >
+                                    <button
+                                      type="button"
+                                      role="switch"
+                                      aria-checked={shredAfterDeploy}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSetKeepInCloud(!keepInCloud);
+                                      }}
+                                      className={`sa-glass-toggle shrink-0 scale-90 ${shredAfterDeploy ? "is-on" : ""
+                                        }`}
+                                      style={
+                                        { "--toggle-accent": "var(--danger)" } as React.CSSProperties
+                                      }
+                                    >
+                                      <span className="sa-glass-toggle-thumb" />
+                                    </button>
+                                    <span className="text-[11px] font-bold text-[var(--subtext)] group-hover/shredopt:text-[var(--text)] transition-colors">
+                                      {shredAfterDeploy
+                                        ? t("sig_queue_shred_after_deploy", "Shred After Deploy")
+                                        : t(
+                                          "sig_queue_keep_in_cloud_short",
+                                          "Keep in Cloud for Other Systems"
+                                        )}
+                                    </span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    disabled={isProcessing}
+                                    onClick={handleToggleCompleteLocally}
+                                    className="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-[var(--subtext)] hover:text-[var(--accent)] transition-colors cursor-pointer disabled:opacity-50"
+                                  >
+                                    <span className="material-symbols-outlined !text-[14px]">
+                                      {queue.isCompletedLocally
+                                        ? t("icon_undo", "undo")
+                                        : t("icon_task_alt", "task_alt")}
+                                    </span>
+                                    <span>
+                                      {queue.isCompletedLocally
+                                        ? t(
+                                          "sig_queue_btn_mark_pending_local",
+                                          "Mark Pending on This System"
+                                        )
+                                        : t(
+                                          "sig_queue_btn_mark_complete_local",
+                                          "Mark Complete on This System"
+                                        )}
+                                    </span>
+                                  </button>
+                                </div>
+                              </div>
+                            </SidePanelHeroCard>
+
+                            {/* Filter Tiles & Search Bar */}
+                            <div className="flex flex-col gap-3 w-full">
+                              <div className="grid grid-cols-3 gap-3 w-full">
+                                <DashboardStatTile
+                                  variant="filter"
+                                  className="!w-full"
+                                  icon={t("icon_published_with_changes", "published_with_changes")}
+                                  label={t("sig_queue_tab_changes", "Changes & Alerts")}
+                                  number={totalChangesCount.toString()}
+                                  isActive={filterTab === "CHANGES"}
+                                  onClick={() => setFilterTab("CHANGES")}
+                                />
+                                <DashboardStatTile
+                                  variant="filter"
+                                  className="!w-full"
+                                  icon={t("icon_download", "download")}
+                                  label={t("filter_missing", "Missing")}
+                                  number={totalMissingCount.toString()}
+                                  isActive={filterTab === "MISSING"}
+                                  onClick={() => setFilterTab("MISSING")}
+                                />
+                                <DashboardStatTile
+                                  variant="filter"
+                                  className="!w-full"
+                                  icon={t("icon_list", "list")}
+                                  label={t("filter_all", "All")}
+                                  number={totalAllCount.toString()}
+                                  isActive={filterTab === "ALL"}
+                                  onClick={() => setFilterTab("ALL")}
+                                />
+                              </div>
+                              <ActionPill
+                                searchQuery={searchQuery}
+                                setSearchQuery={setSearchQuery}
+                                searchPlaceholder={t("search_ph", "Search {mods}...")}
+                              />
+                            </div>
+
+                            {/* Item-by-Item Diff Queue — Clearly Separated Into Yeeting, Needed, Ready in Vault, and In Blueprint */}
+                            {filterTab !== "MISSING" &&
+                              Array.isArray(queue.payload.removedItems) &&
+                              queue.payload.removedItems.length > 0 && (
+                                <UniversalGroup
+                                  title={`${t("sig_queue_group_removing", "Removing from {Blueprint}")} (${queue.payload.removedItems.length})`}
+                                  icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+                                  headerColorClass="text-[var(--danger)]"
+                                >
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
+                                    {queue.payload.removedItems.map((remItem, rIdx) => (
+                                      <div
+                                        key={`rem_${remItem.id || remItem.name}_${rIdx}`}
+                                        className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
+                                      >
+                                        <div className="flex items-center gap-3 min-w-0">
+                                          <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--danger)]">
+                                            <span className="material-symbols-outlined !text-[20px]">
+                                              {t("icon_remove_circle_outline", "remove_circle_outline")}
+                                            </span>
+                                          </div>
+                                          <div className="flex flex-col gap-0.5 min-w-0">
+                                            <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate">
+                                              {formatCleanModTitle(
+                                                cleanSearchName(remItem.displayName || remItem.name, activeGameSchema)
+                                              )}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-[var(--danger)] truncate">
+                                              {t("staging_badge_removing", "Queued to {Remove}")}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setVolatileSignatureQueue((prev: ResolvedStagedPayload | null) => {
+                                              if (!prev) return null;
+                                              return {
+                                                ...prev,
+                                                payload: {
+                                                  ...prev.payload,
+                                                  removedItems: (prev.payload.removedItems || []).filter(
+                                                    (_, idx) => idx !== rIdx
+                                                  ),
+                                                },
+                                              };
+                                            });
+                                          }}
+                                          className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] rounded-lg transition-all cursor-pointer"
+                                        >
+                                          <span className="material-symbols-outlined !text-[14px]">
+                                            {t("icon_undo", "undo")}
+                                          </span>
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </UniversalGroup>
+                              )}
+
+                            {premiumItems.length > 0 && (
+                              <UniversalGroup
+                                title={`${t("premium_detected", "Premium {Mods} Detected")} (${premiumItems.length})`}
+                                icon={t("icon_monetization_on", "monetization_on")}
+                                headerColorClass="text-[var(--warning)]"
+                                headerActions={
+                                  premiumItems.some((m) => m.selected) ? (
+                                    <ActionButton
+                                      variant="glass"
+                                      icon={t("icon_skip_next", "skip_next")}
+                                      onClick={skipAllPremium}
+                                      className="!px-3 !py-1.5"
+                                    >
+                                      {t("btn_skip_premium", "Skip Premium")}
+                                    </ActionButton>
+                                  ) : undefined
+                                }
+                              >
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
+                                  {premiumItems.slice(0, visibleLimit).map((m, i) => renderArtifactRow(m, i))}
+                                </div>
+                              </UniversalGroup>
+                            )}
+
+                            {missingStandardItems.length > 0 && (
+                              <UniversalGroup
+                                title={`${t("sig_queue_group_missing", "Needed — Acquire from {Masons}")} (${missingStandardItems.length})`}
+                                icon={t("icon_download", "download")}
+                                headerColorClass="text-[var(--warning)]"
+                              >
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
+                                  {missingStandardItems.slice(0, visibleLimit).map((m, i) => renderArtifactRow(m, i))}
+                                </div>
+                                {missingStandardItems.length > visibleLimit && (
+                                  <div className="flex justify-center pt-3">
+                                    <ActionButton
+                                      variant="glass"
+                                      icon={t("icon_expand_more", "expand_more")}
+                                      onClick={() => setVisibleLimit((prev) => prev + 80)}
+                                    >
+                                      {`${t("load_more", "Load More")} (${missingStandardItems.length - visibleLimit})`}
+                                    </ActionButton>
+                                  </div>
+                                )}
+                              </UniversalGroup>
+                            )}
+
+                            {ownedStandardItems.length > 0 && (
+                              <UniversalGroup
+                                title={`${t("sig_queue_group_owned", "Ready in {Vault}")} (${ownedStandardItems.length})`}
+                                icon={t("icon_check_circle", "check_circle")}
+                                headerColorClass="text-[var(--success)]"
+                              >
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
+                                  {ownedStandardItems.slice(0, visibleLimit).map((m, i) => renderArtifactRow(m, i))}
+                                </div>
+                                {ownedStandardItems.length > visibleLimit && (
+                                  <div className="flex justify-center pt-3">
+                                    <ActionButton
+                                      variant="glass"
+                                      icon={t("icon_expand_more", "expand_more")}
+                                      onClick={() => setVisibleLimit((prev) => prev + 80)}
+                                    >
+                                      {`${t("load_more", "Load More")} (${ownedStandardItems.length - visibleLimit})`}
+                                    </ActionButton>
+                                  </div>
+                                )}
+                              </UniversalGroup>
+                            )}
+
+                            {filterTab === "ALL" && filteredExistingBpMods.length > 0 && (
+                              <UniversalGroup
+                                title={`${t("sig_queue_group_existing", "In {Blueprint}")} (${filteredExistingBpMods.length})`}
+                                icon={t("icon_inventory_2", "inventory_2")}
+                              >
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
+                                  {filteredExistingBpMods.slice(0, visibleLimit).map((mod: any, eIdx: number) => (
+                                    <div
+                                      key={`exist_${mod.hash || mod.name}_${eIdx}`}
+                                      onClick={() => onOpenDossier?.(mod)}
+                                      className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all flex items-center justify-between gap-3 cursor-pointer group"
+                                    >
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                                          <span className="material-symbols-outlined !text-[20px]">
+                                            {getModIcon(mod, activeGameSchema, t)}
+                                          </span>
+                                        </div>
+                                        <div className="flex flex-col gap-0.5 min-w-0">
+                                          <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate group-hover:text-[var(--accent)] transition-colors">
+                                            {formatCleanModTitle(
+                                              cleanSearchName(mod.displayName || mod.name, activeGameSchema)
+                                            )}
+                                          </span>
+                                          <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-[var(--subtext)] opacity-75 truncate">
+                                            <span className="truncate">
+                                              {mod.author || t("filter_in_blueprint", "In {Blueprint}")}
+                                            </span>
+                                            {mod.is_paid && (
+                                              <span className={`${VAULT_CHIP_CLASS} !px-1.5 !py-0.5`}>
+                                                <span className="material-symbols-rounded !text-[11px] text-[var(--warning)]">
+                                                  {t("icon_monetization_on", "monetization_on")}
+                                                </span>
+                                                <span>{t("badge_paid", "Paid")}</span>
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setVolatileSignatureQueue((prev: ResolvedStagedPayload | null) => {
+                                            if (!prev) return null;
+                                            const nextRem = [
+                                              ...(prev.payload.removedItems || []),
+                                              {
+                                                id: String(mod.dbId || mod.hash || mod.name),
+                                                name: mod.name,
+                                                displayName: mod.displayName || mod.name,
+                                                hash: mod.hash,
+                                                author: mod.author,
+                                              },
+                                            ];
+                                            return {
+                                              ...prev,
+                                              payload: {
+                                                ...prev.payload,
+                                                removedItems: nextRem,
+                                              },
+                                            };
+                                          });
+                                        }}
+                                        className="h-7 px-2.5 shrink-0 flex items-center justify-center gap-1 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] rounded-lg text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                      >
+                                        <span className="material-symbols-outlined !text-[13px]">
+                                          {t("icon_remove_circle_outline", "remove_circle_outline")}
+                                        </span>
+                                        <span>{t("btn_remove", "{Remove}")}</span>
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                                {filteredExistingBpMods.length > visibleLimit && (
+                                  <div className="flex justify-center pt-3">
+                                    <ActionButton
+                                      variant="glass"
+                                      icon={t("icon_expand_more", "expand_more")}
+                                      onClick={() => setVisibleLimit((prev) => prev + 80)}
+                                    >
+                                      {`${t("load_more", "Load More")} (${filteredExistingBpMods.length - visibleLimit})`}
+                                    </ActionButton>
+                                  </div>
+                                )}
+                              </UniversalGroup>
+                            )}
+
+                                  {/* Secondary Bottom Bar only when scrolling long lists */}
+                                  {premiumItems.length +
+                                  missingStandardItems.length +
+                                  ownedStandardItems.length +
+                                  (filterTab === "ALL" ? filteredExistingBpMods.length : 0) >
+                                  12 && (
+          <div className="pt-2 flex flex-wrap items-center gap-2.5 w-full">
+            <ActionButton
+              variant="primary"
+              icon={
+                isBpMode
+                  ? t("icon_rocket_launch", "rocket_launch")
+                  : t("icon_open_in_new", "open_in_new")
+              }
+              disabled={
+                isProcessing ||
+                (selectedItems.length === 0 &&
+                  (!Array.isArray(queue.payload.removedItems) ||
+                    queue.payload.removedItems.length === 0))
+              }
+              onClick={() => handleSignAndExecute(true)}
+              className="flex-1 min-w-[200px] justify-center !h-10 !text-[10.5px]"
+            >
+              {isBpMode
+                ? missingSelected.length > 0
+                  ? t(
+                      "sig_queue_btn_deploy_and_download",
+                      "Deploy {Blueprint} & Open Missing Downloads"
+                    )
+                  : t("sig_queue_btn_deploy_blueprint", "Sign & Deploy {Blueprint}")
+                : t("sig_queue_btn_continue_browser", "Continue to Creator Pages")}
+            </ActionButton>
+
+            {isBpMode && (
               <ActionButton
-                variant="primary"
-                icon={
-                  isBpMode
-                    ? t("icon_rocket_launch", "rocket_launch")
-                    : t("icon_open_in_new", "open_in_new")
-                }
+                variant="glass"
+                icon={t("icon_save", "save")}
                 disabled={
                   isProcessing ||
                   (selectedItems.length === 0 &&
                     (!Array.isArray(queue.payload.removedItems) ||
                       queue.payload.removedItems.length === 0))
                 }
-                onClick={() => handleSignAndExecute(true)}
-                className="!w-full justify-center !h-10 !text-[10.5px]"
+                onClick={() => handleSignAndExecute(false)}
+                className="justify-center !h-10 !px-4 !text-[10px]"
               >
-                {isBpMode
-                  ? missingSelected.length > 0
-                    ? t(
-                        "sig_queue_btn_deploy_and_download",
-                        "Deploy {Blueprint} & Open Missing Downloads"
-                      )
-                    : t("sig_queue_btn_deploy_blueprint", "Sign & Deploy {Blueprint}")
-                  : t("sig_queue_btn_continue_browser", "Continue to Creator Pages")}
+                {t("sig_queue_btn_save_blueprint_only", "Save {Blueprint} Only")}
               </ActionButton>
+            )}
 
-              <div
-                className={`grid gap-2.5 w-full ${
-                  isBpMode ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"
-                }`}
-              >
-                {isBpMode && (
-                  <ActionButton
-                    variant="glass"
-                    icon={t("icon_save", "save")}
-                    disabled={
-                      isProcessing ||
-                      (selectedItems.length === 0 &&
-                        (!Array.isArray(queue.payload.removedItems) ||
-                          queue.payload.removedItems.length === 0))
-                    }
-                    onClick={() => handleSignAndExecute(false)}
-                    className="!w-full justify-center !h-10 !text-[10px]"
-                  >
-                    {t("sig_queue_btn_save_blueprint_only", "Save {Blueprint} Only")}
-                  </ActionButton>
-                )}
-
-                <ActionButton
-                  variant="glass"
-                  icon={
-                    queue.isCompletedLocally
-                      ? t("icon_undo", "undo")
-                      : t("icon_task_alt", "task_alt")
-                  }
-                  disabled={isProcessing}
-                  onClick={handleToggleCompleteLocally}
-                  className="!w-full justify-center !h-10 !text-[10px]"
-                >
-                  {queue.isCompletedLocally
-                    ? t("sig_queue_btn_mark_pending_local", "Mark Pending on This System")
-                    : t("sig_queue_btn_mark_complete_local", "Mark Complete on This System")}
-                </ActionButton>
-
-                <ActionButton
-                  variant="danger"
-                  icon={t("icon_delete_forever", "delete_forever")}
-                  disabled={isProcessing}
-                  onClick={handleRejectAndShred}
-                  className="!w-full justify-center !h-10 !text-[10px]"
-                >
-                  {t("sig_queue_btn_reject_shred", "Reject & Shred")}
-                </ActionButton>
-              </div>
-            </div>
+            <ActionButton
+              variant="glass"
+              icon={t("icon_delete_forever", "delete_forever")}
+              disabled={isProcessing}
+              onClick={handleRejectAndShred}
+              className="justify-center !h-10 !px-4 !text-[10px] [&_span.material-symbols-outlined]:!text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)]"
+            >
+              {t("sig_queue_btn_reject_shred", "Reject & Shred")}
+            </ActionButton>
           </div>
-        </UniversalGroup>
-      </div>
+        )}
+                          </div>
     </SidePanel>,
-    document.body
-  );
+                    document.body
+                    );
 }

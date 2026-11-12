@@ -285,33 +285,36 @@ export default function BlueprintSwapSidePanel({
                           onClick={async (e) => {
                             e.stopPropagation();
                             setStagingSetName(bp.name);
-                            const res = await stageFullBlueprintToRigQueue(
-                              bp,
-                              modList || [],
-                              activeGameSchema,
-                              session,
-                              selectedVersion
-                            );
-                            setStagingSetName(null);
-                            if (res.success) {
-                              setStagedSuccessSetName(bp.name);
-                              setTimeout(() => setStagedSuccessSetName(null), 3500);
-                              useStore
-                                .getState()
-                                .pushStatus(
-                                  t(
-                                    "status_rig_queue_sent",
-                                    "{Blueprint} encrypted and staged to your Rig Queue! Open Signature Queue on your Steam Deck or other PC to deploy."
-                                  ),
-                                  "success"
-                                );
-                            } else {
-                              useStore
-                                .getState()
-                                .pushStatus(
-                                  res.error || t("err_save_failed", "Failed to save blueprint"),
-                                  "error"
-                                );
+                            try {
+                              const res = await stageFullBlueprintToRigQueue(
+                                bp,
+                                modList || [],
+                                activeGameSchema,
+                                session,
+                                selectedVersion
+                              );
+                              if (res.success) {
+                                setStagedSuccessSetName(bp.name);
+                                setTimeout(() => setStagedSuccessSetName(null), 3500);
+                                useStore
+                                  .getState()
+                                  .pushStatus(
+                                    t(
+                                      "status_rig_queue_sent",
+                                      "{Blueprint} encrypted and staged to your Rig Queue! Open Signature Queue on your Steam Deck or other PC to deploy."
+                                    ),
+                                    "success"
+                                  );
+                              } else {
+                                useStore
+                                  .getState()
+                                  .pushStatus(
+                                    res.error || t("err_save_failed", "Failed to save blueprint"),
+                                    "error"
+                                  );
+                              }
+                            } finally {
+                              setStagingSetName(null);
                             }
                           }}
                           className={`relative group/rigbtn w-8 h-8 rounded-xl glass-surface border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
@@ -320,7 +323,11 @@ export default function BlueprintSwapSidePanel({
                               : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:text-[var(--accent)]"
                           }`}
                         >
-                          <span className="material-symbols-outlined !text-[16px]">
+                          <span
+                            className={`material-symbols-outlined !text-[16px] ${
+                              stagingSetName === bp.name ? "animate-spin text-[var(--accent)]" : ""
+                            }`}
+                          >
                             {stagingSetName === bp.name
                               ? t("icon_sync", "sync")
                               : stagedSuccessSetName === bp.name

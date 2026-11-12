@@ -209,13 +209,24 @@ export function FilterPopover({
       : "sa-glass-active !text-[var(--text)] !opacity-100";
 
   const showLabelText = Boolean(label && !iconOnly);
+  const isFlushCell = Boolean(
+    buttonClassName &&
+      (buttonClassName.includes("rounded-none") ||
+        buttonClassName.includes("!rounded-none"))
+  );
+  const radiusClass = isFlushCell
+    ? "rounded-none"
+    : effectiveVariant === "inline"
+      ? "rounded-xl"
+      : "rounded-[var(--radius)]";
 
   return (
     <div className={`relative ${className}`}>
       <button
         ref={btnRef}
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-center gap-2 h-12 ${showLabelText ? "px-5" : "w-12"} ${effectiveVariant === "inline" ? "rounded-xl" : "rounded-[var(--radius)]"} transition-all duration-300 group relative ${baseBg} ${hoverBg} ${
+        className={`flex items-center justify-center gap-2 ${isFlushCell ? "h-full" : "h-12"} ${showLabelText ? "px-5" : "w-12"} ${radiusClass} ${effectiveVariant === "inline" ? "transition-colors" : "transition-all duration-300"} group relative cursor-pointer ${baseBg} ${hoverBg} ${
           isOpen || hasActiveFilter ? activeStateClass : borderClass
         } ${buttonClassName}`}
       >

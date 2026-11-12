@@ -6,6 +6,7 @@ import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@ta
 import enDefault from './lexicons/en-default.json';
 import { supabase, supabaseAuth } from './supabase';
 import { useStore } from './store';
+import { postDevCoreAssetSync } from './utils/devAssetSync';
 import {
   applyThematicGlossaryToProse,
   getAutoTranslateDynamicPref,
@@ -14,6 +15,31 @@ import {
   resolveTargetLanguageIso,
   translatePostedTextAsync,
 } from './utils/translationEngine';
+
+export const CORE_LEXICONS_CACHE_KEY = 'sanctuary_cached_core_lexicons_v1';
+
+const readCachedCoreLexicons = (): Record<string, Record<string, any>> => {
+  try {
+    const raw = localStorage.getItem(CORE_LEXICONS_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const readCachedSpokeBuiltinLexicons = (workspaceId: string): Record<string, Record<string, any>> => {
+  try {
+    if (!workspaceId || workspaceId === 'default' || workspaceId === 'default_workspace') return {};
+    const raw = localStorage.getItem(`sanctuary_cached_spoke_lexicons_${workspaceId}`);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
 
 const STATIC_BASE_DEFAULT: Record<string, any> = { ...enDefault };
 
@@ -48,10 +74,16 @@ export async function loadBuiltinLexiconAsync(id: string): Promise<Record<string
     return enSanctuaryPromise;
   }
   if (id === 'Simlish') {
-    if (loadedSimlish) return loadedSimlish;
+    if (loadedSimlish && loadedEnSims) return loadedSimlish;
     if (!simlishPromise) {
-      simlishPromise = import('./lexicons/Simlish.json').then((mod: any) => {
-        loadedSimlish = (mod?.default || mod || {}) as Record<string, any>;
+      simlishPromise = Promise.all([
+        import('./lexicons/en-sims.json'),
+        import('./lexicons/Simlish.json'),
+      ]).then(([simsMod, simlishMod]: [any, any]) => {
+        if (!loadedEnSims) {
+          loadedEnSims = (simsMod?.default || simsMod || {}) as Record<string, any>;
+        }
+        loadedSimlish = (simlishMod?.default || simlishMod || {}) as Record<string, any>;
         return loadedSimlish;
       });
     }
@@ -60,14 +92,8 @@ export async function loadBuiltinLexiconAsync(id: string): Promise<Record<string
   if (id === 'en-sims') {
     if (loadedEnSims) return loadedEnSims;
     if (!enSimsPromise) {
-      enSimsPromise = Promise.all([
-        import('./lexicons/Simlish.json'),
-        import('./lexicons/en-sims.json'),
-      ]).then(([simlishMod, simsMod]: [any, any]) => {
-        const simlishObj = (simlishMod?.default || simlishMod || {}) as Record<string, any>;
-        const simsObj = (simsMod?.default || simsMod || {}) as Record<string, any>;
-        if (!loadedSimlish) loadedSimlish = simlishObj;
-        loadedEnSims = { ...simlishObj, ...simsObj };
+      enSimsPromise = import('./lexicons/en-sims.json').then((simsMod: any) => {
+        loadedEnSims = (simsMod?.default || simsMod || {}) as Record<string, any>;
         return loadedEnSims;
       });
     }
@@ -326,16 +352,25 @@ const PRESERVED_ACRONYMS = new Set([
 export function normalizeAllCapsForThemeCase(str: string): string {
   if (typeof str !== 'string') return str;
   if (/[a-z]/.test(str) || !/[A-Z]{2,}/.test(str)) return str;
-  return str.replace(/[A-Z0-9]+(?:-[A-Z0-9]+)*/g, (word) => {
+  const formatPart = (part: string): string => {
+    if (PRESERVED_ACRONYMS.has(part)) return part;
+    if (/^\d+$/.test(part)) return part;
+    const apoMatch = part.match(/^([A-Z0-9]+)(['\u2019][A-Z0-9]+)$/);
+    if (apoMatch) {
+      const stem = PRESERVED_ACRONYMS.has(apoMatch[1])
+        ? apoMatch[1]
+        : apoMatch[1].charAt(0).toUpperCase() + apoMatch[1].slice(1).toLowerCase();
+      return stem + apoMatch[2].toLowerCase();
+    }
+    return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+  };
+  return str.replace(/[A-Z0-9]+(?:[-'\u2019][A-Z0-9]+)*/g, (word) => {
     if (PRESERVED_ACRONYMS.has(word)) return word;
     if (/^\d+$/.test(word)) return word;
     if (word.includes('-')) {
-      return word
-        .split('-')
-        .map((part) => (PRESERVED_ACRONYMS.has(part) ? part : part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()))
-        .join('-');
+      return word.split('-').map(formatPart).join('-');
     }
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    return formatPart(word);
   });
 }
 
@@ -505,11 +540,6 @@ export const LexiconProvider = ({ children }: any) => {
     if (schema?.lexicon_id) return schema.lexicon_id;
     if (schema?.schema_json?.default_lexicon) return schema.schema_json.default_lexicon;
 
-    const gameDescriptor = `${schema?.id || ''} ${schema?.name || ''} ${schema?.display_name || ''}`.toLowerCase();
-    if (gameDescriptor.includes('sims')) {
-      return 'en-sims';
-    }
-
     const spokeDefault = metaList?.find(
       (m: any) => m?.is_default || (!BUILTIN_LEXICON_IDS.has(m?.id) && m?.badge && m.badge !== 'Sanctuary')
     );
@@ -600,7 +630,10 @@ export const LexiconProvider = ({ children }: any) => {
   });
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const osRoleFromStore = useStore((state) => state.osRole);
-  const [builtinOverrides, setBuiltinOverrides] = useState<Record<string, Record<string, any>>>({});
+  const [builtinOverrides, setBuiltinOverrides] = useState<Record<string, Record<string, any>>>(() => ({
+    ...readCachedCoreLexicons(),
+    ...readCachedSpokeBuiltinLexicons(wsId),
+  }));
   const [titleAreaConfig, setTitleAreaConfig] = useState<CoreTitleAreaConfig>(() => readCoreTitleAreaConfig());
   const [previewSubtitleText, setPreviewSubtitleText] = useState<string | null>(null);
   const [previewLexiconState, setPreviewLexiconState] = useState<{
@@ -709,6 +742,13 @@ export const LexiconProvider = ({ children }: any) => {
   useEffect(() => {
     const nextReg = readRegistryFromStorage(wsId);
     setRegistry((prev: any) => (JSON.stringify(prev) === JSON.stringify(nextReg) ? prev : nextReg));
+    setBuiltinOverrides((prev) => {
+      const nextBuiltins = {
+        ...readCachedCoreLexicons(),
+        ...readCachedSpokeBuiltinLexicons(wsId),
+      };
+      return JSON.stringify(prev) === JSON.stringify(nextBuiltins) ? prev : nextBuiltins;
+    });
     let parsedMeta: any[] = [];
     try {
       parsedMeta = JSON.parse(localStorage.getItem(`sanctuary_${wsId}_lexicon_meta`) || "[]");
@@ -730,6 +770,17 @@ export const LexiconProvider = ({ children }: any) => {
       const { id, lexiconData } = detail;
       if (BUILTIN_LEXICON_IDS.has(id)) {
         setBuiltinOverrides((prev) => ({ ...prev, [id]: lexiconData }));
+        try {
+          if (id === 'en-default' || id === 'en-sanctuary') {
+            const cachedCore = readCachedCoreLexicons();
+            cachedCore[id] = lexiconData;
+            localStorage.setItem(CORE_LEXICONS_CACHE_KEY, JSON.stringify(cachedCore));
+          } else if (wsId && wsId !== 'default' && wsId !== 'default_workspace') {
+            const cachedSpoke = readCachedSpokeBuiltinLexicons(wsId);
+            cachedSpoke[id] = lexiconData;
+            localStorage.setItem(`sanctuary_cached_spoke_lexicons_${wsId}`, JSON.stringify(cachedSpoke));
+          }
+        } catch { }
       } else {
         setRegistry((prev: any) => {
           const next = { ...prev, [id]: lexiconData };
@@ -924,100 +975,198 @@ export const LexiconProvider = ({ children }: any) => {
       try {
         if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
 
-        // Fetch Core OS Lexicons ONLY if they have access
         const osRole = useStore.getState().osRole;
-        const hasOSAccess = ["keeper", "admin", "core_dev"].includes(osRole);
-        let osRes: { data: any[] | null, error: any } = { data: [], error: null };
+        const isKeeper = osRole === "keeper";
+        const isSpokeWorkspace = Boolean(wsId && wsId !== "default" && wsId !== "default_workspace");
 
-        if (hasOSAccess) {
-          osRes = await supabaseAuth.from('sanctuary_lexicons').select('id, name, badge, version, lexicon_data');
+        // 1. Pull Core Hub Lexicons (en-default & en-sanctuary) for ALL users; bundled JSONs are strictly offline fallbacks.
+        const osPromise = supabaseAuth
+          .from('sanctuary_lexicons')
+          .select('id, name, badge, version, lexicon_data')
+          .in('id', ['en-default', 'en-sanctuary']);
+
+        // 2. Pull Spoke Lexicons ONLY when mounted on a Spoke workspace (no dev auto-sync).
+        const gamePromise = isSpokeWorkspace
+          ? supabase.from('sanctuary_lexicons').select('id, name, badge, version, lexicon_data')
+          : Promise.resolve({ data: [] as any[], error: null as any });
+
+        const [osRes, gameRes] = await Promise.all([osPromise, gamePromise]);
+        if (osRes.error && osRes.error.code !== '42P01') {
+          console.warn("Core Hub lexicons fetch warning:", osRes.error);
+        }
+        if (gameRes.error && gameRes.error.code !== '42P01') {
+          console.warn("Spoke lexicons fetch warning:", gameRes.error);
         }
 
-        // Fetch Community Lexicons (via proxy to current game DB)
-        const gamePromise = supabase.from('sanctuary_lexicons').select('id, name, badge, version, lexicon_data');
+        const coreRows = Array.isArray(osRes.data)
+          ? osRes.data.filter((r: any) => r?.id === 'en-default' || r?.id === 'en-sanctuary')
+          : [];
+        const spokeRows = Array.isArray(gameRes.data)
+          ? gameRes.data.filter((r: any) => r?.id && r.id !== 'en-default' && r.id !== 'en-sanctuary')
+          : [];
 
-        const gameRes = await gamePromise;
-        if (hasOSAccess && osRes.error) throw osRes.error;
-        if (gameRes.error && gameRes.error.code !== '42P01') console.error("Game lexicons error:", gameRes.error); // Ignore if table doesn't exist yet
+        const coreOverridesUpdate: Record<string, Record<string, any>> = {
+          ...readCachedCoreLexicons(),
+        };
 
-        // Merge them, prioritizing Game Database over OS Database if there are conflicts, OR maybe OS takes priority?
-        // Actually, OS lexicons (en-sanctuary, en-default) should take priority.
-        const mergedData = [...(gameRes.data || []), ...(osRes.data || [])];
-        const data = Array.from(new Map(mergedData.map(item => [item.id, item])).values());
+        for (const row of coreRows) {
+          const cloudDict =
+            row.lexicon_data && typeof row.lexicon_data === 'object'
+              ? { ...row.lexicon_data }
+              : {};
 
-        // --- Force sync missing/updated keys to cloud ---
-        if (data) {
-          for (let row of data) {
-            let localData: any = {};
-            if (row.id === 'en-default') localData = enDefault;
-            if (row.id === 'en-sanctuary' || row.id === 'en-sims' || row.id === 'Simlish') {
-              localData = await loadBuiltinLexiconAsync(row.id);
+          if (import.meta.env.DEV) {
+            const baseEnDefault = enDefault as Record<string, any>;
+            const localBundled: Record<string, any> =
+              row.id === 'en-default'
+                ? baseEnDefault
+                : await loadBuiltinLexiconAsync('en-sanctuary');
+
+            const mergedDict: Record<string, any> = {};
+            let cloudNeedsSync = false;
+
+            if (row.id === 'en-default') {
+              for (const [k, v] of Object.entries(localBundled)) {
+                mergedDict[k] = k in cloudDict && cloudDict[k] !== '' && cloudDict[k] !== null ? cloudDict[k] : v;
+                if (!(k in cloudDict)) cloudNeedsSync = true;
+              }
+              for (const [k, v] of Object.entries(cloudDict)) {
+                if ((k.startsWith('_meta') || k.startsWith('term_')) && v !== '' && v !== null) {
+                  mergedDict[k] = v;
+                } else if (!(k in localBundled)) {
+                  cloudNeedsSync = true;
+                }
+              }
+            } else {
+              // Sparse delta mode for en-sanctuary: store only genuine overrides over en-default
+              const candidate = { ...localBundled, ...cloudDict };
+              for (const [k, v] of Object.entries(candidate)) {
+                if (v === '' || v === null || v === undefined) {
+                  if (k in cloudDict) cloudNeedsSync = true;
+                  continue;
+                }
+                if (k.startsWith('_meta') || k.startsWith('term_') || k.startsWith('icon_')) {
+                  mergedDict[k] = v;
+                  if (!(k in cloudDict)) cloudNeedsSync = true;
+                  continue;
+                }
+                if (!(k in baseEnDefault) || v === baseEnDefault[k]) {
+                  if (k in cloudDict) cloudNeedsSync = true;
+                  continue;
+                }
+                mergedDict[k] = v;
+                if (!(k in cloudDict)) cloudNeedsSync = true;
+              }
             }
 
-            if (Object.keys(localData).length > 0) {
-              let hasChanges = false;
-              if (!row.lexicon_data) row.lexicon_data = {};
-              for (const key in localData) {
-                if (row.lexicon_data[key] !== localData[key]) {
-                  row.lexicon_data[key] = localData[key];
-                  hasChanges = true;
-                }
-              }
-              for (const key in row.lexicon_data) {
-                if (!key.startsWith('_meta') && !(key in localData)) {
-                  delete row.lexicon_data[key];
-                  hasChanges = true;
-                }
-              }
+            if (cloudNeedsSync && isKeeper) {
+              await supabaseAuth.from('sanctuary_lexicons').upsert({
+                id: row.id,
+                name: row.name || (row.id === 'en-default' ? 'Standard English' : 'Sanctuary OS'),
+                badge: row.badge || 'Sanctuary',
+                version: row.version || 1,
+                lexicon_data: mergedDict,
+                updated_at: new Date().toISOString(),
+              } as any);
+            }
 
-              if (hasChanges) {
-                if (hasOSAccess) {
-                  if (row.id === 'en-default' || row.id === 'en-sanctuary') {
-                    await supabaseAuth.from('sanctuary_lexicons').upsert({
-                      id: row.id,
-                      name: row.name || row.id,
-                      badge: row.badge || 'Sanctuary',
-                      version: row.version || 1,
-                      lexicon_data: row.lexicon_data,
-                      updated_at: new Date().toISOString(),
-                    } as any);
-                  }
-                  const token = useStore.getState().session?.access_token;
-                  if (token) {
-                    await supabase.rpc('secure_upsert_cloud_file', { p_token: token, p_target: 'sanctuary_lexicons', p_payload: row });
-                  } else {
-                    await supabase.from('sanctuary_lexicons').update({ lexicon_data: row.lexicon_data }).eq('id', row.id);
-                  }
-                }
+            const diskPayload: Record<string, any> = { ...mergedDict };
+            for (const k of Object.keys(diskPayload)) {
+              if (k.startsWith('_meta') && !(k in localBundled)) {
+                delete diskPayload[k];
+              }
+            }
+            await postDevCoreAssetSync({
+              kind: 'core_lexicon',
+              id: row.id,
+              content: diskPayload,
+            });
+
+            coreOverridesUpdate[row.id] = mergedDict;
+          } else {
+            coreOverridesUpdate[row.id] = cloudDict;
+          }
+        }
+
+        // In DEV mode, if Core Hub didn't have en-default or en-sanctuary yet and user is Keeper, seed from local template.
+        if (import.meta.env.DEV && isKeeper) {
+          for (const coreId of ['en-default', 'en-sanctuary'] as const) {
+            if (!coreRows.some((r: any) => r.id === coreId)) {
+              const localBundled: Record<string, any> =
+                coreId === 'en-default'
+                  ? (enDefault as Record<string, any>)
+                  : await loadBuiltinLexiconAsync('en-sanctuary');
+              if (Object.keys(localBundled).length > 0) {
+                await supabaseAuth.from('sanctuary_lexicons').upsert({
+                  id: coreId,
+                  name: coreId === 'en-default' ? 'Standard English' : 'Sanctuary OS',
+                  badge: 'Sanctuary',
+                  version: 1,
+                  lexicon_data: localBundled,
+                  updated_at: new Date().toISOString(),
+                } as any);
+                coreOverridesUpdate[coreId] = localBundled;
               }
             }
           }
         }
-        // --- END SYNC ---
 
-        if (data && data.length > 0) {
-          let cloudUpdates: any = {};
-          for (const row of data) {
-            if (!BUILTIN_LEXICON_IDS.has(row.id)) {
-              cloudUpdates[row.id] = row.lexicon_data;
-            }
+        if (Object.keys(coreOverridesUpdate).length > 0) {
+          try {
+            localStorage.setItem(CORE_LEXICONS_CACHE_KEY, JSON.stringify(coreOverridesUpdate));
+          } catch { }
+        }
+
+        const spokeBuiltinOverrides: Record<string, Record<string, any>> = isSpokeWorkspace
+          ? { ...readCachedSpokeBuiltinLexicons(wsId) }
+          : {};
+        const cloudUpdates: Record<string, any> = {};
+
+        for (const row of spokeRows) {
+          if (!row?.id || !row.lexicon_data || typeof row.lexicon_data !== 'object') continue;
+          if (BUILTIN_LEXICON_IDS.has(row.id)) {
+            spokeBuiltinOverrides[row.id] = row.lexicon_data;
+          } else {
+            cloudUpdates[row.id] = row.lexicon_data;
           }
+        }
 
+        if (isSpokeWorkspace && Object.keys(spokeBuiltinOverrides).length > 0) {
+          try {
+            localStorage.setItem(
+              `sanctuary_cached_spoke_lexicons_${wsId}`,
+              JSON.stringify(spokeBuiltinOverrides)
+            );
+          } catch { }
+        }
+
+        setBuiltinOverrides((prev) => {
+          const next = {
+            ...coreOverridesUpdate,
+            ...spokeBuiltinOverrides,
+          };
+          return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+        });
+
+        if (Object.keys(cloudUpdates).length > 0) {
           setRegistry((prev: any) => {
             const newReg = { ...prev, ...cloudUpdates };
             if (JSON.stringify(prev) === JSON.stringify(newReg)) return prev;
             saveRegistryToStorage(wsId, newReg);
             return newReg;
           });
+        }
 
-          // Cache metadata like badges and names
-          const meta = data.map(d => ({
+        const combinedRows = [...spokeRows, ...coreRows];
+        if (combinedRows.length > 0) {
+          const data = Array.from(new Map(combinedRows.map((item: any) => [item.id, item])).values());
+          const meta = data.map((d: any) => ({
             id: d.id,
             name: d.name,
             badge: d.badge,
             version: d.version,
             lang: d.lexicon_data?._meta_lang || 'English',
-            is_default: Boolean(d.lexicon_data?._meta_default || d.is_default)
+            is_default: Boolean(d.lexicon_data?._meta_default || d.is_default),
           }));
           try {
             localStorage.setItem(`sanctuary_${wsId}_lexicon_meta`, JSON.stringify(meta));
@@ -1123,12 +1272,6 @@ export const LexiconProvider = ({ children }: any) => {
     }
     if (val === undefined || val === "") {
       val = (enDefault as any)[key];
-    }
-    if (val === undefined || val === "") {
-      val = loadedEnSanctuary?.[key];
-    }
-    if (val === undefined || val === "") {
-      val = loadedEnSims?.[key];
     }
 
     if (val !== undefined && val !== "") {

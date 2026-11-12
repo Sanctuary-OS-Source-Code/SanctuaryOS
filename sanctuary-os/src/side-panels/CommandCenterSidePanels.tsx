@@ -25,6 +25,8 @@ import {
 import {
   normalizeModGroupTitle,
   extractValidCreator,
+  isKnownCreatorName,
+  getCachedVaultGroupLookups,
   formatAddonModuleName,
   formatCleanModTitle,
 } from "./CommandIncompatiblePanel";
@@ -32,41 +34,126 @@ import {
 export function groupUpdateMods(rawList: any[]): any[] {
   if (!Array.isArray(rawList) || rawList.length === 0) return [];
 
-  const allVaultMods: any[] = useStore.getState().modList || [];
-  const virtualByFamilyId = new Map<string, any>();
-  const parentByDbId = new Map<string, any>();
-
-  for (const vm of allVaultMods) {
-    if (!vm) continue;
-    if (vm.isVirtual && !vm.isCollection) {
-      if (vm.dbId) virtualByFamilyId.set(String(vm.dbId).split("@")[0], vm);
-      if (vm.baseFamilyId) virtualByFamilyId.set(String(vm.baseFamilyId).split("@")[0], vm);
-      continue;
-    }
-    if (vm.dbId) {
-      parentByDbId.set(String(vm.dbId), vm);
+  const flatList: any[] = [];
+  for (const entry of rawList) {
+    if (!entry) continue;
+    if (Array.isArray(entry._groupedMods) && entry._groupedMods.length > 0) {
+      flatList.push(...entry._groupedMods);
+    } else {
+      flatList.push(entry);
     }
   }
+  if (flatList.length === 0) return [];
+
+  const allVaultMods: any[] = useStore.getState().modList || [];
+  const {
+    vaultByHash,
+    vaultUpdateLookup,
+    virtualByFamilyId,
+    collectionBySetId,
+    parentByDbId,
+    vaultFamilyCounts,
+    vaultSetCounts,
+  } = getCachedVaultGroupLookups(allVaultMods);
+
+  const listFamilyCounts = new Map<string, number>();
+  const listSetCounts = new Map<string, number>();
+
+  const enrichedItems = flatList.map((rawItem) => {
+    const matchedVault =
+      (rawItem?.hash ? vaultByHash.get(String(rawItem.hash).toLowerCase()) : undefined) ||
+      vaultUpdateLookup.get(String(rawItem?.name || "").toLowerCase()) ||
+      vaultUpdateLookup.get(String(rawItem?.displayName || "").toLowerCase());
+
+    const famIdRaw = String(
+      matchedVault?.baseFamilyId ||
+        matchedVault?.familyId ||
+        rawItem?.baseFamilyId ||
+        rawItem?.familyId ||
+        ""
+    ).split("@")[0];
+    if (
+      famIdRaw &&
+      famIdRaw !== "null" &&
+      famIdRaw !== "undefined" &&
+      !famIdRaw.startsWith("local_")
+    ) {
+      listFamilyCounts.set(famIdRaw, (listFamilyCounts.get(famIdRaw) || 0) + 1);
+    }
+
+    const setIdRaw = String(rawItem?.setId || matchedVault?.setId || "").trim();
+    if (setIdRaw && setIdRaw !== "null" && setIdRaw !== "undefined") {
+      listSetCounts.set(setIdRaw, (listSetCounts.get(setIdRaw) || 0) + 1);
+    }
+
+    return { rawItem, matchedVault, famIdRaw, setIdRaw };
+  });
 
   const grouped = new Map<string, any>();
 
-  for (const item of rawList) {
-    const famIdRaw = String(item?.baseFamilyId || item?.familyId || "").split("@")[0];
+  for (const { rawItem, matchedVault, famIdRaw, setIdRaw } of enrichedItems) {
     const hasRealFamily = Boolean(
       famIdRaw &&
         famIdRaw !== "null" &&
         famIdRaw !== "undefined" &&
-        !famIdRaw.startsWith("local_")
+        !famIdRaw.startsWith("local_") &&
+        (virtualByFamilyId.has(famIdRaw) ||
+          (vaultFamilyCounts.get(famIdRaw) || 0) > 1 ||
+          (listFamilyCounts.get(famIdRaw) || 0) > 1)
     );
     const familyParent = hasRealFamily
-      ? parentByDbId.get(famIdRaw) || virtualByFamilyId.get(famIdRaw)
+      ? virtualByFamilyId.get(famIdRaw) || parentByDbId.get(famIdRaw)
       : null;
+
+    const hasCollectionFolder = Boolean(
+      setIdRaw &&
+        setIdRaw !== "null" &&
+        setIdRaw !== "undefined" &&
+        (collectionBySetId.has(setIdRaw) ||
+          (vaultSetCounts.get(setIdRaw) || 0) > 1 ||
+          (listSetCounts.get(setIdRaw) || 0) > 1)
+    );
+    const collectionFolder = hasCollectionFolder ? collectionBySetId.get(setIdRaw) : null;
+
+    const resolvedAuthor = extractValidCreator(
+      rawItem,
+      matchedVault,
+      familyParent,
+      collectionFolder
+    );
+
+    const item = {
+      ...(familyParent && !familyParent.isVirtual ? familyParent : {}),
+      ...(matchedVault || {}),
+      ...rawItem,
+      setId: setIdRaw || matchedVault?.setId || rawItem?.setId,
+      familyId: matchedVault?.familyId || rawItem?.familyId,
+      baseFamilyId: matchedVault?.baseFamilyId || rawItem?.baseFamilyId,
+      download_url:
+        rawItem.download_url ||
+        matchedVault?.download_url ||
+        familyParent?.download_url ||
+        collectionFolder?.url,
+      url:
+        rawItem.url ||
+        matchedVault?.url ||
+        familyParent?.url ||
+        collectionFolder?.url,
+      image_url:
+        rawItem.image_url ||
+        rawItem.imageUrl ||
+        matchedVault?.image_url ||
+        familyParent?.image_url ||
+        collectionFolder?.image_url,
+      author: resolvedAuthor || rawItem?.author,
+    };
 
     const rawTitle = formatDisplayName(item?.displayName || item?.name || "").trim();
     const twinNormalized = normalizeModGroupTitle(rawTitle) || rawTitle;
 
     let groupKey: string;
     let displayTitle = twinNormalized;
+    let isCollectionGroup = false;
 
     if (hasRealFamily) {
       groupKey = `__family_${famIdRaw}__`;
@@ -77,9 +164,19 @@ export function groupUpdateMods(rawList: any[]): any[] {
         normalizeModGroupTitle(canonicalParentTitle) ||
         canonicalParentTitle ||
         twinNormalized;
+    } else if (hasCollectionFolder) {
+      groupKey = `__set_${setIdRaw}__`;
+      isCollectionGroup = true;
+      const colTitle = collectionFolder
+        ? formatDisplayName(collectionFolder.displayName || collectionFolder.name || "").trim()
+        : "";
+      displayTitle = colTitle || twinNormalized;
     } else if (item.flavorGroupId) {
       groupKey = `__flavor_${item.flavorGroupId}__`;
       displayTitle = formatDisplayName(item.flavorGroupName || twinNormalized).trim();
+    } else if (item.communityGroupId) {
+      groupKey = `__comm_${item.communityGroupId}__`;
+      displayTitle = formatDisplayName(item.communityGroupName || twinNormalized).trim();
     } else {
       groupKey = twinNormalized.toLowerCase();
       displayTitle = twinNormalized;
@@ -88,6 +185,7 @@ export function groupUpdateMods(rawList: any[]): any[] {
     if (!grouped.has(groupKey)) {
       grouped.set(groupKey, {
         ...item,
+        _isCollectionGroup: isCollectionGroup,
         _groupedTitle: displayTitle,
         _moduleCount: 1,
         _groupedMods: [item],
@@ -96,12 +194,13 @@ export function groupUpdateMods(rawList: any[]): any[] {
       const existing = grouped.get(groupKey);
       existing._moduleCount = (existing._moduleCount || 1) + 1;
       existing._groupedMods.push(item);
+      if (isCollectionGroup) existing._isCollectionGroup = true;
       if (hasRealFamily && String(item.dbId) === famIdRaw) {
         existing._groupedTitle = twinNormalized;
       }
       if (!existing.download_url && item.download_url) existing.download_url = item.download_url;
       if (!existing.url && item.url) existing.url = item.url;
-      if ((!existing.author || existing.author === "Unknown") && item.author) {
+      if (!isKnownCreatorName(existing.author) && isKnownCreatorName(item.author)) {
         existing.author = item.author;
       }
       if (!existing.newVersion && item.newVersion) existing.newVersion = item.newVersion;
@@ -118,7 +217,7 @@ export function groupUpdateMods(rawList: any[]): any[] {
     }
   }
 
-  // Second pass: merge prefix-based Addons/Modules into their parent mod card if present
+  // Second pass: merge prefix-based Addons/Modules and equal-normalized-title twins into their parent mod card
   const entries = Array.from(grouped.values());
   const mergedOut = new Set<number>();
 
@@ -128,25 +227,32 @@ export function groupUpdateMods(rawList: any[]): any[] {
     const pTitle = String(parent._groupedTitle || "").trim();
     if (pTitle.length < 5) continue;
     const pLower = pTitle.toLowerCase();
+    const pNorm = normalizeModGroupTitle(pTitle).toLowerCase();
 
     for (let j = 0; j < entries.length; j++) {
       if (i === j || mergedOut.has(j)) continue;
       const candidate = entries[j];
       const cTitle = String(candidate._groupedTitle || "").trim();
       const cLower = cTitle.toLowerCase();
+      const cNorm = normalizeModGroupTitle(cTitle).toLowerCase();
 
+      const isEqualTwin = Boolean(pNorm.length >= 4 && pNorm === cNorm);
       const isPrefixAddon =
-        cLower.length > pLower.length &&
-        cLower.startsWith(pLower) &&
-        /^(\s*[-:–_(\[]|\s+(addon|add-on|module|pack|part|script|scripts)\b)/i.test(
-          cTitle.slice(pTitle.length)
-        );
+        isEqualTwin ||
+        (cLower.length > pLower.length &&
+          cLower.startsWith(pLower) &&
+          /^(\s*[-:–_(\[]|\s+(addon|add-on|module|pack|part|script|scripts)\b)/i.test(
+            cTitle.slice(pTitle.length)
+          ));
 
       if (isPrefixAddon) {
         mergedOut.add(j);
         parent._moduleCount = (parent._moduleCount || 1) + (candidate._moduleCount || 1);
         parent._groupedMods.push(...(candidate._groupedMods || [candidate]));
         if (!parent.newVersion && candidate.newVersion) parent.newVersion = candidate.newVersion;
+        if (!isKnownCreatorName(parent.author) && isKnownCreatorName(candidate.author)) {
+          parent.author = candidate.author;
+        }
       }
     }
   }
@@ -267,33 +373,14 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
           </div>
 
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
-            {validCreator && (
-              <>
-                <span className="truncate opacity-85">
-                  {formatCleanModTitle(validCreator)}
-                </span>
-                <span className="opacity-40 shrink-0">•</span>
-              </>
-            )}
-            <span className="opacity-85 shrink-0">{fallbackTypeLabel}</span>
+            <span className="truncate opacity-85">
+              {validCreator ? formatCleanModTitle(validCreator) : fallbackTypeLabel}
+            </span>
             {groupedMods.length > 1 && (
               <>
                 <span className="opacity-40 shrink-0">•</span>
                 <span className="opacity-85 shrink-0">
                   {groupedMods.length} {t("badge_modules_count", "Modules")}
-                </span>
-              </>
-            )}
-            {highestGameVer && highestGameVer !== "Unknown" && (
-              <>
-                <span className="opacity-40 shrink-0">•</span>
-                <span className="relative group/gamever font-mono text-[10px] font-semibold text-[var(--subtext)] opacity-80 truncate">
-                  {highestGameVer}
-                  <HoverTooltip
-                    className="z-[100]"
-                    title={`${t("required_version", "Required Game Version")}: ${highestGameVer}`}
-                    icon={t("icon_sports_esports", "sports_esports")}
-                  />
                 </span>
               </>
             )}
@@ -304,7 +391,7 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
       {/* Bottom Telemetry & Action Bar */}
       <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className={`${VAULT_CHIP_CLASS} font-mono`}>
+          <span className={`relative group/updchip ${VAULT_CHIP_CLASS} font-mono`}>
             <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
               {t("icon_new_releases", "new_releases")}
             </span>
@@ -320,6 +407,34 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
             ) : (
               <span>{t("btn_update", "Update")}</span>
             )}
+            <HoverTooltip
+              className="z-[100] !left-0 !translate-x-0"
+              title={t("btn_update", "Update")}
+              icon={t("icon_new_releases", "new_releases")}
+              variant="accent"
+              description={
+                <div className="flex flex-col gap-0.5 text-left font-mono text-[11px]">
+                  {cleanInstalledVer && (
+                    <div>
+                      <span className="opacity-70">{t("installed", "Installed")}:</span>{" "}
+                      <span className="font-bold text-[var(--text)]">v{cleanInstalledVer}</span>
+                    </div>
+                  )}
+                  {cleanNewVer && (
+                    <div>
+                      <span className="opacity-70">{t("latest", "Latest")}:</span>{" "}
+                      <span className="font-bold text-[var(--accent)]">v{cleanNewVer}</span>
+                    </div>
+                  )}
+                  {highestGameVer && highestGameVer !== "Unknown" && (
+                    <div>
+                      <span className="opacity-70">{t("required", "Required")}:</span>{" "}
+                      <span className="font-bold text-[var(--text)]">{highestGameVer}</span>
+                    </div>
+                  )}
+                </div>
+              }
+            />
           </span>
         </div>
 
@@ -413,7 +528,7 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
                   <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-70 shrink-0">
                     {isScript
                       ? t("type_script", "Script")
-                      : t("type_package", "Package")}
+                      : t("type_package", "Module")}
                   </span>
                 </div>
               );

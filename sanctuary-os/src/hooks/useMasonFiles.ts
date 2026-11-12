@@ -1,12 +1,75 @@
 import { useState, useEffect } from "react";
-import { useStore, getSafeSchema } from "../store";
-import { GAME_ARCHITECTURE_PRESETS } from "../utils/gameArchitecturePresets";
+import { useStore } from "../store";
+import {
+  DEFAULT_SCHEMA_CACHE_KEY,
+  getBundledSchema,
+  getCachedOrBundledDefaultSchema,
+} from "../utils/bundledSchemas";
 import { readDir, readTextFile, writeTextFile, exists, remove } from "@tauri-apps/plugin-fs";
 import { open } from "@tauri-apps/plugin-dialog";
 import enDefault from "../lexicons/en-default.json";
-import { useLexicon, loadBuiltinLexiconAsync, getLoadedBuiltinLexicon } from "../LexiconContext";
+import {
+  CORE_LEXICONS_CACHE_KEY,
+  CORE_GLOSSARY_TERMS,
+  useLexicon,
+  loadBuiltinLexiconAsync,
+  getLoadedBuiltinLexicon,
+} from "../LexiconContext";
 
-const CORE_LEXICON_ORDER = ["en-default", "en-sanctuary", "en-sims", "Simlish"];
+export interface CreateLexiconOptions {
+  fileId: string;
+  displayName: string;
+  lang: string;
+  starterPreset?: string;
+}
+
+const CORE_LEXICON_ORDER = ["en-default", "en-sanctuary"];
+const BUNDLED_DELTA_LEXICON_IDS = ["en-sanctuary", "en-sims", "Simlish"];
+
+function normalizeLexId(rawId: string): string {
+  const lower = String(rawId || "").trim().toLowerCase();
+  if (lower === "simlish") return "Simlish";
+  if (lower === "en-sims") return "en-sims";
+  if (lower === "en-default") return "en-default";
+  if (lower === "en-sanctuary") return "en-sanctuary";
+  return String(rawId || "").trim();
+}
+
+function getActiveEnDefaultTemplate(): Record<string, any> {
+  try {
+    const raw = localStorage.getItem(CORE_LEXICONS_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.["en-default"] && typeof parsed["en-default"] === "object") {
+        return { ...(enDefault as Record<string, any>), ...parsed["en-default"] };
+      }
+    }
+  } catch {}
+  return enDefault as Record<string, any>;
+}
+
+function resolveMasonSandboxDir(rawVaultPath: string): string {
+  const normalizedVault = rawVaultPath.replace(/\\/g, "/").replace(/\/+$/, "");
+  let baseDir = normalizedVault;
+  const activeSchema = useStore.getState().activeGameSchema;
+  const candidateLeaves = [
+    activeSchema?.paths?.default_mod_dir_windows,
+    activeSchema?.paths?.default_mod_dir_mac,
+    activeSchema?.paths?.default_mod_dir_linux,
+    activeSchema?.paths?.default_windows,
+    activeSchema?.paths?.default_mac,
+    activeSchema?.paths?.default_linux,
+  ];
+  for (const rawPath of candidateLeaves) {
+    if (!rawPath || typeof rawPath !== "string") continue;
+    const leaf = rawPath.replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop();
+    if (leaf && baseDir.toLowerCase().endsWith(`/${leaf.toLowerCase()}`)) {
+      baseDir = baseDir.substring(0, baseDir.length - (leaf.length + 1));
+      break;
+    }
+  }
+  return `${baseDir}/Dev/Sandbox`;
+}
 
 const LANG_NAME_MAP: Record<string, string> = {
   en: "English",
@@ -68,6 +131,46 @@ export function clearIdeCachedDraft(filePath: string) {
   } catch {}
 }
 
+function getValidCloudSchemaDraft(
+  path: string,
+  fileId: string,
+  canonicalSchema: any
+): { raw: string; parsed: any } | null {
+  const raw = getIdeCachedDraft(path);
+  if (!raw) return null;
+  const canonicalStr = canonicalSchema ? JSON.stringify(canonicalSchema, null, 2) : "";
+  if (canonicalStr && raw === canonicalStr) {
+    clearIdeCachedDraft(path);
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { raw, parsed: null };
+    }
+    const cleanFileId = String(fileId || "").trim().toLowerCase();
+    // Guard Keepers Core 'default' baseline schema from any game-specific draft poisoning (e.g. 'sims4')
+    if (cleanFileId === "default") {
+      const draftId = String(parsed.id || "default").trim().toLowerCase();
+      const draftGameId = String(parsed.game_id || "default").trim().toLowerCase();
+      if (draftId !== "default" || draftGameId !== "default") {
+        clearIdeCachedDraft(path);
+        return null;
+      }
+    }
+    // Discard stale local drafts whose schema_version predates a newer cloud schema version
+    const cloudVer = Number(canonicalSchema?.schema_version) || 0;
+    const draftVer = Number(parsed?.schema_version) || 0;
+    if (cloudVer > 0 && draftVer > 0 && draftVer < cloudVer) {
+      clearIdeCachedDraft(path);
+      return null;
+    }
+    return { raw, parsed };
+  } catch {
+    return { raw, parsed: null };
+  }
+}
+
 export function useMasonFiles({
   vaultPath,
   isCloudMode,
@@ -79,7 +182,7 @@ export function useMasonFiles({
   cloudTarget?: "sanctuary_schemas" | "sanctuary_lexicons" | "sanctuary_games";
   isKeepers?: boolean;
 }) {
-  const { t } = useLexicon();
+  const { t, registry } = useLexicon();
   const session = useStore((state) => state.session);
   const pushStatus = useStore((state) => state.pushStatus);
   const localOpenFiles = useStore((state) => state.ideOpenFiles);
@@ -172,16 +275,9 @@ export function useMasonFiles({
           "Workspace";
 
         if (internalCloudTarget === "sanctuary_lexicons") {
-          const [primaryRes, spokeRes] = await Promise.all([
-            primaryClient
-              .from("sanctuary_lexicons")
-              .select("id, name, badge, version, lexicon_data"),
-            isKeepers
-              ? supabaseMod.supabase
-                  .from("sanctuary_lexicons")
-                  .select("id, name, badge, version, lexicon_data")
-              : Promise.resolve({ data: [] as any[], error: null }),
-          ]);
+          const primaryRes = await primaryClient
+            .from("sanctuary_lexicons")
+            .select("id, name, badge, version, lexicon_data");
 
           if (primaryRes.error) {
             console.error("Cloud fetch error:", primaryRes.error);
@@ -190,32 +286,40 @@ export function useMasonFiles({
             setFetchError(null);
           }
 
-          const normalizeLexId = (rawId: string) => {
-            const lower = String(rawId || "").trim().toLowerCase();
-            if (lower === "simlish") return "Simlish";
-            if (lower === "en-sims") return "en-sims";
-            if (lower === "en-default") return "en-default";
-            if (lower === "en-sanctuary") return "en-sanctuary";
-            return String(rawId || "").trim();
-          };
-
           const rowMap = new Map<string, any>();
-          for (const row of spokeRes.data || []) {
-            if (row?.id) {
-              const cid = normalizeLexId(String(row.id));
-              rowMap.set(cid, { ...row, id: cid });
-            }
-          }
           for (const row of primaryRes.data || []) {
-            if (row?.id) {
-              const cid = normalizeLexId(String(row.id));
-              rowMap.set(cid, { ...row, id: cid });
-            }
+            if (!row?.id) continue;
+            const cid = normalizeLexId(String(row.id));
+            // Keepers Core strictly manages Core OS lexicons (never TS4 packs); Spokes never manage Core OS lexicons
+            if (isKeepers && (cid === "en-sims" || cid === "Simlish")) continue;
+            if (!isKeepers && (cid === "en-default" || cid === "en-sanctuary")) continue;
+            rowMap.set(cid, { ...row, id: cid });
           }
+
+          const bundledSpokeSchema = !isKeepers
+            ? getBundledSchema(
+                String(
+                  activeWs?.schema_id ||
+                    storeState.activeGameSchema?.id ||
+                    storeState.activeWorkspaceId ||
+                    ""
+                )
+              )
+            : null;
+          const spokeUsesOfflineSimsFallback =
+            !isKeepers &&
+            rowMap.size === 0 &&
+            (bundledSpokeSchema?.default_lexicon === "en-sims" ||
+              bundledSpokeSchema?.default_lexicon === "Simlish" ||
+              storeState.activeGameSchema?.default_lexicon === "en-sims" ||
+              storeState.activeGameSchema?.default_lexicon === "Simlish");
 
           const seedIds = isKeepers
-            ? ["en-default", "en-sanctuary", "en-sims", "Simlish"]
-            : ["en-sims", "Simlish"];
+            ? ["en-default", "en-sanctuary"]
+            : spokeUsesOfflineSimsFallback
+              ? ["en-sims", "Simlish"]
+              : [];
+
           const loadedSeeds: Record<string, Record<string, any>> = {
             "en-default": enDefault,
           };
@@ -231,7 +335,7 @@ export function useMasonFiles({
               rowMap.set(id, {
                 id,
                 name: id,
-                badge: id === "en-sims" || id === "Simlish" ? spokeDisplayName : "Sanctuary",
+                badge: id === "en-default" || id === "en-sanctuary" ? "Sanctuary" : spokeDisplayName,
                 version: 1,
                 lexicon_data: loadedSeeds[id] || {},
               });
@@ -242,7 +346,7 @@ export function useMasonFiles({
             const id = normalizeLexId(String(row.id));
             const bundled = loadedSeeds[id] || getLoadedBuiltinLexicon(id);
             const lexData = bundled
-              ? { ...(row.lexicon_data || {}), ...bundled }
+              ? { ...bundled, ...(row.lexicon_data || {}) }
               : row.lexicon_data || {};
             const isKeepersCorePack = id === "en-default" || id === "en-sanctuary";
             const isSpokeSeedPack = id === "en-sims" || id === "Simlish";
@@ -344,54 +448,78 @@ export function useMasonFiles({
           }
         }
         if (internalCloudTarget === "sanctuary_schemas") {
-          const activeGameSchema = storeState.activeGameSchema;
-          const rawActiveSchemaId = String(
-            activeWs?.schema_id || activeGameSchema?.id || "default"
-          )
-            .trim()
-            .toLowerCase();
-          const activeSchemaId = rawActiveSchemaId;
-
-          if (activeSchemaId && !rowMap.has(activeSchemaId)) {
-            rowMap.set(activeSchemaId, {
-              id: activeSchemaId,
-              name:
-                activeGameSchema?.display_name ||
-                activeGameSchema?.name ||
-                spokeDisplayName ||
-                activeSchemaId,
-              schema_data: activeGameSchema,
-              version: activeGameSchema?.schema_version || 1,
-            });
-          }
-          if (isKeepers && rowMap.size === 0) {
-            rowMap.set("default", { id: "default", name: "Default Master Schema" });
+          if (isKeepers) {
+            if (!rowMap.has("default")) {
+              const defSchema = getCachedOrBundledDefaultSchema();
+              rowMap.set("default", {
+                id: "default",
+                name: defSchema?.display_name || defSchema?.name || "Default Master Schema",
+                schema_data: defSchema,
+                version: defSchema?.schema_version || 1,
+              });
+            }
+          } else {
+            const activeGameSchema = storeState.activeGameSchema;
+            const rawActiveSchemaId = String(
+              activeWs?.schema_id || activeGameSchema?.id || "default"
+            )
+              .trim()
+              .toLowerCase();
+            if (
+              rawActiveSchemaId &&
+              rawActiveSchemaId !== "default" &&
+              !rowMap.has(rawActiveSchemaId)
+            ) {
+              const fallbackSpokeSchema =
+                getBundledSchema(rawActiveSchemaId) || activeGameSchema;
+              rowMap.set(rawActiveSchemaId, {
+                id: rawActiveSchemaId,
+                name:
+                  fallbackSpokeSchema?.display_name ||
+                  fallbackSpokeSchema?.name ||
+                  spokeDisplayName ||
+                  rawActiveSchemaId,
+                schema_data: fallbackSpokeSchema,
+                version: fallbackSpokeSchema?.schema_version || 1,
+              });
+            }
           }
         }
         const mapped = Array.from(rowMap.entries())
           .map(([id, row]) => {
             const path = `cloud://${id}`;
             const schemaData = row?.schema_data || null;
-            const cachedDraft = getIdeCachedDraft(path);
-            let parsedDraft: any = null;
-            if (cachedDraft) {
-              try {
-                parsedDraft = JSON.parse(cachedDraft);
-              } catch {}
-            }
+            const validDraft =
+              internalCloudTarget === "sanctuary_schemas"
+                ? getValidCloudSchemaDraft(path, id, schemaData)
+                : (() => {
+                    const d = getIdeCachedDraft(path);
+                    if (!d) return null;
+                    try {
+                      return { raw: d, parsed: JSON.parse(d) };
+                    } catch {
+                      return { raw: d, parsed: null };
+                    }
+                  })();
+            const cachedDraft = validDraft?.raw || null;
+            const parsedDraft = validDraft?.parsed || null;
             const effectiveSchema = parsedDraft || schemaData || {};
+            const isDefaultId = String(id).trim().toLowerCase() === "default";
             const rowNameClean =
               row?.name && String(row.name).toLowerCase() !== String(id).toLowerCase()
                 ? row.name
                 : null;
-            const displayTitle =
-              effectiveSchema?.display_name ||
-              effectiveSchema?.name ||
-              effectiveSchema?.game_name ||
-              rowNameClean ||
-              (!isKeepers ? spokeDisplayName : null) ||
-              row?.name ||
-              id;
+            const displayTitle = isDefaultId
+              ? effectiveSchema?.display_name ||
+                rowNameClean ||
+                "Default Master Schema"
+              : effectiveSchema?.display_name ||
+                effectiveSchema?.name ||
+                effectiveSchema?.game_name ||
+                rowNameClean ||
+                (!isKeepers ? spokeDisplayName : null) ||
+                row?.name ||
+                id;
             const rawSchemaAuthor =
               effectiveSchema?.author || effectiveSchema?._meta_author || "";
             const resolvedAuthor = isKeepers
@@ -409,8 +537,8 @@ export function useMasonFiles({
               version: row?.version || effectiveSchema?.schema_version || 1,
               updated_at: row?.updated_at || row?.created_at || null,
               schema_data: schemaData,
-              cachedDraft: cachedDraft || null,
-              hasUnsavedDraft: hasIdeCachedDraft(path),
+              cachedDraft,
+              hasUnsavedDraft: Boolean(cachedDraft),
             };
           })
           .sort((a, b) => a.name.localeCompare(b.name));
@@ -426,14 +554,7 @@ export function useMasonFiles({
     if (!vaultPath) return;
     setIsScanning(true);
     try {
-      const normalizedVault = vaultPath.replace(/\\/g, "/");
-      let baseDir = normalizedVault;
-      if (baseDir.toLowerCase().endsWith("/mods")) {
-        baseDir = baseDir.substring(0, baseDir.length - 5);
-      } else if (baseDir.toLowerCase().endsWith("mods")) {
-        baseDir = baseDir.substring(0, baseDir.length - 4);
-      }
-      const sandboxDir = `${baseDir}/Dev/Sandbox`;
+      const sandboxDir = resolveMasonSandboxDir(vaultPath);
 
       const dirExists = await exists(sandboxDir);
       if (!dirExists) {
@@ -522,10 +643,10 @@ export function useMasonFiles({
           currentFile.name.toLowerCase() === "simlish.json";
 
       if (isLexicon) {
-        setReferenceData(enDefault);
+        setReferenceData(getActiveEnDefaultTemplate());
         setReferenceLabel(t("validator_source_default_lex", "en-default.json Baseline"));
       } else {
-        const fallbackDefaultSchema = getSafeSchema(GAME_ARCHITECTURE_PRESETS.universal, "default");
+        const fallbackDefaultSchema = getCachedOrBundledDefaultSchema();
         setReferenceData(fallbackDefaultSchema);
         setReferenceLabel(
           t("validator_source_keepers", "Keepers Core Default Schema")
@@ -537,9 +658,20 @@ export function useMasonFiles({
             .select("schema_data")
             .eq("id", "default")
             .maybeSingle();
-          if (data && Object.keys((data as any).schema_data || {}).length > 0) {
-            const keepersDefault = getSafeSchema((data as any).schema_data, "default");
-            setReferenceData(keepersDefault);
+          const cloudDefault = (data as any)?.schema_data;
+          if (
+            cloudDefault &&
+            typeof cloudDefault === "object" &&
+            Object.keys(cloudDefault).length > 0 &&
+            String(cloudDefault.id || "default").trim().toLowerCase() === "default"
+          ) {
+            try {
+              localStorage.setItem(
+                DEFAULT_SCHEMA_CACHE_KEY,
+                JSON.stringify(cloudDefault)
+              );
+            } catch {}
+            setReferenceData(cloudDefault);
             setReferenceLabel(
               t("validator_source_keepers", "Keepers Core Default Schema")
             );
@@ -592,100 +724,84 @@ export function useMasonFiles({
         const supabaseMod = await import("../supabase");
         const client = isKeepers ? supabaseMod.supabaseAuth : supabaseMod.supabase;
 
-        if (internalCloudTarget === "sanctuary_lexicons" && CORE_LEXICON_ORDER.includes(fileId)) {
-          // Built-in Master Lexicons: load canonical bundled lexicon lazily & sync cloud if needed
-          const loadedPack = await loadBuiltinLexiconAsync(fileId);
-          const bundledObj = { ...loadedPack };
-          canonicalContent = JSON.stringify(bundledObj, null, 2);
+        const { data, error } = await client
+          .from(internalCloudTarget)
+          .select(internalCloudTarget === "sanctuary_lexicons" ? "lexicon_data" : "schema_data")
+          .eq("id", fileId)
+          .maybeSingle();
 
-          // Check if cloud row still has deprecated keys and auto-sync in background
-          (async () => {
-            try {
-              const { data } = await client
-                .from("sanctuary_lexicons")
-                .select("id, name, badge, version, lexicon_data")
-                .eq("id", fileId)
-                .maybeSingle();
-              const cloudLex = (data as any)?.lexicon_data || {};
-              const cloudKeys = Object.keys(cloudLex);
-              const bundledKeys = Object.keys(bundledObj);
-              if (
-                cloudKeys.length !== bundledKeys.length ||
-                cloudLex._meta_name !== bundledObj._meta_name ||
-                cloudLex._meta_badge !== bundledObj._meta_badge
-              ) {
-                const payload = {
-                  id: fileId,
-                  name: bundledObj._meta_name || (data as any)?.name || fileId,
-                  badge: bundledObj._meta_badge || "Sanctuary",
-                  version: (data as any)?.version || bundledObj._meta_version || 1,
-                  lexicon_data: bundledObj,
-                  updated_at: new Date().toISOString(),
-                };
-                if (isKeepers) {
-                  await supabaseMod.supabaseAuth
-                    .from("sanctuary_lexicons")
-                    .upsert(payload as any);
-                } else {
-                  const token = useStore.getState().session?.access_token;
-                  if (token) {
-                    await supabaseMod.supabase.rpc("secure_upsert_cloud_file", {
-                      p_token: token,
-                      p_target: "sanctuary_lexicons",
-                      p_payload: payload,
-                    });
-                  }
+        if (!error && data) {
+          if (internalCloudTarget === "sanctuary_lexicons") {
+            const rawLex = (data as any).lexicon_data || {};
+            const normalizedId = normalizeLexId(fileId);
+            if (normalizedId === "en-default") {
+              const loadedFallback = await loadBuiltinLexiconAsync("en-default");
+              const mergedDefault: Record<string, any> = { ...loadedFallback };
+              for (const [k, v] of Object.entries(rawLex)) {
+                if (k.startsWith("_meta") || k in loadedFallback) {
+                  mergedDefault[k] = v;
                 }
               }
-            } catch {}
-          })();
-        } else {
-          let { data, error } = await client
-            .from(internalCloudTarget)
-            .select(internalCloudTarget === "sanctuary_lexicons" ? "lexicon_data" : "schema_data")
-            .eq("id", fileId)
-            .maybeSingle();
-
-          if ((!data || error) && isKeepers && internalCloudTarget === "sanctuary_lexicons") {
-            const spokeFallback = await supabaseMod.supabase
-              .from("sanctuary_lexicons")
-              .select("lexicon_data")
-              .eq("id", fileId)
-              .maybeSingle();
-            if (!spokeFallback.error && spokeFallback.data) {
-              data = spokeFallback.data;
-              error = null;
-            }
-          }
-
-          if (!error && data) {
-            if (internalCloudTarget === "sanctuary_lexicons") {
-              const rawLex = (data as any).lexicon_data || {};
+              canonicalContent = JSON.stringify(mergedDefault, null, 2);
+            } else {
+              const activeEnDefault = getActiveEnDefaultTemplate();
+              const loadedFallback = BUNDLED_DELTA_LEXICON_IDS.includes(normalizedId)
+                ? await loadBuiltinLexiconAsync(normalizedId)
+                : {};
+              const combined = { ...(loadedFallback || {}), ...rawLex };
               const cleanedLex: Record<string, any> = {};
-              for (const [k, v] of Object.entries(rawLex)) {
+              for (const [k, v] of Object.entries(combined)) {
                 if (k.startsWith("_meta")) {
                   cleanedLex[k] = v;
                   continue;
                 }
-                if (v === "" || v === null || v === undefined) continue;
+                if (
+                  v === "" ||
+                  v === null ||
+                  v === undefined ||
+                  (typeof v === "string" && v.trim() === "")
+                ) {
+                  continue;
+                }
+                const isDynamicDomain =
+                  k.startsWith("term_") ||
+                  k.startsWith("icon_") ||
+                  k.startsWith("class_dd_") ||
+                  k.startsWith("vault_sub_") ||
+                  k.startsWith("dlc_type_");
+                if (!isDynamicDomain && activeEnDefault[k] === undefined) {
+                  continue;
+                }
                 if (
                   !k.startsWith("term_") &&
                   !k.startsWith("icon_") &&
-                  (enDefault as any)[k] === undefined
+                  activeEnDefault[k] !== undefined &&
+                  v === activeEnDefault[k]
                 ) {
                   continue;
                 }
                 cleanedLex[k] = v;
               }
               canonicalContent = JSON.stringify(cleanedLex, null, 2);
-            } else {
-              canonicalContent = JSON.stringify((data as any).schema_data, null, 2);
             }
-          } else if (internalCloudTarget === "sanctuary_schemas" && useStore.getState().activeGameSchema) {
-            canonicalContent = JSON.stringify(useStore.getState().activeGameSchema, null, 2);
           } else {
-            canonicalContent = '{\n  "schema_version": 1\n}';
+            canonicalContent = JSON.stringify((data as any).schema_data, null, 2);
           }
+        } else if (internalCloudTarget === "sanctuary_lexicons") {
+          const loadedFallback = await loadBuiltinLexiconAsync(fileId);
+          canonicalContent = JSON.stringify(loadedFallback || {}, null, 2);
+        } else if (internalCloudTarget === "sanctuary_schemas") {
+          const fallbackSchema =
+            fileId.toLowerCase() === "default"
+              ? getCachedOrBundledDefaultSchema()
+              : getBundledSchema(fileId) || useStore.getState().activeGameSchema;
+          canonicalContent = JSON.stringify(
+            fallbackSchema || { schema_version: 1 },
+            null,
+            2
+          );
+        } else {
+          canonicalContent = '{\n  "schema_version": 1\n}';
         }
       } else {
         canonicalContent = await readTextFile(file.path);
@@ -693,25 +809,45 @@ export function useMasonFiles({
 
       // Check local draft cache so unsaved edits are never lost when closing the IDE
       let workingContent = canonicalContent;
-      const cachedDraft = getIdeCachedDraft(file.path);
-      if (cachedDraft && cachedDraft !== canonicalContent) {
-        let useCached = true;
-        const fileId = file.name.replace(/\.json$/i, "");
-        if (CORE_LEXICON_ORDER.includes(fileId)) {
-          try {
-            const parsedDraft = JSON.parse(cachedDraft);
-            if (
-              Object.keys(parsedDraft).length > 1400 ||
-              (fileId !== "en-sanctuary" && parsedDraft?._meta_name === "English: Sanctuary")
-            ) {
-              // Discard stale pre-simplification or mislabeled draft
-              clearIdeCachedDraft(file.path);
-              useCached = false;
-            }
-          } catch {}
+      const fileId = file.name.replace(/\.json$/i, "");
+      if (isCloudMode && internalCloudTarget === "sanctuary_schemas") {
+        let parsedCanonical: any = null;
+        try {
+          parsedCanonical = JSON.parse(canonicalContent);
+        } catch {}
+        const validSchemaDraft = getValidCloudSchemaDraft(
+          file.path,
+          fileId,
+          parsedCanonical
+        );
+        if (validSchemaDraft && validSchemaDraft.raw !== canonicalContent) {
+          workingContent = validSchemaDraft.raw;
         }
-        if (useCached) {
-          workingContent = cachedDraft;
+      } else {
+        const cachedDraft = getIdeCachedDraft(file.path);
+        if (cachedDraft && cachedDraft !== canonicalContent) {
+          let useCached = true;
+          const normalizedDraftId = normalizeLexId(fileId);
+          if (
+            normalizedDraftId === "en-default" ||
+            BUNDLED_DELTA_LEXICON_IDS.includes(normalizedDraftId)
+          ) {
+            try {
+              const parsedDraft = JSON.parse(cachedDraft);
+              if (
+                (normalizedDraftId !== "en-default" && Object.keys(parsedDraft).length > 2000) ||
+                (normalizedDraftId !== "en-sanctuary" &&
+                  parsedDraft?._meta_name === "English: Sanctuary")
+              ) {
+                // Discard stale pre-sparse-delta or mislabeled draft
+                clearIdeCachedDraft(file.path);
+                useCached = false;
+              }
+            } catch {}
+          }
+          if (useCached) {
+            workingContent = cachedDraft;
+          }
         }
       }
 
@@ -896,26 +1032,83 @@ export function useMasonFiles({
     }
   };
 
-  const handleCreateSubmit = async () => {
-    if (!createFileName.trim()) return;
-    if (createMode === "lexicon" && !lexiconLang.trim()) return;
+  const buildInitialLexiconDict = (
+    displayName: string,
+    lang: string,
+    author: string,
+    starterPreset?: string
+  ): Record<string, any> => {
+    const dict: Record<string, any> = {
+      _meta_name: displayName,
+      _meta_lang: lang || "en",
+      _meta_author: author,
+      _meta_version: 1,
+    };
+    if (starterPreset && starterPreset !== "en-default") {
+      if (starterPreset === "en-sanctuary") {
+        for (const term of CORE_GLOSSARY_TERMS) {
+          dict[term.key] = term.defaults["en-sanctuary"];
+        }
+      } else {
+        const sourceDict = registry?.[starterPreset] || {};
+        for (const term of CORE_GLOSSARY_TERMS) {
+          if (sourceDict[term.key]) {
+            dict[term.key] = sourceDict[term.key];
+          }
+        }
+      }
+    }
+    return dict;
+  };
+
+  const handleCreateSubmit = async (lexiconOptions?: CreateLexiconOptions) => {
+    const isLexiconCreation =
+      Boolean(lexiconOptions) ||
+      (isCloudMode && internalCloudTarget === "sanctuary_lexicons") ||
+      (!isCloudMode && createMode === "lexicon");
+
+    const effectiveRawId = lexiconOptions?.fileId || createFileName;
+    if (!effectiveRawId.trim()) return;
+    if (!lexiconOptions && createMode === "lexicon" && !lexiconLang.trim()) return;
+
     try {
+      const storeState = useStore.getState() as any;
+      const activeWs = (storeState.workspaces || []).find(
+        (w: any) =>
+          String(w.id).toLowerCase() === String(storeState.activeWorkspaceId || "").toLowerCase() ||
+          String(w.schema_id || "").toLowerCase() ===
+            String(storeState.activeWorkspaceId || "").toLowerCase()
+      );
+      const spokeDisplayName =
+        activeWs?.name ||
+        storeState.activeGameSchema?.display_name ||
+        storeState.activeGameSchema?.name ||
+        "Community";
+
       if (isCloudMode) {
-        const fileId = createFileName.trim();
-        const client = (await import("../supabase")).supabase;
-        const contentToSave =
-          (isCloudMode && internalCloudTarget === "sanctuary_lexicons") ||
-          (!isCloudMode && createMode === "lexicon")
-            ? { _meta_lang: lexiconLang.toLowerCase(), _meta_name: fileId }
-            : { schema_version: 1, metadata: {} };
+        const fileId = effectiveRawId.trim().replace(/\.json$/i, "");
+        const supabaseMod = await import("../supabase");
+        const client = isKeepers ? supabaseMod.supabaseAuth : supabaseMod.supabase;
+        const resolvedAuthor = isKeepers
+          ? "Sanctuary Foundry"
+          : session?.user?.user_metadata?.username || spokeDisplayName;
+        const contentToSave = isLexiconCreation
+          ? buildInitialLexiconDict(
+              lexiconOptions?.displayName?.trim() || fileId,
+              lexiconOptions?.lang?.trim() || lexiconLang.toLowerCase(),
+              resolvedAuthor,
+              lexiconOptions?.starterPreset
+            )
+          : { schema_version: 1, metadata: {} };
         const payload =
           internalCloudTarget === "sanctuary_lexicons"
             ? {
                 id: fileId,
                 name: fileId,
-                badge: "Sanctuary",
+                badge: isKeepers ? "Sanctuary" : spokeDisplayName,
                 version: 1,
                 lexicon_data: contentToSave,
+                updated_at: new Date().toISOString(),
               }
             : {
                 id: fileId,
@@ -935,7 +1128,7 @@ export function useMasonFiles({
           });
           error = res.error;
         } else {
-          const res = await client.from(internalCloudTarget).insert(payload as any);
+          const res = await client.from(internalCloudTarget).upsert(payload as any);
           error = res.error;
         }
 
@@ -950,23 +1143,17 @@ export function useMasonFiles({
         return;
       }
       if (!vaultPath) return;
-      const normalizedVault = vaultPath.replace(/\\/g, "/");
-      let baseDir = normalizedVault;
-      if (baseDir.toLowerCase().endsWith("/mods"))
-        baseDir = baseDir.substring(0, baseDir.length - 5);
-      else if (baseDir.toLowerCase().endsWith("mods"))
-        baseDir = baseDir.substring(0, baseDir.length - 4);
-      const sandboxDir = `${baseDir}/Dev/Sandbox`;
-      const baseName =
-        createMode === "lexicon"
+      const sandboxDir = resolveMasonSandboxDir(vaultPath);
+      const baseName = lexiconOptions
+        ? lexiconOptions.fileId.trim().replace(/\.json$/i, "")
+        : createMode === "lexicon"
           ? `${lexiconLang.toLowerCase()}-${createFileName.trim()}`
           : createFileName.trim();
-      const ext =
-        createMode === "lexicon"
-          ? ".json"
-          : createFileExt.startsWith(".")
-            ? createFileExt
-            : "." + createFileExt;
+      const ext = isLexiconCreation
+        ? ".json"
+        : createFileExt.startsWith(".")
+          ? createFileExt
+          : "." + createFileExt;
       const newName = baseName + ext;
       const newPath = `${sandboxDir}/${newName}`;
       if (await exists(newPath)) {
@@ -975,18 +1162,14 @@ export function useMasonFiles({
       }
 
       let initialContent = "";
-      if (createMode === "lexicon") {
-        const emptyLexicon: any = {
-          _meta_lang: lexiconLang.toLowerCase(),
-          _meta_name: createFileName.trim(),
-          _meta_author: session?.user?.user_metadata?.username || "Unknown",
-        };
-        for (const key of Object.keys(enDefault)) {
-          if (key.startsWith("term_")) {
-            emptyLexicon[key] = (enDefault as any)[key] || "";
-          }
-        }
-        initialContent = JSON.stringify(emptyLexicon, null, 2);
+      if (isLexiconCreation) {
+        const localDict = buildInitialLexiconDict(
+          lexiconOptions?.displayName?.trim() || createFileName.trim() || baseName,
+          lexiconOptions?.lang?.trim() || lexiconLang.toLowerCase(),
+          session?.user?.user_metadata?.username || "Creator",
+          lexiconOptions?.starterPreset
+        );
+        initialContent = JSON.stringify(localDict, null, 2);
       }
 
       await writeTextFile(newPath, initialContent);
@@ -1050,13 +1233,7 @@ export function useMasonFiles({
           return;
         }
         if (!vaultPath) return;
-        const normalizedVault = vaultPath.replace(/\\/g, "/");
-        let baseDir = normalizedVault;
-        if (baseDir.toLowerCase().endsWith("/mods"))
-          baseDir = baseDir.substring(0, baseDir.length - 5);
-        else if (baseDir.toLowerCase().endsWith("mods"))
-          baseDir = baseDir.substring(0, baseDir.length - 4);
-        const sandboxDir = `${baseDir}/Dev/Sandbox`;
+        const sandboxDir = resolveMasonSandboxDir(vaultPath);
         const dirExists = await exists(sandboxDir);
         if (!dirExists) return;
 

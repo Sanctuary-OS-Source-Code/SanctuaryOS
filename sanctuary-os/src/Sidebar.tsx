@@ -8,12 +8,13 @@ import { isDesktop } from "./utils/envUtils";
 import { isRootDomain, scrollToLandingSection, getActiveLandingTab, normalizeLandingTab } from "./utils/routingUtils";
 import { openSanctuaryLogin } from "./AuthWrapper";
 
-function NavButton({ active, onClick, icon, label, isCollapsed, isAccent = false, badge = 0, setHoveredTooltip }: any) {
+function NavButton({ active, onClick, onMouseEnter, icon, label, isCollapsed, isAccent = false, badge = 0, setHoveredTooltip }: any) {
   const isActive = active;
   return (
     <div className="px-3.5 relative group/navbtn">
       <button
         onMouseEnter={(e) => {
+          if (onMouseEnter) onMouseEnter();
           if (isCollapsed) {
             const rect = e.currentTarget.getBoundingClientRect();
             setHoveredTooltip({ label, top: rect.top + rect.height / 2 });
@@ -514,6 +515,7 @@ export function Sidebar({
                   <NavButton
                     active={view === "MasonHub"}
                     onClick={() => setView("MasonHub")}
+                    onMouseEnter={() => { import("./MasonHub"); }}
                     icon={t("icon_construction", "construction")}
                     label={t("sidebar_mason_hub", "Workshop")}
                     isCollapsed={isSidebarCollapsed}
@@ -549,6 +551,7 @@ export function Sidebar({
                   <NavButton
                     active={view === "ArchitectHub"}
                     onClick={() => setView("ArchitectHub")}
+                    onMouseEnter={() => { import("./ArchitectHub"); }}
                     icon={t("icon_analytics", "analytics")}
                     label={t("sidebar_architect_hub", "Console")}
                     isCollapsed={isSidebarCollapsed}
@@ -583,6 +586,7 @@ export function Sidebar({
                   <NavButton
                     active={view === "Oversight"}
                     onClick={() => setView("Oversight")}
+                    onMouseEnter={() => { import("./Oversight"); }}
                     icon={t("icon_security", "security")}
                     label={t("wf_tab_command", "Command")}
                     isCollapsed={isSidebarCollapsed}
@@ -618,6 +622,7 @@ export function Sidebar({
                   <NavButton
                     active={view === "WayfinderHub"}
                     onClick={() => setView("WayfinderHub")}
+                    onMouseEnter={() => { import("./WayfinderHub"); }}
                     icon={t("icon_terminal", "terminal")}
                     label={t("ui_btn_operations", "Operations")}
                     isCollapsed={isSidebarCollapsed}
@@ -633,6 +638,8 @@ export function Sidebar({
                       <NavButton active={wayfinderActiveTab === "compliance"} onClick={() => setWayfinderActiveTab("compliance")} icon={t("icon_policy", "policy") as string} label={t("tab_compliance", "Compliance")?.replace(/^[^\w]*/, '').trim() || "Compliance"} isCollapsed={false} isAccent={wayfinderActiveTab === "compliance"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={wayfinderActiveTab === "malware_oversight" || wayfinderActiveTab === "oversight_reports"} onClick={() => setWayfinderActiveTab("malware_oversight")} icon={t("icon_coronavirus", "coronavirus") as string} label={t("rating_malware", "Malware")?.replace(/^[^\w]*/, '').trim() || "Malware"} isCollapsed={false} isAccent={wayfinderActiveTab === "malware_oversight" || wayfinderActiveTab === "oversight_reports"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={wayfinderActiveTab === "reports"} onClick={() => setWayfinderActiveTab("reports")} icon={t("icon_flag", "flag") as string} label={t("stat_bugs", "Reports")?.replace(/^[^\w]*/, '').trim() || "Reports"} isCollapsed={false} isAccent={wayfinderActiveTab === "reports"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={wayfinderActiveTab === "mass_update"} onClick={() => setWayfinderActiveTab("mass_update")} icon={t("icon_dynamic_feed", "dynamic_feed") as string} label={t("tab_mass_update", "Mass Update")?.replace(/^[^\w]*/, '').trim() || "Mass Update"} isCollapsed={false} isAccent={wayfinderActiveTab === "mass_update"} setHoveredTooltip={setHoveredTooltip} />
+                      <NavButton active={wayfinderActiveTab === "game_versions"} onClick={() => setWayfinderActiveTab("game_versions")} icon={t("icon_settings", "settings") as string} label={t("tab_game_versions", "Management")?.replace(/^[^\w]*/, '').trim() || "Versions"} isCollapsed={false} isAccent={wayfinderActiveTab === "game_versions"} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={["ide", "schemas", "audit_logs", "spoke_setup", "spoke_sever", "forking_help", "donations", "keepers_support"].includes(wayfinderActiveTab)} onClick={() => setWayfinderActiveTab("ide")} icon={t("icon_data_object", "data_object") as string} label={t("wf_tab_spoke_control", "Spoke Control")?.replace(/^[^\w]*/, '').trim() || "Spoke Control"} isCollapsed={false} isAccent={["ide", "schemas", "audit_logs", "spoke_setup", "spoke_sever", "forking_help", "donations", "keepers_support"].includes(wayfinderActiveTab)} setHoveredTooltip={setHoveredTooltip} />
                       <NavButton active={wayfinderActiveTab === "chameleons"} onClick={() => setWayfinderActiveTab("chameleons")} icon={t("icon_palette", "palette") as string} label={t("wf_tab_spoke_aesthetics", "Spoke Aesthetics")?.replace(/^[^\w]*/, '').trim() || "Spoke Aesthetics"} isCollapsed={false} isAccent={wayfinderActiveTab === "chameleons"} setHoveredTooltip={setHoveredTooltip} />
                     </div>
@@ -658,6 +665,7 @@ export function Sidebar({
                   setView("KeepersCore");
                   if (setKeepersActiveTab) setKeepersActiveTab("command_center");
                 }}
+                onMouseEnter={() => { import("./KeepersCore"); }}
                 icon={t("icon_admin_panel_settings", "admin_panel_settings")}
                 label={t("sidebar_keepers_core", "Keepers Core")}
                 isCollapsed={isSidebarCollapsed}

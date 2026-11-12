@@ -14,7 +14,6 @@ import {
   ElevatedHubLayout,
   HubOverviewLanding,
   HubOverviewSection,
-  SidePanelTitleInput,
 } from "./components/layouts/ElevatedHubLayout";
 import {
   ThemeCard,
@@ -31,6 +30,7 @@ import { UniversalCard } from "./components/universal/UniversalCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 import MasonFileBrowser from "./hub-components/MasonFileBrowser";
 import MasonEditorPanel from "./hub-components/MasonEditorPanel";
+import CreateLexiconSidePanel from "./hub-components/CreateLexiconSidePanel";
 import {
   useMasonFiles,
   clearIdeCachedDraft,
@@ -182,10 +182,6 @@ export function MasonChameleons({
     setDeleteConfirmPath,
     isCreatePanelOpen: isCreateLexiconOpen,
     setIsCreatePanelOpen: setIsCreateLexiconOpen,
-    lexiconLang,
-    setLexiconLang,
-    createFileName,
-    setCreateFileName,
     showReference,
     setShowReference,
     referenceData,
@@ -1679,65 +1675,12 @@ export function MasonChameleons({
       />
 
       {/* Create New Lexicon Pack SidePanel */}
-      <SidePanel
+      <CreateLexiconSidePanel
         isOpen={isCreateLexiconOpen}
         onClose={() => setIsCreateLexiconOpen(false)}
-        title={t("chameleons_btn_new_lexicon", "New Lexicon")}
-        subtitle={t("auto_create_file_sub", "Create a new lexicon pack")}
-        icon={t("icon_translate", "translate")}
-        headerActions={
-          <PanelHeaderGroup>
-            <PanelHeaderButton
-              icon={t("icon_add", "add")}
-              variant="accent"
-              onClick={handleCreateSubmit}
-              disabled={!createFileName.trim()}
-              tooltip={t("auto_create", "Create")}
-            />
-          </PanelHeaderGroup>
-        }
-      >
-        <div className="flex flex-col gap-6">
-          <div className="pb-6 border-b border-[color-mix(in_srgb,var(--text)_5%,transparent)]">
-            <SidePanelTitleInput
-              value={createFileName}
-              onChange={setCreateFileName}
-              placeholder={t("label_lexicon_name", "Lexicon Name")}
-            />
-          </div>
-          <div className="flex gap-4">
-            <div className="flex flex-col gap-2 w-32">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                {t("label_lang_code", "Language Code")}
-              </label>
-              <input
-                type="text"
-                value={lexiconLang}
-                onChange={(e) =>
-                  setLexiconLang(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
-                }
-                placeholder="es"
-                className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono text-center"
-              />
-            </div>
-            <div className="flex flex-col gap-2 flex-1">
-              <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">
-                {t("label_lexicon_name", "Lexicon Name")}
-              </label>
-              <input
-                type="text"
-                value={createFileName}
-                onChange={(e) => setCreateFileName(e.target.value)}
-                placeholder="default"
-                className="glass-surface rounded-xl px-5 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreateSubmit();
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </SidePanel>
+        onCreate={(opts) => handleCreateSubmit(opts)}
+        isCloudMode={false}
+      />
 
       <MarketUploadPanel
         uploadState={uploadState}

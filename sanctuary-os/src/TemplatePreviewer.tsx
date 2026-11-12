@@ -1,84 +1,133 @@
-import { useLexicon } from './LexiconContext';
-import { EmptyState } from './shared';
+import { useState, useEffect, useMemo } from "react";
+import { useLexicon } from "./LexiconContext";
+import { ActionPill, EmptyState } from "./shared";
+import { WorkbenchCategoryBar } from "./workbench/WorkbenchSidePanel";
+import {
+  WorkbenchVisualEditor,
+  countModifiedSettings,
+} from "./workbench/WorkbenchVisualEditor";
+import { writeDataPathValue } from "./workbench/workbenchFormatUtils";
 
 interface TemplatePreviewerProps {
   templateData: any;
+  compact?: boolean;
 }
 
-export default function TemplatePreviewer({ templateData }: TemplatePreviewerProps) {
+export default function TemplatePreviewer({
+  templateData,
+  compact = true,
+}: TemplatePreviewerProps) {
   const { t } = useLexicon();
-  
-  const settings = templateData?.settings || (Array.isArray(templateData) ? templateData[0]?.settings : []);
-  
-  if (!settings || settings.length === 0) {
-      return (
-          <EmptyState
-             icon={t("icon_visibility_off", "visibility_off")}
-             title={t("no_visual_template", "No Visual Template Available")}
-             minHeightClass="min-h-[320px]"
-          />
-      );
-  }
+  const [previewCategory, setPreviewCategory] = useState<string>("ALL");
+  const [previewSearchQuery, setPreviewSearchQuery] = useState<string>("");
+  const [previewSandboxData, setPreviewSandboxData] = useState<any>({});
+
+  const resolvedTemplate = useMemo(() => {
+    if (!templateData) return null;
+    let candidate = templateData;
+    if (typeof candidate === "string") {
+      try {
+        candidate = JSON.parse(candidate);
+      } catch {
+        return null;
+      }
+    }
+    return Array.isArray(candidate) ? candidate[0] : candidate;
+  }, [templateData]);
+
+  const settings = useMemo(
+    () => (Array.isArray(resolvedTemplate?.settings) ? resolvedTemplate.settings : []),
+    [resolvedTemplate]
+  );
+
+  const categories = useMemo(
+    () => (Array.isArray(resolvedTemplate?.categories) ? resolvedTemplate.categories : []),
+    [resolvedTemplate]
+  );
+
+  useEffect(() => {
+    setPreviewCategory("ALL");
+    setPreviewSearchQuery("");
+    setPreviewSandboxData({});
+  }, [resolvedTemplate?.template_id, resolvedTemplate?.target_file, settings.length]);
 
   const resolveText = (k?: string, fallback?: string) => {
-      if (!k) return fallback || "";
-      const tr = t(k, fallback || k);
-      if (tr === `[${k}]`) return fallback || k;
-      return tr;
+    if (!k) return fallback || "";
+    const tr = t(k, fallback || k);
+    if (tr === `[${k}]`) return fallback || k;
+    return tr;
   };
 
+  const sandboxModifiedCount = useMemo(() => {
+    if (!settings.length) return 0;
+    return countModifiedSettings(settings, previewSandboxData);
+  }, [settings, previewSandboxData]);
+
+  const handlePreviewVisualChange = (dataPath: string, value: any) => {
+    setPreviewSandboxData((prev: any) => {
+      const next = JSON.parse(JSON.stringify(prev || {}));
+      writeDataPathValue(next, dataPath, value);
+      return next;
+    });
+  };
+
+  if (!settings || settings.length === 0) {
+    return (
+      <EmptyState
+        icon={t("icon_visibility_off", "visibility_off")}
+        title={t("no_visual_template", "No Visual Template Available")}
+        minHeightClass="min-h-[280px]"
+      />
+    );
+  }
+
   return (
-      <div className="flex flex-col gap-4">
-          {settings.map((setting: any, idx: number) => {
-              const val = setting.default;
-              return (
-                 <div key={idx} className="glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-2xl p-6 shadow-inner flex flex-col xl:flex-row xl:items-center justify-start group hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] transition-all duration-300 gap-6 opacity-80 pointer-events-none select-none">
-                    <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                       <div className="flex flex-wrap items-center gap-3">
-                          <span className="text-[12px] font-black capitalize tracking-widest text-[var(--text)]">{resolveText(setting.label_key, setting.key)}</span>
-                          {setting.risk === "advanced" && (
-                             <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black tracking-wider uppercase flex items-center gap-1.5 shrink-0">
-                                <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("icon_warning", "warning")}</span>
-                                {t("advanced_badge", "Advanced")}
-                             </span>
-                          )}
-                       </div>
-                       <span className="text-[10px] text-[var(--subtext)] opacity-80 font-medium leading-relaxed max-w-2xl">{resolveText(setting.desc_key, "No description provided.")}</span>
-                    </div>
-                    <div className="shrink-0 flex items-center justify-end">
-                       {setting.type === "boolean" && (
-                          <div className={`sa-glass-toggle ${val ? 'is-on' : ''}`}>
-                             <div className="sa-glass-toggle-thumb" />
-                          </div>
-                       )}
-                       {setting.type === "number" && (
-             <div className="flex items-stretch glass-panel rounded-xl divide-x divide-white/5 shadow-inner border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
-                             <button type="button" className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--subtext)]">
-                                <span className="material-symbols-outlined !text-[16px]">{t("icon_remove", "remove")}</span>
-                             </button>
-                             <input type="number" value={val || 0} readOnly className="w-16 bg-transparent text-[12px] font-black text-[var(--text)] text-center focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                             <button type="button" className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--subtext)]">
-                                <span className="material-symbols-outlined !text-[16px]">{t("icon_add", "add")}</span>
-                             </button>
-                          </div>
-                       )}
-                       {setting.type === "string" && (
-                          <div className="relative">
-                             <input type="text" value={val || ""} readOnly className="glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl h-10 px-4 text-[12px] font-bold text-[var(--text)] focus:outline-none w-48 truncate" />
-                          </div>
-                       )}
-                       {setting.type === "options" && (
-                          <div className="glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] rounded-xl h-10 px-4 text-[12px] font-bold text-[var(--text)] flex items-center justify-start w-48">
-                             <span className="truncate">{val || "Select option..."}</span>
-                             <span className="material-symbols-outlined !text-[16px] text-[var(--subtext)]">{t("icon_expand_more", "expand_more")}</span>
-                          </div>
-                       )}
-                    </div>
-                 </div>
-              );
-          })}
+    <div className="flex flex-col gap-3 w-full">
+      <div className="flex flex-col gap-2.5">
+        <ActionPill
+          className="w-full"
+          searchQuery={previewSearchQuery}
+          setSearchQuery={setPreviewSearchQuery}
+          searchPlaceholder={t("diff_search_settings", "Search settings...")}
+          actions={
+            sandboxModifiedCount > 0
+              ? [
+                  {
+                    id: "reset_preview",
+                    icon: (
+                      <span className="material-symbols-outlined !text-[18px]">
+                        {t("icon_restart_alt", "restart_alt")}
+                      </span>
+                    ),
+                    label: `${t("reset_defaults", "Reset")} (${sandboxModifiedCount})`,
+                    onClick: () => setPreviewSandboxData({}),
+                  },
+                ]
+              : undefined
+          }
+        />
+        {categories.length > 0 && (
+          <WorkbenchCategoryBar
+            categories={categories}
+            settings={settings}
+            selectedCategory={previewCategory}
+            onSelectCategory={(catId) => setPreviewCategory(catId)}
+            resolveText={resolveText}
+            t={t}
+            compact={compact}
+          />
+        )}
       </div>
+
+      <WorkbenchVisualEditor
+        settings={settings}
+        categories={categories}
+        dataSource={previewSandboxData}
+        isPreview={false}
+        selectedCategory={previewCategory}
+        searchQuery={previewSearchQuery}
+        onVisualChange={handlePreviewVisualChange}
+      />
+    </div>
   );
 }
-
-

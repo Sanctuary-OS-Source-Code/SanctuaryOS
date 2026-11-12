@@ -942,7 +942,7 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
             <PanelHeaderGroup>
               <PanelHeaderButton
                 icon={t("icon_download", "download")}
-                tooltip={t("playsets_btn_import", "IMPORT {Blueprint}")}
+                tooltip={t("playsets_btn_import", "Import {Blueprint}")}
                 variant="success"
                 onClick={handleImportBlueprint}
               />

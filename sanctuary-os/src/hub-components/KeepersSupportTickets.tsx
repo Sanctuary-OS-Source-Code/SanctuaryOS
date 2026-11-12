@@ -24,6 +24,11 @@ import {
   saveKeepersPipelineConfig,
   dispatchKeeperCustomEmail,
 } from "../utils/supporterManager";
+import {
+  isTicketClaimedBy,
+  isTicketVisibleToStaff,
+  invalidateHubCommandCache,
+} from "../utils/hubCommandCache";
 
 interface Ticket {
   id: string;
@@ -329,7 +334,9 @@ export default function KeepersSupportTickets({
 
       // Partner Spoke Applications live in Partner Spokes (KeepersActiveGames), not Support Center.
       const finalTickets = mergedTickets.filter(
-        (tk) => classifyKeeperTicket(tk) !== "partner_apps"
+        (tk) =>
+          classifyKeeperTicket(tk) !== "partner_apps" &&
+          (userRole === "mason" || isTicketVisibleToStaff(tk, currentUserId))
       );
 
       setTickets(finalTickets);
@@ -346,14 +353,14 @@ export default function KeepersSupportTickets({
 
   useEffect(() => {
     fetchTickets();
-  }, []);
+  }, [currentUserId, userRole]);
 
   const handleTakeAction = async (actionType: "RESOLVED" | "REJECTED" | "ESCALATED" | "PENDING", reason: string) => {
     if (!selectedTicket) return;
 
     const newStatus = actionType.toUpperCase();
 
-    const newMetadata = {
+    const newMetadata: Record<string, any> = {
       ...(selectedTicket.metadata || {}),
       action_log: [
         ...(selectedTicket.metadata?.action_log || []),
@@ -361,13 +368,17 @@ export default function KeepersSupportTickets({
           action: actionType,
           reason,
           timestamp: new Date().toISOString(),
-          architect: userRole === "oversight" ? "Oversight" : userRole === "wayfinder" ? "Wayfinder" : userRole === "architect" ? "Architect" : "Mason"
+          architect: userRole === "oversight" ? "Oversight" : userRole === "wayfinder" ? "Wayfinder" : userRole === "architect" ? "Architect" : userRole === "keeper" || userRole === "keepers" ? "Keeper" : "Mason"
         }
       ]
     };
 
-    if (actionType === "ESCALATED") {
+    if (actionType === "ESCALATED" || actionType === "RESOLVED" || actionType === "REJECTED") {
       delete newMetadata.claimed_by;
+      delete newMetadata.claimed_role;
+    } else if (actionType === "PENDING" && currentUserId && userRole !== "mason") {
+      newMetadata.claimed_by = currentUserId;
+      newMetadata.claimed_role = "keeper";
     }
 
     const { error } = await supabaseAuth
@@ -399,15 +410,17 @@ export default function KeepersSupportTickets({
         }
       );
     }
+    invalidateHubCommandCache("keeper");
     setSelectedTicket(null);
     fetchTickets();
   };
 
   const handleClaimTicket = async () => {
     if (!selectedTicket || !currentUserId) return;
-    const newMetadata = { ...(selectedTicket.metadata || {}), claimed_by: currentUserId };
+    const newMetadata = { ...(selectedTicket.metadata || {}), claimed_by: currentUserId, claimed_role: "keeper" };
     const { error } = await supabaseAuth.from('keeper_tickets').update({ metadata: newMetadata }).eq('id', selectedTicket.id);
     if (!error) {
+      invalidateHubCommandCache("keeper");
       setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
       fetchTickets();
       useStore.getState().pushStatus(t("ticket_claim", "Claim Ticket") || "Ticket Claimed", "success");
@@ -418,8 +431,10 @@ export default function KeepersSupportTickets({
     if (!selectedTicket || !currentUserId) return;
     const newMetadata = { ...(selectedTicket.metadata || {}) };
     delete newMetadata.claimed_by;
+    delete newMetadata.claimed_role;
     const { error } = await supabaseAuth.from('keeper_tickets').update({ metadata: newMetadata }).eq('id', selectedTicket.id);
     if (!error) {
+      invalidateHubCommandCache("keeper");
       setSelectedTicket({ ...selectedTicket, metadata: newMetadata });
       fetchTickets();
       useStore.getState().pushStatus(t("ticket_release", "Release Ticket") || "Ticket Released", "success");
@@ -494,6 +509,14 @@ export default function KeepersSupportTickets({
               </span>
               <span>{statusLabel}</span>
             </div>
+            {Boolean(currentUserId) && isTicketClaimedBy(ticket) === String(currentUserId) && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                  {t("icon_assignment_ind", "assignment_ind")}
+                </span>
+                <span>{t("ticket_tab_claimed", "Claimed")}</span>
+              </div>
+            )}
             {(ticket.metadata?.expedited_support || ticket.metadata?.urgent) && (
               <div className={VAULT_CHIP_CLASS}>
                 <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
@@ -548,6 +571,9 @@ export default function KeepersSupportTickets({
   };
 
   const activeTickets = tickets.filter((tk) => !isTicketClosedStatus(tk.status));
+  const claimedKeeperTickets = activeTickets.filter(
+    (tk) => Boolean(currentUserId) && isTicketClaimedBy(tk) === String(currentUserId)
+  );
   const bugTickets = activeTickets.filter((tk) => classifyKeeperTicket(tk) === "bugs");
   const feedbackTickets = activeTickets.filter((tk) => classifyKeeperTicket(tk) === "feedback");
   const contactTickets = activeTickets.filter((tk) => classifyKeeperTicket(tk) === "contact");
@@ -557,9 +583,49 @@ export default function KeepersSupportTickets({
     return (
       <HubOverviewLanding>
         <HubOverviewSection
+          title={t("ticket_tab_claimed", "Claimed")}
+          icon={t("icon_assignment_ind", "assignment_ind")}
+          iconColorClass="text-[var(--warning)]"
+          headerAction={
+            <button
+              type="button"
+              onClick={() => setActiveFilter("pending")}
+              title={t("ticket_tab_claimed", "Claimed")}
+              className="px-3 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_arrow_forward", "arrow_forward")}
+              </span>
+            </button>
+          }
+          isEmpty={claimedKeeperTickets.length === 0}
+          emptyState={
+            <EmptyState
+              icon={t("icon_done_all", "done_all")}
+              title={t("no_claimed_tickets", "No Claimed Tickets")}
+              className="py-8"
+            />
+          }
+        >
+          {claimedKeeperTickets.slice(0, 4).map(renderTicketCard)}
+        </HubOverviewSection>
+
+        <HubOverviewSection
           title={t("landing_fb_bug_title", "Core Platform Bug Reports")}
           icon={t("icon_bug_report", "bug_report")}
           iconColorClass="text-[var(--danger)]"
+          headerAction={
+            <button
+              type="button"
+              onClick={() => setActiveFilter("bugs")}
+              title={t("keepers_tab_core_bugs", "Core Bugs")}
+              className="px-3 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_arrow_forward", "arrow_forward")}
+              </span>
+            </button>
+          }
           isEmpty={bugTickets.length === 0}
           emptyState={
             <EmptyState
@@ -576,6 +642,18 @@ export default function KeepersSupportTickets({
           title={t("keepers_tab_platform_feedback", "Platform Feedback (Desktop • Website • Mobile PWA)")}
           icon={t("icon_rate_review", "rate_review")}
           iconColorClass="text-[var(--accent)]"
+          headerAction={
+            <button
+              type="button"
+              onClick={() => setActiveFilter("feedback")}
+              title={t("keepers_tab_feedback_short", "Platform Feedback")}
+              className="px-3 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_arrow_forward", "arrow_forward")}
+              </span>
+            </button>
+          }
           isEmpty={feedbackTickets.length === 0}
           emptyState={
             <EmptyState
@@ -592,6 +670,18 @@ export default function KeepersSupportTickets({
           title={t("landing_contact_card_title", "Direct Human Contact")}
           icon={t("icon_support_agent", "support_agent")}
           iconColorClass="text-[var(--warning)]"
+          headerAction={
+            <button
+              type="button"
+              onClick={() => setActiveFilter("contact")}
+              title={t("landing_contact_card_title", "Direct Human Contact")}
+              className="px-3 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined !text-[16px]">
+                {t("icon_arrow_forward", "arrow_forward")}
+              </span>
+            </button>
+          }
           isEmpty={contactTickets.length === 0}
           emptyState={
             <EmptyState
@@ -613,6 +703,13 @@ export default function KeepersSupportTickets({
       label: t("overview", "Overview") || "Overview",
       icon: t("icon_dashboard", "dashboard"),
       number: activeTickets.length.toString(),
+    },
+    {
+      id: "pending",
+      label: t("ticket_tab_claimed", "Claimed"),
+      icon: t("icon_assignment_ind", "assignment_ind"),
+      number: claimedKeeperTickets.length.toString(),
+      colorClass: "text-[var(--warning)]",
     },
     {
       id: "bugs",
@@ -650,10 +747,7 @@ export default function KeepersSupportTickets({
     }
   ];
 
-  const resolvedTab =
-    activeFilter === "new" || activeFilter === "pending"
-      ? "bugs"
-      : activeFilter;
+  const resolvedTab = activeFilter === "new" ? "bugs" : activeFilter;
 
   return (
     <ElevatedHubLayout
@@ -718,7 +812,7 @@ export default function KeepersSupportTickets({
                           }
                           options={[
                             { id: "all_active", label: t("all", "All") },
-                            { id: "new", label: t("badge_new", "NEW") },
+                            { id: "new", label: t("new", "New") },
                             { id: "pending", label: t("ticket_tab_claimed", "Claimed") },
                             { id: "all", label: t("all_types", "All Types") },
                           ]}
@@ -836,6 +930,14 @@ export default function KeepersSupportTickets({
             const filteredTickets = tickets.filter(t => {
               if (resolvedTab === "closed") {
                 if (!isTicketClosedStatus(t.status)) return false;
+              } else if (resolvedTab === "pending") {
+                if (
+                  isTicketClosedStatus(t.status) ||
+                  !currentUserId ||
+                  isTicketClaimedBy(t) !== String(currentUserId)
+                ) {
+                  return false;
+                }
               } else {
                 const channel = classifyKeeperTicket(t);
                 if (channel !== resolvedTab) return false;

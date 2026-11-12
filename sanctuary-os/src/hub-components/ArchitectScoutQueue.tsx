@@ -353,7 +353,13 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
 
   const handleAction = async (action: "approved" | "rejected") => {
     if (!activeScout) return;
-    if (action === "approved" && requireScoutLabTest && (!isActiveVerified || isActiveFailed)) {
+    const isComplianceFlagged = Number(editForm.compliance_tier || 0) >= 1;
+    if (
+      action === "approved" &&
+      !isComplianceFlagged &&
+      requireScoutLabTest &&
+      (!isActiveVerified || isActiveFailed)
+    ) {
       if (setStatus) {
         setStatus(
           isActiveFailed
@@ -372,6 +378,13 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
     setIsProcessing(true);
 
     if (action === "approved") {
+      const targetTier = Math.min(4, Math.max(0, Number(editForm.compliance_tier || 0)));
+      const targetStatus = targetTier >= 1 ? "pending" : "verified";
+      const targetReason =
+        targetTier >= 1
+          ? `[ARCHITECT SCOUT QUEUE] Flagged Tier ${targetTier} for Oversight Compliance review`
+          : undefined;
+
       if (lineageId) {
         await supabase.from("mod_versions").upsert(
           {
@@ -393,9 +406,10 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
             description: editForm.description,
             image_url: editForm.image_url,
             url: editForm.url,
-            compliance_tier: editForm.compliance_tier,
+            compliance_tier: targetTier,
             compatible_versions: editForm.compatible_versions,
-            status: "verified",
+            status: targetStatus,
+            ...(targetReason ? { status_reason: targetReason } : {}),
           })
           .eq("id", lineageId);
       } else {
@@ -411,9 +425,10 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
             image_url: editForm.image_url,
             latest_version: editForm.latest_version,
             url: editForm.url,
-            compliance_tier: editForm.compliance_tier,
+            compliance_tier: targetTier,
             compatible_versions: editForm.compatible_versions,
-            status: "verified",
+            status: targetStatus,
+            ...(targetReason ? { status_reason: targetReason } : {}),
           })
           .select()
           .single();
@@ -428,6 +443,17 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
             { onConflict: "dna_hash" }
           );
         }
+      }
+      if (targetTier >= 1) {
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "nexus_mod_flagged_compliance_toast",
+              "{Mod} flagged for Oversight Compliance review (Pending)."
+            ),
+            "warning"
+          );
       }
       if (activeScout.dna_hash) {
         await supabase
@@ -694,7 +720,10 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
     );
   };
 
-  const isApproveLocked = requireScoutLabTest && (!isActiveVerified || isActiveFailed);
+  const isApproveLocked =
+    Number(editForm.compliance_tier || 0) === 0 &&
+    requireScoutLabTest &&
+    (!isActiveVerified || isActiveFailed);
   const resolvedMasonName =
     masonsList.find((m: any) => m.id === editForm.mason_id)?.name ||
     activeScout?.suggested_author ||

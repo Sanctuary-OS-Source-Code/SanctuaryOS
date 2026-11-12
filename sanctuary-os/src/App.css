@@ -2428,4 +2428,59 @@ html[data-sa-platform="linux"] .sa-dropdown-popover {
   background-color: var(--glass-drawer-bg, rgba(8, 12, 20, 0.94)) !important;
 }
 
+/* ---- STEAM DECK & CONTROLLER SPATIAL FOCUS RING + VIRTUAL POINTER ---- */
+[data-sa-gamepad-focus="true"] {
+  outline: 2px solid color-mix(in srgb, var(--accent) 88%, #ffffff) !important;
+  outline-offset: 2px !important;
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent),
+    0 8px 24px -6px rgba(0, 0, 0, 0.45) !important;
+}
+
+.sa-gamepad-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
+  margin-top: -11px;
+  border-radius: 9999px;
+  pointer-events: none !important;
+  z-index: 2147483000;
+  will-change: transform;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  background: radial-gradient(
+    circle at 35% 35%,
+    rgba(255, 255, 255, 0.95) 0%,
+    color-mix(in srgb, var(--accent) 78%, rgba(255, 255, 255, 0.4)) 48%,
+    color-mix(in srgb, var(--accent) 35%, rgba(8, 16, 34, 0.55)) 100%
+  );
+  box-shadow:
+    0 3px 10px rgba(0, 0, 0, 0.62),
+    0 0 12px color-mix(in srgb, var(--accent) 52%, transparent),
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.9);
+  transition: width 110ms ease, height 110ms ease, margin 110ms ease, border-color 110ms ease;
+}
+
+.sa-gamepad-cursor.is-interactive {
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+  margin-top: -13px;
+  border-color: color-mix(in srgb, var(--accent) 70%, #ffffff);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.68),
+    0 0 18px color-mix(in srgb, var(--accent) 75%, transparent),
+    inset 0 1px 2px #ffffff;
+}
+
+.sa-gamepad-cursor.is-pressed {
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  margin-top: -9px;
+}
+
+
 

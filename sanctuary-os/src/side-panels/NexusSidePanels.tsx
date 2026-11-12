@@ -3,6 +3,7 @@ import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import {
   CustomDropdown,
+  CustomComplianceDropdown,
   SidePanel,
   SidePanelHeroCard,
   UniversalGroup,
@@ -23,6 +24,7 @@ import {
   EmptyState,
   openModDossier,
   deduplicateBlueprintArtifacts,
+  filterBlueprintModArtifacts,
   stripPriorityTierPrefix,
   isScriptExtension,
 } from "../shared";
@@ -1171,6 +1173,7 @@ export function MarketReportPanel({
 }: any) {
   const { t } = useLexicon();
   if (!reportState.isOpen) return null;
+  const isModComplianceFlag = reportState.assetType === "mod";
   return (
     <>
       <SidePanel
@@ -1181,6 +1184,7 @@ export function MarketReportPanel({
             assetId: null,
             assetType: null,
             reason: "",
+            complianceTier: 1,
           })
         }
         widthClass="w-[90vw] md:w-[680px]"
@@ -1188,8 +1192,22 @@ export function MarketReportPanel({
         panelZ="z-[65001]"
         icon={t("icon_flag", "flag")}
         iconColorClass="text-[var(--danger)]"
-        title={t("report_title", "Report Content")}
-        subtitle={t("report_desc", "Please provide detailed information about why this asset should be removed from the {Nexus}. False reports may result in account termination.")}
+        title={
+          isModComplianceFlag
+            ? t("flag_title", "Flag {Mod} for Compliance")
+            : t("report_title", "Report Content")
+        }
+        subtitle={
+          isModComplianceFlag
+            ? t(
+                "flag_compliance_route_desc",
+                "Flagging a {Mod} routes it to Oversight Compliance as Pending for safety and classification review."
+              )
+            : t(
+                "report_desc",
+                "Please provide detailed information about why this asset should be removed from the {Nexus}. False reports may result in account termination."
+              )
+        }
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
@@ -1202,13 +1220,53 @@ export function MarketReportPanel({
             />
           </PanelHeaderGroup>
         }
+        footer={
+          <div className="flex items-center justify-end gap-3 w-full">
+            <ActionButton
+              variant="glass"
+              label={t("cancel", "Cancel")}
+              onClick={() =>
+                setReportState({
+                  isOpen: false,
+                  assetId: null,
+                  assetType: null,
+                  reason: "",
+                  complianceTier: 1,
+                })
+              }
+            />
+            <ActionButton
+              variant="danger"
+              icon={t("icon_flag", "flag")}
+              label={t("report_submit", "Submit Report")}
+              disabled={!String(reportState.reason || "").trim()}
+              onClick={() =>
+                handleReportSubmit({ preventDefault: () => {} } as any)
+              }
+            />
+          </div>
+        }
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard
             icon={t("icon_flag", "flag")}
             overline={t("action_required", "Action Required")}
-            title={t("report_content", "Report Content")}
-            description={t("report_desc", "Please provide detailed information about why this asset should be removed from the {Nexus}. False reports may result in account termination.")}
+            title={
+              isModComplianceFlag
+                ? t("flag_title", "Flag {Mod} for Compliance")
+                : t("report_content", "Report Content")
+            }
+            description={
+              isModComplianceFlag
+                ? t(
+                    "flag_compliance_route_desc",
+                    "Flagging a {Mod} routes it to Oversight Compliance as Pending for safety and classification review."
+                  )
+                : t(
+                    "report_desc",
+                    "Please provide detailed information about why this asset should be removed from the {Nexus}. False reports may result in account termination."
+                  )
+            }
             badge={reportState.assetType || t("unknown", "Unknown")}
             badgeIcon={t("icon_warning", "warning")}
             variant="danger"
@@ -1228,6 +1286,25 @@ export function MarketReportPanel({
               />
             </div>
           </SidePanelHeroCard>
+
+          {isModComplianceFlag && (
+            <UniversalGroup
+              title={t("assign_tier", "Compliance Classification")}
+              icon={t("icon_policy", "policy")}
+            >
+              <CustomComplianceDropdown
+                value={Math.min(4, Math.max(1, Number(reportState.complianceTier || 1)))}
+                onChange={(val: number) =>
+                  setReportState({
+                    ...reportState,
+                    complianceTier: Math.min(4, Math.max(1, Number(val || 1))),
+                  })
+                }
+                minTier={1}
+                maxTier={4}
+              />
+            </UniversalGroup>
+          )}
 
           <UniversalGroup
             title={t("reason", "Reason")}
@@ -1611,7 +1688,7 @@ export function groupBlueprintArtifactsByFamily(
 
   const { nexusParentByHash, nexusParentByNorm } = getOrBuildNexusParentLookup();
 
-  const dedupedArtifacts = deduplicateBlueprintArtifacts(rawArtifacts, activeGameSchema);
+  const dedupedArtifacts = filterBlueprintModArtifacts(rawArtifacts, activeGameSchema);
   const finalResult: any[] = [];
 
   for (let idx = 0; idx < dedupedArtifacts.length; idx++) {
@@ -1687,12 +1764,7 @@ export function groupBlueprintArtifactsByFamily(
     ).trim();
     const cleanModuleTitle = formatCleanModTitle(cleanFileDisplay) || cleanFileDisplay;
 
-    const isMc =
-      /^mc[\s_-](cmd|command|career|cas|cheats|cleaner|clubs|control|dresser|gedcom|occult|population|pregnancy|tuner|woohoo)\b/i.test(
-        cleanFileDisplay
-      ) || /\bmc\s*(cmd|command)\s*center\b/i.test(cleanFileDisplay);
-
-    const finalAuthor = resolvedAuthor || (isMc ? "Deaderpool" : undefined);
+    const finalAuthor = resolvedAuthor || undefined;
 
     const modEntry: any = {
       ...(familyParent && !familyParent.isVirtual ? familyParent : {}),

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { supabase, supabaseAuth } from './supabase';
+import { supabaseAuth } from './supabase';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import {
@@ -80,6 +80,7 @@ import { LandingSupportDrawers } from './landing/LandingSupportDrawers';
 export default function WebLandingPage() {
   const { t } = useLexicon();
   const session = useStore((state: any) => state.session);
+  const osRole = useStore((state: any) => state.osRole);
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
   const workspaces = useStore((state: any) => state.workspaces);
   const setView = useStore((state: any) => state.setView);
@@ -918,10 +919,10 @@ export default function WebLandingPage() {
   useEffect(() => {
     const fetchGames = async () => {
       const [{ data }, pipelineCfg, partnerList, newsRes] = await Promise.all([
-        supabase
+        supabaseAuth
           .from('sanctuary_games')
           .select(
-            'id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor'
+            'id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, is_keepers_only, donation_url, payment_processor'
           ),
         getKeepersPipelineConfig(),
         loadPartnerCommunitiesList(),
@@ -943,8 +944,12 @@ export default function WebLandingPage() {
         setNewsCount(newsRes.count);
       }
       if (data) {
+        const isKeeper = osRole === 'keeper';
         const merged = data
-          .filter((g: any) => g.is_active !== false)
+          .filter(
+            (g: any) =>
+              g.is_active !== false && (isKeeper || g.is_keepers_only !== true)
+          )
           .map((g: any) => {
             const override =
               getLocalPartnerDonationOverride(g.schema_id) ||
@@ -987,7 +992,7 @@ export default function WebLandingPage() {
     fetchGames();
     window.addEventListener('sanctuary-games-updated', fetchGames);
     return () => window.removeEventListener('sanctuary-games-updated', fetchGames);
-  }, [session?.user?.id, refreshSupporterStatus]);
+  }, [session?.user?.id, osRole, refreshSupporterStatus]);
 
   useEffect(() => {
     const handleSupporterUpdated = () => {

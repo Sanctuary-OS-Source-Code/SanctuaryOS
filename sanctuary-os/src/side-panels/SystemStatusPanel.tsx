@@ -197,7 +197,7 @@ export function SystemStatusPanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("system_status", "System Status")}
+      title={t("sys_telemetry_title", "System Telemetry")}
       subtitle={t("sys_panel_desc", "Hardware & Environment Telemetry")}
       icon={t("icon_memory", "memory")}
       iconColorClass="text-[var(--accent)]"
@@ -206,7 +206,7 @@ export function SystemStatusPanel({
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
           icon={t("icon_memory", "memory")}
-          overline={t("system_status", "System Status")}
+          overline={t("sys_telemetry_title", "System Telemetry")}
           title={t("sys_panel_desc", "Hardware & Environment Telemetry")}
           badge={
             telemetry

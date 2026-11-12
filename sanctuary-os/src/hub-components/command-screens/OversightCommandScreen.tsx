@@ -1,445 +1,987 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
-import { SanctuaryAlertsSidePanel } from '../../side-panels/SanctuaryAlertsSidePanel';
-import { CommandScreenLayout, CommandScreenBody, CommandScreenSidebar, CommandScreenStats, CommandScreenMain, CommandScreenMetricTile, CommandScreenQuickLink, DashboardStatTile, AlertStatTile, SystemBroadcastsGrid, CommandScreenSectionHeading } from "../SharedCommandScreenLayout";
+import { SanctuaryAlertsSidePanel } from "../../side-panels/SanctuaryAlertsSidePanel";
+import TicketDossierSidePanel from "../../side-panels/TicketDossierSidePanel";
+import {
+  CommandMalwareManifestSidePanel,
+  CommandComplianceReviewSidePanel,
+  CommandReportResolutionSidePanel,
+} from "../../side-panels/HubCommandQuickPanels";
+import { EmptyState, VAULT_CHIP_CLASS } from "../../shared";
+import {
+  CommandScreenLayout,
+  CommandScreenBody,
+  CommandScreenSidebar,
+  CommandScreenStats,
+  CommandScreenMain,
+  SystemBroadcastsGrid,
+  CommandScreenMetricTile,
+  CommandScreenQuickLink,
+  DashboardStatTile,
+  AlertStatTile,
+  CommandScreenSectionHeading,
+} from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
-import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
-import { openModDossier, VAULT_CHIP_CLASS } from "../../shared";
+import { formatSanctuaryDate } from "../../utils/dateUtils";
+import {
+  getHubCommandCache,
+  setHubCommandCache,
+  isTicketOpenStatus,
+  buildTicketModLookupMap,
+  routeSpokeTicketsForRole,
+  executeHubTicketAction,
+  claimOrReleaseHubTicket,
+} from "../../utils/hubCommandCache";
 
-export function OversightCommandScreen({ setTab, onOpenDefcon, setComplianceFilter, setViewingPost }: any) {
-  const { t } = useLexicon();
-  const defconLevel = useStore((state: any) => state.defconLevel);
-  const [isAlertsOpen, setIsAlertsOpen] = useState(false);
-  const [stats, setStats] = useState({ masons: 0, citizens: 0, explicit: 0, malware: 0, nsfw: 0, tickets: 0, architects: 0, artifacts: 0, blacklists: 0, oversightQueue: 0, oversightQueueNew: 0, urgentBroadcast: null as any | null });
-  const [broadcasts, setBroadcasts] = useState<any[]>([]);
+const AuditLogViewer = React.lazy(() =>
+  import("../../side-panels/SAAuditLogViewer").then((m) => ({
+    default: m.AuditLogViewer,
+  }))
+);
 
-  const [recentSupport, setRecentSupport] = useState<any[]>([]);
-  const [recentMalware, setRecentMalware] = useState<any[]>([]);
-  const [recentCompliance, setRecentCompliance] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchBroadcasts = async () => {
-      const { data } = await supabase.from('system_broadcasts')
-        .select('*')
-        .or('target_audience.ilike.%All%,target_audience.eq.Oversights,target_audience.ilike."Oversights,%",target_audience.ilike."%,Oversights,%",target_audience.ilike."%,Oversights"')
-        .in('category', ['Update', 'Info', 'Event'])
-        .order('created_at', { ascending: false })
-        .limit(3);
-
-      if (data) {
-        const gameName = useStore.getState().activeGameSchema?.display_name || useStore.getState().activeGameSchema?.name || t("sanctuary_default_name", "Sanctuary");
-        setBroadcasts(data.map((p: any) => ({
-          ...p,
-          masons: { name: `${gameName} Team` }
-        })));
-      }
-    };
-    const fetchRecentItems = async () => {
-        const [supportRes, malwareRes, complianceRes] = await Promise.all([
-            supabase.from('sanctuary_tickets').select('*').neq('status', 'RESOLVED').order('created_at', { ascending: false }).limit(6),
-            supabase.from('malware_reports').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(6),
-            supabase.from('mods').select('id, name, created_at, description, compliance_tier').in('compliance_tier', [1,2,3,4,5]).order('created_at', { ascending: false }).limit(6)
-        ]);
-        if (supportRes.data) setRecentSupport(supportRes.data);
-        if (malwareRes.data) setRecentMalware(malwareRes.data);
-        if (complianceRes.data) setRecentCompliance(complianceRes.data);
-    };
-    fetchBroadcasts();
-    fetchRecentItems();
-  }, []);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      const { count: masonsCount } = await supabase.from('masons').select('*', { count: 'exact', head: true });
-      const { count: citizensCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'citizen');
-
-      const { count: explicitCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).in('compliance_tier', [1,2,3,4]);
-      const { count: malwareCount } = await supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 5);
-      const { count: nsfwCount } = { count: 0 };
-
-      const { data: ticketsDataRaw } = await supabase.from('sanctuary_tickets')
-        .select('created_at, ticket_type, status, metadata')
-        .neq('status', 'RESOLVED')
-        .neq('status', 'resolved');
-      const { data: catData } = await supabase.from('sanctuary_support_categories').select('*');
-
-      let ticketsCount = 0;
-      if (ticketsDataRaw && catData) {
-        const ticketsData = ticketsDataRaw.map(t => ({
-          ...t,
-          target_mod_id: t.metadata?.target_mod_id,
-          category: t.ticket_type
-        }));
-
-        const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-        const targetModIds = [...new Set(ticketsData.filter(t => t.target_mod_id).map(t => t.target_mod_id as string))].filter(Boolean).filter(isValidUUID);
-        const modAuthorMap: Record<string, string> = {};
-        if (targetModIds.length > 0) {
-          const { data: modsData } = await supabase.from('mods').select('id, mason_id').in('id', targetModIds);
-          modsData?.forEach(m => modAuthorMap[m.id] = m.mason_id);
-        }
-
-        ticketsCount = ticketsData.filter(t => {
-          const typeStr = t.category;
-          const cat = catData.find(c => c.category_name === typeStr || c.category_code === typeStr);
-          const baseDest = cat?.ticket_destination || 'architect';
-          const escalationPath = cat?.escalation_path || 'standard';
-
-          const ageMs = Date.now() - new Date(t.created_at).getTime();
-          const hoursOld = ageMs / (1000 * 60 * 60);
-
-          let escalationTiers = 0;
-          if (escalationPath === 'urgent') {
-            escalationTiers = Math.floor(hoursOld / 24);
-          } else if (escalationPath === 'standard') {
-            escalationTiers = Math.floor(hoursOld / 72);
-          }
-
-          const tiers = ['mod_author', 'architect', 'oversight', 'wayfinder'];
-          let currentTierIndex = tiers.indexOf(baseDest);
-          if (currentTierIndex === -1) currentTierIndex = 1;
-
-          let effectiveTierIndex = currentTierIndex;
-          if (escalationPath?.toLowerCase() !== 'none') {
-            effectiveTierIndex += escalationTiers;
-          }
-
-          effectiveTierIndex = Math.min(effectiveTierIndex, Math.max(2, currentTierIndex));
-          let dest = tiers[effectiveTierIndex];
-
-          if (t.status?.toUpperCase() === 'ESCALATED') {
-            const logs = t.metadata?.action_log || [];
-            const lastEscalation = [...logs].reverse().find((l: any) => l.action === 'ESCALATED');
-
-            if (lastEscalation) {
-              const esciArc = lastEscalation.architect;
-              if (esciArc === 'Wayfinder') {
-                dest = 'wayfinder';
-              } else if (esciArc === 'Oversight') {
-                dest = 'wayfinder';
-              } else if (esciArc === 'Architect') {
-                dest = 'oversight';
-              } else if (esciArc === 'Mason' || esciArc === 'Mod Author') {
-                dest = 'architect';
-              } else {
-                dest = tiers[Math.min(currentTierIndex + 1, tiers.length - 1)];
-              }
-            } else {
-              dest = tiers[Math.min(currentTierIndex + 1, tiers.length - 1)];
-            }
-          }
-
-          if (dest === 'mod_author') {
-            const modAuthorId = t.target_mod_id ? modAuthorMap[t.target_mod_id] : null;
-            if (!modAuthorId) dest = 'architect';
-          }
-
-          return dest === 'oversight';
-        }).length;
-      }
-
-      const { count: architectsCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['architect', 'oversight']);
-      const { count: blacklistsCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_banned', true);
-      const { count: oversightCount } = await supabase.from('malware_reports').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const { count: oversightNewCount } = await supabase.from('malware_reports')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending')
-        .gte('created_at', thirtyDaysAgo.toISOString());
-
-      const { data: urgentData } = await supabase.from('system_broadcasts')
-        .select('*')
-        .eq('is_active', true)
-        .in('is_pinned', ["true", "True", true])
-        .or('target_audience.ilike.%All%,target_audience.eq.Oversights,target_audience.ilike."Oversights,%",target_audience.ilike."%,Oversights,%",target_audience.ilike."%,Oversights"')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      let finalUrgent = null;
-      if (urgentData && urgentData.length > 0) {
-        if (sessionStorage.getItem('dismissedAlertId') !== String(urgentData[0].id)) {
-          finalUrgent = urgentData[0];
-        }
-      }
-
-      setStats({
-        masons: masonsCount || 0,
-        citizens: citizensCount || 0,
-        explicit: explicitCount || 0,
-        malware: malwareCount || 0,
-        nsfw: nsfwCount || 0,
-        tickets: ticketsCount || 0,
-        architects: architectsCount || 0,
-        artifacts: 0,
-        blacklists: blacklistsCount || 0,
-        oversightQueue: oversightCount || 0,
-        oversightQueueNew: oversightNewCount || 0,
-        urgentBroadcast: finalUrgent
-      });
-    };
-    fetchStats();
-  }, []);
-
-  const getDefconColor = (level: number) => {
-    if (level === 5) return "border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-green-500 hover:border-green-500 bg-[color-mix(in_srgb,var(--success)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)]";
-    if (level === 4) return "border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-blue-500 hover:border-blue-500 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]";
-    if (level === 3) return "border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-yellow-500 hover:border-yellow-500 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]";
-    if (level === 2) return "border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-orange-500 hover:border-orange-500 bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_20%,transparent)]";
-    return "border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-red-500 hover:border-red-500 bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]";
+interface OversightCommandSnapshot {
+  stats: {
+    complianceFlags: number;
+    pendingCompliance: number;
+    supportTickets: number;
+    malwareTotal: number;
+    pendingManifests: number;
+    reportQueue: number;
+    citizens: number;
+    masons: number;
+    moderators: number;
+    blacklists: number;
+    heuristics: number;
+    auditLogs: number;
+    activePatchVersion: string;
+    dlcCount: number;
   };
+  broadcasts: any[];
+  urgentBroadcast: any | null;
+  recentSupport: any[];
+  recentMalware: any[];
+  recentCompliance: any[];
+  recentReports: any[];
+}
+
+const DEFAULT_OVERSIGHT_SNAPSHOT: OversightCommandSnapshot = {
+  stats: {
+    complianceFlags: 0,
+    pendingCompliance: 0,
+    supportTickets: 0,
+    malwareTotal: 0,
+    pendingManifests: 0,
+    reportQueue: 0,
+    citizens: 0,
+    masons: 0,
+    moderators: 0,
+    blacklists: 0,
+    heuristics: 0,
+    auditLogs: 0,
+    activePatchVersion: "",
+    dlcCount: 0,
+  },
+  broadcasts: [],
+  urgentBroadcast: null,
+  recentSupport: [],
+  recentMalware: [],
+  recentCompliance: [],
+  recentReports: [],
+};
+
+export function OversightCommandScreen({
+  setTab,
+  onOpenDefcon,
+  setComplianceFilter,
+  setViewingPost,
+  onOpenVerifyHash,
+  onOpenManualFlag,
+  onOpenMetadataEditor,
+}: any) {
+  const { t } = useLexicon();
+  const session = useStore((s) => s.session);
+  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const defconLevel = useStore((s) => s.defconLevel);
+  const dateFormat = useStore((s) => s.dateFormat);
+
+  const userId = session?.user?.id || "";
+  const cacheScope = `${activeWorkspaceId || "global"}:${userId || "anon"}`;
+
+  const [snapshot, setSnapshot] = useState<OversightCommandSnapshot>(
+    () =>
+      getHubCommandCache<OversightCommandSnapshot>("oversight", cacheScope) ||
+      DEFAULT_OVERSIGHT_SNAPSHOT
+  );
+
+  const [isAlertsOpen, setIsAlertsOpen] = useState(false);
+  const [isAuditDrawerOpen, setIsAuditDrawerOpen] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+  const [selectedManifest, setSelectedManifest] = useState<any | null>(null);
+  const [selectedComplianceMod, setSelectedComplianceMod] = useState<any | null>(null);
+  const [selectedReport, setSelectedReport] = useState<any | null>(null);
+
+  const refreshOversightDashboard = useCallback(async () => {
+    const [
+      broadcastsRes,
+      urgentRes,
+      complianceModsRes,
+      pendingComplianceRes,
+      tier5ModsRes,
+      malwareReportsRes,
+      ticketsRes,
+      categoriesRes,
+      nexusReportsRes,
+      blueprintReportsRes,
+      contentFlagsRes,
+      citizensRes,
+      masonsRes,
+      moderatorsRes,
+      bannedUsersRes,
+      heuristicsRes,
+      auditLogsRes,
+      latestPatchRes,
+      dlcCountRes,
+    ] = await Promise.all([
+      supabase
+        .from("system_broadcasts")
+        .select("*")
+        .eq("is_active", true)
+        .in("category", ["Update", "Info", "Event", "System"])
+        .order("created_at", { ascending: false })
+        .limit(12),
+      supabase
+        .from("system_broadcasts")
+        .select("*")
+        .eq("is_active", true)
+        .in("is_pinned", ["true", "True", true] as any)
+        .order("created_at", { ascending: false })
+        .limit(8),
+      supabase
+        .from("mods")
+        .select("id, name, master_author, status, status_reason, compliance_tier, updated_at, created_at", {
+          count: "exact",
+        })
+        .gte("compliance_tier", 1)
+        .lte("compliance_tier", 4)
+        .order("updated_at", { ascending: false })
+        .limit(6),
+      supabase
+        .from("mods")
+        .select("id, name, master_author, status, status_reason, compliance_tier, updated_at, created_at", {
+          count: "exact",
+        })
+        .gte("compliance_tier", 1)
+        .lte("compliance_tier", 4)
+        .in("status", ["pending", "under_review", "unverified"])
+        .order("updated_at", { ascending: false })
+        .limit(6),
+      supabase
+        .from("mods")
+        .select("id", { count: "exact", head: true })
+        .eq("compliance_tier", 5),
+      supabase
+        .from("malware_reports")
+        .select("*", { count: "exact" })
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(6),
+      supabase
+        .from("sanctuary_tickets")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase.from("support_categories").select("*"),
+      supabase
+        .from("nexus_reports")
+        .select("*, nexus_assets(id, name, asset_type)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("blueprint_reports")
+        .select("*, blueprints(id, name)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("content_flags")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .not("role", "in", "(wayfinder,oversight,admin)"),
+      supabase
+        .from("masons")
+        .select("id", { count: "exact", head: true })
+        .eq("is_verified", true),
+      supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "architect"),
+      supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .not("role", "in", "(wayfinder,oversight,admin)")
+        .eq("is_banned", true),
+      supabase
+        .from("heuristic_signatures")
+        .select("id", { count: "exact", head: true })
+        .eq("enabled", true),
+      supabase.from("audit_logs").select("id", { count: "exact", head: true }),
+      supabase
+        .from("game_versions")
+        .select("version")
+        .order("release_date", { ascending: false })
+        .limit(1),
+      supabase.from("dlc_packs").select("id", { count: "exact", head: true }),
+    ]);
+
+    const matchesOversightAudience = (p: any) => {
+      const aud = p?.target_audience;
+      if (!aud || (Array.isArray(aud) && aud.length === 0)) return true;
+      const arr = Array.isArray(aud) ? aud.map(String) : [String(aud)];
+      return (
+        arr.includes("All") ||
+        arr.includes("Oversight") ||
+        arr.includes("Senior Architect") ||
+        arr.includes("Admin")
+      );
+    };
+
+    const broadcasts = (broadcastsRes?.data || []).filter(matchesOversightAudience).slice(0, 3);
+    let urgentBroadcast = (urgentRes?.data || []).find(matchesOversightAudience) || null;
+    const dismissedAlertId = sessionStorage.getItem("dismissedAlertId");
+    if (urgentBroadcast && String(urgentBroadcast.id) === dismissedAlertId) {
+      urgentBroadcast = null;
+    }
+
+    const rawOpenTickets = (ticketsRes?.data || []).filter((tk: any) =>
+      isTicketOpenStatus(tk.status)
+    );
+    const modLookup = await buildTicketModLookupMap(rawOpenTickets);
+    const oversightTickets = routeSpokeTicketsForRole(
+      rawOpenTickets,
+      categoriesRes?.data || [],
+      modLookup,
+      "oversight",
+      userId
+    );
+
+    const unifiedReports: any[] = [
+      ...(nexusReportsRes?.data || []).map((r: any) => ({
+        id: r.id,
+        source: "nexus",
+        status: r.status,
+        title: r.nexus_assets?.name || t("unknown_asset", "Unknown Asset"),
+        reason: r.reason,
+        reporter_name: r.reporter_name,
+        target_id: r.asset_id,
+        created_at: r.created_at,
+      })),
+      ...(blueprintReportsRes?.data || []).map((r: any) => ({
+        id: r.id,
+        source: "blueprint",
+        status: r.status,
+        title: r.blueprints?.name || t("term_blueprint", "{Blueprint}"),
+        reason: r.reason,
+        reporter_name: r.reporter_name,
+        target_id: r.blueprint_id,
+        created_at: r.created_at,
+      })),
+      ...(contentFlagsRes?.data || []).map((r: any) => ({
+        id: r.id,
+        source: "comm-link",
+        content_type: r.content_type,
+        status: r.status,
+        title:
+          r.content_type === "comment"
+            ? t("flagged_comment", "Flagged Comment")
+            : t("flagged_dispatch", "Flagged {Dispatch}"),
+        reason: r.reason,
+        reporter_name: r.reporter_name,
+        target_id: r.target_id,
+        created_at: r.created_at,
+      })),
+    ].sort(
+      (a, b) =>
+        new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    );
+
+    const pendingManifests =
+      malwareReportsRes?.count ?? (malwareReportsRes?.data?.length || 0);
+    const tier5Count = tier5ModsRes?.count || 0;
+    const pendingComplianceCount =
+      pendingComplianceRes?.count ?? (pendingComplianceRes?.data?.length || 0);
+
+    const seenComplianceIds = new Set<string>();
+    const prioritizedCompliance: any[] = [];
+    [...(pendingComplianceRes?.data || []), ...(complianceModsRes?.data || [])].forEach(
+      (mod: any) => {
+        if (!mod?.id || seenComplianceIds.has(String(mod.id))) return;
+        seenComplianceIds.add(String(mod.id));
+        prioritizedCompliance.push(mod);
+      }
+    );
+
+    const nextSnapshot: OversightCommandSnapshot = {
+      stats: {
+        complianceFlags:
+          complianceModsRes?.count ?? (complianceModsRes?.data?.length || 0),
+        pendingCompliance: pendingComplianceCount,
+        supportTickets: oversightTickets.length,
+        malwareTotal: tier5Count + pendingManifests,
+        pendingManifests,
+        reportQueue: unifiedReports.length,
+        citizens: citizensRes?.count || 0,
+        masons: masonsRes?.count || 0,
+        moderators: moderatorsRes?.count || 0,
+        blacklists: (bannedUsersRes?.count || 0) + tier5Count,
+        heuristics: heuristicsRes?.count || 0,
+        auditLogs: auditLogsRes?.count || 0,
+        activePatchVersion: latestPatchRes?.data?.[0]?.version || "",
+        dlcCount: dlcCountRes?.count || 0,
+      },
+      broadcasts,
+      urgentBroadcast,
+      recentSupport: oversightTickets.slice(0, 3),
+      recentMalware: (malwareReportsRes?.data || []).slice(0, 3),
+      recentCompliance: prioritizedCompliance.slice(0, 3),
+      recentReports: unifiedReports.slice(0, 3),
+    };
+
+    setSnapshot(nextSnapshot);
+    setHubCommandCache("oversight", cacheScope, nextSnapshot);
+  }, [cacheScope, t, userId]);
+
+  useEffect(() => {
+    const cached = getHubCommandCache<OversightCommandSnapshot>("oversight", cacheScope);
+    if (cached) setSnapshot(cached);
+    refreshOversightDashboard();
+  }, [cacheScope, refreshOversightDashboard]);
+
+  const {
+    stats,
+    broadcasts,
+    urgentBroadcast,
+    recentSupport,
+    recentMalware,
+    recentCompliance,
+    recentReports,
+  } = snapshot;
 
   return (
     <CommandScreenLayout>
-      <CommandScreenStats gridClassOverride={stats.urgentBroadcast ? "grid-cols-2 lg:grid-cols-4" : undefined}>
-        {stats.urgentBroadcast && (
-          <AlertStatTile className="col-span-2" broadcast={stats.urgentBroadcast} number={stats.urgentBroadcast ? 1 : 0} active={!!stats.urgentBroadcast} onClick={() => setIsAlertsOpen(true)} />
+      {/* 1. TOP STAT TILES */}
+      <CommandScreenStats>
+        {urgentBroadcast ? (
+          <AlertStatTile
+            broadcast={urgentBroadcast}
+            active={true}
+            onClick={() => setIsAlertsOpen(true)}
+          />
+        ) : (
+          <DashboardStatTile
+            icon={defconLevel === 1 ? t("icon_warning", "warning") : t("icon_shield", "shield")}
+            number={
+              defconLevel === 1
+                ? t("status_active", "Active")
+                : t("standby", "Standby")
+            }
+            label={t("defcon_title", "Lockdown Override")}
+            colorClass={defconLevel === 1 ? "text-[var(--danger)]" : "text-[var(--success)]"}
+            onClick={onOpenDefcon}
+          />
         )}
-        <DashboardStatTile className={stats.urgentBroadcast ? "col-span-2" : ""} icon={<span className="material-symbols-outlined ">{t("icon_warning_amber", "warning_amber")}</span>} number={defconLevel} label={t("defcon_global", "Global Lockdown")} colorClass={getDefconColor(defconLevel)} onClick={onOpenDefcon} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_18_up_rating", "18_up_rating")}</span>} number={stats.nsfw + stats.explicit} label={t("stat_compliance_flags", "Compliance Flags")} colorClass="text-orange-500" onClick={() => { setComplianceFilter('nsfw'); setTab("compliance"); }} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_local_activity", "local_activity")}</span>} number={stats.tickets} label={t("support_tickets", "Support Tickets")} colorClass="text-purple-500" onClick={() => setTab("sanctuary_tickets")} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_coronavirus", "coronavirus")}</span>} number={stats.malware} label={t("wf_stat_quarantined", "Quarantined")} colorClass="text-red-500" onClick={() => { setComplianceFilter('pending'); setTab("malware_oversight"); }} />
-        <DashboardStatTile icon={<span className="material-symbols-outlined ">{t("icon_threat_intelligence", "threat_intelligence")}</span>} number={stats.oversightQueueNew} label={t("stat_malware_logs", "Malware Manifests")} colorClass="text-red-500" onClick={() => setTab("oversight_reports")} />
+        <DashboardStatTile
+          icon={t("icon_policy", "policy")}
+          value={stats.pendingCompliance > 0 ? stats.pendingCompliance : stats.complianceFlags}
+          label={
+            stats.pendingCompliance > 0
+              ? t("pending_compliance_label", "Pending Compliance")
+              : t("tab_compliance", "Compliance")
+          }
+          colorClass={
+            stats.pendingCompliance > 0
+              ? "text-[var(--warning)]"
+              : stats.complianceFlags > 0
+                ? "text-[var(--warning)]"
+                : "theme-text-accent"
+          }
+          onClick={() => {
+            if (setComplianceFilter) {
+              setComplianceFilter(stats.pendingCompliance > 0 ? "pending" : "overview");
+            }
+            setTab("compliance");
+          }}
+        />
+        <DashboardStatTile
+          icon={t("icon_local_activity", "local_activity")}
+          value={stats.supportTickets}
+          label={t("support_queue", "Support Queue")}
+          colorClass={stats.supportTickets > 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}
+          onClick={() => setTab("sanctuary_tickets")}
+        />
+        <DashboardStatTile
+          icon={t("icon_coronavirus", "coronavirus")}
+          value={stats.malwareTotal}
+          label={t("malware_manifests", "Malware & Manifests")}
+          colorClass={stats.malwareTotal > 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}
+          onClick={() => {
+            if (setComplianceFilter) setComplianceFilter("overview");
+            setTab("malware_oversight");
+          }}
+        />
+        <DashboardStatTile
+          icon={t("icon_flag", "flag")}
+          value={stats.reportQueue}
+          label={t("nexus_reports", "{Nexus} Reports")}
+          colorClass={stats.reportQueue > 0 ? "text-[var(--danger)]" : "theme-text-accent"}
+          onClick={() => setTab("reports")}
+        />
       </CommandScreenStats>
 
-
+      {/* 2. BODY */}
       <CommandScreenBody>
         <CommandScreenMain>
-          <div className="flex flex-col gap-4 w-full">
-            <CommandScreenSectionHeading title={t("wf_comms_title", "Latest Dispatch")} icon={t("icon_history", "history")} />
-            <div className="w-full">
-              <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
-            </div>
+          {/* System Broadcasts */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_satellite_alt", "satellite_alt")}
+              title={t("wf_tab_dispatch", "{Dispatches}")}
+              subtitle={t("oversight_broadcasts_sub", "Enforcement Directives & Platform Notices")}
+              onJump={() => setTab("oversight_comms")}
+              jumpTooltip={t("wf_tab_dispatch", "{Dispatches}")}
+            />
+            <SystemBroadcastsGrid broadcasts={broadcasts} setViewingPost={setViewingPost} />
           </div>
 
-          {recentSupport.length > 0 && (
-            <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("wf_tab_tickets", "Support")} icon={t("icon_local_activity", "local_activity")} />
+          {/* Support Queue -> Opens TicketDossierSidePanel Directly */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_local_activity", "local_activity")}
+              iconColorClass={stats.supportTickets > 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}
+              title={t("support_queue", "Support Queue")}
+              subtitle={t("oversight_support_sub", "Escalated & Oversight-routed tickets — click to inspect in-drawer")}
+              onJump={() => setTab("sanctuary_tickets")}
+              jumpTooltip={`${t("support_queue", "Support Queue")} (${stats.supportTickets})`}
+            />
+            {recentSupport.length > 0 ? (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-                  {recentSupport.map((item: any) => (
-                      <UniversalCard 
-                          key={`support-${item.id}`} 
-                          layout="vertical" 
-                          title={item.ticket_type || t("support_tickets", "Support Tickets")} 
-                          icon={t("icon_local_activity", "local_activity")} 
-                          onClick={() => setTab("sanctuary_tickets")}
-                          onContextMenu={(e) => {
-                            const menuItems: SanctuaryContextMenuItem[] = [
-                              {
-                                label: t("support_tickets", "Support Tickets"),
-                                icon: t("icon_local_activity", "local_activity"),
-                                onClick: () => setTab("sanctuary_tickets"),
-                              },
-                              {
-                                label: t("copy", "Copy"),
-                                icon: t("icon_content_copy", "content_copy"),
-                                dividerBefore: true,
-                                onClick: () => navigator.clipboard?.writeText(String(item.metadata?.description || item.ticket_type || "")),
-                              },
-                            ];
-                            openSanctuaryContextMenu(e, menuItems);
-                          }}
-                          className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-                                  <div className={VAULT_CHIP_CLASS}>
-                                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_pending_actions", "pending_actions")}</span>
-                                      <span>{t("status_open", "Open")}</span>
-                                  </div>
-                              </div>
-                          }
-                          badges={
-                              <div className={VAULT_CHIP_CLASS}>
-                                  <span className="material-symbols-outlined !text-[12px] text-[var(--info)]">{t("icon_local_activity", "local_activity")}</span>
-                                  <span>{t("wf_tab_tickets", "Support")}</span>
-                              </div>
-                          }
-                          footer={
-                              <div className="flex items-center justify-start w-full mt-2">
-                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
-                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today", "calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
-                                  </span>
-                              </div>
-                          }
-                      >
-                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
-                              {item.metadata?.description || t("status_open", "Open")}
-                          </p>
-                      </UniversalCard>
-                  ))}
+                {recentSupport.map((tk: any) => (
+                  <UniversalCard
+                    key={tk.id}
+                    layout="vertical"
+                    icon={t("icon_local_activity", "local_activity")}
+                    title={tk.title || t("support_ticket", "Support Ticket")}
+                    subtitle={(tk.ticket_type || tk.category || t("general", "General")).replace(/_/g, " ")}
+                    bannerTopLabel={String(tk.status || "OPEN").toUpperCase()}
+                    bannerTopRightLabel={formatSanctuaryDate(tk.created_at, dateFormat)}
+                    onClick={() => setSelectedTicket(tk)}
+                    badges={
+                      <span className={`${VAULT_CHIP_CLASS} !text-[var(--danger)] !border-[color-mix(in_srgb,var(--danger)_35%,transparent)]`}>
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {t("icon_confirmation_number", "confirmation_number")}
+                        </span>
+                        <span>{String(tk.status || "OPEN").toUpperCase()}</span>
+                      </span>
+                    }
+                    footer={
+                      <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
+                        {t("view_ticket", "Inspect Ticket")}
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {t("icon_arrow_forward", "arrow_forward")}
+                        </span>
+                      </span>
+                    }
+                  >
+                    <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
+                      {tk.description || t("no_description", "No description provided.")}
+                    </p>
+                  </UniversalCard>
+                ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <EmptyState
+                icon={t("icon_check_circle", "check_circle")}
+                title={t("support_queue_clear", "Support Queue Clear")}
+              />
+            )}
+          </div>
 
-          {recentMalware.length > 0 && (
-            <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("rating_malware", "Malware")} icon={t("icon_coronavirus", "coronavirus")} />
+          {/* Malware & Threat Manifests -> Opens CommandMalwareManifestSidePanel Directly */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_coronavirus", "coronavirus")}
+              iconColorClass={stats.pendingManifests > 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}
+              title={t("malware_manifests", "Malware & Manifests")}
+              subtitle={t("oversight_malware_sub", "Pending heuristic threat manifests — click to confirm or dismiss")}
+              onJump={() => setTab("oversight_reports")}
+              jumpTooltip={`${t("malware_manifests", "Malware & Manifests")} (${stats.pendingManifests})`}
+            />
+            {recentMalware.length > 0 ? (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-                  {recentMalware.map((item: any) => (
-                      <UniversalCard 
-                          key={`malware-${item.id}`} 
-                          layout="vertical" 
-                          title={t("rating_malware", "Malware")} 
-                          icon={t("icon_coronavirus", "coronavirus")} 
-                          onClick={() => { setComplianceFilter('pending'); setTab("malware_oversight"); }}
-                          onContextMenu={(e) => {
-                            const menuItems: SanctuaryContextMenuItem[] = [
-                              {
-                                label: t("rating_malware", "Malware"),
-                                icon: t("icon_coronavirus", "coronavirus"),
-                                onClick: () => { setComplianceFilter('pending'); setTab("malware_oversight"); },
-                              },
-                              {
-                                label: t("copy", "Copy"),
-                                icon: t("icon_content_copy", "content_copy"),
-                                dividerBefore: true,
-                                onClick: () => navigator.clipboard?.writeText(String(item.reason || "")),
-                              },
-                            ];
-                            openSanctuaryContextMenu(e, menuItems);
-                          }}
-                          className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-                                  <div className={VAULT_CHIP_CLASS}>
-                                      <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("icon_warning", "warning")}</span>
-                                      <span>{t("status_pending", "Pending")}</span>
-                                  </div>
-                              </div>
-                          }
-                          badges={
-                              <div className={VAULT_CHIP_CLASS}>
-                                  <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("icon_coronavirus", "coronavirus")}</span>
-                                  <span>{t("rating_malware", "Malware")}</span>
-                              </div>
-                          }
-                          footer={
-                              <div className="flex items-center justify-start w-full mt-2">
-                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
-                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today", "calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
-                                  </span>
-                              </div>
-                          }
-                      >
-                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
-                              {item.reason || t("status_pending", "Pending")}
-                          </p>
-                      </UniversalCard>
-                  ))}
+                {recentMalware.map((item: any) => {
+                  const targetLabel =
+                    item.mod_name ||
+                    item.file_name ||
+                    (item.detected_hash ? String(item.detected_hash).substring(0, 14) : "") ||
+                    t("threat_manifest", "Threat Manifest");
+                  return (
+                    <UniversalCard
+                      key={item.id}
+                      layout="vertical"
+                      icon={t("icon_coronavirus", "coronavirus")}
+                      title={targetLabel}
+                      subtitle={item.matched_rule || item.threat_type || t("heuristic_alert", "Heuristic Match")}
+                      bannerTopLabel={t("pending", "Pending")}
+                      bannerTopRightLabel={formatSanctuaryDate(item.created_at, dateFormat)}
+                      onClick={() => setSelectedManifest(item)}
+                      badges={
+                        <span className={`${VAULT_CHIP_CLASS} !text-[var(--danger)] !border-[color-mix(in_srgb,var(--danger)_35%,transparent)]`}>
+                          <span className="material-symbols-outlined !text-[12px]">
+                            {t("icon_warning", "warning")}
+                          </span>
+                          <span>{t("threat_manifest", "Manifest")}</span>
+                        </span>
+                      }
+                      footer={
+                        <span className="text-[10px] font-black text-[var(--danger)] flex items-center gap-1">
+                          {t("inspect_telemetry", "Inspect Threat")}
+                          <span className="material-symbols-outlined !text-[12px]">
+                            {t("icon_arrow_forward", "arrow_forward")}
+                          </span>
+                        </span>
+                      }
+                    >
+                      <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
+                        {item.reason ||
+                          item.matched_pattern ||
+                          (item.detected_hash ? `SHA-256: ${item.detected_hash}` : "")}
+                      </p>
+                    </UniversalCard>
+                  );
+                })}
               </div>
-            </div>
-          )}
+            ) : (
+              <EmptyState
+                icon={t("icon_verified_user", "verified_user")}
+                title={t("no_pending_threat_manifests", "Zero Pending Threat Manifests")}
+              />
+            )}
+          </div>
 
-          {recentCompliance.length > 0 && (
-            <div className="flex flex-col gap-4 w-full">
-              <CommandScreenSectionHeading title={t("tab_compliance", "Compliance")} icon={t("icon_policy", "policy")} />
+          {/* Compliance Flags -> Opens CommandComplianceReviewSidePanel Directly */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_policy", "policy")}
+              iconColorClass="text-[var(--warning)]"
+              title={t("tab_compliance", "Compliance")}
+              subtitle={t("oversight_compliance_sub", "Pending & Active Tier 1–4 {Mods} — click to confirm, adjust, or clear")}
+              onJump={() => {
+                if (setComplianceFilter) {
+                  setComplianceFilter(stats.pendingCompliance > 0 ? "pending" : "overview");
+                }
+                setTab("compliance");
+              }}
+              jumpTooltip={`${t("tab_compliance", "Compliance")} (${stats.complianceFlags})`}
+            />
+            {recentCompliance.length > 0 ? (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
-                  {recentCompliance.map((item: any) => (
-                      <UniversalCard 
-                          key={`compliance-${item.id}`} 
-                          layout="vertical" 
-                          title={item.name || t("term_mod", "{Mod}")} 
-                          icon={t("icon_policy", "policy")} 
-                          onClick={() => setTab("compliance")}
-                          onContextMenu={(e) => {
-                            const menuItems: SanctuaryContextMenuItem[] = [
-                              {
-                                label: t("tab_compliance", "Compliance"),
-                                icon: t("icon_policy", "policy"),
-                                onClick: () => setTab("compliance"),
-                              },
-                              {
-                                label: t("btn_inspect", "Inspect {Mod}"),
-                                icon: t("icon_open_in_new", "open_in_new"),
-                                onClick: () => openModDossier({ ...item, isNexusView: true }),
-                              },
-                              {
-                                label: t("copy", "Copy"),
-                                icon: t("icon_content_copy", "content_copy"),
-                                dividerBefore: true,
-                                onClick: () => navigator.clipboard?.writeText(String(item.name || "")),
-                              },
-                            ];
-                            openSanctuaryContextMenu(e, menuItems);
-                          }}
-                          className="w-full"
-                          imageOverlay={
-                              <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-                                  <div className={VAULT_CHIP_CLASS}>
-                                      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_flag", "flag")}</span>
-                                      <span>{t("wf_stat_flagged", "Flagged")}</span>
-                                  </div>
-                              </div>
-                          }
-                          badges={
-                              <div className={VAULT_CHIP_CLASS}>
-                                  <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">{t("icon_policy", "policy")}</span>
-                                  <span>{t("tab_compliance", "Compliance")}</span>
-                              </div>
-                          }
-                          footer={
-                              <div className="flex items-center justify-start w-full mt-2">
-                                  <span className="text-[10px] font-black capitalize tracking-widest opacity-50 text-[var(--subtext)] flex items-center gap-2">
-                                      <span className="material-symbols-outlined !text-[12px]">{t("icon_calendar_today", "calendar_today")}</span> {new Date(item.created_at).toLocaleDateString()}
-                                  </span>
-                              </div>
-                          }
-                      >
-                          <p className="text-xs text-[var(--subtext)] leading-relaxed font-bold opacity-80 line-clamp-3 mt-1">
-                              {item.description || t("tab_compliance", "Compliance")}
-                          </p>
-                      </UniversalCard>
-                  ))}
+                {recentCompliance.map((mod: any) => {
+                  const isPendingFlag = ["pending", "under_review", "unverified"].includes(
+                    String(mod.status || "").toLowerCase()
+                  );
+                  return (
+                    <UniversalCard
+                      key={mod.id}
+                      layout="vertical"
+                      icon={t("icon_policy", "policy")}
+                      title={mod.name || t("unknown", "Unknown")}
+                      subtitle={mod.master_author || t("artifact", "{Mod}")}
+                      bannerTopLabel={`${t("stat_tier", "Tier")} ${mod.compliance_tier}`}
+                      bannerTopRightLabel={formatSanctuaryDate(
+                        mod.updated_at || mod.created_at,
+                        dateFormat
+                      )}
+                      onClick={() => setSelectedComplianceMod(mod)}
+                      badges={
+                        <>
+                          <span className={`${VAULT_CHIP_CLASS} !text-[var(--warning)] !border-[color-mix(in_srgb,var(--warning)_35%,transparent)]`}>
+                            <span className="material-symbols-outlined !text-[12px]">
+                              {t("icon_policy", "policy")}
+                            </span>
+                            <span>
+                              {t("stat_tier", "Tier")} {mod.compliance_tier}
+                            </span>
+                          </span>
+                          <span
+                            className={`${VAULT_CHIP_CLASS} ${
+                              isPendingFlag
+                                ? "!text-[var(--accent)] !border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+                                : "!text-[var(--success)] !border-[color-mix(in_srgb,var(--success)_35%,transparent)]"
+                            }`}
+                          >
+                            <span>
+                              {isPendingFlag
+                                ? t("pending", "Pending")
+                                : t("status_active", "Active")}
+                            </span>
+                          </span>
+                        </>
+                      }
+                      footer={
+                        <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
+                          {isPendingFlag
+                            ? t("review_pending_flag", "Review Pending Flag")
+                            : t("btn_review", "Adjust Tier")}
+                          <span className="material-symbols-outlined !text-[12px]">
+                            {t("icon_arrow_forward", "arrow_forward")}
+                          </span>
+                        </span>
+                      }
+                    >
+                      <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
+                        {mod.status_reason ||
+                          `${t("status", "Status")}: ${String(mod.status || "verified")}`}
+                      </p>
+                    </UniversalCard>
+                  );
+                })}
               </div>
-            </div>
-          )}
+            ) : (
+              <EmptyState
+                icon={t("icon_policy", "policy")}
+                title={t("no_compliance_flags", "No Active Compliance Flags")}
+              />
+            )}
+          </div>
 
+          {/* {Nexus} Reports + Platform Governance (Identity, Mass Update, Patch & DLC Management) */}
+          <div className="flex flex-col gap-4">
+            <CommandScreenSectionHeading
+              icon={t("icon_settings_suggest", "settings_suggest")}
+              title={t(
+                "oversight_governance_heading",
+                "Reports, Identity, Mass Update & Patch Management"
+              )}
+              subtitle={t(
+                "oversight_governance_sub",
+                "Community content flags, {Citizen} & {Mason} clearances, and engine patch versions"
+              )}
+              onJump={() => setTab("reports")}
+              jumpTooltip={`${t("nexus_reports", "{Nexus} Reports")} (${stats.reportQueue})`}
+            />
+            {recentReports.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+                {recentReports.map((rep: any) => (
+                  <UniversalCard
+                    key={`${rep.source}-${rep.id}`}
+                    layout="vertical"
+                    icon={t("icon_flag", "flag")}
+                    title={rep.title}
+                    subtitle={rep.reporter_name || t("citizen", "{Citizen}")}
+                    bannerTopLabel={String(rep.source).toUpperCase()}
+                    bannerTopRightLabel={formatSanctuaryDate(rep.created_at, dateFormat)}
+                    onClick={() => setSelectedReport(rep)}
+                    badges={
+                      <span className={`${VAULT_CHIP_CLASS} !text-[var(--danger)] !border-[color-mix(in_srgb,var(--danger)_35%,transparent)]`}>
+                        <span className="material-symbols-outlined !text-[12px]">
+                          {t("icon_flag", "flag")}
+                        </span>
+                        <span>{String(rep.source).toUpperCase()}</span>
+                      </span>
+                    }
+                  >
+                    <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
+                      {rep.reason || t("no_reason", "No reason provided")}
+                    </p>
+                  </UniversalCard>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+              <UniversalCard
+                layout="vertical"
+                icon={t("icon_group", "group")}
+                title={t("tab_identities", "Identity & {Mason} Verification")}
+                subtitle={`${stats.citizens} ${t("term_citizens", "{Citizens}")} • ${stats.masons} ${t("term_masons", "{Masons}")}`}
+                onClick={() => setTab("identities")}
+                footer={
+                  <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
+                    {t("open_identity_matrix", "Open Identity Matrix")}
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {t("icon_arrow_forward", "arrow_forward")}
+                    </span>
+                  </span>
+                }
+              >
+                <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed">
+                  {t(
+                    "oversight_identity_card_desc",
+                    "Manage {Citizen} clearances, verify {Masons}, and enforce platform blacklists."
+                  )}
+                </p>
+              </UniversalCard>
+
+              <UniversalCard
+                layout="vertical"
+                icon={t("icon_dynamic_feed", "dynamic_feed")}
+                title={t("tab_mass_update", "Mass Update")}
+                subtitle={t("bulk_patch_compatibility_sub", "Bulk Patch & Creator Status")}
+                onClick={() => setTab("mass_update")}
+                footer={
+                  <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
+                    {t("open_mass_update", "Open Mass Update")}
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {t("icon_arrow_forward", "arrow_forward")}
+                    </span>
+                  </span>
+                }
+              >
+                <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed">
+                  {t(
+                    "mass_update_card_desc",
+                    "Batch-certify or mark {Mods} broken following major engine updates."
+                  )}
+                </p>
+              </UniversalCard>
+
+              <UniversalCard
+                layout="vertical"
+                icon={t("icon_settings", "settings")}
+                title={t("tab_game_versions", "Patch & DLC Management")}
+                subtitle={
+                  stats.activePatchVersion
+                    ? `${stats.activePatchVersion} • ${stats.dlcCount} DLC`
+                    : `${stats.dlcCount} DLC`
+                }
+                onClick={() => setTab("game_versions")}
+                footer={
+                  <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
+                    {t("open_game_management", "Manage Versions & DLC")}
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {t("icon_arrow_forward", "arrow_forward")}
+                    </span>
+                  </span>
+                }
+              >
+                <p className="text-xs text-[var(--subtext)] opacity-80 leading-relaxed">
+                  {t(
+                    "game_versions_card_desc",
+                    "Maintain official game patch versions and expansion pack catalogs."
+                  )}
+                </p>
+              </UniversalCard>
+            </div>
+          </div>
         </CommandScreenMain>
 
-        <CommandScreenSidebar title={t("wf_quick_links", "Quick Links")} icon={t("icon_rocket_launch", "rocket_launch")}>
-          {stats.urgentBroadcast && (
-            <CommandScreenQuickLink 
-              icon={t("icon_priority_high", "priority_high")}
-              title={t("title_sanctuary_alerts", "Sanctuary Alerts")}
-              subtitle={t("urgent_alert_active", "Urgent Alert Active")}
-              onClick={() => setIsAlertsOpen(true)}
-              isAlert={true}
+        {/* 3. QUICK OPERATIONS SIDEBAR + 2x3 HUB METRICS */}
+        <CommandScreenSidebar
+          title={t("command_operations", "Command Operations")}
+          icon={t("icon_bolt", "bolt")}
+          metricsSubtitle={t("oversight_metrics_sub", "Security, Compliance & Enforcement Footprint")}
+          metrics={
+            <>
+              <CommandScreenMetricTile
+                icon={t("icon_pending_actions", "pending_actions")}
+                value={stats.pendingCompliance}
+                label={t("pending_compliance_label", "Pending Compliance")}
+                valueColorClass={stats.pendingCompliance > 0 ? "text-[var(--warning)]" : "theme-text-accent"}
+                onClick={() => {
+                  if (setComplianceFilter) setComplianceFilter("pending");
+                  setTab("compliance");
+                }}
+              />
+              <CommandScreenMetricTile
+                icon={t("icon_group", "group")}
+                value={stats.citizens}
+                label={t("term_citizens", "{Citizens}")}
+                onClick={() => setTab("identities")}
+              />
+              <CommandScreenMetricTile
+                icon={t("icon_construction", "construction")}
+                value={stats.masons}
+                label={t("verified_masons_metric", "Verified {Masons}")}
+                onClick={() => setTab("linker")}
+              />
+              <CommandScreenMetricTile
+                icon={t("icon_block", "block")}
+                value={stats.blacklists}
+                label={t("blacklists_metric", "Blacklists")}
+                valueColorClass={stats.blacklists > 0 ? "text-[var(--danger)]" : "theme-text-accent"}
+                onClick={() => setTab("identities")}
+              />
+              <CommandScreenMetricTile
+                icon={t("icon_shield_lock", "shield_lock")}
+                value={stats.heuristics}
+                label={t("heuristic_rules_metric", "Heuristic Rules")}
+                onClick={() => setTab("malware_oversight")}
+              />
+              <CommandScreenMetricTile
+                icon={t("icon_history", "history")}
+                value={stats.auditLogs}
+                label={t("audit_logs", "Audit Logs")}
+                onClick={() => setTab("audit_logs")}
+              />
+            </>
+          }
+        >
+          <CommandScreenQuickLink
+            icon={defconLevel === 1 ? t("icon_warning", "warning") : t("icon_security", "security")}
+            title={t("defcon_title", "Lockdown Override")}
+            subtitle={
+              defconLevel === 1
+                ? t("lockdown_active_sub", "Emergency Patch Lockdown Engaged")
+                : t("lockdown_standby_sub", "Configure Global {Vault} Lockdown")
+            }
+            isAlert={defconLevel === 1}
+            onClick={onOpenDefcon}
+          />
+          {onOpenVerifyHash && (
+            <CommandScreenQuickLink
+              icon={t("icon_verified_user", "verified_user")}
+              title={t("wf_hub_verify", "Verify SHA-256 Hash")}
+              subtitle={t("verify_hash_sub", "Inspect Any Local File Against Cloud DNA")}
+              onClick={onOpenVerifyHash}
             />
           )}
-          <CommandScreenQuickLink onClick={() => setTab("oversight_reports")} icon={t("icon_threat_intelligence", "threat_intelligence")} title={t("stat_malware_logs", "Malware Manifests")} subtitle={t("ql_sys_reports", "View Shared Manifests")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-red-500" hoverTextColorClass="group-hover:text-red-500" dotColorClass="bg-red-500 shadow-md" />
-
-          <CommandScreenQuickLink onClick={() => setTab("reports")} icon={t("icon_flag", "flag")} title={t("stat_bugs", "Nexus Reports")} subtitle={t("nexus_reports_desc", "Review flags and reports")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-amber-400" hoverTextColorClass="group-hover:text-amber-300" dotColorClass="bg-amber-400 shadow-md" />
-
-          <CommandScreenQuickLink onClick={() => setTab("mass_update")} icon={t("icon_dynamic_feed", "dynamic_feed")} title={t("ql_mass_update", "Mass Update Utility")} subtitle={t("ql_bulk_actions", "Bulk Actions")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-rose-400" hoverTextColorClass="group-hover:text-rose-300" dotColorClass="bg-rose-400 shadow-md" />
-
-          <CommandScreenQuickLink onClick={() => setTab("game_versions")} icon={t("icon_settings", "settings")} title={t("ql_game_versions", "Game Management")} subtitle={t("ql_registry_config", "Registry Config")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-emerald-400" hoverTextColorClass="group-hover:emerald-300" dotColorClass="bg-emerald-400 shadow-md" />
-
-          <CommandScreenQuickLink onClick={() => setTab("audit_logs")} icon={t("icon_history", "history")} title={t("audit_logs", "Audit Logs")} subtitle={t("ql_system_history", "System History")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" iconShadowClass="drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]" textColorClass="text-indigo-400" hoverTextColorClass="group-hover:text-indigo-300" dotColorClass="bg-indigo-400 shadow-md" />
-
-          {!stats.urgentBroadcast && (
-            <CommandScreenQuickLink onClick={() => setIsAlertsOpen(true)} icon={t("icon_warning_off", "warning_off")} title={t("title_sanctuary_alerts", "Sanctuary Alerts")} subtitle={t("alert_empty", "No Active Alerts")} iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]" iconShadowClass="drop-shadow-md" textColorClass="text-[color-mix(in_srgb,var(--warning)_80%,transparent)]" hoverTextColorClass="group-hover:text-amber-400" dotColorClass="bg-amber-500 shadow-md" />
+          {onOpenManualFlag && (
+            <CommandScreenQuickLink
+              icon={t("icon_gpp_bad", "gpp_bad")}
+              title={t("manual_flag_title", "Manual Compliance / Malware Flag")}
+              subtitle={t("manual_flag_sub", "Classify Hash or Add Spoke Signature")}
+              onClick={() => onOpenManualFlag("")}
+            />
           )}
+          <CommandScreenQuickLink
+            icon={t("icon_history", "history")}
+            title={t("audit_logs", "Audit Log Reviewer")}
+            subtitle={t("open_audit_drawer_sub", "Inspect & Export Spoke Enforcement Ledger")}
+            onClick={() => setIsAuditDrawerOpen(true)}
+          />
+          <CommandScreenQuickLink
+            icon={t("icon_campaign", "campaign")}
+            title={t("sanctuary_alerts", "Sanctuary Alerts")}
+            subtitle={
+              urgentBroadcast
+                ? t("urgent_alert_active", "Urgent Alert Active")
+                : t("view_active_advisories", "View Platform Advisories")
+            }
+            isAlert={Boolean(urgentBroadcast)}
+            onClick={() => setIsAlertsOpen(true)}
+          />
+          <CommandScreenQuickLink
+            icon={t("icon_satellite_alt", "satellite_alt")}
+            title={t("compose_dispatch", "Broadcast {Dispatch}")}
+            subtitle={t("compose_dispatch_sub", "Publish Staff Advisory or Alert")}
+            onClick={() => setTab("oversight_comms")}
+          />
         </CommandScreenSidebar>
       </CommandScreenBody>
 
-      <div className="flex flex-col gap-4 w-full">
-        <CommandScreenSectionHeading title={t("metrics", "Hub Metrics")} icon={t("icon_monitoring", "monitoring")} />
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 w-full">
-          <CommandScreenMetricTile icon={t("icon_group", "group")} value={stats.citizens + stats.masons} label={t("stat_users", "Users")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-          <CommandScreenMetricTile icon={t("icon_architecture", "architecture")} value={stats.masons} label={t("tab_linker", "{Masons}")} valueColorClass="theme-text-accent" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-          <CommandScreenMetricTile icon={t("icon_engineering", "engineering")} value={stats.architects} label={t("stat_architects", "Moderators")} valueColorClass="text-purple-400" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-          <CommandScreenMetricTile icon={t("icon_gavel", "gavel")} value={stats.blacklists} label={t("stat_blacklists", "Blacklists")} valueColorClass="text-red-500" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]" />
-          <CommandScreenMetricTile icon={t("icon_threat_intelligence", "threat_intelligence")} value={stats.oversightQueue} label={t("tab_malware_logs", "Manifests")} valueColorClass="text-red-700" hoverBorderClass="hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]" />
-        </div>
-      </div>
-
+      {/* DIRECT SIDE PANELS */}
       <SanctuaryAlertsSidePanel
         isOpen={isAlertsOpen}
         onClose={() => setIsAlertsOpen(false)}
-        audience="Oversights"
+      />
+
+      <Suspense fallback={null}>
+        {isAuditDrawerOpen && (
+          <AuditLogViewer
+            isSidePanel={true}
+            isOpen={isAuditDrawerOpen}
+            onClose={() => setIsAuditDrawerOpen(false)}
+          />
+        )}
+      </Suspense>
+
+      <TicketDossierSidePanel
+        isOpen={Boolean(selectedTicket)}
+        onClose={() => setSelectedTicket(null)}
+        ticket={selectedTicket}
+        tableName="sanctuary_tickets"
+        canReply={true}
+        currentUserId={userId}
+        availableActions={["RESOLVED", "REJECTED", "ESCALATED", "PENDING"]}
+        onEditMetadata={(hashOrId) => {
+          setSelectedTicket(null);
+          if (onOpenMetadataEditor) onOpenMetadataEditor(hashOrId);
+        }}
+        onClaim={async () => {
+          const updated = await claimOrReleaseHubTicket({
+            ticket: selectedTicket,
+            currentUserId: userId,
+            claim: true,
+            actorRole: "oversight",
+            t,
+          });
+          if (updated) {
+            setSelectedTicket(updated);
+            refreshOversightDashboard();
+          }
+        }}
+        onRelease={async () => {
+          const updated = await claimOrReleaseHubTicket({
+            ticket: selectedTicket,
+            currentUserId: userId,
+            claim: false,
+            t,
+          });
+          if (updated) {
+            setSelectedTicket(updated);
+            refreshOversightDashboard();
+          }
+        }}
+        onReplyAdded={() => refreshOversightDashboard()}
+        onTakeAction={async (actionType, reason) => {
+          const ok = await executeHubTicketAction({
+            ticket: selectedTicket,
+            actionType,
+            reason,
+            actorRole: "oversight",
+            t,
+          });
+          if (ok) {
+            setSelectedTicket(null);
+            refreshOversightDashboard();
+          }
+        }}
+      />
+
+      <CommandMalwareManifestSidePanel
+        isOpen={Boolean(selectedManifest)}
+        onClose={() => setSelectedManifest(null)}
+        manifest={selectedManifest}
+        onCompleted={refreshOversightDashboard}
+        onOpenManualFlag={
+          onOpenManualFlag
+            ? () => onOpenManualFlag(selectedManifest?.detected_hash || "")
+            : undefined
+        }
+        onOpenFullMalware={() => setTab("oversight_reports")}
+      />
+
+      <CommandComplianceReviewSidePanel
+        isOpen={Boolean(selectedComplianceMod)}
+        onClose={() => setSelectedComplianceMod(null)}
+        modItem={selectedComplianceMod}
+        onCompleted={refreshOversightDashboard}
+        onOpenMetadataEditor={onOpenMetadataEditor}
+        onOpenFullCompliance={() => {
+          if (setComplianceFilter) setComplianceFilter("overview");
+          setTab("compliance");
+        }}
+      />
+
+      <CommandReportResolutionSidePanel
+        isOpen={Boolean(selectedReport)}
+        onClose={() => setSelectedReport(null)}
+        report={selectedReport}
+        onCompleted={refreshOversightDashboard}
+        onOpenFullReports={() => setTab("reports")}
       />
     </CommandScreenLayout>
   );

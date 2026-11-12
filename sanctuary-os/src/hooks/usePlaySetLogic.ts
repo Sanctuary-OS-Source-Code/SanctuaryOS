@@ -1,7 +1,7 @@
 import { useShallow } from "zustand/react/shallow";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -1062,6 +1062,7 @@ export function usePlaySetLogic() {
     ownedDLC,
     maskedDLC,
     setIgnoredGlobal,
+    isGlobalConfigLoaded,
   } = useStore(
     useShallow((s) => ({
       playSets: s.playSets,
@@ -1077,13 +1078,16 @@ export function usePlaySetLogic() {
       ownedDLC: s.ownedDLC,
       maskedDLC: s.maskedDLC,
       setIgnoredGlobal: s.setIgnoredGlobal,
+      isGlobalConfigLoaded: s.isGlobalConfigLoaded,
     }))
   );
   const { t } = useLexicon();
-  const { setPendingImportSet, setMissingImportMods } = useModalStore(
+  const { setPendingImportSet, setMissingImportMods, isScanning, isSilentScanning } = useModalStore(
     useShallow((s) => ({
       setPendingImportSet: s.setPendingImportSet,
       setMissingImportMods: s.setMissingImportMods,
+      isScanning: s.isScanning,
+      isSilentScanning: s.isSilentScanning,
     }))
   );
 
@@ -1209,6 +1213,291 @@ export function usePlaySetLogic() {
     cachedModIndicesResult = computedResult;
     return computedResult;
   }, [modList, activeGameSchema]);
+
+  // Automatic Blueprint Self-Healing & Sanitization:
+  // Once the Vault scan has settled (never during cold boot or mid-scan streaming),
+  // automatically heal renamed/updated artifacts via DNA hash or extension-matched base name,
+  // prune deleted ghost entries, and deduplicate Blueprint artifact lists.
+  useEffect(() => {
+    if (
+      !isGlobalConfigLoaded ||
+      isScanning ||
+      isSilentScanning ||
+      !Array.isArray(modList) ||
+      modList.length === 0 ||
+      !Array.isArray(playSets) ||
+      playSets.length === 0
+    ) {
+      return;
+    }
+
+    const extRegex = getExtensionRegex(activeGameSchema);
+    const exactVaultMap = new Map<string, any>();
+    const strippedLowerVaultMap = new Map<string, any>();
+    const cleanLowerVaultMap = new Map<string, any>();
+    const dnaVaultMap = new Map<string, any>();
+    const baseExtVaultMap = new Map<string, any>();
+
+    const indexVaultMod = (m: any) => {
+      if (!m || m.isVirtual || !m.name) return;
+      if (!exactVaultMap.has(m.name)) exactVaultMap.set(m.name, m);
+      const stripped = stripPriorityTierPrefix(String(m.name), activeGameSchema);
+      const strippedLow = stripped.replace(/\\/g, "/").toLowerCase();
+      if (strippedLow && !strippedLowerVaultMap.has(strippedLow)) {
+        strippedLowerVaultMap.set(strippedLow, m);
+      }
+      const cleanFile = stripped.split(/[\\/]/).pop() || stripped;
+      const cleanLow = cleanFile.toLowerCase();
+      if (cleanLow && !cleanLowerVaultMap.has(cleanLow)) {
+        cleanLowerVaultMap.set(cleanLow, m);
+      }
+      if (m.hash && !dnaVaultMap.has(String(m.hash))) {
+        dnaVaultMap.set(String(m.hash), m);
+      }
+      const dotIdx = cleanLow.lastIndexOf(".");
+      const ext = dotIdx >= 0 ? cleanLow.slice(dotIdx) : "";
+      const baseOnly = cleanFile.replace(extRegex, "").toLowerCase();
+      if (baseOnly) {
+        const compositeKey = `${baseOnly}::${ext}`;
+        if (!baseExtVaultMap.has(compositeKey)) {
+          baseExtVaultMap.set(compositeKey, m);
+        }
+      }
+    };
+
+    for (let i = 0; i < modList.length; i++) {
+      const m = modList[i];
+      if (!m) continue;
+      if (m.isVirtual) {
+        if (Array.isArray(m.flavors)) {
+          for (let j = 0; j < m.flavors.length; j++) {
+            indexVaultMod(m.flavors[j]);
+          }
+        }
+        continue;
+      }
+      indexVaultMod(m);
+    }
+
+    if (exactVaultMap.size === 0) return;
+
+    let anySetChanged = false;
+    const cleanedPlaySets = playSets.map((set: any) => {
+      if (!set || !Array.isArray(set.mods) || set.mods.length === 0) return set;
+
+      let setChanged = false;
+      const rawCandidates: string[] = [];
+      const nextHashes: Record<string, string> = { ...(set.modHashes || {}) };
+      const nextMeta: Record<string, any> = set.modMeta ? { ...set.modMeta } : {};
+      const remapCleanLower = new Map<string, string>();
+
+      for (let i = 0; i < set.mods.length; i++) {
+        const rawMod = set.mods[i];
+        const modName =
+          typeof rawMod === "string"
+            ? rawMod
+            : String(rawMod?.name || rawMod?.path || "");
+        if (
+          !modName ||
+          modName.startsWith("FOLDER_") ||
+          modName.startsWith("SET_") ||
+          modName.startsWith("LOCAL_SET_")
+        ) {
+          setChanged = true;
+          continue;
+        }
+
+        const strippedName = stripPriorityTierPrefix(modName, activeGameSchema);
+        const tierPrefix =
+          modName.length > strippedName.length
+            ? modName.slice(0, modName.length - strippedName.length)
+            : "";
+        const cleanFile = strippedName.split(/[\\/]/).pop() || strippedName;
+        const cleanLow = cleanFile.toLowerCase();
+        const strippedLow = strippedName.replace(/\\/g, "/").toLowerCase();
+
+        // 1. Direct or path-moved match
+        const directMod =
+          exactVaultMap.get(modName) ||
+          exactVaultMap.get(strippedName) ||
+          strippedLowerVaultMap.get(strippedLow) ||
+          cleanLowerVaultMap.get(cleanLow);
+
+        if (directMod) {
+          const canonicalVaultRel = stripPriorityTierPrefix(
+            String(directMod.name),
+            activeGameSchema
+          );
+          const resolvedEntry = tierPrefix
+            ? `${tierPrefix}${canonicalVaultRel}`
+            : exactVaultMap.has(modName)
+              ? modName
+              : directMod.name;
+
+          if (resolvedEntry !== modName || typeof rawMod !== "string") {
+            setChanged = true;
+          }
+          if (directMod.hash && nextHashes[resolvedEntry] !== directMod.hash) {
+            nextHashes[resolvedEntry] = directMod.hash;
+            if (resolvedEntry !== modName) delete nextHashes[modName];
+          }
+          rawCandidates.push(resolvedEntry);
+          continue;
+        }
+
+        // 2. DNA Hash Self-Heal (file was renamed on disk)
+        const oldHash =
+          nextHashes[modName] || nextHashes[strippedName] || nextHashes[cleanFile];
+        let healedMod = oldHash ? dnaVaultMap.get(String(oldHash)) : undefined;
+
+        // 3. Extension-Safe Base-Name Self-Heal (version label updated in filename)
+        if (!healedMod) {
+          const dotIdx = cleanLow.lastIndexOf(".");
+          const ext = dotIdx >= 0 ? cleanLow.slice(dotIdx) : "";
+          const baseOnly = cleanFile.replace(extRegex, "").toLowerCase();
+          if (baseOnly) {
+            healedMod = baseExtVaultMap.get(`${baseOnly}::${ext}`);
+          }
+        }
+
+        if (healedMod) {
+          const canonicalVaultRel = stripPriorityTierPrefix(
+            String(healedMod.name),
+            activeGameSchema
+          );
+          const healedClean =
+            canonicalVaultRel.split(/[\\/]/).pop() || canonicalVaultRel;
+          const healedEntry = tierPrefix
+            ? `${tierPrefix}${canonicalVaultRel}`
+            : healedMod.name;
+
+          rawCandidates.push(healedEntry);
+          if (healedMod.hash) {
+            nextHashes[healedEntry] = healedMod.hash;
+          }
+          if (healedEntry !== modName) {
+            if (nextMeta[modName] && !nextMeta[healedEntry]) {
+              nextMeta[healedEntry] = nextMeta[modName];
+            }
+            delete nextMeta[modName];
+            delete nextHashes[modName];
+          }
+          if (cleanLow && healedClean.toLowerCase() !== cleanLow) {
+            remapCleanLower.set(cleanLow, healedClean);
+          }
+          setChanged = true;
+          continue;
+        }
+
+        // 4. Genuinely deleted/missing from Vault -> prune cleanly
+        delete nextHashes[modName];
+        delete nextHashes[strippedName];
+        delete nextHashes[cleanFile];
+        delete nextMeta[modName];
+        delete nextMeta[strippedName];
+        delete nextMeta[cleanFile];
+        setChanged = true;
+      }
+
+      const dedupedMods = deduplicateBlueprintArtifacts(
+        rawCandidates,
+        activeGameSchema
+      );
+      if (dedupedMods.length !== set.mods.length) {
+        setChanged = true;
+      } else if (!setChanged) {
+        for (let i = 0; i < dedupedMods.length; i++) {
+          if (dedupedMods[i] !== set.mods[i]) {
+            setChanged = true;
+            break;
+          }
+        }
+      }
+
+      if (!setChanged) return set;
+
+      anySetChanged = true;
+
+      const survivingCleanLower = new Set<string>();
+      dedupedMods.forEach((mPath: string) => {
+        const s = stripPriorityTierPrefix(mPath, activeGameSchema);
+        const c = (s.split(/[\\/]/).pop() || s).toLowerCase();
+        if (c) survivingCleanLower.add(c);
+      });
+
+      let nextModTiers = set.modTiers;
+      if (set.modTiers && typeof set.modTiers === "object") {
+        const cleanedTiers: Record<string, string> = {};
+        Object.entries(set.modTiers).forEach(([k, v]) => {
+          const kClean = (k.split(/[\\/]/).pop() || k).toLowerCase();
+          const remapped = remapCleanLower.get(kClean);
+          const finalKey = remapped || k;
+          const finalClean = (finalKey.split(/[\\/]/).pop() || finalKey).toLowerCase();
+          if (survivingCleanLower.has(finalClean) && typeof v === "string") {
+            cleanedTiers[finalKey] = v;
+          }
+        });
+        nextModTiers = cleanedTiers;
+      }
+
+      let nextLoadOrder = set.loadOrder;
+      if (Array.isArray(set.loadOrder)) {
+        nextLoadOrder = set.loadOrder
+          .map((n: string) => {
+            const c = (String(n || "").split(/[\\/]/).pop() || String(n || "")).toLowerCase();
+            return remapCleanLower.get(c) || n;
+          })
+          .filter((n: string) => {
+            const c = (String(n || "").split(/[\\/]/).pop() || String(n || "")).toLowerCase();
+            return survivingCleanLower.has(c);
+          });
+      }
+
+      let nextLoadRules = set.loadRules;
+      if (Array.isArray(set.loadRules)) {
+        nextLoadRules = set.loadRules
+          .map((r: any) => {
+            if (!r?.modA || !r?.modB) return null;
+            const cA = (String(r.modA).split(/[\\/]/).pop() || String(r.modA)).toLowerCase();
+            const cB = (String(r.modB).split(/[\\/]/).pop() || String(r.modB)).toLowerCase();
+            return {
+              ...r,
+              modA: remapCleanLower.get(cA) || r.modA,
+              modB: remapCleanLower.get(cB) || r.modB,
+            };
+          })
+          .filter((r: any) => {
+            if (!r) return false;
+            const cA = (String(r.modA).split(/[\\/]/).pop() || String(r.modA)).toLowerCase();
+            const cB = (String(r.modB).split(/[\\/]/).pop() || String(r.modB)).toLowerCase();
+            return survivingCleanLower.has(cA) && survivingCleanLower.has(cB);
+          });
+      }
+
+      return {
+        ...set,
+        mods: dedupedMods,
+        modHashes: nextHashes,
+        modMeta: Object.keys(nextMeta).length > 0 ? nextMeta : undefined,
+        modTiers: nextModTiers,
+        loadOrder: nextLoadOrder,
+        loadRules: nextLoadRules,
+        ignoredGhosts: undefined,
+      };
+    });
+
+    if (anySetChanged) {
+      setPlaySets(cleanedPlaySets);
+    }
+  }, [
+    isGlobalConfigLoaded,
+    isScanning,
+    isSilentScanning,
+    modList,
+    playSets,
+    activeGameSchema,
+    setPlaySets,
+  ]);
 
   const toggleInActiveSet = useCallback(
     (
@@ -2315,13 +2604,16 @@ export function usePlaySetLogic() {
             const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
             if (!modName) return;
 
-            let modObj = modMap.get(modName);
+            const strippedModName = stripPriorityTierPrefix(modName, activeGameSchema);
+            let modObj = modMap.get(modName) || modMap.get(strippedModName);
             if (!modObj) {
-                const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
+                const targetBase = strippedModName.split(/[\\/]/).pop()?.replace(extRegex, '');
                 if (targetBase) modObj = modBaseMap.get(targetBase);
             }
-            
-            const flatFileName = modName.split(/[\\/]/).pop() || modName;
+            if (!modObj && modList.length > 0) return;
+
+            const vaultSourcePath = modObj?.name || strippedModName;
+            const flatFileName = vaultSourcePath.split(/[\\/]/).pop() || vaultSourcePath;
             let targetPath = flatFileName;
             
             const flatLower = flatFileName.toLowerCase();
@@ -2337,7 +2629,7 @@ export function usePlaySetLogic() {
                 targetPath = `Sanctuary/${targetPath}`;
             }
             
-            deployPayload.push({ path: modName, allow_write: modObj?.allow_write || false, target_path: targetPath });
+            deployPayload.push({ path: vaultSourcePath, allow_write: modObj?.allow_write || false, target_path: targetPath });
         });
 
         const explicitlyDeployedFlatNames = new Set(

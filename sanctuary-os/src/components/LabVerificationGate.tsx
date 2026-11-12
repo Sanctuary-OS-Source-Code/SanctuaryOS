@@ -4,6 +4,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { supabase } from "../supabase";
 import { isDesktop } from "../utils/envUtils";
+import { ActionButton } from "../shared";
 import {
   KnownErrorDiagnosisBanner,
   getExceptionRules,
@@ -724,30 +725,22 @@ export function LabVerificationGate({
         </div>
 
         {!isRunning && isDesktop() && (
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={handleStartInlineTimedTest}
+          <div className="flex flex-wrap items-center justify-end gap-2 ml-auto shrink-0">
+            <ActionButton
+              variant="accent"
+              icon={t("icon_play_circle", "play_circle")}
+              label={t("lab_btn_start_timed_test", "Run Timed Lab Verification")}
               disabled={isStarting}
-              className="h-9 px-3.5 rounded-xl text-[10px] font-bold tracking-wider uppercase glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[var(--text)] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
-                {t("icon_play_circle", "play_circle")}
-              </span>
-              {t("lab_btn_start_timed_test", "Run Timed Lab Verification")}
-            </button>
+              onClick={handleStartInlineTimedTest}
+            />
 
             {onOpenInFullLab && (
-              <button
-                type="button"
+              <ActionButton
+                variant="glass"
+                icon={t("icon_science", "science")}
+                label={t("lab_btn_open_full_lab", "Open in {Lab}")}
                 onClick={onOpenInFullLab}
-                className="h-9 px-3.5 rounded-xl text-[10px] font-bold tracking-wider uppercase glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[var(--text)] transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <span className="material-symbols-outlined !text-[16px]">
-                  {t("icon_science", "science")}
-                </span>
-                {t("lab_btn_open_full_lab", "Open in Homestead Lab")}
-              </button>
+              />
             )}
           </div>
         )}
@@ -966,7 +959,7 @@ export function LabVerificationGate({
               >
                 {activeSession.verified_save_name
                   ? t("lab_metric_save_confirmed", "Save Verified")
-                  : t("lab_metric_save_pending", "Awaiting .save")}
+                  : t("lab_metric_save_pending", "Awaiting Save")}
               </span>
             </div>
           </div>
@@ -985,17 +978,13 @@ export function LabVerificationGate({
 
       {/* Abort Button when running inline */}
       {isRunning && !externalStatus && (
-        <div className="flex justify-end pt-1">
-          <button
-            type="button"
+        <div className="flex items-center justify-end pt-1 ml-auto w-full">
+          <ActionButton
+            variant="danger"
+            icon={t("icon_stop_circle", "stop_circle")}
+            label={t("lab_btn_stop_timed_test", "Abort Timed Test")}
             onClick={handleStopInlineTimedTest}
-            className="px-4 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] bg-transparent text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] transition-all flex items-center gap-2 cursor-pointer"
-          >
-            <span className="material-symbols-outlined !text-[15px]">
-              {t("icon_stop_circle", "stop_circle")}
-            </span>
-            {t("lab_btn_stop_timed_test", "Abort Timed Test")}
-          </button>
+          />
         </div>
       )}
     </div>

@@ -1846,7 +1846,13 @@ export function ArtifactWorkspace({
                       </span>
                       {t("flag_res_mod_status_diag_label", "System Status Diagnostic")}
                     </span>
-                    <p className="text-xs font-semibold text-[var(--text)] leading-relaxed">
+                    {mod?.status_reason &&
+                      !/^\[ARCHITECT\b/i.test(String(mod.status_reason).trim()) && (
+                        <p className="text-xs font-bold text-[var(--text)] leading-relaxed">
+                          {mod.status_reason}
+                        </p>
+                      )}
+                    <p className="text-xs font-semibold text-[var(--subtext)] leading-relaxed">
                       {mod?.status === "corrupted" || mod?.status === "broken"
                         ? t(
                             "flag_res_mod_corrupted_detail",

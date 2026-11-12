@@ -805,6 +805,8 @@ export function WayfinderDonationSetupSidePanel({
   onClose: () => void;
 }) {
   const { t } = useLexicon();
+  const userRole = useStore((state: any) => state.userRole);
+  const canManageSpokeDonations = userRole === "wayfinder";
   const workspaces = useStore((state: any) => state.workspaces);
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
   const activeWs = (workspaces || []).find(
@@ -828,7 +830,7 @@ export function WayfinderDonationSetupSidePanel({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !canManageSpokeDonations) return;
     const loadCurrent = async () => {
       const { getLocalPartnerDonationOverride, getSpokeServerGoalStatus } =
         await import("../utils/supporterManager");
@@ -869,7 +871,7 @@ export function WayfinderDonationSetupSidePanel({
         setProcessor(proc === "SANDBOX" ? "STRIPE" : proc);
       }
       if (activeWs?.schema_id) {
-        const { data } = await supabase
+        const { data } = await supabaseAuth
           .from("sanctuary_games")
           .select("donation_url, payment_processor")
           .ilike("schema_id", activeWs.schema_id)
@@ -956,6 +958,8 @@ export function WayfinderDonationSetupSidePanel({
       setSaving(false);
     }
   };
+
+  if (!canManageSpokeDonations) return null;
 
   return (
     <SidePanel

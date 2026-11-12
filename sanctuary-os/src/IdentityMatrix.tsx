@@ -298,7 +298,7 @@ export function SharedIdentityEditor({
     !isWayfinder &&
       !isKeepers &&
       effectiveProfile &&
-      ["oversight", "wayfinder"].includes(effectiveProfile.role)
+      ["oversight", "wayfinder", "admin"].includes(String(effectiveProfile.role || "").toLowerCase())
   );
 
   const handleCommitUnified = async () => {
@@ -805,7 +805,16 @@ export function SharedIdentityEditor({
                       </span>
                       <ProfileSearchDropdown
                         value={linkedProfileId}
-                        profiles={localProfiles}
+                        profiles={
+                          !isWayfinder && !isKeepers
+                            ? localProfiles.filter(
+                                (p: any) =>
+                                  !["oversight", "wayfinder", "admin"].includes(
+                                    String(p?.role || "").toLowerCase()
+                                  )
+                              )
+                            : localProfiles
+                        }
                         onChange={handleSelectLinkedProfile}
                       />
                     </div>
@@ -950,7 +959,10 @@ export function IdentityMatrix({
       let filteredData = profRes.data;
       if (!isKeepers && !isWayfinder) {
         filteredData = profRes.data.filter(
-          (p: any) => !["oversight", "wayfinder"].includes(p.role)
+          (p: any) =>
+            !["oversight", "wayfinder", "admin"].includes(
+              String(p.role || "").toLowerCase()
+            )
         );
       }
       setProfiles(
@@ -995,7 +1007,7 @@ export function IdentityMatrix({
     if (
       !isWayfinder &&
       !isKeepers &&
-      ["oversight", "wayfinder"].includes(p.role)
+      ["oversight", "wayfinder", "admin"].includes(String(p.role || "").toLowerCase())
     ) {
       useStore
         .getState()
@@ -1010,6 +1022,22 @@ export function IdentityMatrix({
   };
 
   const handleOpenMason = (m: any) => {
+    if (!isWayfinder && !isKeepers && m?.profile_id) {
+      const linkedProf = profileLookup.find((p: any) => p.id === m.profile_id);
+      if (
+        linkedProf &&
+        ["oversight", "wayfinder", "admin"].includes(
+          String(linkedProf.role || "").toLowerCase()
+        )
+      ) {
+        useStore
+          .getState()
+          .pushStatus(
+            t("auto_you_cannot_edit_45", "You cannot edit this identity.")
+          );
+        return;
+      }
+    }
     setIsCreatingMason(false);
     setSelectedProfile(null);
     setSelectedMason(m);

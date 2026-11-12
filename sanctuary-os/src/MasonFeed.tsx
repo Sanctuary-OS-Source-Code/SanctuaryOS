@@ -1,51 +1,128 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
-import { supabase } from "./supabase";
+import { supabase, supabaseAuth } from "./supabase";
 import { EmptyState } from "./shared";
 import AssetPreviewSidebar from "./AssetPreviewSidebar";
 import MasonPostCard from "./MasonPostCard";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { useStore } from './store';
 
-export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols }: { onOpenMasonProfile?: (id: string, postId?: string) => void, noCardWrapper?: boolean, gridCols?: string }) {
-  const { t } = useLexicon();
-  const [posts, setPosts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<any>(null);
-  const [activeAsset, setActiveAsset] = useState<{ type: string; id: string } | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+const MASON_POST_SELECT =
+  '*, masons(name, avatar_url, patreon_url, discord_url, website_url, profile_id), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)';
 
+export default function MasonFeed({
+  onOpenMasonProfile,
+  noCardWrapper,
+  gridCols,
+  maxItems,
+  noBottomPad,
+}: {
+  onOpenMasonProfile?: (id: string, postId?: string) => void;
+  noCardWrapper?: boolean;
+  gridCols?: string;
+  maxItems?: number;
+  noBottomPad?: boolean;
+}) {
+  const { t } = useLexicon();
+  const sessionUserId = useStore((state) => state.session?.user?.id || null);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const workspaces = useStore((state) => state.workspaces);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserId(session?.user?.id || null);
-    });
+  const [posts, setPosts] = useState<any[]>(() => {
+    const cached = (window as any).__sanctuaryCache?.globalFeed?.ccTailoredPosts;
+    return Array.isArray(cached) ? cached : [];
+  });
+  const [loading, setLoading] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<any>(null);
+  const [activeAsset, setActiveAsset] = useState<{ type: string; id: string } | null>(null);
+  const [userId, setUserId] = useState<string | null>(sessionUserId);
 
+  useEffect(() => {
+    if (sessionUserId) {
+      setUserId(sessionUserId);
+    } else {
+      supabaseAuth.auth.getSession().then(({ data: { session } }) => {
+        setUserId(session?.user?.id || null);
+      }).catch(() => {});
+    }
+  }, [sessionUserId]);
+
+  useEffect(() => {
+    let cancelled = false;
     const fetchPosts = async () => {
       if (activeWorkspaceId !== 'default_workspace' && (!workspaces || workspaces.length === 0)) return;
       if (!navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
-      setLoading(true);
-      const { data } = await supabase
-        .from('mason_posts')
-        .select('*, masons(name, avatar_url, patreon_url, discord_url, website_url, profile_id), likes:mason_post_likes(count), views:mason_post_views(count), comments:mason_post_comments(count)')
-        .order('created_at', { ascending: false })
-        .limit(9);
-      if (data) {
-        const sorted = [...data].sort((a: any, b: any) => {
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        });
-        setPosts(sorted);
+
+      if (posts.length === 0) setLoading(true);
+      try {
+        const resolvedUid =
+          sessionUserId ||
+          (await supabaseAuth.auth.getSession()).data.session?.user?.id ||
+          null;
+        if (!cancelled && resolvedUid) setUserId(resolvedUid);
+
+        const targetLimit = typeof maxItems === "number" && maxItems > 0 ? Math.max(maxItems, 6) : 9;
+        let combined: any[] = [];
+
+        if (resolvedUid) {
+          const { data: followData } = await supabase
+            .from('mason_followers')
+            .select('mason_id')
+            .eq('user_id', resolvedUid);
+          const followedIds = (followData || [])
+            .map((f: any) => f?.mason_id)
+            .filter(Boolean);
+
+          if (followedIds.length > 0) {
+            const { data: followedPosts } = await supabase
+              .from('mason_posts')
+              .select(MASON_POST_SELECT)
+              .in('mason_id', followedIds)
+              .order('created_at', { ascending: false })
+              .limit(targetLimit);
+            if (Array.isArray(followedPosts)) {
+              combined = [...followedPosts];
+            }
+          }
+        }
+
+        if (combined.length < targetLimit) {
+          const { data: recentPosts } = await supabase
+            .from('mason_posts')
+            .select(MASON_POST_SELECT)
+            .order('created_at', { ascending: false })
+            .limit(targetLimit);
+          if (Array.isArray(recentPosts)) {
+            const seen = new Set(combined.map((p: any) => p.id));
+            for (const rp of recentPosts) {
+              if (!seen.has(rp.id)) {
+                seen.add(rp.id);
+                combined.push(rp);
+                if (combined.length >= targetLimit) break;
+              }
+            }
+          }
+        }
+
+        if (!cancelled) {
+          setPosts(combined);
+          if ((window as any).__sanctuaryCache?.globalFeed) {
+            (window as any).__sanctuaryCache.globalFeed.ccTailoredPosts = combined;
+          }
+        }
+      } catch (err) {
+        console.warn("MasonFeed fetch error:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLoading(false);
     };
     fetchPosts();
     window.addEventListener('sanctuary-games-updated', fetchPosts);
     return () => {
+      cancelled = true;
       window.removeEventListener('sanctuary-games-updated', fetchPosts);
     };
-  }, [activeWorkspaceId, workspaces]);
+  }, [activeWorkspaceId, workspaces, sessionUserId, maxItems]);
 
   const handleToggleLike = async (e: React.MouseEvent, post: any) => {
     e.stopPropagation();
@@ -78,14 +155,17 @@ export default function MasonFeed({ onOpenMasonProfile, noCardWrapper, gridCols 
     setPosts(prev => prev.map(p => p.id === post.id ? { ...p, views: [{ count: (p.views?.[0]?.count || 0) + 1 }] } : p));
   };
 
+  const visiblePosts =
+    typeof maxItems === "number" && maxItems > 0 ? posts.slice(0, maxItems) : posts;
+
   const feedContent = (
-    <div className={`grid ${gridCols || 'grid-cols-1 md:grid-cols-2'} gap-6 flex-1 ${noCardWrapper ? 'pb-12' : 'overflow-y-auto custom-scrollbar p-6 -m-6'}`}>
+    <div className={`grid ${gridCols || 'grid-cols-1 md:grid-cols-2'} gap-6 flex-1 ${noCardWrapper ? (noBottomPad ? '' : 'pb-12') : 'overflow-y-auto custom-scrollbar p-6 -m-6'}`}>
       {loading ? (
         <EmptyState icon={t("icon_sync", "sync")} title={t("loading", "Loading")} className="col-span-full animate-pulse" />
-      ) : posts.length === 0 ? (
+      ) : visiblePosts.length === 0 ? (
         <EmptyState icon={t("icon_dynamic_feed", "dynamic_feed")} title={t("no_posts", "No Community Posts Found")} className="col-span-full" />
       ) : (
-        posts.map((p, index) => {
+        visiblePosts.map((p, index) => {
           return (
             <div key={p.id} className="break-inside-avoid self-start">
               <MasonPostCard 

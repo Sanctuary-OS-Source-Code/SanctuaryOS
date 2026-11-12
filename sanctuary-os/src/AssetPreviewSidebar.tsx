@@ -27,6 +27,7 @@ import {
   DynamicBlueprintPreviewBanner,
   DynamicTemplatePreviewBanner,
 } from "./chameleon-components/ThemeCard";
+import TemplatePreviewer from "./TemplatePreviewer";
 
 export default function AssetPreviewSidebar({
   assetType,
@@ -942,6 +943,31 @@ export default function AssetPreviewSidebar({
                           />
                         )}
                     </div>
+                  </UniversalGroup>
+                );
+              })()}
+
+            {assetType === "workbench_template" &&
+              data.json_data &&
+              (() => {
+                let parsedRaw = data.json_data;
+                if (typeof parsedRaw === "string") {
+                  try {
+                    parsedRaw = JSON.parse(parsedRaw);
+                  } catch {
+                    return null;
+                  }
+                }
+                const parsed = Array.isArray(parsedRaw) ? parsedRaw[0] : parsedRaw;
+                if (!Array.isArray(parsed?.settings) || parsed.settings.length === 0) {
+                  return null;
+                }
+                return (
+                  <UniversalGroup
+                    title={t("preview_subtitle", "Template Preview")}
+                    icon={t("icon_visibility", "visibility")}
+                  >
+                    <TemplatePreviewer templateData={parsed} compact={true} />
                   </UniversalGroup>
                 );
               })()}

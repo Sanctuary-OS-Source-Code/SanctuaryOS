@@ -330,20 +330,22 @@ function SidePanelHeaderActionBar({
         ))}
 
       {showCloseButton && (
-        <PanelHeaderGroup
-          className={
-            headerActions
-              ? "border-l border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
-              : ""
-          }
-        >
-          <PanelHeaderButton
-            icon={t("icon_close", "close")}
-            tooltip={t("btn_close", "Close") || "Close"}
-            variant="danger"
-            onClick={onClose}
-          />
-        </PanelHeaderGroup>
+        <div data-sa-panel-close="true" className="contents">
+          <PanelHeaderGroup
+            className={
+              headerActions
+                ? "border-l border-[color-mix(in_srgb,var(--text)_8%,transparent)]"
+                : ""
+            }
+          >
+            <PanelHeaderButton
+              icon={t("icon_close", "close")}
+              tooltip={t("btn_close", "Close") || "Close"}
+              variant="danger"
+              onClick={onClose}
+            />
+          </PanelHeaderGroup>
+        </div>
       )}
 
       {isMenuOpen &&
@@ -1294,6 +1296,7 @@ export function DashboardStatTile({
   const hasValue = displayValue !== undefined && displayValue !== "";
   const isSpecial = variant === "tab" || variant === "filter";
   const isModal = variant === "modal";
+  const isMetric = variant === "metric";
   const isFilter = variant === "filter" || isModal;
 
   let sizeClass = "text-2xl md:text-3xl lg:text-4xl xl:text-5xl";
@@ -1306,7 +1309,14 @@ export function DashboardStatTile({
   const isTextSpecial =
     isSpecial && hasValue && isNaN(Number(strVal.replace(/[,.\s%+]/g, "")));
 
-  if (isModal || isTextSpecial) {
+  if (isMetric) {
+    sizeClass =
+      strVal.length > 10
+        ? "text-sm sm:text-base"
+        : strVal.length > 6
+          ? "text-base sm:text-lg"
+          : "text-xl sm:text-2xl";
+  } else if (isModal || isTextSpecial) {
     sizeClass =
       strVal.length > 13
         ? "text-[11px] sm:text-xs md:text-sm"
@@ -1315,27 +1325,32 @@ export function DashboardStatTile({
   else if (strVal.length > 10) sizeClass = "text-base sm:text-lg xl:text-xl";
   else if (strVal.length > 5) sizeClass = "text-lg sm:text-xl lg:text-2xl xl:text-3xl";
 
-  const paddingClass =
-    variant === "tab" || variant === "filter" || isModal
+  const paddingClass = isMetric
+    ? "py-2.5 px-3 sm:py-3 sm:px-3.5"
+    : variant === "tab" || variant === "filter" || isModal
       ? "py-2.5 px-3 sm:py-3 sm:px-3.5 md:py-3.5 md:px-4"
       : "py-2.5 px-3 sm:py-3 sm:px-4 md:py-4 md:px-5 lg:p-5";
-  const iconSizeClass =
-    isFilter || isTextSpecial || (isSpecial && !hasValue)
+  const iconSizeClass = isMetric
+    ? "w-8 h-8 sm:w-9 sm:h-9"
+    : isFilter || isTextSpecial || (isSpecial && !hasValue)
       ? "w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10"
       : "w-8 h-8 sm:w-9 sm:h-9 md:w-12 md:h-12";
-  const iconTextClass =
-    isFilter || isTextSpecial || (isSpecial && !hasValue)
+  const iconTextClass = isMetric
+    ? "!text-[17px] sm:!text-[19px]"
+    : isFilter || isTextSpecial || (isSpecial && !hasValue)
       ? "!text-[16px] sm:!text-[18px] md:!text-[20px]"
       : "!text-[18px] sm:!text-[20px] md:!text-[26px]";
 
   const sizeConstraintClass =
     variant === "tab"
       ? "w-[calc(50vw-1.5rem)] md:w-[260px] min-h-[64px] md:min-h-[88px] shrink-0"
-      : variant === "filter"
-        ? "w-full min-w-0 min-h-[58px] sm:min-h-[64px] md:min-h-[80px]"
-        : isModal
-          ? "flex-1 min-w-0 min-h-[56px] sm:min-h-[60px] md:min-h-[76px]"
-          : "flex-1 min-w-0 min-h-[64px] md:min-h-[88px]";
+      : isMetric
+        ? "w-full min-w-0 min-h-[68px] sm:min-h-[74px]"
+        : variant === "filter"
+          ? "w-full min-w-0 min-h-[58px] sm:min-h-[64px] md:min-h-[80px]"
+          : isModal
+            ? "flex-1 min-w-0 min-h-[56px] sm:min-h-[60px] md:min-h-[76px]"
+            : "flex-1 min-w-0 min-h-[64px] md:min-h-[88px]";
 
   const mergedStyle = {
     "--glass-outer-shadow": "0 0 #0000",
@@ -1346,6 +1361,9 @@ export function DashboardStatTile({
 
   return (
     <div
+      data-sa-stat-tile={variant || "stat"}
+      data-sa-active={resolvedActive ? "true" : undefined}
+      data-sa-clickable={onClick && !disabled ? "true" : undefined}
       onClick={disabled ? undefined : onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}

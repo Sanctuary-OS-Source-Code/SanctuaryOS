@@ -269,6 +269,206 @@ export function getCachedDynamicTranslation(text: string, targetIso: string): st
   return memoryCache.get(key) ?? null;
 }
 
+export interface SupportedLexiconLanguage {
+  id: string;
+  label: string;
+  nativeLabel: string;
+}
+
+export const SUPPORTED_LEXICON_LANGUAGES: SupportedLexiconLanguage[] = [
+  { id: 'es', label: 'Spanish', nativeLabel: 'Español' },
+  { id: 'fr', label: 'French', nativeLabel: 'Français' },
+  { id: 'de', label: 'German', nativeLabel: 'Deutsch' },
+  { id: 'pt', label: 'Portuguese', nativeLabel: 'Português' },
+  { id: 'it', label: 'Italian', nativeLabel: 'Italiano' },
+  { id: 'nl', label: 'Dutch', nativeLabel: 'Nederlands' },
+  { id: 'pl', label: 'Polish', nativeLabel: 'Polski' },
+  { id: 'ru', label: 'Russian', nativeLabel: 'Русский' },
+  { id: 'ja', label: 'Japanese', nativeLabel: '日本語' },
+  { id: 'ko', label: 'Korean', nativeLabel: '한국어' },
+  { id: 'zh-CN', label: 'Chinese (Simplified)', nativeLabel: '简体中文' },
+  { id: 'zh-TW', label: 'Chinese (Traditional)', nativeLabel: '繁體中文' },
+  { id: 'tr', label: 'Turkish', nativeLabel: 'Türkçe' },
+  { id: 'sv', label: 'Swedish', nativeLabel: 'Svenska' },
+  { id: 'da', label: 'Danish', nativeLabel: 'Dansk' },
+  { id: 'fi', label: 'Finnish', nativeLabel: 'Suomi' },
+  { id: 'no', label: 'Norwegian', nativeLabel: 'Norsk' },
+  { id: 'cs', label: 'Czech', nativeLabel: 'Čeština' },
+  { id: 'hu', label: 'Hungarian', nativeLabel: 'Magyar' },
+  { id: 'ro', label: 'Romanian', nativeLabel: 'Română' },
+  { id: 'uk', label: 'Ukrainian', nativeLabel: 'Українська' },
+  { id: 'el', label: 'Greek', nativeLabel: 'Ελληνικά' },
+  { id: 'ar', label: 'Arabic', nativeLabel: 'العربية' },
+  { id: 'iw', label: 'Hebrew', nativeLabel: 'עברית' },
+  { id: 'hi', label: 'Hindi', nativeLabel: 'हिन्दी' },
+  { id: 'id', label: 'Indonesian', nativeLabel: 'Bahasa Indonesia' },
+  { id: 'vi', label: 'Vietnamese', nativeLabel: 'Tiếng Việt' },
+  { id: 'th', label: 'Thai', nativeLabel: 'ไทย' },
+];
+
+function maskLexiconPlaceholders(raw: string): { masked: string; masks: string[] } {
+  const masks: string[] = [];
+  const addMask = (m: string) => {
+    const id = masks.length;
+    masks.push(m);
+    return `[#${id}#]`;
+  };
+  const masked = raw
+    .replace(/\r?\n/g, () => addMask('\n'))
+    .replace(/\{\{?\{?[A-Za-z0-9_]+\}?\}?\}/g, addMask)
+    .replace(/%[A-Z0-9_]+%/g, addMask)
+    .replace(/\\?\[(?:IMG|ICON|ASSET):[^\]]+\\?\]/gi, addMask)
+    .replace(/https?:\/\/[^\s)]+/gi, addMask);
+  return { masked, masks };
+}
+
+function unmaskLexiconPlaceholders(translated: string, masks: string[]): string {
+  return translated.replace(/\[\s*#\s*(\d+)\s*#\s*\]/g, (_, idxStr) => {
+    const idx = parseInt(idxStr, 10);
+    return masks[idx] ?? '';
+  });
+}
+
+async function requestBatchGoogleTranslate(lines: string[], targetIso: string, signal?: AbortSignal): Promise<string[] | null> {
+  const joined = lines.join('\n');
+  const res = await fetch(
+    `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${encodeURIComponent(targetIso)}&dt=t`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body: new URLSearchParams({ q: joined }).toString(),
+      signal,
+    }
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  let fullOut = '';
+  if (Array.isArray(data?.[0])) {
+    for (const seg of data[0]) {
+      if (typeof seg?.[0] === 'string') {
+        fullOut += seg[0];
+      }
+    }
+  }
+  const split = fullOut.split('\n');
+  if (split.length !== lines.length) {
+    return null;
+  }
+  return split;
+}
+
+export async function batchTranslateLexiconStrings(
+  entries: Array<{ key: string; source: string }>,
+  targetIso: string,
+  options?: {
+    signal?: AbortSignal;
+    onProgress?: (completed: number, total: number, batchPatch: Record<string, string>) => void;
+  }
+): Promise<Record<string, string>> {
+  const cleanIso = String(targetIso || '').trim();
+  if (!cleanIso || cleanIso === 'en' || entries.length === 0) return {};
+
+  hydrateCache();
+  const results: Record<string, string> = {};
+  const toTranslate: Array<{ key: string; source: string; masked: string; masks: string[] }> = [];
+
+  for (const item of entries) {
+    const src = String(item.source ?? '').trim();
+    if (!src || !/[a-zA-Z]/.test(src.replace(/\{[A-Za-z0-9_]+\}/g, ''))) {
+      if (src) results[item.key] = item.source;
+      continue;
+    }
+    const cacheKey = `lexbatch::${cleanIso}::${item.source}`;
+    const cached = memoryCache.get(cacheKey);
+    if (cached !== undefined) {
+      results[item.key] = cached;
+      continue;
+    }
+    const { masked, masks } = maskLexiconPlaceholders(item.source);
+    toTranslate.push({ key: item.key, source: item.source, masked, masks });
+  }
+
+  const total = entries.length;
+  let completed = total - toTranslate.length;
+  if (completed > 0 && options?.onProgress) {
+    options.onProgress(completed, total, { ...results });
+  }
+  if (toTranslate.length === 0) return results;
+
+  // Group into safe ~35-line / ~2800-char batches
+  const chunks: Array<typeof toTranslate> = [];
+  let currentChunk: typeof toTranslate = [];
+  let currentChars = 0;
+
+  for (const item of toTranslate) {
+    const nextLen = item.masked.length + 1;
+    if (currentChunk.length >= 35 || (currentChunk.length > 0 && currentChars + nextLen > 2800)) {
+      chunks.push(currentChunk);
+      currentChunk = [];
+      currentChars = 0;
+    }
+    currentChunk.push(item);
+    currentChars += nextLen;
+  }
+  if (currentChunk.length > 0) chunks.push(currentChunk);
+
+  let nextChunkIdx = 0;
+  const CONCURRENCY = 3;
+
+  const worker = async () => {
+    while (nextChunkIdx < chunks.length) {
+      if (options?.signal?.aborted) return;
+      const chunk = chunks[nextChunkIdx++];
+      if (!chunk || chunk.length === 0) continue;
+
+      const batchPatch: Record<string, string> = {};
+      try {
+        const translatedLines = await requestBatchGoogleTranslate(
+          chunk.map((c) => c.masked),
+          cleanIso,
+          options?.signal
+        );
+        if (translatedLines) {
+          for (let i = 0; i < chunk.length; i++) {
+            const c = chunk[i];
+            const restored = unmaskLexiconPlaceholders(translatedLines[i], c.masks).trim();
+            if (restored) {
+              results[c.key] = restored;
+              batchPatch[c.key] = restored;
+              memoryCache.set(`lexbatch::${cleanIso}::${c.source}`, restored);
+            }
+          }
+        } else {
+          // Fallback to individual translation if batch line delimiters shifted
+          for (const c of chunk) {
+            if (options?.signal?.aborted) return;
+            const single = await requestBatchGoogleTranslate([c.masked], cleanIso, options?.signal).catch(() => null);
+            if (single?.[0]) {
+              const restored = unmaskLexiconPlaceholders(single[0], c.masks).trim();
+              if (restored) {
+                results[c.key] = restored;
+                batchPatch[c.key] = restored;
+                memoryCache.set(`lexbatch::${cleanIso}::${c.source}`, restored);
+              }
+            }
+          }
+        }
+      } catch (err: any) {
+        if (err?.name === 'AbortError' || options?.signal?.aborted) return;
+      }
+
+      completed += chunk.length;
+      if (options?.onProgress) {
+        options.onProgress(Math.min(completed, total), total, batchPatch);
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, chunks.length) }, () => worker()));
+  schedulePersistCache();
+  return results;
+}
+
 export async function translatePostedTextAsync(
   rawText: string,
   targetIso: string

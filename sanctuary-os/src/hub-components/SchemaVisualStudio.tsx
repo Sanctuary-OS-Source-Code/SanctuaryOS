@@ -1,10 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { getSafeSchema } from "../store";
 import {
   GAME_ARCHITECTURE_PRESETS,
   resolvePresetForGameId,
 } from "../utils/gameArchitecturePresets";
+import { getCachedOrBundledDefaultSchema } from "../utils/bundledSchemas";
+import { deepAddMissing } from "../lib/MasonValidation";
 import {
   ActionButton,
   CustomDropdown,
@@ -486,12 +488,25 @@ export default function SchemaVisualStudio({
   }, [content]);
 
   const fileStem = fileName.replace(/\.json$/i, "") || "universal";
+  const isDefaultTemplateFile = fileStem.trim().toLowerCase() === "default";
   const [selectedPresetId, setSelectedPresetId] = useState<string>(() => {
+    if (isDefaultTemplateFile) return "universal";
     const initialPreset = resolvePresetForGameId(
       parsedSchema.game_id || parsedSchema.id || fileStem
     );
     return initialPreset.id || "universal";
   });
+
+  useEffect(() => {
+    if (isDefaultTemplateFile) {
+      setSelectedPresetId("universal");
+      return;
+    }
+    const nextPreset = resolvePresetForGameId(
+      parsedSchema.game_id || parsedSchema.id || fileStem
+    );
+    setSelectedPresetId(nextPreset.id || "universal");
+  }, [fileName, isDefaultTemplateFile]);
 
   const commitSchema = (nextSchema: Record<string, any>) => {
     onChange(JSON.stringify(nextSchema, null, 2));
@@ -516,33 +531,58 @@ export default function SchemaVisualStudio({
   };
 
   const handleSeedDefaults = () => {
+    const baseline = getCachedOrBundledDefaultSchema();
+    if (isDefaultTemplateFile) {
+      const mergedDefault = deepAddMissing(baseline, {
+        ...parsedSchema,
+        id: "default",
+        game_id: "default",
+        display_name: parsedSchema.display_name || "Default Master Schema",
+      }, false);
+      delete mergedDefault.name;
+      delete mergedDefault.archive_containers;
+      commitSchema(mergedDefault);
+      return;
+    }
     const fallbackId = parsedSchema.id || fileStem || "universal";
     const seeded = getSafeSchema(parsedSchema, fallbackId);
-    commitSchema(seeded);
+    delete seeded.name;
+    delete seeded.archive_containers;
+    const aligned = deepAddMissing(baseline, seeded, false);
+    commitSchema(aligned);
   };
 
   const handleApplyArchitecturePreset = (presetKey: string) => {
+    const baseline = getCachedOrBundledDefaultSchema();
     const preset = GAME_ARCHITECTURE_PRESETS[presetKey] || GAME_ARCHITECTURE_PRESETS.universal;
-    const preserveId = parsedSchema.id || fileStem || preset.id;
-    const preserveGameId = parsedSchema.game_id || preset.game_id || preserveId;
+    const preserveId = isDefaultTemplateFile
+      ? "default"
+      : parsedSchema.id || fileStem || preset.id;
+    const preserveGameId = isDefaultTemplateFile
+      ? "default"
+      : parsedSchema.game_id || preset.game_id || preserveId;
     const existingTitle = parsedSchema.display_name || parsedSchema.name;
-    const preserveDisplayName =
-      existingTitle && existingTitle !== "Universal Game Schema"
+    const preserveDisplayName = isDefaultTemplateFile
+      ? "Default Master Schema"
+      : existingTitle &&
+          existingTitle !== "Universal Game Schema" &&
+          existingTitle !== "Default Master Schema"
         ? existingTitle
         : preset.display_name;
     const next = JSON.parse(JSON.stringify(preset));
     next.id = preserveId;
     next.game_id = preserveGameId;
     next.display_name = preserveDisplayName;
-    next.name = preserveDisplayName;
+    delete next.name;
+    delete next.archive_containers;
     if (Array.isArray(parsedSchema.mod_categories) && parsedSchema.mod_categories.length > 0) {
       next.mod_categories = parsedSchema.mod_categories;
     }
     if (parsedSchema.exception_rules) next.exception_rules = parsedSchema.exception_rules;
     if (parsedSchema.lab_verification) next.lab_verification = parsedSchema.lab_verification;
     if (parsedSchema.taxonomy) next.taxonomy = parsedSchema.taxonomy;
-    delete next.external_tools;
-    commitSchema(next);
+    const aligned = deepAddMissing(baseline, next, false);
+    commitSchema(aligned);
   };
 
   if (parseError) {
@@ -769,13 +809,14 @@ export default function SchemaVisualStudio({
                 <input
                   type="text"
                   value={parsedSchema.display_name ?? parsedSchema.name ?? ""}
-                  onChange={(e) =>
-                    commitSchema({
+                  onChange={(e) => {
+                    const next: Record<string, any> = {
                       ...parsedSchema,
                       display_name: e.target.value,
-                      name: e.target.value,
-                    })
-                  }
+                    };
+                    delete next.name;
+                    commitSchema(next);
+                  }}
                   placeholder={t("ph_game_name", "e.g. My Community Game")}
                   className="h-10 min-w-0 glass-panel rounded-xl px-3.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                 />

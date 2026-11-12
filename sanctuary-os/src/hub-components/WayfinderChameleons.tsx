@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import {
   SidePanel,
-  SidePanelHeroCard,
   EmptyState,
   PanelHeaderGroup,
   PanelHeaderButton,
-  UniversalGroup,
   CustomDropdown,
   VAULT_CHIP_CLASS,
 } from "../shared";
@@ -13,14 +11,20 @@ import {
   ElevatedHubLayout,
   HubOverviewLanding,
   HubOverviewSection,
-  SidePanelTitleInput,
 } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { openSanctuaryContextMenu } from "../ContextMenu";
-import { useLexicon } from "../LexiconContext";
+import { useLexicon, CORE_LEXICONS_CACHE_KEY } from "../LexiconContext";
 import { useStore } from "../store";
-import { useTheme, DEFAULT_CORE_THEMES } from "../ThemeContext";
+import {
+  useTheme,
+  DEFAULT_CORE_THEMES,
+  CORE_THEMES_CACHE_KEY,
+  SPOKE_THEMES_CACHE_KEY,
+} from "../ThemeContext";
 import enDefault from "../lexicons/en-default.json";
+import spokeThemesFallbackJson from "../data/spoke_themes_fallback.json";
+import { postDevCoreAssetSync } from "../utils/devAssetSync";
 
 import {
   ThemeCard,
@@ -35,6 +39,7 @@ import {
 } from "../chameleon-components/ChameleonShared";
 import MasonFileBrowser from "./MasonFileBrowser";
 import MasonEditorPanel from "./MasonEditorPanel";
+import CreateLexiconSidePanel from "./CreateLexiconSidePanel";
 import {
   buildTitleAreaIdeJsonObject,
   parseTitleAreaIdeJsonToConfig,
@@ -98,10 +103,6 @@ export function WayfinderChameleons({
     setDeleteConfirmPath,
     isCreatePanelOpen: isCreateLexiconOpen,
     setIsCreatePanelOpen: setIsCreateLexiconOpen,
-    lexiconLang,
-    setLexiconLang,
-    createFileName,
-    setCreateFileName,
     showReference,
     setShowReference,
     referenceData,
@@ -194,19 +195,6 @@ export function WayfinderChameleons({
         Object.entries(DEFAULT_CORE_THEMES).forEach(([id, th]: [string, any]) => {
           themesMap[id] = { ...th, id, is_active: true };
         });
-      } else {
-        const state = useStore.getState();
-        const activeWs = (state.workspaces || []).find(
-          (w: any) => w.id === state.activeWorkspaceId
-        );
-        const wsSchemaId = activeWs?.schema_id || "default_schema";
-        if (DEFAULT_CORE_THEMES[wsSchemaId]) {
-          themesMap[wsSchemaId] = {
-            ...DEFAULT_CORE_THEMES[wsSchemaId],
-            id: wsSchemaId,
-            is_active: true,
-          };
-        }
       }
 
       const supabaseMod = await import("../supabase");
@@ -217,6 +205,8 @@ export function WayfinderChameleons({
       const { data, error } = await client.from("sanctuary_themes").select("*");
       if (!error && Array.isArray(data)) {
         data.forEach((row: any) => {
+          if (!row?.id || row.id === "theme_1788994757269") return;
+          if (isKeepers && (row.id === "sims4" || row.id === "sims4_dark")) return;
           const parsedData =
             typeof row.theme_data === "string"
               ? JSON.parse(row.theme_data)
@@ -230,7 +220,23 @@ export function WayfinderChameleons({
         });
       }
 
-      if (Object.keys(themesMap).length === 0) {
+      if (!isKeepers && Object.keys(themesMap).length === 0) {
+        const state = useStore.getState();
+        const activeWs = (state.workspaces || []).find(
+          (w: any) => w.id === state.activeWorkspaceId
+        );
+        const wsSchemaKey = String(
+          activeWs?.schema_id || state.activeGameSchema?.id || state.activeWorkspaceId || ""
+        )
+          .trim()
+          .toLowerCase();
+        const spokeFallbackPack = (spokeThemesFallbackJson as Record<string, any>)[wsSchemaKey];
+        if (spokeFallbackPack && typeof spokeFallbackPack === "object") {
+          Object.entries(spokeFallbackPack).forEach(([id, th]: [string, any]) => {
+            themesMap[id] = { ...th, id, is_active: true };
+          });
+        }
+      } else if (isKeepers && Object.keys(themesMap).length === 0) {
         Object.entries(DEFAULT_CORE_THEMES).forEach(([id, th]: [string, any]) => {
           themesMap[id] = { ...th, id, is_active: true };
         });
@@ -296,11 +302,46 @@ export function WayfinderChameleons({
       pushStatus(t("ui_saved_personal", "Master Theme saved to cloud."), "success");
       setHasChanges(false);
       setActiveEditingTheme(syncedThemeData);
-      setCloudThemes((prev) => ({ ...prev, [editingThemeId]: syncedThemeData }));
-      setCoreThemes((prevCore: any) => ({
-        ...prevCore,
-        [editingThemeId]: syncedThemeData,
-      }));
+      const nextCloudThemes = { ...cloudThemes, [editingThemeId]: syncedThemeData };
+      setCloudThemes(nextCloudThemes);
+
+      if (isKeepers) {
+        setCoreThemes((prevCore: any) => {
+          const nextCore = {
+            ...prevCore,
+            [editingThemeId]: { ...syncedThemeData, id: editingThemeId },
+          };
+          try {
+            localStorage.setItem(CORE_THEMES_CACHE_KEY, JSON.stringify(nextCore));
+          } catch {}
+          return nextCore;
+        });
+
+        if (import.meta.env.DEV && editingThemeId in DEFAULT_CORE_THEMES) {
+          const diskCoreMap: Record<string, any> = {};
+          for (const coreId of Object.keys(DEFAULT_CORE_THEMES)) {
+            const src =
+              coreId === editingThemeId
+                ? syncedThemeData
+                : nextCloudThemes[coreId] || DEFAULT_CORE_THEMES[coreId];
+            if (src) {
+              const { id: _omitId, badgeKey: _omitBadgeKey, is_active: _omitActive, ...cleanTheme } = src;
+              diskCoreMap[coreId] = cleanTheme;
+            }
+          }
+          await postDevCoreAssetSync({
+            kind: "core_themes",
+            content: diskCoreMap,
+          });
+        }
+      } else {
+        try {
+          const rawCached = localStorage.getItem(SPOKE_THEMES_CACHE_KEY);
+          const parsedCached = rawCached ? JSON.parse(rawCached) : {};
+          parsedCached[editingThemeId] = { ...syncedThemeData, id: editingThemeId };
+          localStorage.setItem(SPOKE_THEMES_CACHE_KEY, JSON.stringify(parsedCached));
+        } catch {}
+      }
     } catch (err: any) {
       console.error(err);
       pushStatus(`${t("alert_error", "Error:")} ${err.message}`, "error");
@@ -371,25 +412,14 @@ export function WayfinderChameleons({
 
   const createNewTheme = () => {
     const id = `theme_${Date.now()}`;
+    const archTemplate = DEFAULT_CORE_THEMES.architect || {};
     const newTheme = {
+      ...archTemplate,
       name: t("chameleons_new_signature", "NEW SIGNATURE"),
-      bg: "#0f172a",
-      sidebar: "#0f172a",
-      sidebartext: "#ffffff",
-      accent: "#38bdf8",
-      text: "#ffffff",
-      subtext: "#94a3b8",
-      success: "#10b981",
-      warning: "#f59e0b",
-      danger: "#ef4444",
-      panelTint: "#ffffff",
-      headerText: "#ffffff",
-      fontFamily: "Inter, sans-serif",
-      fontSizeBase: "16px",
-      glassOpacity: "0.10",
-      glassBlur: "34px",
-      radius: "1.25rem",
+      bgImage: "",
       bgGradient: "transparent",
+      transparentWindow: false,
+      volumetricOrbs: [],
     };
     setEditingThemeId(id);
     setActiveEditingTheme(newTheme);
@@ -444,16 +474,57 @@ export function WayfinderChameleons({
       parsed._meta_version++;
       if (typeof parsed.schema_version !== "undefined") delete parsed.schema_version;
 
-      const updatedContent = JSON.stringify(parsed, null, 2);
       const fileId = file.name.replace(/\.json$/i, "");
+      const refDefault: Record<string, any> =
+        referenceData && Object.keys(referenceData).length > 50 ? referenceData : enDefault;
+
+      let finalLexData: Record<string, any> = parsed;
+      if (fileId.toLowerCase() !== "en-default") {
+        const cleanDelta: Record<string, any> = {};
+        for (const [k, v] of Object.entries(parsed)) {
+          if (k.startsWith("_meta")) {
+            cleanDelta[k] = v;
+            continue;
+          }
+          if (
+            v === "" ||
+            v === null ||
+            v === undefined ||
+            (typeof v === "string" && v.trim() === "")
+          ) {
+            continue;
+          }
+          const isDynamicDomain =
+            k.startsWith("term_") ||
+            k.startsWith("icon_") ||
+            k.startsWith("class_dd_") ||
+            k.startsWith("vault_sub_") ||
+            k.startsWith("dlc_type_");
+          if (!isDynamicDomain && refDefault[k] === undefined) {
+            continue;
+          }
+          if (
+            !k.startsWith("term_") &&
+            !k.startsWith("icon_") &&
+            refDefault[k] !== undefined &&
+            v === refDefault[k]
+          ) {
+            continue;
+          }
+          cleanDelta[k] = v;
+        }
+        finalLexData = cleanDelta;
+      }
+
+      const updatedContent = JSON.stringify(finalLexData, null, 2);
       const { supabase, supabaseAuth } = await import("../supabase");
 
       const payload = {
         id: fileId,
         name: fileId,
-        badge: parsed._meta_badge || "Sanctuary",
-        version: parsed._meta_version || 1,
-        lexicon_data: parsed,
+        badge: finalLexData._meta_badge || "Sanctuary",
+        version: finalLexData._meta_version || 1,
+        lexicon_data: finalLexData,
         updated_at: new Date().toISOString(),
       };
 
@@ -468,41 +539,30 @@ export function WayfinderChameleons({
       } else {
         const { error } = await supabaseAuth.from("sanctuary_lexicons").upsert(payload as any);
         if (error) throw error;
-        if (token && fileId !== "en-default" && fileId !== "en-sanctuary") {
-          try {
-            await supabase.rpc("secure_upsert_cloud_file", {
-              p_token: token,
-              p_target: "sanctuary_lexicons",
-              p_payload: payload,
-            });
-          } catch {}
-        }
       }
 
-      if (
-        import.meta.env.DEV &&
-        ["en-default", "en-sanctuary", "en-sims", "Simlish"].includes(fileId)
-      ) {
+      // Cross-sync ONLY Keepers Core lexicons (en-default & en-sanctuary) back to local disk in DEV builds
+      if (isKeepers && (fileId === "en-default" || fileId === "en-sanctuary")) {
         try {
-          await fetch("/__update-lexicon", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-sanctuary-dev-token":
-                typeof __SANCTUARY_DEV_TOKEN__ !== "undefined" ? __SANCTUARY_DEV_TOKEN__ : "",
-            },
-            body: JSON.stringify({
-              id: fileId,
-              file: `${fileId}.json`,
-              content: parsed,
-            }),
-          });
+          const rawCore = localStorage.getItem(CORE_LEXICONS_CACHE_KEY);
+          const parsedCore = rawCore ? JSON.parse(rawCore) : {};
+          parsedCore[fileId] = finalLexData;
+          localStorage.setItem(CORE_LEXICONS_CACHE_KEY, JSON.stringify(parsedCore));
         } catch {}
+
+        if (import.meta.env.DEV) {
+          const diskPayload: Record<string, any> = { ...finalLexData };
+          await postDevCoreAssetSync({
+            kind: "core_lexicon",
+            id: fileId,
+            content: diskPayload,
+          });
+        }
       }
 
       window.dispatchEvent(
         new CustomEvent("sanctuary-lexicon-updated", {
-          detail: { id: fileId, lexiconData: parsed },
+          detail: { id: fileId, lexiconData: finalLexData },
         })
       );
 
@@ -530,7 +590,9 @@ export function WayfinderChameleons({
   if (activeFile) {
     try {
       const parsed = JSON.parse(activeFile.content);
-      const isEnDefault = activeFile?.name.includes("en-default");
+      const isEnDefault =
+        activeFile?.name.includes("en-default") ||
+        activeFile?.path === "cloud://core-title-area";
       const reference = isEnDefault
         ? null
         : referenceData && Object.keys(referenceData).length > 0
@@ -548,7 +610,9 @@ export function WayfinderChameleons({
     if (!activeFile) return;
     try {
       const parsed = JSON.parse(activeFile.content);
-      const isEnDefault = activeFile?.name.includes("en-default");
+      const isEnDefault =
+        activeFile?.name.includes("en-default") ||
+        activeFile?.path === "cloud://core-title-area";
       const reference = isEnDefault
         ? null
         : referenceData && Object.keys(referenceData).length > 0
@@ -576,7 +640,9 @@ export function WayfinderChameleons({
     if (!activeFile) return;
     try {
       const parsed = JSON.parse(activeFile.content);
-      const isEnDefault = activeFile?.name.includes("en-default");
+      const isEnDefault =
+        activeFile?.name.includes("en-default") ||
+        activeFile?.path === "cloud://core-title-area";
       const reference = isEnDefault
         ? null
         : referenceData && Object.keys(referenceData).length > 0
@@ -1340,87 +1406,12 @@ export function WayfinderChameleons({
       />
 
       {/* Create Cloud Lexicon SidePanel */}
-      <SidePanel
+      <CreateLexiconSidePanel
         isOpen={isCreateLexiconOpen}
         onClose={() => setIsCreateLexiconOpen(false)}
-        title={t("chameleons_btn_new_lexicon", "New Lexicon")}
-        subtitle={t("auto_lexicon_pack", "Lexicon Pack")}
-        icon={t("icon_translate", "translate")}
-        iconColorClass="text-[var(--accent)]"
-        widthClass="w-[90vw] md:w-[680px]"
-        headerActions={
-          <PanelHeaderGroup>
-            <PanelHeaderButton
-              icon={t("icon_add", "add")}
-              variant="accent"
-              onClick={handleCreateSubmit}
-              disabled={!createFileName.trim()}
-              tooltip={t("auto_create", "Create")}
-            />
-          </PanelHeaderGroup>
-        }
-      >
-        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
-          <SidePanelHeroCard
-            icon={t("icon_translate", "translate")}
-            overline={t("creating_master_lexicon", "CREATING MASTER LEXICON")}
-            title={t("chameleons_btn_new_lexicon", "New Lexicon")}
-            description={t(
-              "create_lexicon_msg",
-              "Creating a Lexicon Pack generates a JSON file populated with all keys from en-default.json."
-            ).replace(/<[^>]*>/g, "")}
-            badge={t("auto_lexicon_pack", "Lexicon")}
-            variant="accent"
-          />
-
-          <SidePanelTitleInput
-            label={t("label_lexicon_name", "Lexicon Name")}
-            value={createFileName}
-            onChange={setCreateFileName}
-            placeholder={t("label_lexicon_name", "Lexicon Name")}
-          />
-
-          <UniversalGroup
-            title={t("auto_create_file", "File Parameters")}
-            icon={t("icon_code", "code")}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest ml-1">
-                  {t("label_lang_code", "Language Code")}
-                </label>
-                <input
-                  type="text"
-                  value={lexiconLang}
-                  onChange={(e) =>
-                    setLexiconLang(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
-                  }
-                  placeholder="es"
-                  className="glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono text-center"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleCreateSubmit();
-                  }}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest ml-1">
-                  {t("label_lexicon_name", "Lexicon Name")}
-                </label>
-                <input
-                  type="text"
-                  value={createFileName}
-                  onChange={(e) => setCreateFileName(e.target.value)}
-                  placeholder="default"
-                  className="glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent w-full font-mono"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleCreateSubmit();
-                  }}
-                />
-              </div>
-            </div>
-          </UniversalGroup>
-        </div>
-      </SidePanel>
+        onCreate={(opts) => handleCreateSubmit(opts)}
+        isCloudMode={true}
+      />
 
       {/* Theme Editor SidePanel */}
       <SidePanel

@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "./envUtils";
-import { supabaseAuth, supabase } from "../supabase";
+import { supabaseAuth, supabase, isStandaloneFork } from "../supabase";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 
@@ -2183,6 +2183,11 @@ export async function savePartnerCommunityDonationConfig(params: {
         ? Number(existingLocal.monthly_covered_cents)
         : 0;
 
+  const storeState = useStore.getState();
+  if (storeState.userRole !== "wayfinder") {
+    throw new Error("Only the Spoke Wayfinder can modify Spoke donation settings.");
+  }
+
   // Persist locally inside workspace overrides cache so immediate UI reflects it
   try {
     const rawMap = localStorage.getItem("sanctuary_partner_donations_v1");
@@ -2203,36 +2208,31 @@ export async function savePartnerCommunityDonationConfig(params: {
     // ignore
   }
 
-  // Update sanctuary_games on the Hub
   const client = supabaseAuth || supabase;
-  const isUuid =
-    typeof params.gameId === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      params.gameId.trim(),
-    );
+  const targetGameIdentifier = (params.gameId || params.schemaId || key).trim();
 
-  if (isUuid && params.gameId) {
-    await client
-      .from("sanctuary_games")
-      .update({
-        donation_url: cleanUrl || null,
-        payment_processor: cleanProcessor,
-      })
-      .eq("id", params.gameId.trim());
+  if (!isStandaloneFork) {
+    const res: any = await client.functions.invoke("game-gateway", {
+      body: {
+        game_id: targetGameIdentifier,
+        action: "wayfinder_update_spoke_donations",
+        payload: {
+          donation_url: cleanUrl || null,
+          payment_processor: cleanProcessor,
+          monthly_goal_cents: goalCents,
+          monthly_covered_cents: coveredCents,
+          spoke_cost_breakdown: resolvedBreakdown,
+        },
+      },
+    });
+    const invokeErr = res?.error || (res?.data?.error ? { message: res.data.error } : null);
+    if (invokeErr) {
+      throw new Error(invokeErr.message || "Failed to update Spoke donation settings.");
+    }
+    return;
   }
 
-  const schemaLookup = (params.schemaId || (!isUuid ? params.gameId : "") || "").trim();
-  if (schemaLookup) {
-    await client
-      .from("sanctuary_games")
-      .update({
-        donation_url: cleanUrl || null,
-        payment_processor: cleanProcessor,
-      })
-      .ilike("schema_id", schemaLookup);
-  }
-
-  // Also persist Spoke Monthly Server Goal in keeper_system_broadcasts so all clients receive it without schema column dependencies
+  // Standalone fork fallback (single self-hosted Spoke DB without Hub gateway)
   try {
     const broadcastTitle = `SPOKE_DONATION_${key.toUpperCase()}`;
     const payloadStr = JSON.stringify({
@@ -2896,10 +2896,11 @@ export async function loadPartnerCommunitiesList(
 
   try {
     const client = supabaseAuth || supabase;
+    const isKeeper = useStore.getState().osRole === "keeper";
     const [{ data: games }, { data: spokeBroadcasts }] = await Promise.all([
       client
         .from("sanctuary_games")
-        .select("id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, donation_url, payment_processor")
+        .select("id, name, schema_id, supabase_url, supabase_anon_key, icon, created_at, is_active, is_keepers_only, donation_url, payment_processor")
         .order("name", { ascending: true }),
       client
         .from("keeper_system_broadcasts")
@@ -2931,6 +2932,7 @@ export async function loadPartnerCommunitiesList(
         if (g.schema_id) seenNames.add(String(g.schema_id).toLowerCase());
         if (g.id) seenNames.add(String(g.id).toLowerCase());
         if (g.is_active === false) continue;
+        if (g.is_keepers_only === true && !isKeeper) continue;
         const localOverride =
           getLocalPartnerDonationOverride(g.schema_id) ||
           getLocalPartnerDonationOverride(g.id);
@@ -2939,10 +2941,13 @@ export async function loadPartnerCommunitiesList(
           remoteSpokeGoalMap[String(g.id || "").toLowerCase()];
         if (
           isDesktop() &&
+          useStore.getState().userRole === "wayfinder" &&
+          String(useStore.getState().activeWorkspaceId || "").toLowerCase() ===
+            String(g.schema_id || g.id || "").toLowerCase() &&
           localOverride?.donation_url &&
           !g.donation_url
         ) {
-          // Auto-sync Desktop local partner donation override to Hub
+          // Auto-sync Desktop local partner donation override to Hub (Wayfinder of active Spoke only)
           savePartnerCommunityDonationConfig({
             gameId: g.id,
             schemaId: g.schema_id,
