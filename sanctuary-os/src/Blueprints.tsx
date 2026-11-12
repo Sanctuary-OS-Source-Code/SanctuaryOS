@@ -617,14 +617,13 @@ export default function Blueprints({
           />
         }
         title={bpTitle}
-        subtitle={`${sourceDevice} • ${
-          cloudTarget.isCompletedLocally
+        subtitle={`${sourceDevice} • ${cloudTarget.isCompletedLocally
             ? t(
-                "sig_queue_badge_completed_local",
-                "Completed Here • Pending on Other Systems"
-              )
+              "sig_queue_badge_completed_local",
+              "Completed Here • Pending on Other Systems"
+            )
             : t("staging_active_cloud_title", "Awaiting Desktop Signature")
-        }`}
+          }`}
         onClick={() => handleOpenInSignatureQueue(cloudTarget, queueIdx)}
         onContextMenu={(e) => {
           const items: SanctuaryContextMenuItem[] = [
@@ -730,11 +729,10 @@ export default function Blueprints({
             </button>
             <div className={VAULT_CHIP_CLASS}>
               <span
-                className={`material-symbols-outlined !text-[12px] ${
-                  ownedCount === cloudItems.length && cloudItems.length > 0
+                className={`material-symbols-outlined !text-[12px] ${ownedCount === cloudItems.length && cloudItems.length > 0
                     ? "text-[var(--success)]"
                     : "text-[var(--warning)]"
-                }`}
+                  }`}
               >
                 {ownedCount === cloudItems.length && cloudItems.length > 0
                   ? t("icon_verified", "verified")
@@ -791,11 +789,10 @@ export default function Blueprints({
                   e.stopPropagation();
                   handleTogglePipelineCompleteLocally(cloudTarget);
                 }}
-                className={`h-8 glass-surface border rounded-lg transition-all flex items-center justify-center relative cursor-pointer ${
-                  cloudTarget.isCompletedLocally
+                className={`h-8 glass-surface border rounded-lg transition-all flex items-center justify-center relative cursor-pointer ${cloudTarget.isCompletedLocally
                     ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
                     : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:text-[var(--success)]"
-                }`}
+                  }`}
               >
                 <span className="material-symbols-outlined !text-[16px]">
                   {cloudTarget.isCompletedLocally
@@ -822,11 +819,10 @@ export default function Blueprints({
                   className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
                 >
                   <span
-                    className={`material-symbols-outlined !text-[16px] ${
-                      stagingRigSetName === matchingLocalSet.name
+                    className={`material-symbols-outlined !text-[16px] ${stagingRigSetName === matchingLocalSet.name
                         ? "animate-spin text-[var(--accent)]"
                         : ""
-                    }`}
+                      }`}
                   >
                     {stagingRigSetName === matchingLocalSet.name
                       ? t("icon_sync", "sync")
@@ -1075,9 +1071,8 @@ export default function Blueprints({
           <div className="absolute top-3 left-3 flex flex-nowrap items-center gap-1.5 max-w-[75%] z-30 pointer-events-none whitespace-nowrap">
             <div className={VAULT_CHIP_CLASS}>
               <span
-                className={`material-symbols-outlined !text-[12px] ${
-                  isDeployed ? "text-[var(--success)]" : "text-[var(--subtext)]"
-                }`}
+                className={`material-symbols-outlined !text-[12px] ${isDeployed ? "text-[var(--success)]" : "text-[var(--subtext)]"
+                  }`}
               >
                 {isDeployed ? t("icon_verified_user", "verified_user") : t("icon_schedule", "schedule")}
               </span>
@@ -1102,11 +1097,10 @@ export default function Blueprints({
               e.stopPropagation();
               togglePin(set.name);
             }}
-            className={`w-8 h-8 rounded-xl glass-surface border flex items-center justify-center transition-all relative ${
-              isPinned
+            className={`w-8 h-8 rounded-xl glass-surface border flex items-center justify-center transition-all relative ${isPinned
                 ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_55%,transparent)] opacity-100"
                 : "text-[var(--subtext)] opacity-65 hover:opacity-100 border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)]"
-            }`}
+              }`}
           >
             <span
               className="material-symbols-outlined !text-[16px]"
@@ -1167,13 +1161,12 @@ export default function Blueprints({
               className={`${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] transition-colors cursor-pointer`}
             >
               <span
-                className={`material-symbols-outlined !text-[12px] ${
-                  hasAlerts
+                className={`material-symbols-outlined !text-[12px] ${hasAlerts
                     ? alertStatus.tier4 > 0 || alertStatus.broken > 0
                       ? "text-[var(--danger)]"
                       : "text-[var(--warning)]"
                     : "text-[var(--success)]"
-                }`}
+                  }`}
               >
                 {hasAlerts
                   ? alertStatus.tier4 > 0 || alertStatus.broken > 0
@@ -1206,11 +1199,10 @@ export default function Blueprints({
                   e.stopPropagation();
                   equipPlaySet && equipPlaySet(set.name);
                 }}
-                className={`flex-1 h-9 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 relative border glass-surface ${
-                  isDeployed
+                className={`flex-1 h-9 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 relative border glass-surface ${isDeployed
                     ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
                     : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]"
-                }`}
+                  }`}
               >
                 <span className="material-symbols-outlined !text-[15px]">
                   {isDeployed
@@ -1237,13 +1229,12 @@ export default function Blueprints({
                     setActivePlaySetIndex(playSets.findIndex((s: any) => s.name === set.name));
                   setIsArchitectOpen(true);
                 }}
-                className={`h-9 px-3.5 glass-surface border rounded-xl transition-all flex items-center justify-center gap-1.5 relative font-black uppercase text-[10px] tracking-wider ${
-                  hasAlerts
+                className={`h-9 px-3.5 glass-surface border rounded-xl transition-all flex items-center justify-center gap-1.5 relative font-black uppercase text-[10px] tracking-wider ${hasAlerts
                     ? alertStatus.tier4 > 0 || alertStatus.broken > 0
                       ? "border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]"
                       : "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
                     : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)]"
-                }`}
+                  }`}
               >
                 <span className="material-symbols-outlined !text-[16px]">
                   {hasAlerts
@@ -1270,16 +1261,14 @@ export default function Blueprints({
                   e.stopPropagation();
                   handleStageSetToRigQueue(set);
                 }}
-                className={`h-8 glass-surface border rounded-lg transition-all flex items-center justify-center relative cursor-pointer ${
-                  stagedRigSuccessSetName === set.name
+                className={`h-8 glass-surface border rounded-lg transition-all flex items-center justify-center relative cursor-pointer ${stagedRigSuccessSetName === set.name
                     ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
                     : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                }`}
+                  }`}
               >
                 <span
-                  className={`material-symbols-outlined !text-[16px] ${
-                    stagingRigSetName === set.name ? "animate-spin text-[var(--accent)]" : ""
-                  }`}
+                  className={`material-symbols-outlined !text-[16px] ${stagingRigSetName === set.name ? "animate-spin text-[var(--accent)]" : ""
+                    }`}
                 >
                   {stagingRigSetName === set.name
                     ? t("icon_sync", "sync")
@@ -1333,11 +1322,10 @@ export default function Blueprints({
                     setTimeout(() => setDeleteConfirm(null), 3000);
                   }
                 }}
-                className={`h-8 transition-all flex items-center justify-center rounded-lg border glass-surface relative cursor-pointer ${
-                  deleteConfirm === set.name
+                className={`h-8 transition-all flex items-center justify-center rounded-lg border glass-surface relative cursor-pointer ${deleteConfirm === set.name
                     ? "border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)]"
                     : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
-                }`}
+                  }`}
               >
                 <span className="material-symbols-outlined !text-[16px]">
                   {deleteConfirm === set.name
@@ -1408,9 +1396,8 @@ export default function Blueprints({
                   id: "beam_active_bp",
                   icon: (
                     <span
-                      className={`material-symbols-outlined !text-[20px] ${
-                        stagingRigSetName ? "animate-spin text-[var(--accent)]" : ""
-                      }`}
+                      className={`material-symbols-outlined !text-[20px] ${stagingRigSetName ? "animate-spin text-[var(--accent)]" : ""
+                        }`}
                     >
                       {stagingRigSetName
                         ? t("icon_sync", "sync")
@@ -1427,7 +1414,7 @@ export default function Blueprints({
                     );
                     const target =
                       activeCandidate &&
-                      countBlueprintArtifacts(activeCandidate.mods, activeGameSchema) > 0
+                        countBlueprintArtifacts(activeCandidate.mods, activeGameSchema) > 0
                         ? activeCandidate
                         : fallbackNonEmpty || activeCandidate || playSets?.[0];
                     if (target) {
@@ -1437,17 +1424,17 @@ export default function Blueprints({
                 },
                 ...(cloudQueuesList.length > 0
                   ? [
-                      {
-                        id: "open_sig_queue_panel",
-                        icon: (
-                          <span className="material-symbols-outlined !text-[20px]">
-                            {t("icon_draw", "draw")}
-                          </span>
-                        ),
-                        label: t("sig_queue_title", "Signature Queue"),
-                        onClick: () => setIsSignatureQueueOpen(true),
-                      },
-                    ]
+                    {
+                      id: "open_sig_queue_panel",
+                      icon: (
+                        <span className="material-symbols-outlined !text-[20px]">
+                          {t("icon_draw", "draw")}
+                        </span>
+                      ),
+                      label: t("sig_queue_title", "Signature Queue"),
+                      onClick: () => setIsSignatureQueueOpen(true),
+                    },
+                  ]
                   : []),
               ]}
             />
@@ -1871,7 +1858,7 @@ export default function Blueprints({
                         );
                         const target =
                           activeCandidate &&
-                          countBlueprintArtifacts(activeCandidate.mods, activeGameSchema) > 0
+                            countBlueprintArtifacts(activeCandidate.mods, activeGameSchema) > 0
                             ? activeCandidate
                             : fallbackNonEmpty || activeCandidate || playSets?.[0];
                         if (target) {
@@ -1935,17 +1922,17 @@ export default function Blueprints({
                 className="col-span-full py-16"
               />
             ) : myCloudBlueprints.filter((bp) => {
-                const inVault = playSets.some(
-                  (set: any) =>
-                    (set.code && set.code.toUpperCase() === bp.code.toUpperCase()) ||
-                    set.name.toLowerCase() === bp.name.toLowerCase()
-                );
-                const matchesSearch =
-                  !cloudSearchQuery ||
-                  bp.name.toLowerCase().includes(cloudSearchQuery.toLowerCase()) ||
-                  bp.code.toLowerCase().includes(cloudSearchQuery.toLowerCase());
-                return (cloudFilterTab === "all" ? true : !inVault) && matchesSearch;
-              }).length === 0 ? (
+              const inVault = playSets.some(
+                (set: any) =>
+                  (set.code && set.code.toUpperCase() === bp.code.toUpperCase()) ||
+                  set.name.toLowerCase() === bp.name.toLowerCase()
+              );
+              const matchesSearch =
+                !cloudSearchQuery ||
+                bp.name.toLowerCase().includes(cloudSearchQuery.toLowerCase()) ||
+                bp.code.toLowerCase().includes(cloudSearchQuery.toLowerCase());
+              return (cloudFilterTab === "all" ? true : !inVault) && matchesSearch;
+            }).length === 0 ? (
               <EmptyState
                 icon={t("icon_task_alt", "task_alt")}
                 title={t("no_cloud_blueprints", "No Cloud {Blueprints}")}
@@ -2021,7 +2008,7 @@ export default function Blueprints({
                           icon: t("icon_content_copy", "content_copy"),
                           dividerBefore: true,
                           onClick: () => {
-                            navigator.clipboard.writeText(bp.code).catch(() => {});
+                            navigator.clipboard.writeText(bp.code).catch(() => { });
                             setCopiedCode(bp.code);
                             setTimeout(() => setCopiedCode(null), 2000);
                           },
@@ -2044,9 +2031,8 @@ export default function Blueprints({
                         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
                           <div className={VAULT_CHIP_CLASS}>
                             <span
-                              className={`material-symbols-outlined !text-[12px] ${
-                                inVault ? "text-[var(--success)]" : "text-[var(--accent)]"
-                              }`}
+                              className={`material-symbols-outlined !text-[12px] ${inVault ? "text-[var(--success)]" : "text-[var(--accent)]"
+                                }`}
                             >
                               {inVault
                                 ? t("icon_verified_user", "verified_user")
@@ -2104,18 +2090,17 @@ export default function Blueprints({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigator.clipboard.writeText(bp.code).catch(() => {});
+                              navigator.clipboard.writeText(bp.code).catch(() => { });
                               setCopiedCode(bp.code);
                               setTimeout(() => setCopiedCode(null), 2000);
                             }}
                             className={`${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-colors cursor-pointer`}
                           >
                             <span
-                              className={`material-symbols-outlined !text-[12px] ${
-                                copiedCode === bp.code
+                              className={`material-symbols-outlined !text-[12px] ${copiedCode === bp.code
                                   ? "text-[var(--success)]"
                                   : "text-[var(--subtext)]"
-                              }`}
+                                }`}
                             >
                               {copiedCode === bp.code
                                 ? t("icon_check", "check")
@@ -2325,9 +2310,8 @@ export default function Blueprints({
                       <ActionButton
                         variant="glass"
                         icon={t("icon_expand_more", "expand_more")}
-                        label={`${t("load_more", "Load More")} (${
-                          filteredArtifacts.length - uplinkArtifactsLimit
-                        })`}
+                        label={`${t("load_more", "Load More")} (${filteredArtifacts.length - uplinkArtifactsLimit
+                          })`}
                         onClick={() => setUplinkArtifactsLimit((prev) => prev + 100)}
                       />
                     </div>

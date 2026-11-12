@@ -116,19 +116,23 @@ export function LiquidGlassAlertCard({
   return (
     <div
       onClick={onClick}
-          }`}
+      className={`glass-panel rounded-[var(--radius)] p-5 border flex flex-col gap-3.5 relative overflow-hidden h-full transition-all duration-300 ${
+        onClick
+          ? "cursor-pointer hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.35))]"
+          : ""
+      }`}
       style={
         isAlertCard
           ? {
-              backgroundColor: `color-mix(in srgb, ${ accentVar } 5 %, transparent)`,
-              borderTopColor: `color - mix(in srgb, ${ accentVar } 38 %, rgba(255, 255, 255, 0.14))`,
-              borderLeftColor: `color - mix(in srgb, ${ accentVar } 26 %, rgba(255, 255, 255, 0.1))`,
-              borderRightColor: `color - mix(in srgb, ${ accentVar } 20 %, rgba(255, 255, 255, 0.07))`,
-              borderBottomColor: `color - mix(in srgb, ${ accentVar } 22 %, rgba(255, 255, 255, 0.08))`,
+              backgroundColor: `color-mix(in srgb, ${accentVar} 5%, transparent)`,
+              borderTopColor: `color-mix(in srgb, ${accentVar} 38%, rgba(255, 255, 255, 0.14))`,
+              borderLeftColor: `color-mix(in srgb, ${accentVar} 26%, rgba(255, 255, 255, 0.1))`,
+              borderRightColor: `color-mix(in srgb, ${accentVar} 20%, rgba(255, 255, 255, 0.07))`,
+              borderBottomColor: `color-mix(in srgb, ${accentVar} 22%, rgba(255, 255, 255, 0.08))`,
             }
           : {
-              backgroundColor: `color - mix(in srgb, ${ accentVar } 4 %, transparent)`,
-              borderColor: `color - mix(in srgb, ${ accentVar } 20 %, transparent)`,
+              backgroundColor: `color-mix(in srgb, ${accentVar} 4%, transparent)`,
+              borderColor: `color-mix(in srgb, ${accentVar} 20%, transparent)`,
             }
       }
     >
@@ -136,25 +140,25 @@ export function LiquidGlassAlertCard({
         className="pointer-events-none absolute inset-0 rounded-[inherit]"
         style={{
           background: isAlertCard
-            ? `radial - gradient(115 % 85 % at 0 % 0 %, color - mix(in srgb, ${ accentVar } 12 %, transparent) 0 %, color - mix(in srgb, ${ accentVar } 4 %, transparent) 44 %, transparent 74 %), radial - gradient(circle at 90 % 12 %, color - mix(in srgb, ${ accentVar } 10 %, transparent) 0 %, transparent 56 %)`
-            : `radial - gradient(circle at 88 % 12 %, color - mix(in srgb, ${ accentVar } 14 %, transparent) 0 %, transparent 62 %)`,
+            ? `radial-gradient(115% 85% at 0% 0%, color-mix(in srgb, ${accentVar} 12%, transparent) 0%, color-mix(in srgb, ${accentVar} 4%, transparent) 44%, transparent 74%), radial-gradient(circle at 90% 12%, color-mix(in srgb, ${accentVar} 10%, transparent) 0%, transparent 56%)`
+            : `radial-gradient(circle at 88% 12%, color-mix(in srgb, ${accentVar} 14%, transparent) 0%, transparent 62%)`,
         }}
       />
       <span
-        className={`material - symbols - outlined absolute - right - 3 - bottom - 4!text - [84px] ${ iconColorClass } ${
-    isAlertCard ? "opacity-[0.055]" : "opacity-[0.04]"
-  } pointer - events - none select - none rotate - [-10deg]`}
+        className={`material-symbols-outlined absolute -right-3 -bottom-4 !text-[84px] ${iconColorClass} ${
+          isAlertCard ? "opacity-[0.055]" : "opacity-[0.04]"
+        } pointer-events-none select-none rotate-[-10deg]`}
       >
         {icon}
       </span>
 
       <div className="flex items-center justify-between gap-3 relative z-10">
         <div
-          className={`w - 11 h - 11 rounded - xl glass - surface border border - [var(--glass - card - icon - border, rgba(255, 255, 255, 0.22))]bg - [var(--glass - card - icon - bg, rgba(255, 255, 255, 0.08))]shadow - [var(--glass - card - icon - shadow)] ${ iconColorClass } flex items - center justify - center shrink - 0 relative overflow - hidden`}
+          className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] ${iconColorClass} flex items-center justify-center shrink-0 relative overflow-hidden`}
           style={
             isAlertCard
               ? {
-                  borderColor: `color - mix(in srgb, ${ accentVar } 42 %, rgba(255, 255, 255, 0.2))`,
+                  borderColor: `color-mix(in srgb, ${accentVar} 42%, rgba(255, 255, 255, 0.2))`,
                 }
               : undefined
           }
@@ -163,7 +167,7 @@ export function LiquidGlassAlertCard({
             <div
               className="pointer-events-none absolute inset-0 rounded-[inherit]"
               style={{
-                background: `radial - gradient(circle at 50 % 0 %, color - mix(in srgb, ${ accentVar } 20 %, transparent) 0 %, transparent 75 %)`,
+                background: `radial-gradient(circle at 50% 0%, color-mix(in srgb, ${accentVar} 20%, transparent) 0%, transparent 75%)`,
               }}
             />
           )}
@@ -173,7 +177,7 @@ export function LiquidGlassAlertCard({
         </div>
         <span className={VAULT_CHIP_CLASS}>
           <span
-            className={`material - symbols - outlined!text - [12px] shrink - 0 ${ iconColorClass } `}
+            className={`material-symbols-outlined !text-[12px] shrink-0 ${iconColorClass}`}
           >
             {badgeIcon || icon}
           </span>
@@ -183,7 +187,7 @@ export function LiquidGlassAlertCard({
 
       <div className="flex flex-col gap-1 relative z-10">
         <span
-          className={`text - [10px] font - mono font - black uppercase tracking - [0.14em] ${ iconColorClass } leading - snug`}
+          className={`text-[10px] font-mono font-black uppercase tracking-[0.14em] ${iconColorClass} leading-snug`}
         >
           {overline}
         </span>
@@ -201,11 +205,11 @@ export function LiquidGlassAlertCard({
       {actionLabel && onAction && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className={`pt - 3.5 mt - auto border - t border - [color - mix(in_srgb,var(--text)_8 %, transparent)] relative z - 10 w - full ${
-    onIgnore
-      ? "grid grid-cols-2 gap-2.5"
-      : "flex items-center gap-2.5"
-  } `}
+          className={`pt-3.5 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative z-10 w-full ${
+            onIgnore
+              ? "grid grid-cols-2 gap-2.5"
+              : "flex items-center gap-2.5"
+          }`}
         >
           {onIgnore ? (
             <>
@@ -217,26 +221,22 @@ export function LiquidGlassAlertCard({
                 className="w-full !px-3 !py-2.5 opacity-75 hover:opacity-100 [&_span.material-symbols-outlined]:!text-[var(--subtext)] hover:[&_span.material-symbols-outlined]:!text-[var(--text)]"
               />
               <ActionButton
-                variant={actionVariant}
                 variant="glass"
                 icon={actionIcon}
                 label={actionLabel}
                 onClick={onAction}
-                className="w-full !px-3 !py-2.5"
-                className={`w - full!px - 3!py - 2.5 ${ actionIconColorClass } `}
+                className={`w-full !px-3 !py-2.5 ${actionIconColorClass}`}
               />
             </>
           ) : (
             <>
               <div className="flex-1 min-w-0">
                 <ActionButton
-                  variant={actionVariant}
                   variant="glass"
                   icon={actionIcon}
                   label={actionLabel}
                   onClick={onAction}
-                  className="w-full !px-4 !py-2.5"
-                  className={`w - full!px - 4!py - 2.5 ${ actionIconColorClass } `}
+                  className={`w-full !px-4 !py-2.5 ${actionIconColorClass}`}
                 />
               </div>
               {secondaryActionIcon && onSecondaryAction && (
@@ -505,7 +505,7 @@ function isWildcardVersion(ver: any): boolean {
 function formatDisplayVersion(ver: any, fallbackLabel: string): string {
   const clean = cleanVersionLabel(ver);
   if (!clean || isWildcardVersion(clean)) return fallbackLabel;
-  return /^\d/.test(clean) ? `v${ clean } ` : clean;
+  return /^\d/.test(clean) ? `v${clean}` : clean;
 }
 
 function formatGameVersionChipLabel(
@@ -516,7 +516,7 @@ function formatGameVersionChipLabel(
   if (explicit.length > 0) {
     const highest = cleanVersionLabel(getHighestVersion(explicit));
     if (highest && !isWildcardVersion(highest)) {
-      return /^\d/.test(highest) ? `v${ highest } ` : highest;
+      return /^\d/.test(highest) ? `v${highest}` : highest;
     }
   }
   return anyFallback;
@@ -753,16 +753,15 @@ export function buildPatchGuidedUpdateQueue(
         url: m.rawMod?.download_url || m.rawMod?.url,
       }) ||
       `https://www.google.com/search?q=${encodeURIComponent(
-  activeGameSchema?.display_name || "Game"
-      )
-} +${ encodeURIComponent(cleanSearchName(m.title, activeGameSchema)) } `;
+        activeGameSchema?.display_name || "Game"
+      )}+${encodeURIComponent(cleanSearchName(m.title, activeGameSchema))}`;
     const dedupeKey = String(fallbackUrl || m.suiteKey || m.key).toLowerCase();
     if (seenTargets.has(dedupeKey)) continue;
     seenTargets.add(dedupeKey);
     if (nonTrivialSuite) seenSuites.add(nonTrivialSuite);
 
     out.push({
-      id: `${ m.key }_${ idx } `,
+      id: `${m.key}_${idx}`,
       name: m.title,
       author: m.author || undefined,
       url: fallbackUrl,
@@ -812,7 +811,7 @@ export function useBlueprintPatchReadiness(opts?: {
   const vaultPath = useStore((s) => s.vaultPath);
 
   const wsKey = activeWorkspaceId || "default";
-  const storageKey = `sanctuary_${ wsKey } _sim_patch_ver`;
+  const storageKey = `sanctuary_${wsKey}_sim_patch_ver`;
 
   const [officialVersions, setOfficialVersions] = useState<string[]>(() => {
     return getOrCreateWorkspaceCache(wsKey).gameVersions;
@@ -1161,8 +1160,6 @@ export function useBlueprintPatchReadiness(opts?: {
     if (Array.isArray(modList)) {
       for (let i = 0; i < modList.length; i++) {
         const vm = modList[i];
-        if (vm?.isCollection && vm?.dbId) {
-          collectionIds.add(String(vm.dbId).split("@")[0].trim());
         if (!vm) continue;
         const vmDbId = String(vm.dbId || "").split("@")[0].trim();
         if (vm.isCollection && vmDbId) {
@@ -1292,7 +1289,6 @@ export function useBlueprintPatchReadiness(opts?: {
           activeGameSchema
         );
         const relType = String(m.relationshipType || "").toLowerCase();
-        const famRaw = String(m.baseFamilyId || m.familyId || "")
         const explicitFamRaw = String(m.baseFamilyId || m.familyId || "")
           .split("@")[0]
           .trim();
@@ -1351,13 +1347,13 @@ export function useBlueprintPatchReadiness(opts?: {
 
       const suiteKeyByIndex = new Array<string>(resolvedMods.length);
       for (let idx = 0; idx < resolvedMods.length; idx++) {
-        suiteKeyByIndex[idx] = `art:${ idx } `;
+        suiteKeyByIndex[idx] = `art:${idx}`;
       }
 
       famBuckets.forEach((fb, famRaw) => {
         if (fb.indices.length > 1 && fb.hasAtomicCoupling) {
           for (const idx of fb.indices) {
-            suiteKeyByIndex[idx] = `fam:${ famRaw } `;
+            suiteKeyByIndex[idx] = `fam:${famRaw}`;
           }
         }
       });
@@ -1367,7 +1363,7 @@ export function useBlueprintPatchReadiness(opts?: {
           if (tb.creators.size <= 1) {
             for (const idx of tb.indices) {
               if (suiteKeyByIndex[idx].startsWith("art:")) {
-                suiteKeyByIndex[idx] = `twin:${ twinNorm } `;
+                suiteKeyByIndex[idx] = `twin:${twinNorm}`;
               }
             }
           } else {
@@ -1376,7 +1372,7 @@ export function useBlueprintPatchReadiness(opts?: {
                 extractValidCreator(resolvedMods[idx]) || ""
               ).toLowerCase();
               if (cr && suiteKeyByIndex[idx].startsWith("art:")) {
-                suiteKeyByIndex[idx] = `twin:${ cr }::${ twinNorm } `;
+                suiteKeyByIndex[idx] = `twin:${cr}::${twinNorm}`;
               }
             }
           }
@@ -1391,11 +1387,9 @@ export function useBlueprintPatchReadiness(opts?: {
       for (let idx = 0; idx < resolvedMods.length; idx++) {
         const m = resolvedMods[idx];
         const sKey = suiteKeyByIndex[idx];
-        const uniqueKey = `art:${ idx }:${
-  String(
-    m?._originalSetName || m?.name || idx
-  )
-} `;
+        const uniqueKey = `art:${idx}:${String(
+          m?._originalSetName || m?.name || idx
+        )}`;
         const rawTitle = formatDisplayName(
           m?.displayName || m?.meta_name || m?.name || ""
         );
@@ -1425,6 +1419,7 @@ export function useBlueprintPatchReadiness(opts?: {
             downloadUrl: null,
             rawMod: m,
             groupedMods: m ? [m] : [],
+            blueprintName: ps.name,
           };
           allSuiteEntries.push(fallbackEntry);
           continue;
@@ -1651,7 +1646,7 @@ export function useBlueprintPatchReadiness(opts?: {
           compatArr.length > 0 &&
           targetVersion &&
           isVersionMatch(compatArr, targetVersion)
-            ? `${ t("patch_sim_verified_for", "Verified for") } v${ targetVersion } `
+            ? `${t("patch_sim_verified_for", "Verified for")} v${targetVersion}`
             : t("patch_sim_compatible_in_vault", "Compatible in {Vault}");
 
         if (
@@ -1697,7 +1692,7 @@ export function useBlueprintPatchReadiness(opts?: {
           bucket = "update_ready";
           source = "cloud_update";
           reasonLabel = resolvedTargetModVer
-            ? `${ t("updates_avail", "Updates Available") } • v${ resolvedTargetModVer } `
+            ? `${t("updates_avail", "Updates Available")} • v${resolvedTargetModVer}`
             : t("updates_avail", "Updates Available");
         } else if (
           hasVersionMismatchOnTarget ||
@@ -1710,16 +1705,14 @@ export function useBlueprintPatchReadiness(opts?: {
           if (hasVersionMismatchOnTarget) {
             const highest = getHighestVersion(compatArr);
             const cleanHigh = cleanVersionLabel(highest);
-            reasonLabel = `${
-  t(
-    "patch_sim_awaiting_patch",
-    "Awaiting {Mason} Update"
-  )
-} (${
-  cleanHigh && !isWildcardVersion(cleanHigh)
-    ? `v${cleanHigh}`
-    : t("unknown", "Unknown")
-})`;
+            reasonLabel = `${t(
+              "patch_sim_awaiting_patch",
+              "Awaiting {Mason} Update"
+            )} (${
+              cleanHigh && !isWildcardVersion(cleanHigh)
+                ? `v${cleanHigh}`
+                : t("unknown", "Unknown")
+            })`;
           } else if (
             simulatedIssues.length > 0 &&
             simulatedIssues[0]?._alert_reason
@@ -1919,16 +1912,12 @@ export function useBlueprintPatchReadiness(opts?: {
               );
               se.bucket = "blocking";
               se.source = "awaiting_patch";
-              se.issueKind = "dependency";
-              se.reasonLabel = `${ t("badge_missing_dep", "Missing Dependency") }: ${ missingDep } `;
               if (trulyMissingFromBlueprint) {
                 se.issueKind = "dependency";
-                se.reasonLabel = `${
-  t(
-    "badge_missing_dep",
-    "Missing Dependency"
-  )
-}: ${ trulyMissingFromBlueprint } `;
+                se.reasonLabel = `${t(
+                  "badge_missing_dep",
+                  "Missing Dependency"
+                )}: ${trulyMissingFromBlueprint}`;
                 const depTarget = resolveMissingDepTarget(
                   trulyMissingFromBlueprint
                 );
@@ -1943,12 +1932,10 @@ export function useBlueprintPatchReadiness(opts?: {
                 }
               } else {
                 se.issueKind = "version";
-                se.reasonLabel = `${
-  t(
-    "patch_sim_awaiting_patch",
-    "Awaiting {Mason} Update"
-  )
-}: ${ missingDep } `;
+                se.reasonLabel = `${t(
+                  "patch_sim_awaiting_patch",
+                  "Awaiting {Mason} Update"
+                )}: ${missingDep}`;
               }
               changed = true;
             }
@@ -1985,12 +1972,10 @@ export function useBlueprintPatchReadiness(opts?: {
               se.bucket = "update_ready";
               se.source = "dep_update_pending";
               se.issueKind = "dependency";
-              se.reasonLabel = `${
-  t(
-    "patch_sim_dep_needs_update",
-    "Requires Pending Update"
-  )
-}: ${ pendingDep } `;
+              se.reasonLabel = `${t(
+                "patch_sim_dep_needs_update",
+                "Requires Pending Update"
+              )}: ${pendingDep}`;
               changed = true;
             }
           }
@@ -2131,16 +2116,16 @@ export function useBlueprintPatchReadiness(opts?: {
       const isLatest = idx === 0;
       let suffix = "";
       if (isCurrent && isLatest) {
-        suffix = ` (${ t("current", "Current") })`;
+        suffix = ` (${t("current", "Current")})`;
       } else if (isCurrent) {
-        suffix = ` (${ t("patch_sim_installed_tag", "Installed") })`;
+        suffix = ` (${t("patch_sim_installed_tag", "Installed")})`;
       } else if (isLatest) {
-        suffix = ` (${ t("patch_sim_latest_tag", "Latest Patch") })`;
+        suffix = ` (${t("patch_sim_latest_tag", "Latest Patch")})`;
       }
       return {
         id: ver,
         value: ver,
-        label: `v${ ver }${ suffix } `,
+        label: `v${ver}${suffix}`,
       };
     });
   }, [availableVersions, cleanCurrentVersion, t]);
@@ -2245,7 +2230,7 @@ export function clonePatchReadyBlueprint(
         markModObjectExcluded(member);
       }
     } else {
-      if (normKey) extraOmittedSuites.add(`raw:${ normKey } `);
+      if (normKey) extraOmittedSuites.add(`raw:${normKey}`);
       markModObjectExcluded(gm);
     }
   };
@@ -2402,8 +2387,8 @@ export function clonePatchReadyBlueprint(
   const cleanVer = cleanVersionLabel(targetVersion);
   const desiredName =
     cleanVer && !isWildcardVersion(cleanVer)
-      ? `${ cleanBaseTitle } (v${ cleanVer })`
-      : `${ cleanBaseTitle } (${ t("patch_sim_ready_label", "Ready") })`;
+      ? `${cleanBaseTitle} (v${cleanVer})`
+      : `${cleanBaseTitle} (${t("patch_sim_ready_label", "Ready")})`;
 
   const existingLower = new Set(
     currentPlaySets.map((s: any) => String(s?.name || "").toLowerCase())
@@ -2411,7 +2396,7 @@ export function clonePatchReadyBlueprint(
   let finalName = desiredName;
   let suffix = 2;
   while (existingLower.has(finalName.toLowerCase())) {
-    finalName = `${ desiredName } #${ suffix } `;
+    finalName = `${desiredName} #${suffix}`;
     suffix += 1;
   }
 
@@ -2522,13 +2507,13 @@ export function PatchReadinessSimulatorInfoCard({
       badgeIcon={t("icon_layers", "layers")}
       badgeLabel={
         totalBpCount > 0
-          ? `${ readyBpCount }/${totalBpCount} ${t(
-"patch_sim_ready_label",
-  "Ready"
+          ? `${readyBpCount}/${totalBpCount} ${t(
+              "patch_sim_ready_label",
+              "Ready"
             )}`
           : t("standby", "Standby")
       }
-      overline={`${ t("patch_sim_overline", "Patch Simulator") } • ${ targetVerDisplay } `}
+      overline={`${t("patch_sim_overline", "Patch Simulator")} • ${targetVerDisplay}`}
       title={
         totalBpCount === 0
           ? t("patch_sim_no_blueprints_title", "No {Blueprints} Populated")
@@ -2558,7 +2543,7 @@ export function PatchReadinessSimulatorInfoCard({
               </span>
               {readiness.currentVersion && (
                 <span className="text-[9.5px] font-mono font-bold text-[var(--subtext)] opacity-75">
-                  {`${ t("patch_sim_installed_tag", "Installed") }: v${ readiness.currentVersion } `}
+                  {`${t("patch_sim_installed_tag", "Installed")}: v${readiness.currentVersion}`}
                 </span>
               )}
             </div>
@@ -2580,28 +2565,26 @@ export function PatchReadinessSimulatorInfoCard({
         <div className="flex items-center justify-center gap-1.5 flex-wrap">
           <span className={VAULT_CHIP_CLASS}>
             <span
-              className={`material - symbols - outlined!text - [12px] ${
-  readiness.backupCount > 0
-    ? "text-[var(--success)]"
-    : "text-[var(--warning)]"
-} `}
+              className={`material-symbols-outlined !text-[12px] ${
+                readiness.backupCount > 0
+                  ? "text-[var(--success)]"
+                  : "text-[var(--warning)]"
+              }`}
             >
               {t("icon_history", "history")}
             </span>
-            <span>{`${ readiness.backupCount } ${
-  t(
-    "cmd_snapshots_label",
-    "Snapshots"
-  )
-} `}</span>
+            <span>{`${readiness.backupCount} ${t(
+              "cmd_snapshots_label",
+              "Snapshots"
+            )}`}</span>
           </span>
           <span className={VAULT_CHIP_CLASS}>
             <span
-              className={`material - symbols - outlined!text - [12px] ${
-  readiness.shelterActive || readiness.isPatchDetected
-    ? "text-[var(--warning)]"
-    : "text-[var(--accent)]"
-} `}
+              className={`material-symbols-outlined !text-[12px] ${
+                readiness.shelterActive || readiness.isPatchDetected
+                  ? "text-[var(--warning)]"
+                  : "text-[var(--accent)]"
+              }`}
             >
               {readiness.shelterActive
                 ? t("icon_lock", "lock")
@@ -2702,7 +2685,7 @@ export function BlueprintPatchReadinessCard({
         <div className="absolute top-3 left-3 flex flex-nowrap items-center gap-1.5 max-w-[78%] z-30 pointer-events-none whitespace-nowrap">
           <span className={VAULT_CHIP_CLASS}>
             <span
-              className={`material - symbols - outlined!text - [12px] ${ verdictIconColor } `}
+              className={`material-symbols-outlined !text-[12px] ${verdictIconColor}`}
             >
               {verdictIcon}
             </span>
@@ -2715,11 +2698,11 @@ export function BlueprintPatchReadinessCard({
           <button
             type="button"
             onClick={handleCloneReady}
-            className={`- mt - 0.5 w - [26px] h - [26px] rounded - lg glass - surface border flex items - center justify - center transition - all relative cursor - pointer ${
-  justCloned
-    ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_50%,transparent)]"
-    : "text-[var(--text)] opacity-80 hover:opacity-100 border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:text-[var(--accent)]"
-} `}
+            className={`-mt-0.5 w-[26px] h-[26px] rounded-lg glass-surface border flex items-center justify-center transition-all relative cursor-pointer ${
+              justCloned
+                ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_50%,transparent)]"
+                : "text-[var(--text)] opacity-80 hover:opacity-100 border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:text-[var(--accent)]"
+            }`}
           >
             <span className="material-symbols-outlined !text-[14px]">
               {justCloned
@@ -2746,10 +2729,10 @@ export function BlueprintPatchReadinessCard({
         ) : undefined
       }
       title={report.blueprintName}
-      subtitle={`${ formatDisplayVersion(targetVersion, t("auto", "Auto")) } • ${
-  report.readyMods.length
-}/${report.totalMods} ${t("patch_sim_ready_label", "Ready")} (${
-report.readinessPercent
+      subtitle={`${formatDisplayVersion(targetVersion, t("auto", "Auto"))} • ${
+        report.readyMods.length
+      }/${report.totalMods} ${t("patch_sim_ready_label", "Ready")} (${
+        report.readinessPercent
       }%)`}
       onClick={() => onInspect(report.blueprintName)}
       badges={
@@ -2760,12 +2743,10 @@ report.readinessPercent
                 {t("icon_block", "block")}
               </span>
               <span>
-                {`${ report.blockingMods.length } ${
-  t(
-    "patch_sim_awaiting_compact",
-    "Awaiting"
-  )
-} `}
+                {`${report.blockingMods.length} ${t(
+                  "patch_sim_awaiting_compact",
+                  "Awaiting"
+                )}`}
               </span>
             </span>
           )}
@@ -2775,12 +2756,10 @@ report.readinessPercent
                 {t("icon_download", "download")}
               </span>
               <span>
-                {`${ report.updatableMods.length } ${
-  t(
-    "updates_available",
-    "Updates"
-  )
-} `}
+                {`${report.updatableMods.length} ${t(
+                  "updates_available",
+                  "Updates"
+                )}`}
               </span>
             </span>
           )}
@@ -2817,19 +2796,19 @@ report.readinessPercent
               <div
                 className="h-full bg-[var(--success)] transition-all duration-500"
                 style={{
-                  width: `${ (report.readyMods.length / report.totalMods) * 100 }% `,
+                  width: `${(report.readyMods.length / report.totalMods) * 100}%`,
                 }}
               />
               <div
                 className="h-full bg-[var(--warning)] transition-all duration-500"
                 style={{
-                  width: `${ (report.updatableMods.length / report.totalMods) * 100 }% `,
+                  width: `${(report.updatableMods.length / report.totalMods) * 100}%`,
                 }}
               />
               <div
                 className="h-full bg-[var(--danger)] transition-all duration-500"
                 style={{
-                  width: `${ (report.blockingMods.length / report.totalMods) * 100 }% `,
+                  width: `${(report.blockingMods.length / report.totalMods) * 100}%`,
                 }}
               />
             </>
@@ -2921,13 +2900,13 @@ function getVaultFamilyLookup(
 
       let folderKey = "";
       if (rawId.startsWith("virtual_")) {
-        folderKey = `fam:${ rawId.replace(/^virtual_/, "").trim() } `;
+        folderKey = `fam:${rawId.replace(/^virtual_/, "").trim()}`;
       } else if (rawId.startsWith("set_")) {
-        folderKey = `set:${ rawId.replace(/^set_/, "").trim() } `;
+        folderKey = `set:${rawId.replace(/^set_/, "").trim()}`;
       } else if (rawDb && rawDb !== "null" && rawDb !== "undefined") {
-        folderKey = isCollection ? `set:${ rawDb } ` : `fam:${ rawDb } `;
+        folderKey = isCollection ? `set:${rawDb}` : `fam:${rawDb}`;
       } else if (Array.isArray(vm.flavors) && vm.flavors.length > 1 && vm.name) {
-        folderKey = `folder:${ String(vm.name).toLowerCase() } `;
+        folderKey = `folder:${String(vm.name).toLowerCase()}`;
       }
 
       if (folderKey && title) {
@@ -3048,7 +3027,7 @@ export function groupPatchEvaluatedMods(
     const twinNorm = normalizeModGroupTitle(it.title).toLowerCase().trim();
     if (twinNorm.length >= 3) {
       const cr = (it.author || "").toLowerCase().trim();
-      const tKey = cr ? `${ cr }::${ twinNorm } ` : twinNorm;
+      const tKey = cr ? `${cr}::${twinNorm}` : twinNorm;
       twinCounts.set(tKey, (twinCounts.get(tKey) || 0) + 1);
       twinCounts.set(twinNorm, (twinCounts.get(twinNorm) || 0) + 1);
     }
@@ -3084,7 +3063,6 @@ export function groupPatchEvaluatedMods(
         (hashNorm && lookup.childHashToParentKey.get(hashNorm));
       if (mappedFolder) return mappedFolder;
 
-      const famRaw = String(raw.baseFamilyId || raw.familyId || "")
       const explicitFam = String(
         matchedVault?.baseFamilyId ||
           matchedVault?.familyId ||
@@ -3094,8 +3072,6 @@ export function groupPatchEvaluatedMods(
       )
         .split("@")[0]
         .trim();
-      if (famRaw && famRaw !== "null" && famRaw !== "undefined") {
-        if (lookup.parentByKey.has(`set:${ famRaw } `)) return `set:${ famRaw } `;
       const selfDb = String(matchedVault?.dbId || raw.dbId || "")
         .split("@")[0]
         .trim();
@@ -3119,14 +3095,12 @@ export function groupPatchEvaluatedMods(
             : "";
 
       if (famRaw) {
-        if (lookup.parentByKey.has(`set:${ famRaw } `) || collectionBySetId.has(famRaw)) {
-          return `set:${ famRaw } `;
+        if (lookup.parentByKey.has(`set:${famRaw}`) || collectionBySetId.has(famRaw)) {
+          return `set:${famRaw}`;
         }
-        return `fam:${ famRaw } `;
+        return `fam:${famRaw}`;
       }
 
-      const setRaw = String(raw.setId || "").split("@")[0].trim();
-      if (setRaw && setRaw !== "null" && setRaw !== "undefined") {
       const setRaw = String(raw.setId || matchedVault?.setId || "")
         .split("@")[0]
         .trim();
@@ -3137,24 +3111,23 @@ export function groupPatchEvaluatedMods(
         (collectionBySetId.has(setRaw) ||
           (vaultSetCounts.get(setRaw) || 0) > 1 ||
           (listSetCounts.get(setRaw) || 0) > 1 ||
-          lookup.parentByKey.has(`set:${ setRaw } `))
+          lookup.parentByKey.has(`set:${setRaw}`))
       ) {
-        return `set:${ setRaw } `;
+        return `set:${setRaw}`;
       }
 
-      const fgRaw = String(raw.flavorGroupId || "").trim();
       const fgRaw = String(
         raw.flavorGroupId || matchedVault?.flavorGroupId || ""
       ).trim();
       if (fgRaw && fgRaw !== "null" && fgRaw !== "undefined") {
-        return `flav:${ fgRaw } `;
+        return `flav:${fgRaw}`;
       }
 
       const cgRaw = String(
         raw.communityGroupId || matchedVault?.communityGroupId || ""
       ).trim();
       if (cgRaw && cgRaw !== "null" && cgRaw !== "undefined") {
-        return `comm:${ cgRaw } `;
+        return `comm:${cgRaw}`;
       }
     }
 
@@ -3165,12 +3138,13 @@ export function groupPatchEvaluatedMods(
     const twinNorm = normalizeModGroupTitle(item.title).toLowerCase().trim();
     if (twinNorm.length >= 3) {
       const cr = (item.author || "").toLowerCase().trim();
-      const tKey = cr ? `${ cr }::${ twinNorm } ` : twinNorm;
+      const tKey = cr ? `${cr}::${twinNorm}` : twinNorm;
       if ((twinCounts.get(tKey) || 0) > 1) {
-        return `twin:${ tKey } `;
+        return `twin:${tKey}`;
       }
-    if (twinNorm.length >= 3 && (twinCounts.get(twinNorm) || 0) > 1) {
-      return `twin:${ twinNorm } `;
+      if ((twinCounts.get(twinNorm) || 0) > 1) {
+        return `twin:${twinNorm}`;
+      }
     }
 
     return item.key;
@@ -3185,12 +3159,6 @@ export function groupPatchEvaluatedMods(
     else buckets.set(gKey, [it]);
   }
 
-  const result: PatchEvaluatedMod[] = [];
-  buckets.forEach((members, gKey) => {
-    if (members.length === 1) {
-      result.push(members[0]);
-      return;
-    }
   const mergeEvaluatedGroup = (
     members: PatchEvaluatedMod[],
     gKey: string
@@ -3233,7 +3201,6 @@ export function groupPatchEvaluatedMods(
           )
         : "";
     const rawFlavorTitle = members[0]?.rawMod?.flavorGroupName
-      ? formatCleanModTitle(formatDisplayName(members[0].rawMod.flavorGroupName))
       ? formatCleanModTitle(
           formatDisplayName(members[0].rawMod.flavorGroupName)
         )
@@ -3242,8 +3209,6 @@ export function groupPatchEvaluatedMods(
       formatCleanModTitle(normalizeModGroupTitle(coreMember.title)) ||
       coreMember.title;
 
-    const folderTitle =
-      parentMeta?.title || rawFlavorTitle || normalizedBaseTitle || coreMember.title;
     let folderTitle =
       parentMeta?.title ||
       (rawParentTitle
@@ -3255,7 +3220,6 @@ export function groupPatchEvaluatedMods(
       coreMember.title;
 
     const isCollectionFolder = Boolean(
-      parentMeta?.isCollection || gKey.startsWith("set:")
       parentMeta?.isCollection ||
         vaultCollectionFolder ||
         gKey.startsWith("set:")
@@ -3294,7 +3258,7 @@ export function groupPatchEvaluatedMods(
       if (Array.isArray(mem.issues)) {
         for (let j = 0; j < mem.issues.length; j++) {
           const iss = mem.issues[j];
-          const ik = `${ iss.category }::${ iss.title }::${ iss.detail || "" } `;
+          const ik = `${iss.category}::${iss.title}::${iss.detail || ""}`;
           if (!seenIssueKeys.has(ik)) {
             seenIssueKeys.add(ik);
             combinedIssues.push(iss);
@@ -3327,12 +3291,11 @@ export function groupPatchEvaluatedMods(
     ) {
       const modulesWord = t("badge_modules_count", "Modules");
       if (!folderTitle.toLowerCase().includes(modulesWord.toLowerCase())) {
-        folderTitle = `${ folderTitle } (${ modulesWord })`;
+        folderTitle = `${folderTitle} (${modulesWord})`;
       }
     }
 
     const bestAuthor =
-      parentMeta?.author || members.find((m) => m.author)?.author || null;
       (parentMeta?.author && isKnownCreatorName(parentMeta.author)
         ? parentMeta.author
         : null) ||
@@ -3342,7 +3305,6 @@ export function groupPatchEvaluatedMods(
       members.find((m) => m.author)?.author ||
       null;
     const bestDownloadUrl =
-      members.find((m) => m.downloadUrl)?.downloadUrl || parentMeta?.url || null;
       members.find((m) => m.downloadUrl)?.downloadUrl ||
       parentMeta?.url ||
       vaultFamilyParent?.download_url ||
@@ -3354,10 +3316,9 @@ export function groupPatchEvaluatedMods(
     const bestInstVer =
       members.find((m) => m.installedVersion)?.installedVersion || null;
 
-    result.push({
     return {
       ...coreMember,
-      key: `group:${ gKey }:${ coreMember.bucket }:${ coreMember.source } `,
+      key: `group:${gKey}:${coreMember.bucket}:${coreMember.source}`,
       suiteKey: gKey,
       title: folderTitle,
       author: bestAuthor,
@@ -3366,15 +3327,12 @@ export function groupPatchEvaluatedMods(
         : t("icon_folder_special", "folder_special"),
       isScript: hasAnyScript,
       isCollectionFolder,
-      moduleCount: Math.max(members.length, combinedRawMods.length),
       moduleCount: Math.max(flatMembers.length, combinedRawMods.length),
       installedVersion: bestInstVer,
       targetModVersion: bestTargetVer,
       compatibleVersions: Array.from(compatSet),
       downloadUrl: bestDownloadUrl,
       groupedMods: combinedRawMods,
-      memberEvaluations: members,
-    });
       memberEvaluations: flatMembers,
       issues: combinedIssues.length > 0 ? combinedIssues : coreMember.issues,
       missingDepTargets:
@@ -3389,7 +3347,6 @@ export function groupPatchEvaluatedMods(
     passOneEntries.push(mergeEvaluatedGroup(members, gKey));
   });
 
-  return result;
   // Second pass: merge prefix-based Addons/Modules and equal-normalized-title twins into their parent mod card
   const mergedOut = new Set<number>();
   for (let i = 0; i < passOneEntries.length; i++) {
@@ -3425,7 +3382,7 @@ export function groupPatchEvaluatedMods(
         mergedOut.add(j);
         parent = mergeEvaluatedGroup(
           [parent, candidate],
-          parent.suiteKey || `merged:${ pNorm } `
+          parent.suiteKey || `merged:${pNorm}`
         );
         passOneEntries[i] = parent;
       }
@@ -3572,8 +3529,6 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
   const showImages = useStore((s) => s.showImages);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const hasMembers =
-    Array.isArray(item.memberEvaluations) && item.memberEvaluations.length > 1;
   const groupedMods = useMemo(
     () =>
       Array.isArray(item.groupedMods) && item.groupedMods.length > 0
@@ -3613,16 +3568,12 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
         : item.source === "dep_update_pending"
           ? t("icon_extension", "extension")
           : item.bucket === "update_ready"
-            ? t("icon_download", "download")
             ? t("icon_new_releases", "new_releases")
             : t("icon_check_circle", "check_circle");
 
   const bucketIconColor =
     item.bucket === "blocking"
       ? "text-[var(--danger)]"
-      : item.bucket === "update_ready"
-        ? "text-[var(--warning)]"
-        : "text-[var(--success)]";
       : item.source === "cloud_update"
         ? "text-[var(--accent)]"
         : item.bucket === "update_ready"
@@ -3645,7 +3596,6 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
         : item.source === "dep_update_pending"
           ? t("patch_sim_dep_update_chip", "Pending Dep Update")
           : item.bucket === "update_ready"
-            ? t("updates_avail", "Updates Available")
             ? t("btn_update", "Update")
             : t("patch_sim_ready_label", "Ready");
 
@@ -3673,7 +3623,7 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
                 "In {Vault} — Click + on card to equip"
               )
             : iss.depTarget?.sourceHost
-              ? `${ t("source", "Source") }: ${ iss.depTarget.sourceHost } `
+              ? `${t("source", "Source")}: ${iss.depTarget.sourceHost}`
               : t(
                   "dep_click_download_hint",
                   "Click download icon on card to get it"
@@ -3683,7 +3633,7 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
             issueLabel: t("badge_missing_dep", "Missing Dependency"),
             icon: iss.icon || t("icon_extension", "extension"),
             tooltipLines: [
-              `${ t("tooltip_required", "Required:") } ${ depName } `,
+              `${t("tooltip_required", "Required:")} ${depName}`,
               hint,
             ],
           };
@@ -3694,20 +3644,20 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
             issueLabel: t("missing_dlc", "Missing DLC"),
             icon: iss.icon || t("icon_currency_exchange", "currency_exchange"),
             tooltipLines: [
-              `${ t("tooltip_required", "Required:") } ${
-  iss.detail || t("unknown", "Unknown")
-} `,
+              `${t("tooltip_required", "Required:")} ${
+                iss.detail || t("unknown", "Unknown")
+              }`,
             ],
           };
         }
         if (iss.category === "version_mismatch") {
           const lines: string[] = [];
           if (iss.installedVersion) {
-            lines.push(`${ t("installed", "Installed") }: ${ iss.installedVersion } `);
+            lines.push(`${t("installed", "Installed")}: ${iss.installedVersion}`);
           }
           if (iss.requiredVersion) {
             lines.push(
-              `${ t("tooltip_required", "Required:") } ${ iss.requiredVersion } `
+              `${t("tooltip_required", "Required:")} ${iss.requiredVersion}`
             );
           } else if (iss.detail) {
             lines.push(iss.detail);
@@ -3751,11 +3701,9 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
 
   const depCalloutLine =
     missingDepTargets.length > 0
-      ? `${ t("required", "Required") }: ${
-  missingDepTargets
-    .map((d) => d.name)
-  .join(", ")
-} `
+      ? `${t("required", "Required")}: ${missingDepTargets
+          .map((d) => d.name)
+          .join(", ")}`
       : item.source === "dep_update_pending"
         ? item.reasonLabel
         : null;
@@ -3764,32 +3712,20 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
     <div
       onClick={() =>
         openModDossier(
-          item.groupedMods.length > 1
           hasMultipleModules
             ? {
                 ...item.rawMod,
                 displayName: item.title,
                 isVirtual: true,
-                flavors: item.groupedMods,
                 flavors: groupedMods,
               }
             : item.rawMod
         )
       }
-      className={`glass - panel rounded - 2xl p - 3.5 border border - [color - mix(in_srgb,var(--text)_10 %, transparent)]hover: border - [color - mix(in_srgb,var(--accent)_40 %, transparent)]transition - all flex flex - col gap - 2.5 cursor - pointer group h - full ${
-  isExpanded && hasMembers ? "sm:col-span-2" : ""
-  className = {`glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] flex flex-col justify-between gap-3 transition-all duration-200 cursor-pointer relative ${isExpanded && hasMultipleModules ? "sm:col-span-2" : ""
-    }`
-}
+      className={`glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] flex flex-col justify-between gap-3 transition-all duration-200 cursor-pointer relative ${
+        isExpanded && hasMultipleModules ? "sm:col-span-2" : ""
+      }`}
     >
-      <div className="flex items-center gap-3 min-w-0">
-        <div
-          className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${bucketIconColor}`}
-        >
-          <span className="material-symbols-outlined !text-[20px]">
-            {item.icon}
-          </span>
-        </div>
       {/* Top Tier: Icon Well / Cover + Title & Creator Identity */}
       <div className="flex items-center gap-3 min-w-0 w-full">
         {imageUrl ? (
@@ -3812,7 +3748,6 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
 
         <div className="flex flex-col gap-0.5 min-w-0 flex-1">
           <div className="relative group/modtitle flex items-center min-w-0 w-fit max-w-full">
-            <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate group-hover:text-[var(--accent)] transition-colors">
             <span className="text-sm font-black text-[var(--text)] tracking-tight leading-snug truncate">
               {item.title}
             </span>
@@ -3825,14 +3760,6 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
           </div>
 
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--subtext)] min-w-0">
-            {item.author ? (
-              <span className="truncate opacity-85">{`${t("by", "By")} ${item.author}`}</span>
-            ) : (
-              <span className="opacity-85 shrink-0">
-                {item.isScript ? t("type_script", "Script") : t("term_mod", "{Mod}")}
-              </span>
-            )}
-            {item.moduleCount > 1 && (
             <span className="truncate opacity-85">
               {item.author
                 ? formatCleanModTitle(item.author)
@@ -3841,50 +3768,15 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
             {hasMultipleModules && (
               <>
                 <span className="opacity-40 shrink-0">•</span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    if (!hasMembers) return;
-                    e.stopPropagation();
-                    setIsExpanded((prev) => !prev);
-                  }}
-                  className={`shrink-0 inline-flex items-center gap-0.5 ${
-                    hasMembers
-                      ? "text-[var(--accent)] hover:underline cursor-pointer"
-                      : "opacity-85"
                 <span className="opacity-85 shrink-0">
                   {`${groupedMods.length} ${
                     item.isCollectionFolder
                       ? t("term_mods", "{Mods}")
                       : t("badge_modules_count", "Modules")
                   }`}
-                >
-                  <span>
-                    {`${item.moduleCount} ${
-                      item.isCollectionFolder
-                        ? t("term_mods", "{Mods}")
-                        : t("badge_modules_count", "Modules")
-                    }`}
-                  </span>
-                </button>
                 </span>
               </>
             )}
-            {item.targetModVersion && item.targetModVersion !== item.installedVersion ? (
-              <>
-                <span className="opacity-40 shrink-0">•</span>
-                <span className="font-mono text-[10px] font-bold text-[var(--accent)] shrink-0">
-                  {`↑ v${item.targetModVersion}`}
-                </span>
-              </>
-            ) : item.installedVersion ? (
-              <>
-                <span className="opacity-40 shrink-0">•</span>
-                <span className="font-mono text-[10px] font-bold text-[var(--subtext)] opacity-85 shrink-0">
-                  {`v${item.installedVersion}`}
-                </span>
-              </>
-            ) : null}
           </div>
 
           {depCalloutLine && (
@@ -3904,115 +3796,45 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
         </div>
       </div>
 
-      <p className="text-[11px] font-medium text-[var(--subtext)] opacity-85 truncate m-0">
-        {item.reasonLabel}
-      </p>
-
-{
-  isExpanded && hasMembers && (
-    <div
-      onClick={(e) => e.stopPropagation()}
-      className="rounded-xl glass-surface p-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-[220px] overflow-y-auto custom-scrollbar animate-in fade-in duration-200"
-    >
-      {item.memberEvaluations!.map((member) => {
-        const rawFile = String(
-          member.rawMod?._originalSetName || member.rawMod?.name || ""
-        );
-        const extLabel = rawFile
-          ? getFileLabel(rawFile, activeGameSchema)
-          : "";
-        return (
-          <button
-            key={member.key}
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              openModDossier(member.rawMod);
-            }}
-            className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-transparent hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-left transition-all cursor-pointer group/mem min-w-0"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <span
-                className={`material-symbols-outlined !text-[15px] shrink-0 ${member.isScript
-                    ? "text-[var(--warning)]"
-                    : "text-[var(--accent)]"
-                  }`}
-              >
-                {member.isScript
-                  ? t("icon_terminal", "terminal")
-                  : t("icon_deployed_code", "deployed_code")}
-              </span>
-              <span className="text-[11.5px] font-bold text-[var(--text)] group-hover/mem:text-[var(--accent)] truncate transition-colors">
-                {member.title}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {member.installedVersion && (
-                <span className="text-[9.5px] font-mono font-bold text-[var(--subtext)] opacity-75">
-                  {`v${member.installedVersion}`}
-                </span>
-              )}
-              {extLabel && (
-                <span className="text-[9px] font-mono font-black uppercase tracking-wider px-1.5 py-0.5 rounded border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] opacity-85">
-                  {extLabel}
-                </span>
-              )}
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  )
-}
-
-<div className="pt-2.5 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
-  <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-    <span className={VAULT_CHIP_CLASS}>
       {/* Bottom Telemetry & Action Bar: Single Status Badge on Left | Uniform Action Icon Buttons on Right */}
       <div className="pt-2.5 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <span
-            className={`relative group/patchchip ${VAULT_CHIP_CLASS} ${item.source === "cloud_update" ? "font-mono" : ""
-              }`}
+            className={`relative group/patchchip ${VAULT_CHIP_CLASS} ${
+              item.source === "cloud_update" ? "font-mono" : ""
+            }`}
           >
             <span
               className={`material-symbols-outlined !text-[12px] shrink-0 ${bucketIconColor}`}
             >
               {bucketIcon}
             </span>
-            <span>{bucketBadgeText}</span>
-          </span>
-          {item.source === "cloud_update" ? (
-            item.installedVersion &&
+            {item.source === "cloud_update" ? (
+              item.installedVersion &&
               item.targetModVersion &&
               item.installedVersion !== item.targetModVersion ? (
-              <>
-                <span className="text-[var(--subtext)]">
-                  {`v${item.installedVersion} → `}
-                </span>
+                <>
+                  <span className="text-[var(--subtext)]">
+                    {`v${item.installedVersion} → `}
+                  </span>
+                  <span>{`v${item.targetModVersion}`}</span>
+                </>
+              ) : item.targetModVersion ? (
                 <span>{`v${item.targetModVersion}`}</span>
-              </>
-            ) : item.targetModVersion ? (
-              <span>{`v${item.targetModVersion}`}</span>
-            ) : item.installedVersion ? (
-              <span>{`v${item.installedVersion}`}</span>
+              ) : item.installedVersion ? (
+                <span>{`v${item.installedVersion}`}</span>
+              ) : (
+                <span>{bucketBadgeText}</span>
+              )
+            ) : item.bucket === "ready" && item.installedVersion ? (
+              <span className="font-mono">{`v${item.installedVersion}`}</span>
             ) : (
               <span>{bucketBadgeText}</span>
-            )
-          ) : item.bucket === "ready" && item.installedVersion ? (
-            <span className="font-mono">{`v${item.installedVersion}`}</span>
-          ) : (
-            <span>{bucketBadgeText}</span>
-          )}
-          {extraIssueCount > 0 && (
-            <span className="opacity-75">{`+${extraIssueCount}`}</span>
-          )}
+            )}
+            {extraIssueCount > 0 && (
+              <span className="opacity-75">{`+${extraIssueCount}`}</span>
+            )}
 
-          <span className={VAULT_CHIP_CLASS}>
-            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)] shrink-0">
-              {t("icon_sports_esports", "sports_esports")}
-            </span>
-            <span>{gameVerChipLabel}</span>
             <HoverTooltip
               className="z-[100] !left-0 !translate-x-0"
               title={bucketBadgeText}
@@ -4034,10 +3856,11 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
                       >
                         <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide leading-snug text-[var(--text)]">
                           <span
-                            className={`material-symbols-outlined !text-[14px] shrink-0 ${r.type === "amber"
+                            className={`material-symbols-outlined !text-[14px] shrink-0 ${
+                              r.type === "amber"
                                 ? "text-[var(--warning)]"
                                 : "text-[var(--danger)]"
-                              }`}
+                            }`}
                           >
                             {r.icon}
                           </span>
@@ -4120,83 +3943,65 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          {hasMembers && (
-            <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-              {hasMultipleModules && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsExpanded((prev) => !prev);
-                  }}
-                  className={`relative w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer ${className = {`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${isExpanded
-                        ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]"
-                          ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
-                          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]"
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          {hasMultipleModules && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded((prev) => !prev);
+              }}
+              className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                isExpanded
+                  ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
+                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]"
               }`}
             >
-              <span className="material-symbols-outlined !text-[14px]">
-                {isExpanded
-                  ? t("icon_expand_less", "expand_less")
-                  : t("icon_account_tree", "account_tree")}
               <span className="material-symbols-outlined !text-[15px]">
                 {t("icon_account_tree", "account_tree")}
               </span>
               <HoverTooltip
-                title={
-                  isExpanded
-                    ? t("collapse_modules", "Hide Modules")
-                    : `${t("inspect", "Inspect")} (${ item.moduleCount })`
-                }
                 className="z-[100] !right-0 !translate-x-0 !left-auto"
                 title={`${groupedMods.length} ${
-                item.isCollectionFolder
-                  ? t("term_mods", "{Mods}")
-                  : t("badge_modules_count", "Modules")
-              }`}
-              icon={t("icon_account_tree", "account_tree")}
+                  item.isCollectionFolder
+                    ? t("term_mods", "{Mods}")
+                    : t("badge_modules_count", "Modules")
+                }`}
+                icon={t("icon_account_tree", "account_tree")}
               />
             </button>
           )}
 
-          {item.downloadUrl && item.bucket !== "ready" && (
-            {
-              vaultDepsToEquip.length > 0 && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openPatchModUrl(item.downloadUrl!);
-                    equipMissingDepsIntoBlueprint(
-                      item.blueprintName,
-                      vaultDepsToEquip,
-                      t
-                    );
-                  }}
-                  className="relative group/actbtn h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[9.5px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0"
-                  className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] flex items-center justify-center transition-all cursor-pointer shrink-0"
-                >
-                  <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                    {item.source === "cloud_update"
-                      < span className="material-symbols-outlined !text-[15px]">
-                    {t("icon_add_link", "add_link")}
-                  </span>
-                  <HoverTooltip
-                    className="z-[100] !right-0 !translate-x-0 !left-auto"
-                    title={`${t("equip", "Equip")}: ${vaultDepsToEquip
-                      .map((d) => d.name)
-                      .join(", ")}`}
-                    subtitle={t(
-                      "dep_equip_from_vault_sub",
-                      "Already in {Vault} — equip into this {Blueprint}"
-                    )}
-                    icon={t("icon_add_link", "add_link")}
-                    variant="accent"
-                  />
-                </button>
-              )
-            }
+          {vaultDepsToEquip.length > 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                equipMissingDepsIntoBlueprint(
+                  item.blueprintName,
+                  vaultDepsToEquip,
+                  t
+                );
+              }}
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_add_link", "add_link")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={`${t("equip", "Equip")}: ${vaultDepsToEquip
+                  .map((d) => d.name)
+                  .join(", ")}`}
+                subtitle={t(
+                  "dep_equip_from_vault_sub",
+                  "Already in {Vault} — equip into this {Blueprint}"
+                )}
+                icon={t("icon_add_link", "add_link")}
+                variant="accent"
+              />
+            </button>
+          )}
 
           {missingDepTargets.length > 0 && (
             <button
@@ -4213,13 +4018,7 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
               <span className="material-symbols-outlined !text-[15px]">
                 {missingDepTargets[0].sourceHost
                   ? t("icon_download", "download")
-                  : t("icon_open_in_new", "open_in_new")}
                   : t("icon_travel_explore", "travel_explore")}
-              </span>
-              <span>
-                {item.source === "cloud_update"
-                  ? t("patch_sim_btn_get_update", "Get Update")
-                  : t("inspect", "Inspect")}
               </span>
               <HoverTooltip
                 className="z-[100] !right-0 !translate-x-0 !left-auto"
@@ -4334,34 +4133,34 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
           </div>
         </div>
       )}
-  </div>
+    </div>
   );
 });
 
-  function PatchCategorizedGroupSection({
-    title,
-    icon,
-    items,
-    emptyTitle,
-    headerAction,
+function PatchCategorizedGroupSection({
+  title,
+  icon,
+  items,
+  emptyTitle,
+  headerAction,
 }: {
-    title: string;
+  title: string;
   icon: string;
   items: PatchEvaluatedMod[];
   emptyTitle?: string;
   headerAction?: React.ReactNode;
 }) {
-  const {t} = useLexicon();
+  const { t } = useLexicon();
   const [visibleCount, setVisibleCount] = useState<number>(DRAWER_PAGE_SIZE);
 
   useEffect(() => {
-      setVisibleCount(DRAWER_PAGE_SIZE);
+    setVisibleCount(DRAWER_PAGE_SIZE);
   }, [items]);
 
-    const paged = items.slice(0, visibleCount);
-    const remaining = Math.max(0, items.length - visibleCount);
+  const paged = items.slice(0, visibleCount);
+  const remaining = Math.max(0, items.length - visibleCount);
 
-    return (
+  return (
     <UniversalGroup title={title} icon={icon} actions={headerAction}>
       {items.length === 0 ? (
         <EmptyState
@@ -4394,48 +4193,48 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
         </div>
       )}
     </UniversalGroup>
-    );
+  );
 }
 
-    export function BlueprintPatchReadinessSidePanel({
-      isOpen,
-      onClose,
-      initialBlueprintName,
-      initialBucket,
-      initialSubFilter,
-      readiness: externalReadiness,
-    onOpenFullTool,
-    onTriggerShelter: _onTriggerShelter,
-    onNavigateView,
+export function BlueprintPatchReadinessSidePanel({
+  isOpen,
+  onClose,
+  initialBlueprintName,
+  initialBucket,
+  initialSubFilter,
+  readiness: externalReadiness,
+  onOpenFullTool,
+  onTriggerShelter: _onTriggerShelter,
+  onNavigateView,
 }: {
-      isOpen: boolean;
+  isOpen: boolean;
   onClose: () => void;
-    initialBlueprintName?: string | null;
-    initialBucket?: PatchModBucket | null;
-    initialSubFilter?: PatchPanelSubFilter | null;
-    readiness?: ReturnType<typeof useBlueprintPatchReadiness>;
+  initialBlueprintName?: string | null;
+  initialBucket?: PatchModBucket | null;
+  initialSubFilter?: PatchPanelSubFilter | null;
+  readiness?: ReturnType<typeof useBlueprintPatchReadiness>;
   onOpenFullTool?: () => void;
   onTriggerShelter?: (lock: boolean) => void;
   onNavigateView?: (view: string) => void;
 }) {
-  const {t} = useLexicon();
+  const { t } = useLexicon();
   const activeGameSchema = useStore((s) => s.activeGameSchema);
   const modList = useStore((s) => s.modList);
   const setSelectedVersion = useStore((s) => s.setSelectedVersion);
-      const internalReadiness = useBlueprintPatchReadiness({
-        skip: !isOpen || Boolean(externalReadiness),
+  const internalReadiness = useBlueprintPatchReadiness({
+    skip: !isOpen || Boolean(externalReadiness),
   });
-      const readiness = externalReadiness || internalReadiness;
+  const readiness = externalReadiness || internalReadiness;
 
-      const [selectedBpName, setSelectedBpName] = useState<string>("");
-        const [bucketFilter, setBucketFilter] = useState<PatchModBucket>("blocking");
-          const [subFilter, setSubFilter] = useState<PatchPanelSubFilter>("all");
-            const [searchQuery, setSearchQuery] = useState("");
-            const [clonedNameFeedback, setClonedNameFeedback] = useState<string | null>(null);
+  const [selectedBpName, setSelectedBpName] = useState<string>("");
+  const [bucketFilter, setBucketFilter] = useState<PatchModBucket>("blocking");
+  const [subFilter, setSubFilter] = useState<PatchPanelSubFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [clonedNameFeedback, setClonedNameFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && initialBlueprintName !== undefined) {
-              setSelectedBpName(initialBlueprintName || "");
+      setSelectedBpName(initialBlueprintName || "");
     }
   }, [isOpen, initialBlueprintName]);
 
@@ -4443,981 +4242,987 @@ const PatchModRowCard = React.memo(function PatchModRowCard({
     if (selectedBpName) {
       const found = readiness.blueprintReports.find(
         (r) => r.blueprintName === selectedBpName
-            );
-            if (found) return found;
+      );
+      if (found) return found;
     }
-            if (initialBlueprintName) {
+    if (initialBlueprintName) {
       const found = readiness.blueprintReports.find(
         (r) => r.blueprintName === initialBlueprintName
-            );
-            if (found) return found;
+      );
+      if (found) return found;
     }
-            return readiness.activeBlueprintReport;
+    return readiness.activeBlueprintReport;
   }, [selectedBpName, initialBlueprintName, readiness]);
 
   useEffect(() => {
     if (!isOpen || !activeReport) return;
-            if (initialBucket) {
-              setBucketFilter(initialBucket);
-            setSubFilter(initialSubFilter || "all");
-            return;
+    if (initialBucket) {
+      setBucketFilter(initialBucket);
+      setSubFilter(initialSubFilter || "all");
+      return;
     }
-            if (
-            initialSubFilter &&
-            (initialSubFilter === "direct_update" ||
-            initialSubFilter === "dep_update" ||
-            initialSubFilter === "auto_swap")
-            ) {
-              setBucketFilter("update_ready");
-            setSubFilter(initialSubFilter);
-            return;
+    if (
+      initialSubFilter &&
+      (initialSubFilter === "direct_update" ||
+        initialSubFilter === "dep_update" ||
+        initialSubFilter === "auto_swap")
+    ) {
+      setBucketFilter("update_ready");
+      setSubFilter(initialSubFilter);
+      return;
     }
     if (activeReport.blockingMods.length > 0) setBucketFilter("blocking");
     else if (activeReport.updatableMods.length > 0) setBucketFilter("update_ready");
-            else setBucketFilter("ready");
-            setSubFilter("all");
+    else setBucketFilter("ready");
+    setSubFilter("all");
   }, [
-            isOpen,
-            activeReport?.blueprintName,
-            readiness.targetVersion,
-            initialBucket,
-            initialSubFilter,
-            ]);
+    isOpen,
+    activeReport?.blueprintName,
+    readiness.targetVersion,
+    initialBucket,
+    initialSubFilter,
+  ]);
 
   const groupedBuckets = useMemo(() => {
     if (!isOpen || !activeReport) {
       return {
-              blockingDirect: [] as PatchEvaluatedMod[],
-            blockingDep: [] as PatchEvaluatedMod[],
-            blockingAll: [] as PatchEvaluatedMod[],
-            directUpdates: [] as PatchEvaluatedMod[],
-            depUpdates: [] as PatchEvaluatedMod[],
-            autoSwaps: [] as PatchEvaluatedMod[],
-            readyGroups: [] as PatchEvaluatedMod[],
+        blockingDirect: [] as PatchEvaluatedMod[],
+        blockingDep: [] as PatchEvaluatedMod[],
+        blockingAll: [] as PatchEvaluatedMod[],
+        directUpdates: [] as PatchEvaluatedMod[],
+        depUpdates: [] as PatchEvaluatedMod[],
+        autoSwaps: [] as PatchEvaluatedMod[],
+        readyGroups: [] as PatchEvaluatedMod[],
       };
     }
 
-            const rawBlockingDirect = activeReport.blockingMods.filter(
+    const rawBlockingDirect = activeReport.blockingMods.filter(
       (m) => m.issueKind !== "dependency"
-            );
-            const rawBlockingDep = activeReport.blockingMods.filter(
+    );
+    const rawBlockingDep = activeReport.blockingMods.filter(
       (m) => m.issueKind === "dependency"
-            );
+    );
 
-            const blockingDirect = groupPatchEvaluatedMods(
-            rawBlockingDirect,
-            modList,
-            activeGameSchema,
-            t
-            );
-            const blockingDep = groupPatchEvaluatedMods(
-            rawBlockingDep,
-            modList,
-            activeGameSchema,
-            t
-            );
-            const directUpdates = groupPatchEvaluatedMods(
-            activeReport.directUpdateMods || [],
-            modList,
-            activeGameSchema,
-            t
-            );
-            const depUpdates = groupPatchEvaluatedMods(
-            activeReport.depUpdateMods || [],
-            modList,
-            activeGameSchema,
-            t
-            );
-            const autoSwaps = groupPatchEvaluatedMods(
-            activeReport.autoSwapMods || [],
-            modList,
-            activeGameSchema,
-            t
-            );
-            const readyGroups =
-            bucketFilter === "ready"
-            ? groupPatchEvaluatedMods(
+    const blockingDirect = groupPatchEvaluatedMods(
+      rawBlockingDirect,
+      modList,
+      activeGameSchema,
+      t
+    );
+    const blockingDep = groupPatchEvaluatedMods(
+      rawBlockingDep,
+      modList,
+      activeGameSchema,
+      t
+    );
+    const directUpdates = groupPatchEvaluatedMods(
+      activeReport.directUpdateMods || [],
+      modList,
+      activeGameSchema,
+      t
+    );
+    const depUpdates = groupPatchEvaluatedMods(
+      activeReport.depUpdateMods || [],
+      modList,
+      activeGameSchema,
+      t
+    );
+    const autoSwaps = groupPatchEvaluatedMods(
+      activeReport.autoSwapMods || [],
+      modList,
+      activeGameSchema,
+      t
+    );
+    const readyGroups =
+      bucketFilter === "ready"
+        ? groupPatchEvaluatedMods(
             activeReport.readyMods || [],
             modList,
             activeGameSchema,
             t
-            )
-            : [];
+          )
+        : [];
 
-            return {
-              blockingDirect,
-              blockingDep,
-              blockingAll: [...blockingDirect, ...blockingDep],
-            directUpdates,
-            depUpdates,
-            autoSwaps,
-            readyGroups,
+    return {
+      blockingDirect,
+      blockingDep,
+      blockingAll: [...blockingDirect, ...blockingDep],
+      directUpdates,
+      depUpdates,
+      autoSwaps,
+      readyGroups,
     };
   }, [isOpen, activeReport, modList, activeGameSchema, bucketFilter, t]);
 
-            const guidedQueue = useMemo(
+  const guidedQueue = useMemo(
     () =>
-            activeReport
-            ? buildPatchGuidedUpdateQueue(
+      activeReport
+        ? buildPatchGuidedUpdateQueue(
             activeReport.directUpdateMods || [],
             activeGameSchema
-            )
-            : [],
-            [activeReport, activeGameSchema]
-            );
+          )
+        : [],
+    [activeReport, activeGameSchema]
+  );
 
-            if (!isOpen) return null;
+  if (!isOpen) return null;
 
-            const q = searchQuery.trim().toLowerCase();
+  const q = searchQuery.trim().toLowerCase();
 
   const filteredDirectUpdates = groupedBuckets.directUpdates.filter((g) =>
-            matchesPatchSearchQuery(g, q)
-            );
+    matchesPatchSearchQuery(g, q)
+  );
   const filteredDepUpdates = groupedBuckets.depUpdates.filter((g) =>
-            matchesPatchSearchQuery(g, q)
-            );
+    matchesPatchSearchQuery(g, q)
+  );
   const filteredAutoSwaps = groupedBuckets.autoSwaps.filter((g) =>
-            matchesPatchSearchQuery(g, q)
-            );
+    matchesPatchSearchQuery(g, q)
+  );
   const filteredBlockingDirect = groupedBuckets.blockingDirect.filter((g) => {
     if (!matchesPatchSearchQuery(g, q)) return false;
-            if (subFilter === "awaiting_mason") return g.issueKind === "version" || !g.issueKind;
-            if (subFilter === "missing_dlc") return g.issueKind === "dlc";
-            if (subFilter === "corrupted") return g.issueKind === "corrupted";
-            return true;
+    if (subFilter === "awaiting_mason") return g.issueKind === "version" || !g.issueKind;
+    if (subFilter === "missing_dlc") return g.issueKind === "dlc";
+    if (subFilter === "corrupted") return g.issueKind === "corrupted";
+    return true;
   });
   const filteredBlockingDep = groupedBuckets.blockingDep.filter((g) =>
-            matchesPatchSearchQuery(g, q)
-            );
+    matchesPatchSearchQuery(g, q)
+  );
   const filteredReadyGroups = groupedBuckets.readyGroups.filter((g) =>
-            matchesPatchSearchQuery(g, q)
-            );
+    matchesPatchSearchQuery(g, q)
+  );
 
   const bpOptions = readiness.blueprintReports.map((r) => ({
-              id: r.blueprintName,
-            value: r.blueprintName,
-            label: `${r.blueprintName} (${r.readinessPercent}%)`,
+    id: r.blueprintName,
+    value: r.blueprintName,
+    label: `${r.blueprintName} (${r.readinessPercent}%)`,
   }));
 
-            const heroVariant =
-            activeReport?.verdict === "hold"
-            ? "danger"
-            : activeReport?.verdict === "updates_ready"
-            ? "warning"
-            : "success";
+  const heroVariant =
+    activeReport?.verdict === "hold"
+      ? "danger"
+      : activeReport?.verdict === "updates_ready"
+        ? "warning"
+        : "success";
 
-            const filterPopoverOptions: Array<{
+  const filterPopoverOptions: Array<{
     id: PatchPanelSubFilter;
-            label: string;
-            count: number;
-            icon: string;
+    label: string;
+    count: number;
+    icon: string;
   }> =
-            bucketFilter === "update_ready"
-            ? [
-            {
-              id: "all",
+    bucketFilter === "update_ready"
+      ? [
+          {
+            id: "all",
             label: t("all", "All"),
             count:
-            groupedBuckets.directUpdates.length +
-            groupedBuckets.depUpdates.length +
-            groupedBuckets.autoSwaps.length,
+              groupedBuckets.directUpdates.length +
+              groupedBuckets.depUpdates.length +
+              groupedBuckets.autoSwaps.length,
             icon: t("icon_layers", "layers"),
           },
-            {
-              id: "direct_update",
+          {
+            id: "direct_update",
             label: t("patch_sim_sec_direct_updates", "Needs Update"),
             count: groupedBuckets.directUpdates.length,
             icon: t("icon_download", "download"),
           },
-            {
-              id: "dep_update",
+          {
+            id: "dep_update",
             label: t("patch_sim_sec_dep_updates", "Needs Dependency Update"),
             count: groupedBuckets.depUpdates.length,
             icon: t("icon_extension", "extension"),
           },
-            {
-              id: "auto_swap",
+          {
+            id: "auto_swap",
             label: t("patch_sim_sec_auto_swap", "Auto-Swap Ready"),
             count: groupedBuckets.autoSwaps.length,
             icon: t("icon_history", "history"),
           },
-            ]
-            : bucketFilter === "blocking"
-            ? [
+        ]
+      : bucketFilter === "blocking"
+        ? [
             {
               id: "all",
-            label: t("all", "All"),
-            count: groupedBuckets.blockingAll.length,
-            icon: t("icon_layers", "layers"),
+              label: t("all", "All"),
+              count: groupedBuckets.blockingAll.length,
+              icon: t("icon_layers", "layers"),
             },
             {
               id: "awaiting_mason",
-            label: t("patch_sim_awaiting_patch", "Awaiting {Mason} Update"),
-            count: groupedBuckets.blockingDirect.filter(
+              label: t("patch_sim_awaiting_patch", "Awaiting {Mason} Update"),
+              count: groupedBuckets.blockingDirect.filter(
                 (g) => g.issueKind === "version" || !g.issueKind
-            ).length,
-            icon: t("icon_gpp_bad", "gpp_bad"),
+              ).length,
+              icon: t("icon_gpp_bad", "gpp_bad"),
             },
             {
               id: "missing_dep",
-            label: t("badge_missing_dep", "Missing Dependency"),
-            count: groupedBuckets.blockingDep.length,
-            icon: t("icon_extension", "extension"),
+              label: t("badge_missing_dep", "Missing Dependency"),
+              count: groupedBuckets.blockingDep.length,
+              icon: t("icon_extension", "extension"),
             },
             {
               id: "missing_dlc",
-            label: t("missing_dlc", "Missing DLC"),
-            count: groupedBuckets.blockingDirect.filter(
+              label: t("missing_dlc", "Missing DLC"),
+              count: groupedBuckets.blockingDirect.filter(
                 (g) => g.issueKind === "dlc"
-            ).length,
-            icon: t("icon_currency_exchange", "currency_exchange"),
+              ).length,
+              icon: t("icon_currency_exchange", "currency_exchange"),
             },
             {
               id: "corrupted",
-            label: t("status_corrupted", "Corrupted"),
-            count: groupedBuckets.blockingDirect.filter(
+              label: t("status_corrupted", "Corrupted"),
+              count: groupedBuckets.blockingDirect.filter(
                 (g) => g.issueKind === "corrupted"
-            ).length,
-            icon: t("icon_broken_image", "broken_image"),
+              ).length,
+              icon: t("icon_broken_image", "broken_image"),
             },
-            ]
-            : [];
+          ]
+        : [];
 
-            return (
-            <SidePanel
-              isOpen={isOpen}
-              onClose={onClose}
-              title={t("patch_sim_title", "{Blueprint} Patch Readiness")}
-              subtitle={t(
-                "patch_sim_subtitle",
-                "Simulate game updates non-destructively before patching"
-              )}
-              icon={t("icon_published_with_changes", "published_with_changes")}
-              iconColorClass="text-[var(--accent)]"
-              widthClass="w-[92vw] md:w-[780px]"
-              headerActions={
-                onOpenFullTool ? (
-                  <PanelHeaderGroup>
-                    <PanelHeaderButton
-                      icon={t("icon_open_in_new", "open_in_new")}
-                      tooltip={t("patch_sim_open_matrix", "Open Full Patch Readiness Tool")}
-                      onClick={() => {
-                        onClose();
-                        onOpenFullTool();
-                      }}
-                    />
-                  </PanelHeaderGroup>
-                ) : undefined
+  return (
+    <SidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title={t("patch_sim_title", "{Blueprint} Patch Readiness")}
+      subtitle={t(
+        "patch_sim_subtitle",
+        "Simulate game updates non-destructively before patching"
+      )}
+      icon={t("icon_published_with_changes", "published_with_changes")}
+      iconColorClass="text-[var(--accent)]"
+      widthClass="w-[92vw] md:w-[780px]"
+      headerActions={
+        onOpenFullTool ? (
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_open_in_new", "open_in_new")}
+              tooltip={t("patch_sim_open_matrix", "Open Full Patch Readiness Tool")}
+              onClick={() => {
+                onClose();
+                onOpenFullTool();
+              }}
+            />
+          </PanelHeaderGroup>
+        ) : undefined
+      }
+    >
+      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-10">
+        {activeReport ? (
+          <>
+            <SidePanelHeroCard
+              icon={
+                activeReport.verdict === "hold"
+                  ? t("icon_gpp_bad", "gpp_bad")
+                  : activeReport.verdict === "updates_ready"
+                    ? t("icon_update", "update")
+                    : t("icon_verified_user", "verified_user")
               }
+              overline={`${activeReport.blueprintName} • ${formatDisplayVersion(
+                readiness.targetVersion,
+                t("auto", "Auto")
+              )}`}
+              title={
+                activeReport.verdict === "hold"
+                  ? `${t("patch_sim_verdict_hold_short", "Hold Update")} — ${
+                      activeReport.blockingMods.length
+                    } ${t("patch_sim_awaiting_short", "Awaiting Patch")}`
+                  : activeReport.verdict === "updates_ready"
+                    ? `${t("patch_sim_verdict_stage_short", "Updates Ready")} — ${
+                        activeReport.updatableMods.length
+                      } ${t("term_mods", "{Mods}")}`
+                    : t(
+                        "patch_sim_verdict_safe_long",
+                        "Safe to Update — 100% Patch Ready"
+                      )
+              }
+              description={
+                activeReport.verdict === "hold"
+                  ? t(
+                      "patch_sim_hero_hold_desc",
+                      "Keep playing on your current game version or engage {Vault} Lockdown until blocking {mods} release updates."
+                    )
+                  : activeReport.verdict === "updates_ready"
+                    ? t(
+                        "patch_sim_hero_updates_desc",
+                        "Compatible builds are already available! Stage the updates below into {Vault} and you will be 100% ready to patch."
+                      )
+                    : t(
+                        "patch_sim_hero_safe_desc",
+                        "Every {mod} in this {Blueprint} is compatible with the simulated game version. Seal a {Backups} snapshot before updating."
+                      )
+              }
+              badge={`${activeReport.readinessPercent}% ${t(
+                "patch_sim_ready_label",
+                "Ready"
+              )}`}
+              badgeIcon={t("icon_speed", "speed")}
+              variant={heroVariant}
             >
-              <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-10">
-                {activeReport ? (
-                  <>
-                    <SidePanelHeroCard
-                      icon={
-                        activeReport.verdict === "hold"
-                          ? t("icon_gpp_bad", "gpp_bad")
-                          : activeReport.verdict === "updates_ready"
-                            ? t("icon_update", "update")
-                            : t("icon_verified_user", "verified_user")
+              <div className="flex flex-col gap-3 pt-1">
+                {/* Embedded Simulation Selectors Inside Hero Info Card */}
+                <div className="rounded-xl glass-surface p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[9.5px] font-black uppercase tracking-[0.14em] text-[var(--subtext)] px-0.5 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                        {t("icon_published_with_changes", "published_with_changes")}
+                      </span>
+                      {t("patch_sim_target_version_label", "Simulated Game Version")}
+                    </span>
+                    <CustomDropdown
+                      value={readiness.targetVersion}
+                      onChange={(val: any) =>
+                        startTransition(() =>
+                          readiness.setTargetVersion(unwrapDropdownValue(val))
+                        )
                       }
-                      overline={`${activeReport.blueprintName} • ${formatDisplayVersion(
-                        readiness.targetVersion,
-                        t("auto", "Auto")
-                      )}`}
-                      title={
-                        activeReport.verdict === "hold"
-                          ? `${t("patch_sim_verdict_hold_short", "Hold Update")} — ${activeReport.blockingMods.length
-                          } ${t("patch_sim_awaiting_short", "Awaiting Patch")}`
-                          : activeReport.verdict === "updates_ready"
-                            ? `${t("patch_sim_verdict_stage_short", "Updates Ready")} — ${activeReport.updatableMods.length
-                            } ${t("term_mods", "{Mods}")}`
-                            : t(
-                              "patch_sim_verdict_safe_long",
-                              "Safe to Update — 100% Patch Ready"
-                            )
-                      }
-                      description={
-                        activeReport.verdict === "hold"
-                          ? t(
-                            "patch_sim_hero_hold_desc",
-                            "Keep playing on your current game version or engage {Vault} Lockdown until blocking {mods} release updates."
-                          )
-                          : activeReport.verdict === "updates_ready"
-                            ? t(
-                              "patch_sim_hero_updates_desc",
-                              "Compatible builds are already available! Stage the updates below into {Vault} and you will be 100% ready to patch."
-                            )
-                            : t(
-                              "patch_sim_hero_safe_desc",
-                              "Every {mod} in this {Blueprint} is compatible with the simulated game version. Seal a {Backups} snapshot before updating."
-                            )
-                      }
-                      badge={`${activeReport.readinessPercent}% ${t(
-                        "patch_sim_ready_label",
-                        "Ready"
-                      )}`}
-                      badgeIcon={t("icon_speed", "speed")}
-                      variant={heroVariant}
-                    >
-                      <div className="flex flex-col gap-3 pt-1">
-                        {/* Embedded Simulation Selectors Inside Hero Info Card */}
-                        <div className="rounded-xl glass-surface p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="flex flex-col gap-1.5">
-                            <span className="text-[9.5px] font-black uppercase tracking-[0.14em] text-[var(--subtext)] px-0.5 flex items-center gap-1.5">
-                              <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                                {t("icon_published_with_changes", "published_with_changes")}
-                              </span>
-                              {t("patch_sim_target_version_label", "Simulated Game Version")}
-                            </span>
-                            <CustomDropdown
-                              value={readiness.targetVersion}
-                              onChange={(val: any) =>
-                                startTransition(() =>
-                                  readiness.setTargetVersion(unwrapDropdownValue(val))
-                                )
-                              }
-                              options={readiness.versionDropdownOptions}
-                              allowCustom={true}
-                              searchable={true}
-                              placeholder={t("game_version", "Game Version")}
-                            />
-                          </div>
+                      options={readiness.versionDropdownOptions}
+                      allowCustom={true}
+                      searchable={true}
+                      placeholder={t("game_version", "Game Version")}
+                    />
+                  </div>
 
-                          {bpOptions.length > 0 && (
-                            <div className="flex flex-col gap-1.5">
-                              <span className="text-[9.5px] font-black uppercase tracking-[0.14em] text-[var(--subtext)] px-0.5 flex items-center gap-1.5">
-                                <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
-                                  {t("icon_map", "map")}
-                                </span>
-                                {t("term_blueprint", "{Blueprint}")}
-                              </span>
-                              <CustomDropdown
-                                value={activeReport.blueprintName}
-                                onChange={(val: any) => {
-                                  const picked = unwrapDropdownValue(val);
-                                  if (picked) {
-                                    startTransition(() => setSelectedBpName(picked));
-                                  }
-                                }}
-                                options={bpOptions}
-                                placeholder={t("term_blueprint", "{Blueprint}")}
-                              />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Compact Telemetry Chips */}
-                        <div className="flex flex-wrap items-center justify-center gap-2">
-                          <span className={VAULT_CHIP_CLASS}>
-                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                              {t("icon_memory", "memory")}
-                            </span>
-                            <span>
-                              {`${t("patch_sim_installed_tag", "Installed")}: ${formatDisplayVersion(
-                                readiness.currentVersion,
-                                t("auto", "Auto")
-                              )}`}
-                            </span>
-                          </span>
-                          <span className={VAULT_CHIP_CLASS}>
-                            <span
-                              className={`material-symbols-outlined !text-[12px] ${readiness.hasPrePatchBackup
-                                  ? "text-[var(--success)]"
-                                  : "text-[var(--warning)]"
-                                }`}
-                            >
-                              {t("icon_history", "history")}
-                            </span>
-                            <span>
-                              {readiness.hasPrePatchBackup
-                                ? `${readiness.backupCount} ${t(
-                                  "cmd_snapshots_label",
-                                  "Snapshots"
-                                )}`
-                                : `${t("term_backups", "{Backups}")}: ${t("none", "None")}`}
-                            </span>
-                          </span>
-                          <span className={VAULT_CHIP_CLASS}>
-                            <span
-                              className={`material-symbols-outlined !text-[12px] ${readiness.shelterActive
-                                  ? "text-[var(--warning)]"
-                                  : "text-[var(--accent)]"
-                                }`}
-                            >
-                              {readiness.shelterActive
-                                ? t("icon_lock", "lock")
-                                : t("icon_shield", "shield")}
-                            </span>
-                            <span>
-                              {readiness.shelterActive
-                                ? t("btn_lockdown", "Lockdown {Vault}")
-                                  .replace(/^[^\w]*/, "")
-                                  .trim()
-                                : t("standby", "Standby")}
-                            </span>
-                          </span>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-center gap-2.5 pt-0.5 w-full">
-                          {guidedQueue.length > 0 && (
-                            <ActionButton
-                              variant="primary"
-                              icon={t("icon_public", "public")}
-                              label={`${t(
-                                "patch_sim_btn_stage_guided",
-                                "Stage Updates"
-                              )} (${guidedQueue.length})`}
-                              onClick={() =>
-                                launchPatchGuidedUpdates(
-                                  activeReport.directUpdateMods,
-                                  activeGameSchema
-                                )
-                              }
-                            />
-                          )}
-                          {activeReport.blockingMods.length + activeReport.updatableMods.length >
-                            0 &&
-                            activeReport.readyMods.length > 0 && (
-                              <ActionButton
-                                variant={clonedNameFeedback ? "success" : "glass"}
-                                icon={
-                                  clonedNameFeedback
-                                    ? t("icon_check_circle", "check_circle")
-                                    : t("icon_content_copy", "content_copy")
-                                }
-                                label={
-                                  clonedNameFeedback
-                                    ? t("patch_sim_cloned_short", "Cloned!")
-                                    : t("patch_sim_btn_clone_ready", "Clone Ready {Blueprint}")
-                                }
-                                onClick={() => {
-                                  const res = clonePatchReadyBlueprint(
-                                    activeReport,
-                                    readiness.targetVersion,
-                                    activeGameSchema,
-                                    t
-                                  );
-                                  if (res) {
-                                    setClonedNameFeedback(res.newName);
-                                    setTimeout(() => setClonedNameFeedback(null), 3000);
-                                  }
-                                }}
-                              />
-                            )}
-                          {isDesktop() &&
-                            activeGameSchema?.features?.has_saves !== false &&
-                            onNavigateView && (
-                              <ActionButton
-                                variant="glass"
-                                icon={t("icon_history", "history")}
-                                label={t("patch_sim_btn_open_backups", "Seal {Backups}")}
-                                onClick={() => {
-                                  onClose();
-                                  onNavigateView("backups");
-                                }}
-                              />
-                            )}
-                          {activeReport.verdict === "safe" &&
-                            readiness.targetVersion &&
-                            readiness.targetVersion !== readiness.currentVersion && (
-                              <ActionButton
-                                variant="primary"
-                                icon={t("icon_check_circle", "check_circle")}
-                                label={`${t(
-                                  "patch_sim_btn_apply_version",
-                                  "Switch Active Version to"
-                                )} v${readiness.targetVersion}`}
-                                onClick={() => setSelectedVersion(readiness.targetVersion)}
-                              />
-                            )}
-                        </div>
-                      </div>
-                    </SidePanelHeroCard>
-
-                    {/* Primary Bucket Filter Tiles inside SidePanel */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <DashboardStatTile
-                        variant="filter"
-                        icon={t("icon_gpp_bad", "gpp_bad")}
-                        number={activeReport.blockingMods.length}
-                        label={t("patch_sim_awaiting_short", "Awaiting Patch")}
-                        isActive={bucketFilter === "blocking"}
-                        colorClass={
-                          activeReport.blockingMods.length > 0
-                            ? "text-[var(--danger)]"
-                            : "text-[var(--text)]"
-                        }
-                        onClick={() =>
-                          startTransition(() => {
-                            setBucketFilter("blocking");
-                            setSubFilter("all");
-                          })
-                        }
-                      />
-                      <DashboardStatTile
-                        variant="filter"
-                        icon={t("icon_download", "download")}
-                        number={activeReport.updatableMods.length}
-                        label={t("updates_avail", "Updates Available")}
-                        isActive={bucketFilter === "update_ready"}
-                        colorClass={
-                          activeReport.updatableMods.length > 0
-                            ? "text-[var(--warning)]"
-                            : "text-[var(--text)]"
-                        }
-                        onClick={() =>
-                          startTransition(() => {
-                            setBucketFilter("update_ready");
-                            setSubFilter("all");
-                          })
-                        }
-                      />
-                      <DashboardStatTile
-                        variant="filter"
-                        icon={t("icon_check_circle", "check_circle")}
-                        number={activeReport.readyMods.length}
-                        label={t("patch_sim_ready_in_vault", "Ready in {Vault}")}
-                        isActive={bucketFilter === "ready"}
-                        colorClass="text-[var(--success)]"
-                        onClick={() =>
-                          startTransition(() => {
-                            setBucketFilter("ready");
-                            setSubFilter("all");
-                          })
-                        }
+                  {bpOptions.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[9.5px] font-black uppercase tracking-[0.14em] text-[var(--subtext)] px-0.5 flex items-center gap-1.5">
+                        <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                          {t("icon_map", "map")}
+                        </span>
+                        {t("term_blueprint", "{Blueprint}")}
+                      </span>
+                      <CustomDropdown
+                        value={activeReport.blueprintName}
+                        onChange={(val: any) => {
+                          const picked = unwrapDropdownValue(val);
+                          if (picked) {
+                            startTransition(() => setSelectedBpName(picked));
+                          }
+                        }}
+                        options={bpOptions}
+                        placeholder={t("term_blueprint", "{Blueprint}")}
                       />
                     </div>
+                  )}
+                </div>
 
-                    <ActionPill
-                      className="w-full !max-w-none"
-                      searchQuery={searchQuery}
-                      setSearchQuery={setSearchQuery}
-                      searchPlaceholder={t("nav_search", "Search...") as string}
-                      primaryPopover={
-                        filterPopoverOptions.length > 0
-                          ? {
-                            icon: t("icon_tune", "tune"),
-                            label: t("filters", "Filters"),
-                            isActive: subFilter !== "all",
-                            content: (
-                              <div className="flex flex-col gap-1 p-1 min-w-[230px]">
-                                {filterPopoverOptions.map((opt) => {
-                                  const active = subFilter === opt.id;
-                                  return (
-                                    <button
-                                      key={opt.id}
-                                      type="button"
-                                      onClick={() =>
-                                        startTransition(() => setSubFilter(opt.id))
-                                      }
-                                      className={`sa-dropdown-item flex items-center justify-between gap-3 w-full px-3 py-2 rounded-xl cursor-pointer ${active ? "is-selected font-bold" : "font-semibold"
-                                        }`}
-                                    >
-                                      <div className="flex items-center gap-2.5 min-w-0">
-                                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                                          {opt.icon}
-                                        </span>
-                                        <span className="text-xs tracking-wide truncate">
-                                          {opt.label}
-                                        </span>
-                                      </div>
-                                      <span className="text-[10.5px] font-mono font-bold text-[var(--subtext)] opacity-80 shrink-0">
-                                        {opt.count}
-                                      </span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            ),
-                          }
-                          : undefined
+                {/* Compact Telemetry Chips */}
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {t("icon_memory", "memory")}
+                    </span>
+                    <span>
+                      {`${t("patch_sim_installed_tag", "Installed")}: ${formatDisplayVersion(
+                        readiness.currentVersion,
+                        t("auto", "Auto")
+                      )}`}
+                    </span>
+                  </span>
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span
+                      className={`material-symbols-outlined !text-[12px] ${
+                        readiness.hasPrePatchBackup
+                          ? "text-[var(--success)]"
+                          : "text-[var(--warning)]"
+                      }`}
+                    >
+                      {t("icon_history", "history")}
+                    </span>
+                    <span>
+                      {readiness.hasPrePatchBackup
+                        ? `${readiness.backupCount} ${t(
+                            "cmd_snapshots_label",
+                            "Snapshots"
+                          )}`
+                        : `${t("term_backups", "{Backups}")}: ${t("none", "None")}`}
+                    </span>
+                  </span>
+                  <span className={VAULT_CHIP_CLASS}>
+                    <span
+                      className={`material-symbols-outlined !text-[12px] ${
+                        readiness.shelterActive
+                          ? "text-[var(--warning)]"
+                          : "text-[var(--accent)]"
+                      }`}
+                    >
+                      {readiness.shelterActive
+                        ? t("icon_lock", "lock")
+                        : t("icon_shield", "shield")}
+                    </span>
+                    <span>
+                      {readiness.shelterActive
+                        ? t("btn_lockdown", "Lockdown {Vault}")
+                            .replace(/^[^\w]*/, "")
+                            .trim()
+                        : t("standby", "Standby")}
+                    </span>
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center gap-2.5 pt-0.5 w-full">
+                  {guidedQueue.length > 0 && (
+                    <ActionButton
+                      variant="primary"
+                      icon={t("icon_public", "public")}
+                      label={`${t(
+                        "patch_sim_btn_stage_guided",
+                        "Stage Updates"
+                      )} (${guidedQueue.length})`}
+                      onClick={() =>
+                        launchPatchGuidedUpdates(
+                          activeReport.directUpdateMods,
+                          activeGameSchema
+                        )
                       }
                     />
-
-                    {/* Categorized Sections */}
-                    {bucketFilter === "update_ready" ? (
-                      filteredDirectUpdates.length === 0 &&
-                        filteredDepUpdates.length === 0 &&
-                        filteredAutoSwaps.length === 0 ? (
-                        <UniversalGroup
-                          title={`${t("updates_avail", "Updates Available")} (0)`}
-                          icon={t("icon_download", "download")}
-                        >
-                          <EmptyState
-                            icon={t("icon_task_alt", "task_alt")}
-                            title={t("patch_sim_zero_updates", "No Pending {Mod} Updates")}
-                            minHeightClass="min-h-[160px]"
-                          />
-                        </UniversalGroup>
-                      ) : (
-                        <div className="flex flex-col gap-5 w-full">
-                          {(subFilter === "all" || subFilter === "direct_update") &&
-                            (filteredDirectUpdates.length > 0 ||
-                              subFilter === "direct_update") && (
-                              <PatchCategorizedGroupSection
-                                title={`${t(
-                                  "patch_sim_sec_direct_updates",
-                                  "Needs Update"
-                                )} (${filteredDirectUpdates.length})`}
-                                icon={t("icon_download", "download")}
-                                items={filteredDirectUpdates}
-                                emptyTitle={t(
-                                  "patch_sim_zero_updates",
-                                  "No Pending {Mod} Updates"
-                                )}
-                              />
-                            )}
-
-                          {(subFilter === "all" || subFilter === "dep_update") &&
-                            (filteredDepUpdates.length > 0 ||
-                              subFilter === "dep_update") && (
-                              <PatchCategorizedGroupSection
-                                title={`${t(
-                                  "patch_sim_sec_dep_updates",
-                                  "Needs Dependency Update"
-                                )} (${filteredDepUpdates.length})`}
-                                icon={t("icon_extension", "extension")}
-                                items={filteredDepUpdates}
-                                emptyTitle={t("none", "None")}
-                              />
-                            )}
-
-                          {(subFilter === "all" || subFilter === "auto_swap") &&
-                            (filteredAutoSwaps.length > 0 ||
-                              subFilter === "auto_swap") && (
-                              <PatchCategorizedGroupSection
-                                title={`${t(
-                                  "patch_sim_sec_auto_swap",
-                                  "Auto-Swap Ready"
-                                )} (${filteredAutoSwaps.length})`}
-                                icon={t("icon_history", "history")}
-                                items={filteredAutoSwaps}
-                                emptyTitle={t("none", "None")}
-                              />
-                            )}
-                        </div>
-                      )
-                    ) : bucketFilter === "blocking" ? (
-                      filteredBlockingDirect.length === 0 &&
-                        filteredBlockingDep.length === 0 ? (
-                        <UniversalGroup
-                          title={`${t("patch_sim_awaiting_short", "Awaiting Patch")} (0)`}
-                          icon={t("icon_gpp_bad", "gpp_bad")}
-                        >
-                          <EmptyState
-                            icon={t("icon_task_alt", "task_alt")}
-                            title={t("patch_sim_zero_blocking", "Zero Blocking {Mods}")}
-                            minHeightClass="min-h-[160px]"
-                          />
-                        </UniversalGroup>
-                      ) : (
-                        <div className="flex flex-col gap-5 w-full">
-                          {subFilter !== "missing_dep" &&
-                            (filteredBlockingDirect.length > 0 ||
-                              subFilter !== "all") && (
-                              <PatchCategorizedGroupSection
-                                title={`${t(
-                                  "patch_sim_awaiting_short",
-                                  "Awaiting Patch"
-                                )} (${filteredBlockingDirect.length})`}
-                                icon={t("icon_gpp_bad", "gpp_bad")}
-                                items={filteredBlockingDirect}
-                                emptyTitle={t(
-                                  "patch_sim_zero_blocking",
-                                  "Zero Blocking {Mods}"
-                                )}
-                              />
-                            )}
-
-                          {(subFilter === "all" || subFilter === "missing_dep") &&
-                            (filteredBlockingDep.length > 0 ||
-                              subFilter === "missing_dep") && (
-                              <PatchCategorizedGroupSection
-                                title={`${t(
-                                  "badge_missing_dep",
-                                  "Missing Dependency"
-                                )} (${filteredBlockingDep.length})`}
-                                icon={t("icon_extension", "extension")}
-                                items={filteredBlockingDep}
-                                emptyTitle={t("none", "None")}
-                              />
-                            )}
-                        </div>
-                      )
-                    ) : (
-                      <PatchCategorizedGroupSection
-                        title={`${t("patch_sim_ready_in_vault", "Ready in {Vault}")} (${filteredReadyGroups.length
-                          })`}
+                  )}
+                  {activeReport.blockingMods.length + activeReport.updatableMods.length >
+                    0 &&
+                    activeReport.readyMods.length > 0 && (
+                      <ActionButton
+                        variant={clonedNameFeedback ? "success" : "glass"}
+                        icon={
+                          clonedNameFeedback
+                            ? t("icon_check_circle", "check_circle")
+                            : t("icon_content_copy", "content_copy")
+                        }
+                        label={
+                          clonedNameFeedback
+                            ? t("patch_sim_cloned_short", "Cloned!")
+                            : t("patch_sim_btn_clone_ready", "Clone Ready {Blueprint}")
+                        }
+                        onClick={() => {
+                          const res = clonePatchReadyBlueprint(
+                            activeReport,
+                            readiness.targetVersion,
+                            activeGameSchema,
+                            t
+                          );
+                          if (res) {
+                            setClonedNameFeedback(res.newName);
+                            setTimeout(() => setClonedNameFeedback(null), 3000);
+                          }
+                        }}
+                      />
+                    )}
+                  {isDesktop() &&
+                    activeGameSchema?.features?.has_saves !== false &&
+                    onNavigateView && (
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_history", "history")}
+                        label={t("patch_sim_btn_open_backups", "Seal {Backups}")}
+                        onClick={() => {
+                          onClose();
+                          onNavigateView("backups");
+                        }}
+                      />
+                    )}
+                  {activeReport.verdict === "safe" &&
+                    readiness.targetVersion &&
+                    readiness.targetVersion !== readiness.currentVersion && (
+                      <ActionButton
+                        variant="primary"
                         icon={t("icon_check_circle", "check_circle")}
-                        items={filteredReadyGroups}
+                        label={`${t(
+                          "patch_sim_btn_apply_version",
+                          "Switch Active Version to"
+                        )} v${readiness.targetVersion}`}
+                        onClick={() => setSelectedVersion(readiness.targetVersion)}
+                      />
+                    )}
+                </div>
+              </div>
+            </SidePanelHeroCard>
+
+            {/* Primary Bucket Filter Tiles inside SidePanel */}
+            <div className="grid grid-cols-3 gap-3">
+              <DashboardStatTile
+                variant="filter"
+                icon={t("icon_gpp_bad", "gpp_bad")}
+                number={activeReport.blockingMods.length}
+                label={t("patch_sim_awaiting_short", "Awaiting Patch")}
+                isActive={bucketFilter === "blocking"}
+                colorClass={
+                  activeReport.blockingMods.length > 0
+                    ? "text-[var(--danger)]"
+                    : "text-[var(--text)]"
+                }
+                onClick={() =>
+                  startTransition(() => {
+                    setBucketFilter("blocking");
+                    setSubFilter("all");
+                  })
+                }
+              />
+              <DashboardStatTile
+                variant="filter"
+                icon={t("icon_download", "download")}
+                number={activeReport.updatableMods.length}
+                label={t("updates_avail", "Updates Available")}
+                isActive={bucketFilter === "update_ready"}
+                colorClass={
+                  activeReport.updatableMods.length > 0
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--text)]"
+                }
+                onClick={() =>
+                  startTransition(() => {
+                    setBucketFilter("update_ready");
+                    setSubFilter("all");
+                  })
+                }
+              />
+              <DashboardStatTile
+                variant="filter"
+                icon={t("icon_check_circle", "check_circle")}
+                number={activeReport.readyMods.length}
+                label={t("patch_sim_ready_in_vault", "Ready in {Vault}")}
+                isActive={bucketFilter === "ready"}
+                colorClass="text-[var(--success)]"
+                onClick={() =>
+                  startTransition(() => {
+                    setBucketFilter("ready");
+                    setSubFilter("all");
+                  })
+                }
+              />
+            </div>
+
+            <ActionPill
+              className="w-full !max-w-none"
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              searchPlaceholder={t("nav_search", "Search...") as string}
+              primaryPopover={
+                filterPopoverOptions.length > 0
+                  ? {
+                      icon: t("icon_tune", "tune"),
+                      label: t("filters", "Filters"),
+                      isActive: subFilter !== "all",
+                      content: (
+                        <div className="flex flex-col gap-1 p-1 min-w-[230px]">
+                          {filterPopoverOptions.map((opt) => {
+                            const active = subFilter === opt.id;
+                            return (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() =>
+                                  startTransition(() => setSubFilter(opt.id))
+                                }
+                                className={`sa-dropdown-item flex items-center justify-between gap-3 w-full px-3 py-2 rounded-xl cursor-pointer ${
+                                  active ? "is-selected font-bold" : "font-semibold"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                                    {opt.icon}
+                                  </span>
+                                  <span className="text-xs tracking-wide truncate">
+                                    {opt.label}
+                                  </span>
+                                </div>
+                                <span className="text-[10.5px] font-mono font-bold text-[var(--subtext)] opacity-80 shrink-0">
+                                  {opt.count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ),
+                    }
+                  : undefined
+              }
+            />
+
+            {/* Categorized Sections */}
+            {bucketFilter === "update_ready" ? (
+              filteredDirectUpdates.length === 0 &&
+              filteredDepUpdates.length === 0 &&
+              filteredAutoSwaps.length === 0 ? (
+                <UniversalGroup
+                  title={`${t("updates_avail", "Updates Available")} (0)`}
+                  icon={t("icon_download", "download")}
+                >
+                  <EmptyState
+                    icon={t("icon_task_alt", "task_alt")}
+                    title={t("patch_sim_zero_updates", "No Pending {Mod} Updates")}
+                    minHeightClass="min-h-[160px]"
+                  />
+                </UniversalGroup>
+              ) : (
+                <div className="flex flex-col gap-5 w-full">
+                  {(subFilter === "all" || subFilter === "direct_update") &&
+                    (filteredDirectUpdates.length > 0 ||
+                      subFilter === "direct_update") && (
+                      <PatchCategorizedGroupSection
+                        title={`${t(
+                          "patch_sim_sec_direct_updates",
+                          "Needs Update"
+                        )} (${filteredDirectUpdates.length})`}
+                        icon={t("icon_download", "download")}
+                        items={filteredDirectUpdates}
+                        emptyTitle={t(
+                          "patch_sim_zero_updates",
+                          "No Pending {Mod} Updates"
+                        )}
+                      />
+                    )}
+
+                  {(subFilter === "all" || subFilter === "dep_update") &&
+                    (filteredDepUpdates.length > 0 ||
+                      subFilter === "dep_update") && (
+                      <PatchCategorizedGroupSection
+                        title={`${t(
+                          "patch_sim_sec_dep_updates",
+                          "Needs Dependency Update"
+                        )} (${filteredDepUpdates.length})`}
+                        icon={t("icon_extension", "extension")}
+                        items={filteredDepUpdates}
                         emptyTitle={t("none", "None")}
                       />
                     )}
-                  </>
-                ) : (
+
+                  {(subFilter === "all" || subFilter === "auto_swap") &&
+                    (filteredAutoSwaps.length > 0 ||
+                      subFilter === "auto_swap") && (
+                      <PatchCategorizedGroupSection
+                        title={`${t(
+                          "patch_sim_sec_auto_swap",
+                          "Auto-Swap Ready"
+                        )} (${filteredAutoSwaps.length})`}
+                        icon={t("icon_history", "history")}
+                        items={filteredAutoSwaps}
+                        emptyTitle={t("none", "None")}
+                      />
+                    )}
+                </div>
+              )
+            ) : bucketFilter === "blocking" ? (
+              filteredBlockingDirect.length === 0 &&
+              filteredBlockingDep.length === 0 ? (
+                <UniversalGroup
+                  title={`${t("patch_sim_awaiting_short", "Awaiting Patch")} (0)`}
+                  icon={t("icon_gpp_bad", "gpp_bad")}
+                >
                   <EmptyState
-                    icon={t("icon_map", "map")}
-                    title={t("cmd_no_blueprint_equipped", "No {Blueprint} Equipped")}
+                    icon={t("icon_task_alt", "task_alt")}
+                    title={t("patch_sim_zero_blocking", "Zero Blocking {Mods}")}
+                    minHeightClass="min-h-[160px]"
                   />
-                )}
-              </div>
-            </SidePanel>
-            );
+                </UniversalGroup>
+              ) : (
+                <div className="flex flex-col gap-5 w-full">
+                  {subFilter !== "missing_dep" &&
+                    (filteredBlockingDirect.length > 0 ||
+                      subFilter !== "all") && (
+                      <PatchCategorizedGroupSection
+                        title={`${t(
+                          "patch_sim_awaiting_short",
+                          "Awaiting Patch"
+                        )} (${filteredBlockingDirect.length})`}
+                        icon={t("icon_gpp_bad", "gpp_bad")}
+                        items={filteredBlockingDirect}
+                        emptyTitle={t(
+                          "patch_sim_zero_blocking",
+                          "Zero Blocking {Mods}"
+                        )}
+                      />
+                    )}
+
+                  {(subFilter === "all" || subFilter === "missing_dep") &&
+                    (filteredBlockingDep.length > 0 ||
+                      subFilter === "missing_dep") && (
+                      <PatchCategorizedGroupSection
+                        title={`${t(
+                          "badge_missing_dep",
+                          "Missing Dependency"
+                        )} (${filteredBlockingDep.length})`}
+                        icon={t("icon_extension", "extension")}
+                        items={filteredBlockingDep}
+                        emptyTitle={t("none", "None")}
+                      />
+                    )}
+                </div>
+              )
+            ) : (
+              <PatchCategorizedGroupSection
+                title={`${t("patch_sim_ready_in_vault", "Ready in {Vault}")} (${
+                  filteredReadyGroups.length
+                })`}
+                icon={t("icon_check_circle", "check_circle")}
+                items={filteredReadyGroups}
+                emptyTitle={t("none", "None")}
+              />
+            )}
+          </>
+        ) : (
+          <EmptyState
+            icon={t("icon_map", "map")}
+            title={t("cmd_no_blueprint_equipped", "No {Blueprint} Equipped")}
+          />
+        )}
+      </div>
+    </SidePanel>
+  );
 }
 
-            export function BlueprintPatchReadinessView({
-              pinnedBlueprints,
-              readiness: externalReadiness,
-            initialInspectBlueprint,
-            initialInspectBucket,
-            initialInspectSubFilter,
-            onClearInitialInspect,
+export function BlueprintPatchReadinessView({
+  pinnedBlueprints,
+  readiness: externalReadiness,
+  initialInspectBlueprint,
+  initialInspectBucket,
+  initialInspectSubFilter,
+  onClearInitialInspect,
 }: {
-              pinnedBlueprints ?: string[];
-            readiness?: ReturnType<typeof useBlueprintPatchReadiness>;
-              initialInspectBlueprint?: string | null;
-              initialInspectBucket?: PatchModBucket | null;
-              initialInspectSubFilter?: PatchPanelSubFilter | null;
+  pinnedBlueprints?: string[];
+  readiness?: ReturnType<typeof useBlueprintPatchReadiness>;
+  initialInspectBlueprint?: string | null;
+  initialInspectBucket?: PatchModBucket | null;
+  initialInspectSubFilter?: PatchPanelSubFilter | null;
   onClearInitialInspect?: () => void;
 }) {
-  const {t} = useLexicon();
+  const { t } = useLexicon();
   const activeGameSchema = useStore((s) => s.activeGameSchema);
   const setSelectedVersion = useStore((s) => s.setSelectedVersion);
   const setView = useStore((s) => s.setView);
-              const internalReadiness = useBlueprintPatchReadiness({
-                pinnedBlueprintNames: pinnedBlueprints,
-              skip: Boolean(externalReadiness),
+  const internalReadiness = useBlueprintPatchReadiness({
+    pinnedBlueprintNames: pinnedBlueprints,
+    skip: Boolean(externalReadiness),
   });
-              const readiness = externalReadiness || internalReadiness;
+  const readiness = externalReadiness || internalReadiness;
 
-              const [drawerBpName, setDrawerBpName] = useState<string | null>(
-              initialInspectBlueprint ?? null
-              );
-              const [drawerInitialBucket, setDrawerInitialBucket] =
-              useState<PatchModBucket | null>(initialInspectBucket ?? null);
-              const [drawerInitialSubFilter, setDrawerInitialSubFilter] =
-              useState<PatchPanelSubFilter | null>(initialInspectSubFilter ?? null);
+  const [drawerBpName, setDrawerBpName] = useState<string | null>(
+    initialInspectBlueprint ?? null
+  );
+  const [drawerInitialBucket, setDrawerInitialBucket] =
+    useState<PatchModBucket | null>(initialInspectBucket ?? null);
+  const [drawerInitialSubFilter, setDrawerInitialSubFilter] =
+    useState<PatchPanelSubFilter | null>(initialInspectSubFilter ?? null);
 
   useEffect(() => {
     if (initialInspectBlueprint) {
-                setDrawerBpName(initialInspectBlueprint);
-              setDrawerInitialBucket(initialInspectBucket ?? null);
-              setDrawerInitialSubFilter(initialInspectSubFilter ?? null);
-              if (onClearInitialInspect) onClearInitialInspect();
+      setDrawerBpName(initialInspectBlueprint);
+      setDrawerInitialBucket(initialInspectBucket ?? null);
+      setDrawerInitialSubFilter(initialInspectSubFilter ?? null);
+      if (onClearInitialInspect) onClearInitialInspect();
     }
   }, [
-              initialInspectBlueprint,
-              initialInspectBucket,
-              initialInspectSubFilter,
-              onClearInitialInspect,
-              ]);
+    initialInspectBlueprint,
+    initialInspectBucket,
+    initialInspectSubFilter,
+    onClearInitialInspect,
+  ]);
 
-              const focusedReport = readiness.activeBlueprintReport;
+  const focusedReport = readiness.activeBlueprintReport;
 
-              const guidedUpdateQueue = useMemo(
+  const guidedUpdateQueue = useMemo(
     () =>
-              focusedReport
-              ? buildPatchGuidedUpdateQueue(
-              focusedReport.directUpdateMods || [],
-              activeGameSchema
-              )
-              : [],
-              [focusedReport, activeGameSchema]
-              );
+      focusedReport
+        ? buildPatchGuidedUpdateQueue(
+            focusedReport.directUpdateMods || [],
+            activeGameSchema
+          )
+        : [],
+    [focusedReport, activeGameSchema]
+  );
 
-              const openFocusedDrawer = (
-              bucket?: PatchModBucket | null,
-              sub?: PatchPanelSubFilter | null
+  const openFocusedDrawer = (
+    bucket?: PatchModBucket | null,
+    sub?: PatchPanelSubFilter | null
   ) => {
-                setDrawerInitialBucket(bucket ?? null);
-              setDrawerInitialSubFilter(sub ?? null);
-              setDrawerBpName(focusedReport?.blueprintName || "");
+    setDrawerInitialBucket(bucket ?? null);
+    setDrawerInitialSubFilter(sub ?? null);
+    setDrawerBpName(focusedReport?.blueprintName || "");
   };
 
-              return (
-              <div className="flex flex-col w-full animate-in fade-in slide-in-from-bottom-4 duration-500 flex-1 min-h-[400px]">
-                <CommandScreenLayout>
-                  <CommandScreenBody>
-                    <CommandScreenMain>
-                      <div className="flex flex-col gap-4 w-full">
-                        <CommandScreenSectionHeading
-                          title={t("patch_sim_title", "{Blueprint} Patch Readiness")}
-                          subtitle={t(
-                            "patch_sim_matrix_sub",
-                            "Non-destructive health check across target game patches before you update"
-                          )}
-                          icon={t("icon_published_with_changes", "published_with_changes")}
-                        />
+  return (
+    <div className="flex flex-col w-full animate-in fade-in slide-in-from-bottom-4 duration-500 flex-1 min-h-[400px]">
+      <CommandScreenLayout>
+        <CommandScreenBody>
+          <CommandScreenMain>
+            <div className="flex flex-col gap-4 w-full">
+              <CommandScreenSectionHeading
+                title={t("patch_sim_title", "{Blueprint} Patch Readiness")}
+                subtitle={t(
+                  "patch_sim_matrix_sub",
+                  "Non-destructive health check across target game patches before you update"
+                )}
+                icon={t("icon_published_with_changes", "published_with_changes")}
+              />
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
-                          <PatchReadinessSimulatorInfoCard readiness={readiness} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
+                <PatchReadinessSimulatorInfoCard readiness={readiness} />
 
-                          {readiness.blueprintReports.map((rep) => (
-                            <BlueprintPatchReadinessCard
-                              key={rep.blueprintName}
-                              report={rep}
-                              targetVersion={readiness.targetVersion}
-                              onInspect={(name) => {
-                                setDrawerInitialBucket(null);
-                                setDrawerInitialSubFilter(null);
-                                setDrawerBpName(name);
-                              }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </CommandScreenMain>
-
-                    <CommandScreenSidebar
-                      title={t("quick_actions", "Quick Actions")}
-                      icon={t("icon_bolt", "bolt")}
-                      metricsTitle={t("patch_sim_metrics_title", "Readiness Telemetry")}
-                      metricsIcon={t("icon_monitoring", "monitoring")}
-                      metrics={
-                        <>
-                          <CommandScreenMetricTile
-                            icon={t("icon_speed", "speed")}
-                            value={`${focusedReport?.readinessPercent ?? 100}%`}
-                            label={t("patch_sim_ready_label", "Ready")}
-                            valueColorClass={
-                              focusedReport?.verdict === "hold"
-                                ? "text-[var(--danger)]"
-                                : focusedReport?.verdict === "updates_ready"
-                                  ? "text-[var(--warning)]"
-                                  : "text-[var(--success)]"
-                            }
-                            onClick={() => openFocusedDrawer("ready", "all")}
-                          />
-                          <CommandScreenMetricTile
-                            icon={t("icon_gpp_bad", "gpp_bad")}
-                            value={focusedReport?.blockingMods.length ?? 0}
-                            label={t("patch_sim_awaiting_short", "Awaiting Patch")}
-                            valueColorClass={
-                              (focusedReport?.blockingMods.length ?? 0) > 0
-                                ? "text-[var(--danger)]"
-                                : "text-[var(--success)]"
-                            }
-                            onClick={() => openFocusedDrawer("blocking", "all")}
-                          />
-                          <CommandScreenMetricTile
-                            icon={t("icon_history", "history")}
-                            value={focusedReport?.autoSwapMods.length ?? 0}
-                            label={t("version_pool_badge_auto_swap", "Auto-Swap")}
-                            onClick={() => openFocusedDrawer("update_ready", "auto_swap")}
-                          />
-                          <CommandScreenMetricTile
-                            icon={t("icon_inventory_2", "inventory_2")}
-                            value={readiness.backupCount}
-                            label={t("cmd_snapshots_label", "Snapshots")}
-                            onClick={() => {
-                              if (isDesktop() && activeGameSchema?.features?.has_saves !== false) {
-                                setView("backups");
-                              }
-                            }}
-                          />
-                        </>
-                      }
-                    >
-                      {focusedReport &&
-                        focusedReport.blockingMods.length +
-                        focusedReport.updatableMods.length >
-                        0 &&
-                        focusedReport.readyMods.length > 0 && (
-                          <CommandScreenQuickLink
-                            icon={t("icon_content_copy", "content_copy")}
-                            title={t(
-                              "patch_sim_btn_clone_ready",
-                              "Clone Ready {Blueprint}"
-                            )}
-                            subtitle={t(
-                              "patch_sim_clone_ready_tooltip",
-                              "Create a patch-ready copy omitting {0} {mods} requiring updates"
-                            ).replace(
-                              "{0}",
-                              String(
-                                focusedReport.blockingMods.length +
-                                focusedReport.updatableMods.length
-                              )
-                            )}
-                            onClick={() =>
-                              clonePatchReadyBlueprint(
-                                focusedReport,
-                                readiness.targetVersion,
-                                activeGameSchema,
-                                t
-                              )
-                            }
-                            iconColorClass="text-[var(--accent)]"
-                          />
-                        )}
-
-                      {guidedUpdateQueue.length > 0 && focusedReport && (
-                        <CommandScreenQuickLink
-                          icon={t("icon_public", "public")}
-                          title={t("patch_sim_btn_stage_guided", "Stage Updates")}
-                          subtitle={`${guidedUpdateQueue.length} ${t(
-                            "updates_avail",
-                            "Updates Available"
-                          )}`}
-                          onClick={() =>
-                            launchPatchGuidedUpdates(
-                              focusedReport.directUpdateMods,
-                              activeGameSchema
-                            )
-                          }
-                          iconColorClass="text-[var(--warning)]"
-                        />
-                      )}
-
-                      {isDesktop() && activeGameSchema?.features?.has_saves !== false && (
-                        <CommandScreenQuickLink
-                          icon={t("icon_history", "history")}
-                          title={t("patch_sim_btn_open_backups", "Seal {Backups}")}
-                          subtitle={t(
-                            "cmd_backups_card_desc",
-                            "Capture pre-patch world saves and full engine snapshots so game updates never corrupt your progress."
-                          )}
-                          onClick={() => setView("backups")}
-                        />
-                      )}
-
-                      {focusedReport?.verdict === "safe" &&
-                        readiness.targetVersion &&
-                        readiness.targetVersion !== readiness.currentVersion && (
-                          <CommandScreenQuickLink
-                            icon={t("icon_check_circle", "check_circle")}
-                            title={`${t(
-                              "patch_sim_btn_apply_version",
-                              "Switch Active Version to"
-                            )} v${readiness.targetVersion}`}
-                            subtitle={t(
-                              "patch_sim_apply_version_sub",
-                              "All {mods} verified clear — promote simulated version to active"
-                            )}
-                            onClick={() => setSelectedVersion(readiness.targetVersion)}
-                            iconColorClass="text-[var(--success)]"
-                          />
-                        )}
-                    </CommandScreenSidebar>
-                  </CommandScreenBody>
-                </CommandScreenLayout>
-
-                {drawerBpName !== null && (
-                  <BlueprintPatchReadinessSidePanel
-                    isOpen={drawerBpName !== null}
-                    onClose={() => {
-                      setDrawerBpName(null);
+                {readiness.blueprintReports.map((rep) => (
+                  <BlueprintPatchReadinessCard
+                    key={rep.blueprintName}
+                    report={rep}
+                    targetVersion={readiness.targetVersion}
+                    onInspect={(name) => {
                       setDrawerInitialBucket(null);
                       setDrawerInitialSubFilter(null);
+                      setDrawerBpName(name);
                     }}
-                    initialBlueprintName={drawerBpName || undefined}
-                    initialBucket={drawerInitialBucket}
-                    initialSubFilter={drawerInitialSubFilter}
-                    readiness={readiness}
-                    onNavigateView={setView}
                   />
-                )}
+                ))}
               </div>
-              );
+            </div>
+          </CommandScreenMain>
+
+          <CommandScreenSidebar
+            title={t("quick_actions", "Quick Actions")}
+            icon={t("icon_bolt", "bolt")}
+            metricsTitle={t("patch_sim_metrics_title", "Readiness Telemetry")}
+            metricsIcon={t("icon_monitoring", "monitoring")}
+            metrics={
+              <>
+                <CommandScreenMetricTile
+                  icon={t("icon_speed", "speed")}
+                  value={`${focusedReport?.readinessPercent ?? 100}%`}
+                  label={t("patch_sim_ready_label", "Ready")}
+                  valueColorClass={
+                    focusedReport?.verdict === "hold"
+                      ? "text-[var(--danger)]"
+                      : focusedReport?.verdict === "updates_ready"
+                        ? "text-[var(--warning)]"
+                        : "text-[var(--success)]"
+                  }
+                  onClick={() => openFocusedDrawer("ready", "all")}
+                />
+                <CommandScreenMetricTile
+                  icon={t("icon_gpp_bad", "gpp_bad")}
+                  value={focusedReport?.blockingMods.length ?? 0}
+                  label={t("patch_sim_awaiting_short", "Awaiting Patch")}
+                  valueColorClass={
+                    (focusedReport?.blockingMods.length ?? 0) > 0
+                      ? "text-[var(--danger)]"
+                      : "text-[var(--success)]"
+                  }
+                  onClick={() => openFocusedDrawer("blocking", "all")}
+                />
+                <CommandScreenMetricTile
+                  icon={t("icon_history", "history")}
+                  value={focusedReport?.autoSwapMods.length ?? 0}
+                  label={t("version_pool_badge_auto_swap", "Auto-Swap")}
+                  onClick={() => openFocusedDrawer("update_ready", "auto_swap")}
+                />
+                <CommandScreenMetricTile
+                  icon={t("icon_inventory_2", "inventory_2")}
+                  value={readiness.backupCount}
+                  label={t("cmd_snapshots_label", "Snapshots")}
+                  onClick={() => {
+                    if (isDesktop() && activeGameSchema?.features?.has_saves !== false) {
+                      setView("backups");
+                    }
+                  }}
+                />
+              </>
+            }
+          >
+            {focusedReport &&
+              focusedReport.blockingMods.length +
+                focusedReport.updatableMods.length >
+                0 &&
+              focusedReport.readyMods.length > 0 && (
+                <CommandScreenQuickLink
+                  icon={t("icon_content_copy", "content_copy")}
+                  title={t(
+                    "patch_sim_btn_clone_ready",
+                    "Clone Ready {Blueprint}"
+                  )}
+                  subtitle={t(
+                    "patch_sim_clone_ready_tooltip",
+                    "Create a patch-ready copy omitting {0} {mods} requiring updates"
+                  ).replace(
+                    "{0}",
+                    String(
+                      focusedReport.blockingMods.length +
+                        focusedReport.updatableMods.length
+                    )
+                  )}
+                  onClick={() =>
+                    clonePatchReadyBlueprint(
+                      focusedReport,
+                      readiness.targetVersion,
+                      activeGameSchema,
+                      t
+                    )
+                  }
+                  iconColorClass="text-[var(--accent)]"
+                />
+              )}
+
+            {guidedUpdateQueue.length > 0 && focusedReport && (
+              <CommandScreenQuickLink
+                icon={t("icon_public", "public")}
+                title={t("patch_sim_btn_stage_guided", "Stage Updates")}
+                subtitle={`${guidedUpdateQueue.length} ${t(
+                  "updates_avail",
+                  "Updates Available"
+                )}`}
+                onClick={() =>
+                  launchPatchGuidedUpdates(
+                    focusedReport.directUpdateMods,
+                    activeGameSchema
+                  )
+                }
+                iconColorClass="text-[var(--warning)]"
+              />
+            )}
+
+            {isDesktop() && activeGameSchema?.features?.has_saves !== false && (
+              <CommandScreenQuickLink
+                icon={t("icon_history", "history")}
+                title={t("patch_sim_btn_open_backups", "Seal {Backups}")}
+                subtitle={t(
+                  "cmd_backups_card_desc",
+                  "Capture pre-patch world saves and full engine snapshots so game updates never corrupt your progress."
+                )}
+                onClick={() => setView("backups")}
+              />
+            )}
+
+            {focusedReport?.verdict === "safe" &&
+              readiness.targetVersion &&
+              readiness.targetVersion !== readiness.currentVersion && (
+                <CommandScreenQuickLink
+                  icon={t("icon_check_circle", "check_circle")}
+                  title={`${t(
+                    "patch_sim_btn_apply_version",
+                    "Switch Active Version to"
+                  )} v${readiness.targetVersion}`}
+                  subtitle={t(
+                    "patch_sim_apply_version_sub",
+                    "All {mods} verified clear — promote simulated version to active"
+                  )}
+                  onClick={() => setSelectedVersion(readiness.targetVersion)}
+                  iconColorClass="text-[var(--success)]"
+                />
+              )}
+          </CommandScreenSidebar>
+        </CommandScreenBody>
+      </CommandScreenLayout>
+
+      {drawerBpName !== null && (
+        <BlueprintPatchReadinessSidePanel
+          isOpen={drawerBpName !== null}
+          onClose={() => {
+            setDrawerBpName(null);
+            setDrawerInitialBucket(null);
+            setDrawerInitialSubFilter(null);
+          }}
+          initialBlueprintName={drawerBpName || undefined}
+          initialBucket={drawerInitialBucket}
+          initialSubFilter={drawerInitialSubFilter}
+          readiness={readiness}
+          onNavigateView={setView}
+        />
+      )}
+    </div>
+  );
 }
