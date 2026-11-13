@@ -357,7 +357,7 @@ export function MasonNexus({
       }
       let syncedContent = finalContent;
       if (uploadState.assetType === "chameleon") {
-        const { themeData } = await uploadThemeAssetsToCloud(finalContent, supabase);
+        const { themeData } = await uploadThemeAssetsToCloud(finalContent, supabase, { t });
         syncedContent = themeData;
       }
 

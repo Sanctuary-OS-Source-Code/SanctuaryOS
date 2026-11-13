@@ -277,7 +277,8 @@ export function WayfinderChameleons({
 
       const { themeData: syncedThemeData } = await uploadThemeAssetsToCloud(
         activeEditingTheme,
-        supabaseAuth || supabase
+        supabaseAuth || supabase,
+        { isHubCore: Boolean(isKeepers), t }
       );
 
       const payload = {

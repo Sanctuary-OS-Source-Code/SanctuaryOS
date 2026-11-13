@@ -512,7 +512,8 @@ export function MasonChameleons({
 
       const { themeData: syncedThemeContent } = await uploadThemeAssetsToCloud(
         finalContent,
-        supabase
+        supabase,
+        { t }
       );
 
       const payload: any = {

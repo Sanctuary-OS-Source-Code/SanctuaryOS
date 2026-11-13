@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { mkdir, writeTextFile, readDir, readTextFile, readFile, remove, exists } from '@tauri-apps/plugin-fs';
+import { mkdir, writeTextFile, writeFile, readDir, readTextFile, readFile, remove, exists } from '@tauri-apps/plugin-fs';
 import { supabaseAuth } from './supabase';
 import { createClient } from '@supabase/supabase-js';
 import { isDesktop, isLinuxDesktop } from './utils/envUtils';
@@ -594,7 +594,11 @@ const ALLOWED_THEME_TOKEN_KEYS = new Set<string>([
   'transparentWindow',
   'scanlines',
   'bgImage',
+  'bgThumb',
+  'bgRemoteUrl',
   'bgImageFile',
+  'previewImage',
+  'previewImageFile',
   'bgGradient',
   'topBarHex',
   'bottomBarHex',
@@ -711,13 +715,22 @@ export function sanitizeThemeObject<T extends Record<string, any>>(rawTheme: T):
       key === 'id' ||
       key === 'badge' ||
       key === 'badgeKey' ||
-      key === 'bgImageFile'
+      key === 'bgImageFile' ||
+      key === 'previewImageFile'
     ) {
       clean[key] = String(val).slice(0, 160);
       continue;
     }
-    if (key === 'bgImage') {
-      clean.bgImage = sanitizeThemeBgImageUrl(val);
+    if (
+      key === 'bgImage' ||
+      key === 'bgThumb' ||
+      key === 'bgRemoteUrl' ||
+      key === 'previewImage'
+    ) {
+      const sanitizedUrl = sanitizeThemeBgImageUrl(val);
+      if (sanitizedUrl || key === 'bgImage') {
+        clean[key] = sanitizedUrl;
+      }
       continue;
     }
     if (isSafeNonImageCssTokenValue(val)) {
@@ -738,7 +751,11 @@ export function applyThemeCssVarsToRoot(themeObj: any): 'light' | 'dark' {
       key !== 'badge' &&
       key !== 'badgeKey' &&
       key !== 'bgImage' &&
+      key !== 'bgThumb' &&
+      key !== 'bgRemoteUrl' &&
       key !== 'bgImageFile' &&
+      key !== 'previewImage' &&
+      key !== 'previewImageFile' &&
       key !== 'bgGradient' &&
       /^[a-z0-9-]+$/i.test(key) &&
       val !== undefined &&
@@ -865,7 +882,30 @@ function readSharedThemeMap(wsId: string, suffix: 'custom_themes' | 'dev_themes'
 
 function writeSharedThemeMap(wsId: string, suffix: 'custom_themes' | 'dev_themes', map: Record<string, any>) {
   try {
-    const serialized = JSON.stringify(map || {});
+    let targetMap: Record<string, any> = map || {};
+    if (isDesktop() && targetMap && typeof targetMap === 'object') {
+      const compact: Record<string, any> = {};
+      for (const [k, th] of Object.entries(targetMap)) {
+        if (
+          th &&
+          typeof th === 'object' &&
+          typeof th.bgImageFile === 'string' &&
+          th.bgImageFile.trim() !== '' &&
+          typeof th.bgImage === 'string' &&
+          th.bgImage.startsWith('data:image/') &&
+          th.bgImage.length > 16384
+        ) {
+          compact[k] = {
+            ...th,
+            bgImage: typeof th.bgRemoteUrl === 'string' ? th.bgRemoteUrl : '',
+          };
+        } else {
+          compact[k] = th;
+        }
+      }
+      targetMap = compact;
+    }
+    const serialized = JSON.stringify(targetMap);
     localStorage.setItem(`sanctuary_global_${suffix}`, serialized);
     localStorage.setItem(`sanctuary_${wsId}_${suffix}`, serialized);
   } catch {}
@@ -1263,7 +1303,12 @@ export const ThemeProvider = ({ children }: any) => {
                 ? rawBgImg
                 : '';
 
-          if (companionFile && (!rawBgImg.startsWith('data:') && !rawBgImg.startsWith('http'))) {
+          if (
+            companionFile &&
+            !companionFile.includes('/') &&
+            !companionFile.includes('\\') &&
+            !companionFile.includes('..')
+          ) {
             const candidatePath = `${dirPath}\\${companionFile}`;
             if (await exists(candidatePath)) {
               try {
@@ -1276,6 +1321,10 @@ export const ThemeProvider = ({ children }: any) => {
                 }
                 const ext = companionFile.split('.').pop()?.toLowerCase() || 'webp';
                 const mime = ext === 'png' ? 'image/png' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/webp';
+                if (rawBgImg.startsWith('https://') && !parsedTheme.bgRemoteUrl) {
+                  parsedTheme.bgRemoteUrl = rawBgImg;
+                }
+                parsedTheme.bgImageFile = companionFile;
                 parsedTheme.bgImage = `data:${mime};base64,${btoa(binary)}`;
               } catch {
                 // ignore companion read error
@@ -1285,16 +1334,25 @@ export const ThemeProvider = ({ children }: any) => {
           return parsedTheme;
         };
 
+        const needsDiskWallpaperHydration = (entryObj: any) => {
+          if (!entryObj || typeof entryObj !== 'object') return true;
+          if (!entryObj.bgImageFile) return false;
+          const bg = typeof entryObj.bgImage === 'string' ? entryObj.bgImage.trim() : '';
+          return !bg || bg.startsWith('https://');
+        };
+
         for (const candidateDir of [themesDir, legacySpokeThemesDir].filter(Boolean)) {
           if (await exists(candidateDir)) {
             const entries = await readDir(candidateDir);
             for (const entry of entries) {
               if (entry.name && entry.name.endsWith('.json')) {
                 const themeId = entry.name.replace('.json', '');
-                if (!updatedCustoms[themeId] && !CORE_THEMES[themeId]) {
+                if ((!updatedCustoms[themeId] || needsDiskWallpaperHydration(updatedCustoms[themeId])) && !CORE_THEMES[themeId]) {
                   const content = await readTextFile(`${candidateDir}\\${entry.name}`);
                   const resolved = await resolveCompanionWallpaper(candidateDir, JSON.parse(content));
-                  updatedCustoms[themeId] = resolved;
+                  updatedCustoms[themeId] = updatedCustoms[themeId]
+                    ? { ...updatedCustoms[themeId], ...resolved }
+                    : resolved;
                   hasCustomUpdates = true;
                   if (candidateDir !== themesDir) {
                     await mkdir(themesDir, { recursive: true }).catch(() => {});
@@ -1312,10 +1370,12 @@ export const ThemeProvider = ({ children }: any) => {
             for (const entry of entries) {
               if (entry.name && entry.name.endsWith('.json')) {
                 const themeId = entry.name.replace('.json', '');
-                if (!updatedDevs[themeId]) {
+                if (!updatedDevs[themeId] || needsDiskWallpaperHydration(updatedDevs[themeId])) {
                   const content = await readTextFile(`${candidateDevDir}\\${entry.name}`);
                   const resolved = await resolveCompanionWallpaper(candidateDevDir, JSON.parse(content));
-                  updatedDevs[themeId] = resolved;
+                  updatedDevs[themeId] = updatedDevs[themeId]
+                    ? { ...updatedDevs[themeId], ...resolved }
+                    : resolved;
                   hasDevUpdates = true;
                   if (candidateDevDir !== devThemesDir) {
                     await mkdir(devThemesDir, { recursive: true }).catch(() => {});
@@ -1417,15 +1477,126 @@ export const ThemeProvider = ({ children }: any) => {
     (async () => {
       try {
         if (!isDesktop()) return;
+        const safeId = String(id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+        if (!safeId) return;
         const { masterVault } = await resolveVaultThemeRoots();
-        if (masterVault) {
-          const dir = isDev ? `${masterVault}\\Data\\Dev\\Themes` : `${masterVault}\\Data\\Themes`;
-          await mkdir(dir, { recursive: true });
-          await writeTextFile(`${dir}\\${id}.json`, JSON.stringify(json, null, 2));
+        if (!masterVault) return;
+        const dir = isDev ? `${masterVault}\\Data\\Dev\\Themes` : `${masterVault}\\Data\\Themes`;
+        await mkdir(dir, { recursive: true });
+
+        const diskJson: Record<string, any> = { ...(json || {}) };
+        const rawBg = typeof diskJson.bgImage === 'string' ? diskJson.bgImage.trim() : '';
+
+        if (rawBg.startsWith('data:image/')) {
+          const match = rawBg.match(/^data:(image\/(webp|png|jpeg|jpg|gif|avif));base64,([A-Za-z0-9+/=]+)$/i);
+          if (match) {
+            let ext = match[2].toLowerCase();
+            if (ext === 'jpeg') ext = 'jpg';
+            else if (!['webp', 'png', 'jpg'].includes(ext)) ext = 'webp';
+            const binStr = atob(match[3]);
+            const bytes = new Uint8Array(binStr.length);
+            for (let i = 0; i < binStr.length; i++) {
+              bytes[i] = binStr.charCodeAt(i);
+            }
+            const companionName = `${safeId}.${ext}`;
+            await writeFile(`${dir}\\${companionName}`, bytes);
+            diskJson.bgImageFile = companionName;
+            diskJson.bgImage = typeof diskJson.bgRemoteUrl === 'string' ? diskJson.bgRemoteUrl : '';
+            await writeTextFile(`${dir}\\${safeId}.json`, JSON.stringify(diskJson, null, 2));
+
+            if (isDev) {
+              setDevThemes((prev: Record<string, any>) => {
+                if (!prev[safeId]) return prev;
+                const next = { ...prev, [safeId]: { ...prev[safeId], bgImageFile: companionName } };
+                writeSharedThemeMap(wsId, 'dev_themes', next);
+                return next;
+              });
+            } else {
+              setCustomThemes((prev: Record<string, any>) => {
+                if (!prev[safeId]) return prev;
+                const next = { ...prev, [safeId]: { ...prev[safeId], bgImageFile: companionName } };
+                writeSharedThemeMap(wsId, 'custom_themes', next);
+                return next;
+              });
+            }
+            return;
+          }
+        } else if (rawBg.startsWith('https://')) {
+          // Save metadata immediately first so offline or slow network never blocks persistence
+          await writeTextFile(`${dir}\\${safeId}.json`, JSON.stringify(diskJson, null, 2));
+          const safeRemote = sanitizeThemeBgImageUrl(rawBg);
+          if (safeRemote) {
+            try {
+              const resp = await fetch(safeRemote);
+              if (resp.ok) {
+                const buf = await resp.arrayBuffer();
+                if (buf.byteLength > 0 && buf.byteLength <= 4 * 1024 * 1024) {
+                  const bytes = new Uint8Array(buf);
+                  const ct = (resp.headers.get('content-type') || '').toLowerCase();
+                  let ext = 'webp';
+                  if (ct.includes('png') || /\.png($|\?)/i.test(safeRemote)) ext = 'png';
+                  else if (ct.includes('jpeg') || ct.includes('jpg') || /\.jpe?g($|\?)/i.test(safeRemote)) ext = 'jpg';
+                  const mime = ext === 'png' ? 'image/png' : ext === 'jpg' ? 'image/jpeg' : 'image/webp';
+                  const companionName = `${safeId}.${ext}`;
+                  await writeFile(`${dir}\\${companionName}`, bytes);
+
+                  diskJson.bgImageFile = companionName;
+                  diskJson.bgRemoteUrl = safeRemote;
+                  diskJson.bgImage = safeRemote;
+                  await writeTextFile(`${dir}\\${safeId}.json`, JSON.stringify(diskJson, null, 2));
+
+                  let binary = '';
+                  const chunkSize = 0x8000;
+                  for (let i = 0; i < bytes.length; i += chunkSize) {
+                    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+                  }
+                  const localDataUrl = `data:${mime};base64,${btoa(binary)}`;
+                  if (isDev) {
+                    setDevThemes((prev: Record<string, any>) => {
+                      if (!prev[safeId]) return prev;
+                      const next = {
+                        ...prev,
+                        [safeId]: {
+                          ...prev[safeId],
+                          bgImage: localDataUrl,
+                          bgImageFile: companionName,
+                          bgRemoteUrl: safeRemote,
+                        },
+                      };
+                      writeSharedThemeMap(wsId, 'dev_themes', next);
+                      return next;
+                    });
+                  } else {
+                    setCustomThemes((prev: Record<string, any>) => {
+                      if (!prev[safeId]) return prev;
+                      const next = {
+                        ...prev,
+                        [safeId]: {
+                          ...prev[safeId],
+                          bgImage: localDataUrl,
+                          bgImageFile: companionName,
+                          bgRemoteUrl: safeRemote,
+                        },
+                      };
+                      writeSharedThemeMap(wsId, 'custom_themes', next);
+                      return next;
+                    });
+                  }
+                }
+              }
+            } catch {
+              // Network unavailable; remote URL remains intact in diskJson
+            }
+          }
+          return;
         }
-      } catch (err) { console.error("Failed to save theme to vault:", err); }
+
+        await writeTextFile(`${dir}\\${safeId}.json`, JSON.stringify(diskJson, null, 2));
+      } catch (err) {
+        console.error("Failed to save theme to vault:", err);
+      }
     })();
-  }, []);
+  }, [wsId]);
 
 
   const updateTheme = useCallback((id: string, updates: any) => {
@@ -1544,8 +1715,10 @@ export const ThemeProvider = ({ children }: any) => {
         const { masterVault, spokeVault } = await resolveVaultThemeRoots();
         for (const base of [masterVault, spokeVault].filter(Boolean)) {
           const dir = isDev ? `${base}\\Data\\Dev\\Themes` : `${base}\\Data\\Themes`;
-          const filePath = `${dir}\\${id}.json`;
-          if (await exists(filePath)) await remove(filePath);
+          for (const candidateName of [`${id}.json`, `${id}.webp`, `${id}.png`, `${id}.jpg`]) {
+            const filePath = `${dir}\\${candidateName}`;
+            if (await exists(filePath)) await remove(filePath);
+          }
         }
       } catch (err) { console.error("Failed to delete theme from vault:", err); }
     })();
@@ -1607,7 +1780,7 @@ export const ThemeProvider = ({ children }: any) => {
     setCustomThemes(nextCustoms);
     writeSharedThemeMap(wsId, 'custom_themes', nextCustoms);
     setActiveThemeId(id);
-    saveThemeToVault(id, json, false);
+    saveThemeToVault(id, sanitizedJson, false);
   }, [customThemes, wsId, setActiveThemeId, saveThemeToVault]);
 
   const themeContextValue = useMemo(() => ({

@@ -84,19 +84,30 @@ export function DynamicThemePreviewBanner({
   const radiusVal = data?.radius || '1.25rem';
 
   const hasCustomPreview = Boolean(data?.previewImage && String(data.previewImage).trim() !== '');
+  const hasCustomBgThumb = Boolean(
+    data?.bgThumb && String(data.bgThumb).trim() !== '' && data.bgThumb !== 'none'
+  );
+  const hasCustomBgImage = Boolean(
+    data?.bgImage && String(data.bgImage).trim() !== '' && data.bgImage !== 'none'
+  );
   const isPassthrough =
     !hasCustomPreview &&
-    (!data?.bgImage || String(data.bgImage).trim() === '') &&
+    !hasCustomBgImage &&
+    !hasCustomBgThumb &&
     (data?.bg === 'transparent' || Boolean(data?.transparentWindow));
   const rawBgImageUrl = hasCustomPreview
     ? data.previewImage
-    : data?.bgImage && String(data.bgImage).trim() !== '' && data.bgImage !== 'none'
-      ? data.bgImage
-      : data?.image_url &&
-        String(data.image_url).trim() !== '' &&
-        !String(data.image_url).includes('placeholder')
-        ? data.image_url
-        : null;
+    : !expanded && hasCustomBgThumb
+      ? data.bgThumb
+      : hasCustomBgImage
+        ? data.bgImage
+        : hasCustomBgThumb
+          ? data.bgThumb
+          : data?.image_url &&
+              String(data.image_url).trim() !== '' &&
+              !String(data.image_url).includes('placeholder')
+            ? data.image_url
+            : null;
 
   const [imgFailed, setImgFailed] = React.useState(false);
   React.useEffect(() => {
@@ -163,6 +174,7 @@ export function DynamicThemePreviewBanner({
           onError={() => setImgFailed(true)}
           className="absolute inset-0 w-full h-full object-cover object-center"
           loading="lazy"
+          decoding="async"
         />
       )}
 

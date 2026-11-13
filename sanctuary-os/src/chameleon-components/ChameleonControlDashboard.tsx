@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLexicon } from '../LexiconContext';
-import { useTheme, applyThemeCssVarsToRoot } from '../ThemeContext';
+import { useTheme, applyThemeCssVarsToRoot, sanitizeThemeBgImageUrl } from '../ThemeContext';
 import {
   HexToRGB,
   RGBToHex,
@@ -95,6 +95,23 @@ export function ChameleonControlDashboard({
   const [bgBuilderAngle, setBgBuilderAngle] = useState(135);
   const [bgBuilderColor1, setBgBuilderColor1] = useState('#1e1b4b');
   const [bgBuilderColor2, setBgBuilderColor2] = useState('#020617');
+  const [externalWpUrlInput, setExternalWpUrlInput] = useState<string>(() =>
+    typeof currentTheme?.bgImage === 'string' && currentTheme.bgImage.startsWith('https://')
+      ? currentTheme.bgImage
+      : typeof currentTheme?.bgRemoteUrl === 'string' && currentTheme.bgRemoteUrl.startsWith('https://')
+        ? currentTheme.bgRemoteUrl
+        : ''
+  );
+
+  useEffect(() => {
+    const nextRemote =
+      typeof currentTheme?.bgImage === 'string' && currentTheme.bgImage.startsWith('https://')
+        ? currentTheme.bgImage
+        : typeof currentTheme?.bgRemoteUrl === 'string' && currentTheme.bgRemoteUrl.startsWith('https://')
+          ? currentTheme.bgRemoteUrl
+          : '';
+    setExternalWpUrlInput(nextRemote);
+  }, [editingThemeId, currentTheme?.bgImage, currentTheme?.bgRemoteUrl]);
 
   // Drive the live WebGL2 SDF Liquid Glass Engine AND :root CSS variables ONLY when livePreview is explicitly enabled
   const prevTexKeyRef = useRef<string>('');
@@ -210,9 +227,41 @@ export function ChameleonControlDashboard({
     compressUploadedImage(file, 1920, 1080, (dataUrl) => {
       handleUpdateTheme({
         bgImage: dataUrl,
+        bgThumb: undefined,
+        bgRemoteUrl: undefined,
+        bgImageFile: undefined,
         transparentWindow: false,
         ...(currentTheme.bg === 'transparent' ? { bg: '#050914' } : {}),
       });
+    });
+  };
+
+  const handleApplyExternalWpUrl = () => {
+    const trimmed = externalWpUrlInput.trim();
+    if (!trimmed) {
+      handleUpdateTheme({
+        bgImage: null,
+        bgThumb: undefined,
+        bgRemoteUrl: undefined,
+        bgImageFile: undefined,
+      });
+      return;
+    }
+    const cleanUrl = sanitizeThemeBgImageUrl(trimmed);
+    if (!cleanUrl || !cleanUrl.startsWith('https://')) {
+      pushStatus?.(
+        t('forge_wp_external_url_invalid', 'Enter a valid public https:// image URL.'),
+        'error'
+      );
+      return;
+    }
+    handleUpdateTheme({
+      bgImage: cleanUrl,
+      bgThumb: undefined,
+      bgRemoteUrl: cleanUrl,
+      bgImageFile: undefined,
+      transparentWindow: false,
+      ...(currentTheme.bg === 'transparent' ? { bg: '#050914' } : {}),
     });
   };
 
@@ -1737,7 +1786,14 @@ export function ChameleonControlDashboard({
                   {currentTheme.bgImage && (
                     <button
                       type="button"
-                      onClick={() => handleUpdateTheme({ bgImage: null })}
+                      onClick={() =>
+                        handleUpdateTheme({
+                          bgImage: null,
+                          bgThumb: undefined,
+                          bgRemoteUrl: undefined,
+                          bgImageFile: undefined,
+                        })
+                      }
                       className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-danger transition-all cursor-pointer shrink-0`}
                     >
                       <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
@@ -1778,10 +1834,46 @@ export function ChameleonControlDashboard({
                   )}
                 </label>
 
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-bold text-[var(--subtext)] opacity-85">
+                    {t('forge_wp_external_url_label', 'External HTTPS Wallpaper URL (Optional)')}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus-within:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all flex-1 min-w-0">
+                      <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
+                        {t('icon_link', 'link')}
+                      </span>
+                      <input
+                        type="url"
+                        value={externalWpUrlInput}
+                        onChange={(e) => setExternalWpUrlInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleApplyExternalWpUrl();
+                          }
+                        }}
+                        placeholder={t('forge_wp_external_url_placeholder', 'https://cdn.example.com/wallpaper.webp')}
+                        className="w-full bg-transparent border-none outline-none text-[11px] font-medium text-[var(--text)] placeholder:text-[var(--subtext)]/50 truncate"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleApplyExternalWpUrl}
+                      className={`${VAULT_CHIP_CLASS} hover:sa-glass-pill-active transition-all cursor-pointer shrink-0 h-8 px-3`}
+                    >
+                      <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+                        {t('icon_check', 'check')}
+                      </span>
+                      <span>{t('apply', 'Apply')}</span>
+                    </button>
+                  </div>
+                </div>
+
                 <span className="text-[9.5px] text-[var(--subtext)] opacity-75 leading-relaxed">
                   {t(
                     'forge_wp_cloud_sync_hint',
-                    'Custom wallpapers are automatically compressed as portable WebP in local JSON exports and uploaded to Cloud Storage when published to The {Nexus}.'
+                    'Uploaded wallpapers are deduplicated as compact WebP with thumbnails on Cloud Storage and cached locally on install—or link an external HTTPS CDN URL at zero cloud storage cost.'
                   )}
                 </span>
               </div>

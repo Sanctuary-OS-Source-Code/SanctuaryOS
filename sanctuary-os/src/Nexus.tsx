@@ -792,7 +792,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
       let syncedContent = finalContent;
       if (marketTab === 'CHAMELEONS') {
-        const { themeData } = await uploadThemeAssetsToCloud(finalContent, supabase);
+        const { themeData } = await uploadThemeAssetsToCloud(finalContent, supabase, { t });
         syncedContent = themeData;
       }
 

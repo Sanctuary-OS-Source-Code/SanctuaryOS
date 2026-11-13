@@ -2,6 +2,8 @@ import { isDesktop } from "../utils/envUtils";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import { writeTextFile, writeFile, readTextFile, readFile, exists } from "@tauri-apps/plugin-fs";
+import { isStandaloneFork, supabaseAuth } from "../supabase";
+import { useStore } from "../store";
 
 export const getLuminance = (hex: string) => {
   const cleanHex = (hex || '#000000').replace('#', '').padEnd(6, '0').slice(0, 6);
@@ -1086,7 +1088,8 @@ export function compressImageBytesToDataUrl(
   bytes: Uint8Array,
   mime: string,
   maxW = 1920,
-  maxH = 1080
+  maxH = 1080,
+  maxBytesBudget?: number
 ): Promise<string> {
   return new Promise((resolve) => {
     try {
@@ -1109,12 +1112,36 @@ export function compressImageBytesToDataUrl(
               height = maxH;
             }
           }
-          canvas.width = width;
-          canvas.height = height;
+          canvas.width = Math.max(1, width);
+          canvas.height = Math.max(1, height);
           const ctx = canvas.getContext("2d");
           if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            const dataUrl = canvas.toDataURL("image/webp", 0.82);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const estimateDataUrlBytes = (dUrl: string) => {
+              const commaIdx = dUrl.indexOf(",");
+              return commaIdx >= 0 ? Math.floor(((dUrl.length - commaIdx - 1) * 3) / 4) : dUrl.length;
+            };
+            const qualities = maxBytesBudget ? [0.82, 0.72, 0.62, 0.52, 0.42] : [0.82];
+            let dataUrl = canvas.toDataURL("image/webp", qualities[0]);
+            if (maxBytesBudget) {
+              for (let i = 0; i < qualities.length; i++) {
+                const candidate = i === 0 ? dataUrl : canvas.toDataURL("image/webp", qualities[i]);
+                dataUrl = candidate;
+                if (estimateDataUrlBytes(candidate) <= maxBytesBudget) {
+                  break;
+                }
+              }
+              if (estimateDataUrlBytes(dataUrl) > maxBytesBudget && canvas.width > 320) {
+                const downCanvas = document.createElement("canvas");
+                downCanvas.width = Math.max(1, Math.round(canvas.width * 0.8));
+                downCanvas.height = Math.max(1, Math.round(canvas.height * 0.8));
+                const downCtx = downCanvas.getContext("2d");
+                if (downCtx) {
+                  downCtx.drawImage(canvas, 0, 0, downCanvas.width, downCanvas.height);
+                  dataUrl = downCanvas.toDataURL("image/webp", 0.58);
+                }
+              }
+            }
             URL.revokeObjectURL(objUrl);
             resolve(dataUrl);
             return;
@@ -1136,13 +1163,41 @@ export function compressImageBytesToDataUrl(
   });
 }
 
-function bytesToBase64DataUrl(bytes: Uint8Array, mime = "image/webp"): string {
+function bytesToRawBase64(bytes: Uint8Array): string {
   let binary = "";
   const chunkSize = 0x8000;
   for (let i = 0; i < bytes.length; i += chunkSize) {
     binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
   }
-  return `data:${mime};base64,${btoa(binary)}`;
+  return btoa(binary);
+}
+
+function bytesToBase64DataUrl(bytes: Uint8Array, mime = "image/webp"): string {
+  return `data:${mime};base64,${bytesToRawBase64(bytes)}`;
+}
+
+export async function computeSha256Hex(bytes: Uint8Array): Promise<string> {
+  if (typeof crypto !== "undefined" && crypto.subtle?.digest) {
+    const ab = bytes.buffer.slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength
+    ) as ArrayBuffer;
+    const hashBuf = await crypto.subtle.digest("SHA-256", ab);
+    return Array.from(new Uint8Array(hashBuf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  for (let i = 0; i < bytes.length; i++) {
+    h1 ^= bytes[i];
+    h1 = Math.imul(h1, 0x01000193) >>> 0;
+    h2 ^= bytes[bytes.length - 1 - i];
+    h2 = Math.imul(h2, 0x85ebca6b) >>> 0;
+  }
+  return `${h1.toString(16).padStart(8, "0")}${h2.toString(16).padStart(8, "0")}${bytes.length
+    .toString(16)
+    .padStart(8, "0")}`;
 }
 
 function guessImageMime(filename: string): string {
@@ -1547,8 +1602,13 @@ export async function importThemeWithAssets(opts?: {
 export async function uploadThemeAssetsToCloud(
   rawTheme: any,
   supabaseClient: any,
-  opts?: { bucketName?: string }
+  opts?: {
+    bucketName?: string;
+    isHubCore?: boolean;
+    t?: (key: string, fallback: string) => string;
+  }
 ): Promise<{ themeData: any; bannerUrl: string | null }> {
+  const t = opts?.t || ((_key: string, fallback: string) => fallback);
   let parsed: any = rawTheme;
   if (typeof rawTheme === "string") {
     try {
@@ -1557,78 +1617,178 @@ export async function uploadThemeAssetsToCloud(
       parsed = {};
     }
   }
+  const priorRemoteBgUrl =
+    typeof parsed?.bgRemoteUrl === "string" && parsed.bgRemoteUrl.trim().startsWith("https://")
+      ? parsed.bgRemoteUrl.trim()
+      : "";
   const themeData: any = { ...(parsed || {}) };
   delete themeData.bgImageFile;
   delete themeData.previewImageFile;
+  delete themeData.bgRemoteUrl;
 
   const bucket = opts?.bucketName || "backgrounds";
 
-  const uploadSingleAsset = async (
-    imgSource: string,
-    prefix: string,
-    maxW: number,
-    maxH: number
+  const uploadBinaryAsset = async (
+    bytes: Uint8Array,
+    mime: string,
+    ext: string,
+    kind: "bg" | "thumb" | "preview"
   ): Promise<string> => {
-    const trimmed = String(imgSource || "").trim();
-    if (!trimmed || trimmed === "none") return trimmed;
-    if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/themes/")) {
-      return trimmed;
-    }
+    const safeExt = ["webp", "png", "jpg"].includes(ext) ? ext : "webp";
+    const safeMime =
+      safeExt === "png" ? "image/png" : safeExt === "jpg" ? "image/jpeg" : mime || "image/webp";
 
-    const extracted = await extractImageBytes(trimmed);
-    if (!extracted) return trimmed;
-
-    // Compress to WebP before uploading to Supabase Storage
-    const compressedDataUrl = await compressImageBytesToDataUrl(
-      extracted.bytes,
-      extracted.mime,
-      maxW,
-      maxH
-    );
-    const webpExtracted = (await extractImageBytes(compressedDataUrl)) || extracted;
-
-    if (supabaseClient?.storage) {
-      try {
-        const rand = Math.random().toString(36).substring(2, 8);
-        const storagePath = `themes/${prefix}_${Date.now()}_${rand}.${webpExtracted.ext}`;
-        const { error: uploadError } = await supabaseClient.storage
-          .from(bucket)
-          .upload(storagePath, webpExtracted.bytes, {
-            contentType: webpExtracted.mime,
-            upsert: true,
-          });
-
-        if (!uploadError) {
-          const { data: publicUrlData } = supabaseClient.storage
-            .from(bucket)
-            .getPublicUrl(storagePath);
-          if (publicUrlData?.publicUrl) {
-            return publicUrlData.publicUrl;
-          }
-        }
-      } catch {
-        // Fall back to compact WebP data URL if storage bucket is unavailable on custom spoke DB
+    if (!opts?.isHubCore && !isStandaloneFork) {
+      const state = useStore.getState();
+      const token = state.session?.access_token;
+      if (!token) {
+        throw new Error(
+          t(
+            "forge_err_upload_auth_required",
+            "Sign in as a Verified {Mason} or Staff member to upload {Chameleon} wallpapers."
+          )
+        );
       }
+      const activeWsId = state.activeWorkspaceId;
+      const activeWs = (state.workspaces || []).find((w: any) => w?.id === activeWsId);
+      const targetGameId =
+        activeWs?.game_id || activeWs?.schema_id || activeWs?.id || activeWsId || "";
+      const { data, error } = await supabaseAuth.functions.invoke("game-gateway", {
+        headers: { Authorization: `Bearer ${token}` },
+        body: {
+          game_id: targetGameId,
+          action: "upload_spoke_theme_asset",
+          payload: {
+            kind,
+            mime_type: safeMime,
+            base64_data: bytesToRawBase64(bytes),
+          },
+        },
+      });
+      if (error || !data?.publicUrl) {
+        throw new Error(
+          data?.error ||
+            error?.message ||
+            t(
+              "forge_err_upload_cloud_failed",
+              "Failed to upload {Chameleon} wallpaper to Cloud Storage."
+            )
+        );
+      }
+      return String(data.publicUrl);
     }
 
-    // Fallback: compact WebP data URL so the wallpaper still works in JSONB
-    return await compressImageBytesToDataUrl(extracted.bytes, extracted.mime, 1280, 720);
+    if (!supabaseClient?.storage) {
+      throw new Error(
+        t("forge_err_storage_unavailable", "Cloud Storage client is unavailable.")
+      );
+    }
+    const shaHex = await computeSha256Hex(bytes);
+    const storagePath = `themes/${kind}_${shaHex}.${safeExt}`;
+    const { error: uploadError } = await supabaseClient.storage
+      .from(bucket)
+      .upload(storagePath, bytes, {
+        contentType: safeMime,
+        cacheControl: "31536000",
+        upsert: true,
+      });
+    if (uploadError) {
+      throw new Error(
+        uploadError.message ||
+          t(
+            "forge_err_upload_cloud_failed",
+            "Failed to upload {Chameleon} wallpaper to Cloud Storage."
+          )
+      );
+    }
+    const { data: publicUrlData } = supabaseClient.storage.from(bucket).getPublicUrl(storagePath);
+    if (!publicUrlData?.publicUrl) {
+      throw new Error(
+        t(
+          "forge_err_upload_public_url",
+          "Failed to resolve public CDN URL for uploaded {Chameleon} wallpaper."
+        )
+      );
+    }
+    return publicUrlData.publicUrl;
   };
 
-  if (isCustomThemeImage(themeData.bgImage)) {
-    themeData.bgImage = await uploadSingleAsset(themeData.bgImage, "bg", 1920, 1080);
+  const rawBg = typeof themeData.bgImage === "string" ? themeData.bgImage.trim() : "";
+  if (!isCustomThemeImage(rawBg)) {
+    delete themeData.bgThumb;
+  } else if (rawBg.startsWith("https://")) {
+    // External HTTPS CDN or pre-uploaded Storage URL -> zero upload/storage cost
+    themeData.bgImage = rawBg;
+    if (!themeData.bgThumb || !String(themeData.bgThumb).trim().startsWith("https://")) {
+      themeData.bgThumb =
+        themeData.previewImage && String(themeData.previewImage).trim().startsWith("https://")
+          ? String(themeData.previewImage).trim()
+          : rawBg;
+    }
+  } else if (
+    priorRemoteBgUrl &&
+    typeof themeData.bgThumb === "string" &&
+    themeData.bgThumb.trim().startsWith("https://")
+  ) {
+    // Unchanged locally-hydrated wallpaper with known remote CDN URLs -> zero re-upload roundtrip
+    themeData.bgImage = priorRemoteBgUrl;
+    themeData.bgThumb = themeData.bgThumb.trim();
+  } else {
+    const extracted = await extractImageBytes(rawBg);
+    if (!extracted) {
+      throw new Error(
+        t(
+          "forge_err_decode_wallpaper",
+          "Unable to decode custom {Chameleon} wallpaper image."
+        )
+      );
+    }
+    const [bgDataUrl, thumbDataUrl] = await Promise.all([
+      compressImageBytesToDataUrl(extracted.bytes, extracted.mime, 1920, 1080, 250_000),
+      compressImageBytesToDataUrl(extracted.bytes, extracted.mime, 480, 270, 22_000),
+    ]);
+    const bgWebp = (await extractImageBytes(bgDataUrl)) || extracted;
+    const thumbWebp = (await extractImageBytes(thumbDataUrl)) || bgWebp;
+
+    const [bgPublicUrl, thumbPublicUrl] = await Promise.all([
+      uploadBinaryAsset(bgWebp.bytes, bgWebp.mime, bgWebp.ext, "bg"),
+      uploadBinaryAsset(thumbWebp.bytes, thumbWebp.mime, thumbWebp.ext, "thumb"),
+    ]);
+    themeData.bgImage = bgPublicUrl;
+    themeData.bgThumb = thumbPublicUrl;
   }
 
-  if (isCustomThemeImage(themeData.previewImage)) {
-    themeData.previewImage = await uploadSingleAsset(themeData.previewImage, "preview", 1280, 720);
+  const rawPreview = typeof themeData.previewImage === "string" ? themeData.previewImage.trim() : "";
+  if (isCustomThemeImage(rawPreview) && !rawPreview.startsWith("https://")) {
+    const extractedPrev = await extractImageBytes(rawPreview);
+    if (extractedPrev) {
+      const prevDataUrl = await compressImageBytesToDataUrl(
+        extractedPrev.bytes,
+        extractedPrev.mime,
+        1280,
+        720,
+        95_000
+      );
+      const prevWebp = (await extractImageBytes(prevDataUrl)) || extractedPrev;
+      themeData.previewImage = await uploadBinaryAsset(
+        prevWebp.bytes,
+        prevWebp.mime,
+        prevWebp.ext,
+        "preview"
+      );
+    } else {
+      delete themeData.previewImage;
+    }
   }
 
   const bannerUrl =
-    themeData.previewImage && String(themeData.previewImage).startsWith("http")
+    themeData.previewImage && String(themeData.previewImage).startsWith("https://")
       ? themeData.previewImage
-      : themeData.bgImage && String(themeData.bgImage).startsWith("http")
-        ? themeData.bgImage
-        : null;
+      : themeData.bgThumb && String(themeData.bgThumb).startsWith("https://")
+        ? themeData.bgThumb
+        : themeData.bgImage && String(themeData.bgImage).startsWith("https://")
+          ? themeData.bgImage
+          : null;
 
   return { themeData, bannerUrl };
 }
