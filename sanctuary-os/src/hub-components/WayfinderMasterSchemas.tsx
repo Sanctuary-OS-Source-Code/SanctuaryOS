@@ -1786,7 +1786,7 @@ export default function WayfinderMasterSchemas({
                     <p className="text-xs text-[var(--subtext)] leading-relaxed m-0">
                       {t(
                         "wf_sever_identity_arch_desc",
-                        "In federated mode, login credentials (auth.users) live in the Core Hub database while your Spoke stores public.profiles (username & role). If you transition your severed Spoke into a Standalone Fork pointed solely at your Spoke Supabase URL, citizens and Creators register a local login on your Spoke Auth. When they sign up with their existing Spoke username, the Spoke's on_auth_user_created_spoke trigger automatically relinks their existing Spoke profile, Creator studio, and {Blueprints} to their new local Auth ID, and promotes the first local account to Wayfinder."
+                        "In federated mode, login credentials (auth.users) live in the Core Hub database while your Spoke stores public.profiles and zero-PII SHA-256 relink commitments. If you transition your severed Spoke into a Standalone Fork pointed solely at your Spoke Supabase URL, {Citizens} and {Masons} register a local login on your Spoke Auth and supply their Spoke Relink Token (SRK1.<uuid>.<secret>) at sign-up or in {Settings} -> System ID to cryptographically reclaim their Spoke profile, {Mason} studio, and {Blueprints} without username hijacking. The first local signup automatically promotes to Founding Wayfinder."
                       )}
                     </p>
                   </div>
@@ -3157,7 +3157,7 @@ export default function WayfinderMasterSchemas({
                 <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
                   {t(
                     "wf_sever_identity_arch_desc",
-                    "In federated mode, login credentials (auth.users) live in the Core Hub database while your Spoke stores public.profiles (username & role). If you transition your severed Spoke into a Standalone Fork pointed solely at your Spoke Supabase URL, citizens and Creators register a local login on your Spoke Auth. When they sign up with their existing Spoke username, the Spoke's on_auth_user_created_spoke trigger automatically relinks their existing Spoke profile, Creator studio, and {Blueprints} to their new local Auth ID, and promotes the first local account to Wayfinder."
+                    "In federated mode, login credentials (auth.users) live in the Core Hub database while your Spoke stores public.profiles and zero-PII SHA-256 relink commitments. If you transition your severed Spoke into a Standalone Fork pointed solely at your Spoke Supabase URL, {Citizens} and {Masons} register a local login on your Spoke Auth and supply their Spoke Relink Token (SRK1.<uuid>.<secret>) at sign-up or in {Settings} -> System ID to cryptographically reclaim their Spoke profile, {Mason} studio, and {Blueprints} without username hijacking. The first local signup automatically promotes to Founding Wayfinder."
                   )}
                 </p>
               </div>

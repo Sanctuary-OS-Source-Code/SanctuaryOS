@@ -184,13 +184,34 @@ const Vault = React.memo(function Vault(props: any) {
       if (baseFile) cleanFileLowerSet.add(baseFile);
     }
 
-    return displayModList.filter((m: any) => {
-      if (!m?.name) return false;
-      if (normalSet.has(m.name) || cleanedSet.has(m.name)) return true;
-      const mFileLower = (m.name.split(/[\\/]/).pop() || m.name).toLowerCase();
-      return Boolean(mFileLower && cleanFileLowerSet.has(mFileLower));
+    const parentTitleByChildName = new Map<string, string>();
+    displayModList.forEach((dm: any) => {
+      if (dm?.isVirtual && dm.displayName && Array.isArray(dm.flavors)) {
+        dm.flavors.forEach((child: any) => {
+          if (child?.name && !parentTitleByChildName.has(child.name)) {
+            parentTitleByChildName.set(child.name, dm.displayName);
+          }
+        });
+      }
     });
-  }, [displayModList, activeSetModsMemo, activeGameSchema]);
+
+    const sourceMods =
+      Array.isArray(modList) && modList.length > 0 ? modList : displayModList;
+
+    return sourceMods
+      .filter((m: any) => {
+        if (!m?.name || m.isVirtual) return false;
+        if (normalSet.has(m.name) || cleanedSet.has(m.name)) return true;
+        const mFileLower = (m.name.split(/[\\/]/).pop() || m.name).toLowerCase();
+        return Boolean(mFileLower && cleanFileLowerSet.has(mFileLower));
+      })
+      .map((m: any) => {
+        const parentTitle = parentTitleByChildName.get(m.name);
+        return parentTitle && parentTitle !== m.displayName
+          ? { ...m, _parentDisplayName: parentTitle }
+          : m;
+      });
+  }, [modList, displayModList, activeSetModsMemo, activeGameSchema]);
 
   const virtualFolderIds = React.useMemo(() => {
     const ids = new Set<string>();
@@ -309,17 +330,15 @@ const Vault = React.memo(function Vault(props: any) {
         ) {
           return true;
         }
-        if (!mod.isFlavorFolder) {
-          const anchor = mod.dbId || mod.familyId || mod.setId;
-          if (anchor) {
-            const sAnchor = String(anchor);
-            if (
-              equippedDisplayModFamilies.has(sAnchor) ||
-              equippedDisplayModDbIds.has(sAnchor) ||
-              equippedDisplayModSetIds.has(sAnchor)
-            ) {
-              return true;
-            }
+        const anchor = mod.dbId || mod.familyId || mod.setId;
+        if (anchor) {
+          const sAnchor = String(anchor);
+          if (
+            equippedDisplayModFamilies.has(sAnchor) ||
+            equippedDisplayModDbIds.has(sAnchor) ||
+            equippedDisplayModSetIds.has(sAnchor)
+          ) {
+            return true;
           }
         }
         return false;
@@ -1315,7 +1334,7 @@ const Vault = React.memo(function Vault(props: any) {
                     e.stopPropagation();
                     setVaultContextMenu(null);
                     if (count > 1) {
-                      targetMods.forEach((mName: string) => toggleInActiveSet(mName, false));
+                      toggleInActiveSet(targetMods, false);
                     } else {
                       toggleInActiveSet(ctxMod.name, false);
                     }

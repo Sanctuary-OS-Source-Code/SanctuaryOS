@@ -3116,13 +3116,6 @@ export function groupPatchEvaluatedMods(
         return `set:${setRaw}`;
       }
 
-      const fgRaw = String(
-        raw.flavorGroupId || matchedVault?.flavorGroupId || ""
-      ).trim();
-      if (fgRaw && fgRaw !== "null" && fgRaw !== "undefined") {
-        return `flav:${fgRaw}`;
-      }
-
       const cgRaw = String(
         raw.communityGroupId || matchedVault?.communityGroupId || ""
       ).trim();
@@ -3200,11 +3193,6 @@ export function groupPatchEvaluatedMods(
             )
           )
         : "";
-    const rawFlavorTitle = members[0]?.rawMod?.flavorGroupName
-      ? formatCleanModTitle(
-          formatDisplayName(members[0].rawMod.flavorGroupName)
-        )
-      : "";
     const normalizedBaseTitle =
       formatCleanModTitle(normalizeModGroupTitle(coreMember.title)) ||
       coreMember.title;
@@ -3215,7 +3203,6 @@ export function groupPatchEvaluatedMods(
         ? formatCleanModTitle(normalizeModGroupTitle(rawParentTitle)) ||
           rawParentTitle
         : "") ||
-      rawFlavorTitle ||
       normalizedBaseTitle ||
       coreMember.title;
 
@@ -3478,10 +3465,7 @@ function equipMissingDepsIntoBlueprint(
         anchorFam !== "undefined" &&
         !anchorFam.startsWith("local_") &&
         vmFam === anchorFam &&
-        (rel === "core" || rel === "twin" || (!rel && isTwinBase)) &&
-        (!vm.flavorGroupId ||
-          !primaryVm.flavorGroupId ||
-          String(vm.flavorGroupId) === String(primaryVm.flavorGroupId));
+        (rel === "core" || rel === "twin" || (!rel && isTwinBase));
 
       if (isSelf || isTwinBase || isCoreTwinSibling) {
         namesToAdd.push(vm.name);

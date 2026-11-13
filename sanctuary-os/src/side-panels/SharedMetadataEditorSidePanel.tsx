@@ -6,6 +6,7 @@ import {
   SidePanel,
   GameVersionMultiSelect,
   CustomDatePicker,
+  CustomDropdown,
   CustomComplianceDropdown,
   CustomClassificationDropdown,
   PanelHeaderGroup,
@@ -14,6 +15,7 @@ import {
   SidePanelTitleInput,
   SidePanelPillToggle,
   UniversalGroup,
+  toHighlanderSlotSlug,
 } from "../shared";
 import { CustomStatusDropdown, CustomMasonDropdown } from "../ArchitectHub";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
@@ -49,6 +51,7 @@ export function SharedMetadataEditorSidePanel({
   const [localMasonsList, setLocalMasonsList] = useState<any[]>(
     masonsList || []
   );
+  const [highlanderSlots, setHighlanderSlots] = useState<any[]>([]);
 
   useEffect(() => {
     if (activeMod) {
@@ -107,6 +110,23 @@ export function SharedMetadataEditorSidePanel({
     } else if (masonsList) {
       setLocalMasonsList(masonsList);
     }
+    if (isOpen) {
+      supabase
+        .from("flavor_groups")
+        .select("id, name, slug")
+        .order("name")
+        .then(async ({ data, error }) => {
+          if (!error && data) {
+            setHighlanderSlots(data);
+          } else {
+            const fb = await supabase
+              .from("flavor_groups")
+              .select("id, name")
+              .order("name");
+            if (fb.data) setHighlanderSlots(fb.data);
+          }
+        });
+    }
   }, [masonsList, isOpen]);
 
   const handleCommitChanges = async () => {
@@ -141,6 +161,7 @@ export function SharedMetadataEditorSidePanel({
         folder_structure: modForm.folder_structure || [],
         is_paid: modForm.is_paid || false,
         is_early_access: modForm.is_early_access || false,
+        highlander_group_id: modForm.highlander_group_id || null,
         updated_at: new Date().toISOString(),
       };
       await supabase
@@ -296,6 +317,41 @@ export function SharedMetadataEditorSidePanel({
                     placeholder={t("auto_e_g_tuning_26", "e.g. Tuning")}
                   />
                 </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                  {t("highlander_exclusive_slot", "Exclusive Slot")}
+                </label>
+                <CustomDropdown
+                  disableTint={true}
+                  searchable={true}
+                  searchPlaceholder={t(
+                    "highlander_search_slots_ph",
+                    "Search Exclusive Slots..."
+                  )}
+                  value={modForm.highlander_group_id || "__none__"}
+                  options={[
+                    {
+                      id: "__none__",
+                      label: t("highlander_slot_none", "None (Coexists Freely)"),
+                    },
+                    ...highlanderSlots.map((fg: any) => ({
+                      id: String(fg.id),
+                      label: fg.name,
+                      badge: fg.slug || toHighlanderSlotSlug(fg.name),
+                      searchText: `${fg.name || ""} ${fg.slug || ""}`,
+                    })),
+                  ]}
+                  onChange={(v: string[]) => {
+                    const picked = v[0];
+                    setModForm({
+                      ...modForm,
+                      highlander_group_id:
+                        !picked || picked === "__none__" ? null : picked,
+                    });
+                  }}
+                />
               </div>
             </UniversalGroup>
 

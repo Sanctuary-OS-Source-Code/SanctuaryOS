@@ -909,7 +909,7 @@
   "wf_sever_backup_desc": "Copy your SANCTUARY-UPLINK:// bundle before moving out in case you want to reconnect later or paste your keys into a standalone neighborhood.",
   "wf_sever_backup_title": "Pre-Move Uplink Backup",
   "wf_sever_data_ownership_lbl": "Spoke Save Data",
-  "wf_sever_identity_arch_desc": "In Hub-and-Spoke mode, login details (emails, passwords, and Passkeys) are stored only in the main Hub database while your community database stores public.profiles (ID, username, and role). When you launch a Standalone Fork, your database's auth.users table starts fresh: the first person to sign up becomes Founding Wayfinder, and signing up with an existing community username automatically reconnects your profile, {Mason} page, {Mods}, {Blueprints}, and tickets to your new login!",
+  "wf_sever_identity_arch_desc": "In Hub-and-Spoke mode, login details (emails, passwords, and Passkeys) are stored only in the main Hub database while your community database stores public.profiles and zero-PII relink proofs. When you launch a Standalone Fork, your database's auth.users table starts fresh: the first person to sign up becomes Founding Wayfinder, and pasting your Spoke Relink Token (SRK1.<uuid>.<secret>) at sign-up or in {Settings} -> System ID safely reconnects your profile, {Mason} page, {Mods}, {Blueprints}, and tickets without anyone claiming your name!",
   "wf_sever_identity_arch_title": "How Accounts Work When Forking (Hub Login vs. Community Profiles)",
   "wf_sever_key_custody_val": "Scrubbed on Move Out",
   "wf_sever_type_confirm_label": "Type 'CUT THE CORD' to Unlock Button",

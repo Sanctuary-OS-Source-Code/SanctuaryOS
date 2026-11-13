@@ -286,6 +286,13 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
                 .maybeSingle();
 
             if (existingProfile) {
+                if (typeof args?.p_relink_commitment_hash === 'string' && /^[0-9a-f]{64}$/i.test(args.p_relink_commitment_hash)) {
+                    try {
+                        await rawAuthClient.rpc('register_spoke_relink_commitment', {
+                            p_commitment_hash: args.p_relink_commitment_hash.trim().toLowerCase(),
+                        });
+                    } catch {}
+                }
                 return { data: existingProfile, error: null };
             }
 
@@ -309,6 +316,14 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
                 }, { onConflict: 'id' })
                 .select()
                 .single();
+
+            if (typeof args?.p_relink_commitment_hash === 'string' && /^[0-9a-f]{64}$/i.test(args.p_relink_commitment_hash)) {
+                try {
+                    await rawAuthClient.rpc('register_spoke_relink_commitment', {
+                        p_commitment_hash: args.p_relink_commitment_hash.trim().toLowerCase(),
+                    });
+                } catch {}
+            }
 
             return { data: createdProfile || { id: user.id, username, role: initialRole }, error: createError };
         }
@@ -1081,7 +1096,11 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     };
 
                     let payload: any = {};
-                    if (fnName === 'secure_update_spoke_profile') {
+                    if (fnName === 'secure_sync_spoke_profile') {
+                        payload = {
+                            relink_commitment_hash: args?.p_relink_commitment_hash || undefined,
+                        };
+                    } else if (fnName === 'secure_update_spoke_profile') {
                         payload = { target_user_id: args.p_target_user_id, updates: args.p_updates };
                     } else if (fnName === 'flag_mod_for_compliance') {
                         payload = {

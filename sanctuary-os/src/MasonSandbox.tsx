@@ -17,6 +17,7 @@ import {
   PanelHeaderButton,
   isScriptExtension,
   isModBinaryExtension,
+  resolveModHighlanderSlot,
 } from "./shared";
 import {
   ElevatedHubLayout,
@@ -485,6 +486,14 @@ export function MasonSandbox({
           conflicts: structuredConflicts,
           flavors: localFlavors,
           collections: localCollections,
+          ...(resolveModHighlanderSlot(activeMod)
+            ? {
+                highlander_group: {
+                  slug: resolveModHighlanderSlot(activeMod)!.key,
+                  name: resolveModHighlanderSlot(activeMod)!.name,
+                },
+              }
+            : {}),
         },
         virtual_filesystem: {
           overrides: [],
@@ -576,6 +585,7 @@ export function MasonSandbox({
               flavors: localFlavors,
               conflicts: manifest.atomic_logic.conflicts,
               dependencies: manifest.atomic_logic.dependencies,
+              highlander_group: (manifest.atomic_logic as any).highlander_group || undefined,
             };
             savedEdgeLogic[h] = {
               ...(savedEdgeLogic[h] || {}),
@@ -631,6 +641,7 @@ export function MasonSandbox({
         compliance_tier: activeMod.compliance_tier,
         is_paid: activeMod.is_paid || false,
         is_early_access: activeMod.is_early_access || false,
+        highlander_group_id: activeMod.highlander_group_id || null,
         latest_version: activeMod.latest_version,
         compatible_versions: activeMod.compatible_versions,
         folder_structure: activeMod.folder_structure || [],
@@ -700,6 +711,7 @@ export function MasonSandbox({
           folder_structure: activeMod.folder_structure || [],
           is_paid: activeMod.is_paid || false,
           is_early_access: activeMod.is_early_access || false,
+          highlander_group_id: activeMod.highlander_group_id || null,
           latest_version: activeMod.latest_version || "1.0.0",
         };
         // Update existing mod record (when creator chose "Link to Existing Mod -> New Version")
@@ -736,6 +748,7 @@ export function MasonSandbox({
           folder_structure: activeMod.folder_structure || [],
           is_paid: activeMod.is_paid || false,
           is_early_access: activeMod.is_early_access || false,
+          highlander_group_id: activeMod.highlander_group_id || null,
           latest_version: activeMod.latest_version || "v1.0",
         };
         // Insert brand-new mod record

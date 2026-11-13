@@ -4,7 +4,8 @@ import { isDesktop } from "../utils/envUtils";
 import { useShallow } from "zustand/react/shallow";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { supabase, supabaseAuth } from "../supabase";
+import { supabase, supabaseAuth, isStandaloneFork } from "../supabase";
+import { buildSpokeRelinkToken, parseSpokeRelinkToken } from "../utils/stagingCrypto";
 import { TabContainer, SettingsGrid } from "./shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import {
@@ -60,6 +61,8 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
   const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
   const [pendingUnenrollFactorId, setPendingUnenrollFactorId] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
+  const [relinkTokenInput, setRelinkTokenInput] = useState("");
+  const [claimingRelink, setClaimingRelink] = useState(false);
   const [activePanel, setActivePanel] = useState<"email" | "password" | "system_id" | "2fa" | null>(() => {
     if (typeof window !== "undefined" && localStorage.getItem("sanctuary_open_2fa_panel") === "true") {
       localStorage.removeItem("sanctuary_open_2fa_panel");
@@ -627,6 +630,61 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
     );
   };
 
+  const handleCopyRelinkToken = async () => {
+    if (!session?.user?.id) return;
+    try {
+      const token = await buildSpokeRelinkToken(session.user.id);
+      await navigator.clipboard.writeText(token);
+      useStore.getState().pushStatus(
+        t("spoke_relink_token_copied", "Spoke Relink Token copied to clipboard!"),
+        "success"
+      );
+    } catch (err: any) {
+      useStore.getState().pushStatus(
+        err?.message || t("spoke_relink_token_copy_fail", "Failed to generate Spoke Relink Token."),
+        "error"
+      );
+    }
+  };
+
+  const handleClaimLegacySpokeProfile = async () => {
+    if (!session?.user?.id || claimingRelink) return;
+    const parsed = parseSpokeRelinkToken(relinkTokenInput);
+    if (!parsed) {
+      useStore.getState().pushStatus(
+        t("auth_relink_token_invalid", "Invalid Spoke Relink Token format. Expected SRK1.<uuid>.<secret>."),
+        "warning"
+      );
+      return;
+    }
+    setClaimingRelink(true);
+    try {
+      const { data, error } = await supabaseAuth.rpc("claim_severed_spoke_profile", {
+        p_legacy_uuid: parsed.legacyUuid,
+        p_claim_secret: parsed.claimSecret,
+      });
+      if (error) throw error;
+      if (data?.role) {
+        useStore.getState().setUserRole(String(data.role));
+      }
+      setRelinkTokenInput("");
+      useStore.getState().pushStatus(
+        t(
+          "spoke_relink_claim_success",
+          "Legacy Spoke profile, {Mason} studio, and {Blueprints} cryptographically relinked!"
+        ),
+        "success"
+      );
+    } catch (err: any) {
+      useStore.getState().pushStatus(
+        err?.message || t("spoke_relink_claim_fail", "Failed to verify Spoke Relink Token."),
+        "error"
+      );
+    } finally {
+      setClaimingRelink(false);
+    }
+  };
+
   const renderPath = (dir: any) => {
     const obfuscatePath = (p: string) =>
       p
@@ -1171,6 +1229,60 @@ export default function CoreTab({ updateConfig, pickPath, pathMap }: any) {
               className="w-full"
             />
           </UniversalGroup>
+
+          {session?.user?.id && (
+            <UniversalGroup
+              title={t("spoke_relink_token_title", "Spoke Relink Token (Cut-the-Cord Proof)")}
+              icon={t("icon_verified_user", "verified_user")}
+            >
+              <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                {t(
+                  "spoke_relink_token_desc",
+                  "Pairs your System ID with a domain-separated SHA-256 claim secret (SRK1.<uuid>.<secret>) containing zero PII. If a Spoke ever cuts the cord into a Standalone Fork, paste this token to cryptographically reclaim your {Citizen} profile, {Mason} studio, and {Blueprints} without username hijacking."
+                )}
+              </p>
+              <ActionButton
+                onClick={handleCopyRelinkToken}
+                variant="glass"
+                icon={t("icon_vpn_key", "vpn_key")}
+                label={t("btn_copy_spoke_relink_token", "Copy Spoke Relink Token")}
+                className="w-full"
+              />
+            </UniversalGroup>
+          )}
+
+          {isStandaloneFork && session?.user?.id && (
+            <UniversalGroup
+              title={t("spoke_relink_claim_title", "Claim Legacy Spoke Profile")}
+              icon={t("icon_link", "link")}
+            >
+              <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
+                {t(
+                  "spoke_relink_claim_desc",
+                  "Have a Spoke Relink Token from before this Spoke transitioned to a Standalone Fork? Paste it below to verify your SHA-256 commitment and relink your legacy Spoke profile, {Mason} studio, and {Blueprints}."
+                )}
+              </p>
+              <SidePanelTitleInput
+                value={relinkTokenInput}
+                onChange={(e: any) => setRelinkTokenInput(e.target.value)}
+                placeholder={t("spoke_relink_token_ph", "SRK1.<uuid>.<secret>")}
+                label={t("spoke_relink_token_label", "Spoke Relink Token")}
+                icon={t("icon_vpn_key", "vpn_key")}
+              />
+              <ActionButton
+                onClick={handleClaimLegacySpokeProfile}
+                disabled={claimingRelink || !relinkTokenInput.trim()}
+                variant="accent"
+                icon={t("icon_verified", "verified")}
+                label={
+                  claimingRelink
+                    ? t("loading", "Loading...")
+                    : t("btn_claim_legacy_profile", "Verify & Relink Profile")
+                }
+                className="w-full"
+              />
+            </UniversalGroup>
+          )}
         </div>
       </SidePanel>
 

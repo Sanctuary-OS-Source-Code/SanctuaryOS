@@ -3,13 +3,24 @@ use std::path::PathBuf;
 use tauri::Manager;
 
 #[tauri::command]
-pub fn delete_local_file(path: String) -> Result<String, String> {
+pub fn delete_local_file(
+    path: String,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<String, String> {
     let p = std::path::Path::new(&path);
     if !crate::utils::is_safe_user_file_path(p) {
         return Err("Refusing to delete protected or unsafe path.".into());
     }
 
     let saved_coords = crate::commands::state_ops::get_saved_coordinates();
+    let active_schema = state
+        .active_schema
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    if crate::utils::is_protected_save_or_airgap_path(p, &saved_coords, &active_schema) {
+        return Err("Refusing to delete protected user save or Lab Airgap vault file.".into());
+    }
     let mut allowed_roots = crate::utils::get_allowed_workspace_roots(&saved_coords);
     for user_dir in [
         dirs::download_dir(),

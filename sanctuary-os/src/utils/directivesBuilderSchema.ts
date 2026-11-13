@@ -3289,9 +3289,9 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "fork_m1_s2",
                   icon: t("icon_verified", "verified"),
-                  title: g("2. Automatic Founding Wayfinder & Legacy Spoke Profile Relinking"),
+                  title: g("2. Founding Wayfinder & Cryptographic Spoke Profile Relinking"),
                   desc: g(
-                    "In federated mode, auth.users lives on the Hub while Spokes store public.profiles (username & role). When transitioning a severed Spoke to a Standalone Fork, on_auth_user_created_spoke promotes the first local auth.users signup to Wayfinder and automatically relinks any unclaimed Hub-origin Spoke profile, {Mason} studio, and {Blueprints} matching the registered username."
+                    "In federated mode, auth.users lives on the Hub while Spokes store public.profiles and zero-PII SHA-256 relink commitments. When transitioning a severed Spoke to a Standalone Fork, on_auth_user_created_spoke promotes the first local auth.users signup to Wayfinder, and {Citizens} or {Masons} verify their Spoke Relink Token (SRK1.<uuid>.<secret>) at sign-up or in {Settings} -> System ID to cryptographically reclaim their legacy Spoke profile, {Mason} studio, and {Blueprints} without username hijacking."
                   ),
                 },
                 {

@@ -10,7 +10,7 @@ interface ModCardProps {
   gameVersion?: string;
   isInActiveSet?: boolean;
   onSelect: (e: React.MouseEvent) => void;
-  onToggleSet: (e: React.MouseEvent, force?: boolean) => void;
+  onToggleSet: (e: React.MouseEvent, force?: boolean, keepBoth?: boolean) => void;
   ownedDLC?: string[];
   maskedDLC?: string[];
   casualtyList?: any[];
@@ -26,6 +26,7 @@ interface ModCardProps {
   anarchyRules?: any;
   hideIneligible?: boolean;
   isFlavorSwap?: boolean;
+  exclusiveSlotName?: string;
   onInspectItem?: any;
   onContextMenu?: (e: React.MouseEvent) => void;
   id?: string;
@@ -42,10 +43,10 @@ interface ModCardProps {
 
 function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, onToggleSet: _onToggleSet, ownedDLC = [],
   maskedDLC = [], casualtyList = [], tier3List = [], missingDeps = [], isParent = false, isExpanded = false, onExpand: _onExpand = () => { },
-  isBulkMode = false, isSelected = false, onToggleSelect: _onToggleSelect, onResolveConflict: _onResolveConflict, anarchyRules = null, hideIneligible = false, isFlavorSwap = false,
+  isBulkMode = false, isSelected = false, onToggleSelect: _onToggleSelect, onResolveConflict: _onResolveConflict, anarchyRules = null, hideIneligible = false, isFlavorSwap = false, exclusiveSlotName,
   onInspectItem: _onInspectItem, onContextMenu: _onContextMenu, id, compact = false, layout = "standard", isGhostPlaceholder = false, hideHitBox = false, flavorGhostReason, isSelfGhosted, isSelfSwapped, isSelfBetaSwap, _callbacksRef }: ModCardProps) {
   const onSelect = (e: any) => (_callbacksRef?.current?.onSelect || _onSelect)?.(e);
-  const onToggleSet = (e: any, force?: boolean) => (_callbacksRef?.current?.onToggleSet || _onToggleSet)?.(e, force);
+  const onToggleSet = (e: any, force?: boolean, keepBoth?: boolean) => (_callbacksRef?.current?.onToggleSet || _onToggleSet)?.(e, force, keepBoth);
   const onExpand = (e?: any) => (_callbacksRef?.current?.onExpand || _onExpand)?.(e);
   const onToggleSelect = () => (_callbacksRef?.current?.onToggleSelect || _onToggleSelect)?.();
   const onResolveConflict = (e: any, t3: any, m: any, winner?: string) => (_callbacksRef?.current?.onResolveConflict || _onResolveConflict)?.(e, t3, m, winner);
@@ -207,9 +208,9 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
       if (hasTier3) { setConfirmMode('tier3'); return; }
       if (brokenMods.length > 0) { setConfirmMode('broken'); return; }
     }
-    if (isInActiveSet && isFlavorSwap) { setConfirmMode('flavor_swap'); return; }
+    if (isInActiveSet && isFlavorSwap && casualtyList.length > 0) { setConfirmMode('flavor_swap'); return; }
     if (isInActiveSet && casualtyList.length > 0) { setConfirmMode('casualty'); return; }
-    onToggleSet(e, true);
+    onToggleSet(e, true, false);
   };
 
   const chipClass =
@@ -527,7 +528,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                       <HoverTooltip
                         className="z-[100] !right-0 !translate-x-0 !left-auto"
                         variant={isShadowed && !isSwappedState ? 'danger' : isSwappedState ? 'accent' : 'warning'}
-                        title={isNemesisEquipped ? t("fatal_conflict", "Severity 4 Collision") : isGameVersionMismatch ? t("unsupported_version", "Unsupported Game Version") : hasMissingDeps ? t("missing_artifacts", "Missing {Mods}") : isGhosted ? t("missing_dlc", "Missing DLC") : isSwappedState ? (isBetaSwap ? t("badge_beta", "BETA") : (t("flavor_swap", "Flavor Swap"))) : t("tier3_conflict", "Severity 3 Collision")}
+                        title={isNemesisEquipped ? t("fatal_conflict", "Severity 4 Collision") : isGameVersionMismatch ? t("unsupported_version", "Unsupported Game Version") : hasMissingDeps ? t("missing_artifacts", "Missing {Mods}") : isGhosted ? t("missing_dlc", "Missing DLC") : isSwappedState ? (isBetaSwap ? t("badge_beta", "BETA") : exclusiveSlotName ? `${t("highlander_exclusive_slot", "Exclusive Slot")}: ${exclusiveSlotName}` : t("flavor_swap", "Flavor Swap")) : t("tier3_conflict", "Severity 3 Collision")}
                         subtitle={isNemesisEquipped
                           ? formatDisplayName(casualtyList[0]?.name || casualtyList[0] || "") + (casualtyList[0]?.note ? ` - ${casualtyList[0].note}` : "") + (casualtyList.length > 1 ? ` (+${casualtyList.length - 1})` : "")
                           : isGameVersionMismatch
@@ -607,7 +608,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                       {delayedConfirmMode === 'flavor_swap' ? t("icon_swap_horiz", "swap_horiz") : delayedConfirmMode === 'dlc' ? (isGameVersionMismatch ? t("icon_sports_esports", "sports_esports") : hasMissingDeps ? t("icon_extension", "extension") : t("icon_currency_exchange", "currency_exchange")) : delayedConfirmMode === 'broken' ? t("icon_warning", "warning") : delayedConfirmMode === 'casualty' ? (!isInActiveSet ? t("icon_crisis_alert", "crisis_alert") : t("icon_delete", "delete")) : delayedConfirmMode === 'tier3' ? t("icon_tune", "tune") : t("icon_delete", "delete")}
                     </span>
                     <span className="truncate">
-                      {String(delayedConfirmMode === 'dlc' ? (isGameVersionMismatch ? t("unsupported_version", "Unsupported Game Version") : hasMissingDeps ? t("missing_artifacts", "Missing {Mods}") : t("missing_dlc", "Missing DLC")) : (delayedConfirmMode === 'casualty' || delayedConfirmMode === 'flavor_swap') ? (delayedConfirmMode === 'flavor_swap' ? (isBetaSwap ? t("badge_beta", "BETA") : (t("flavor_swap", "Flavor Swap"))) : (!isInActiveSet ? t("fatal_conflict", "Severity 4 Collision") : t("yeet_cascade", "Delete Cascade:"))) : delayedConfirmMode === 'broken' ? t("broken_artifacts", "Corrupted {Mods}") : t("tier3_conflict", "Severity 3 Collision")).replace(/:$/, '')}
+                      {String(delayedConfirmMode === 'dlc' ? (isGameVersionMismatch ? t("unsupported_version", "Unsupported Game Version") : hasMissingDeps ? t("missing_artifacts", "Missing {Mods}") : t("missing_dlc", "Missing DLC")) : (delayedConfirmMode === 'casualty' || delayedConfirmMode === 'flavor_swap') ? (delayedConfirmMode === 'flavor_swap' ? (isBetaSwap ? t("badge_beta", "BETA") : exclusiveSlotName ? `${t("highlander_exclusive_slot", "Exclusive Slot")}: ${exclusiveSlotName}` : t("flavor_swap", "Flavor Swap")) : (!isInActiveSet ? t("fatal_conflict", "Severity 4 Collision") : t("yeet_cascade", "Delete Cascade:"))) : delayedConfirmMode === 'broken' ? t("broken_artifacts", "Corrupted {Mods}") : t("tier3_conflict", "Severity 3 Collision")).replace(/:$/, '')}
                     </span>
                   </div>
 
@@ -851,16 +852,35 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                       </button>
                     )}
                   </>
+                ) : delayedConfirmMode === 'flavor_swap' ? (
+                  <>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-black text-[9.5px] uppercase tracking-wider px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words transition-all cursor-pointer text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]">
+                      <span className="material-symbols-outlined !text-[13px] shrink-0">{t("icon_swap_horiz", "swap_horiz")}</span>
+                      <span>{t("btn_swap_mods", "Swap {Mods}")}</span>
+                    </button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                      <span className="material-symbols-outlined !text-[13px] shrink-0 text-[var(--warning)]">{t("icon_layers", "layers")}</span>
+                      <span>{t("btn_keep_both", "Keep Both")}</span>
+                    </button>
+                  </>
                 ) : (
-                  <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className={`flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-black text-[9.5px] uppercase tracking-wider px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words transition-all cursor-pointer ${delayedConfirmMode === 'flavor_swap' ? 'text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]' : 'text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)]'}`}>
-                    <span className="material-symbols-outlined !text-[13px] shrink-0">{delayedConfirmMode === 'flavor_swap' ? t("icon_swap_horiz", "swap_horiz") : t("icon_delete", "delete")}</span>
-                    <span>{delayedConfirmMode === 'flavor_swap' ? t("btn_swap_confirm", "Swap Files") : t("btn_purge_confirm", "{Remove} {Mods}")}</span>
+                  <>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-black text-[9.5px] uppercase tracking-wider px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words transition-all cursor-pointer text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)]">
+                      <span className="material-symbols-outlined !text-[13px] shrink-0">{t("icon_delete", "delete")}</span>
+                      <span>{t("btn_purge_confirm", "{Remove} {Mods}")}</span>
+                    </button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--text)] hover:text-[var(--success)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                      <span className="material-symbols-outlined !text-[13px] shrink-0 text-[var(--success)]">{t("icon_shield", "shield")}</span>
+                      <span>{t("btn_safety", "Back to Safety")}</span>
+                    </button>
+                  </>
+                )}
+                {(delayedConfirmMode === 'tier3' || delayedConfirmMode === 'broken' || delayedConfirmMode === 'dlc') && (
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--text)] hover:text-[var(--success)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                    <span className="material-symbols-outlined !text-[13px] shrink-0 text-[var(--success)]">{t("icon_shield", "shield")}</span>
+                    <span>{t("btn_safety", "Back to Safety")}</span>
                   </button>
                 )}
-                <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--text)] hover:text-[var(--success)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
-                  <span className="material-symbols-outlined !text-[13px] shrink-0 text-[var(--success)]">{t("icon_shield", "shield")}</span>
-                  <span>{t("btn_safety", "Back to Safety")}</span>
-                </button>
                 </div>
 
               </div>
@@ -891,6 +911,7 @@ const arePropsEqual = (prev: any, next: any) => {
     prev.isBulkMode === next.isBulkMode &&
     prev.gameVersion === next.gameVersion &&
     prev.isFlavorSwap === next.isFlavorSwap &&
+    prev.exclusiveSlotName === next.exclusiveSlotName &&
     (prev.casualtyList || []).length === (next.casualtyList || []).length &&
     (prev.tier3List || []).length === (next.tier3List || []).length &&
     prev.isSelfSwapped === next.isSelfSwapped &&

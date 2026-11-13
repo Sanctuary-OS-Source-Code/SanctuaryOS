@@ -111,7 +111,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
 
   const isVerifiedMason = !masonProfile?.isUnverifiedLocal && (
     masonProfile?.is_verified === true ||
-    ["mason", "architect", "senior_architect", "oversight", "wayfinder", "admin"].includes(userRole) ||
+    ["architect", "senior_architect", "oversight", "wayfinder", "admin"].includes(userRole) ||
     ["core_dev", "admin", "keeper"].includes(osRole)
   );
 

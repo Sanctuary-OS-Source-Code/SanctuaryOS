@@ -42,6 +42,9 @@ import {
   ActionPill,
   isScriptExtension,
   isModBinaryExtension,
+  resolveModHighlanderSlot,
+  toHighlanderSlotSlug,
+  formatHighlanderSlotLabel,
 } from "./shared";
 import {
   normalizeModGroupTitle,
@@ -89,7 +92,6 @@ function collectAllCandidateUuids(target: any): string[] {
     add(target.baseFamilyId);
     add(target.familyId);
     add(target.collectionId);
-    add(target.flavorGroupId);
   }
   add(target.name);
   if (Array.isArray(target._groupedIds)) {
@@ -189,6 +191,8 @@ function pickFirstValidAuthor(t: any, ...candidates: any[]): string {
 }
 
 const MOD_SELECT =
+  "id, name, created_at, category_override, master_author, mason_id, masons(name), compliance_tier, image_url, description, url, compatible_versions, requiredDLC, status, status_reason, is_paid, is_early_access, highlander_group_id, mod_versions(dna_hash, version_label, created_at)";
+const MOD_SELECT_LEGACY =
   "id, name, created_at, category_override, master_author, mason_id, masons(name), compliance_tier, image_url, description, url, compatible_versions, requiredDLC, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label, created_at)";
 
 const spokeMetadataCache = new Map<string, any>();
@@ -294,22 +298,38 @@ async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | nul
   let matchedMods: any[] = [];
 
   if (candidateIds.length > 0) {
-    const { data } = await supabase
+    let { data, error } = await supabase
       .from("mods")
       .select(MOD_SELECT)
       .in("id", candidateIds.slice(0, 20));
+    if (error) {
+      const fb = await supabase
+        .from("mods")
+        .select(MOD_SELECT_LEGACY)
+        .in("id", candidateIds.slice(0, 20));
+      data = fb.data as any;
+    }
     if (Array.isArray(data) && data.length > 0) {
       matchedMods = data;
     }
   }
 
   if (matchedMods.length === 0 && candidateHash) {
-    const { data: vRow } = await supabase
+    let { data: vRow, error: vErr } = await supabase
       .from("mod_versions")
       .select(`mod_id, dna_hash, mods(${MOD_SELECT})`)
       .eq("dna_hash", candidateHash)
       .limit(1)
       .maybeSingle();
+    if (vErr) {
+      const fbV = await supabase
+        .from("mod_versions")
+        .select(`mod_id, dna_hash, mods(${MOD_SELECT_LEGACY})`)
+        .eq("dna_hash", candidateHash)
+        .limit(1)
+        .maybeSingle();
+      vRow = fbV.data as any;
+    }
     if (vRow?.mods) {
       const mObj = Array.isArray(vRow.mods) ? vRow.mods[0] : vRow.mods;
       if (mObj) matchedMods = [mObj];
@@ -317,11 +337,19 @@ async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | nul
   }
 
   if (matchedMods.length === 0 && candidateName) {
-    const { data } = await supabase
+    let { data, error } = await supabase
       .from("mods")
       .select(MOD_SELECT)
       .ilike("name", candidateName)
       .limit(3);
+    if (error) {
+      const fb = await supabase
+        .from("mods")
+        .select(MOD_SELECT_LEGACY)
+        .ilike("name", candidateName)
+        .limit(3);
+      data = fb.data as any;
+    }
     if (Array.isArray(data) && data.length > 0) {
       matchedMods = data;
     }
@@ -386,9 +414,13 @@ async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | nul
         chunks.push(cappedIds.slice(i, i + 150));
       }
       const chunkResults = await Promise.all(
-        chunks.map((chunk) =>
-          supabase.from("mods").select(MOD_SELECT).in("id", chunk)
-        )
+        chunks.map(async (chunk) => {
+          const r = await supabase.from("mods").select(MOD_SELECT).in("id", chunk);
+          if (r.error) {
+            return supabase.from("mods").select(MOD_SELECT_LEGACY).in("id", chunk);
+          }
+          return r;
+        })
       );
       for (const res of chunkResults) {
         if (Array.isArray(res.data)) {
@@ -535,6 +567,35 @@ async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | nul
     relatedMods.find((m: any) => m?.created_at)?.created_at ||
     undefined;
 
+  const resolvedHighlanderGroupId =
+    matchedMods.find((m: any) => m?.highlander_group_id)?.highlander_group_id ||
+    relatedMods.find((m: any) => m?.highlander_group_id)?.highlander_group_id ||
+    undefined;
+  let resolvedHighlanderSlotKey: string | undefined;
+  let resolvedHighlanderSlotName: string | undefined;
+  if (resolvedHighlanderGroupId) {
+    let { data: fgRow, error: fgErr } = await supabase
+      .from("flavor_groups")
+      .select("id, name, slug")
+      .eq("id", resolvedHighlanderGroupId)
+      .maybeSingle();
+    if (fgErr) {
+      const fbFg = await supabase
+        .from("flavor_groups")
+        .select("id, name")
+        .eq("id", resolvedHighlanderGroupId)
+        .maybeSingle();
+      fgRow = fbFg.data as any;
+    }
+    if (fgRow) {
+      resolvedHighlanderSlotKey = toHighlanderSlotSlug(
+        (fgRow as any).slug || (fgRow as any).name || String(resolvedHighlanderGroupId)
+      );
+      resolvedHighlanderSlotName =
+        (fgRow as any).name || formatHighlanderSlotLabel(resolvedHighlanderSlotKey);
+    }
+  }
+
   const hydratedByIdMap: Record<string, any> = {};
   for (const row of allCandidates) {
     if (!row?.id) continue;
@@ -592,6 +653,9 @@ async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | nul
     compliance_tier: primaryMod?.compliance_tier ?? undefined,
     is_paid: matchedMods.some((m: any) => Boolean(m?.is_paid)),
     is_early_access: matchedMods.some((m: any) => Boolean(m?.is_early_access)),
+    highlanderGroupId: resolvedHighlanderGroupId ? String(resolvedHighlanderGroupId) : undefined,
+    highlanderSlotKey: resolvedHighlanderSlotKey,
+    highlanderSlotName: resolvedHighlanderSlotName,
     mod_versions: allVersions.length > 0 ? allVersions : undefined,
     requirements: hydratedRequirements.length > 0 ? hydratedRequirements : undefined,
     twins: hydratedTwins.length > 0 ? hydratedTwins : undefined,
@@ -902,6 +966,25 @@ function mergeHydratedMod(
         hydratedMeta?.is_early_access ||
         childSources.some((cs: any) => Boolean(cs?.is_early_access))
     ),
+    highlanderGroupId:
+      baseMod.highlanderGroupId ||
+      baseMod.highlander_group_id ||
+      hydratedMeta?.highlanderGroupId ||
+      childSources.find((cs: any) => cs?.highlanderGroupId || cs?.highlander_group_id)
+        ?.highlanderGroupId ||
+      undefined,
+    highlanderSlotKey:
+      baseMod.highlanderSlotKey ||
+      baseMod.highlander_slot_key ||
+      hydratedMeta?.highlanderSlotKey ||
+      childSources.find((cs: any) => cs?.highlanderSlotKey)?.highlanderSlotKey ||
+      undefined,
+    highlanderSlotName:
+      baseMod.highlanderSlotName ||
+      baseMod.highlander_slot_name ||
+      hydratedMeta?.highlanderSlotName ||
+      childSources.find((cs: any) => cs?.highlanderSlotName)?.highlanderSlotName ||
+      undefined,
     mod_versions:
       baseMod.mod_versions ||
       hydratedMeta?.mod_versions ||
@@ -3173,12 +3256,19 @@ export default function ModDossier({
     const seenFatal = new Set<string>();
     const seenTier3 = new Set<string>();
 
+    const getModBaseFamilyKey = (x: any): string =>
+      String(x?.baseFamilyId || x?.familyId || x?.dbId || x?.name || "")
+        .split("@")[0]
+        .trim()
+        .toLowerCase();
+
     const equippedModObjects = vaultIndex.physicalMods.filter(
       (m: any) => m?.name && !targetNameSet.has(m.name) && isModNameEquipped(m.name)
     );
     const equippedRivalCandidates = equippedModObjects.filter(
       (eq: any) =>
-        eq.flavorGroupId != null ||
+        resolveModHighlanderSlot(eq) != null ||
+        eq.relationshipType === "flavor" ||
         eq.communityGroupId != null ||
         eq.relationshipType === "beta"
     );
@@ -3207,42 +3297,41 @@ export default function ModDossier({
       }
     }
 
+    const matchedExclusiveSlots: string[] = [];
+
     resolvedTargets.forEach((tm) => {
       if (!tm) return;
       if (anarchyRules?.highlander !== false) {
-        if (mod?.isFlavorFolder && Array.isArray(mod.flavors)) {
-          mod.flavors.forEach((fl: any) => {
-            if (
-              fl?.name &&
-              fl.name !== tm.name &&
-              !targetNameSet.has(fl.name) &&
-              isModNameEquipped(fl.name) &&
-              !seenRivals.has(fl.name)
-            ) {
-              seenRivals.add(fl.name);
-              flavorRivals.push(fl);
-            }
-          });
-        }
-
+        const tmSlot = resolveModHighlanderSlot(tm) || resolveModHighlanderSlot(mod);
+        const tmBaseFam = getModBaseFamilyKey(tm);
         if (
-          tm.flavorGroupId != null ||
+          tmSlot != null ||
+          tm.relationshipType === "flavor" ||
           tm.communityGroupId != null ||
           tm.relationshipType === "beta" ||
           equippedRivalCandidates.length > 0
         ) {
           equippedRivalCandidates.forEach((eq: any) => {
             if (eq.name === tm.name) return;
-            const isFlavorRival =
-              tm.flavorGroupId &&
-              eq.flavorGroupId &&
-              String(tm.flavorGroupId) === String(eq.flavorGroupId) &&
-              tm.relationshipType !== "twin" &&
-              eq.relationshipType !== "twin";
-            const isCommunityRival =
+            const eqSlot = resolveModHighlanderSlot(eq);
+            const eqBaseFam = getModBaseFamilyKey(eq);
+            const isHighlanderSlotRival = Boolean(
+              tmSlot &&
+                eqSlot &&
+                tmSlot.key === eqSlot.key &&
+                eqBaseFam !== tmBaseFam
+            );
+            const isIntraFamilyFlavorRival = Boolean(
+              tm.relationshipType === "flavor" &&
+                eq.relationshipType === "flavor" &&
+                tmBaseFam &&
+                eqBaseFam === tmBaseFam
+            );
+            const isCommunityRival = Boolean(
               tm.communityGroupId &&
-              eq.communityGroupId &&
-              String(tm.communityGroupId) === String(eq.communityGroupId);
+                eq.communityGroupId &&
+                String(tm.communityGroupId) === String(eq.communityGroupId)
+            );
             const isBetaRival =
               ((tm.relationshipType === "beta" && eq.relationshipType !== "beta") ||
                 (tm.relationshipType !== "beta" && eq.relationshipType === "beta")) &&
@@ -3251,11 +3340,38 @@ export default function ModDossier({
                 String(eq.dbId) === String(tm.familyId || tm.dbId));
 
             if (
-              (isFlavorRival || isCommunityRival || isBetaRival) &&
-              !seenRivals.has(eq.name)
+              isHighlanderSlotRival ||
+              isIntraFamilyFlavorRival ||
+              isCommunityRival ||
+              isBetaRival
             ) {
-              seenRivals.add(eq.name);
-              flavorRivals.push(eq);
+              const rivalKey = isHighlanderSlotRival ? eqBaseFam || eq.name : eq.name;
+              if (!seenRivals.has(rivalKey)) {
+                seenRivals.add(rivalKey);
+                let displayTitle = eq.displayName || eq.name || "";
+                if (isHighlanderSlotRival && (eq.familyId || eq.dbId)) {
+                  const parentCandidates =
+                    vaultIndex.byUuid.get(
+                      extractCleanUuid(eq.baseFamilyId, eq.familyId, eq.dbId).toLowerCase()
+                    ) || [];
+                  const virtualParent = parentCandidates.find((p: any) => p?.isVirtual && p?.displayName);
+                  if (virtualParent?.displayName) {
+                    displayTitle = virtualParent.displayName;
+                  }
+                }
+                if (
+                  isHighlanderSlotRival &&
+                  tmSlot?.label &&
+                  !matchedExclusiveSlots.includes(tmSlot.label)
+                ) {
+                  matchedExclusiveSlots.push(tmSlot.label);
+                }
+                flavorRivals.push({
+                  ...eq,
+                  _displayTitle: displayTitle,
+                  _slotLabel: isHighlanderSlotRival ? tmSlot?.label : undefined,
+                });
+              }
             }
           });
         }
@@ -3354,6 +3470,7 @@ export default function ModDossier({
       missingDeps,
       brokenMods,
       flavorRivals,
+      exclusiveSlotName: matchedExclusiveSlots[0] || "",
       fatalConflicts,
       tier3Conflicts,
     };
@@ -3414,8 +3531,17 @@ export default function ModDossier({
         : forceMode === "add"
           ? false
           : isCurrentlyEquipped;
-    const doToggle = () => {
-      onToggleInActiveSet(targetName, false, shouldRemove, !shouldRemove);
+    const doToggle = (swapOpts?: {
+      confirmedSwap?: boolean;
+      skipHighlanderSwap?: boolean;
+    }) => {
+      onToggleInActiveSet(
+        targetName,
+        false,
+        shouldRemove,
+        !shouldRemove,
+        swapOpts
+      );
       if (
         selectedKid &&
         selectedKid.name === targetName &&
@@ -3428,7 +3554,7 @@ export default function ModDossier({
     if (shouldRemove) {
       const c = getCasualties(targetName);
       if (c.length > 0) {
-        triggerYeetCascadeAlert(c, doToggle);
+        triggerYeetCascadeAlert(c, () => doToggle());
         return;
       }
     } else {
@@ -3438,12 +3564,16 @@ export default function ModDossier({
           mode: "pre_equip",
           targetLabel: formatDisplayName(targetName),
           ...alerts,
-          onConfirm: doToggle,
+          onConfirm: () => doToggle({ confirmedSwap: true }),
+          onKeepBoth:
+            alerts.flavorRivals.length > 0
+              ? () => doToggle({ skipHighlanderSwap: true })
+              : undefined,
         });
         return;
       }
     }
-    doToggle();
+    doToggle({ confirmedSwap: true });
   };
 
   const safeToggleGroup = (groupItem: any) => {
@@ -3471,14 +3601,17 @@ export default function ModDossier({
     }
 
     const isGroupEquipped = validNames.some((n) => isModNameEquipped(n));
-    const performGroupToggle = () => {
+    const performGroupToggle = (swapOpts?: {
+      confirmedSwap?: boolean;
+      skipHighlanderSwap?: boolean;
+    }) => {
       if (isGroupEquipped) {
         const toRem = validNames.filter((n) => isModNameEquipped(n));
         if (toRem.length > 0) {
           onToggleInActiveSet(toRem, false, true, false);
         }
       } else {
-        onToggleInActiveSet(validNames, false, false, true);
+        onToggleInActiveSet(validNames, false, false, true, swapOpts);
       }
     };
 
@@ -3490,7 +3623,7 @@ export default function ModDossier({
     if (isGroupEquipped) {
       const c = getBatchCasualties(validNames, groupLabel);
       if (c.length > 0) {
-        triggerYeetCascadeAlert(c, performGroupToggle);
+        triggerYeetCascadeAlert(c, () => performGroupToggle());
         return;
       }
     } else {
@@ -3500,13 +3633,17 @@ export default function ModDossier({
           mode: "pre_equip",
           targetLabel: groupLabel,
           ...alerts,
-          onConfirm: performGroupToggle,
+          onConfirm: () => performGroupToggle({ confirmedSwap: true }),
+          onKeepBoth:
+            alerts.flavorRivals.length > 0
+              ? () => performGroupToggle({ skipHighlanderSwap: true })
+              : undefined,
         });
         return;
       }
     }
 
-    performGroupToggle();
+    performGroupToggle({ confirmedSwap: true });
   };
 
   const handleToggleAll = () => {
@@ -3539,9 +3676,12 @@ export default function ModDossier({
       const unequippedNames = allEquippableManifestNames.filter(
         (n) => !isModNameEquipped(n)
       );
-      const doEquipAll = () => {
+      const doEquipAll = (swapOpts?: {
+        confirmedSwap?: boolean;
+        skipHighlanderSwap?: boolean;
+      }) => {
         if (unequippedNames.length > 0) {
-          onToggleInActiveSet(unequippedNames, false, false, true);
+          onToggleInActiveSet(unequippedNames, false, false, true, swapOpts);
         }
       };
       const alerts = evaluatePreEquipAlerts(unequippedNames, [mod]);
@@ -3550,11 +3690,15 @@ export default function ModDossier({
           mode: "pre_equip",
           targetLabel: rootLabel,
           ...alerts,
-          onConfirm: doEquipAll,
+          onConfirm: () => doEquipAll({ confirmedSwap: true }),
+          onKeepBoth:
+            alerts.flavorRivals.length > 0
+              ? () => doEquipAll({ skipHighlanderSwap: true })
+              : undefined,
         });
         return;
       }
-      doEquipAll();
+      doEquipAll({ confirmedSwap: true });
     }
   };
 
@@ -3679,6 +3823,14 @@ export default function ModDossier({
           flavors: Array.isArray(mod.flavors)
             ? mod.flavors.map((f: any) => f.hash).filter(Boolean)
             : [],
+          ...(resolveModHighlanderSlot(mod)
+            ? {
+                highlander_group: {
+                  slug: resolveModHighlanderSlot(mod)!.key,
+                  name: resolveModHighlanderSlot(mod)!.name,
+                },
+              }
+            : {}),
         },
         virtual_filesystem: {
           overrides: [],
@@ -4247,14 +4399,21 @@ export default function ModDossier({
                 ? `.${(mod.name || "").split(".").pop()?.toUpperCase()}`
                 : isCollection
                   ? t("collection", "Collection")
-                  : mod.isFlavorFolder
-                    ? t("exclusive", "Exclusive")
-                    : mod.isParent
-                      ? t("folder", "Folder")
-                      : localCategory || t("label_artifact", "{Mod}")
+                  : mod.isParent
+                    ? t("folder", "Folder")
+                    : localCategory || t("label_artifact", "{Mod}")
             }
             badgeIcon={t("icon_inventory_2", "inventory_2")}
             badges={[
+              ...(resolveModHighlanderSlot(mod)
+                ? [
+                    {
+                      label: `${t("highlander_exclusive_slot", "Exclusive Slot")}: ${resolveModHighlanderSlot(mod)!.name}`,
+                      icon: t("icon_swap_horiz", "swap_horiz"),
+                      colorClass: "text-[var(--accent)]",
+                    },
+                  ]
+                : []),
               ...((editMode ? metaInputs.is_early_access : mod.is_early_access)
                 ? [
                     {
@@ -4477,15 +4636,21 @@ export default function ModDossier({
                     value={
                       isCollection
                         ? t("collection", "Collection")
-                        : mod.isFlavorFolder
-                          ? t("exclusive", "Exclusive")
-                          : mod.isParent
-                            ? t("folder", "Folder")
-                            : localCategory || t("uncategorized", "Uncategorized")
+                        : mod.isParent
+                          ? t("folder", "Folder")
+                          : localCategory || t("uncategorized", "Uncategorized")
                     }
                     icon={t("icon_category", "category")}
                     iconColorClass="text-[var(--accent)]"
                   />
+                  {resolveModHighlanderSlot(mod) && (
+                    <StatBox
+                      label={t("highlander_exclusive_slot", "Exclusive Slot")}
+                      value={resolveModHighlanderSlot(mod)!.name}
+                      icon={t("icon_swap_horiz", "swap_horiz")}
+                      iconColorClass="text-[var(--accent)]"
+                    />
+                  )}
                   <StatBox
                     label={t("tab_compliance", "Compliance")}
                     value={
@@ -5649,6 +5814,12 @@ export default function ModDossier({
             cb?.();
           };
 
+          const handleKeepBothDossierAlert = () => {
+            const cb = dossierAlertPending.onKeepBoth;
+            setDossierAlertPending(null);
+            cb?.();
+          };
+
           if (isCascade) {
             const casualties: string[] = Array.isArray(
               dossierAlertPending.casualties
@@ -5756,9 +5927,14 @@ export default function ModDossier({
             missingDeps = [],
             brokenMods = [],
             flavorRivals = [],
+            exclusiveSlotName = "",
             fatalConflicts = [],
             tier3Conflicts = [],
           } = dossierAlertPending;
+
+          const swapSlotTitle = exclusiveSlotName
+            ? `${t("highlander_exclusive_slot", "Exclusive Slot")}: ${exclusiveSlotName}`
+            : t("flavor_swap", "Flavor Swap");
 
           const primaryTitle = isGameVersionMismatch
             ? t("unsupported_version", "Unsupported Game Version")
@@ -5771,7 +5947,7 @@ export default function ModDossier({
                   : fatalConflicts.length > 0
                     ? t("fatal_conflict", "Severity 4 Collision")
                     : flavorRivals.length > 0
-                      ? t("flavor_swap", "Flavor Swap")
+                      ? swapSlotTitle
                       : t("tier3_conflict", "Severity 3 Collision");
 
           const primaryIcon = isGameVersionMismatch
@@ -5799,6 +5975,12 @@ export default function ModDossier({
                 ? "accent"
                 : "warning";
 
+          const isSwapPrimary = primaryVariant === "accent" && flavorRivals.length > 0;
+          const primaryConfirmLabel =
+            flavorRivals.length > 0
+              ? t("btn_swap_mods", "Swap {Mods}")
+              : t("btn_equip", "Equip {Mod}");
+
           return (
             <SidePanel
               isOpen={true}
@@ -5819,9 +6001,19 @@ export default function ModDossier({
               headerActions={
                 <PanelHeaderGroup>
                   <PanelHeaderButton
-                    icon={t("icon_check", "check")}
-                    tooltip={t("btn_equip", "Equip {Mod}")}
-                    variant={primaryVariant === "danger" ? "danger" : "warning"}
+                    icon={
+                      isSwapPrimary
+                        ? t("icon_swap_horiz", "swap_horiz")
+                        : t("icon_check", "check")
+                    }
+                    tooltip={primaryConfirmLabel}
+                    variant={
+                      primaryVariant === "danger"
+                        ? "danger"
+                        : primaryVariant === "accent"
+                          ? "accent"
+                          : "warning"
+                    }
                     onClick={handleConfirmDossierAlert}
                   />
                 </PanelHeaderGroup>
@@ -5830,15 +6022,32 @@ export default function ModDossier({
               <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
                 <SidePanelHeroCard
                   icon={primaryIcon}
-                  overline={t("protocol_override", "Protocol Override")}
-                  title={primaryTitle}
-                  description={targetLabel || cleanArtifactTitle}
-                  badge={
-                    selectedVersion
-                      ? `${t("label_game_version", "Game Version")}: ${selectedVersion}`
-                      : undefined
+                  overline={
+                    isSwapPrimary
+                      ? t("highlander_exclusive_slot", "Exclusive Slot")
+                      : t("protocol_override", "Protocol Override")
                   }
-                  badgeIcon={t("icon_sports_esports", "sports_esports")}
+                  title={primaryTitle}
+                  description={
+                    isSwapPrimary
+                      ? t(
+                          "highlander_swap_prompt_desc",
+                          "Another {mod} in this exclusive slot is already equipped. Swap to replace it cleanly, or keep both equipped and track the overlap in Conflict Radar."
+                        )
+                      : targetLabel || cleanArtifactTitle
+                  }
+                  badge={
+                    exclusiveSlotName
+                      ? exclusiveSlotName
+                      : selectedVersion
+                        ? `${t("label_game_version", "Game Version")}: ${selectedVersion}`
+                        : undefined
+                  }
+                  badgeIcon={
+                    exclusiveSlotName
+                      ? t("icon_swap_horiz", "swap_horiz")
+                      : t("icon_sports_esports", "sports_esports")
+                  }
                   variant={primaryVariant}
                 >
                   <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
@@ -5848,10 +6057,28 @@ export default function ModDossier({
                       label={t("cancel", "Cancel")}
                       onClick={() => setDossierAlertPending(null)}
                     />
+                    {flavorRivals.length > 0 && dossierAlertPending.onKeepBoth && (
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_layers", "layers")}
+                        label={t("btn_keep_both", "Keep Both")}
+                        onClick={handleKeepBothDossierAlert}
+                      />
+                    )}
                     <ActionButton
-                      variant={primaryVariant === "danger" ? "danger" : "warning"}
-                      icon={t("icon_add_circle_outline", "add_circle_outline")}
-                      label={t("btn_equip", "Equip {Mod}")}
+                      variant={
+                        primaryVariant === "danger"
+                          ? "danger"
+                          : primaryVariant === "accent"
+                            ? "accent"
+                            : "warning"
+                      }
+                      icon={
+                        flavorRivals.length > 0
+                          ? t("icon_swap_horiz", "swap_horiz")
+                          : t("icon_add_circle_outline", "add_circle_outline")
+                      }
+                      label={primaryConfirmLabel}
                       onClick={handleConfirmDossierAlert}
                     />
                   </div>
@@ -5989,7 +6216,7 @@ export default function ModDossier({
 
                 {flavorRivals.length > 0 && (
                   <UniversalGroup
-                    title={`${t("flavor_swap", "Flavor Swap")} (${flavorRivals.length})`}
+                    title={`${swapSlotTitle} (${flavorRivals.length})`}
                     icon={t("icon_swap_horiz", "swap_horiz")}
                     headerColorClass="text-[var(--accent)]"
                   >
@@ -6006,7 +6233,7 @@ export default function ModDossier({
                               </span>
                             </div>
                             <span className="text-xs sm:text-sm font-bold text-[var(--text)] truncate">
-                              {formatDisplayName(rv.displayName || rv.name || "")}
+                              {formatDisplayName(rv._displayTitle || rv.displayName || rv.name || "")}
                             </span>
                           </div>
                           <span className={`${VAULT_CHIP_CLASS} shrink-0`}>

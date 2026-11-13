@@ -7,6 +7,7 @@ import {
   UniversalGroup,
   DashboardStatTile,
   HoverTooltip,
+  resolveModHighlanderSlot,
 } from "../shared";
 
 type GuideTabId = "workflow" | "hosting" | "lineage" | "templates";
@@ -139,10 +140,24 @@ export function StaticPollingGuideSidePanel({
         required_dlc: activeDlcIds.length > 0 ? activeDlcIds : [sampleDlcCode],
       },
       atomic_logic: {
+        required_dlc: activeDlcIds.length > 0 ? activeDlcIds : [sampleDlcCode],
         dependencies: depList,
         twins: [],
         addons: [],
         conflicts: confList,
+        ...(resolveModHighlanderSlot(mod)
+          ? {
+              highlander_group: {
+                slug: resolveModHighlanderSlot(mod)!.key,
+                name: resolveModHighlanderSlot(mod)!.name,
+              },
+            }
+          : {
+              highlander_group: {
+                slug: "main-menu-replacements",
+                name: "Main Menu Replacements",
+              },
+            }),
       },
       workbench: {
         config_files: [],
@@ -315,6 +330,17 @@ export function StaticPollingGuideSidePanel({
       desc: t(
         "edge_guide_lineage_rules_desc",
         "In Rules & Upload, dependencies and conflicts can reference other {mods} by SHA-256 hash, Registry UUID, or plain {mod} name (e.g., 'Core Framework'). Sanctuary OS resolves both object rules and plain string names automatically."
+      ),
+    },
+    {
+      icon: t("icon_swap_horiz", "swap_horiz"),
+      title: t(
+        "edge_guide_highlander_title",
+        "Highlander Exclusive Slots (highlander_group)"
+      ),
+      desc: t(
+        "edge_guide_highlander_desc",
+        "Building a {mod} where only one of its kind can be active at once (such as Main Menu Replacements or Global Lighting Presets)? Set an Exclusive Slot in Rules & Upload to embed atomic_logic.highlander_group into your .sanctuary.manifest.json. Sanctuary OS automatically swaps out rival {mods} sharing that slot slug on equip—even across Spoke Cloud and independent Static Edge {mods}!"
       ),
     },
   ];

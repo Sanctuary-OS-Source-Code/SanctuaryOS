@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { useVerifiedMasonOrStaff } from "../utils/hubCommandCache";
 import {
   SidePanel,
   SidePanelHeroCard,
@@ -30,6 +31,7 @@ export function PushTemplateSidePanel({
   const { t } = useLexicon();
   const pushStatus = useStore((state) => state.pushStatus);
   const session = useStore((state) => state.session);
+  const canPublishNexusAssets = useVerifiedMasonOrStaff();
   const modList = useStore((state) => state.modList) || [];
   const [isUploading, setIsUploading] = useState(false);
 
@@ -142,6 +144,16 @@ export function PushTemplateSidePanel({
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!name.trim()) return;
+    if (!canPublishNexusAssets) {
+      pushStatus(
+        t(
+          "nexus_upload_verified_mason_only",
+          "Publishing Templates, {Lexicons}, and {Chameleons} to {Nexus} requires a Verified {Mason} studio. Local JSON export remains unrestricted."
+        ),
+        "warning"
+      );
+      return;
+    }
 
     setIsUploading(true);
     try {

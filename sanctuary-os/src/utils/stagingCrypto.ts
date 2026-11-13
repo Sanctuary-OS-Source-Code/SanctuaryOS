@@ -328,6 +328,189 @@ export async function buildStagingPairingUrl(baseUrl: string, userId: string): P
   return `${trimmed}#k=${encodeURIComponent(secret)}`;
 }
 
+async function sha256HexUtf8(raw: string): Promise<string> {
+  const encoded = new TextEncoder().encode(raw);
+  const digest = await window.crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/**
+ * Domain-separated Spoke Relink Claim Secret derived from the user's private
+ * `staging_vault_secret_v2` so sharing a Cut-the-Cord relink token with an
+ * independent Spoke never reveals the user's Hub staging encryption secret.
+ */
+export async function deriveSpokeRelinkSecret(
+  userId: string,
+  explicitSecret?: string
+): Promise<string> {
+  const cleanUid = String(userId || "").trim().toLowerCase();
+  if (!cleanUid) {
+    throw new Error("Cannot derive Spoke Relink Secret without a System ID.");
+  }
+  const masterSecret = await resolveStagingVaultSecret(userId, explicitSecret);
+  return sha256HexUtf8(`sanctuary_spoke_relink_secret_v1:${cleanUid}:${masterSecret}`);
+}
+
+/**
+ * Publicly non-invertible SHA-256 commitment hash registered in
+ * `sanctuary_internal.spoke_relink_commitments` while federated.
+ * Matches PostgreSQL `relink_spoke_profile_uuid` byte-for-byte.
+ */
+export async function deriveSpokeRelinkCommitmentHash(
+  userId: string,
+  explicitSecret?: string
+): Promise<string> {
+  const cleanUid = String(userId || "").trim().toLowerCase();
+  const claimSecret = await deriveSpokeRelinkSecret(userId, explicitSecret);
+  return sha256HexUtf8(`sanctuary_spoke_relink_v1:${cleanUid}:${claimSecret}`);
+}
+
+export async function buildSpokeRelinkToken(
+  userId: string,
+  explicitSecret?: string
+): Promise<string> {
+  const cleanUid = String(userId || "").trim().toLowerCase();
+  const claimSecret = await deriveSpokeRelinkSecret(userId, explicitSecret);
+  return `SRK1.${cleanUid}.${claimSecret}`;
+}
+
+export function parseSpokeRelinkToken(
+  rawToken: string
+): { legacyUuid: string; claimSecret: string } | null {
+  const trimmed = String(rawToken || "").trim();
+  if (!trimmed) return null;
+  const withoutPrefix = trimmed.replace(/^SRK1\./i, "");
+  const dotIdx = withoutPrefix.indexOf(".");
+  if (dotIdx <= 0) return null;
+  const legacyUuid = withoutPrefix.slice(0, dotIdx).trim().toLowerCase();
+  const claimSecret = withoutPrefix.slice(dotIdx + 1).trim();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(legacyUuid) || claimSecret.length < 32) {
+    return null;
+  }
+  return { legacyUuid, claimSecret };
+}
+
+export interface EncryptedSupporterVaultPayload {
+  version: 1;
+  syncedAt: string;
+  follows: any[];
+  supporters: any[];
+  removedFollowKeys?: Record<string, number>;
+  removedSupporterKeys?: Record<string, number>;
+}
+
+export async function deriveUserSupporterVaultToken(
+  userId: string,
+  email?: string,
+  explicitSecret?: string
+): Promise<string> {
+  const secret = await resolveStagingVaultSecret(userId, explicitSecret);
+  return sha256HexUtf8(
+    `sanctuary_supporter_vault_v1:${userId}:${(email || "").trim().toLowerCase()}:${secret}`
+  );
+}
+
+export async function pushEncryptedSupporterVault(
+  vaultPayload: EncryptedSupporterVaultPayload,
+  session: any
+): Promise<boolean> {
+  if (!session?.user?.id) return false;
+  if (typeof localStorage !== "undefined" && localStorage.getItem("sanctuary_local_only") === "true") {
+    return false;
+  }
+  if (typeof navigator !== "undefined" && !navigator.onLine) return false;
+  try {
+    const supporterToken = await deriveUserSupporterVaultToken(
+      session.user.id,
+      session.user.email
+    );
+    const salt = window.crypto.getRandomValues(new Uint8Array(16));
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const key = await deriveAesGcmKey(session.user.id, session.user.email, salt);
+
+    const rawPlaintext = new TextEncoder().encode(JSON.stringify(vaultPayload));
+    const plaintext = await maybeCompressBytes(rawPlaintext);
+    const ciphertext = await window.crypto.subtle.encrypt(
+      { name: "AES-GCM", iv: iv as unknown as BufferSource },
+      key,
+      plaintext as unknown as BufferSource
+    );
+
+    const client = supabaseAuth || supabase;
+    await client
+      .from("citizen_staging_queue")
+      .delete()
+      .eq("user_token", supporterToken);
+
+    const tenYearsMs = 10 * 365 * 24 * 60 * 60 * 1000;
+    const { error } = await client.from("citizen_staging_queue").insert([
+      {
+        user_token: supporterToken,
+        payload_type: "supporter_vault_sync",
+        encrypted_payload: bytesToBase64(new Uint8Array(ciphertext)),
+        iv: bytesToBase64(iv),
+        salt: bytesToBase64(salt),
+        item_count: 0,
+        expires_at: new Date(Date.now() + tenYearsMs).toISOString(),
+      },
+    ]);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.warn("Failed to push encrypted Zero-PII Supporter Vault:", err);
+    return false;
+  }
+}
+
+export async function pullEncryptedSupporterVault(
+  session: any
+): Promise<EncryptedSupporterVaultPayload | null> {
+  if (!session?.user?.id) return null;
+  if (typeof localStorage !== "undefined" && localStorage.getItem("sanctuary_local_only") === "true") {
+    return null;
+  }
+  if (typeof navigator !== "undefined" && !navigator.onLine) return null;
+  try {
+    const supporterToken = await deriveUserSupporterVaultToken(
+      session.user.id,
+      session.user.email
+    );
+    const client = supabaseAuth || supabase;
+    const { data, error } = await client
+      .from("citizen_staging_queue")
+      .select("encrypted_payload, iv, salt, created_at")
+      .eq("user_token", supporterToken)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (error || !Array.isArray(data) || data.length === 0) return null;
+    const row = data[0];
+    if (!row?.encrypted_payload || !row?.iv || !row?.salt) return null;
+
+    const salt = base64ToBytes(row.salt);
+    const iv = base64ToBytes(row.iv);
+    const ciphertext = base64ToBytes(row.encrypted_payload);
+    const key = await deriveAesGcmKey(session.user.id, session.user.email, salt);
+    const decryptedBuffer = await window.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: iv as unknown as BufferSource },
+      key,
+      ciphertext as unknown as BufferSource
+    );
+    const decompressedBytes = await maybeDecompressBytes(new Uint8Array(decryptedBuffer));
+    const parsed = JSON.parse(
+      new TextDecoder().decode(decompressedBytes)
+    ) as EncryptedSupporterVaultPayload;
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch (err) {
+    console.warn("Failed to decrypt Zero-PII Supporter Vault:", err);
+    return null;
+  }
+}
+
 export async function deriveUserStagingToken(
   userId: string,
   email?: string,

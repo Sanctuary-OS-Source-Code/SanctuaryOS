@@ -43,7 +43,7 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 
 export function MasonNexus({
   masonProfile,
-  isVerifiedMason = true,
+  isVerifiedMason = false,
 }: {
   masonProfile: any;
   isVerifiedMason?: boolean;
@@ -244,6 +244,18 @@ export function MasonNexus({
   };
 
   const handleEditAsset = (asset: any, isBp: boolean = false) => {
+    if (!isBp && !isVerifiedMason) {
+      useStore
+        .getState()
+        .pushStatus(
+          t(
+            "nexus_upload_verified_mason_only",
+            "Publishing Templates, {Lexicons}, and {Chameleons} to {Nexus} requires a Verified {Mason} studio. Local JSON export remains unrestricted."
+          ),
+          "warning"
+        );
+      return;
+    }
     let parsedContent = null;
     if (!isBp && asset.json_data) {
       parsedContent =
@@ -313,6 +325,19 @@ export function MasonNexus({
         setUploadState((s) => ({ ...s, isOpen: false }));
         invalidateNexusCache();
         fetchAssets();
+        return;
+      }
+
+      if (!isVerifiedMason) {
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "nexus_upload_verified_mason_only",
+              "Publishing Templates, {Lexicons}, and {Chameleons} to {Nexus} requires a Verified {Mason} studio. Local JSON export remains unrestricted."
+            ),
+            "warning"
+          );
         return;
       }
 
@@ -891,7 +916,7 @@ export function MasonNexus({
         iconColorClass="text-[var(--accent)]"
         widthClass="w-[90vw] md:w-[680px]"
         headerActions={
-          isVerifiedMason ? (
+          isVerifiedMason || uploadState.assetType === "blueprint" ? (
             <PanelHeaderGroup>
               {uploadState.editId && uploadState.assetType !== "blueprint" && (
                 <PanelHeaderButton

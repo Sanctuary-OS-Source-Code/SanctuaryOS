@@ -37,6 +37,7 @@ import CommandCenter from "./CommandCenter";
 import { DevBuildClearanceGate } from "./components/DevBuildClearanceGate";
 import { ElevatedPasskeyGate, CompanionPasskeyHandshakeApprover } from "./components/ElevatedPasskeyGate";
 import { getCitizenSecurityPolicy, fetchMfaSecurityState } from "./utils/passkeyUtils";
+import { deriveSpokeRelinkCommitmentHash } from "./utils/stagingCrypto";
 import Vault from "./Vault";
 import { scrubLogUserData, buildFormattedLabReportText, extractReportLoadoutFromLogAndContext } from "./utils/logScrubber";
 import { matchExceptionRules } from "./components/KnownErrorDiagnosisBanner";
@@ -2115,8 +2116,12 @@ function App() {
         try {
           const gameClient = getActiveGameClient();
           if (gameClient) {
+            const relinkCommitmentHash = await deriveSpokeRelinkCommitmentHash(
+              session.user.id
+            ).catch(() => "");
             const syncRes: any = await supabase.rpc("secure_sync_spoke_profile", {
-              p_token: session.access_token
+              p_token: session.access_token,
+              p_relink_commitment_hash: relinkCommitmentHash || undefined,
             });
 
             if (syncRes?.data && !syncRes.data.error && syncRes.data.role) {
@@ -2189,7 +2194,35 @@ function App() {
 
           const currentSchema = useStore.getState().activeGameSchema;
           if (currentSchema) {
-            invoke('update_active_game_schema', { schema: currentSchema }).catch(console.error);
+            await invoke('update_active_game_schema', { schema: currentSchema }).catch(console.error);
+          }
+
+          // Crash Guard: auto-heal and restore any save airgap stranded by a prior OS reboot or power loss
+          const recoveryDocsBase = String(
+            config.docs_path || config.user_data_path || config.mods_path || ""
+          ).trim();
+          if (recoveryDocsBase) {
+            invoke<{ recovered: boolean; healed_from_vault_mirror: boolean }>(
+              "recover_interrupted_lab_airgap",
+              {
+                docsPath: recoveryDocsBase,
+                vaultPath: config.vault_path || "",
+              }
+            )
+              .then(async (rep) => {
+                if (rep?.recovered) {
+                  try {
+                    await invoke("repopulate_from_shelter");
+                  } catch {}
+                  setStatus(
+                    t(
+                      "lab_crash_recovery_restored",
+                      "{Lab} Crash Guard: Your live save files were automatically verified and restored after an interrupted session."
+                    )
+                  );
+                }
+              })
+              .catch(() => {});
           }
 
           // Defer heavy Vault / Conflict Radar disk scans briefly so workspace preparation & master cache hydration finish with zero I/O contention
@@ -3002,112 +3035,6 @@ function App() {
       setStatus(`${t("status_link_failed", "Link Failed:")}${err.message}`);
     }
   }
-  async function establishFlavors(primaryHash: string, targets: any[]) {
-    if (!activeDossier || !targets || targets.length === 0) return;
-    setStatus(
-      `${t("status_resolving_dna_prefix", "Resolving Hash For")}${targets.length}${t("status_resolving_dna_suffix", "{Mods}...")}`,
-    );
-    try {
-      let pId = activeDossier.dbId;
-      if (!pId) {
-        setStatus(t("status_error_primary_sync", "ERROR: Primary {Mod} must be synced to Cloud first."));
-        return;
-      }
-      let resolvedHashes: string[] = [];
-      const needsResolving = targets
-        .filter((t) => !t.hash && t.id)
-        .map((t) => t.id);
-      const alreadyHasHash = targets.filter((t) => t.hash).map((t) => t.hash);
-      if (needsResolving.length > 0) {
-        const { data: cloudVersions, error: vErr } = await supabase
-          .from("mod_versions")
-          .select("dna_hash")
-          .in("mod_id", needsResolving);
-        if (vErr) throw vErr;
-        if (cloudVersions)
-          resolvedHashes = cloudVersions.map((v) => v.dna_hash);
-      }
-      const finalHashSquad = [
-        ...new Set([primaryHash, ...alreadyHasHash, ...resolvedHashes]),
-      ];
-      if (finalHashSquad.length <= 1) {
-        setStatus(t("status_error_dna_resolve", "ERROR: Could not resolve Hash for selected flavors."));
-        return;
-      }
-      let groupId = activeDossier.flavorGroupId;
-      let groupName =
-        activeDossier.flavorGroupName ||
-        `${activeDossier.displayName} ${t("status_exclusives", "Exclusives")}`;
-      if (!groupId) {
-        const { data: newG, error: gErr } = await supabase
-          .from("flavor_groups")
-          .upsert({ name: groupName }, { onConflict: "name" })
-          .select()
-          .single();
-        if (gErr) throw gErr;
-        groupId = newG.id;
-      }
-      const upsertPayload = finalHashSquad.map((hash) => ({
-        group_id: groupId,
-        mod_hash: hash,
-      }));
-      const { data: result, error: bindErr } = await supabase
-        .from("flavor_group_members")
-        .upsert(upsertPayload, { onConflict: "group_id, mod_hash" })
-        .select();
-      if (bindErr) throw bindErr;
-      const updatedDossier = {
-        ...activeDossier,
-        flavorGroupId: String(groupId),
-        flavorGroupName: groupName,
-      } as ModData;
-      setActiveDossier(updatedDossier);
-      setModList((prev) =>
-        prev.map((m) => {
-          if (finalHashSquad.includes(m.hash)) {
-            return {
-              ...m,
-              flavorGroupId: String(groupId),
-              flavorGroupName: groupName,
-            } as ModData;
-          }
-          return m;
-        }),
-      );
-      setStatus(
-        `${t("status_success_members_prefix", "Success:")}${result?.length}${t("status_success_members_suffix", "Members Secured In Group.")}`,
-      );
-      runRadarSweep(true);
-    } catch (err: any) {
-      setStatus(`${t("status_link_failed", "Link Failed:")}${err.message}`);
-    }
-  }
-  async function severFlavor(modHash: string) {
-    setStatus(t("status_severing", "Severing Exclusivity Link..."));
-    try {
-      await supabase
-        .from("flavor_group_members")
-        .delete()
-        .eq("mod_hash", modHash);
-      const updatedMod = {
-        ...activeDossier,
-        flavorGroupId: null,
-        flavorGroupName: null,
-      } as ModData;
-      setActiveDossier(updatedMod);
-      setModList((prev) =>
-        prev.map((m) =>
-          m.hash === modHash
-            ? ({ ...m, flavorGroupId: null, flavorGroupName: null } as ModData)
-            : m,
-        ),
-      );
-      setStatus(t("status_severed", "SEVERED: {Mod} is independent again."));
-      runRadarSweep(true);
-    } catch (err: any) {
-      setStatus(`${t("status_unlink_failed", "Unlink Failed:")}${err.message}`);
-    }
-  }
   async function sendToLabQueue(mod: ModData) {
     setStatus(`${t("status_uploading_dna", "Uploading Hash:")}${mod.displayName || mod.name}...`);
     try {
@@ -3243,6 +3170,31 @@ function App() {
         const currentRules = getExceptionRules(activeGameSchema);
         await invoke("update_active_game_schema", {
           schema: { ...(activeGameSchema || {}), exception_rules: currentRules },
+        });
+      } catch {}
+      try {
+        await invoke("start_lab_verification_session", {
+          dnaHash: activeLabMod?.hash || activeLabMod?.name || "lab_session",
+          modName: activeLabMod.displayName || activeLabMod.name || "Unknown",
+          docsPath: dPath,
+          vaultPath: config.vault_path || "",
+          linkedFiles: [activeLabMod.name].filter(Boolean),
+          notificationLabels: {
+            failed_title: t("lab_stage_failed", "Simulation Failed"),
+            timer_complete_title: t(
+              "lab_overlay_timer_up_title",
+              "TIMED TEST COMPLETE (0:00) — SAVE GAME NOW!"
+            ),
+            timer_complete_body: t(
+              "lab_overlay_timer_up_desc",
+              "Open the in-game menu and click Save to verify save serialization and unlock publishing."
+            ),
+            verified_title: t("lab_overlay_verified_title", "VERIFICATION PASSED & SIGNED!"),
+            verified_body: t(
+              "lab_overlay_verified_desc",
+              "Save checkpoint verified. You may now safely exit the game."
+            ),
+          },
         });
       } catch {}
       setStatus(t("status_igniting", "Starting Engines..."));
@@ -3468,6 +3420,26 @@ function App() {
     if (!targetMod) return false;
     const isError = errorFoundOverride !== undefined ? errorFoundOverride : testErrorFound;
     setStatus(t("status_evaluating", "Evaluating Test Results..."));
+    const config: any = await invoke("get_saved_coordinates").catch(() => ({}));
+    const dPath = resolveUserDataDir(config);
+    try {
+      await invoke("airgap_saves", { docsPath: dPath, enable: false });
+      await invoke("stop_lab_verification_session");
+    } catch (e: any) {
+      const rawErr = typeof e === "string" ? e : e?.message || String(e);
+      if (rawErr.includes("lab_err_game_running_saves_locked")) {
+        setStatus(
+          t(
+            "lab_err_game_running_saves_locked",
+            "Close the running game first so your live saves can be unlocked and restored safely."
+          )
+        );
+        return false;
+      }
+      setStatus(`${t("status_teardown_error", "Teardown Error:")} ${rawErr}`);
+      return false;
+    }
+
     if (logWatcherRef.current) {
       clearInterval(logWatcherRef.current);
       logWatcherRef.current = null;
@@ -3476,13 +3448,48 @@ function App() {
       clearInterval(logWatcher);
       setLogWatcher(null);
     }
+
     try {
-      const config: any = await invoke("get_saved_coordinates");
-      const dPath = resolveUserDataDir(config);
-      await invoke("stop_lab_verification_session");
-      await invoke("airgap_saves", { docsPath: dPath, enable: false });
-    } catch (e) { }
-    try {
+      const effectiveHash = String(targetMod.hash || targetMod.name || "").trim();
+      const hasSignedCertificate = !isError
+        ? await invoke<boolean>("verify_lab_certificate_exists", {
+            vaultPath: config.vault_path || "",
+            dnaHash: effectiveHash,
+          }).catch(() => false)
+        : false;
+
+      if (shelterActive) {
+        setStatus(t("status_restoring_bunker_full", "Restoring Loadout..."));
+        const lastSet = localStorage.getItem(
+          `sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`
+        );
+        if (lastSet) {
+          await equipPlaySet(lastSet);
+        } else {
+          await invoke("deploy_playset_bulk", {
+            mods: [],
+            modsPath: config.mods_path,
+            vaultPath: config.vault_path,
+          });
+        }
+        setShelterActive(false);
+      }
+
+      // If the user exited the sandbox BEFORE completing the 4-stage gameplay & save checkpoint (and no error occurred),
+      // restore live saves & loadout cleanly WITHOUT marking the {mod} as Verified!
+      if (!isError && !hasSignedCertificate) {
+        setActiveLabMod(null);
+        setTestErrorFound(false);
+        setTestLogSnippet("");
+        setStatus(
+          t(
+            "lab_status_sandbox_exited_unverified",
+            "Sandbox exited & live saves restored — {Mod} remains unverified until all 4 {Lab} stages complete."
+          )
+        );
+        return true;
+      }
+
       const finalStatus = isError ? "broken" : "verified";
       const spokeModStatus = isError ? "under_review" : "verified";
       const uiStatus = isError
@@ -3510,17 +3517,6 @@ function App() {
           toggleInActiveSet(targetMod.name, true, true);
         } catch (e) { }
       }
-      if (shelterActive) {
-        setStatus(t("status_restoring_bunker_full", "Restoring Loadout..."));
-        const lastSet = localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`);
-        if (lastSet) {
-          await equipPlaySet(lastSet);
-        } else {
-          const config: any = await invoke("get_saved_coordinates");
-          await invoke("deploy_playset_bulk", { mods: [], modsPath: config.mods_path, vaultPath: config.vault_path });
-        }
-        setShelterActive(false);
-      }
       setLabQueue((prev) => prev.filter((m) => m.hash !== targetMod.hash));
       setModList((prev) =>
         prev.map((m) =>
@@ -3533,7 +3529,7 @@ function App() {
       setTestErrorFound(false);
       setTestLogSnippet("");
       setStatus(
-        `${t("status_artifact_secured_prefix", "{MOD} SECURED: Marked as")}${finalStatus.toUpperCase()}`,
+        `${t("status_artifact_secured_prefix", "{MOD} SECURED: Marked as")} ${finalStatus.toUpperCase()}`,
       );
       return true;
     } catch (err: any) {
@@ -3925,6 +3921,22 @@ function App() {
           docsPath: dPath,
           vaultPath: config.vault_path || "",
           linkedFiles,
+          notificationLabels: {
+            failed_title: t("lab_stage_failed", "Simulation Failed"),
+            timer_complete_title: t(
+              "lab_overlay_timer_up_title",
+              "TIMED TEST COMPLETE (0:00) — SAVE GAME NOW!"
+            ),
+            timer_complete_body: t(
+              "lab_overlay_timer_up_desc",
+              "Open the in-game menu and click Save to verify save serialization and unlock publishing."
+            ),
+            verified_title: t("lab_overlay_verified_title", "VERIFICATION PASSED & SIGNED!"),
+            verified_body: t(
+              "lab_overlay_verified_desc",
+              "Save checkpoint verified. You may now safely exit the game."
+            ),
+          },
         });
       } catch (e) {}
 
@@ -4447,8 +4459,6 @@ function App() {
                 onDesignateTwin={designateTwin}
                 onEstablishBond={establishBond}
                 onRegisterConflict={registerConflict}
-                onEstablishFlavor={establishFlavors}
-                onSeverFlavor={severFlavor}
                 onSmartSearch={handleSmartSearch}
                 onOpenWorkbench={openWorkbench}
                 onSaveWorkbench={saveWorkbenchChanges}

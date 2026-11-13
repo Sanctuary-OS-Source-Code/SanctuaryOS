@@ -322,6 +322,8 @@ const STAFF_ONLY_TABLES = new Set([
   'sanctuary_support_categories',
   'sanctuary_telemetry_sources',
   'dlc_registry',
+  'flavor_groups',
+  'flavor_group_members',
   'game_versions',
   'taxonomy',
   'tracked_template_files',
@@ -335,8 +337,6 @@ const CREATOR_OR_STAFF_TABLES = new Set([
   'mod_dependencies',
   'mod_relationships',
   'version_dependencies',
-  'flavor_groups',
-  'flavor_group_members',
   'community_groups',
   'community_group_members',
   'collections',
@@ -409,8 +409,46 @@ async function resolveGameWithServiceKey(supabaseAdmin: any, gameIdOrSchema: str
   return { game, serviceKey, error: null };
 }
 
-function normalizeSpokeTableRow(_table: string, row: any) {
+const MAX_INLINE_THEME_DATA_URI_CHARS = 32_768;
+
+function assertNoOversizedInlineImageBlobs(table: string, row: any) {
+  if (!row || typeof row !== 'object') return;
+  const cleanTable = String(table || '').trim().toLowerCase();
+  if (cleanTable !== 'nexus_assets' && cleanTable !== 'sanctuary_themes') return;
+
+  const inspectValue = (val: unknown) => {
+    if (!val) return;
+    if (typeof val === 'string') {
+      if (val.startsWith('data:image/') && val.length > MAX_INLINE_THEME_DATA_URI_CHARS) {
+        throw new Error(
+          'Oversized inline base64 wallpaper rejected. Upload theme images via Cloud Storage or use an external HTTPS URL.'
+        );
+      }
+      if (val.length > MAX_INLINE_THEME_DATA_URI_CHARS && val.includes('data:image/')) {
+        try {
+          const parsed = JSON.parse(val);
+          if (parsed && typeof parsed === 'object') inspectValue(parsed);
+        } catch {
+          // ignore non-JSON strings
+        }
+      }
+      return;
+    }
+    if (typeof val === 'object') {
+      for (const entryVal of Object.values(val as Record<string, unknown>)) {
+        inspectValue(entryVal);
+      }
+    }
+  };
+
+  inspectValue(row.json_data);
+  inspectValue(row.theme_data);
+  inspectValue(row.banner_url);
+}
+
+function normalizeSpokeTableRow(table: string, row: any) {
   if (!row || typeof row !== 'object') return row;
+  assertNoOversizedInlineImageBlobs(table, row);
   return { ...row };
 }
 
@@ -1214,15 +1252,58 @@ serve(async (req) => {
       return cachedMasonIdsPromise;
     }
 
+    let cachedVerifiedMasonPromise: Promise<boolean> | null = null;
+    async function getIsCallerVerifiedMason(): Promise<boolean> {
+      if (!cachedVerifiedMasonPromise) {
+        cachedVerifiedMasonPromise = (async () => {
+          const { data: mRows } = await gameDb
+            .from('masons')
+            .select('id')
+            .eq('profile_id', v_user_id)
+            .eq('is_verified', true)
+            .limit(1)
+          return Array.isArray(mRows) && mRows.length > 0
+        })();
+      }
+      return cachedVerifiedMasonPromise;
+    }
+
     let resultData = null;
 
     // 7. Route actions
     switch (action) {
       case 'sync_spoke_profile': {
+        const rawCommitment = String(payload?.relink_commitment_hash || '').trim().toLowerCase()
+        if (/^[0-9a-f]{64}$/.test(rawCommitment)) {
+          try {
+            await gameDb.rpc('internal_upsert_spoke_relink_commitment', {
+              p_profile_id: v_user_id,
+              p_commitment_hash: rawCommitment,
+            })
+          } catch (_e) {
+            // Best-effort on Spokes running older schemas
+          }
+        }
         resultData = {
           ...callerSpokeProfile,
           os_role: hubRole
         }
+        break;
+      }
+      case 'register_relink_commitment': {
+        const rawCommitment = String(payload?.relink_commitment_hash || '').trim().toLowerCase()
+        if (!/^[0-9a-f]{64}$/.test(rawCommitment)) {
+          throw new Error('Invalid SHA-256 relink commitment hash')
+        }
+        const { data: commitRes, error: commitErr } = await gameDb.rpc(
+          'internal_upsert_spoke_relink_commitment',
+          {
+            p_profile_id: v_user_id,
+            p_commitment_hash: rawCommitment,
+          }
+        )
+        if (commitErr) throw commitErr
+        resultData = commitRes || { ok: true }
         break;
       }
       case 'update_spoke_profile': {
@@ -1621,6 +1702,10 @@ serve(async (req) => {
                 }
               }
             } else if (cleanTable === 'nexus_assets') {
+              const isVerifiedMason = await getIsCallerVerifiedMason()
+              if (!isVerifiedMason) {
+                throw new Error('Forbidden: Verified Creator status is required to publish or update Nexus assets')
+              }
               row.author_id = v_user_id
               delete row.is_community_default
               if (row.id) {
@@ -1728,20 +1813,25 @@ serve(async (req) => {
                   throw new Error(`Forbidden: Cannot overwrite another Creator record in ${cleanTable}`)
                 }
               }
-            } else if (cleanTable === 'mods' && row.id) {
-              const { data: exMod } = await gameDb
-                .from('mods')
-                .select('mason_id')
-                .eq('id', row.id)
-                .maybeSingle()
-              if (exMod?.mason_id && !ownedMasons.has(String(exMod.mason_id))) {
-                const { data: ownerMason } = await gameDb
-                  .from('masons')
-                  .select('profile_id')
-                  .eq('id', exMod.mason_id)
+            } else if (cleanTable === 'mods') {
+              if (row.highlander_group_id !== undefined && !(await getIsCallerVerifiedMason())) {
+                delete row.highlander_group_id
+              }
+              if (row.id) {
+                const { data: exMod } = await gameDb
+                  .from('mods')
+                  .select('mason_id')
+                  .eq('id', row.id)
                   .maybeSingle()
-                if (ownerMason?.profile_id && ownerMason.profile_id !== v_user_id) {
-                  throw new Error('Forbidden: Cannot overwrite an artifact owned by another claimed Creator')
+                if (exMod?.mason_id && !ownedMasons.has(String(exMod.mason_id))) {
+                  const { data: ownerMason } = await gameDb
+                    .from('masons')
+                    .select('profile_id')
+                    .eq('id', exMod.mason_id)
+                    .maybeSingle()
+                  if (ownerMason?.profile_id && ownerMason.profile_id !== v_user_id) {
+                    throw new Error('Forbidden: Cannot overwrite an artifact owned by another claimed Creator')
+                  }
                 }
               }
             }
@@ -2424,6 +2514,10 @@ serve(async (req) => {
                   }
                   if (!row.mason_id) row.mason_id = v_user_id
                 } else if (cleanTable === 'nexus_assets') {
+                  const isVerifiedMason = await getIsCallerVerifiedMason()
+                  if (!isVerifiedMason) {
+                    throw new Error('Forbidden: Verified Creator status is required to publish or update Nexus assets')
+                  }
                   row.author_id = v_user_id
                   delete row.is_community_default
                 } else if (cleanTable === 'sanctuary_tickets') {
@@ -2450,6 +2544,10 @@ serve(async (req) => {
                     throw new Error(`Forbidden: ${cleanTable} mason_id must belong to your Creator profile`)
                   }
                   if (cleanTable === 'collections') delete row.is_official
+                } else if (cleanTable === 'mods') {
+                  if (row.highlander_group_id !== undefined && !(await getIsCallerVerifiedMason())) {
+                    delete row.highlander_group_id
+                  }
                 }
               }
             }
@@ -2534,6 +2632,9 @@ serve(async (req) => {
             let updateVals = payload?.values && typeof payload.values === 'object'
               ? { ...payload.values }
               : {}
+            if (op === 'update') {
+              assertNoOversizedInlineImageBlobs(cleanTable, updateVals)
+            }
 
             if (isArchitectOnlyStaff && op === 'update' && (cleanTable === 'mods' || cleanTable === 'collections')) {
               if (Number(updateVals.compliance_tier || 0) >= 1) {
@@ -2559,6 +2660,12 @@ serve(async (req) => {
                 delete updateVals.followers_count
                 delete updateVals.profile_id
               } else if (cleanTable === 'nexus_assets') {
+                if (op === 'update') {
+                  const isVerifiedMason = await getIsCallerVerifiedMason()
+                  if (!isVerifiedMason) {
+                    throw new Error('Forbidden: Verified Creator status is required to publish or update Nexus assets')
+                  }
+                }
                 delete updateVals.is_community_default
                 delete updateVals.author_id
               } else if (cleanTable === 'collections') {
@@ -2568,6 +2675,9 @@ serve(async (req) => {
                   updateVals.status = 'pending'
                 }
               } else if (cleanTable === 'mods') {
+                if (updateVals.highlander_group_id !== undefined && !(await getIsCallerVerifiedMason())) {
+                  delete updateVals.highlander_group_id
+                }
                 if (Number(updateVals.compliance_tier || 0) >= 1) {
                   updateVals.compliance_tier = Math.min(4, Math.max(1, Math.round(Number(updateVals.compliance_tier))))
                   updateVals.status = 'pending'
@@ -2662,6 +2772,125 @@ serve(async (req) => {
         }
 
         resultData = await executeSingleSpokeQuery(payload)
+        break
+      }
+      case 'upload_spoke_theme_asset': {
+        if (isCallerBanned) {
+          throw new Error('Forbidden: Account is suspended')
+        }
+        const canUploadThemeAsset = isCallerStaff || (await getIsCallerVerifiedMason())
+        if (!canUploadThemeAsset) {
+          throw new Error(
+            'Forbidden: Verified Creator or Staff status is required to upload Nexus theme wallpapers'
+          )
+        }
+
+        const rawKind = String(payload?.kind || 'bg').trim().toLowerCase()
+        const safeKind = ['bg', 'thumb', 'preview'].includes(rawKind) ? rawKind : 'bg'
+        const rawMime = String(payload?.mime_type || 'image/webp').trim().toLowerCase()
+        const allowedMimeExt: Record<string, string> = {
+          'image/webp': 'webp',
+          'image/png': 'png',
+          'image/jpeg': 'jpg',
+          'image/jpg': 'jpg',
+        }
+        const ext = allowedMimeExt[rawMime]
+        if (!ext) {
+          throw new Error('Unsupported theme image format. Use WebP, PNG, or JPEG.')
+        }
+        const normalizedMime = rawMime === 'image/jpg' ? 'image/jpeg' : rawMime
+
+        const base64Raw = String(payload?.base64_data || '')
+          .replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/i, '')
+          .replace(/\s+/g, '')
+        if (!base64Raw) {
+          throw new Error('Missing image payload')
+        }
+        // 390 KB binary cap (~520 KB base64)
+        if (base64Raw.length > 535_000) {
+          throw new Error('Compressed theme wallpaper exceeds the 380 KB cloud upload budget.')
+        }
+
+        let bytes: Uint8Array
+        try {
+          const bin = atob(base64Raw)
+          bytes = new Uint8Array(bin.length)
+          for (let i = 0; i < bin.length; i++) {
+            bytes[i] = bin.charCodeAt(i)
+          }
+        } catch {
+          throw new Error('Invalid base64 image encoding')
+        }
+
+        if (bytes.byteLength < 12 || bytes.byteLength > 390_000) {
+          throw new Error('Theme image byte size out of bounds (max 380 KB)')
+        }
+
+        // Magic-byte header verification (WebP, PNG, JPEG)
+        const isWebp =
+          bytes[0] === 0x52 &&
+          bytes[1] === 0x49 &&
+          bytes[2] === 0x46 &&
+          bytes[3] === 0x46 &&
+          bytes[8] === 0x57 &&
+          bytes[9] === 0x45 &&
+          bytes[10] === 0x42 &&
+          bytes[11] === 0x50
+        const isPng =
+          bytes[0] === 0x89 &&
+          bytes[1] === 0x50 &&
+          bytes[2] === 0x4e &&
+          bytes[3] === 0x47
+        const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+
+        if (!isWebp && !isPng && !isJpeg) {
+          throw new Error('Rejected file: invalid raster image header')
+        }
+
+        const actualMime = isWebp ? 'image/webp' : isPng ? 'image/png' : 'image/jpeg'
+        const actualExt = isWebp ? 'webp' : isPng ? 'png' : 'jpg'
+        if (actualMime !== normalizedMime && !(isWebp && ext === 'webp')) {
+          // Use verified header mime/ext
+        }
+
+        const digestBuf = await crypto.subtle.digest('SHA-256', bytes)
+        const shaHex = Array.from(new Uint8Array(digestBuf))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('')
+        const bucket = 'backgrounds'
+        const storagePath = `themes/${safeKind}_${shaHex}.${actualExt}`
+
+        // Ensure bucket exists with 512 KB cap on newly onboarded Spokes
+        const { error: getBucketErr } = await gameDb.storage.getBucket(bucket)
+        if (getBucketErr) {
+          await gameDb.storage
+            .createBucket(bucket, {
+              public: true,
+              fileSizeLimit: 524288,
+              allowedMimeTypes: ['image/webp', 'image/png', 'image/jpeg'],
+            })
+            .catch(() => {})
+        }
+
+        const { error: uploadErr } = await gameDb.storage
+          .from(bucket)
+          .upload(storagePath, bytes, {
+            contentType: actualMime,
+            cacheControl: '31536000',
+            upsert: true,
+          })
+
+        if (uploadErr) {
+          throw new Error(`Theme wallpaper upload failed: ${uploadErr.message}`)
+        }
+
+        const { data: pubData } = gameDb.storage.from(bucket).getPublicUrl(storagePath)
+        resultData = {
+          publicUrl: pubData?.publicUrl || null,
+          storagePath,
+          sha256: shaHex,
+          byteLength: bytes.byteLength,
+        }
         break
       }
       default:

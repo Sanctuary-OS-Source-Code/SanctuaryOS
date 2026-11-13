@@ -14,6 +14,8 @@ import {
   StatBox,
   SidePanelHeroCard,
   SidePanelTitleInput,
+  VAULT_CHIP_CLASS,
+  toHighlanderSlotSlug,
 } from "../shared";
 import { ArtifactCard, VaultCard } from "../Cards";
 import { CustomMasonDropdown } from "../ArchitectHub";
@@ -713,7 +715,7 @@ export function CollectionForge({ setStatus }: any) {
   const [searchTerm, setSearchTerm] = useState("");
   const [tierFilter, setTierFilter] = useState("ALL");
   const [filterTab, setFilterTab] = useState<
-    "overview" | "stable" | "under_review" | "pending" | "unknown" | "corrupted"
+    "overview" | "exclusive_slots" | "stable" | "under_review" | "pending" | "unknown" | "corrupted"
   >("overview");
 
   const [isSaving, setIsSaving] = useState(false);
@@ -721,6 +723,59 @@ export function CollectionForge({ setStatus }: any) {
   const [assetSearch, setAssetSearch] = useState("");
   const [availableAssets, setAvailableAssets] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  const [highlanderSlots, setHighlanderSlots] = useState<any[]>([]);
+  const [slotCountsMap, setSlotCountsMap] = useState<Record<string, number>>({});
+  const [activeSlot, setActiveSlot] = useState<any | null>(null);
+  const [slotMembers, setSlotMembers] = useState<any[]>([]);
+  const [isCreateSlotOpen, setIsCreateSlotOpen] = useState(false);
+  const [newSlotName, setNewSlotName] = useState("");
+  const [newSlotSlug, setNewSlotSlug] = useState("");
+  const [newSlotDesc, setNewSlotDesc] = useState("");
+  const [slotAssetSearch, setSlotAssetSearch] = useState("");
+  const [slotAvailableAssets, setSlotAvailableAssets] = useState<any[]>([]);
+  const [isSearchingSlotAssets, setIsSearchingSlotAssets] = useState(false);
+
+  const fetchHighlanderSlots = async () => {
+    let { data: slotData, error: slotErr } = await supabase
+      .from("flavor_groups")
+      .select("id, name, slug, description")
+      .order("name");
+    if (slotErr) {
+      const fb = await supabase.from("flavor_groups").select("id, name").order("name");
+      slotData = fb.data as any;
+    }
+    if (slotData) {
+      setHighlanderSlots(slotData);
+    }
+    const { data: assignedMods } = await supabase
+      .from("mods")
+      .select("id, highlander_group_id, compliance_tier")
+      .not("highlander_group_id", "is", null);
+    if (assignedMods) {
+      const counts: Record<string, number> = {};
+      assignedMods.forEach((m: any) => {
+        if (Number(m?.compliance_tier || 0) === 0 && m?.highlander_group_id) {
+          const gid = String(m.highlander_group_id);
+          counts[gid] = (counts[gid] || 0) + 1;
+        }
+      });
+      setSlotCountsMap(counts);
+    }
+  };
+
+  const fetchSlotMembers = async (slotId: string) => {
+    const { data } = await supabase
+      .from("mods")
+      .select(
+        "id, name, image_url, status, category_override, created_at, mason_id, master_author, file_extension, compliance_tier"
+      )
+      .eq("highlander_group_id", slotId)
+      .order("name");
+    if (data) {
+      setSlotMembers(data.filter((m: any) => Number(m?.compliance_tier || 0) === 0));
+    }
+  };
 
   const fetchSets = async () => {
     const { data } = await supabase.from("collections").select("*").order("name");
@@ -760,12 +815,35 @@ export function CollectionForge({ setStatus }: any) {
 
   useEffect(() => {
     fetchSets();
+    fetchHighlanderSlots();
     const fetchMasons = async () => {
       const { data } = await supabase.from("masons").select("id, name").order("name");
       if (data) setMasonsList(data);
     };
     fetchMasons();
   }, []);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (slotAssetSearch && slotAssetSearch.trim().length >= 2) {
+        setIsSearchingSlotAssets(true);
+        const { data } = await supabase
+          .from("mods")
+          .select("id, name, image_url, master_author, compliance_tier, highlander_group_id, masons(name)")
+          .ilike("name", `%${slotAssetSearch.trim()}%`)
+          .limit(20);
+        if (data) {
+          setSlotAvailableAssets(
+            data.filter((m: any) => Number(m?.compliance_tier || 0) === 0)
+          );
+        }
+        setIsSearchingSlotAssets(false);
+      } else {
+        setSlotAvailableAssets([]);
+      }
+    }, 400);
+    return () => clearTimeout(delayDebounceFn);
+  }, [slotAssetSearch]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -943,6 +1021,223 @@ export function CollectionForge({ setStatus }: any) {
     setIsCreatingMason(false);
   };
 
+  const handleSelectSlot = (slotItem: any) => {
+    setActiveSlot({
+      ...slotItem,
+      slug: slotItem.slug || toHighlanderSlotSlug(slotItem.name),
+    });
+    fetchSlotMembers(slotItem.id);
+  };
+
+  const createHighlanderSlot = async () => {
+    if (!newSlotName.trim()) return;
+    const slug = toHighlanderSlotSlug(newSlotSlug || newSlotName);
+    const payload: any = {
+      name: newSlotName.trim(),
+      slug: slug || null,
+      description: newSlotDesc.trim() || null,
+    };
+    const { data, error } = await supabase
+      .from("flavor_groups")
+      .insert([payload])
+      .select()
+      .single();
+    if (!error && data) {
+      logArchitectAction(
+        "Created Exclusive Slot",
+        "flavor_groups",
+        payload.name,
+        undefined,
+        undefined,
+        false,
+        computeAuditDiff(null, payload)
+      );
+      await fetchHighlanderSlots();
+      setNewSlotName("");
+      setNewSlotSlug("");
+      setNewSlotDesc("");
+      setIsCreateSlotOpen(false);
+      useStore.getState().pushStatus(t("alert_saved", "Saved"), "success");
+    } else if (error) {
+      useStore.getState().pushStatus(error.message, "error");
+    }
+  };
+
+  const saveHighlanderSlot = async () => {
+    if (!activeSlot) return;
+    setIsSaving(true);
+    const prevSlot = highlanderSlots.find((s) => s.id === activeSlot.id) || activeSlot;
+    const updatedPayload = {
+      name: String(activeSlot.name || "").trim(),
+      slug: toHighlanderSlotSlug(activeSlot.slug || activeSlot.name) || null,
+      description: String(activeSlot.description || "").trim() || null,
+    };
+    const { error } = await supabase
+      .from("flavor_groups")
+      .update(updatedPayload)
+      .eq("id", activeSlot.id);
+    if (!error) {
+      logArchitectAction(
+        "Updated Exclusive Slot",
+        "flavor_groups",
+        updatedPayload.name,
+        undefined,
+        undefined,
+        false,
+        computeAuditDiff(prevSlot, updatedPayload)
+      );
+      await fetchHighlanderSlots();
+      useStore.getState().pushStatus(t("alert_saved", "Saved"), "success");
+    } else {
+      useStore.getState().pushStatus(error.message, "error");
+    }
+    setIsSaving(false);
+  };
+
+  const deleteHighlanderSlot = async () => {
+    if (!activeSlot) return;
+    setIsSaving(true);
+    await supabase
+      .from("mods")
+      .update({ highlander_group_id: null })
+      .eq("highlander_group_id", activeSlot.id);
+    await supabase
+      .from("flavor_group_members")
+      .delete()
+      .eq("group_id", activeSlot.id);
+    const { error } = await supabase
+      .from("flavor_groups")
+      .delete()
+      .eq("id", activeSlot.id);
+    if (!error) {
+      logArchitectAction(
+        "Deleted Exclusive Slot",
+        "flavor_groups",
+        activeSlot.name,
+        undefined,
+        undefined,
+        false,
+        { name: { from: activeSlot.name, to: "Deleted" } }
+      );
+      setActiveSlot(null);
+      setSlotMembers([]);
+      await fetchHighlanderSlots();
+      useStore.getState().pushStatus(t("alert_deleted", "Deleted"), "success");
+    } else {
+      useStore.getState().pushStatus(error.message, "error");
+    }
+    setIsSaving(false);
+  };
+
+  const assignModToSlot = async (modId: string, modName: string) => {
+    if (!activeSlot) return;
+    const { error } = await supabase
+      .from("mods")
+      .update({
+        highlander_group_id: activeSlot.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", modId);
+    if (!error) {
+      logArchitectAction(
+        `Assigned Mod ${modName} to Exclusive Slot`,
+        "flavor_groups",
+        activeSlot.name,
+        undefined,
+        undefined,
+        false,
+        { exclusive_slot: { to: activeSlot.name }, mod: { to: modName } }
+      );
+      await Promise.all([fetchSlotMembers(activeSlot.id), fetchHighlanderSlots()]);
+    }
+  };
+
+  const unassignModFromSlot = async (modId: string, modName: string) => {
+    if (!activeSlot) return;
+    const { error } = await supabase
+      .from("mods")
+      .update({
+        highlander_group_id: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", modId);
+    if (!error) {
+      logArchitectAction(
+        `Unassigned Mod ${modName} from Exclusive Slot`,
+        "flavor_groups",
+        activeSlot.name,
+        undefined,
+        undefined,
+        false,
+        { exclusive_slot: { from: activeSlot.name, to: "None" }, mod: { to: modName } }
+      );
+      await Promise.all([fetchSlotMembers(activeSlot.id), fetchHighlanderSlots()]);
+    }
+  };
+
+  const filteredHighlanderSlots = highlanderSlots.filter((s: any) => {
+    if (!searchTerm.trim()) return true;
+    const q = searchTerm.toLowerCase();
+    return (
+      String(s.name || "").toLowerCase().includes(q) ||
+      String(s.slug || "").toLowerCase().includes(q) ||
+      String(s.description || "").toLowerCase().includes(q)
+    );
+  });
+
+  const renderHighlanderSlotCard = (slotItem: any) => {
+    const count = slotCountsMap[String(slotItem.id)] || 0;
+    const slug = slotItem.slug || toHighlanderSlotSlug(slotItem.name || "");
+    const isSelected = activeSlot?.id === slotItem.id;
+    return (
+      <div
+        key={slotItem.id}
+        onClick={() => handleSelectSlot(slotItem)}
+        className={`glass-surface rounded-2xl p-5 border transition-all cursor-pointer flex flex-col justify-between gap-4 group ${
+          isSelected
+            ? "border-[var(--accent)]"
+            : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+        }`}
+      >
+        <div className="flex flex-col gap-2.5 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
+              <span className="material-symbols-outlined !text-[20px]">
+                {t("icon_swap_horiz", "swap_horiz")}
+              </span>
+            </div>
+            <span className={`${VAULT_CHIP_CLASS} text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]`}>
+              {count} {t("term_mods", "{Mods}")}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1 min-w-0">
+            <h4 className="text-sm font-black text-[var(--text)] truncate group-hover:text-[var(--accent)] transition-colors">
+              {slotItem.name}
+            </h4>
+            {slug && (
+              <span className="text-[10px] font-mono text-[var(--subtext)] truncate">
+                {slug}
+              </span>
+            )}
+          </div>
+          <p className="text-xs font-semibold text-[var(--subtext)] line-clamp-2 leading-relaxed">
+            {slotItem.description ||
+              t(
+                "highlander_slot_card_default_desc",
+                "Highlander atomic rule — only one {mod} in this Exclusive Slot may be equipped at a time."
+              )}
+          </p>
+        </div>
+        <div className="flex items-center justify-between pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] group-hover:text-[var(--accent)] transition-colors">
+          <span>{t("highlander_exclusive_slot", "Exclusive Slot")}</span>
+          <span className="material-symbols-outlined !text-[15px]">
+            {t("icon_chevron_right", "chevron_right")}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
   const filteredSets = sets.filter((s: any) => {
     if (Number(s?.compliance_tier || 0) > 0) return false;
     const resolvedStatus = resolveCollectionStatus(s);
@@ -973,7 +1268,11 @@ export function CollectionForge({ setStatus }: any) {
         headerIconColorClass="theme-text-accent"
         search={searchTerm}
         onSearchChange={setSearchTerm}
-        searchPlaceholder={t("search_queue", "Search collections...") as string}
+        searchPlaceholder={
+          (filterTab === "exclusive_slots"
+            ? t("highlander_search_slots_ph", "Search Exclusive Slots...")
+            : t("search_queue", "Search collections...")) as string
+        }
         activeTab={filterTab}
         onTabChange={(tabId) => setFilterTab(tabId as any)}
         tabs={[
@@ -983,6 +1282,13 @@ export function CollectionForge({ setStatus }: any) {
             icon: t("icon_dashboard", "dashboard"),
             colorClass: "text-[var(--accent)]",
             number: sets.length.toString(),
+          },
+          {
+            id: "exclusive_slots",
+            label: t("highlander_exclusive_slots", "Exclusive Slots"),
+            icon: t("icon_swap_horiz", "swap_horiz"),
+            colorClass: "text-[var(--accent)]",
+            number: highlanderSlots.length.toString(),
           },
           {
             id: "stable",
@@ -1019,7 +1325,7 @@ export function CollectionForge({ setStatus }: any) {
         ]}
         hideSearch={filterTab === "overview"}
         primaryPopover={
-          filterTab !== "overview"
+          filterTab !== "overview" && filterTab !== "exclusive_slots"
             ? {
                 icon: t("icon_tune", "tune"),
                 label: t("filters", "Filters"),
@@ -1058,8 +1364,16 @@ export function CollectionForge({ setStatus }: any) {
                       {t("icon_add", "add")}
                     </span>
                   ),
-                  label: t("auto_create", "Create") as string,
-                  onClick: () => setIsForgePanelOpen(true),
+                  label: (filterTab === "exclusive_slots"
+                    ? t("highlander_btn_new_slot", "New Exclusive Slot")
+                    : t("auto_create", "Create")) as string,
+                  onClick: () => {
+                    if (filterTab === "exclusive_slots") {
+                      setIsCreateSlotOpen(true);
+                    } else {
+                      setIsForgePanelOpen(true);
+                    }
+                  },
                 },
               ]
             : undefined
@@ -1067,6 +1381,18 @@ export function CollectionForge({ setStatus }: any) {
       >
         {filterTab === "overview" ? (
           <HubOverviewLanding>
+            <HubOverviewSection
+              icon={t("icon_swap_horiz", "swap_horiz")}
+              iconColorClass="text-[var(--accent)]"
+              title={t("highlander_exclusive_slots", "Exclusive Slots")}
+              isEmpty={highlanderSlots.length === 0}
+              emptyIcon={t("icon_swap_horiz", "swap_horiz")}
+              emptyTitle={t("highlander_no_slots", "No Exclusive Slots Created")}
+            >
+              {highlanderSlots.slice(0, 4).map((slotItem) =>
+                renderHighlanderSlotCard(slotItem)
+              )}
+            </HubOverviewSection>
             <HubOverviewSection
               icon={t("icon_history", "history")}
               iconColorClass="text-[var(--accent)]"
@@ -1104,6 +1430,24 @@ export function CollectionForge({ setStatus }: any) {
               ))}
             </HubOverviewSection>
           </HubOverviewLanding>
+        ) : filterTab === "exclusive_slots" ? (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 content-start">
+            {filteredHighlanderSlots.length === 0 ? (
+              <EmptyState
+                icon={searchTerm ? t("icon_search_off", "search_off") : t("icon_swap_horiz", "swap_horiz")}
+                title={
+                  searchTerm
+                    ? t("no_matches", "No matches")
+                    : t("highlander_no_slots", "No Exclusive Slots Created")
+                }
+                className="col-span-full py-16"
+              />
+            ) : (
+              filteredHighlanderSlots.map((slotItem) =>
+                renderHighlanderSlotCard(slotItem)
+              )
+            )}
+          </div>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 content-start">
             {filteredSets.length === 0 ? (
@@ -1503,6 +1847,275 @@ export function CollectionForge({ setStatus }: any) {
             icon={t("icon_person", "person")}
           />
         </div>
+      </SidePanel>
+
+      <SidePanel
+        isOpen={isCreateSlotOpen}
+        onClose={() => setIsCreateSlotOpen(false)}
+        title={t("highlander_btn_new_slot", "New Exclusive Slot")}
+        subtitle={t(
+          "highlander_create_slot_sub",
+          "Enforce atomic Highlander one-of-a-kind equip rules"
+        )}
+        icon={t("icon_swap_horiz", "swap_horiz")}
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[90vw] md:w-[680px]"
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_add", "add")}
+              tooltip={t("highlander_btn_new_slot", "New Exclusive Slot")}
+              onClick={createHighlanderSlot}
+              disabled={!newSlotName.trim()}
+              variant="accent"
+            />
+          </PanelHeaderGroup>
+        }
+      >
+        <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+          <SidePanelHeroCard
+            icon={t("icon_swap_horiz", "swap_horiz")}
+            overline={t("highlander_exclusive_slots", "Exclusive Slots")}
+            title={newSlotName || t("highlander_btn_new_slot", "New Exclusive Slot")}
+            description={t(
+              "studio_highlander_slot_desc",
+              "Enforces the Highlander Rule — only one {mod} in the same Exclusive Slot (e.g. Main Menu Replacements or Global Lighting Presets) can be active at a time, automatically swapping rivals without manual conflict links."
+            )}
+            badge={toHighlanderSlotSlug(newSlotSlug || newSlotName) || "slot-slug"}
+            badgeIcon={t("icon_tag", "tag")}
+            variant="accent"
+          />
+
+          <SidePanelTitleInput
+            value={newSlotName}
+            onChange={(val) => {
+              setNewSlotName(val);
+              if (!newSlotSlug) setNewSlotSlug("");
+            }}
+            placeholder={t("studio_highlander_custom_ph", "e.g. Main Menu Replacements")}
+            label={t("highlander_slot_name_label", "Exclusive Slot Name")}
+            icon={t("icon_swap_horiz", "swap_horiz")}
+          />
+
+          <UniversalGroup
+            title={t("tab_metadata", "Slot Configuration")}
+            icon={t("icon_tune", "tune")}
+          >
+            <div className="flex flex-col gap-3.5">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest ml-1">
+                  {t("highlander_slot_slug_label", "Canonical Slot Slug (Static Edge Key)")}
+                </label>
+                <input
+                  value={newSlotSlug || toHighlanderSlotSlug(newSlotName)}
+                  onChange={(e) => setNewSlotSlug(toHighlanderSlotSlug(e.target.value))}
+                  placeholder={t("highlander_slot_slug_ph", "main-menu-replacements")}
+                  className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest ml-1">
+                  {t("upload_desc", "Description")}
+                </label>
+                <textarea
+                  value={newSlotDesc}
+                  onChange={(e) => setNewSlotDesc(e.target.value)}
+                  placeholder={t(
+                    "highlander_slot_desc_ph",
+                    "Describe which {mods} belong in this Exclusive Slot..."
+                  )}
+                  className="glass-surface rounded-xl px-4 py-3 min-h-[88px] resize-y border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-semibold focus:outline-none focus:theme-border-accent transition-all custom-scrollbar"
+                />
+              </div>
+            </div>
+          </UniversalGroup>
+        </div>
+      </SidePanel>
+
+      <SidePanel
+        isOpen={!!activeSlot}
+        onClose={() => setActiveSlot(null)}
+        title={t("highlander_manage_slot", "Manage Exclusive Slot")}
+        subtitle={`UUID: ${activeSlot?.id}`}
+        icon={t("icon_swap_horiz", "swap_horiz")}
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[90vw] md:w-[760px]"
+        headerActions={
+          <PanelHeaderGroup>
+            <PanelHeaderButton
+              icon={t("icon_delete", "delete")}
+              tooltip={t("btn_delete", "{Delete}")}
+              onClick={deleteHighlanderSlot}
+              disabled={isSaving}
+              variant="danger"
+            />
+            <PanelHeaderButton
+              icon={t("icon_save", "save")}
+              tooltip={isSaving ? t("ui_loading", "Saving...") : t("save", "Save")}
+              onClick={saveHighlanderSlot}
+              disabled={isSaving}
+              variant="accent"
+            />
+          </PanelHeaderGroup>
+        }
+      >
+        {activeSlot && (
+          <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+            <SidePanelHeroCard
+              icon={t("icon_swap_horiz", "swap_horiz")}
+              overline={t("highlander_exclusive_slots", "Exclusive Slots")}
+              title={activeSlot.name || t("highlander_manage_slot", "Manage Exclusive Slot")}
+              description={
+                activeSlot.description ||
+                t(
+                  "highlander_slot_card_default_desc",
+                  "Highlander atomic rule — only one {mod} in this Exclusive Slot may be equipped at a time."
+                )
+              }
+              badge={toHighlanderSlotSlug(activeSlot.slug || activeSlot.name) || "slot"}
+              badgeIcon={t("icon_tag", "tag")}
+              variant="accent"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                <StatBox
+                  label={t("highlander_assigned_mods", "Assigned {Mods}")}
+                  value={slotMembers.length}
+                  icon={t("icon_inventory_2", "inventory_2")}
+                  iconColorClass="text-[var(--accent)]"
+                />
+                <StatBox
+                  label={t("highlander_slot_slug_label", "Canonical Slot Slug (Static Edge Key)")}
+                  value={toHighlanderSlotSlug(activeSlot.slug || activeSlot.name) || "-"}
+                  icon={t("icon_code", "code")}
+                  iconColorClass="text-[var(--accent)]"
+                />
+              </div>
+            </SidePanelHeroCard>
+
+            <SidePanelTitleInput
+              value={activeSlot.name || ""}
+              onChange={(val) => setActiveSlot({ ...activeSlot, name: val })}
+              placeholder={t("studio_highlander_custom_ph", "e.g. Main Menu Replacements")}
+              label={t("highlander_slot_name_label", "Exclusive Slot Name")}
+              icon={t("icon_swap_horiz", "swap_horiz")}
+            />
+
+            <UniversalGroup
+              title={t("tab_metadata", "Slot Configuration")}
+              icon={t("icon_tune", "tune")}
+            >
+              <div className="flex flex-col gap-3.5">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest ml-1">
+                    {t("highlander_slot_slug_label", "Canonical Slot Slug (Static Edge Key)")}
+                  </label>
+                  <input
+                    value={activeSlot.slug || ""}
+                    onChange={(e) =>
+                      setActiveSlot({
+                        ...activeSlot,
+                        slug: toHighlanderSlotSlug(e.target.value),
+                      })
+                    }
+                    placeholder={t("highlander_slot_slug_ph", "main-menu-replacements")}
+                    className="w-full glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-mono focus:outline-none focus:theme-border-accent transition-all"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest ml-1">
+                    {t("upload_desc", "Description")}
+                  </label>
+                  <textarea
+                    value={activeSlot.description || ""}
+                    onChange={(e) =>
+                      setActiveSlot({ ...activeSlot, description: e.target.value })
+                    }
+                    placeholder={t(
+                      "highlander_slot_desc_ph",
+                      "Describe which {mods} belong in this Exclusive Slot..."
+                    )}
+                    className="w-full glass-surface rounded-xl px-4 py-3 min-h-[88px] resize-y border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-semibold focus:outline-none focus:theme-border-accent transition-all custom-scrollbar"
+                  />
+                </div>
+              </div>
+            </UniversalGroup>
+
+            <UniversalGroup
+              title={`${t("highlander_assigned_mods", "Assigned {Mods}")} (${slotMembers.length})`}
+              icon={t("icon_inventory_2", "inventory_2")}
+            >
+              <div className="flex flex-col gap-4">
+                <div className="relative z-[6000]">
+                  <ActionPill
+                    searchQuery={slotAssetSearch}
+                    setSearchQuery={setSlotAssetSearch}
+                    searchPlaceholder={t("forge_search_assets", "Search assets...")}
+                    isLoading={isSearchingSlotAssets}
+                  />
+
+                  {slotAssetSearch.trim().length >= 2 && slotAvailableAssets.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl shadow-2xl z-[7000] animate-in fade-in slide-in-from-top-2 max-h-[250px] overflow-y-auto custom-scrollbar">
+                      {slotAvailableAssets
+                        .filter(
+                          (asset) => !slotMembers.some((m) => m.id === asset.id)
+                        )
+                        .map((asset) => (
+                          <button
+                            type="button"
+                            key={asset.id}
+                            onClick={() => {
+                              assignModToSlot(asset.id, asset.name || asset.id);
+                              setSlotAssetSearch("");
+                            }}
+                            className="w-full text-left px-4 py-3 hover:theme-panel-accent border-b border-[color-mix(in_srgb,var(--text)_6%,transparent)] flex justify-between items-center group transition-all shrink-0 cursor-pointer"
+                          >
+                            <div className="flex flex-col min-w-0 pr-4">
+                              <span className="text-xs font-bold text-[var(--text)] truncate">
+                                {asset.name}
+                              </span>
+                              <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-70 truncate">
+                                {asset.masons?.name || asset.master_author || t("unknown", "Unknown")}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)] opacity-0 group-hover:opacity-100 transition-all">
+                              {t("ql_add", "Add")}
+                            </span>
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
+
+                {slotMembers.length === 0 ? (
+                  <EmptyState
+                    icon={t("icon_swap_horiz", "swap_horiz")}
+                    title={t(
+                      "highlander_no_mods_in_slot",
+                      "No {mods} assigned to this Exclusive Slot"
+                    )}
+                  />
+                ) : (
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {slotMembers.map((modRow) => (
+                      <ArtifactCard
+                        key={modRow.id}
+                        mod={modRow}
+                        layout="horizontal"
+                        onClick={() => {}}
+                        onRemove={() =>
+                          unassignModFromSlot(modRow.id, modRow.name || modRow.id)
+                        }
+                        masonsList={[]}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </UniversalGroup>
+          </div>
+        )}
       </SidePanel>
     </>
   );

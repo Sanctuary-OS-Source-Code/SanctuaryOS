@@ -11,6 +11,7 @@ import { WorkbenchTemplateBuilder } from './WorkbenchTemplateBuilder';
 import { useTheme } from '../ThemeContext';
 import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from '../utils/monacoTheme';
 import { isSanctuaryTemplateFile, detectMonacoLanguage, writeDataPathValue } from './workbenchFormatUtils';
+import { useVerifiedMasonOrStaff } from '../utils/hubCommandCache';
 
 const resolveCategoryIcon = (
    cat: any,
@@ -207,6 +208,7 @@ export function WorkbenchSidePanel({
    const activeTab = useStore(state => state.cwActiveTab);
    const setActiveTab = useStore(state => state.setCwActiveTab);
    const session = useStore(state => state.session);
+   const canPublishNexusAssets = useVerifiedMasonOrStaff();
    const hasUnsavedChanges = selectedFile && useStore(state => state.cwUnsavedEdits)[selectedFile.path] !== undefined;
 
    const [onlyModified, setOnlyModified] = useState(false);
@@ -384,6 +386,30 @@ export function WorkbenchSidePanel({
                   )}
 
                   {isTemplateMode && (
+                     <PanelHeaderButton
+                        icon={t("icon_download", "download")}
+                        tooltip={t("export", "Export")}
+                        onClick={() => {
+                           try {
+                              const baseName = (selectedFile?.name || "template.sanctuary.template.json").replace(/\.json$/i, "");
+                              const fileName = baseName.toLowerCase().endsWith(".sanctuary.template")
+                                 ? `${baseName}.json`
+                                 : `${baseName}.sanctuary.template.json`;
+                              const blob = new Blob([editorState.rawText || "{}"], { type: "application/json;charset=utf-8" });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = fileName;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              URL.revokeObjectURL(url);
+                           } catch {}
+                        }}
+                     />
+                  )}
+
+                  {isTemplateMode && canPublishNexusAssets && (
                      <PanelHeaderButton
                         icon={t("icon_cloud_upload", "cloud_upload")}
                         tooltip={

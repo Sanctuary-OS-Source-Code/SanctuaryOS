@@ -750,6 +750,7 @@ export function ArtifactWorkspace({
           status: targetFull.status || "stable",
           is_paid: Boolean(targetFull.is_paid),
           is_early_access: Boolean(targetFull.is_early_access),
+          highlander_group_id: targetFull.highlander_group_id || null,
           requiredDLC: dlcArr,
           compatible_versions: [],
           folder_structure: structNodes,
@@ -2107,6 +2108,35 @@ export function ArtifactWorkspace({
             const next = localCollectionNames.filter((n) => n !== name);
             setLocalCollectionNames(next);
             persistLocalSandboxConfig({ collections: next });
+          }}
+          onChangeHighlanderSlot={async ({ groupId, slug, name }) => {
+            const patch = {
+              highlander_group_id: groupId || null,
+              highlanderGroupId: groupId || null,
+              highlander_slot_slug: slug || null,
+              highlanderSlotKey: slug || null,
+              highlander_slot_name: name || null,
+              highlanderSlotName: name || null,
+            };
+            onUpdateMod({ ...mod, ...patch });
+            if (isCloudMod && isUuid(mod.id)) {
+              const { error } = await supabase
+                .from("mods")
+                .update({
+                  highlander_group_id: groupId || null,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", mod.id);
+              if (error) {
+                useStore.getState().pushStatus(error.message, "error");
+              } else {
+                useStore
+                  .getState()
+                  .pushStatus(t("alert_saved", "Saved"), "success");
+              }
+            } else {
+              persistLocalSandboxConfig(patch);
+            }
           }}
           onChangeStaticManifestUrl={(url) => {
             onUpdateMod({ ...mod, static_manifest_url: url });

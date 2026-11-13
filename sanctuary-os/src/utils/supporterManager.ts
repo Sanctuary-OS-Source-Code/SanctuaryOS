@@ -3,6 +3,11 @@ import { isDesktop } from "./envUtils";
 import { supabaseAuth, supabase, isStandaloneFork } from "../supabase";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
+import {
+  EncryptedSupporterVaultPayload,
+  pullEncryptedSupporterVault,
+  pushEncryptedSupporterVault,
+} from "./stagingCrypto";
 
 export interface LocalMasonFollow {
   mason_id: string;
@@ -40,12 +45,288 @@ export interface LocalSupporterStatePayload {
   follows: LocalMasonFollow[];
   supporters: LocalMasonSupporter[];
   dev_build: LocalDevBuildStatus;
+  removed_follows?: Record<string, number>;
+  removed_supporters?: Record<string, number>;
   total_months_unlocked?: number;
   is_unlocked?: boolean;
 }
 
 const LOCAL_STORAGE_KEY = "sanctuary_local_supporter_vault_v1";
 const NONCE_STORAGE_KEY = "sanctuary_redeemed_tx_hashes_v1";
+const SUPPORTER_CLOUD_PULL_TTL_MS = 45_000;
+const TOMBSTONE_RETENTION_SECS = 180 * 86400;
+const lastCloudSupporterPullByUser = new Map<string, number>();
+const inFlightCloudSupporterPull = new Map<string, Promise<void>>();
+
+function sanitizeTombstoneMap(
+  raw: unknown,
+  nowSecs = Math.floor(Date.now() / 1000)
+): Record<string, number> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const cleanKey = String(k || "").trim();
+    const ts = Number(v || 0);
+    if (cleanKey && Number.isFinite(ts) && ts > 0 && nowSecs - ts <= TOMBSTONE_RETENTION_SECS) {
+      out[cleanKey] = Math.floor(ts);
+    }
+  }
+  return out;
+}
+
+function mergeSupporterVaultStates(
+  localFollows: LocalMasonFollow[],
+  localSupporters: LocalMasonSupporter[],
+  localRemovedFollows: Record<string, number>,
+  localRemovedSupporters: Record<string, number>,
+  remote: EncryptedSupporterVaultPayload | null,
+  nowSecs = Math.floor(Date.now() / 1000)
+): {
+  follows: LocalMasonFollow[];
+  supporters: LocalMasonSupporter[];
+  removedFollows: Record<string, number>;
+  removedSupporters: Record<string, number>;
+  changedLocal: boolean;
+  changedRemote: boolean;
+} {
+  const remoteFollows: LocalMasonFollow[] = Array.isArray(remote?.follows) ? remote!.follows : [];
+  const remoteSupporters: LocalMasonSupporter[] = Array.isArray(remote?.supporters)
+    ? remote!.supporters
+    : [];
+  const remoteRemovedFollows = sanitizeTombstoneMap(remote?.removedFollowKeys, nowSecs);
+  const remoteRemovedSupporters = sanitizeTombstoneMap(remote?.removedSupporterKeys, nowSecs);
+
+  const mergedRemovedFollows: Record<string, number> = { ...localRemovedFollows };
+  for (const [id, ts] of Object.entries(remoteRemovedFollows)) {
+    mergedRemovedFollows[id] = Math.max(mergedRemovedFollows[id] || 0, ts);
+  }
+
+  const mergedRemovedSupporters: Record<string, number> = { ...localRemovedSupporters };
+  for (const [id, ts] of Object.entries(remoteRemovedSupporters)) {
+    mergedRemovedSupporters[id] = Math.max(mergedRemovedSupporters[id] || 0, ts);
+  }
+
+  const followById = new Map<string, LocalMasonFollow>();
+  for (const item of [...remoteFollows, ...localFollows]) {
+    const id = String(item?.mason_id || "").trim();
+    if (!id) continue;
+    const prev = followById.get(id);
+    if (!prev || Number(item.followed_at || 0) >= Number(prev.followed_at || 0)) {
+      followById.set(id, {
+        mason_id: id,
+        mason_name: String(item.mason_name || prev?.mason_name || ""),
+        avatar_url: String(item.avatar_url || prev?.avatar_url || ""),
+        workspace_id: String(item.workspace_id || prev?.workspace_id || ""),
+        notify_alerts: item.notify_alerts !== false,
+        followed_at: Number(item.followed_at || prev?.followed_at || nowSecs),
+      });
+    }
+  }
+
+  const mergedFollows: LocalMasonFollow[] = [];
+  for (const [id, entry] of followById.entries()) {
+    const removedAt = mergedRemovedFollows[id] || 0;
+    if (removedAt > 0 && removedAt >= Number(entry.followed_at || 0)) {
+      continue;
+    }
+    delete mergedRemovedFollows[id];
+    mergedFollows.push(entry);
+  }
+  mergedFollows.sort((a, b) => Number(b.followed_at || 0) - Number(a.followed_at || 0));
+
+  const supporterById = new Map<string, LocalMasonSupporter>();
+  for (const item of [...remoteSupporters, ...localSupporters]) {
+    const id = String(item?.mason_id || "").trim();
+    const expiresAt = Number(item?.expires_at || 0);
+    if (!id || expiresAt <= nowSecs) continue;
+    const prev = supporterById.get(id);
+    const curVer = Number(item.verified_at || 0);
+    const prevVer = Number(prev?.verified_at || 0);
+    if (
+      !prev ||
+      curVer > prevVer ||
+      (curVer === prevVer && expiresAt > Number(prev.expires_at || 0))
+    ) {
+      supporterById.set(id, {
+        mason_id: id,
+        mason_name: String(item.mason_name || prev?.mason_name || id),
+        provider: String(item.provider || prev?.provider || "patreon"),
+        tier_name: String(item.tier_name || prev?.tier_name || "Supporter"),
+        pledge_cents: Number(item.pledge_cents ?? prev?.pledge_cents ?? 500),
+        patreon_campaign_id: String(item.patreon_campaign_id || prev?.patreon_campaign_id || ""),
+        cryptographic_pass: String(item.cryptographic_pass || prev?.cryptographic_pass || ""),
+        expedited_support: item.expedited_support !== false,
+        early_access: item.early_access !== false,
+        verified_at: curVer || nowSecs,
+        expires_at: expiresAt,
+      });
+    }
+  }
+
+  const mergedSupporters: LocalMasonSupporter[] = [];
+  for (const [id, entry] of supporterById.entries()) {
+    const removedAt = mergedRemovedSupporters[id] || 0;
+    if (removedAt > 0 && removedAt >= Number(entry.verified_at || 0)) {
+      continue;
+    }
+    delete mergedRemovedSupporters[id];
+    mergedSupporters.push(entry);
+  }
+  mergedSupporters.sort((a, b) => Number(b.verified_at || 0) - Number(a.verified_at || 0));
+
+  const serializeSig = (
+    fl: LocalMasonFollow[],
+    sp: LocalMasonSupporter[],
+    rf: Record<string, number>,
+    rs: Record<string, number>
+  ) =>
+    JSON.stringify({
+      fl: fl.map((x) => `${x.mason_id}:${x.followed_at}`).sort(),
+      sp: sp.map((x) => `${x.mason_id}:${x.verified_at}:${x.expires_at}`).sort(),
+      rf: Object.entries(rf).sort(([a], [b]) => a.localeCompare(b)),
+      rs: Object.entries(rs).sort(([a], [b]) => a.localeCompare(b)),
+    });
+
+  const mergedSig = serializeSig(
+    mergedFollows,
+    mergedSupporters,
+    mergedRemovedFollows,
+    mergedRemovedSupporters
+  );
+  const localSig = serializeSig(
+    localFollows,
+    localSupporters.filter((s) => Number(s?.expires_at || 0) > nowSecs),
+    localRemovedFollows,
+    localRemovedSupporters
+  );
+  const remoteSig = remote
+    ? serializeSig(
+        remoteFollows,
+        remoteSupporters.filter((s) => Number(s?.expires_at || 0) > nowSecs),
+        remoteRemovedFollows,
+        remoteRemovedSupporters
+      )
+    : "";
+
+  const hasAnyState =
+    mergedFollows.length > 0 ||
+    mergedSupporters.length > 0 ||
+    Object.keys(mergedRemovedFollows).length > 0 ||
+    Object.keys(mergedRemovedSupporters).length > 0;
+
+  return {
+    follows: mergedFollows,
+    supporters: mergedSupporters,
+    removedFollows: mergedRemovedFollows,
+    removedSupporters: mergedRemovedSupporters,
+    changedLocal: mergedSig !== localSig,
+    changedRemote: remote ? mergedSig !== remoteSig : hasAnyState,
+  };
+}
+
+async function syncSupporterVaultWithCloud(
+  state: LocalSupporterStatePayload,
+  effectiveVault: string,
+  effectiveUser: string,
+  forcePush = false
+): Promise<LocalSupporterStatePayload> {
+  const localOnly =
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("sanctuary_local_only") === "true";
+  if (localOnly || (typeof navigator !== "undefined" && !navigator.onLine)) {
+    return state;
+  }
+  const session = useStore.getState().session;
+  if (!session?.user?.id || session.user.id !== effectiveUser) {
+    return state;
+  }
+
+  const nowMs = Date.now();
+  const lastPulled = lastCloudSupporterPullByUser.get(effectiveUser) || 0;
+  if (!forcePush && nowMs - lastPulled < SUPPORTER_CLOUD_PULL_TTL_MS) {
+    return state;
+  }
+
+  const existingTask = inFlightCloudSupporterPull.get(effectiveUser);
+  if (existingTask && !forcePush) {
+    await existingTask.catch(() => {});
+    const refreshed = readFallbackVault(effectiveUser);
+    return {
+      ...state,
+      follows: refreshed.follows,
+      supporters: refreshed.supporters,
+      removed_follows: refreshed.removed_follows,
+      removed_supporters: refreshed.removed_supporters,
+    };
+  }
+
+  const runTask = (async () => {
+    const nowSecs = Math.floor(Date.now() / 1000);
+    const fallbackSnap = readFallbackVault(effectiveUser);
+    const localRmFollows = sanitizeTombstoneMap(
+      state.removed_follows || fallbackSnap.removed_follows,
+      nowSecs
+    );
+    const localRmSupporters = sanitizeTombstoneMap(
+      state.removed_supporters || fallbackSnap.removed_supporters,
+      nowSecs
+    );
+
+    const remote = await pullEncryptedSupporterVault(session);
+    lastCloudSupporterPullByUser.set(effectiveUser, Date.now());
+
+    const merged = mergeSupporterVaultStates(
+      state.follows,
+      state.supporters,
+      localRmFollows,
+      localRmSupporters,
+      remote,
+      nowSecs
+    );
+
+    state.follows = merged.follows;
+    state.supporters = merged.supporters;
+    state.removed_follows = merged.removedFollows;
+    state.removed_supporters = merged.removedSupporters;
+
+    if (merged.changedLocal) {
+      writeFallbackVault(state);
+      if (isDesktop() && effectiveVault && effectiveVault !== "web") {
+        await invoke("import_synced_supporter_vault", {
+          vaultPath: effectiveVault,
+          follows: merged.follows,
+          supporters: merged.supporters,
+          removedFollowIds: Object.keys(merged.removedFollows),
+          removedSupporterIds: Object.keys(merged.removedSupporters),
+        }).catch(() => {});
+      }
+    }
+
+    if (forcePush || merged.changedRemote) {
+      await pushEncryptedSupporterVault(
+        {
+          version: 1,
+          syncedAt: new Date().toISOString(),
+          follows: merged.follows,
+          supporters: merged.supporters,
+          removedFollowKeys: merged.removedFollows,
+          removedSupporterKeys: merged.removedSupporters,
+        },
+        session
+      );
+    }
+  })();
+
+  inFlightCloudSupporterPull.set(effectiveUser, runTask);
+  try {
+    await runTask;
+  } finally {
+    if (inFlightCloudSupporterPull.get(effectiveUser) === runTask) {
+      inFlightCloudSupporterPull.delete(effectiveUser);
+    }
+  }
+  return state;
+}
 
 function readFallbackVault(userId: string): LocalSupporterStatePayload {
   const isAuthenticatedUser = Boolean(userId && userId !== "local_citizen");
@@ -79,6 +360,8 @@ function readFallbackVault(userId: string): LocalSupporterStatePayload {
         follows: Array.isArray(parsed.follows) ? parsed.follows : [],
         supporters: Array.isArray(parsed.supporters) ? parsed.supporters : [],
         dev_build: resolvedDevBuild,
+        removed_follows: sanitizeTombstoneMap(parsed.removed_follows),
+        removed_supporters: sanitizeTombstoneMap(parsed.removed_supporters),
       };
     }
   } catch {
@@ -88,6 +371,8 @@ function readFallbackVault(userId: string): LocalSupporterStatePayload {
     follows: [],
     supporters: [],
     dev_build: defaultDevBuild,
+    removed_follows: {},
+    removed_supporters: {},
   };
 }
 
@@ -151,8 +436,19 @@ export async function getSupporterState(
         },
       );
       if (sqliteState) {
+        const rmFollows = state.removed_follows || {};
+        const rmSupporters = state.removed_supporters || {};
         state = {
           ...sqliteState,
+          follows: (sqliteState.follows || []).filter(
+            (f) => !(rmFollows[f.mason_id] && rmFollows[f.mason_id] >= Number(f.followed_at || 0))
+          ),
+          supporters: (sqliteState.supporters || []).filter(
+            (s) =>
+              !(rmSupporters[s.mason_id] && rmSupporters[s.mason_id] >= Number(s.verified_at || 0))
+          ),
+          removed_follows: rmFollows,
+          removed_supporters: rmSupporters,
           dev_build: isAuthenticatedUser
             ? sqliteState.dev_build
             : {
@@ -257,6 +553,12 @@ export async function getSupporterState(
     } catch {
       // Cloud profile may not have new columns yet; rely on local SQLite state
     }
+
+    try {
+      state = await syncSupporterVaultWithCloud(state, effectiveVault, effectiveUser, false);
+    } catch {
+      // Non-fatal E2EE multi-rig sync warning
+    }
   }
 
   return state;
@@ -297,22 +599,35 @@ export async function toggleLocalFollow(params: {
     isFollowingNow = existingIdx === -1;
   }
 
+  fallback.removed_follows = fallback.removed_follows || {};
   if (isFollowingNow) {
+    delete fallback.removed_follows[params.masonId];
+    const nextEntry: LocalMasonFollow = {
+      mason_id: params.masonId,
+      mason_name: params.masonName || "",
+      avatar_url: params.avatarUrl || "",
+      workspace_id:
+        params.workspaceId || useStore.getState().activeWorkspaceId || "",
+      notify_alerts: true,
+      followed_at: now,
+    };
     if (existingIdx === -1) {
-      fallback.follows.unshift({
-        mason_id: params.masonId,
-        mason_name: params.masonName || "",
-        avatar_url: params.avatarUrl || "",
-        workspace_id:
-          params.workspaceId || useStore.getState().activeWorkspaceId || "",
-        notify_alerts: true,
-        followed_at: now,
-      });
+      fallback.follows.unshift(nextEntry);
+    } else {
+      fallback.follows[existingIdx] = nextEntry;
     }
-  } else if (existingIdx !== -1) {
-    fallback.follows.splice(existingIdx, 1);
+  } else {
+    fallback.removed_follows[params.masonId] = now;
+    if (existingIdx !== -1) {
+      fallback.follows.splice(existingIdx, 1);
+    }
   }
   writeFallbackVault(fallback);
+
+  if (userId && userId !== "local_citizen") {
+    lastCloudSupporterPullByUser.delete(userId);
+    void syncSupporterVaultWithCloud(fallback, vaultPath, userId, true);
+  }
 
   return isFollowingNow;
 }
@@ -343,11 +658,17 @@ export async function syncLocalMasonSupporterBridge(params: {
       },
     );
     const fallback = readFallbackVault(userId);
+    fallback.removed_supporters = fallback.removed_supporters || {};
+    delete fallback.removed_supporters[record.mason_id];
     fallback.supporters = [
       record,
       ...fallback.supporters.filter((s) => s.mason_id !== record.mason_id),
     ];
     writeFallbackVault(fallback);
+    if (userId && userId !== "local_citizen") {
+      lastCloudSupporterPullByUser.delete(userId);
+      void syncSupporterVaultWithCloud(fallback, vaultPath, userId, true);
+    }
     return record;
   }
 
@@ -370,11 +691,17 @@ export async function syncLocalMasonSupporterBridge(params: {
   };
 
   const fallback = readFallbackVault(userId);
+  fallback.removed_supporters = fallback.removed_supporters || {};
+  delete fallback.removed_supporters[record.mason_id];
   fallback.supporters = [
     record,
     ...fallback.supporters.filter((s) => s.mason_id !== record.mason_id),
   ];
   writeFallbackVault(fallback);
+  if (userId && userId !== "local_citizen") {
+    lastCloudSupporterPullByUser.delete(userId);
+    void syncSupporterVaultWithCloud(fallback, vaultPath, userId, true);
+  }
   return record;
 }
 
@@ -383,6 +710,7 @@ export async function removeLocalMasonSupporterBridge(
 ): Promise<void> {
   const vaultPath = useStore.getState().vaultPath || "";
   const userId = useStore.getState().session?.user?.id || "local_citizen";
+  const now = Math.floor(Date.now() / 1000);
 
   if (isDesktop() && vaultPath && vaultPath !== "web") {
     await invoke("remove_local_mason_supporter", {
@@ -392,10 +720,16 @@ export async function removeLocalMasonSupporterBridge(
   }
 
   const fallback = readFallbackVault(userId);
+  fallback.removed_supporters = fallback.removed_supporters || {};
+  fallback.removed_supporters[masonId] = now;
   fallback.supporters = fallback.supporters.filter(
     (s) => s.mason_id !== masonId,
   );
   writeFallbackVault(fallback);
+  if (userId && userId !== "local_citizen") {
+    lastCloudSupporterPullByUser.delete(userId);
+    void syncSupporterVaultWithCloud(fallback, vaultPath, userId, true);
+  }
 }
 
 export async function clearExpiredLocalMasonSupporters(
@@ -424,12 +758,20 @@ export async function clearExpiredLocalMasonSupporters(
     );
   }
 
+  fallback.removed_supporters = fallback.removed_supporters || {};
+  for (const id of idsToClear) {
+    fallback.removed_supporters[id] = now;
+  }
   const idSet = new Set(idsToClear);
   fallback.supporters = fallback.supporters.filter(
     (s) =>
       !idSet.has(s.mason_id) && !(s.expires_at && s.expires_at <= now),
   );
   writeFallbackVault(fallback);
+  if (userId && userId !== "local_citizen") {
+    lastCloudSupporterPullByUser.delete(userId);
+    void syncSupporterVaultWithCloud(fallback, vaultPath, userId, true);
+  }
   return fallback.supporters;
 }
 

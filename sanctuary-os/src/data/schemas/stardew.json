@@ -143,13 +143,13 @@
     "required_active_seconds": 90,
     "max_idle_seconds": 25,
     "require_focus": true,
-    "require_save_checkpoint": false,
+    "require_save_checkpoint": true,
     "seed_sandbox_from_latest_save": true,
     "enable_hotkey_pause_detection": false,
     "pause_key_vk_codes": [],
     "resume_key_vk_codes": [],
     "save_extensions": [
-      "_STARDEWVALLEYSAVETMP",
+      "/",
       ".xml"
     ],
     "world_load_signature": {

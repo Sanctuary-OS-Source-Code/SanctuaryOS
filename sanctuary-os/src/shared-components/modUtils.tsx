@@ -41,6 +41,9 @@ export interface ModData {
   flavorGroupId?: string | null;
   isFlavorFolder?: boolean;
   flavorGroupName?: string | null;
+  highlanderGroupId?: string | null;
+  highlanderSlotKey?: string | null;
+  highlanderSlotName?: string | null;
   invisibleRivals?: string[];
   setId?: string | null;
   isCollection?: boolean;
@@ -246,11 +249,10 @@ export const mapDlcCode = (code: string) => {
   return DLC_MAP[baseCode] || code;
 };
 export const getModIcon = (mod: any, schema: any, t: any) => {
-  if (mod.isFlavorFolder) return t("icon_style", "style") || "style";
   if (
     mod.isParent &&
     mod.flavors?.some((f: any) =>
-      ["twin", "beta", "addon"].includes(f.relationshipType),
+      ["twin", "beta", "addon", "flavor"].includes(f.relationshipType),
     )
   )
     return t("icon_account_tree", "account_tree") || "account_tree";
@@ -286,6 +288,67 @@ export const getModIcon = (mod: any, schema: any, t: any) => {
     return t("icon_folder_special", "folder_special") || "folder_special";
   return t("icon_extension", "extension") || "extension";
 };
+export const toHighlanderSlotSlug = (raw?: string | null): string => {
+  return String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+};
+
+export const formatHighlanderSlotLabel = (rawSlugOrName?: string | null): string => {
+  const raw = String(rawSlugOrName || "").trim();
+  if (!raw) return "";
+  if (raw.includes(" ") || /[A-Z]/.test(raw)) return raw;
+  return raw
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+};
+
+export const resolveModHighlanderSlot = (
+  mod: any
+): { key: string; name: string; label: string; groupId?: string } | null => {
+  if (!mod) return null;
+  const rawRule =
+    mod.highlanderSlotKey ||
+    mod.highlander_slot_key ||
+    mod.edgeHighlanderGroup ||
+    mod.atomic_logic?.highlander_group ||
+    mod.atomic_logic?.exclusive_slot ||
+    mod.edgeManifest?.atomic_logic?.highlander_group ||
+    mod.edgeManifest?.atomic_logic?.exclusive_slot;
+
+  let slug = "";
+  let name = String(mod.highlanderSlotName || mod.highlander_slot_name || "").trim();
+  const groupId = mod.highlanderGroupId || mod.highlander_group_id || undefined;
+
+  if (typeof rawRule === "string") {
+    slug = toHighlanderSlotSlug(rawRule);
+    if (!name) name = formatHighlanderSlotLabel(rawRule);
+  } else if (rawRule && typeof rawRule === "object") {
+    slug = toHighlanderSlotSlug(rawRule.slug || rawRule.id || rawRule.name || "");
+    if (!name) {
+      name = formatHighlanderSlotLabel(rawRule.name || rawRule.slug || rawRule.id || "");
+    }
+  } else if (name) {
+    slug = toHighlanderSlotSlug(name);
+  } else if (groupId) {
+    slug = `group-${String(groupId).trim().toLowerCase()}`;
+    name = slug;
+  }
+
+  if (!slug) return null;
+  const resolvedLabel = name || formatHighlanderSlotLabel(slug);
+  return {
+    key: slug,
+    name: resolvedLabel,
+    label: resolvedLabel,
+    ...(groupId ? { groupId: String(groupId) } : {}),
+  };
+};
+
 export const processModsIntoCollections = (
   modsData: any[],
   flavorGroups: any[],
@@ -295,10 +358,45 @@ export const processModsIntoCollections = (
   allSetMembers: any[],
 ) => {
   let allItems: any[] = [];
+  const highlanderGroupMap = new Map<string, any>();
+  if (Array.isArray(flavorGroups)) {
+    for (const fg of flavorGroups) {
+      if (fg?.id) highlanderGroupMap.set(String(fg.id), fg);
+    }
+  }
+  const legacyHashToGroupId = new Map<string, string>();
+  if (Array.isArray(allFlavorMembers)) {
+    for (const fm of allFlavorMembers) {
+      if (fm?.mod_hash && fm?.group_id && !legacyHashToGroupId.has(String(fm.mod_hash))) {
+        legacyHashToGroupId.set(String(fm.mod_hash), String(fm.group_id));
+      }
+    }
+  }
+
   const modsById = new Map<string, any>();
   if (modsData) {
     modsData.forEach((mod: any) => {
-      modsById.set(String(mod.id), mod);
+      let resolvedGroupId = mod.highlander_group_id ? String(mod.highlander_group_id) : "";
+      if (!resolvedGroupId && Array.isArray(mod.mod_versions)) {
+        for (const v of mod.mod_versions) {
+          const hit = v?.dna_hash ? legacyHashToGroupId.get(String(v.dna_hash)) : undefined;
+          if (hit) {
+            resolvedGroupId = hit;
+            break;
+          }
+        }
+      }
+      const groupObj = resolvedGroupId ? highlanderGroupMap.get(resolvedGroupId) : null;
+      const slotKey = groupObj ? toHighlanderSlotSlug(groupObj.slug || groupObj.name) : "";
+      const enrichedMod = groupObj
+        ? {
+            ...mod,
+            highlanderGroupId: resolvedGroupId,
+            highlanderSlotKey: slotKey,
+            highlanderSlotName: groupObj.name || formatHighlanderSlotLabel(slotKey),
+          }
+        : mod;
+      modsById.set(String(mod.id), enrichedMod);
     });
   }
 
@@ -348,60 +446,6 @@ export const processModsIntoCollections = (
         }
       }
     });
-  }
-
-  if (flavorGroups) {
-    const membersByGroup = new Map<string, any[]>();
-    if (allFlavorMembers) {
-      for (const fm of allFlavorMembers) {
-        if (!membersByGroup.has(fm.group_id))
-          membersByGroup.set(fm.group_id, []);
-        membersByGroup.get(fm.group_id)!.push(fm);
-      }
-    }
-
-    for (const group of flavorGroups) {
-      const flavorMembers = membersByGroup.get(group.id) || [];
-      const members: any[] = [];
-      const memberIds = new Set<string>();
-
-      if (flavorMembers.length > 0) {
-        for (const fm of flavorMembers) {
-          for (const [modId, mod] of modsById.entries()) {
-            if (
-              mod.mod_versions?.some((v: any) => v.dna_hash === fm.mod_hash)
-            ) {
-              if (!memberIds.has(modId)) {
-                members.push(mod);
-                memberIds.add(modId);
-                processedMods.add(modId);
-              }
-              break;
-            }
-          }
-        }
-      }
-
-      if (members.length > 0) {
-        allItems.push({
-          id: `flavor_${group.id}`,
-          name: group.name,
-          category_override: "Exclusives",
-          image_url: group.image_url || null,
-          master_author: "Flavor Group",
-          description: null,
-          created_at: group.created_at,
-          isFlavorGroup: true,
-          flavorGroupId: group.id,
-          flavors: members,
-          familyCount: members.length,
-          isVirtual: true,
-          isParent: true,
-          is_paid: members.some((m) => m.is_paid),
-          is_early_access: members.some((m) => m.is_early_access),
-        });
-      }
-    }
   }
 
   if (collections) {

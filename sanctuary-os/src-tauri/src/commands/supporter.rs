@@ -433,6 +433,90 @@ pub async fn remove_local_mason_supporter(
 }
 
 #[tauri::command]
+pub async fn import_synced_supporter_vault(
+    vault_path: String,
+    follows: Vec<LocalMasonFollow>,
+    supporters: Vec<LocalMasonSupporter>,
+    removed_follow_ids: Vec<String>,
+    removed_supporter_ids: Vec<String>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || -> Result<(), String> {
+        let conn_arc = open_db_conn(&vault_path)?;
+        let conn = conn_arc
+            .lock()
+            .map_err(|_| "Failed to lock Vault database connection.".to_string())?;
+        let now = now_secs();
+
+        for rm_follow in &removed_follow_ids {
+            if !rm_follow.trim().is_empty() {
+                let _ = conn.execute(
+                    "DELETE FROM local_mason_follows WHERE mason_id = ?1",
+                    rusqlite::params![rm_follow.trim()],
+                );
+            }
+        }
+
+        for rm_sup in &removed_supporter_ids {
+            if !rm_sup.trim().is_empty() {
+                let _ = conn.execute(
+                    "DELETE FROM local_mason_supporters WHERE mason_id = ?1",
+                    rusqlite::params![rm_sup.trim()],
+                );
+            }
+        }
+
+        for f in &follows {
+            if f.mason_id.trim().is_empty() {
+                continue;
+            }
+            let _ = conn.execute(
+                "INSERT OR REPLACE INTO local_mason_follows (
+                    mason_id, mason_name, avatar_url, workspace_id, notify_alerts, followed_at
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                rusqlite::params![
+                    f.mason_id.trim(),
+                    f.mason_name.trim(),
+                    f.avatar_url.trim(),
+                    f.workspace_id.trim(),
+                    if f.notify_alerts { 1 } else { 0 },
+                    if f.followed_at > 0 { f.followed_at } else { now }
+                ],
+            );
+        }
+
+        for s in &supporters {
+            if s.mason_id.trim().is_empty() || s.expires_at <= now {
+                continue;
+            }
+            let _ = conn.execute(
+                "INSERT OR REPLACE INTO local_mason_supporters (
+                    mason_id, mason_name, provider, tier_name, pledge_cents,
+                    patreon_campaign_id, access_token, cryptographic_pass,
+                    expedited_support, early_access, verified_at, expires_at
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, '', ?7, ?8, ?9, ?10, ?11)",
+                rusqlite::params![
+                    s.mason_id.trim(),
+                    s.mason_name.trim(),
+                    s.provider.trim(),
+                    s.tier_name.trim(),
+                    s.pledge_cents,
+                    s.patreon_campaign_id.trim(),
+                    s.cryptographic_pass.trim(),
+                    if s.expedited_support { 1 } else { 0 },
+                    if s.early_access { 1 } else { 0 },
+                    if s.verified_at > 0 { s.verified_at } else { now },
+                    s.expires_at
+                ],
+            );
+        }
+
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
 pub async fn stack_local_dev_build_donation(
     vault_path: String,
     user_id: String,

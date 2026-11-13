@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { supabase } from "./supabase";
+import { supabase, isStandaloneFork } from "./supabase";
+import { parseSpokeRelinkToken } from "./utils/stagingCrypto";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import {
@@ -78,6 +79,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const [confirmPassword, setConfirmPassword] = useState("");
   const [generatedKeyPreview, setGeneratedKeyPreview] = useState("");
   const [username, setUsername] = useState("");
+  const [spokeRelinkToken, setSpokeRelinkToken] = useState("");
   const [blindSignupEmail, setBlindSignupEmail] = useState(true);
   const [blindSignupPreview, setBlindSignupPreview] = useState("");
   const [recoveryMode, setRecoveryMode] = useState<"passkey" | "sovereign" | "email">("sovereign");
@@ -590,6 +592,15 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
         setStatus(t("auth_recovery_mismatch_err", "Passwords do not match."));
         return;
       }
+      if (isStandaloneFork && spokeRelinkToken.trim() && !parseSpokeRelinkToken(spokeRelinkToken)) {
+        setStatus(
+          t(
+            "auth_relink_token_invalid",
+            "Invalid Spoke Relink Token format. Expected SRK1.<uuid>.<secret>."
+          )
+        );
+        return;
+      }
     }
 
     setIsProcessing(true);
@@ -658,6 +669,9 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
               email_blinded_v2: blindSignupEmail,
               email_blinded_v1: blindSignupEmail,
               email_blinded: blindSignupEmail,
+              ...(isStandaloneFork && spokeRelinkToken.trim()
+                ? { relink_token: spokeRelinkToken.trim() }
+                : {}),
             },
           },
         });
@@ -2259,6 +2273,35 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                       </div>
                     </div>
                   </div>
+
+                  {isStandaloneFork && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                        {t("auth_relink_token_optional_label", "Legacy Spoke Relink Token (Optional)")}
+                      </label>
+                      <div className="relative group/input">
+                        <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--subtext)] opacity-60 group-focus-within/input:text-[var(--accent)] group-focus-within/input:opacity-100 transition-all !text-[17px]">
+                          {t("icon_vpn_key", "vpn_key")}
+                        </span>
+                        <input
+                          type="text"
+                          value={spokeRelinkToken}
+                          onChange={(e) => setSpokeRelinkToken(e.target.value)}
+                          autoComplete="off"
+                          spellCheck="false"
+                          data-1p-ignore
+                          placeholder={t("spoke_relink_token_ph", "SRK1.<uuid>.<secret>")}
+                          className="w-full glass-surface rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)] transition-all"
+                        />
+                      </div>
+                      <span className="text-[10px] font-medium text-[var(--subtext)] opacity-80 px-1 leading-snug">
+                        {t(
+                          "auth_relink_token_optional_hint",
+                          "Returning from a formerly federated Spoke? Paste your Spoke Relink Token to cryptographically reclaim your {Citizen} profile, {Mason} studio, and {Blueprints}."
+                        )}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Zero-PII Blinded Email Toggle + Recovery Warning */}
                   <div

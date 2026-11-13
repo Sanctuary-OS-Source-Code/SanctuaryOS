@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useStore } from "../store";
 import { logArchitectAction } from "../lib/audit";
@@ -78,6 +79,70 @@ export function setCachedMasonProfile(userId: string, scopeId: string, profile: 
     updatedAt: Date.now(),
     profile,
   });
+}
+
+export function isStaffOrCoreRole(userRole?: string | null, osRole?: string | null): boolean {
+  return (
+    ["architect", "senior_architect", "oversight", "wayfinder", "admin"].includes(
+      String(userRole || "").toLowerCase()
+    ) ||
+    ["core_dev", "admin", "keeper"].includes(String(osRole || "").toLowerCase())
+  );
+}
+
+export function useVerifiedMasonOrStaff(): boolean {
+  const session = useStore((s) => s.session);
+  const userRole = useStore((s) => s.userRole);
+  const osRole = useStore((s) => s.osRole);
+  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const userId = session?.user?.id || "";
+  const scopeKey = activeWorkspaceId || "global";
+  const staffOverride = isStaffOrCoreRole(userRole, osRole);
+
+  const [isOwnedMasonVerified, setIsOwnedMasonVerified] = useState<boolean>(() => {
+    if (!userId) return false;
+    const cached = getCachedMasonProfile(userId, scopeKey);
+    return Boolean(cached && !cached.isUnverifiedLocal && cached.is_verified === true);
+  });
+
+  useEffect(() => {
+    if (!userId) {
+      setIsOwnedMasonVerified(false);
+      return;
+    }
+    if (staffOverride) {
+      setIsOwnedMasonVerified(true);
+      return;
+    }
+    const cached = getCachedMasonProfile(userId, scopeKey);
+    if (cached !== undefined) {
+      setIsOwnedMasonVerified(Boolean(!cached.isUnverifiedLocal && cached.is_verified === true));
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    let cancelled = false;
+    supabase
+      .from("masons")
+      .select("*")
+      .eq("profile_id", userId)
+      .maybeSingle()
+      .then(
+        ({ data, error }) => {
+          if (cancelled) return;
+          if (!error && data) {
+            setCachedMasonProfile(userId, scopeKey, data);
+            setIsOwnedMasonVerified(Boolean(data.is_verified === true));
+          } else if (!error) {
+            setIsOwnedMasonVerified(false);
+          }
+        },
+        () => {}
+      );
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, scopeKey, staffOverride]);
+
+  return staffOverride || isOwnedMasonVerified;
 }
 
 export function isTicketOpenStatus(status: string | null | undefined): boolean {

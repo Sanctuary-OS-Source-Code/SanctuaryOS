@@ -50,6 +50,15 @@ export function useLaunchLogic(
   const handleQuickLaunch = async () => {
     const config: any = await invoke("get_saved_coordinates");
     const storeState = useStore.getState();
+    const dPath = String(
+      storeState.docsPath || config?.docs_path || config?.user_data_path || config?.mods_path || ""
+    ).trim();
+    if (dPath) {
+      await invoke("recover_interrupted_lab_airgap", {
+        docsPath: dPath,
+        vaultPath: config?.vault_path || "",
+      }).catch(() => {});
+    }
     const currentDefcon = storeState.defconLevel;
     const currentPatch = storeState.isPatchDetected;
     const wsScope = String(storeState.activeWorkspaceId || "default")

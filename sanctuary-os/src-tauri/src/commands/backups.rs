@@ -667,6 +667,19 @@ pub async fn backup_universe(
         let app_state = app.state::<AppState>();
         let game_schema = app_state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
 
+        // Automatically recover any stranded Save Airgap left by a prior OS/app crash before snapshotting
+        let _ = crate::commands::deployment::recover_stranded_airgap_if_needed(
+            &game_docs_path,
+            &config.vault_path,
+            &game_schema,
+        );
+        if crate::commands::deployment::is_airgap_active_for_docs(&game_docs_path, &game_schema) {
+            return Err(
+                "Save Airgap Shield is currently active for a live Lab test. Conclude the Lab test first so Time Capsule snapshots your real live saves."
+                    .into(),
+            );
+        }
+
         let mut targets = Vec::new();
         if let Some(schema) = &game_schema {
             if let Some(time_capsule) = &schema.time_capsule {
@@ -2067,6 +2080,19 @@ pub async fn restore_game_data(
         };
         if !crate::utils::is_safe_user_file_path(&target) {
             return Err("Blocked: Refusing to restore into a protected system path.".into());
+        }
+        if !backup_name.contains("Engine") {
+            let _ = crate::commands::deployment::recover_stranded_airgap_if_needed(
+                &target,
+                &config.vault_path,
+                &game_schema,
+            );
+            if crate::commands::deployment::is_airgap_active_for_docs(&target, &game_schema) {
+                return Err(
+                    "Cannot restore World State while a Homestead Lab Save Airgap session is active. Conclude the Lab test first."
+                        .into(),
+                );
+            }
         }
         let allowed_backup_roots =
             collect_allowed_backup_roots(&config.vault_path, &config, &game_schema);

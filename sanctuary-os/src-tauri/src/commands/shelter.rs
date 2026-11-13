@@ -92,6 +92,7 @@ fn zero_fill_and_remove_file(path: &Path, max_zero_bytes: u64) {
 #[tauri::command]
 pub fn shred_external_file(
     state: tauri::State<'_, SecurityState>,
+    app_state: tauri::State<'_, AppState>,
     file_path: String,
     hash: Option<String>,
     filename: Option<String>,
@@ -107,6 +108,15 @@ pub fn shred_external_file(
     let p = std::path::PathBuf::from(&file_path);
     if !crate::utils::is_safe_user_file_path(&p) {
         return Err("Refusing to purge protected or unsafe path.".into());
+    }
+    let active_schema = app_state
+        .active_schema
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    let saved_coords = get_saved_coordinates();
+    if crate::utils::is_protected_save_or_airgap_path(&p, &saved_coords, &active_schema) {
+        return Err("Refusing to purge protected user save or Lab Airgap vault file.".into());
     }
 
     // Build strict allowed roots for external quarantine shredding:
@@ -286,9 +296,9 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
 
 #[tauri::command]
 pub async fn repopulate_from_shelter(state: tauri::State<'_, AppState>) -> Result<String, String> {
-    let game_schema = state.active_schema.lock().unwrap().clone();
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let config = get_saved_coordinates();
-    let _ = apply_save_airgap(&config.mods_path, false, &game_schema);
+    apply_save_airgap(&config.mods_path, false, &game_schema)?;
     let vault_mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
     let mut packages = Vec::new();
     walk_packages(&game_schema, &vault_mods_lane, &mut packages);

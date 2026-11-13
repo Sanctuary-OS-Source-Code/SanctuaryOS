@@ -5,7 +5,7 @@ import { useMemo, useCallback, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { getExtensionRegex, formatDisplayName, deduplicateBlueprintArtifacts, stripPriorityTierPrefix } from "../shared";
+import { getExtensionRegex, formatDisplayName, deduplicateBlueprintArtifacts, stripPriorityTierPrefix, resolveModHighlanderSlot } from "../shared";
 
 export interface LoadOrderRule {
   id: string;
@@ -854,7 +854,7 @@ interface ModIndicesBundle {
   byDbId: Map<string, any>;
   byFamilyOrDbId: Map<string, any[]>;
   bySetId: Map<string, any[]>;
-  byFlavorGroup: Map<string, any[]>;
+  byHighlanderSlot: Map<string, any[]>;
   byCommunityGroup: Map<string, any[]>;
   byParsedBaseName: Map<string, any[]>;
   normRelToMod: Map<string, any>;
@@ -1098,7 +1098,7 @@ export function usePlaySetLogic() {
     byDbId,
     byFamilyOrDbId,
     bySetId,
-    byFlavorGroup,
+    byHighlanderSlot,
     byCommunityGroup,
     byParsedBaseName,
     normRelToMod,
@@ -1122,7 +1122,7 @@ export function usePlaySetLogic() {
     const byDbId = new Map<string, any>();
     const byFamilyOrDbId = new Map<string, any[]>();
     const bySetId = new Map<string, any[]>();
-    const byFlavorGroup = new Map<string, any[]>();
+    const byHighlanderSlot = new Map<string, any[]>();
     const byCommunityGroup = new Map<string, any[]>();
     const byParsedBaseName = new Map<string, any[]>();
     const normRelToMod = new Map<string, any>();
@@ -1164,7 +1164,8 @@ export function usePlaySetLogic() {
       if (m.setId != null) pushToMap(bySetId, String(m.setId), m);
       if (!m.isVirtual) {
         if (m.dbId) byDbId.set(String(m.dbId), m);
-        if (m.flavorGroupId != null) pushToMap(byFlavorGroup, String(m.flavorGroupId), m);
+        const hSlot = resolveModHighlanderSlot(m);
+        if (hSlot) pushToMap(byHighlanderSlot, hSlot.key, m);
         if (m.communityGroupId != null) pushToMap(byCommunityGroup, String(m.communityGroupId), m);
         if (Array.isArray(m.conflicts) && m.conflicts.length > 0) {
           modsWithConflicts.push(m);
@@ -1198,7 +1199,7 @@ export function usePlaySetLogic() {
       byDbId,
       byFamilyOrDbId,
       bySetId,
-      byFlavorGroup,
+      byHighlanderSlot,
       byCommunityGroup,
       byParsedBaseName,
       normRelToMod,
@@ -1504,12 +1505,254 @@ export function usePlaySetLogic() {
       targetNameOrNames: string | string[],
       excludeBroken: boolean = true,
       forceRemove: boolean = false,
-      forceActive: boolean = false
+      forceActive: boolean = false,
+      swapOpts?: { confirmedSwap?: boolean; skipHighlanderSwap?: boolean }
     ) => {
       const targetList = (
         Array.isArray(targetNameOrNames) ? targetNameOrNames : [targetNameOrNames]
       ).filter((n) => typeof n === "string" && n.length > 0);
       if (targetList.length === 0) return;
+
+      // Pre-flight Exclusive Slot / Flavor Swap Alert Gate:
+      // Never silently auto-remove an equipped rival {Mod} — intercept direct equip calls
+      // (context menu, dependency equip, shortcut) and surface a Swap / Keep Both alert.
+      if (
+        !forceRemove &&
+        !swapOpts?.confirmedSwap &&
+        !swapOpts?.skipHighlanderSwap &&
+        anarchyRules?.highlander !== false
+      ) {
+        const liveSet = useStore.getState().playSets?.[activePlaySetIndex];
+        if (liveSet && Array.isArray(liveSet.mods) && liveSet.mods.length > 0) {
+          const normPreRel = (n: string) =>
+            stripPriorityTierPrefix(String(n || ""), activeGameSchema)
+              .replace(/\\/g, "/")
+              .toLowerCase();
+          const normPreBase = (n: string) => normPreRel(n).split("/").pop() || "";
+
+          const equippedExact = new Set<string>();
+          const equippedRel = new Set<string>();
+          const equippedBase = new Set<string>();
+          for (const entry of liveSet.mods) {
+            const rawStr =
+              typeof entry === "string" ? entry : entry?.name || entry?.path || "";
+            if (!rawStr) continue;
+            equippedExact.add(rawStr);
+            const rel = normPreRel(rawStr);
+            if (rel) equippedRel.add(rel);
+            const base = rel.split("/").pop() || "";
+            if (base) equippedBase.add(base);
+          }
+
+          const isCurrentlyEquipped = (name: string): boolean => {
+            if (!name) return false;
+            if (equippedExact.has(name)) return true;
+            const rel = normPreRel(name);
+            if (rel && equippedRel.has(rel)) return true;
+            const base = rel.split("/").pop() || "";
+            return Boolean(base && equippedBase.has(base));
+          };
+
+          const getPreBaseFamilyKey = (x: any): string =>
+            String(x?.baseFamilyId || x?.familyId || x?.dbId || x?.name || "")
+              .split("@")[0]
+              .trim()
+              .toLowerCase();
+
+          const equippingPairs: { modObj: any; parentMod: any }[] = [];
+          const equippingNamesSet = new Set<string>();
+          const equippingTargetTitles: string[] = [];
+
+          for (const targetName of targetList) {
+            const targetMod =
+              modMap.get(targetName) ||
+              normRelToMod.get(normPreRel(targetName)) ||
+              normBaseToMod.get(normPreBase(targetName));
+            if (!targetMod) continue;
+
+            const kids = targetMod.isVirtual
+              ? Array.from(
+                  new Set([
+                    ...(byFamilyOrDbId.get(String(targetMod.dbId)) || []),
+                    ...(bySetId.get(String(targetMod.dbId)) || []),
+                    ...(Array.isArray(targetMod.flavors) ? targetMod.flavors : []),
+                  ])
+                ).filter((m: any) => m && !m.isVirtual && m.name)
+              : [];
+
+            const willEquip = forceActive
+              ? true
+              : targetMod.isVirtual
+                ? !kids.some((k) => isCurrentlyEquipped(k.name))
+                : !isCurrentlyEquipped(targetMod.name || targetName);
+
+            if (!willEquip) continue;
+
+            equippingTargetTitles.push(
+              formatDisplayName(targetMod.displayName || targetMod.name || targetName)
+            );
+
+            if (targetMod.isVirtual) {
+              const hasFlavors = kids.some((k) => k.relationshipType === "flavor");
+              const chosenKids = hasFlavors
+                ? [
+                    ...kids.filter((k) => k.relationshipType !== "flavor"),
+                    ...(kids.some(
+                      (k) => k.relationshipType === "flavor" && isCurrentlyEquipped(k.name)
+                    )
+                      ? []
+                      : kids.filter((k) => k.relationshipType === "flavor").slice(0, 1)),
+                  ]
+                : kids;
+              for (const k of chosenKids) {
+                if (k?.name) {
+                  equippingNamesSet.add(k.name);
+                  equippingPairs.push({ modObj: k, parentMod: targetMod });
+                }
+              }
+            } else if (targetMod.name) {
+              equippingNamesSet.add(targetMod.name);
+              equippingPairs.push({ modObj: targetMod, parentMod: targetMod });
+            }
+          }
+
+          if (equippingPairs.length > 0) {
+            const seenRivalKeys = new Set<string>();
+            const dedupedRivals: {
+              name: string;
+              displayName: string;
+              slotLabel?: string;
+            }[] = [];
+            const matchedSlotLabels: string[] = [];
+
+            for (const { modObj, parentMod } of equippingPairs) {
+              const modSlot =
+                resolveModHighlanderSlot(modObj) || resolveModHighlanderSlot(parentMod);
+              const modBaseFam = getPreBaseFamilyKey(modObj);
+              const rivalCandidates = new Set<any>();
+
+              if (modSlot) {
+                const hs = byHighlanderSlot.get(modSlot.key);
+                if (hs) hs.forEach((m) => rivalCandidates.add(m));
+              }
+              if (modObj.communityGroupId != null) {
+                const cg = byCommunityGroup.get(String(modObj.communityGroupId));
+                if (cg) cg.forEach((m) => rivalCandidates.add(m));
+              }
+              const famKey = modObj.familyId || modObj.dbId;
+              if (famKey != null) {
+                const fam = byFamilyOrDbId.get(String(famKey));
+                if (fam) fam.forEach((m) => rivalCandidates.add(m));
+              }
+
+              rivalCandidates.forEach((m: any) => {
+                if (
+                  !m ||
+                  m.isVirtual ||
+                  !m.name ||
+                  equippingNamesSet.has(m.name) ||
+                  !isCurrentlyEquipped(m.name)
+                ) {
+                  return;
+                }
+                const mSlot = resolveModHighlanderSlot(m);
+                const mBaseFam = getPreBaseFamilyKey(m);
+                const isHighlanderSlotRival = Boolean(
+                  modSlot &&
+                    mSlot &&
+                    mSlot.key === modSlot.key &&
+                    mBaseFam !== modBaseFam
+                );
+                const isIntraFamilyFlavorRival = Boolean(
+                  modObj.relationshipType === "flavor" &&
+                    m.relationshipType === "flavor" &&
+                    modBaseFam &&
+                    mBaseFam === modBaseFam
+                );
+                const isCommunityRival = Boolean(
+                  m.communityGroupId &&
+                    String(m.communityGroupId) === String(modObj.communityGroupId)
+                );
+                const isBetaRival =
+                  ((modObj.relationshipType !== "beta" &&
+                    m.relationshipType === "beta") ||
+                    (modObj.relationshipType === "beta" &&
+                      m.relationshipType !== "beta")) &&
+                  (String(m.familyId) === String(modObj.familyId) ||
+                    String(m.dbId) === String(modObj.familyId || modObj.dbId));
+
+                if (
+                  isHighlanderSlotRival ||
+                  isIntraFamilyFlavorRival ||
+                  isCommunityRival ||
+                  isBetaRival
+                ) {
+                  const dedupKey = isHighlanderSlotRival
+                    ? mBaseFam || m.name
+                    : m.name;
+                  if (seenRivalKeys.has(dedupKey)) return;
+                  seenRivalKeys.add(dedupKey);
+
+                  let rivalTitle = formatDisplayName(m.displayName || m.name);
+                  if (isHighlanderSlotRival && (m.familyId || m.dbId)) {
+                    const parentFolder = modList.find(
+                      (vm: any) =>
+                        vm?.isVirtual &&
+                        (String(vm.dbId) === String(m.familyId || m.dbId) ||
+                          String(vm.baseFamilyId || "").toLowerCase() === mBaseFam)
+                    );
+                    if (parentFolder?.displayName) {
+                      rivalTitle = formatDisplayName(parentFolder.displayName);
+                    }
+                  }
+                  if (
+                    isHighlanderSlotRival &&
+                    modSlot?.label &&
+                    !matchedSlotLabels.includes(modSlot.label)
+                  ) {
+                    matchedSlotLabels.push(modSlot.label);
+                  }
+                  dedupedRivals.push({
+                    name: m.name,
+                    displayName: rivalTitle,
+                    slotLabel: isHighlanderSlotRival ? modSlot?.label : undefined,
+                  });
+                }
+              });
+            }
+
+            if (dedupedRivals.length > 0) {
+              const targetTitle =
+                equippingTargetTitles.length === 1
+                  ? equippingTargetTitles[0]
+                  : `${equippingTargetTitles.length} ${t("term_mods", "{Mods}")}`;
+              useModalStore.getState().setYeetConfirmPending({
+                mode: "highlander_swap",
+                targetTitle,
+                slotName: matchedSlotLabels[0] || "",
+                rivals: dedupedRivals,
+                onConfirm: () =>
+                  toggleInActiveSet(
+                    targetList,
+                    excludeBroken,
+                    forceRemove,
+                    forceActive,
+                    { confirmedSwap: true }
+                  ),
+                onKeepBoth: () =>
+                  toggleInActiveSet(
+                    targetList,
+                    excludeBroken,
+                    forceRemove,
+                    forceActive,
+                    { skipHighlanderSwap: true }
+                  ),
+              });
+              return;
+            }
+          }
+        }
+      }
 
       console.time("PlaySetLogic: toggleInActiveSet");
       setPlaySets((prevSets) => {
@@ -1796,12 +2039,20 @@ export function usePlaySetLogic() {
           }
         };
 
+        const getModBaseFamilyKey = (x: any): string =>
+          String(x?.baseFamilyId || x?.familyId || x?.dbId || x?.name || "")
+            .split("@")[0]
+            .trim()
+            .toLowerCase();
+
         const applyConflicts = (modObj: any) => {
-          if (currentRules.highlander !== false) {
+          if (currentRules.highlander !== false && !swapOpts?.skipHighlanderSwap) {
             const rivalCandidates = new Set<any>();
-            if (modObj.flavorGroupId != null) {
-              const fg = byFlavorGroup.get(String(modObj.flavorGroupId));
-              if (fg) fg.forEach((m) => rivalCandidates.add(m));
+            const modSlot = resolveModHighlanderSlot(modObj);
+            const modBaseFam = getModBaseFamilyKey(modObj);
+            if (modSlot) {
+              const hs = byHighlanderSlot.get(modSlot.key);
+              if (hs) hs.forEach((m) => rivalCandidates.add(m));
             }
             if (modObj.communityGroupId != null) {
               const cg = byCommunityGroup.get(String(modObj.communityGroupId));
@@ -1816,22 +2067,53 @@ export function usePlaySetLogic() {
             rivalCandidates.forEach((m: any) => {
               if (!m || m.isVirtual || !m.name || m.name === modObj.name) return;
               if (!hasInNewMods(m.name)) return;
-              const isFlavorRival =
-                m.flavorGroupId &&
-                String(m.flavorGroupId) === String(modObj.flavorGroupId) &&
-                m.relationshipType !== "twin" &&
-                modObj.relationshipType !== "twin";
-              const isCommunityRival =
+              const mSlot = resolveModHighlanderSlot(m);
+              const mBaseFam = getModBaseFamilyKey(m);
+              const isHighlanderSlotRival = Boolean(
+                modSlot &&
+                  mSlot &&
+                  mSlot.key === modSlot.key &&
+                  mBaseFam !== modBaseFam
+              );
+              const isIntraFamilyFlavorRival = Boolean(
+                modObj.relationshipType === "flavor" &&
+                  m.relationshipType === "flavor" &&
+                  modBaseFam &&
+                  mBaseFam === modBaseFam
+              );
+              const isCommunityRival = Boolean(
                 m.communityGroupId &&
-                String(m.communityGroupId) === String(modObj.communityGroupId);
+                  String(m.communityGroupId) === String(modObj.communityGroupId)
+              );
               const isBetaRival =
                 ((modObj.relationshipType !== "beta" && m.relationshipType === "beta") ||
                   (modObj.relationshipType === "beta" && m.relationshipType !== "beta")) &&
                 (String(m.familyId) === String(modObj.familyId) ||
                   String(m.dbId) === String(modObj.familyId || modObj.dbId));
 
-              if (isFlavorRival || isCommunityRival || isBetaRival) {
+              if (
+                isHighlanderSlotRival ||
+                isIntraFamilyFlavorRival ||
+                isCommunityRival ||
+                isBetaRival
+              ) {
                 deepDelete(m.name, true);
+                if (isHighlanderSlotRival && (m.familyId || m.dbId)) {
+                  const rivalFam = byFamilyOrDbId.get(String(m.familyId || m.dbId));
+                  if (rivalFam) {
+                    rivalFam.forEach((sib: any) => {
+                      if (
+                        sib &&
+                        !sib.isVirtual &&
+                        sib.name &&
+                        hasInNewMods(sib.name) &&
+                        getModBaseFamilyKey(sib) === mBaseFam
+                      ) {
+                        deepDelete(sib.name, true);
+                      }
+                    });
+                  }
+                }
                 setStatus(
                   `${t("radar_intercept", "RADAR")}: ${formatDisplayName(modObj.displayName || modObj.name)} ${t("flavor_replaced", "Will Replace")} ${formatDisplayName(m.displayName || m.name)}.`
                 );
@@ -1978,9 +2260,7 @@ export function usePlaySetLogic() {
                 if (!sharesVersion && !isTwinMatch) return;
 
                 const isRival =
-                  (m.flavorGroupId &&
-                    String(m.flavorGroupId) === String(modObj.flavorGroupId) &&
-                    m.name !== modObj.name) ||
+                  (m.relationshipType === "flavor" && m.name !== modObj.name) ||
                   (m.communityGroupId &&
                     String(m.communityGroupId) === String(modObj.communityGroupId) &&
                     m.name !== modObj.name);
@@ -2053,8 +2333,8 @@ export function usePlaySetLogic() {
                 ])
               ).filter((m: any) => m && !m.isVirtual && m.name)
             : [];
-          const isActuallyFlavorFolder =
-            targetMod.isVirtual && kids.some((k) => k.flavorGroupId != null);
+          const hasIntraFamilyFlavorVariants =
+            targetMod.isVirtual && kids.some((k) => k.relationshipType === "flavor");
 
           let isEquipping = targetMod.isVirtual
             ? !kids.some((k) => hasInNewMods(k.name))
@@ -2078,34 +2358,16 @@ export function usePlaySetLogic() {
                   return true;
                 });
               }
-              if (isActuallyFlavorFolder) {
-                const coreFiles = validKids.filter((k) => k.flavorGroupId == null);
-                const flavorFiles = validKids.filter((k) => k.flavorGroupId != null);
+              if (hasIntraFamilyFlavorVariants) {
+                const coreFiles = validKids.filter((k) => k.relationshipType !== "flavor");
+                const flavorFiles = validKids.filter((k) => k.relationshipType === "flavor");
                 coreFiles.forEach((k) => addWithFamily(k));
-                const groups = new Map<string, any[]>();
-                flavorFiles.forEach((f) => {
-                  const gid = String(f.flavorGroupId);
-                  if (!groups.has(gid)) groups.set(gid, []);
-                  groups.get(gid)!.push(f);
-                });
-                groups.forEach((groupKids) => {
-                  if (
-                    !groupKids.some((f) => hasInNewMods(f.name)) &&
-                    groupKids.length > 0
-                  ) {
-                    const sortedKids = [...groupKids].sort((a: any, b: any) => {
-                      const getRank = (m: any) => {
-                        if (m.relationshipType === "core") return 1;
-                        if (m.relationshipType === "twin") return 2;
-                        if (m.relationshipType === "beta") return 3;
-                        if (!m.relationshipType) return 4;
-                        return 5;
-                      };
-                      return getRank(a) - getRank(b);
-                    });
-                    addWithFamily(sortedKids[0]);
-                  }
-                });
+                if (
+                  flavorFiles.length > 0 &&
+                  !flavorFiles.some((f) => hasInNewMods(f.name))
+                ) {
+                  addWithFamily(flavorFiles[0]);
+                }
               } else {
                 validKids.forEach((k) => addWithFamily(k));
               }
@@ -2306,7 +2568,7 @@ export function usePlaySetLogic() {
       byDbId,
       byFamilyOrDbId,
       bySetId,
-      byFlavorGroup,
+      byHighlanderSlot,
       byCommunityGroup,
       byParsedBaseName,
       normRelToMod,

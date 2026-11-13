@@ -25,9 +25,11 @@ interface CommandConflictsPanelProps {
   vaultPath: string;
   onRefreshMods: () => void;
   toggleInActiveSet: (
-    targetName: string,
+    targetName: string | string[],
     excludeBroken?: boolean,
-    forceRemove?: boolean
+    forceRemove?: boolean,
+    forceActive?: boolean,
+    swapOpts?: { confirmedSwap?: boolean; skipHighlanderSwap?: boolean }
   ) => void;
   applyConflictOverride: (
     winnerName: string,

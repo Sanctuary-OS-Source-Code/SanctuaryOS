@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatDisplayName, getExtensionRegex, isScriptExtension, EmptyState, AccordionDrawer, stripPriorityTierPrefix, ActionPill } from '../../shared';
+import { formatDisplayName, getExtensionRegex, isScriptExtension, EmptyState, AccordionDrawer, stripPriorityTierPrefix, ActionPill, resolveModHighlanderSlot } from '../../shared';
 import { ModCard } from '../../ModCard';
 
 function DrawerFilterSection({ title, options, value, onChange, t }: any) {
@@ -203,12 +203,15 @@ export function VaultGrid(props: any) {
               const isSatisfied = equippedDisplayMods.some((m: any) => String(m.dbId) === String(reqId));
               if (!isSatisfied) {
                 const provider = modListIndex.byDbId.get(String(reqId));
-                if (provider?.flavorGroupId) {
-                  const equippedRivals = equippedDisplayMods.filter(
-                    (m: any) =>
-                      String(m.flavorGroupId) ===
-                      String(provider.flavorGroupId)
-                  );
+                const providerSlot = resolveModHighlanderSlot(provider);
+                if (providerSlot) {
+                  const provFam = String(provider?.baseFamilyId || provider?.familyId || provider?.dbId || "").split("@")[0];
+                  const equippedRivals = equippedDisplayMods.filter((m: any) => {
+                    const mSlot = resolveModHighlanderSlot(m);
+                    if (!mSlot || mSlot.key !== providerSlot.key) return false;
+                    const mFam = String(m?.baseFamilyId || m?.familyId || m?.dbId || "").split("@")[0];
+                    return !provFam || !mFam || mFam !== provFam;
+                  });
                   queue.push(...equippedRivals);
                 }
               }
@@ -233,6 +236,7 @@ export function VaultGrid(props: any) {
       let casualties: any[] = [];
       let tier3List: any[] = [];
       let isFlavorSwapCard = false;
+      let exclusiveSlotName: string | undefined = undefined;
       
       if (isEquipped) {
         if (mod.isVirtual) {
@@ -287,43 +291,61 @@ export function VaultGrid(props: any) {
             casualties = [...new Set([...casualties, ...siblingNames])];
           }
         }
+        if (anarchyRules?.intercept === false) {
+          casualties = [];
+        }
       } else {
-        if (mod.isVirtual) {
-          const flavorFiles = (mod.flavors || []).filter(
-            (f: any) => f.flavorGroupId != null,
-          );
-          if (flavorFiles.length > 0) {
-            const firstFlavor = flavorFiles[0];
-            const rivals = equippedDisplayMods.filter(
-              (m: any) =>
-                String(m.flavorGroupId) ===
-                String(firstFlavor.flavorGroupId) &&
-                m.name !== firstFlavor.name
-            );
-            if (rivals.length > 0) isFlavorSwapCard = true;
-            casualties = [...casualties, ...getDeepCasualties(rivals, true)];
+        const swapCasualties: any[] = [];
+        const conflictCasualties: any[] = [];
+        const cardSlot =
+          resolveModHighlanderSlot(mod) ||
+          (mod.isVirtual && Array.isArray(mod.flavors)
+            ? resolveModHighlanderSlot(mod.flavors.find((f: any) => resolveModHighlanderSlot(f)))
+            : null);
+        if (cardSlot && anarchyRules?.highlander !== false) {
+          const myBaseFam = String(mod.baseFamilyId || mod.familyId || mod.dbId || "").split("@")[0].toLowerCase();
+          const rivals = equippedDisplayMods.filter((m: any) => {
+            if (!m || m.name === mod.name) return false;
+            const mSlot = resolveModHighlanderSlot(m);
+            if (!mSlot || mSlot.key !== cardSlot.key) return false;
+            const mBaseFam = String(m.baseFamilyId || m.familyId || m.dbId || "").split("@")[0].toLowerCase();
+            return !myBaseFam || !mBaseFam || mBaseFam !== myBaseFam;
+          });
+          if (rivals.length > 0) {
+            isFlavorSwapCard = true;
+            exclusiveSlotName = cardSlot.name;
+            const seenRivalFams = new Set<string>();
+            rivals.forEach((rv: any) => {
+              const famKey = String(rv.baseFamilyId || rv.familyId || rv.dbId || rv.name || "").split("@")[0].toLowerCase();
+              if (famKey && !seenRivalFams.has(famKey)) {
+                seenRivalFams.add(famKey);
+                swapCasualties.push({
+                  name: rv._parentDisplayName || rv.displayName || rv.name,
+                  rawName: rv.name,
+                  dbId: rv.dbId,
+                  hash: rv.hash,
+                });
+              }
+            });
           }
-        } else if (mod.flavorGroupId) {
-          const rivals = equippedDisplayMods.filter(
-            (m: any) =>
-              String(m.flavorGroupId) ===
-              String(mod.flavorGroupId) &&
-              m.name !== mod.name
-          );
-          if (rivals.length > 0) isFlavorSwapCard = true;
-          casualties = [...casualties, ...getDeepCasualties(rivals, true)];
         }
 
-        checkConflicts(mod, casualties, tier3List);
-        if (mod.isVirtual && mod.flavors) {
-          mod.flavors.forEach((f: any) => checkConflicts(f, casualties, tier3List));
+        if (anarchyRules?.intercept !== false) {
+          checkConflicts(mod, conflictCasualties, tier3List);
+          if (mod.isVirtual && mod.flavors) {
+            mod.flavors.forEach((f: any) => checkConflicts(f, conflictCasualties, tier3List));
+          }
+        } else {
+          const dummyFatal: any[] = [];
+          checkConflicts(mod, dummyFatal, tier3List);
+          if (mod.isVirtual && mod.flavors) {
+            mod.flavors.forEach((f: any) => checkConflicts(f, dummyFatal, tier3List));
+          }
         }
 
-        casualties = Array.from(new Map(casualties.map((item: any) => [item.name || item, item])).values());
+        const merged = [...swapCasualties, ...conflictCasualties];
+        casualties = Array.from(new Map(merged.map((item: any) => [item.name || item, item])).values());
         tier3List = Array.from(new Map(tier3List.map((item: any) => [item.name || item, item])).values());
-      }
-      if (anarchyRules?.intercept === false) {
-        casualties = [];
       }
 
       const missingReqs: any[] = [];
@@ -401,6 +423,7 @@ export function VaultGrid(props: any) {
         casualties,
         tier3List,
         isFlavorSwapCard,
+        exclusiveSlotName,
         missingReqs,
       });
     });
@@ -691,28 +714,63 @@ export function VaultGrid(props: any) {
       let drawerCasualties: any[] = [];
       let isSwappedState = false;
       let isBetaSwap = false;
+      let drawerExclusiveSlotName: string | undefined = undefined;
 
       if (!isFlavorEquipped) {
-        const localRivals = mod.isFlavorFolder
-          ? (mod.flavors || []).filter((f: any) => f.name !== flavor.name && cleanedActiveSet.has(f.name) && !areArchetypes(flavor.hash, f.hash))
-          : [];
+        const flavorSlot = resolveModHighlanderSlot(flavor);
+        const flavorBaseFam = String(flavor.baseFamilyId || flavor.familyId || flavor.dbId || "").split("@")[0].toLowerCase();
+        const localRivals =
+          anarchyRules?.highlander !== false && flavor.relationshipType === "flavor"
+            ? (mod.flavors || []).filter(
+                (f: any) =>
+                  f.name !== flavor.name &&
+                  f.relationshipType === "flavor" &&
+                  cleanedActiveSet.has(f.name) &&
+                  !areArchetypes(flavor.hash, f.hash)
+              )
+            : [];
         const globalRivals =
-          flavor.flavorGroupId || flavor.communityGroupId || flavor.relationshipType === 'beta'
+          anarchyRules?.highlander !== false &&
+          (flavorSlot || flavor.communityGroupId || flavor.relationshipType === 'beta')
             ? equippedDisplayMods.filter((m: any) => {
                 if (m.name === flavor.name) return false;
-                const isSameFlavorGroup = (flavor.flavorGroupId && String(m.flavorGroupId) === String(flavor.flavorGroupId)) || (flavor.communityGroupId && String(m.communityGroupId) === String(flavor.communityGroupId));
+                const mSlot = resolveModHighlanderSlot(m);
+                const mBaseFam = String(m.baseFamilyId || m.familyId || m.dbId || "").split("@")[0].toLowerCase();
+                const isSameHighlanderSlot =
+                  Boolean(flavorSlot && mSlot && mSlot.key === flavorSlot.key) &&
+                  (!flavorBaseFam || !mBaseFam || mBaseFam !== flavorBaseFam);
+                const isSameCommunityGroup =
+                  Boolean(flavor.communityGroupId && String(m.communityGroupId) === String(flavor.communityGroupId));
                 const isBetaRival = (flavor.relationshipType === 'beta' && m.relationshipType !== 'beta' || flavor.relationshipType !== 'beta' && m.relationshipType === 'beta') && (String(m.familyId) === String(flavor.familyId) || String(m.dbId) === String(flavor.familyId || flavor.dbId));
-                if (isSameFlavorGroup || isBetaRival) {
+                if (isSameHighlanderSlot || isSameCommunityGroup || isBetaRival) {
                   if (areArchetypes(flavor.hash, m.hash)) return false;
                   return true;
                 }
                 return false;
               })
             : [];
-        const allRivals = [...localRivals, ...globalRivals].filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
-        drawerCasualties = getDrawerDeepCasualties(allRivals);
+        const allRivalsRaw = [...localRivals, ...globalRivals].filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
+        const seenDrawerFams = new Set<string>();
+        const dedupedRivals: any[] = [];
+        allRivalsRaw.forEach((rv: any) => {
+          const isIntra = localRivals.some((lr: any) => lr.name === rv.name);
+          const famKey = isIntra
+            ? rv.name
+            : String(rv.baseFamilyId || rv.familyId || rv.dbId || rv.name || "").split("@")[0].toLowerCase();
+          if (famKey && !seenDrawerFams.has(famKey)) {
+            seenDrawerFams.add(famKey);
+            dedupedRivals.push({
+              ...rv,
+              displayName: isIntra ? (rv.displayName || rv.name) : (rv._parentDisplayName || rv.displayName || rv.name),
+            });
+          }
+        });
+        drawerCasualties = getDrawerDeepCasualties(dedupedRivals);
 
         if (localRivals.length > 0 || globalRivals.length > 0) {
+          if (flavorSlot && globalRivals.some((gr: any) => resolveModHighlanderSlot(gr)?.key === flavorSlot.key)) {
+            drawerExclusiveSlotName = flavorSlot.name;
+          }
           const hasBeta = [...localRivals, ...globalRivals].some(r => r.relationshipType === 'beta');
           if (flavor.relationshipType === 'beta' || hasBeta) {
             isBetaSwap = true;
@@ -736,19 +794,27 @@ export function VaultGrid(props: any) {
           const siblingObjs = wouldBeRemoved.filter((m: any) => m.name !== flavor.name);
           drawerCasualties = [...drawerCasualties, ...siblingObjs].filter((v, i, a) => a.findIndex(t => (t.name || t) === (v.name || v)) === i);
         }
+        if (anarchyRules?.intercept === false) {
+          drawerCasualties = [];
+        }
       }
 
       let flavorTier3: any[] = [];
       if (!isFlavorEquipped) {
-        if (modBaseCasualties.length > 0) drawerCasualties.push(...modBaseCasualties);
-        if (modBaseTier3.length > 0) flavorTier3.push(...modBaseTier3);
-        checkConflicts(flavor, drawerCasualties, flavorTier3);
+        const conflictDrawerCas: any[] = [];
+        if (anarchyRules?.intercept !== false) {
+          if (modBaseCasualties.length > 0) conflictDrawerCas.push(...modBaseCasualties);
+          if (modBaseTier3.length > 0) flavorTier3.push(...modBaseTier3);
+          checkConflicts(flavor, conflictDrawerCas, flavorTier3);
+        } else {
+          const dummyFatal: any[] = [];
+          if (modBaseTier3.length > 0) flavorTier3.push(...modBaseTier3);
+          checkConflicts(flavor, dummyFatal, flavorTier3);
+        }
 
-        drawerCasualties = Array.from(new Map(drawerCasualties.map((item: any) => [item.name || item, item])).values());
+        const mergedDrawer = [...drawerCasualties, ...conflictDrawerCas];
+        drawerCasualties = Array.from(new Map(mergedDrawer.map((item: any) => [item.name || item, item])).values());
         flavorTier3 = Array.from(new Map(flavorTier3.map((item: any) => [item.name || item, item])).values());
-      }
-      if (anarchyRules?.intercept === false) {
-        drawerCasualties = [];
       }
 
       let rawFlavorDLC: string[] = [...modRawDLC];
@@ -787,6 +853,7 @@ export function VaultGrid(props: any) {
         flavorTier3,
         isSwappedState,
         isBetaSwap,
+        drawerExclusiveSlotName,
         missingPacks,
         hasMissingDeps,
         flavorVersionMismatch,
@@ -828,8 +895,8 @@ export function VaultGrid(props: any) {
         ) : (
           paginatedMods.map((mod: any, index: number) => {
             const mainKey = `${mod.hash || mod.name}-${index}`;
-            const comp = cardComputations.get(mod.hash || mod.name) || { isEquipped: false, casualties: [], tier3List: [], isFlavorSwapCard: false, missingReqs: [] };
-            const { isEquipped, casualties, tier3List, isFlavorSwapCard, missingReqs } = comp;
+            const comp = cardComputations.get(mod.hash || mod.name) || { isEquipped: false, casualties: [], tier3List: [], isFlavorSwapCard: false, exclusiveSlotName: undefined, missingReqs: [] };
+            const { isEquipped, casualties, tier3List, isFlavorSwapCard, exclusiveSlotName, missingReqs } = comp;
 
             let renderedMod = mod;
 
@@ -846,9 +913,13 @@ export function VaultGrid(props: any) {
                 anarchyRules={anarchyRules}
                 tier3List={tier3List}
                 missingDeps={missingReqs}
-                onToggleSet={(e: any, overrideBroken: boolean = false) => {
+                exclusiveSlotName={exclusiveSlotName}
+                onToggleSet={(e: any, overrideBroken: boolean = false, keepBoth: boolean = false) => {
                   e.stopPropagation();
-                  toggleInActiveSet(mod.name, !overrideBroken);
+                  toggleInActiveSet(mod.name, !overrideBroken, false, false, {
+                    confirmedSwap: !keepBoth,
+                    skipHighlanderSwap: Boolean(keepBoth),
+                  });
                 }}
                 onInspectItem={async (target: any) => {
                   const name = typeof target === 'string' ? target : (target.name || target.id || target.hash);
@@ -1058,8 +1129,8 @@ export function VaultGrid(props: any) {
                           className="grid grid-flow-row-dense grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5 max-h-[520px] lg:max-h-[620px] overflow-y-auto custom-scrollbar p-1"
                         >
                           {visibleDrawerFlavors.map((flavor: any, subIdx: number) => {
-                            const comp = drawerComputations.get(flavor.hash || flavor.name) || { isFlavorEquipped: cleanedActiveSet.has(flavor.name), drawerCasualties: [], flavorTier3: [], isSwappedState: false, isBetaSwap: false, missingPacks: [], hasMissingDeps: false, flavorVersionMismatch: false, flavorGhostReason: null, isFlavorGhosted: false };
-                            const { isFlavorEquipped, drawerCasualties, flavorTier3, isSwappedState, isBetaSwap, missingPacks, hasMissingDeps, flavorGhostReason, isFlavorGhosted } = comp;
+                            const comp = drawerComputations.get(flavor.hash || flavor.name) || { isFlavorEquipped: cleanedActiveSet.has(flavor.name), drawerCasualties: [], flavorTier3: [], isSwappedState: false, isBetaSwap: false, drawerExclusiveSlotName: undefined, missingPacks: [], hasMissingDeps: false, flavorVersionMismatch: false, flavorGhostReason: null, isFlavorGhosted: false };
+                            const { isFlavorEquipped, drawerCasualties, flavorTier3, isSwappedState, isBetaSwap, drawerExclusiveSlotName, missingPacks, hasMissingDeps, flavorGhostReason, isFlavorGhosted } = comp;
 
                             const flavorMissingReqs = (flavor && typeof flavor === "object" ? missingReqsByMod.get(flavor) : undefined) ?? flavor?.missingReqs ?? [];
                             const modMissingReqs = (mod && typeof mod === "object" ? missingReqsByMod.get(mod) : undefined) ?? mod?.missingReqs ?? [];
@@ -1083,7 +1154,8 @@ export function VaultGrid(props: any) {
                                 isSelfGhosted={isFlavorGhosted}
                                 isSelfSwapped={isSwappedState}
                                 isSelfBetaSwap={isBetaSwap}
-                                onToggleSet={async (e: any, overrideBroken: boolean = false) => {
+                                exclusiveSlotName={drawerExclusiveSlotName}
+                                onToggleSet={async (e: any, overrideBroken: boolean = false, keepBoth: boolean = false) => {
                                   e.stopPropagation();
                                   if (flavor.isGhosted || missingPacks.length > 0 || hasMissingDeps || flavorGhostReason === "VERSION_MISMATCH") {
                                     if (!overrideBroken) {
@@ -1091,12 +1163,11 @@ export function VaultGrid(props: any) {
                                       return;
                                     }
                                   }
-                                  if (!overrideBroken && !isFlavorEquipped && drawerCasualties.length > 0 && drawerConfirmHash !== flavor.hash && anarchyRules?.intercept !== false) {
-                                    setDrawerConfirmHash(flavor.hash);
-                                    return;
-                                  }
                                   setDrawerConfirmHash(null);
-                                  await toggleInActiveSet(flavor.name, !overrideBroken);
+                                  await toggleInActiveSet(flavor.name, !overrideBroken, false, false, {
+                                    confirmedSwap: !keepBoth,
+                                    skipHighlanderSwap: Boolean(keepBoth),
+                                  });
                                 }}
                                 onContextMenu={(e: any) => {
                                   if (props.onContextMenu) {

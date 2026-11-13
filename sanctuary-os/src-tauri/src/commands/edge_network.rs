@@ -406,6 +406,82 @@ impl<'de> Deserialize<'de> for ConflictRule {
     }
 }
 
+fn to_highlander_slot_slug(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut prev_dash = false;
+    for ch in raw.trim().chars() {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch.to_ascii_lowercase());
+            prev_dash = false;
+        } else if !prev_dash && !out.is_empty() {
+            out.push('-');
+            prev_dash = true;
+        }
+    }
+    while out.ends_with('-') {
+        out.pop();
+    }
+    out
+}
+
+#[derive(Debug, Serialize, Clone, Default)]
+pub struct HighlanderSlotRule {
+    pub slug: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for HighlanderSlotRule {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum RawHighlanderSlot {
+            Str(String),
+            Obj {
+                #[serde(default)]
+                slug: Option<String>,
+                #[serde(default)]
+                id: Option<String>,
+                #[serde(default)]
+                name: Option<String>,
+            },
+        }
+        match RawHighlanderSlot::deserialize(deserializer)? {
+            RawHighlanderSlot::Str(s) => {
+                let trimmed = s.trim().to_string();
+                let slug = to_highlander_slot_slug(&trimmed);
+                Ok(HighlanderSlotRule {
+                    slug,
+                    name: if trimmed.is_empty() {
+                        None
+                    } else {
+                        Some(trimmed)
+                    },
+                })
+            }
+            RawHighlanderSlot::Obj { slug, id, name } => {
+                let raw_slug = slug
+                    .as_deref()
+                    .filter(|v| !v.trim().is_empty())
+                    .or_else(|| id.as_deref().filter(|v| !v.trim().is_empty()))
+                    .or_else(|| name.as_deref().filter(|v| !v.trim().is_empty()))
+                    .unwrap_or_default();
+                let resolved_slug = to_highlander_slot_slug(raw_slug);
+                let resolved_name = name
+                    .map(|n| n.trim().to_string())
+                    .filter(|n| !n.is_empty());
+                Ok(HighlanderSlotRule {
+                    slug: resolved_slug,
+                    name: resolved_name,
+                })
+            }
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct EdgeAtomicLogic {
@@ -416,6 +492,12 @@ pub struct EdgeAtomicLogic {
     pub conflicts: Vec<ConflictRule>,
     pub flavors: Vec<String>,
     pub collections: Vec<String>,
+    #[serde(
+        default,
+        alias = "exclusive_slot",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub highlander_group: Option<HighlanderSlotRule>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

@@ -4,7 +4,7 @@ import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase, supabaseAuth, getActiveGameClient, submitThreatManifestToSpoke } from "../supabase";
-import { isVersionMatch, getExtensionRegex, parseStringArray, isScriptExtension, formatDisplayName } from "../shared";
+import { isVersionMatch, getExtensionRegex, parseStringArray, isScriptExtension, formatDisplayName, toHighlanderSlotSlug, formatHighlanderSlotLabel } from "../shared";
 import { hashString } from "../lib/cryptoUtils";
 import { useState, useEffect, useRef } from "react";
 import { useModalStore } from "../store/modalStore";
@@ -407,7 +407,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       ];
       let allCloudData: any[] = [];
       let flavorData: any[] = [],
-        flavorGroupNames: Record<string, string> = {};
+        flavorGroupNames: Record<string, string> = {},
+        flavorGroupSlugs: Record<string, string> = {};
       let communityData: any[] = [],
         communityGroupNames: Record<string, string> = {};
       
@@ -424,7 +425,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             const [verRes, fRes, cRes] = await Promise.all([
               supabase
                 .from("mod_versions")
-                .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, status_reason, compatible_versions, file_extension, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, compliance_tier, mason_id, created_at, updated_at, folder_structure, masons(name))")
+                .select("dna_hash, version_label, game_version, download_url, mods (id, name, status, status_reason, compatible_versions, file_extension, requiredDLC, category_override, sub_type, image_url, url, master_author, allow_write, compliance_tier, highlander_group_id, mason_id, created_at, updated_at, folder_structure, masons(name))")
                 .in("dna_hash", chunk),
               supabase
                 .from("flavor_group_members")
@@ -532,7 +533,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           }
           if (hashes.length > 0) {
             const uniqueGroupIds = [
-              ...new Set(flavorData.map((f) => f.group_id)),
+              ...new Set([
+                ...flavorData.map((f) => f.group_id).filter(Boolean),
+                ...allCloudData.map((c) => getDbMod(c)?.highlander_group_id).filter(Boolean),
+              ]),
             ];
             const uniqueCommunityGroupIds = [
               ...new Set(communityData.map((f) => f.group_id)),
@@ -543,17 +547,23 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               let pResults: any[] = [];
               await runInBatches([...new Set([...uniqueGroupIds, ...uniqueCommunityGroupIds])], 200, 0, async (chunk) => {
                 const [gRes, cgRes, pRes] = await Promise.all([
-                  supabase.from("flavor_groups").select("id, name").in("id", chunk),
+                  supabase.from("flavor_groups").select("id, name, slug").in("id", chunk),
                   supabase.from("community_groups").select("id, name").in("id", chunk),
-                  supabase.from("mods").select("id, name, status, status_reason, master_author, mason_id, masons(name), image_url, url, description, category_override, compatible_versions, created_at").in("id", chunk)
+                  supabase.from("mods").select("id, name, status, status_reason, master_author, mason_id, highlander_group_id, masons(name), image_url, url, description, category_override, compatible_versions, created_at").in("id", chunk)
                 ]);
-                gResults.push(...((gRes.data as any[]) || []));
+                if (gRes.error) {
+                  const fallbackGRes = await supabase.from("flavor_groups").select("id, name").in("id", chunk);
+                  gResults.push(...((fallbackGRes.data as any[]) || []));
+                } else {
+                  gResults.push(...((gRes.data as any[]) || []));
+                }
                 cgResults.push(...((cgRes.data as any[]) || []));
                 pResults.push(...((pRes.data as any[]) || []));
               });
 
               gResults.forEach((g: any) => {
                 flavorGroupNames[String(g.id)] = g.name;
+                flavorGroupSlugs[String(g.id)] = toHighlanderSlotSlug(g.slug || g.name);
               });
               cgResults.forEach((g: any) => {
                 communityGroupNames[String(g.id)] = g.name;
@@ -607,20 +617,32 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           ]),
         ];
         if (pIds.length > 0) {
+          const extraHighlanderIds = new Set<string>();
           await runInBatches(pIds, 200, 0, async (chunk) => {
-            const { data } = await supabase
+            let { data, error } = await supabase
+                .from("mods")
+                .select("id, name, status, status_reason, master_author, mason_id, highlander_group_id, masons(name), image_url, url, description, category_override, compatible_versions, created_at")
+                .in("id", chunk);
+            if (error) {
+              const fb = await supabase
                 .from("mods")
                 .select("id, name, status, status_reason, master_author, mason_id, masons(name), image_url, url, description, category_override, compatible_versions, created_at")
                 .in("id", chunk);
+              data = fb.data as any;
+            }
             
             ((data as any[]) || []).forEach((pm: any) => {
               const pmMasonName = Array.isArray(pm.masons) ? pm.masons[0]?.name : pm.masons?.name;
+              if (pm.highlander_group_id && !flavorGroupNames[String(pm.highlander_group_id)]) {
+                extraHighlanderIds.add(String(pm.highlander_group_id));
+              }
               parentNameMap[String(pm.id)] = {
                 name: pm.name,
                 status: pm.status || null,
                 status_reason: pm.status_reason || null,
                 author: pmMasonName || pm.master_author || null,
                 mason_id: pm.mason_id,
+                highlander_group_id: pm.highlander_group_id || null,
                 image_url: pm.image_url,
                 url: pm.url,
                 description: pm.description || null,
@@ -630,6 +652,18 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               };
             });
           });
+          if (extraHighlanderIds.size > 0) {
+            await runInBatches(Array.from(extraHighlanderIds), 200, 0, async (gChunk) => {
+              const { data: gData } = await supabase
+                .from("flavor_groups")
+                .select("id, name, slug")
+                .in("id", gChunk);
+              ((gData as any[]) || []).forEach((g: any) => {
+                flavorGroupNames[String(g.id)] = g.name;
+                flavorGroupSlugs[String(g.id)] = toHighlanderSlotSlug(g.slug || g.name);
+              });
+            });
+          }
         }
       }
       updateProgress(95, t("scan_relationships", "ANALYZING RELATIONSHIPS..."));
@@ -1239,19 +1273,18 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           myRelType = "twin";
         } else if (childBetaRel) {
           myRelType = "core";
-        } else if (myFlavor) {
-          myBossId = String(myFlavor.group_id);
         } else if (myCommunityGroup) {
           myBossId = String(myCommunityGroup.group_id);
-        } else if (modEdgeLogic?.artifact_id && Array.isArray(modEdgeLogic?.flavors) && modEdgeLogic.flavors.length > 0) {
-          myBossId = `edge_flavor_${modEdgeLogic.artifact_id}`;
-          flavorGroupNames[myBossId] =
-            modEdgeLogic.name ||
-            modLocalOvr?.parentName ||
-            modLocalOvr?.displayName ||
-            modEdgeLogic.artifact_id;
         } else if (modEdgeLogic?.artifact_id) {
           myBossId = `edge_family_${modEdgeLogic.artifact_id}`;
+          if (
+            Array.isArray(modEdgeLogic?.flavors) &&
+            modEdgeLogic.flavors.some(
+              (fh: any) => String(fh || "").toLowerCase().trim() === String(mod.hash || "").toLowerCase().trim()
+            )
+          ) {
+            myRelType = "flavor";
+          }
           if (!parentNameMap[myBossId]) {
             parentNameMap[myBossId] = {
               name:
@@ -1431,6 +1464,57 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               (edgeLatestSha && edgeLatestSha !== lowerModHash))
         );
 
+        const resolvedHighlanderSlot = (() => {
+          const ovrSlot =
+            modLocalOvr?.highlander_group ??
+            modLocalOvr?.exclusive_slot ??
+            modLocalOvr?.highlanderSlotKey;
+          const edgeSlot = modEdgeLogic?.highlander_group ?? modEdgeLogic?.exclusive_slot;
+          const rawCandidate = ovrSlot || edgeSlot;
+          if (rawCandidate) {
+            if (typeof rawCandidate === "string") {
+              const s = toHighlanderSlotSlug(rawCandidate);
+              if (s) {
+                return {
+                  groupId: null,
+                  key: s,
+                  name: modLocalOvr?.highlanderSlotName || formatHighlanderSlotLabel(rawCandidate),
+                };
+              }
+            } else if (typeof rawCandidate === "object") {
+              const s = toHighlanderSlotSlug(rawCandidate.slug || rawCandidate.id || rawCandidate.name || "");
+              if (s) {
+                return {
+                  groupId: null,
+                  key: s,
+                  name: formatHighlanderSlotLabel(rawCandidate.name || rawCandidate.slug || s),
+                };
+              }
+            }
+          }
+          const baseFamKey = myBossId ? String(myBossId).split("@")[0] : "";
+          const dbGroupId =
+            (!isRestrictedCloud && effectiveDbMod?.highlander_group_id
+              ? String(effectiveDbMod.highlander_group_id)
+              : "") ||
+            (baseFamKey && parentNameMap[baseFamKey]?.highlander_group_id
+              ? String(parentNameMap[baseFamKey].highlander_group_id)
+              : "") ||
+            (myFlavor?.group_id ? String(myFlavor.group_id) : "");
+          if (dbGroupId) {
+            const gName = flavorGroupNames[dbGroupId] || "";
+            const gSlug =
+              flavorGroupSlugs[dbGroupId] ||
+              (gName ? toHighlanderSlotSlug(gName) : `group-${dbGroupId.toLowerCase()}`);
+            return {
+              groupId: dbGroupId,
+              key: gSlug,
+              name: gName || formatHighlanderSlotLabel(gSlug),
+            };
+          }
+          return null;
+        })();
+
         return {
           ...mod,
           ...(modLocalOvr || {}),
@@ -1440,14 +1524,11 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           dbId,
           hasChildren: myChildRels.length > 0,
           setId: mySetRel ? String(mySetRel.set_id) : null,
-          flavorGroupId: myFlavor
-            ? String(myFlavor.group_id)
-            : (modEdgeLogic?.artifact_id && Array.isArray(modEdgeLogic?.flavors) && modEdgeLogic.flavors.length > 0
-                ? `edge_flavor_${modEdgeLogic.artifact_id}`
-                : null),
-          flavorGroupName: myFlavor
-            ? flavorGroupNames[String(myFlavor.group_id)]
-            : (modEdgeLogic?.artifact_id ? modEdgeLogic.artifact_id : null),
+          flavorGroupId: null,
+          flavorGroupName: null,
+          highlanderGroupId: resolvedHighlanderSlot?.groupId || null,
+          highlanderSlotKey: resolvedHighlanderSlot?.key || null,
+          highlanderSlotName: resolvedHighlanderSlot?.name || null,
           communityGroupId: myCommunityGroup ? String(myCommunityGroup.group_id) : null,
           communityGroupName: myCommunityGroup
             ? communityGroupNames[String(myCommunityGroup.group_id)]
@@ -1670,7 +1751,6 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const bfid = fid.split("@")[0];
         if (
           (initialFamCounts.get(fid) || 0) > 1 ||
-          flavorGroupNames[bfid] ||
           communityGroupNames[bfid]
         ) {
           continue;
@@ -1719,17 +1799,14 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       uniqueFamilyGroups.forEach((fId) => {
         const familyMembers = familyMembersMap.get(String(fId)) || [];
         const baseFId = fId.split('@')[0];
-        const isFlavorFolder = !!flavorGroupNames[String(baseFId)] && !parentNameMap[String(baseFId)];
         const isCommunityFolder = !!communityGroupNames[String(baseFId)] && !parentNameMap[String(baseFId)];
         
-        if (familyMembers.length <= 1 && !isFlavorFolder && !isCommunityFolder) return;
+        if (familyMembers.length <= 1 && !isCommunityFolder) return;
         
         const pData = parentNameMap[String(baseFId)] || {
-          name: isFlavorFolder
-            ? flavorGroupNames[String(baseFId)]
-            : isCommunityFolder
-              ? communityGroupNames[String(baseFId)]
-              : familyMembers[0].displayName,
+          name: isCommunityFolder
+            ? communityGroupNames[String(baseFId)]
+            : familyMembers[0].displayName,
           author: familyMembers[0].author,
         };
         const virtualOvr = earlyLocalOvr["virtual_" + fId];
@@ -1855,12 +1932,18 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               if (!trimmed || /^\[ARCHITECT\b/i.test(trimmed)) return undefined;
               return trimmed;
             })(),
-            color: isFlavorFolder ? "var(--warning)" : "var(--accent)",
+            color: "var(--accent)",
             isSynced: true,
             isLocalOverride: !!(virtualOvr || dossierMember),
             isVirtual: true,
             isParent: true,
-            isFlavorFolder: isFlavorFolder,
+            isFlavorFolder: false,
+            highlanderGroupId:
+              familyMembers.find((fm: any) => fm.highlanderGroupId)?.highlanderGroupId || null,
+            highlanderSlotKey:
+              familyMembers.find((fm: any) => fm.highlanderSlotKey)?.highlanderSlotKey || null,
+            highlanderSlotName:
+              familyMembers.find((fm: any) => fm.highlanderSlotName)?.highlanderSlotName || null,
             twins: folderTwins,
             requirements: folderDeps.length > 0 ? folderDeps : undefined,
             flavors: [...familyMembers].sort((a, b) => {

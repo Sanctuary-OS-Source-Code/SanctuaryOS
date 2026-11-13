@@ -171,9 +171,6 @@ export function groupUpdateMods(rawList: any[]): any[] {
         ? formatDisplayName(collectionFolder.displayName || collectionFolder.name || "").trim()
         : "";
       displayTitle = colTitle || twinNormalized;
-    } else if (item.flavorGroupId) {
-      groupKey = `__flavor_${item.flavorGroupId}__`;
-      displayTitle = formatDisplayName(item.flavorGroupName || twinNormalized).trim();
     } else if (item.communityGroupId) {
       groupKey = `__comm_${item.communityGroupId}__`;
       displayTitle = formatDisplayName(item.communityGroupName || twinNormalized).trim();

@@ -135,7 +135,7 @@ function CreateThemePanel({ isOpen, onClose, onSelect, CORE_THEMES, customThemes
 
 export function MasonChameleons({
   masonProfile,
-  isVerifiedMason = true,
+  isVerifiedMason = false,
   vaultPath,
 }: {
   masonProfile: any;
@@ -344,6 +344,18 @@ export function MasonChameleons({
   });
 
   const publishThemeToNexus = () => {
+    if (!isVerifiedMason) {
+      useStore
+        .getState()
+        .pushStatus(
+          t(
+            "nexus_upload_verified_mason_only",
+            "Publishing Templates, {Lexicons}, and {Chameleons} to {Nexus} requires a Verified {Mason} studio. Local JSON export remains unrestricted."
+          ),
+          "warning"
+        );
+      return;
+    }
     const bgHex = (currentTheme.bg || "#000000").replace("#", "");
     let themeMode = "Dark";
     if (bgHex.length === 6) {
@@ -380,6 +392,16 @@ export function MasonChameleons({
   };
 
   const handlePublishLexicon = async (file: any) => {
+    if (!isVerifiedMason) {
+      pushStatus(
+        t(
+          "nexus_upload_verified_mason_only",
+          "Publishing Templates, {Lexicons}, and {Chameleons} to {Nexus} requires a Verified {Mason} studio. Local JSON export remains unrestricted."
+        ),
+        "warning"
+      );
+      return;
+    }
     try {
       const parsed = JSON.parse(file.content);
       if (!parsed._meta_name) {
@@ -425,6 +447,18 @@ export function MasonChameleons({
 
   const submitUpload = async (e?: React.FormEvent) => {
     if (e && e.preventDefault) e.preventDefault();
+    if (!isVerifiedMason) {
+      useStore
+        .getState()
+        .pushStatus(
+          t(
+            "nexus_upload_verified_mason_only",
+            "Publishing Templates, {Lexicons}, and {Chameleons} to {Nexus} requires a Verified {Mason} studio. Local JSON export remains unrestricted."
+          ),
+          "warning"
+        );
+      return;
+    }
     try {
       const { supabase } = await import("./supabase");
       const finalContent = { ...uploadState.fileContent };

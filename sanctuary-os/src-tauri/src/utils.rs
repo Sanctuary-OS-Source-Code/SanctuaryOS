@@ -898,33 +898,92 @@ pub fn walk_packages(
     }
 }
 
+#[allow(dead_code)]
 pub fn deploy_air_gap(source: &Path, target: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(target)?;
-    if let Ok(entries) = std::fs::read_dir(source) {
-        for entry in entries.flatten() {
-            let file_type = entry.file_type()?;
+    for entry in std::fs::read_dir(source)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
 
-            let file_name = entry.file_name().to_string_lossy().to_lowercase();
-            if file_name == ".sanctuary_cache.json"
-                || file_name == ".sanctuary_cache.db"
-                || file_name == "desktop.ini"
-                || file_name == "thumbs.db"
-                || file_name == ".ds_store"
-            {
-                continue;
-            }
+        let file_name = entry.file_name().to_string_lossy().to_lowercase();
+        if file_name == ".sanctuary_cache.json"
+            || file_name == ".sanctuary_cache.db"
+            || file_name == "desktop.ini"
+            || file_name == "thumbs.db"
+            || file_name == ".ds_store"
+        {
+            continue;
+        }
 
-            let dest = target.join(entry.file_name());
-            if file_type.is_dir() {
-                deploy_air_gap(&entry.path(), &dest)?;
-            } else {
-                let _ = std::fs::hard_link(&entry.path(), &dest)
-                    .or_else(|_| create_symlink_file(&entry.path(), &dest))
-                    .or_else(|_| std::fs::copy(&entry.path(), &dest).map(|_| ()));
-            }
+        let dest = target.join(entry.file_name());
+        if file_type.is_dir() {
+            deploy_air_gap(&entry.path(), &dest)?;
+        } else if file_type.is_file() {
+            // Never create symlinks or hardlinks here: save airgap copies must have independent
+            // inodes and propagate any I/O failure immediately before source removal.
+            std::fs::copy(&entry.path(), &dest)?;
         }
     }
     Ok(())
+}
+
+/// Returns true if `path` is inside `.sanctuary_lab_airgap`, `.lab_save_vault`, or any schema-configured
+/// live save directory, preventing accidental deletion via general file removal or shred commands.
+pub fn is_protected_save_or_airgap_path(
+    path: &Path,
+    saved_coords: &crate::state::WorkspaceConfig,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> bool {
+    let cleaned = strip_windows_verbatim_prefix(path);
+    for comp in cleaned.components() {
+        let seg = comp.as_os_str().to_string_lossy().to_lowercase();
+        if seg == ".sanctuary_lab_airgap"
+            || seg == ".lab_save_vault"
+            || seg == ".airgap_journal.json"
+            || seg == ".airgap_active.json"
+        {
+            return true;
+        }
+    }
+
+    let docs_str = resolve_effective_docs_path(saved_coords, game_schema);
+    if !docs_str.trim().is_empty() {
+        let docs_dir = PathBuf::from(&docs_str);
+        let mut save_rels: Vec<String> = Vec::new();
+        if let Some(s) = game_schema {
+            if let Some(tc) = &s.time_capsule {
+                if let Some(targets) = &tc.save_airgap_targets {
+                    for t in targets {
+                        let trimmed = t.trim();
+                        if !trimmed.is_empty() {
+                            save_rels.push(trimmed.to_string());
+                        }
+                    }
+                }
+                for wt in &tc.world_state_targets {
+                    let wt_trimmed = wt.path.trim();
+                    if !wt_trimmed.is_empty()
+                        && (wt_trimmed.to_lowercase().contains("save")
+                            || wt.name.to_lowercase().contains("save"))
+                    {
+                        save_rels.push(wt_trimmed.to_string());
+                    }
+                }
+            }
+        }
+        let cand_norm = normalize_path_key(&cleaned);
+        for rel in save_rels {
+            let resolved_save_dir = resolve_case_insensitive_path(&docs_dir, &rel);
+            let save_norm = normalize_path_key(&resolved_save_dir);
+            if !save_norm.is_empty()
+                && !cand_norm.is_empty()
+                && (cand_norm == save_norm || cand_norm.starts_with(&format!("{}/", save_norm)))
+            {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 pub fn is_safe_single_filename(name: &str) -> bool {
@@ -1733,7 +1792,7 @@ pub fn expand_env_vars(path: &str) -> String {
     result
 }
 
-fn normalize_path_key(p: &std::path::Path) -> String {
+pub(crate) fn normalize_path_key(p: &std::path::Path) -> String {
     p.to_string_lossy()
         .replace('\\', "/")
         .trim_end_matches('/')

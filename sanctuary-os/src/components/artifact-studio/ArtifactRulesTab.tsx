@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
 import {
@@ -8,6 +9,9 @@ import {
   CustomTierDropdown,
   HoverTooltip,
   ModSearchDropdown,
+  toHighlanderSlotSlug,
+  formatHighlanderSlotLabel,
+  resolveModHighlanderSlot,
 } from "../../shared";
 import { StaticPollingGuideSidePanel } from "../../side-panels/StaticPollingGuideSidePanel";
 
@@ -39,6 +43,7 @@ export function ArtifactRulesTab({
   onToggleCloudCollection,
   onAddCollectionQuick,
   onRemoveLocalCollection,
+  onChangeHighlanderSlot,
   onChangeStaticManifestUrl,
   onExportRelease,
   onSyncToNetwork,
@@ -71,6 +76,11 @@ export function ArtifactRulesTab({
   onToggleCloudCollection: (colId: string) => Promise<void>;
   onAddCollectionQuick: () => Promise<void>;
   onRemoveLocalCollection: (name: string) => void;
+  onChangeHighlanderSlot?: (slot: {
+    groupId: string | null;
+    slug: string;
+    name: string;
+  }) => void;
   onChangeStaticManifestUrl: (url: string) => void;
   onExportRelease?: () => void;
   onSyncToNetwork?: () => void;
@@ -82,6 +92,72 @@ export function ArtifactRulesTab({
   const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
   const [showPushToken, setShowPushToken] = useState<boolean>(false);
   const [isPushingManifest, setIsPushingManifest] = useState<boolean>(false);
+  const [spokeHighlanderSlots, setSpokeHighlanderSlots] = useState<any[]>([]);
+  const [useCustomSlotInput, setUseCustomSlotInput] = useState<boolean>(false);
+
+  useEffect(() => {
+    let active = true;
+    supabase
+      .from("flavor_groups")
+      .select("id, name, slug, description")
+      .order("name")
+      .then(async ({ data, error }) => {
+        if (!active) return;
+        if (!error && data) {
+          setSpokeHighlanderSlots(data);
+        } else {
+          const fb = await supabase.from("flavor_groups").select("id, name").order("name");
+          if (active && fb.data) setSpokeHighlanderSlots(fb.data);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const currentHighlanderState = useMemo(() => {
+    const gid = String(mod?.highlander_group_id || mod?.highlanderGroupId || "").trim();
+    if (gid) {
+      const matched = spokeHighlanderSlots.find((fg: any) => String(fg.id) === gid);
+      const slug = toHighlanderSlotSlug(
+        matched?.slug || mod?.highlander_slot_slug || mod?.highlanderSlotKey || matched?.name || gid
+      );
+      const name =
+        matched?.name ||
+        mod?.highlander_slot_name ||
+        mod?.highlanderSlotName ||
+        formatHighlanderSlotLabel(slug);
+      return { groupId: gid, slug, name, isCustom: false };
+    }
+    const rawCustomSlug = String(
+      mod?.highlander_slot_slug || mod?.highlanderSlotKey || ""
+    ).trim();
+    const rawCustomName = String(
+      mod?.highlander_slot_name || mod?.highlanderSlotName || ""
+    ).trim();
+    const resolved = resolveModHighlanderSlot(mod);
+    const effSlug = toHighlanderSlotSlug(rawCustomSlug || resolved?.key || rawCustomName);
+    if (effSlug) {
+      const matchedBySlug = spokeHighlanderSlots.find(
+        (fg: any) => toHighlanderSlotSlug(fg.slug || fg.name) === effSlug
+      );
+      if (matchedBySlug) {
+        return {
+          groupId: String(matchedBySlug.id),
+          slug: effSlug,
+          name: matchedBySlug.name || rawCustomName || formatHighlanderSlotLabel(effSlug),
+          isCustom: false,
+        };
+      }
+      return {
+        groupId: null,
+        slug: effSlug,
+        name: rawCustomName || resolved?.name || formatHighlanderSlotLabel(effSlug),
+        isCustom: true,
+      };
+    }
+    return { groupId: null, slug: "", name: "", isCustom: false };
+  }, [mod, spokeHighlanderSlots]);
 
   const [pushConfig, setPushConfig] = useState<{
     provider: string;
@@ -265,6 +341,16 @@ export function ArtifactRulesTab({
           })),
           flavors: [],
           collections: localCollectionNames,
+          ...(currentHighlanderState.slug
+            ? {
+                highlander_group: {
+                  slug: currentHighlanderState.slug,
+                  name:
+                    currentHighlanderState.name ||
+                    formatHighlanderSlotLabel(currentHighlanderState.slug),
+                },
+              }
+            : {}),
         },
         virtual_filesystem: {
           overrides: [],
@@ -709,6 +795,152 @@ export function ArtifactRulesTab({
                   ))}
             </div>
           )}
+        </div>
+
+        {/* CARD 5: HIGHLANDER EXCLUSIVE SLOT */}
+        <div className="glass-surface rounded-2xl p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">
+                {t("icon_swap_horiz", "swap_horiz")}
+              </span>
+              <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text)] truncate">
+                {t("highlander_exclusive_slot", "Exclusive Slot")}
+              </h4>
+              {currentHighlanderState.slug && (
+                <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] font-mono text-[10px] font-bold">
+                  {currentHighlanderState.slug}
+                </span>
+              )}
+            </div>
+            {(currentHighlanderState.groupId || currentHighlanderState.slug || useCustomSlotInput) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setUseCustomSlotInput(false);
+                  onChangeHighlanderSlot?.({ groupId: null, slug: "", name: "" });
+                }}
+                className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer"
+              >
+                {t("clear", "Clear")}
+              </button>
+            )}
+          </div>
+
+          <p className="text-[11px] font-semibold text-[var(--subtext)] leading-relaxed">
+            {t(
+              "studio_highlander_slot_desc",
+              "Enforces the Highlander Rule — only one {mod} in the same Exclusive Slot (e.g. Main Menu Replacements or Global Lighting Presets) can be active at a time, automatically swapping rivals without manual conflict links."
+            )}
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start relative z-10">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] px-1">
+                {t("studio_highlander_spoke_slot_label", "Exclusive Slot Category")}
+              </label>
+              <CustomDropdown
+                disableTint={true}
+                searchable={true}
+                searchPlaceholder={t("highlander_search_slots_ph", "Search Exclusive Slots...")}
+                value={
+                  useCustomSlotInput || currentHighlanderState.isCustom
+                    ? "__custom__"
+                    : currentHighlanderState.groupId || "__none__"
+                }
+                options={[
+                  {
+                    id: "__none__",
+                    label: t("highlander_slot_none", "None (Coexists Freely)"),
+                  },
+                  ...spokeHighlanderSlots.map((fg: any) => ({
+                    id: String(fg.id),
+                    label: fg.name,
+                    badge: fg.slug || toHighlanderSlotSlug(fg.name),
+                    searchText: `${fg.name || ""} ${fg.slug || ""} ${fg.description || ""}`,
+                  })),
+                  ...(!isCloudMod
+                    ? [
+                        {
+                          id: "__custom__",
+                          label: t(
+                            "highlander_slot_custom_edge",
+                            "Custom Static Edge Slot..."
+                          ),
+                        },
+                      ]
+                    : []),
+                ]}
+                onChange={(val: string[]) => {
+                  const picked = val[0] || "__none__";
+                  if (picked === "__none__") {
+                    setUseCustomSlotInput(false);
+                    onChangeHighlanderSlot?.({ groupId: null, slug: "", name: "" });
+                  } else if (picked === "__custom__") {
+                    setUseCustomSlotInput(true);
+                  } else {
+                    setUseCustomSlotInput(false);
+                    const fg = spokeHighlanderSlots.find(
+                      (item: any) => String(item.id) === String(picked)
+                    );
+                    if (fg) {
+                      const slug = toHighlanderSlotSlug(fg.slug || fg.name);
+                      onChangeHighlanderSlot?.({
+                        groupId: String(fg.id),
+                        slug,
+                        name: fg.name || formatHighlanderSlotLabel(slug),
+                      });
+                    }
+                  }
+                }}
+              />
+            </div>
+
+            {(!isCloudMod && (useCustomSlotInput || currentHighlanderState.isCustom)) ? (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] px-1">
+                  {t("studio_highlander_custom_name_label", "Custom Slot Name (Static Edge Manifest)")}
+                </label>
+                <input
+                  value={currentHighlanderState.name}
+                  onChange={(e) => {
+                    const nextName = e.target.value;
+                    const nextSlug = toHighlanderSlotSlug(nextName);
+                    onChangeHighlanderSlot?.({
+                      groupId: null,
+                      slug: nextSlug,
+                      name: nextName,
+                    });
+                  }}
+                  placeholder={t(
+                    "studio_highlander_custom_ph",
+                    "e.g. Main Menu Replacements"
+                  )}
+                  className="h-12 glass-surface rounded-[var(--radius)] px-4 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] w-full outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+            ) : (
+              <div className="h-12 md:mt-[22px] px-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+                {currentHighlanderState.slug ? (
+                  <>
+                    <span className="text-xs font-bold text-[var(--text)] truncate">
+                      {currentHighlanderState.name}
+                    </span>
+                    <span className="text-[10px] font-mono text-[var(--accent)] shrink-0">
+                      {currentHighlanderState.slug}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-[11px] font-semibold text-[var(--subtext)] truncate">
+                    {t(
+                      "studio_highlander_inactive_hint",
+                      "Can be equipped alongside any other {mod} unless explicitly conflicted"
+                    )}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

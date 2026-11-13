@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, getFileLabel, getExtensionRegex, isScriptExtension, formatDisplayName, getModIcon, compareVersions, enrichBlueprintsWithPremiumStatus, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip, EmptyState, countBlueprintArtifacts } from "./shared";
+import { ViewHeader, CustomDropdown, getFileLabel, getExtensionRegex, isScriptExtension, formatDisplayName, getModIcon, compareVersions, enrichBlueprintsWithPremiumStatus, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip, EmptyState, countBlueprintArtifacts, toHighlanderSlotSlug, formatHighlanderSlotLabel } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useShallow } from "zustand/react/shallow";
 import { useStore } from "./store";
@@ -23,13 +23,14 @@ import {
 } from "./chameleon-components/ThemeCard";
 import { uploadThemeAssetsToCloud, getLuminance } from "./chameleon-components/ChameleonShared";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
+import { useVerifiedMasonOrStaff } from "./utils/hubCommandCache";
 
 
 
 if (!window.__sanctuaryCache) {
   window.__sanctuaryCache = {} as any;
 }
-if (!window.__sanctuaryCache!.nexus || (window.__sanctuaryCache!.nexus as any).schemaRev !== 3) {
+if (!window.__sanctuaryCache!.nexus || (window.__sanctuaryCache!.nexus as any).schemaRev !== 4) {
   window.__sanctuaryCache!.nexus = {
     nexusItems: null,
     lastNexusFetch: 0,
@@ -39,7 +40,7 @@ if (!window.__sanctuaryCache!.nexus || (window.__sanctuaryCache!.nexus as any).s
 
     recentFeed: [],
     lastHomeFetch: 0,
-    schemaRev: 3,
+    schemaRev: 4,
   } as any;
 }
 
@@ -88,6 +89,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   const session = useStore((state) => state.session);
   const activeGameSchema = useStore((state) => state.activeGameSchema);
   const marketTab = useStore(state => state.marketTab);
+  const canPublishNexusAssets = useVerifiedMasonOrStaff();
   const setMarketTab = useStore(state => state.setMarketTab);
   const selectedVersion = useStore(state => state.selectedVersion);
   const showImages = useStore(state => state.showImages);
@@ -724,6 +726,16 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       setMatrixBlueprintAsset(asset);
       return;
     }
+    if (!canPublishNexusAssets) {
+      useStore.getState().pushStatus(
+        t(
+          "nexus_upload_verified_mason_only",
+          "Publishing Templates, {Lexicons}, and {Chameleons} to {Nexus} requires a Verified {Mason} studio. Local JSON export remains unrestricted."
+        ),
+        "warning"
+      );
+      return;
+    }
     const parsedContent = typeof asset.json_data === 'string' ? JSON.parse(asset.json_data) : asset.json_data;
     const v = asset.version || '1.0.0';
     setUploadState({
@@ -747,6 +759,16 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     try {
       if (!session?.user?.id) {
         useStore.getState().pushStatus(t("auto_guest_mode_active_45", "Guest Mode Active") || "Login required to upload.");
+        return;
+      }
+      if (!canPublishNexusAssets) {
+        useStore.getState().pushStatus(
+          t(
+            "nexus_upload_verified_mason_only",
+            "Publishing Templates, {Lexicons}, and {Chameleons} to {Nexus} requires a Verified {Mason} studio. Local JSON export remains unrestricted."
+          ),
+          "warning"
+        );
         return;
       }
       const finalLanguage = uploadState.language === 'add_new' ? uploadState.newLanguage : uploadState.language;
@@ -990,7 +1012,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       try {
         const BATCH_SIZE = 1000;
         const modSelectCols =
-          "id, name, created_at, category_override, sub_type, file_extension, master_author, compliance_tier, image_url, description, url, compatible_versions, requiredDLC, is_official, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label), masons(id, name)";
+          "id, name, created_at, category_override, sub_type, file_extension, master_author, compliance_tier, highlander_group_id, image_url, description, url, compatible_versions, requiredDLC, is_official, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label), masons(id, name)";
 
         const [
           firstModsRes,
@@ -1057,11 +1079,46 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
         let allItems: any[] = [];
 
+        const highlanderGroupMap = new Map<string, any>();
+        if (Array.isArray(flavorGroups)) {
+          for (const fg of flavorGroups) {
+            if (fg?.id) highlanderGroupMap.set(String(fg.id), fg);
+          }
+        }
+        const legacyHashToGroupId = new Map<string, string>();
+        if (Array.isArray(allFlavorMembers)) {
+          for (const fm of allFlavorMembers) {
+            if (fm?.mod_hash && fm?.group_id && !legacyHashToGroupId.has(String(fm.mod_hash))) {
+              legacyHashToGroupId.set(String(fm.mod_hash), String(fm.group_id));
+            }
+          }
+        }
+
         const modsById = new Map<string, any>();
         const hashToModMap = new Map<string, { modId: string; mod: any }>();
         if (modsData) {
-          modsData.forEach((mod: any) => {
-            if (mod.compliance_tier > 0) return;
+          modsData.forEach((rawMod: any) => {
+            if (rawMod.compliance_tier > 0) return;
+            let resolvedGroupId = rawMod.highlander_group_id ? String(rawMod.highlander_group_id) : "";
+            if (!resolvedGroupId && Array.isArray(rawMod.mod_versions)) {
+              for (const v of rawMod.mod_versions) {
+                const hit = v?.dna_hash ? legacyHashToGroupId.get(String(v.dna_hash)) : undefined;
+                if (hit) {
+                  resolvedGroupId = hit;
+                  break;
+                }
+              }
+            }
+            const groupObj = resolvedGroupId ? highlanderGroupMap.get(resolvedGroupId) : null;
+            const slotKey = groupObj ? toHighlanderSlotSlug(groupObj.slug || groupObj.name) : "";
+            const mod = groupObj
+              ? {
+                  ...rawMod,
+                  highlanderGroupId: resolvedGroupId,
+                  highlanderSlotKey: slotKey,
+                  highlanderSlotName: groupObj.name || formatHighlanderSlotLabel(slotKey),
+                }
+              : rawMod;
             const strId = String(mod.id);
             modsById.set(strId, mod);
             if (Array.isArray(mod.mod_versions)) {
@@ -1156,56 +1213,6 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
               }
             }
           });
-        }
-
-        if (flavorGroups) {
-          const membersByGroup = new Map<string, any[]>();
-          if (allFlavorMembers) {
-            for (const fm of allFlavorMembers) {
-              if (!membersByGroup.has(fm.group_id)) membersByGroup.set(fm.group_id, []);
-              membersByGroup.get(fm.group_id)!.push(fm);
-            }
-          }
-
-          for (const group of flavorGroups) {
-            const flavorMembers = membersByGroup.get(group.id) || [];
-
-            const members: any[] = [];
-            const memberIds = new Set<string>();
-
-            if (flavorMembers.length > 0) {
-              for (const fm of flavorMembers) {
-                const match = hashToModMap.get(fm.mod_hash);
-                if (match && !memberIds.has(match.modId)) {
-                  members.push(match.mod);
-                  memberIds.add(match.modId);
-                  processedMods.add(match.modId);
-                }
-              }
-            }
-
-            if (members.length > 0) {
-              const groupAuthor =
-                members.find((m: any) => m?.master_author && m.master_author !== "Unknown")?.master_author ||
-                "Flavor Group";
-              allItems.push({
-                id: `flavor_${group.id}`,
-                name: group.name,
-                category_override: "Exclusives",
-                image_url: group.image_url || null,
-                master_author: groupAuthor,
-                is_verified: Boolean(groupAuthor && verifiedMap[groupAuthor]),
-                description: null,
-                created_at: group.created_at,
-                isFlavorGroup: true,
-                flavorGroupId: group.id,
-                flavors: members,
-                familyCount: members.length,
-                isVirtual: true,
-                isParent: true
-              });
-            }
-          }
         }
 
         if (collections) {
@@ -3091,7 +3098,10 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         </div>
 
                         <div className="flex items-center gap-1.5 shrink-0">
-                          {session?.user?.user_metadata?.username === asset.author && (
+                          {(session?.user?.id &&
+                            (String(asset.author_id || asset.mason_id || "") === String(session.user.id) ||
+                              session?.user?.user_metadata?.username === asset.author) &&
+                            (marketTab === 'BLUEPRINTS' || canPublishNexusAssets)) && (
                             <button
                               type="button"
                               onClick={(e) => handleEditAsset(e, asset)}

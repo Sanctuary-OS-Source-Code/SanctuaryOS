@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS sanctuary_internal.runtime_secrets (
 REVOKE ALL ON TABLE sanctuary_internal.runtime_secrets FROM PUBLIC, anon, authenticated;
 GRANT ALL ON TABLE sanctuary_internal.runtime_secrets TO service_role;
 
+DROP TABLE IF EXISTS sanctuary_internal.spoke_relink_commitments CASCADE;
+
 -- ============================================================================
 -- 2. CLEANUP (IDEMPOTENT RESET)
 -- ============================================================================
@@ -95,6 +97,15 @@ CREATE TABLE public.profiles (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE sanctuary_internal.spoke_relink_commitments (
+    profile_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+    commitment_hash TEXT NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+REVOKE ALL ON TABLE sanctuary_internal.spoke_relink_commitments FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE sanctuary_internal.spoke_relink_commitments TO service_role;
+
 CREATE TABLE public.masons (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL UNIQUE,
@@ -155,7 +166,8 @@ CREATE TABLE public.mods (
     last_updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()),
     file_extension TEXT,
     is_paid BOOLEAN DEFAULT false,
-    is_early_access BOOLEAN DEFAULT false
+    is_early_access BOOLEAN DEFAULT false,
+    highlander_group_id UUID
 );
 
 CREATE TABLE public.mod_versions (
@@ -230,8 +242,15 @@ CREATE TABLE public.community_group_members (
 
 CREATE TABLE public.flavor_groups (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL UNIQUE
+    name TEXT NOT NULL UNIQUE,
+    slug TEXT UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE public.mods
+    ADD CONSTRAINT mods_highlander_group_id_fkey
+    FOREIGN KEY (highlander_group_id) REFERENCES public.flavor_groups(id) ON DELETE SET NULL;
 
 CREATE TABLE public.flavor_group_members (
     group_id UUID NOT NULL REFERENCES public.flavor_groups(id) ON DELETE CASCADE,
@@ -685,6 +704,7 @@ CREATE INDEX IF NOT EXISTS idx_mods_mason_id ON public.mods(mason_id);
 CREATE INDEX IF NOT EXISTS idx_mods_status ON public.mods(status);
 CREATE INDEX IF NOT EXISTS idx_mods_compliance_tier ON public.mods(compliance_tier);
 CREATE INDEX IF NOT EXISTS idx_spoke_mods_last_updated_by ON public.mods(last_updated_by);
+CREATE INDEX IF NOT EXISTS idx_mods_highlander_group_id ON public.mods(highlander_group_id);
 
 CREATE INDEX IF NOT EXISTS idx_spoke_mod_versions_mod_id ON public.mod_versions(mod_id);
 CREATE INDEX IF NOT EXISTS idx_spoke_mod_bundles_twin_id ON public.mod_bundles(twin_id);
@@ -815,17 +835,34 @@ AS $$
     );
 $$;
 
+CREATE OR REPLACE FUNCTION sanctuary_internal.is_verified_mason_or_staff()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+    SELECT sanctuary_internal.is_spoke_staff() OR EXISTS (
+        SELECT 1
+        FROM public.masons m
+        WHERE m.profile_id = (SELECT auth.uid())
+          AND COALESCE(m.is_verified, false) = true
+    );
+$$;
+
 REVOKE ALL ON FUNCTION sanctuary_internal.active_spoke_id() FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION sanctuary_internal.spoke_user_role() FROM PUBLIC;
 REVOKE ALL ON FUNCTION sanctuary_internal.is_spoke_staff() FROM PUBLIC;
 REVOKE ALL ON FUNCTION sanctuary_internal.is_spoke_creator_or_staff() FROM PUBLIC;
 REVOKE ALL ON FUNCTION sanctuary_internal.owns_mason(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION sanctuary_internal.is_verified_mason_or_staff() FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION sanctuary_internal.active_spoke_id() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION sanctuary_internal.spoke_user_role() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION sanctuary_internal.is_spoke_staff() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION sanctuary_internal.is_spoke_creator_or_staff() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION sanctuary_internal.owns_mason(UUID) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION sanctuary_internal.is_verified_mason_or_staff() TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION sanctuary_internal.cleanup_expired_staging_queue()
 RETURNS TRIGGER
@@ -839,18 +876,199 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION sanctuary_internal.relink_spoke_profile_uuid(
+    p_legacy_uuid UUID,
+    p_new_uid UUID,
+    p_claim_secret TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, sanctuary_internal
+AS $$
+DECLARE
+    v_legacy_profile public.profiles%ROWTYPE;
+    v_new_profile public.profiles%ROWTYPE;
+    v_commitment_hash TEXT;
+    v_expected_hash TEXT;
+    v_final_username TEXT;
+    v_final_role TEXT;
+BEGIN
+    IF p_legacy_uuid IS NULL OR p_new_uid IS NULL THEN
+        RAISE EXCEPTION 'Missing legacy System ID or target account ID.';
+    END IF;
+    IF p_legacy_uuid = p_new_uid THEN
+        RAISE EXCEPTION 'Target account already owns this System ID.';
+    END IF;
+    IF btrim(COALESCE(p_claim_secret, '')) = '' OR length(btrim(p_claim_secret)) < 32 THEN
+        RAISE EXCEPTION 'Invalid cryptographic relink secret.';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM auth.users WHERE id = p_legacy_uuid) THEN
+        RAISE EXCEPTION 'Legacy Spoke profile is already bound to an active authentication account.';
+    END IF;
+
+    SELECT * INTO v_legacy_profile
+    FROM public.profiles
+    WHERE id = p_legacy_uuid
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Legacy Spoke profile was not found on this workspace.';
+    END IF;
+
+    SELECT commitment_hash INTO v_commitment_hash
+    FROM sanctuary_internal.spoke_relink_commitments
+    WHERE profile_id = p_legacy_uuid
+    FOR UPDATE;
+
+    IF NOT FOUND OR btrim(COALESCE(v_commitment_hash, '')) = '' THEN
+        RAISE EXCEPTION 'No cryptographic relink commitment is registered for this legacy Spoke profile.';
+    END IF;
+
+    v_expected_hash := encode(
+        pg_catalog.sha256(
+            convert_to(
+                'sanctuary_spoke_relink_v1:' || lower(p_legacy_uuid::text) || ':' || btrim(p_claim_secret),
+                'UTF8'
+            )
+        ),
+        'hex'
+    );
+
+    IF lower(btrim(v_commitment_hash)) <> v_expected_hash THEN
+        RAISE EXCEPTION 'Cryptographic relink verification failed for this System ID.';
+    END IF;
+
+    SELECT * INTO v_new_profile
+    FROM public.profiles
+    WHERE id = p_new_uid
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Active Spoke profile record not found.';
+    END IF;
+
+    PERFORM set_config('sanctuary.allow_profile_relink', 'true', true);
+
+    UPDATE public.masons SET profile_id = p_new_uid WHERE profile_id = p_legacy_uuid;
+
+    INSERT INTO public.mason_followers (user_id, mason_id, created_at)
+    SELECT p_new_uid, mason_id, created_at
+    FROM public.mason_followers
+    WHERE user_id = p_legacy_uuid
+    ON CONFLICT (user_id, mason_id) DO NOTHING;
+    DELETE FROM public.mason_followers WHERE user_id = p_legacy_uuid;
+
+    UPDATE public.mods SET last_updated_by = p_new_uid WHERE last_updated_by = p_legacy_uuid;
+    UPDATE public.blueprints SET mason_id = p_new_uid WHERE mason_id = p_legacy_uuid;
+    UPDATE public.blueprint_reports SET reporter_id = p_new_uid WHERE reporter_id = p_legacy_uuid;
+    UPDATE public.nexus_assets SET author_id = p_new_uid WHERE author_id = p_legacy_uuid;
+    UPDATE public.nexus_reports SET reporter_id = p_new_uid WHERE reporter_id = p_legacy_uuid;
+    UPDATE public.mason_post_comments SET author_id = p_new_uid WHERE author_id = p_legacy_uuid;
+
+    INSERT INTO public.mason_post_likes (post_id, user_id, created_at)
+    SELECT post_id, p_new_uid, created_at
+    FROM public.mason_post_likes
+    WHERE user_id = p_legacy_uuid
+    ON CONFLICT (post_id, user_id) DO NOTHING;
+    DELETE FROM public.mason_post_likes WHERE user_id = p_legacy_uuid;
+
+    INSERT INTO public.mason_post_views (post_id, user_id, created_at)
+    SELECT post_id, p_new_uid, created_at
+    FROM public.mason_post_views
+    WHERE user_id = p_legacy_uuid
+    ON CONFLICT (post_id, user_id) DO NOTHING;
+    DELETE FROM public.mason_post_views WHERE user_id = p_legacy_uuid;
+
+    INSERT INTO public.dispatch_poll_votes (broadcast_id, poll_id, option_id, user_id, created_at)
+    SELECT broadcast_id, poll_id, option_id, p_new_uid, created_at
+    FROM public.dispatch_poll_votes
+    WHERE user_id = p_legacy_uuid
+    ON CONFLICT (broadcast_id, poll_id, option_id, user_id) DO NOTHING;
+    DELETE FROM public.dispatch_poll_votes WHERE user_id = p_legacy_uuid;
+
+    UPDATE public.notifications SET user_id = p_new_uid WHERE user_id = p_legacy_uuid;
+    UPDATE public.notifications SET actor_id = p_new_uid WHERE actor_id = p_legacy_uuid;
+    UPDATE public.audit_logs SET actor_id = p_new_uid WHERE actor_id = p_legacy_uuid;
+    UPDATE public.content_flags SET reporter_id = p_new_uid WHERE reporter_id = p_legacy_uuid;
+    UPDATE public.content_flags SET resolved_by = p_new_uid WHERE resolved_by = p_legacy_uuid;
+    UPDATE public.scout_suggestions SET submitter_id = p_new_uid WHERE submitter_id = p_legacy_uuid;
+    UPDATE public.sanctuary_tickets SET author_id = p_new_uid WHERE author_id = p_legacy_uuid;
+    UPDATE public.sanctuary_tickets SET assigned_to = p_new_uid WHERE assigned_to = p_legacy_uuid;
+    UPDATE public.heuristic_signatures SET added_by = p_new_uid WHERE added_by = p_legacy_uuid;
+    UPDATE public.tracked_template_files SET added_by = p_new_uid WHERE added_by = p_legacy_uuid;
+    UPDATE public.pwa_push_subscriptions SET user_id = p_new_uid WHERE user_id = p_legacy_uuid;
+
+    DELETE FROM sanctuary_internal.spoke_relink_commitments WHERE profile_id = p_legacy_uuid;
+    DELETE FROM public.profiles WHERE id = p_legacy_uuid;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM public.profiles
+        WHERE lower(username) = lower(v_legacy_profile.username)
+          AND id <> p_new_uid
+    ) THEN
+        v_final_username := v_legacy_profile.username;
+    ELSE
+        v_final_username := v_new_profile.username;
+    END IF;
+
+    IF v_new_profile.role IN ('wayfinder', 'admin') THEN
+        v_final_role := v_new_profile.role;
+    ELSE
+        v_final_role := COALESCE(NULLIF(v_legacy_profile.role, ''), v_new_profile.role);
+    END IF;
+
+    UPDATE public.profiles
+    SET username = v_final_username,
+        role = v_final_role,
+        is_banned = COALESCE(v_new_profile.is_banned, false) OR COALESCE(v_legacy_profile.is_banned, false),
+        blacklist_reason = COALESCE(v_new_profile.blacklist_reason, v_legacy_profile.blacklist_reason),
+        is_comm_banned = COALESCE(v_new_profile.is_comm_banned, false) OR COALESCE(v_legacy_profile.is_comm_banned, false),
+        comm_blacklist_reason = COALESCE(v_new_profile.comm_blacklist_reason, v_legacy_profile.comm_blacklist_reason)
+    WHERE id = p_new_uid;
+
+    INSERT INTO public.audit_logs (action, target_table, target_name, actor_id, reason)
+    VALUES (
+        'Cryptographic Spoke Profile Relink',
+        'profiles',
+        v_final_username,
+        p_new_uid,
+        'Verified SHA-256 relink commitment for legacy System ID ' || p_legacy_uuid::text
+    );
+
+    PERFORM set_config('sanctuary.allow_profile_relink', 'false', true);
+
+    RETURN jsonb_build_object(
+        'ok', true,
+        'id', p_new_uid,
+        'legacy_id', p_legacy_uuid,
+        'username', v_final_username,
+        'role', v_final_role
+    );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION sanctuary_internal.relink_spoke_profile_uuid(UUID, UUID, TEXT) FROM PUBLIC, anon, authenticated;
+
 -- Standalone Fork Auth Trigger:
 -- Promotes the very first local `auth.users` registrant to Founding `wayfinder`;
--- subsequent registrants receive `citizen` without unverified username takeover.
+-- subsequent registrants receive `citizen` unless they supply a valid cryptographic `relink_token`
+-- (`SRK1.<legacy_uuid>.<claim_secret>`), never trusting bare usernames.
 CREATE OR REPLACE FUNCTION sanctuary_internal.handle_new_spoke_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, sanctuary_internal
 AS $$
 DECLARE
     v_username TEXT := COALESCE(NULLIF(btrim(NEW.raw_user_meta_data->>'username'), ''), 'Citizen_' || left(NEW.id::text, 6));
     v_role TEXT := 'citizen';
+    v_relink_token TEXT := btrim(COALESCE(NEW.raw_user_meta_data->>'relink_token', ''));
+    v_clean_token TEXT;
+    v_legacy_uuid_text TEXT;
+    v_claim_secret TEXT;
 BEGIN
     IF NOT EXISTS (
         SELECT 1
@@ -869,6 +1087,22 @@ BEGIN
     VALUES (NEW.id, v_username, v_role, false, false, NOW())
     ON CONFLICT (id) DO NOTHING;
 
+    IF v_relink_token <> '' THEN
+        v_clean_token := regexp_replace(v_relink_token, '^SRK1\.', '', 'i');
+        v_legacy_uuid_text := split_part(v_clean_token, '.', 1);
+        v_claim_secret := substring(v_clean_token FROM length(v_legacy_uuid_text) + 2);
+        IF v_legacy_uuid_text ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+           AND length(btrim(COALESCE(v_claim_secret, ''))) >= 32 THEN
+            PERFORM sanctuary_internal.relink_spoke_profile_uuid(
+                v_legacy_uuid_text::uuid,
+                NEW.id,
+                v_claim_secret
+            );
+        ELSE
+            RAISE EXCEPTION 'Malformed Spoke Relink Token. Expected SRK1.<uuid>.<secret>';
+        END IF;
+    END IF;
+
     RETURN NEW;
 END;
 $$;
@@ -884,6 +1118,7 @@ DECLARE
     v_uid UUID := (SELECT auth.uid());
 BEGIN
     IF COALESCE(current_setting('request.jwt.claim.role', true), '') = 'service_role'
+       OR COALESCE(current_setting('sanctuary.allow_profile_relink', true), '') = 'true'
        OR session_user IN ('postgres', 'supabase_admin') THEN
         RETURN NEW;
     END IF;
@@ -1148,6 +1383,17 @@ AS $$
 BEGIN
     IF TG_OP = 'DELETE' AND COALESCE(current_setting('sanctuary.allow_audit_prune', true), '') = 'true' THEN
         RETURN OLD;
+    END IF;
+    IF TG_OP = 'UPDATE'
+       AND COALESCE(current_setting('sanctuary.allow_profile_relink', true), '') = 'true'
+       AND NEW.action IS NOT DISTINCT FROM OLD.action
+       AND NEW.target_table IS NOT DISTINCT FROM OLD.target_table
+       AND NEW.target_name IS NOT DISTINCT FROM OLD.target_name
+       AND NEW.game_name IS NOT DISTINCT FROM OLD.game_name
+       AND NEW.changes IS NOT DISTINCT FROM OLD.changes
+       AND NEW.reason IS NOT DISTINCT FROM OLD.reason
+       AND NEW.created_at IS NOT DISTINCT FROM OLD.created_at THEN
+        RETURN NEW;
     END IF;
     RAISE EXCEPTION 'Audit logs are append-only. Modification or deletion is strictly forbidden.';
 END;
@@ -2228,6 +2474,99 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.sanctuary_resolve_login_identifier(TEXT) TO anon, authenticated, service_role;
 
+CREATE OR REPLACE FUNCTION public.internal_upsert_spoke_relink_commitment(
+    p_profile_id UUID,
+    p_commitment_hash TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+DECLARE
+    v_clean_hash TEXT := lower(btrim(COALESCE(p_commitment_hash, '')));
+BEGIN
+    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+       AND session_user NOT IN ('postgres', 'supabase_admin') THEN
+        RAISE EXCEPTION 'Forbidden';
+    END IF;
+    IF p_profile_id IS NULL OR v_clean_hash !~ '^[0-9a-f]{64}$' THEN
+        RAISE EXCEPTION 'Invalid profile_id or SHA-256 commitment hash';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = p_profile_id) THEN
+        RETURN jsonb_build_object('ok', false, 'reason', 'profile_not_found');
+    END IF;
+
+    INSERT INTO sanctuary_internal.spoke_relink_commitments (profile_id, commitment_hash, updated_at)
+    VALUES (p_profile_id, v_clean_hash, NOW())
+    ON CONFLICT (profile_id) DO UPDATE
+    SET commitment_hash = EXCLUDED.commitment_hash,
+        updated_at = NOW();
+
+    RETURN jsonb_build_object('ok', true);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.internal_upsert_spoke_relink_commitment(UUID, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.internal_upsert_spoke_relink_commitment(UUID, TEXT) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.register_spoke_relink_commitment(
+    p_commitment_hash TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+DECLARE
+    v_uid UUID := (SELECT auth.uid());
+    v_clean_hash TEXT := lower(btrim(COALESCE(p_commitment_hash, '')));
+BEGIN
+    IF v_uid IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+    IF v_clean_hash !~ '^[0-9a-f]{64}$' THEN
+        RAISE EXCEPTION 'Invalid SHA-256 commitment hash';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = v_uid) THEN
+        RETURN jsonb_build_object('ok', false, 'reason', 'profile_not_found');
+    END IF;
+
+    INSERT INTO sanctuary_internal.spoke_relink_commitments (profile_id, commitment_hash, updated_at)
+    VALUES (v_uid, v_clean_hash, NOW())
+    ON CONFLICT (profile_id) DO UPDATE
+    SET commitment_hash = EXCLUDED.commitment_hash,
+        updated_at = NOW();
+
+    RETURN jsonb_build_object('ok', true);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.register_spoke_relink_commitment(TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.register_spoke_relink_commitment(TEXT) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.claim_severed_spoke_profile(
+    p_legacy_uuid UUID,
+    p_claim_secret TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, sanctuary_internal
+AS $$
+DECLARE
+    v_uid UUID := (SELECT auth.uid());
+BEGIN
+    IF v_uid IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+    RETURN sanctuary_internal.relink_spoke_profile_uuid(p_legacy_uuid, v_uid, p_claim_secret);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_severed_spoke_profile(UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.claim_severed_spoke_profile(UUID, TEXT) TO authenticated, service_role;
+
 -- ============================================================================
 -- 13. TURNKEY ROW LEVEL SECURITY (RLS) POLICIES (CONSOLIDATED 1-PER-CMD)
 -- ============================================================================
@@ -2368,11 +2707,20 @@ CREATE POLICY "spoke_nexus_assets_select" ON public.nexus_assets
     USING (COALESCE(is_public, true) = true OR author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
 CREATE POLICY "spoke_nexus_assets_insert" ON public.nexus_assets
     FOR INSERT TO authenticated
-    WITH CHECK (author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    WITH CHECK (
+        (author_id = (SELECT auth.uid()) AND sanctuary_internal.is_verified_mason_or_staff())
+        OR sanctuary_internal.is_spoke_staff()
+    );
 CREATE POLICY "spoke_nexus_assets_update" ON public.nexus_assets
     FOR UPDATE TO authenticated
-    USING (author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff())
-    WITH CHECK (author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    USING (
+        (author_id = (SELECT auth.uid()) AND sanctuary_internal.is_verified_mason_or_staff())
+        OR sanctuary_internal.is_spoke_staff()
+    )
+    WITH CHECK (
+        (author_id = (SELECT auth.uid()) AND sanctuary_internal.is_verified_mason_or_staff())
+        OR sanctuary_internal.is_spoke_staff()
+    );
 CREATE POLICY "spoke_nexus_assets_delete" ON public.nexus_assets
     FOR DELETE TO authenticated
     USING (author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
@@ -2522,8 +2870,6 @@ BEGIN
         'collection_members',
         'community_group_members',
         'community_groups',
-        'flavor_group_members',
-        'flavor_groups',
         'homestead_workbench_templates',
         'logical_conflicts',
         'mod_bundles',
@@ -2560,6 +2906,8 @@ DECLARE
 BEGIN
     FOREACH staff_tbl IN ARRAY ARRAY[
         'dlc_registry',
+        'flavor_group_members',
+        'flavor_groups',
         'game_versions',
         'global_network_status',
         'global_security',
@@ -2592,6 +2940,36 @@ BEGIN
             staff_tbl
         );
     END LOOP;
+END $$;
+
+-- ============================================================================
+-- STORAGE BUCKET HARDENING: Theme Wallpapers & Thumbnails ('backgrounds')
+-- 512 KB cap, raster formats only, public CDN read, Verified Creator/Staff writes
+-- ============================================================================
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'buckets') THEN
+        INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+        VALUES ('backgrounds', 'backgrounds', true, 524288, ARRAY['image/webp', 'image/png', 'image/jpeg'])
+        ON CONFLICT (id) DO UPDATE
+        SET public = true,
+            file_size_limit = 524288,
+            allowed_mime_types = ARRAY['image/webp', 'image/png', 'image/jpeg'];
+
+        EXECUTE 'DROP POLICY IF EXISTS "Backgrounds are publicly accessible." ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "Anyone can upload backgrounds." ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "Users can update their own backgrounds." ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "Users can delete their own backgrounds." ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "spoke_backgrounds_select" ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "spoke_backgrounds_insert" ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "spoke_backgrounds_update" ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "spoke_backgrounds_delete" ON storage.objects';
+
+        EXECUTE 'CREATE POLICY "spoke_backgrounds_select" ON storage.objects FOR SELECT TO public USING (bucket_id = ''backgrounds'')';
+        EXECUTE 'CREATE POLICY "spoke_backgrounds_insert" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = ''backgrounds'' AND sanctuary_internal.is_verified_mason_or_staff())';
+        EXECUTE 'CREATE POLICY "spoke_backgrounds_update" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = ''backgrounds'' AND sanctuary_internal.is_verified_mason_or_staff()) WITH CHECK (bucket_id = ''backgrounds'' AND sanctuary_internal.is_verified_mason_or_staff())';
+        EXECUTE 'CREATE POLICY "spoke_backgrounds_delete" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = ''backgrounds'' AND sanctuary_internal.is_verified_mason_or_staff())';
+    END IF;
 END $$;
 
 SELECT 'Sanctuary OS Spoke Schema V0.6.0-Dev.13 Initialized Successfully' AS status;

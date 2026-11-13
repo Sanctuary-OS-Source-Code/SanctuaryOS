@@ -2190,13 +2190,16 @@ pub fn get_workbench_files(
 }
 
 #[tauri::command]
-pub fn delete_mod(path: String) -> Result<String, String> {
+pub fn delete_mod(
+    path: String,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<String, String> {
     let cfg = get_saved_coordinates();
     let allowed = crate::utils::get_allowed_workspace_roots(&cfg);
     if !allowed.is_empty() {
         crate::utils::ensure_strict_descendant_of_roots(Path::new(&path), &allowed)?;
     }
-    crate::commands::system::delete_local_file(path)
+    crate::commands::system::delete_local_file(path, state)
 }
 
 #[tauri::command]

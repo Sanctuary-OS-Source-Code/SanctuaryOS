@@ -785,7 +785,17 @@ export default function Lab({
       );
       await refreshAirgapStatus();
     } catch (err: any) {
-      setStatus(`${t("status_lab_error", "Lab Error:")} ${err?.message || String(err)}`);
+      const rawErr = typeof err === "string" ? err : err?.message || String(err);
+      if (rawErr.includes("lab_err_game_running_saves_locked")) {
+        setStatus(
+          t(
+            "lab_err_game_running_saves_locked",
+            "Close the running game first so your live saves can be unlocked and restored safely."
+          )
+        );
+      } else {
+        setStatus(`${t("status_lab_error", "Lab Error:")} ${rawErr}`);
+      }
     }
   };
 
@@ -831,7 +841,17 @@ export default function Lab({
       });
       await refreshAirgapStatus();
     } catch (err: any) {
-      setStatus(`${t("status_lab_error", "Lab Error:")} ${err?.message || String(err)}`);
+      const rawErr = typeof err === "string" ? err : err?.message || String(err);
+      if (rawErr.includes("lab_err_game_running_saves_locked")) {
+        setStatus(
+          t(
+            "lab_err_game_running_saves_locked",
+            "Close the running game first so your live saves can be unlocked and restored safely."
+          )
+        );
+      } else {
+        setStatus(`${t("status_lab_error", "Lab Error:")} ${rawErr}`);
+      }
     }
   };
 
@@ -1319,7 +1339,17 @@ export default function Lab({
         await executeHotSwapNow(pending.customToolPath);
       }
     } catch (err: any) {
-      setStatus(`${t("status_lab_error", "Lab Error:")} ${err?.message || String(err)}`);
+      const rawErr = typeof err === "string" ? err : err?.message || String(err);
+      if (rawErr.includes("lab_err_game_running_saves_locked")) {
+        setStatus(
+          t(
+            "lab_err_game_running_saves_locked",
+            "Close the running game first so your live saves can be unlocked and restored safely."
+          )
+        );
+      } else {
+        setStatus(`${t("status_lab_error", "Lab Error:")} ${rawErr}`);
+      }
     } finally {
       setIsConfiguringSave(false);
     }
@@ -1366,7 +1396,17 @@ export default function Lab({
         }
       }
     } catch (err: any) {
-      setStatus(`${t("status_lab_error", "Lab Error:")} ${err?.message || String(err)}`);
+      const rawErr = typeof err === "string" ? err : err?.message || String(err);
+      if (rawErr.includes("lab_err_game_running_saves_locked")) {
+        setStatus(
+          t(
+            "lab_err_game_running_saves_locked",
+            "Close the running game first so your live saves can be unlocked and restored safely."
+          )
+        );
+      } else {
+        setStatus(`${t("status_lab_error", "Lab Error:")} ${rawErr}`);
+      }
     } finally {
       setIsConfiguringSave(false);
     }
@@ -1483,8 +1523,14 @@ export default function Lab({
       recordRealTestEntry(result);
     }
 
-    await concludeTest(ctx, targetMod, targetErr);
+    const didConclude = await concludeTest(ctx, targetMod, targetErr);
     await refreshAirgapStatus();
+    if (!didConclude) {
+      if (fromReportPanel) {
+        setSecureCardState("idle");
+      }
+      return false;
+    }
 
     if (fromReportPanel) {
       // Keep the Report SidePanel open and show in-place completion feedback on the clicked card
@@ -1501,6 +1547,7 @@ export default function Lab({
       await handleClearLabMemory();
       setActiveTab("DASHBOARD");
     }
+    return true;
   };
 
   const passedCount = testHistory.filter((m: any) => !m.errorFound).length;
@@ -3789,13 +3836,31 @@ export default function Lab({
           headerActions={
             <PanelHeaderGroup>
               <PanelHeaderButton
-                icon={t("icon_science", "science")}
-                tooltip={t("btn_conclude_experiment", "Conclude Experiment")}
-                onClick={() => {
-                  handleConcludeTest();
-                  setShowTestPanel(false);
+                icon={
+                  labSessionStatus?.stage === "VERIFIED"
+                    ? t("icon_verified", "verified")
+                    : testErrorFound || labSessionStatus?.stage === "FAILED"
+                      ? t("icon_report", "report")
+                      : t("icon_restore", "restore")
+                }
+                tooltip={
+                  labSessionStatus?.stage === "VERIFIED" ||
+                  testErrorFound ||
+                  labSessionStatus?.stage === "FAILED"
+                    ? t("btn_conclude_experiment", "Conclude Experiment")
+                    : t("lab_btn_restore_saves", "Restore Live Saves")
+                }
+                onClick={async () => {
+                  const ok = await handleConcludeTest();
+                  if (ok) setShowTestPanel(false);
                 }}
-                variant="success"
+                variant={
+                  labSessionStatus?.stage === "VERIFIED"
+                    ? "success"
+                    : testErrorFound || labSessionStatus?.stage === "FAILED"
+                      ? "danger"
+                      : "default"
+                }
               />
             </PanelHeaderGroup>
           }
@@ -3825,12 +3890,30 @@ export default function Lab({
                   />
                 )}
                 <ActionButton
-                  variant="success"
-                  icon={t("icon_science", "science")}
-                  label={t("btn_conclude_experiment", "Conclude Experiment")}
-                  onClick={() => {
-                    handleConcludeTest();
-                    setShowTestPanel(false);
+                  variant={
+                    labSessionStatus?.stage === "VERIFIED"
+                      ? "success"
+                      : testErrorFound || labSessionStatus?.stage === "FAILED"
+                        ? "danger"
+                        : "glass"
+                  }
+                  icon={
+                    labSessionStatus?.stage === "VERIFIED"
+                      ? t("icon_verified", "verified")
+                      : testErrorFound || labSessionStatus?.stage === "FAILED"
+                        ? t("icon_report", "report")
+                        : t("icon_restore", "restore")
+                  }
+                  label={
+                    labSessionStatus?.stage === "VERIFIED" ||
+                    testErrorFound ||
+                    labSessionStatus?.stage === "FAILED"
+                      ? t("btn_conclude_experiment", "Conclude Experiment")
+                      : t("lab_btn_stop_timed_test", "Abort Timed Test")
+                  }
+                  onClick={async () => {
+                    const ok = await handleConcludeTest();
+                    if (ok) setShowTestPanel(false);
                   }}
                 />
               </div>

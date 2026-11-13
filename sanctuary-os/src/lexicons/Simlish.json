@@ -355,7 +355,7 @@
   "wf_card_sql_schemas_desc": "Inspect and copy turnkey PostgreSQL scripts (schema.sql & schema_os.sql) with automatic Hub-to-Standalone profile migration triggers.",
   "wf_donation_no_link": "No Link Set",
   "wf_sever_backup_desc": "Copy SANCTUARY-UPLINK:// bundle before severing Spoke uplink.",
-  "wf_sever_identity_arch_desc": "In Hub-and-Spoke mode, login credentials (emails, passwords, and Passkeys) live only in da Core Hub database while your Spoke stores public.profiles (UUID, username, and role). When you launch a Standalone Fork, your Spoke's auth.users table starts empty: da first Simmer to sign up becomes Founding Wayfinder, and signing up with your existing Spoke username automatically relinks your profile, {Mason} page, {Mods}, {Blueprints}, and tickets to your new login!",
+  "wf_sever_identity_arch_desc": "In Hub-and-Spoke mode, login credentials (emails, passwords, and Passkeys) live only in da Core Hub database while your Spoke stores public.profiles and zero-PII SHA-256 relink proofs. When you launch a Standalone Fork, your Spoke's auth.users table starts empty: da first Simmer to sign up becomes Founding Wayfinder, and pasting your Spoke Relink Token (SRK1.<uuid>.<secret>) at sign-up or in {Settings} -> System ID safely relinks your profile, {Mason} page, {Mods}, {Blueprints}, and tickets with zero handle hijacking!",
   "wf_sever_identity_arch_title": "How Handles Work When Forking (Hub Auth vs. Spoke Profiles)",
   "wf_sever_type_confirm_ph": "Type CUT THE CORD to unlock...",
   "wf_sever_warning_desc": "Cutting da cord immediately delists your Spoke from da Hub and scrubs your Service Role Key while keeping 100% of your 36 Spoke tables safe!",

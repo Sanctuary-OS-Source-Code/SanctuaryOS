@@ -25,6 +25,7 @@ import {
   getExtensionRegex,
   filterBlueprintModArtifacts,
   stripPriorityTierPrefix,
+  resolveModHighlanderSlot,
 } from "../shared";
 import { useShallow } from "zustand/react/shallow";
 import { useLexicon } from "../LexiconContext";
@@ -735,9 +736,6 @@ export function groupBrokenMods(rawList: any[]): any[] {
         ? formatDisplayName(collectionFolder.displayName || collectionFolder.name || "").trim()
         : "";
       displayTitle = colTitle || twinNormalized;
-    } else if (mod.flavorGroupId) {
-      groupKey = `__flavor_${mod.flavorGroupId}__`;
-      displayTitle = formatDisplayName(mod.flavorGroupName || twinNormalized).trim();
     } else if (mod.communityGroupId) {
       groupKey = `__comm_${mod.communityGroupId}__`;
       displayTitle = formatDisplayName(mod.communityGroupName || twinNormalized).trim();
@@ -1371,6 +1369,76 @@ export function resolveBlueprintConflicts(
       }
     }
   }
+
+  // Highlander Exclusive Slot conflict detection across distinct base families
+  const slotBuckets = new Map<
+    string,
+    { slotName: string; byFamily: Map<string, any> }
+  >();
+  for (let i = 0; i < (activeMods || []).length; i++) {
+    const em = activeMods[i];
+    if (!em || em.isVirtual) continue;
+    const slot = resolveModHighlanderSlot(em);
+    if (!slot) continue;
+    const famKey = String(
+      em.baseFamilyId || em.familyId || em.dbId || em.hash || em.name || ""
+    )
+      .split("@")[0]
+      .trim()
+      .toLowerCase();
+    if (!famKey) continue;
+    let bucket = slotBuckets.get(slot.key);
+    if (!bucket) {
+      bucket = { slotName: slot.name, byFamily: new Map() };
+      slotBuckets.set(slot.key, bucket);
+    }
+    const existingRep = bucket.byFamily.get(famKey);
+    const rawName = String(em.name || em._originalSetName || "");
+    if (
+      !existingRep ||
+      (isScriptExtension(String(existingRep.name || ""), schemaToUse) &&
+        !isScriptExtension(rawName, schemaToUse))
+    ) {
+      bucket.byFamily.set(famKey, em);
+    }
+  }
+
+  slotBuckets.forEach(({ slotName, byFamily }) => {
+    const reps = Array.from(byFamily.values());
+    if (reps.length < 2) return;
+    for (let i = 0; i < reps.length; i++) {
+      for (let j = i + 1; j < reps.length; j++) {
+        const modA = reps[i];
+        const modB = reps[j];
+        const canonicalKey = makeCanonicalPairKey(
+          modA,
+          modB,
+          String(modA.name || ""),
+          String(modB.name || "")
+        );
+        if (!canonicalKey || seenCanonicalPairs.has(canonicalKey)) continue;
+        const dbIdPairKey = makeDbIdPairKey(modA, modB);
+        if (dbIdPairKey && seenDbIdPairs.has(dbIdPairKey)) continue;
+        const sortedNames = [String(modA.name), String(modB.name)].sort();
+        const pairId = `${sortedNames[0]} vs ${sortedNames[1]}`;
+        if (ignoredSet.has(pairId)) continue;
+        seenCanonicalPairs.add(canonicalKey);
+        if (dbIdPairKey) seenDbIdPairs.add(dbIdPairKey);
+        conflicts.push({
+          pairId,
+          modA,
+          modB,
+          conflict: {
+            severity_rank: 3,
+            resolution_note: t(
+              "highlander_slot_conflict_note",
+              "Highlander Exclusive Slot ({0}): Only one {Mod} from this slot should be active at a time."
+            ).replace("{0}", slotName),
+          },
+        });
+      }
+    }
+  });
 
   return conflicts;
 }

@@ -444,18 +444,35 @@ export function LabVerificationGate({
     }
   }, [dnaHash, modName, onStatusChange]);
 
-  const cleanupSandboxAfterInlineRun = useCallback(async () => {
-    if (!isDesktop()) return;
+  const cleanupSandboxAfterInlineRun = useCallback(async (): Promise<boolean> => {
+    if (!isDesktop()) return true;
     try {
       const config: any = await invoke("get_saved_coordinates");
-      const dPath = (config?.mods_path || "").split(/[\\/]Mods/i)[0];
+      const dPath = String(
+        config?.docs_path || config?.user_data_path || config?.mods_path || ""
+      ).trim();
       if (dPath) {
         await invoke("airgap_saves", { docsPath: dPath, enable: false });
       }
       await invoke("stop_lab_verification_session");
       await invoke("repopulate_from_shelter");
-    } catch (e) {}
-  }, []);
+      return true;
+    } catch (e: any) {
+      const rawErr = typeof e === "string" ? e : e?.message || String(e);
+      if (rawErr.includes("lab_err_game_running_saves_locked")) {
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "lab_err_game_running_saves_locked",
+              "Close the running game first so your live saves can be unlocked and restored safely."
+            ),
+            "error"
+          );
+      }
+      return false;
+    }
+  }, [t]);
 
   const attachPollingLoop = useCallback(
     (effectiveHash: string) => {
@@ -493,12 +510,16 @@ export function LabVerificationGate({
             }
             clearInterval(pollRef.current);
             pollRef.current = null;
-            const errText =
-              st.error_log ||
-              t(
-                "lab_stage_failed_desc",
-                "Fatal exception or process crash detected during sandbox simulation."
-              );
+              const errText = st.error_log?.includes("lab_err_payload_tampered")
+                ? t(
+                    "lab_err_payload_tampered",
+                    "Sandbox {mod} files were modified or removed mid-test — verification invalidated."
+                  )
+                : st.error_log ||
+                  t(
+                    "lab_stage_failed_desc",
+                    "Fatal exception or process crash detected during sandbox simulation."
+                  );
             recordFailedVerification(effectiveHash, errText);
             setFailedError(errText);
             if (roleContext !== "lab") {
@@ -566,7 +587,9 @@ export function LabVerificationGate({
     setFailedError(undefined);
     try {
       const config: any = await invoke("get_saved_coordinates");
-      const dPath = (config?.mods_path || "").split(/[\\/]Mods/i)[0];
+      const dPath = String(
+        config?.docs_path || config?.user_data_path || config?.mods_path || ""
+      ).trim();
 
       // Sync latest exception_rules to Rust so Unrelated (Normal Game Bug) rules are ignored during live polling
       try {
@@ -577,10 +600,10 @@ export function LabVerificationGate({
         });
       } catch {}
 
-      // 1. Evacuate active Mods folder to shelter
+      // 1. Evacuate active loadout folder to shelter
       await invoke("evacuate_to_shelter");
 
-      // 2. Symlink target mod (and any companion files in its folder) into isolated Mods directory
+      // 2. Symlink target mod (and any companion files in its folder) into isolated live directory
       const linkedFiles = await invoke<string[]>("deploy_mod_for_lab_test", {
         modPathOrName: physicalPath || modName,
         dnaHash: effectiveHash,
@@ -589,7 +612,7 @@ export function LabVerificationGate({
         vaultPath: config.vault_path || "",
       });
 
-      // 3. Engage physical save airgap + automatic latest save seeding
+      // 3. Engage physical Dual-Vault save airgap + isolated sandbox seeding
       await invoke("airgap_saves", { docsPath: dPath, enable: true });
       await invoke("clear_old_logs", { docsPath: dPath });
 
@@ -600,6 +623,22 @@ export function LabVerificationGate({
         docsPath: dPath,
         vaultPath: config.vault_path || "",
         linkedFiles,
+        notificationLabels: {
+          failed_title: t("lab_stage_failed", "Simulation Failed"),
+          timer_complete_title: t(
+            "lab_overlay_timer_up_title",
+            "TIMED TEST COMPLETE (0:00) — SAVE GAME NOW!"
+          ),
+          timer_complete_body: t(
+            "lab_overlay_timer_up_desc",
+            "Open the in-game menu and click Save to verify save serialization and unlock publishing."
+          ),
+          verified_title: t("lab_overlay_verified_title", "VERIFICATION PASSED & SIGNED!"),
+          verified_body: t(
+            "lab_overlay_verified_desc",
+            "Save checkpoint verified. You may now safely exit the game."
+          ),
+        },
       });
       setLiveStatus(initialStatus);
       saveLabSessionMemory(initialStatus);
@@ -629,13 +668,14 @@ export function LabVerificationGate({
   };
 
   const handleStopInlineTimedTest = async () => {
+    const cleaned = await cleanupSandboxAfterInlineRun();
+    if (!cleaned) return;
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
     }
     setLiveStatus(null);
     saveLabSessionMemory(null);
-    await cleanupSandboxAfterInlineRun();
     if (onStatusChange) {
       onStatusChange({
         verified: !!verifiedCert,

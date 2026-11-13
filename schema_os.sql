@@ -1792,4 +1792,34 @@ CREATE POLICY "hub_pwa_push_subscriptions_update" ON public.pwa_push_subscriptio
 CREATE POLICY "hub_pwa_push_subscriptions_delete" ON public.pwa_push_subscriptions
     FOR DELETE TO authenticated USING (user_id = (SELECT auth.uid()));
 
+-- ============================================================================
+-- STORAGE BUCKET HARDENING: Theme Wallpapers & Thumbnails ('backgrounds')
+-- 512 KB cap, raster formats only, public CDN read, Keeper-only writes
+-- ============================================================================
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'storage' AND table_name = 'buckets') THEN
+        INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+        VALUES ('backgrounds', 'backgrounds', true, 524288, ARRAY['image/webp', 'image/png', 'image/jpeg'])
+        ON CONFLICT (id) DO UPDATE
+        SET public = true,
+            file_size_limit = 524288,
+            allowed_mime_types = ARRAY['image/webp', 'image/png', 'image/jpeg'];
+
+        EXECUTE 'DROP POLICY IF EXISTS "Backgrounds are publicly accessible." ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "Anyone can upload backgrounds." ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "Users can update their own backgrounds." ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "Users can delete their own backgrounds." ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "hub_backgrounds_select" ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "hub_backgrounds_insert" ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "hub_backgrounds_update" ON storage.objects';
+        EXECUTE 'DROP POLICY IF EXISTS "hub_backgrounds_delete" ON storage.objects';
+
+        EXECUTE 'CREATE POLICY "hub_backgrounds_select" ON storage.objects FOR SELECT TO public USING (bucket_id = ''backgrounds'')';
+        EXECUTE 'CREATE POLICY "hub_backgrounds_insert" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = ''backgrounds'' AND sanctuary_internal.is_hub_keeper())';
+        EXECUTE 'CREATE POLICY "hub_backgrounds_update" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = ''backgrounds'' AND sanctuary_internal.is_hub_keeper()) WITH CHECK (bucket_id = ''backgrounds'' AND sanctuary_internal.is_hub_keeper())';
+        EXECUTE 'CREATE POLICY "hub_backgrounds_delete" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = ''backgrounds'' AND sanctuary_internal.is_hub_keeper())';
+    END IF;
+END $$;
+
 SELECT 'Sanctuary OS Core Hub Schema V0.6.0-Dev.13 Initialized Successfully' AS status;

@@ -2,11 +2,56 @@ use crate::commands::state_ops::*;
 use crate::state::*;
 use crate::utils::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use tauri::Manager;
+
+static SANCTUARY_RUNTIME_INSTANCE_ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+fn get_runtime_instance_id() -> &'static str {
+    SANCTUARY_RUNTIME_INSTANCE_ID
+        .get_or_init(|| uuid::Uuid::new_v4().to_string())
+        .as_str()
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug)]
+struct LaunchedGameInfo {
+    pid: Option<u32>,
+    exe_name: String,
+    live_root_norm: String,
+    launched_at_epoch: u64,
+}
+
+static LAST_LAUNCHED_GAME_INFO: std::sync::OnceLock<std::sync::Mutex<Option<LaunchedGameInfo>>> =
+    std::sync::OnceLock::new();
+
+fn record_launched_game_info(pid: Option<u32>, exe_path: &Path, live_root: &Path) {
+    let exe_name = exe_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default()
+        .to_lowercase();
+    let live_root_norm = crate::utils::normalize_path_key(live_root);
+    let launched_at_epoch = current_epoch_secs();
+    let mutex = LAST_LAUNCHED_GAME_INFO.get_or_init(|| std::sync::Mutex::new(None));
+    if let Ok(mut guard) = mutex.lock() {
+        *guard = Some(LaunchedGameInfo {
+            pid,
+            exe_name,
+            live_root_norm,
+            launched_at_epoch,
+        });
+    }
+}
+
+fn sanitize_game_spawn_env(cmd: &mut std::process::Command) {
+    // Never leak Sanctuary AppImage WebKit host library preloads into game processes or anti-cheats
+    cmd.env_remove("LD_PRELOAD")
+        .env_remove("SANCTUARY_APPIMAGE_REEXEC")
+        .env_remove("SANCTUARY_REAL_APPIMAGE")
+        .env_remove("GDK_BACKEND");
+}
 
 pub fn purge_stale_caches_in_docs(
     root: &Path,
@@ -16,6 +61,7 @@ pub fn purge_stale_caches_in_docs(
         return;
     }
 
+    let saved_coords = get_saved_coordinates();
     let allowed = [root.to_path_buf()];
     let mut dirs_to_remove: Vec<PathBuf> = Vec::new();
 
@@ -28,7 +74,14 @@ pub fn purge_stale_caches_in_docs(
                 return true;
             }
             let lower = e.file_name().to_string_lossy().to_lowercase();
-            if e.file_type().is_dir() && (lower.starts_with(".sanctuary") || lower == ".git") {
+            if e.file_type().is_dir()
+                && (lower.starts_with(".sanctuary")
+                    || lower == ".lab_save_vault"
+                    || lower == ".git")
+            {
+                return false;
+            }
+            if crate::utils::is_protected_save_or_airgap_path(e.path(), &saved_coords, game_schema) {
                 return false;
             }
             true
@@ -205,6 +258,9 @@ pub fn launch_game(
         crate::game_logic::resolve_user_data_root(&mods_path, game_schema)
     };
 
+    // Automatically recover any stranded Save Airgap from a prior crashed Sanctuary OS session before launching
+    let _ = recover_stranded_airgap_if_needed(&doc_dir, &saved_coords.vault_path, game_schema);
+
     purge_stale_caches_in_docs(&doc_dir, game_schema);
     purge_stale_caches_in_docs(std::path::Path::new(&mods_path), game_schema);
 
@@ -236,12 +292,16 @@ pub fn launch_game(
             .map_or(false, |e| e.eq_ignore_ascii_case("app"))
     {
         let mut open_cmd = std::process::Command::new("open");
+        sanitize_game_spawn_env(&mut open_cmd);
         open_cmd.arg("-a").arg(&exe_path);
         if !launch_args.is_empty() {
             open_cmd.arg("--args").args(&launch_args);
         }
         return match open_cmd.spawn() {
-            Ok(_) => Ok("backend_ignition_started".to_string()),
+            Ok(_) => {
+                record_launched_game_info(None, &exe_path, &live_root);
+                Ok("backend_ignition_started".to_string())
+            }
             Err(e) => Err(e.to_string()),
         };
     }
@@ -267,24 +327,30 @@ pub fn launch_game(
 
         if let Some(app_id) = steam_app_id {
             let mut steam_cmd = std::process::Command::new("steam");
+            sanitize_game_spawn_env(&mut steam_cmd);
             steam_cmd.args(["-applaunch", &app_id]);
             if !launch_args.is_empty() {
                 steam_cmd.args(&launch_args);
             }
             if steam_cmd.spawn().is_ok() {
+                record_launched_game_info(None, &exe_path, &live_root);
                 return Ok("backend_ignition_started".to_string());
             }
+            let mut xdg_cmd = std::process::Command::new("xdg-open");
+            sanitize_game_spawn_env(&mut xdg_cmd);
             if launch_args.is_empty()
-                && std::process::Command::new("xdg-open")
+                && xdg_cmd
                     .arg(format!("steam://rungameid/{}", app_id))
                     .spawn()
                     .is_ok()
             {
+                record_launched_game_info(None, &exe_path, &live_root);
                 return Ok("backend_ignition_started".to_string());
             }
         }
 
         let mut wine_cmd = std::process::Command::new("wine");
+        sanitize_game_spawn_env(&mut wine_cmd);
         wine_cmd.arg(&exe_path).args(&launch_args).current_dir(&parent_dir);
         if let Some(pfx_user) = resolved_steam
             .and_then(|r| r.compatdata_pfx_user_dir)
@@ -296,17 +362,25 @@ pub fn launch_game(
             }
         }
         return match wine_cmd.spawn() {
-            Ok(_) => Ok("backend_ignition_started".to_string()),
+            Ok(child) => {
+                record_launched_game_info(Some(child.id()), &exe_path, &live_root);
+                Ok("backend_ignition_started".to_string())
+            }
             Err(e) => Err(e.to_string()),
         };
     }
 
-    match std::process::Command::new(&exe_path)
+    let mut cmd = std::process::Command::new(&exe_path);
+    sanitize_game_spawn_env(&mut cmd);
+    match cmd
         .args(&launch_args)
         .current_dir(parent_dir)
         .spawn()
     {
-        Ok(_) => Ok("backend_ignition_started".to_string()),
+        Ok(child) => {
+            record_launched_game_info(Some(child.id()), &exe_path, &live_root);
+            Ok("backend_ignition_started".to_string())
+        }
         Err(e) => Err(e.to_string()),
     }
 }
@@ -360,6 +434,44 @@ fn is_directory_save_mode(save_exts: &[String]) -> bool {
         })
 }
 
+fn is_temporary_or_internal_save_artifact(fname_lower: &str) -> bool {
+    fname_lower.is_empty()
+        || fname_lower.starts_with('.')
+        || fname_lower == "desktop.ini"
+        || fname_lower == "thumbs.db"
+        || fname_lower.ends_with(".tmp")
+        || fname_lower.ends_with(".temp")
+        || fname_lower.ends_with(".part")
+        || fname_lower.ends_with(".partial")
+        || fname_lower.ends_with(".crdownload")
+        || fname_lower.ends_with(".writing")
+        || fname_lower.ends_with(".lock")
+        || fname_lower.ends_with(".lck")
+        || fname_lower.ends_with('~')
+        || fname_lower.contains("savetmp")
+        || fname_lower.ends_with("_tmp")
+}
+
+fn matches_configured_save_file(fname_lower: &str, save_exts: &[String], file_exts: &[String]) -> bool {
+    if is_temporary_or_internal_save_artifact(fname_lower) {
+        return false;
+    }
+    if !file_exts.is_empty() {
+        return file_exts.iter().any(|ext| fname_lower.ends_with(ext));
+    }
+    save_exts.is_empty()
+}
+
+fn matches_save_filename(fname: &str, save_exts: &[String]) -> bool {
+    let fname_lower = fname.to_lowercase();
+    let file_exts: Vec<String> = save_exts
+        .iter()
+        .map(|e| e.trim().to_lowercase())
+        .filter(|e| !e.is_empty() && !matches!(e.as_str(), "/" | "dir" | "directory" | "folder"))
+        .collect();
+    matches_configured_save_file(&fname_lower, save_exts, &file_exts)
+}
+
 fn compute_dir_save_slot_stats(slot_dir: &Path) -> Option<(u64, u64)> {
     let mut total_bytes: u64 = 0;
     let mut max_mtime: u64 = 0;
@@ -372,8 +484,8 @@ fn compute_dir_save_slot_stats(slot_dir: &Path) -> Option<(u64, u64)> {
         if !entry.file_type().is_file() {
             continue;
         }
-        let fname = entry.file_name().to_string_lossy();
-        if fname.starts_with(".sanctuary") {
+        let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
+        if is_temporary_or_internal_save_artifact(&fname_lower) {
             continue;
         }
         if let Ok(meta) = entry.metadata() {
@@ -399,37 +511,6 @@ fn compute_dir_save_slot_stats(slot_dir: &Path) -> Option<(u64, u64)> {
     }
 }
 
-fn copy_save_directory_recursive(src: &Path, dst: &Path) -> Result<(), String> {
-    std::fs::create_dir_all(dst).map_err(|e| e.to_string())?;
-    for entry in walkdir::WalkDir::new(src)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        let p = entry.path();
-        let Ok(rel) = p.strip_prefix(src) else {
-            continue;
-        };
-        if rel.as_os_str().is_empty() {
-            continue;
-        }
-        let out = dst.join(rel);
-        if entry.file_type().is_dir() {
-            std::fs::create_dir_all(&out).map_err(|e| e.to_string())?;
-        } else if entry.file_type().is_file() {
-            if let Some(parent) = out.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-            }
-            std::fs::copy(p, &out).map_err(|e| e.to_string())?;
-            if let Ok(meta) = std::fs::metadata(&out) {
-                let mut perms = meta.permissions();
-                perms.set_readonly(false);
-                let _ = std::fs::set_permissions(&out, perms);
-            }
-        }
-    }
-    Ok(())
-}
-
 fn list_saves_in_dir(dir: &Path, save_exts: &[String]) -> Vec<LabSaveFileInfo> {
     let mut list = Vec::new();
     if !dir.exists() {
@@ -442,10 +523,12 @@ fn list_saves_in_dir(dir: &Path, save_exts: &[String]) -> Vec<LabSaveFileInfo> {
         .filter(|e| !e.is_empty() && !matches!(e.as_str(), "/" | "dir" | "directory" | "folder"))
         .collect();
     let allow_dir_slots = is_directory_save_mode(save_exts);
+    let scan_files = !file_exts.is_empty() || save_exts.is_empty();
 
-    if !file_exts.is_empty() {
+    if scan_files {
+        let max_depth = if file_exts.is_empty() { 1 } else { 2 };
         for entry in walkdir::WalkDir::new(dir)
-            .max_depth(2)
+            .max_depth(max_depth)
             .into_iter()
             .filter_map(|e| e.ok())
         {
@@ -454,8 +537,7 @@ fn list_saves_in_dir(dir: &Path, save_exts: &[String]) -> Vec<LabSaveFileInfo> {
             }
             let fname = entry.file_name().to_string_lossy().to_string();
             let name_lower = fname.to_lowercase();
-            let matches_ext = file_exts.iter().any(|ext| name_lower.ends_with(ext));
-            if !matches_ext {
+            if !matches_configured_save_file(&name_lower, save_exts, &file_exts) {
                 continue;
             }
             if let Ok(meta) = entry.metadata() {
@@ -510,7 +592,7 @@ fn compute_lab_test_save_status(
     docs_dir: &Path,
     game_schema: &Option<crate::schema::GameSchema>,
 ) -> LabTestSaveStatus {
-    let targets = resolve_save_airgap_targets(game_schema);
+    let targets = resolve_deduplicated_save_targets(docs_dir, game_schema);
     let Some(primary_save_rel) = targets.first().cloned() else {
         return LabTestSaveStatus {
             has_test_save: false,
@@ -524,8 +606,7 @@ fn compute_lab_test_save_status(
 
     let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
     let sandbox_root = docs_dir.join(".sanctuary_lab_sandbox");
-    let marker_file = airgap_root.join(".airgap_active.json");
-    let airgap_active = marker_file.exists() || airgap_root.join(&primary_save_rel).exists();
+    let airgap_active = is_airgap_active_for_docs(docs_dir, game_schema);
 
     let (sandbox_saves_dir, live_saves_dir) = if airgap_active {
         (
@@ -598,6 +679,39 @@ fn resolve_save_airgap_targets(game_schema: &Option<crate::schema::GameSchema>) 
     Vec::new()
 }
 
+/// Resolves save airgap target relative paths and deduplicates targets that resolve to the
+/// exact same physical directory on case-insensitive filesystems (e.g. ["Saves", "saves"]).
+fn resolve_deduplicated_save_targets(
+    docs_dir: &Path,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Vec<String> {
+    let raw_targets = resolve_save_airgap_targets(game_schema);
+    let mut seen_keys: HashSet<String> = HashSet::new();
+    let mut deduped: Vec<String> = Vec::new();
+
+    for t in raw_targets {
+        let resolved_live = crate::utils::resolve_case_insensitive_path(docs_dir, &t);
+        let key = if cfg!(any(target_os = "windows", target_os = "macos")) {
+            crate::utils::normalize_path_key(&resolved_live).to_lowercase()
+        } else if resolved_live.exists() {
+            crate::utils::normalize_path_key(&resolved_live)
+        } else {
+            t.replace('\\', "/").trim_matches('/').to_string()
+        };
+        if seen_keys.insert(key) {
+            if let Ok(rel_actual) = resolved_live.strip_prefix(docs_dir) {
+                let rel_s = rel_actual.to_string_lossy().replace('\\', "/");
+                if !rel_s.is_empty() {
+                    deduped.push(rel_s);
+                    continue;
+                }
+            }
+            deduped.push(t);
+        }
+    }
+    deduped
+}
+
 fn resolve_docs_root(
     docs_or_mods_path: &str,
     game_schema: &Option<crate::schema::GameSchema>,
@@ -614,6 +728,7 @@ fn set_tree_readonly(dir: &Path, readonly: bool) {
         return;
     }
     for entry in walkdir::WalkDir::new(dir)
+        .follow_links(false)
         .into_iter()
         .filter_map(|e| e.ok())
     {
@@ -627,8 +742,681 @@ fn set_tree_readonly(dir: &Path, readonly: bool) {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn set_hidden_dir_attribute(dir: &Path, hidden: bool) {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::{
+        GetFileAttributesW, SetFileAttributesW, FILE_ATTRIBUTE_HIDDEN,
+        FILE_FLAGS_AND_ATTRIBUTES, INVALID_FILE_ATTRIBUTES,
+    };
+    if !dir.exists() {
+        return;
+    }
+    let wide: Vec<u16> = dir
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    unsafe {
+        let raw = GetFileAttributesW(PCWSTR(wide.as_ptr()));
+        if raw == INVALID_FILE_ATTRIBUTES {
+            return;
+        }
+        let new_attrs = if hidden {
+            raw | FILE_ATTRIBUTE_HIDDEN.0
+        } else {
+            raw & !FILE_ATTRIBUTE_HIDDEN.0
+        };
+        if new_attrs != raw {
+            let _ = SetFileAttributesW(PCWSTR(wide.as_ptr()), FILE_FLAGS_AND_ATTRIBUTES(new_attrs));
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn set_hidden_dir_attribute(_dir: &Path, _hidden: bool) {}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SaveFileManifestEntry {
+    pub rel_path: String,
+    pub size_bytes: u64,
+    pub mtime_secs: u64,
+    pub fingerprint: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AirgapTargetJournal {
+    pub target_name: String,
+    pub had_live_target: bool,
+    pub manifest: Vec<SaveFileManifestEntry>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AirgapJournal {
+    pub version: u32,
+    pub phase: String,
+    pub instance_id: String,
+    pub created_at_epoch: u64,
+    pub docs_dir: String,
+    pub vault_mirror_dir: String,
+    pub targets: Vec<AirgapTargetJournal>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AirgapRecoveryReport {
+    pub recovered: bool,
+    pub healed_from_vault_mirror: bool,
+    pub restored_targets: usize,
+    pub message: String,
+}
+
+fn sample_file_fingerprint(path: &Path) -> Result<(u64, u64, String), String> {
+    use sha2::{Digest, Sha256};
+    use std::io::{Read, Seek, SeekFrom};
+
+    let meta = std::fs::metadata(path)
+        .map_err(|e| format!("Failed reading save metadata {:?}: {}", path, e))?;
+    let size_bytes = meta.len();
+    let mtime_secs = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    let mut f = std::fs::File::open(path)
+        .map_err(|e| format!("Failed opening save file {:?} for integrity hash: {}", path, e))?;
+    let mut hasher = Sha256::new();
+    hasher.update(size_bytes.to_le_bytes());
+
+    let head_len = (size_bytes.min(65_536)) as usize;
+    if head_len > 0 {
+        let mut head_buf = vec![0u8; head_len];
+        f.read_exact(&mut head_buf)
+            .map_err(|e| format!("Failed reading save header {:?}: {}", path, e))?;
+        hasher.update(&head_buf);
+    }
+
+    if size_bytes > 65_536 {
+        let tail_offset = size_bytes.saturating_sub(65_536);
+        let tail_len = (size_bytes - tail_offset) as usize;
+        f.seek(SeekFrom::Start(tail_offset))
+            .map_err(|e| format!("Failed seeking save trailer {:?}: {}", path, e))?;
+        let mut tail_buf = vec![0u8; tail_len];
+        f.read_exact(&mut tail_buf)
+            .map_err(|e| format!("Failed reading save trailer {:?}: {}", path, e))?;
+        hasher.update(&tail_buf);
+    }
+
+    Ok((size_bytes, mtime_secs, hex::encode(hasher.finalize())))
+}
+
+fn is_airgap_internal_marker_name(name_lower: &str) -> bool {
+    matches!(
+        name_lower,
+        ".sanctuary_sandbox_marker"
+            | ".sanctuary_seeded_save"
+            | ".airgap_active.json"
+            | ".airgap_journal.json"
+    ) || name_lower.contains(".tmp.")
+}
+
+fn build_save_tree_manifest(root: &Path) -> Result<Vec<SaveFileManifestEntry>, String> {
+    let mut entries = Vec::new();
+    if !root.exists() {
+        return Ok(entries);
+    }
+    for entry in walkdir::WalkDir::new(root).follow_links(false) {
+        let entry = entry.map_err(|e| format!("Failed walking save folder {:?}: {}", root, e))?;
+        if entry.file_type().is_symlink() {
+            continue;
+        }
+        if entry.file_type().is_file() {
+            let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
+            if is_airgap_internal_marker_name(&fname_lower) {
+                continue;
+            }
+            let rel_path = entry
+                .path()
+                .strip_prefix(root)
+                .map_err(|e| e.to_string())?
+                .to_string_lossy()
+                .replace('\\', "/");
+            let (size_bytes, mtime_secs, fingerprint) = sample_file_fingerprint(entry.path())?;
+            entries.push(SaveFileManifestEntry {
+                rel_path,
+                size_bytes,
+                mtime_secs,
+                fingerprint,
+            });
+        }
+    }
+    entries.sort_by(|a, b| a.rel_path.cmp(&b.rel_path));
+    Ok(entries)
+}
+
+fn verify_save_tree_manifest(root: &Path, expected: &[SaveFileManifestEntry]) -> Result<(), String> {
+    if expected.is_empty() {
+        return Ok(());
+    }
+    if !root.exists() {
+        return Err(format!("Expected protected save folder {:?} does not exist.", root));
+    }
+    for item in expected {
+        let candidate = root.join(item.rel_path.replace('/', std::path::MAIN_SEPARATOR_STR));
+        if !candidate.exists() || !candidate.is_file() {
+            return Err(format!(
+                "Missing protected save file '{}' inside {:?}.",
+                item.rel_path, root
+            ));
+        }
+        let (actual_size, _, actual_fp) = sample_file_fingerprint(&candidate)?;
+        if actual_size != item.size_bytes || actual_fp != item.fingerprint {
+            return Err(format!(
+                "Save file integrity mismatch for '{}' in {:?} (expected {} bytes / {}, got {} bytes / {}).",
+                item.rel_path, root, item.size_bytes, item.fingerprint, actual_size, actual_fp
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub fn copy_save_tree_verified(src: &Path, dst: &Path) -> Result<(), String> {
+    if !src.exists() {
+        return Ok(());
+    }
+    std::fs::create_dir_all(dst)
+        .map_err(|e| format!("Failed creating save target directory {:?}: {}", dst, e))?;
+    let dst_allowed = [dst.to_path_buf()];
+
+    for entry in walkdir::WalkDir::new(src).follow_links(false) {
+        let entry = entry.map_err(|e| format!("Failed walking save tree {:?}: {}", src, e))?;
+        let rel = entry
+            .path()
+            .strip_prefix(src)
+            .map_err(|e| format!("Failed stripping prefix {:?}: {}", src, e))?;
+        if rel.as_os_str().is_empty() {
+            continue;
+        }
+        if entry.file_type().is_symlink() {
+            continue;
+        }
+        let target_path = dst.join(rel);
+        crate::utils::ensure_strict_descendant_of_roots(&target_path, &dst_allowed)?;
+
+        if entry.file_type().is_dir() {
+            std::fs::create_dir_all(&target_path).map_err(|e| {
+                format!(
+                    "Failed creating save subdirectory {:?}: {}",
+                    target_path, e
+                )
+            })?;
+        } else if entry.file_type().is_file() {
+            let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
+            if is_airgap_internal_marker_name(&fname_lower) {
+                continue;
+            }
+            if let Some(parent) = target_path.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    format!("Failed creating save parent {:?}: {}", parent, e)
+                })?;
+            }
+            if target_path.exists() {
+                if let Ok(meta) = std::fs::metadata(&target_path) {
+                    if meta.permissions().readonly() {
+                        let mut perms = meta.permissions();
+                        perms.set_readonly(false);
+                        let _ = std::fs::set_permissions(&target_path, perms);
+                    }
+                }
+            }
+
+            // Copy via byte stream + explicit fsync so power loss cannot leave unwritten OS page-cache blocks
+            {
+                use std::io::Write;
+                let mut reader = std::fs::File::open(entry.path()).map_err(|e| {
+                    format!("Failed opening source save {:?}: {}", entry.path(), e)
+                })?;
+                let mut writer = std::fs::File::create(&target_path).map_err(|e| {
+                    format!("Failed creating destination save {:?}: {}", target_path, e)
+                })?;
+                let copied = std::io::copy(&mut reader, &mut writer).map_err(|e| {
+                    format!(
+                        "Failed copying save {:?} -> {:?}: {}",
+                        entry.path(),
+                        target_path,
+                        e
+                    )
+                })?;
+                let src_len = entry
+                    .metadata()
+                    .map_err(|e| format!("Failed reading metadata {:?}: {}", entry.path(), e))?
+                    .len();
+                if copied != src_len {
+                    return Err(format!(
+                        "Incomplete save copy for {:?} (copied {} of {} bytes).",
+                        target_path, copied, src_len
+                    ));
+                }
+                writer.flush().map_err(|e| e.to_string())?;
+                writer.sync_all().map_err(|e| {
+                    format!("Failed fsyncing copied save {:?}: {}", target_path, e)
+                })?;
+            }
+
+            if let Ok(src_meta) = entry.metadata() {
+                if let Ok(mtime) = src_meta.modified() {
+                    let ft = filetime::FileTime::from_system_time(mtime);
+                    let _ = filetime::set_file_mtime(&target_path, ft);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn remove_save_tree_strict(dir: &Path, allowed_roots: &[PathBuf]) -> Result<(), String> {
+    if !dir.exists() {
+        return Ok(());
+    }
+    crate::utils::ensure_strict_descendant_of_roots(dir, allowed_roots)?;
+    set_tree_readonly(dir, false);
+    std::fs::remove_dir_all(dir).map_err(|e| {
+        format!(
+            "Save folder {:?} could not be moved cleanly (a file may still be locked by the game or OS): {}",
+            dir, e
+        )
+    })
+}
+
+fn resolve_external_save_vault_dir(docs_dir: &Path, explicit_vault_path: Option<&str>) -> Option<PathBuf> {
+    use sha2::{Digest, Sha256};
+
+    let vault_raw = explicit_vault_path
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| get_saved_coordinates().vault_path.trim().to_string());
+
+    let base_root = if !vault_raw.is_empty() {
+        let vp = PathBuf::from(&vault_raw);
+        if crate::utils::is_safe_user_file_path(&vp) {
+            Some(vp.join("Backups").join(".lab_save_vault"))
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+    .or_else(|| {
+        dirs::data_local_dir().map(|d| d.join("SanctuaryOS").join(".lab_save_vault"))
+    })?;
+
+    let mut hasher = Sha256::new();
+    hasher.update(crate::utils::normalize_path_key(docs_dir).as_bytes());
+    let docs_hash = &hex::encode(hasher.finalize())[..16];
+    Some(base_root.join(docs_hash))
+}
+
+fn load_airgap_journal(airgap_root: &Path, external_vault_dir: Option<&Path>) -> Option<AirgapJournal> {
+    let local_journal = airgap_root.join(".airgap_journal.json");
+    if let Ok(raw) = std::fs::read_to_string(&local_journal) {
+        if let Ok(parsed) = serde_json::from_str::<AirgapJournal>(&raw) {
+            return Some(parsed);
+        }
+    }
+    if let Some(ext_dir) = external_vault_dir {
+        let ext_journal = ext_dir.join(".airgap_journal.json");
+        if let Ok(raw) = std::fs::read_to_string(&ext_journal) {
+            if let Ok(parsed) = serde_json::from_str::<AirgapJournal>(&raw) {
+                return Some(parsed);
+            }
+        }
+    }
+    None
+}
+
+fn persist_airgap_journal(
+    journal: &AirgapJournal,
+    airgap_root: &Path,
+    external_vault_dir: Option<&Path>,
+) -> Result<(), String> {
+    let serialized = serde_json::to_vec_pretty(journal).map_err(|e| e.to_string())?;
+    crate::utils::atomic_write_bytes(&airgap_root.join(".airgap_journal.json"), &serialized)?;
+    if let Some(ext_dir) = external_vault_dir {
+        let _ = crate::utils::atomic_write_bytes(&ext_dir.join(".airgap_journal.json"), &serialized);
+    }
+    Ok(())
+}
+
+pub(crate) fn passive_process_refresh_kind() -> sysinfo::ProcessRefreshKind {
+    // Query ONLY passive OS process counters (PROCESS_QUERY_LIMITED_INFORMATION on Windows).
+    // Never request cmdline/env/cwd, which would invoke ReadProcessMemory on the game's PEB and trip anti-cheats.
+    sysinfo::ProcessRefreshKind::nothing()
+        .with_memory()
+        .with_disk_usage()
+        .with_cpu()
+        .with_exe(sysinfo::UpdateKind::OnlyIfNotSet)
+}
+
+fn collect_candidate_game_exe_names(game_schema: &Option<crate::schema::GameSchema>) -> Vec<String> {
+    let mut names = crate::game_logic::get_executable_names(game_schema);
+    if let Some(mutex) = LAST_LAUNCHED_GAME_INFO.get() {
+        if let Ok(guard) = mutex.lock() {
+            if let Some(info) = guard.as_ref() {
+                if !info.exe_name.is_empty()
+                    && !names.iter().any(|n| n.eq_ignore_ascii_case(&info.exe_name))
+                {
+                    names.push(info.exe_name.clone());
+                }
+            }
+        }
+    }
+    names
+}
+
+fn process_matches_game_candidates(
+    pid_u32: u32,
+    proc_info: &sysinfo::Process,
+    exe_candidates: &[String],
+) -> bool {
+    let pname = proc_info.name().to_string_lossy().to_lowercase();
+    let is_wrapper = matches!(
+        pname.as_str(),
+        "reaper"
+            | "steam-launch-wrapper"
+            | "srt-bwrap"
+            | "pressure-vessel-adverb"
+            | "proton"
+            | "python3"
+            | "sh"
+            | "bash"
+            | "wineserver"
+    );
+    if is_wrapper {
+        return false;
+    }
+
+    if let Some(mutex) = LAST_LAUNCHED_GAME_INFO.get() {
+        if let Ok(guard) = mutex.lock() {
+            if let Some(info) = guard.as_ref() {
+                if info.pid == Some(pid_u32) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    let exe_path_lower = proc_info
+        .exe()
+        .map(|p| p.to_string_lossy().replace('\\', "/").to_lowercase())
+        .unwrap_or_default();
+
+    exe_candidates.iter().any(|exe| {
+        let clean_exe = exe.trim().replace('\\', "/").to_lowercase();
+        let exe_filename = clean_exe.rsplit('/').next().unwrap_or(&clean_exe);
+        let stem = exe_filename
+            .trim_end_matches(".exe")
+            .trim_end_matches(".app");
+        if stem.is_empty() {
+            return false;
+        }
+        let stem_15: String = stem.chars().take(15).collect();
+        let direct_name_match = pname == exe_filename
+            || pname == stem
+            || pname.starts_with(stem)
+            || (stem_15.len() == 15 && pname == stem_15);
+        let exe_path_match = !exe_path_lower.is_empty()
+            && (exe_path_lower.ends_with(&format!("/{}", exe_filename))
+                || exe_path_lower.ends_with(&format!("/{}", stem)));
+        direct_name_match || exe_path_match
+    })
+}
+
+pub fn is_any_game_process_running(game_schema: &Option<crate::schema::GameSchema>) -> bool {
+    let candidates = collect_candidate_game_exe_names(game_schema);
+    if candidates.is_empty() {
+        if let Some(mutex) = LAST_LAUNCHED_GAME_INFO.get() {
+            if let Ok(guard) = mutex.lock() {
+                if guard.as_ref().and_then(|i| i.pid).is_none() {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes_specifics(
+        sysinfo::ProcessesToUpdate::All,
+        true,
+        passive_process_refresh_kind(),
+    );
+    sys.processes()
+        .iter()
+        .any(|(pid, proc_info)| process_matches_game_candidates(pid.as_u32(), proc_info, &candidates))
+}
+
+fn wait_for_game_exit_before_airgap_swap(
+    game_schema: &Option<crate::schema::GameSchema>,
+    max_wait_ms: u64,
+) -> Result<(), String> {
+    let candidates = collect_candidate_game_exe_names(game_schema);
+    let has_tracked_pid = LAST_LAUNCHED_GAME_INFO
+        .get()
+        .and_then(|m| m.lock().ok())
+        .and_then(|g| g.as_ref().and_then(|i| i.pid))
+        .is_some();
+    if candidates.is_empty() && !has_tracked_pid {
+        return Ok(());
+    }
+
+    let mut sys = sysinfo::System::new();
+    let started = std::time::Instant::now();
+    loop {
+        sys.refresh_processes_specifics(
+            sysinfo::ProcessesToUpdate::All,
+            true,
+            passive_process_refresh_kind(),
+        );
+        let still_running = sys
+            .processes()
+            .iter()
+            .any(|(pid, p)| process_matches_game_candidates(pid.as_u32(), p, &candidates));
+        if !still_running {
+            return Ok(());
+        }
+        if started.elapsed().as_millis() as u64 >= max_wait_ms {
+            return Err("lab_err_game_running_saves_locked".to_string());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    }
+}
+
+pub fn is_airgap_active_for_docs(
+    docs_dir: &Path,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> bool {
+    if !docs_dir.exists() {
+        return false;
+    }
+    let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
+    if airgap_root.join(".airgap_active.json").exists()
+        || airgap_root.join(".airgap_journal.json").exists()
+    {
+        return true;
+    }
+    if let Some(ext_dir) = resolve_external_save_vault_dir(docs_dir, None) {
+        if ext_dir.join(".airgap_journal.json").exists() {
+            return true;
+        }
+    }
+    resolve_deduplicated_save_targets(docs_dir, game_schema)
+        .iter()
+        .any(|t| crate::utils::resolve_case_insensitive_path(&airgap_root, t).exists())
+}
+
+pub fn heal_active_airgap_if_tampered(
+    docs_dir: &Path,
+    explicit_vault_path: Option<&str>,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> bool {
+    if !docs_dir.exists() || !is_airgap_active_for_docs(docs_dir, game_schema) {
+        return false;
+    }
+    let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
+    let ext_vault_dir = resolve_external_save_vault_dir(docs_dir, explicit_vault_path);
+    let journal_opt = load_airgap_journal(&airgap_root, ext_vault_dir.as_deref());
+    let targets = resolve_deduplicated_save_targets(docs_dir, game_schema);
+    let mut healed = false;
+
+    let _ = std::fs::create_dir_all(&airgap_root);
+    set_hidden_dir_attribute(&airgap_root, true);
+
+    for target_name in &targets {
+        let live_target = crate::utils::resolve_case_insensitive_path(docs_dir, target_name);
+        let airgap_target = crate::utils::resolve_case_insensitive_path(&airgap_root, target_name);
+
+        // Ensure sandbox folder keeps its sandbox marker even if someone cleared the live folder mid-test
+        if !live_target.exists() {
+            let _ = std::fs::create_dir_all(&live_target);
+            healed = true;
+        }
+        let sandbox_marker = live_target.join(".sanctuary_sandbox_marker");
+        if !sandbox_marker.exists() {
+            let _ = crate::utils::atomic_write_bytes(
+                &sandbox_marker,
+                b"SANCTUARY_ISOLATED_LAB_SANDBOX",
+            );
+            healed = true;
+        }
+
+        // Verify local .sanctuary_lab_airgap against journal & self-heal from external .lab_save_vault if tampered
+        if let (Some(ref journal), Some(ref ext_root)) = (&journal_opt, &ext_vault_dir) {
+            if let Some(tj) = journal
+                .targets
+                .iter()
+                .find(|t| t.target_name.eq_ignore_ascii_case(target_name))
+            {
+                if !tj.manifest.is_empty()
+                    && verify_save_tree_manifest(&airgap_target, &tj.manifest).is_err()
+                {
+                    let ext_target =
+                        crate::utils::resolve_case_insensitive_path(ext_root, target_name);
+                    if ext_target.exists()
+                        && verify_save_tree_manifest(&ext_target, &tj.manifest).is_ok()
+                    {
+                        set_tree_readonly(&airgap_target, false);
+                        if copy_save_tree_verified(&ext_target, &airgap_target).is_ok() {
+                            set_tree_readonly(&airgap_target, true);
+                            healed = true;
+                        }
+                    }
+                } else if airgap_target.exists() {
+                    set_tree_readonly(&airgap_target, true);
+                }
+            }
+        }
+    }
+
+    healed
+}
+
+pub fn recover_stranded_airgap_if_needed(
+    docs_dir: &Path,
+    vault_path: &str,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Result<AirgapRecoveryReport, String> {
+    let resolved_docs = resolve_docs_root(&docs_dir.to_string_lossy(), game_schema);
+    if !is_airgap_active_for_docs(&resolved_docs, game_schema) {
+        return Ok(AirgapRecoveryReport {
+            recovered: false,
+            healed_from_vault_mirror: false,
+            restored_targets: 0,
+            message: String::new(),
+        });
+    }
+
+    let airgap_root = resolved_docs.join(".sanctuary_lab_airgap");
+    let ext_vault_dir = resolve_external_save_vault_dir(&resolved_docs, Some(vault_path));
+    let marker_file = airgap_root.join(".airgap_active.json");
+    let current_instance = get_runtime_instance_id();
+
+    let marker_instance = std::fs::read_to_string(&marker_file)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .and_then(|v| {
+            v.get("instance_id")
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_string())
+        });
+    let journal = load_airgap_journal(&airgap_root, ext_vault_dir.as_deref());
+    let journal_instance = journal.as_ref().map(|j| j.instance_id.clone());
+
+    let is_owned_by_current_instance = marker_instance
+        .as_deref()
+        .or(journal_instance.as_deref())
+        .map(|id| id == current_instance)
+        .unwrap_or(false);
+
+    let lab_session_active = LAB_SESSION
+        .get()
+        .and_then(|m| m.lock().ok())
+        .map(|g| g.is_some())
+        .unwrap_or(false);
+
+    // Only auto-recover when the airgap belongs to a previous crashed/closed OS/app session
+    // OR an interrupted mid-evacuation/mid-restore journal with no active Lab session.
+    let interrupted_journal_phase = journal
+        .as_ref()
+        .map(|j| j.phase == "EVACUATING" || j.phase == "RESTORING")
+        .unwrap_or(false);
+
+    if is_owned_by_current_instance && (lab_session_active || !interrupted_journal_phase) {
+        return Ok(AirgapRecoveryReport {
+            recovered: false,
+            healed_from_vault_mirror: false,
+            restored_targets: 0,
+            message: String::new(),
+        });
+    }
+
+    // Never collide with a running game process during recovery
+    if is_any_game_process_running(game_schema) {
+        return Err("lab_err_game_running_saves_locked".to_string());
+    }
+
+    let healed_from_vault_mirror =
+        heal_active_airgap_if_tampered(&resolved_docs, Some(vault_path), game_schema);
+    let targets_count = resolve_deduplicated_save_targets(&resolved_docs, game_schema).len();
+    let msg = apply_save_airgap_with_vault(
+        &resolved_docs.to_string_lossy(),
+        Some(vault_path),
+        false,
+        game_schema,
+    )?;
+
+    Ok(AirgapRecoveryReport {
+        recovered: true,
+        healed_from_vault_mirror,
+        restored_targets: targets_count,
+        message: msg,
+    })
+}
+
 pub fn apply_save_airgap(
     docs_path: &str,
+    enable: bool,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Result<String, String> {
+    apply_save_airgap_with_vault(docs_path, None, enable, game_schema)
+}
+
+pub fn apply_save_airgap_with_vault(
+    docs_path: &str,
+    explicit_vault_path: Option<&str>,
     enable: bool,
     game_schema: &Option<crate::schema::GameSchema>,
 ) -> Result<String, String> {
@@ -636,52 +1424,187 @@ pub fn apply_save_airgap(
     if !docs_dir.exists() {
         return Ok("Documents directory not found".to_string());
     }
+    if !crate::utils::is_safe_user_file_path(&docs_dir) {
+        return Err("Refused to airgap unsafe system root path.".to_string());
+    }
 
-    let targets = resolve_save_airgap_targets(game_schema);
+    let targets = resolve_deduplicated_save_targets(&docs_dir, game_schema);
+    if targets.is_empty() {
+        return Ok("No save airgap targets configured in schema".to_string());
+    }
+
+    // Refuse to swap save directories while the game executable is running and holding save locks
+    wait_for_game_exit_before_airgap_swap(game_schema, if enable { 1500 } else { 4500 })?;
+
     let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
     let sandbox_root = docs_dir.join(".sanctuary_lab_sandbox");
     let marker_file = airgap_root.join(".airgap_active.json");
+    let ext_vault_dir = resolve_external_save_vault_dir(&docs_dir, explicit_vault_path);
+    let existing_journal = load_airgap_journal(&airgap_root, ext_vault_dir.as_deref());
+    let docs_allowed = [docs_dir.clone()];
 
     if enable {
-        let _ = std::fs::create_dir_all(&airgap_root);
-        let _ = std::fs::create_dir_all(&sandbox_root);
+        std::fs::create_dir_all(&airgap_root)
+            .map_err(|e| format!("Failed creating airgap root {:?}: {}", airgap_root, e))?;
+        std::fs::create_dir_all(&sandbox_root)
+            .map_err(|e| format!("Failed creating sandbox root {:?}: {}", sandbox_root, e))?;
+        set_hidden_dir_attribute(&airgap_root, true);
+        set_hidden_dir_attribute(&sandbox_root, true);
+        if let Some(ref ext_dir) = ext_vault_dir {
+            let _ = std::fs::create_dir_all(ext_dir);
+            if let Some(parent_vault) = ext_dir.parent() {
+                set_hidden_dir_attribute(parent_vault, true);
+            }
+        }
 
+        let already_airgapped = marker_file.exists()
+            || existing_journal
+                .as_ref()
+                .map(|j| j.phase == "ACTIVE" || j.phase == "EVACUATING")
+                .unwrap_or(false);
+
+        let mut target_journals: Vec<AirgapTargetJournal> = Vec::new();
+
+        // Phase 1: Build manifests & write external Vault Mirror + write-ahead EVACUATING journal BEFORE moving live saves
         for target_name in &targets {
             let live_target = crate::utils::resolve_case_insensitive_path(&docs_dir, target_name);
-            let airgap_target = crate::utils::resolve_case_insensitive_path(&airgap_root, target_name);
-            let sandbox_target = crate::utils::resolve_case_insensitive_path(&sandbox_root, target_name);
+            let airgap_target =
+                crate::utils::resolve_case_insensitive_path(&airgap_root, target_name);
             let is_sandbox_already = live_target.join(".sanctuary_sandbox_marker").exists();
 
-            // Evacuate live saves only if not already airgapped and not a sandbox folder
-            if live_target.exists() && !airgap_target.exists() && !is_sandbox_already {
-                if let Some(parent) = airgap_target.parent() {
-                    let _ = std::fs::create_dir_all(parent);
+            if let Some(prev_tj) = existing_journal.as_ref().and_then(|j| {
+                j.targets
+                    .iter()
+                    .find(|t| t.target_name.eq_ignore_ascii_case(target_name))
+            }) {
+                if already_airgapped || airgap_target.exists() || is_sandbox_already {
+                    target_journals.push(prev_tj.clone());
+                    continue;
                 }
-                if std::fs::rename(&live_target, &airgap_target).is_err() {
-                    let _ = deploy_air_gap(&live_target, &airgap_target);
-                    set_tree_readonly(&live_target, false);
-                    let _ = std::fs::remove_dir_all(&live_target);
+            }
+
+            if airgap_target.exists() {
+                let manifest = build_save_tree_manifest(&airgap_target)?;
+                if let Some(ref ext_dir) = ext_vault_dir {
+                    let ext_target =
+                        crate::utils::resolve_case_insensitive_path(ext_dir, target_name);
+                    if !ext_target.exists() {
+                        set_tree_readonly(&ext_target, false);
+                        copy_save_tree_verified(&airgap_target, &ext_target)?;
+                        verify_save_tree_manifest(&ext_target, &manifest)?;
+                        set_tree_readonly(&ext_target, true);
+                    }
                 }
-                // Hardware-lock all evacuated live save files as read-only
-                set_tree_readonly(&airgap_target, true);
-            } else if airgap_target.exists() {
+                target_journals.push(AirgapTargetJournal {
+                    target_name: target_name.clone(),
+                    had_live_target: true,
+                    manifest,
+                });
+            } else if live_target.exists() && !is_sandbox_already {
+                let manifest = build_save_tree_manifest(&live_target)?;
+                if let Some(ref ext_dir) = ext_vault_dir {
+                    let ext_target =
+                        crate::utils::resolve_case_insensitive_path(ext_dir, target_name);
+                    if ext_target.exists() {
+                        let ext_allowed = [ext_dir.clone()];
+                        let _ = remove_save_tree_strict(&ext_target, &ext_allowed);
+                    }
+                    copy_save_tree_verified(&live_target, &ext_target)?;
+                    verify_save_tree_manifest(&ext_target, &manifest)?;
+                    set_tree_readonly(&ext_target, true);
+                }
+                target_journals.push(AirgapTargetJournal {
+                    target_name: target_name.clone(),
+                    had_live_target: true,
+                    manifest,
+                });
+            } else {
+                target_journals.push(AirgapTargetJournal {
+                    target_name: target_name.clone(),
+                    had_live_target: false,
+                    manifest: Vec::new(),
+                });
+            }
+        }
+
+        let mut journal = AirgapJournal {
+            version: 2,
+            phase: "EVACUATING".to_string(),
+            instance_id: get_runtime_instance_id().to_string(),
+            created_at_epoch: current_epoch_secs(),
+            docs_dir: docs_dir.to_string_lossy().to_string(),
+            vault_mirror_dir: ext_vault_dir
+                .as_ref()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default(),
+            targets: target_journals,
+        };
+        persist_airgap_journal(&journal, &airgap_root, ext_vault_dir.as_deref())?;
+
+        // Phase 2: Evacuate live save folders into .sanctuary_lab_airgap and swap in isolated sandbox folders
+        for tj in &journal.targets {
+            let target_name = &tj.target_name;
+            let live_target = crate::utils::resolve_case_insensitive_path(&docs_dir, target_name);
+            let airgap_target =
+                crate::utils::resolve_case_insensitive_path(&airgap_root, target_name);
+            let sandbox_target =
+                crate::utils::resolve_case_insensitive_path(&sandbox_root, target_name);
+            let is_sandbox_already = live_target.join(".sanctuary_sandbox_marker").exists();
+
+            let was_active_phase = existing_journal
+                .as_ref()
+                .map(|j| j.phase == "ACTIVE")
+                .unwrap_or(false)
+                || marker_file.exists();
+
+            if !airgap_target.exists() {
+                let mut healed_from_ext = false;
+                if let Some(ref ext_dir) = ext_vault_dir {
+                    let ext_target =
+                        crate::utils::resolve_case_insensitive_path(ext_dir, target_name);
+                    if ext_target.exists()
+                        && (tj.manifest.is_empty()
+                            || verify_save_tree_manifest(&ext_target, &tj.manifest).is_ok())
+                    {
+                        if was_active_phase || is_sandbox_already {
+                            copy_save_tree_verified(&ext_target, &airgap_target)?;
+                            verify_save_tree_manifest(&airgap_target, &tj.manifest)?;
+                            set_tree_readonly(&airgap_target, true);
+                            healed_from_ext = true;
+                        }
+                    }
+                }
+
+                if !healed_from_ext && live_target.exists() && !is_sandbox_already && !was_active_phase {
+                    if let Some(parent) = airgap_target.parent() {
+                        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                    }
+                    if std::fs::rename(&live_target, &airgap_target).is_err() {
+                        copy_save_tree_verified(&live_target, &airgap_target)?;
+                        verify_save_tree_manifest(&airgap_target, &tj.manifest)?;
+                        remove_save_tree_strict(&live_target, &docs_allowed)?;
+                    } else {
+                        verify_save_tree_manifest(&airgap_target, &tj.manifest)?;
+                    }
+                    set_tree_readonly(&airgap_target, true);
+                }
+            } else {
                 set_tree_readonly(&airgap_target, true);
             }
 
-            // Swap in the isolated Lab sandbox folder so test runs have their own dedicated test save space
             if !live_target.exists() {
                 if sandbox_target.exists() {
+                    set_tree_readonly(&sandbox_target, false);
                     if std::fs::rename(&sandbox_target, &live_target).is_err() {
-                        let _ = deploy_air_gap(&sandbox_target, &live_target);
-                        set_tree_readonly(&sandbox_target, false);
-                        let _ = std::fs::remove_dir_all(&sandbox_target);
+                        copy_save_tree_verified(&sandbox_target, &live_target)?;
+                        let sandbox_allowed = [sandbox_root.clone()];
+                        let _ = remove_save_tree_strict(&sandbox_target, &sandbox_allowed);
                     }
                 }
-                let _ = std::fs::create_dir_all(&live_target);
+                std::fs::create_dir_all(&live_target).map_err(|e| e.to_string())?;
             }
             set_tree_readonly(&live_target, false);
 
-            // Sync .sanctuary_seeded_save marker with the dedicated test save in the sandbox (if one exists)
             let save_exts = resolve_save_extensions(game_schema);
             let current_sandbox_saves = list_saves_in_dir(&live_target, &save_exts);
             let seeded_marker = live_target.join(".sanctuary_seeded_save");
@@ -696,68 +1619,202 @@ pub fn apply_save_airgap(
                     })
                     .unwrap_or(false);
                 if !existing_marker_valid {
-                    let _ = std::fs::write(&seeded_marker, first_save.file_name.as_bytes());
+                    let _ = crate::utils::atomic_write_bytes(
+                        &seeded_marker,
+                        first_save.file_name.as_bytes(),
+                    );
                 }
             } else {
                 let _ = std::fs::remove_file(&seeded_marker);
             }
 
-            let _ = std::fs::write(
-                live_target.join(".sanctuary_sandbox_marker"),
-                "SANCTUARY_ISOLATED_LAB_SANDBOX",
-            );
+            crate::utils::atomic_write_bytes(
+                &live_target.join(".sanctuary_sandbox_marker"),
+                b"SANCTUARY_ISOLATED_LAB_SANDBOX",
+            )?;
         }
 
-        let _ = std::fs::write(
-            &marker_file,
-            serde_json::json!({
-                "active": true,
-                "targets": targets,
-            })
-            .to_string(),
-        );
-        Ok("Saves physically airgapped and sandboxed".to_string())
+        journal.phase = "ACTIVE".to_string();
+        persist_airgap_journal(&journal, &airgap_root, ext_vault_dir.as_deref())?;
+
+        let marker_payload = serde_json::json!({
+            "active": true,
+            "instance_id": get_runtime_instance_id(),
+            "targets": targets,
+            "vault_mirror_dir": journal.vault_mirror_dir,
+        })
+        .to_string();
+        crate::utils::atomic_write_bytes(&marker_file, marker_payload.as_bytes())?;
+
+        Ok("Saves physically airgapped and mirrored".to_string())
     } else {
+        // Restore path (enable = false)
+        if let Some(mut journal) = existing_journal.clone() {
+            journal.phase = "RESTORING".to_string();
+            let _ = persist_airgap_journal(&journal, &airgap_root, ext_vault_dir.as_deref());
+        }
+
+        let airgap_allowed = [airgap_root.clone()];
+        let sandbox_allowed = [sandbox_root.clone()];
+
         for target_name in &targets {
             let live_target = crate::utils::resolve_case_insensitive_path(&docs_dir, target_name);
-            let airgap_target = crate::utils::resolve_case_insensitive_path(&airgap_root, target_name);
-            let sandbox_target = crate::utils::resolve_case_insensitive_path(&sandbox_root, target_name);
+            let airgap_target =
+                crate::utils::resolve_case_insensitive_path(&airgap_root, target_name);
+            let sandbox_target =
+                crate::utils::resolve_case_insensitive_path(&sandbox_root, target_name);
+            let ext_target = ext_vault_dir
+                .as_ref()
+                .map(|ext_root| crate::utils::resolve_case_insensitive_path(ext_root, target_name));
+
+            let target_journal = existing_journal.as_ref().and_then(|j| {
+                j.targets
+                    .iter()
+                    .find(|t| t.target_name.eq_ignore_ascii_case(target_name))
+            });
+            let expected_manifest: &[SaveFileManifestEntry] = target_journal
+                .map(|tj| tj.manifest.as_slice())
+                .unwrap_or(&[]);
+            let expected_non_empty = !expected_manifest.is_empty();
+
+            // 1. Self-heal local airgap_target from external .lab_save_vault if missing or tampered
+            let local_airgap_ok = airgap_target.exists()
+                && (!expected_non_empty
+                    || verify_save_tree_manifest(&airgap_target, expected_manifest).is_ok());
+
+            if !local_airgap_ok {
+                if let Some(ref ext_src) = ext_target {
+                    if ext_src.exists()
+                        && (!expected_non_empty
+                            || verify_save_tree_manifest(ext_src, expected_manifest).is_ok())
+                    {
+                        set_tree_readonly(&airgap_target, false);
+                        copy_save_tree_verified(ext_src, &airgap_target)?;
+                    }
+                }
+            }
+
+            // 2. Safety check: if journal recorded live saves, refuse to move/clear live_target unless
+            // we have a verified airgap_target OR live_target already holds the exact live saves (crash mid-restore).
+            if expected_non_empty && !airgap_target.exists() {
+                if verify_save_tree_manifest(&live_target, expected_manifest).is_ok() {
+                    // Crash occurred right after airgap_target was renamed to live_target!
+                    set_tree_readonly(&live_target, false);
+                    let _ = std::fs::remove_file(live_target.join(".sanctuary_sandbox_marker"));
+                    continue;
+                }
+                return Err(format!(
+                    "Refused to overwrite '{}' because neither local airgap nor Vault save mirror passed verification.",
+                    target_name
+                ));
+            }
 
             if airgap_target.exists() {
-                // Unlock evacuated saves before restoring
+                if expected_non_empty {
+                    verify_save_tree_manifest(&airgap_target, expected_manifest)?;
+                }
                 set_tree_readonly(&airgap_target, false);
 
+                // Move isolated Lab sandbox folder back to .sanctuary_lab_sandbox
                 if live_target.exists() {
+                    let is_sandbox = live_target.join(".sanctuary_sandbox_marker").exists()
+                        || existing_journal.is_some()
+                        || marker_file.exists();
+                    if is_sandbox {
+                        if let Some(parent) = sandbox_target.parent() {
+                            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                        }
+                        if sandbox_target.exists() {
+                            remove_save_tree_strict(&sandbox_target, &sandbox_allowed)?;
+                        }
+                        let _ = std::fs::remove_file(live_target.join(".sanctuary_sandbox_marker"));
+                        if std::fs::rename(&live_target, &sandbox_target).is_err() {
+                            copy_save_tree_verified(&live_target, &sandbox_target)?;
+                            remove_save_tree_strict(&live_target, &docs_allowed)?;
+                        }
+                    } else {
+                        // Unexpected un-marked live files appeared alongside airgap: merge non-destructively into live_target
+                        copy_save_tree_verified(&airgap_target, &live_target)?;
+                        if expected_non_empty {
+                            verify_save_tree_manifest(&live_target, expected_manifest)?;
+                        }
+                        remove_save_tree_strict(&airgap_target, &airgap_allowed)?;
+                    }
+                }
+
+                if airgap_target.exists() {
+                    if let Some(parent) = live_target.parent() {
+                        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                    }
+                    if std::fs::rename(&airgap_target, &live_target).is_err() {
+                        copy_save_tree_verified(&airgap_target, &live_target)?;
+                        if expected_non_empty {
+                            verify_save_tree_manifest(&live_target, expected_manifest)?;
+                        }
+                        remove_save_tree_strict(&airgap_target, &airgap_allowed)?;
+                    } else if expected_non_empty {
+                        verify_save_tree_manifest(&live_target, expected_manifest)?;
+                    }
+                }
+            } else if let Some(tj) = target_journal {
+                // Player originally had no live save directory before entering the Lab:
+                // stash the sandbox folder back into .sanctuary_lab_sandbox so the live directory returns clean.
+                if !tj.had_live_target
+                    && live_target.exists()
+                    && live_target.join(".sanctuary_sandbox_marker").exists()
+                {
                     if let Some(parent) = sandbox_target.parent() {
                         let _ = std::fs::create_dir_all(parent);
                     }
                     if sandbox_target.exists() {
-                        set_tree_readonly(&sandbox_target, false);
-                        let _ = std::fs::remove_dir_all(&sandbox_target);
+                        let _ = remove_save_tree_strict(&sandbox_target, &sandbox_allowed);
                     }
-                    // Move sandbox saves back to .sanctuary_lab_sandbox so the dedicated test save persists
+                    let _ = std::fs::remove_file(live_target.join(".sanctuary_sandbox_marker"));
                     if std::fs::rename(&live_target, &sandbox_target).is_err() {
-                        let _ = deploy_air_gap(&live_target, &sandbox_target);
-                        set_tree_readonly(&live_target, false);
-                        let _ = std::fs::remove_dir_all(&live_target);
+                        copy_save_tree_verified(&live_target, &sandbox_target)?;
+                        remove_save_tree_strict(&live_target, &docs_allowed)?;
                     }
-                }
-
-                // Restore real live saves
-                if std::fs::rename(&airgap_target, &live_target).is_err() {
-                    let _ = deploy_air_gap(&airgap_target, &live_target);
-                    let _ = std::fs::remove_dir_all(&airgap_target);
                 }
             }
 
-            // Ensure live saves are unlocked (clears any legacy read-only flags too)
-            set_tree_readonly(&live_target, false);
-            let _ = std::fs::remove_file(live_target.join(".sanctuary_sandbox_marker"));
+            if live_target.exists() {
+                set_tree_readonly(&live_target, false);
+                let _ = std::fs::remove_file(live_target.join(".sanctuary_sandbox_marker"));
+                if expected_non_empty {
+                    verify_save_tree_manifest(&live_target, expected_manifest)?;
+                }
+            }
         }
 
+        // Only purge journal & external vault mirror AFTER every live save target has passed post-restore verification
         let _ = std::fs::remove_file(&marker_file);
-        Ok("Live saves restored from airgap".to_string())
+        let _ = std::fs::remove_file(airgap_root.join(".airgap_journal.json"));
+        if let Some(ext_dir) = ext_vault_dir {
+            set_tree_readonly(&ext_dir, false);
+            let _ = std::fs::remove_file(ext_dir.join(".airgap_journal.json"));
+            if let Some(ext_parent) = ext_dir.parent() {
+                let ext_allowed = [ext_parent.to_path_buf()];
+                let _ = remove_save_tree_strict(&ext_dir, &ext_allowed);
+            }
+        }
+
+        Ok("Live saves verified and restored from airgap".to_string())
     }
+}
+
+#[tauri::command]
+pub async fn recover_interrupted_lab_airgap(
+    docs_path: String,
+    vault_path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<AirgapRecoveryReport, String> {
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let docs_dir = resolve_docs_root(&docs_path, &game_schema);
+        recover_stranded_airgap_if_needed(&docs_dir, &vault_path, &game_schema)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -780,33 +1837,27 @@ pub async fn configure_lab_test_save(
     let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     tauri::async_runtime::spawn_blocking(move || {
         let docs_dir = resolve_docs_root(&docs_path, &game_schema);
-        let targets = resolve_save_airgap_targets(&game_schema);
+        let targets = resolve_deduplicated_save_targets(&docs_dir, &game_schema);
         let primary_save_rel = targets
             .first()
             .cloned()
             .ok_or_else(|| "No save airgap target configured in active GameSchema.".to_string())?;
         let save_exts = resolve_save_extensions(&game_schema);
         let allow_dir_slots = is_directory_save_mode(&save_exts);
-        let file_exts: Vec<String> = save_exts
-            .iter()
-            .map(|e| e.trim().to_lowercase())
-            .filter(|e| !e.is_empty() && !matches!(e.as_str(), "/" | "dir" | "directory" | "folder"))
-            .collect();
 
         let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
         let sandbox_root = docs_dir.join(".sanctuary_lab_sandbox");
-        let marker_file = airgap_root.join(".airgap_active.json");
-        let airgap_active = marker_file.exists() || airgap_root.join(&primary_save_rel).exists();
+        let airgap_active = is_airgap_active_for_docs(&docs_dir, &game_schema);
 
         let (sandbox_saves_dir, live_saves_dir) = if airgap_active {
             (
-                docs_dir.join(&primary_save_rel),
-                airgap_root.join(&primary_save_rel),
+                crate::utils::resolve_case_insensitive_path(&docs_dir, &primary_save_rel),
+                crate::utils::resolve_case_insensitive_path(&airgap_root, &primary_save_rel),
             )
         } else {
             (
-                sandbox_root.join(&primary_save_rel),
-                docs_dir.join(&primary_save_rel),
+                crate::utils::resolve_case_insensitive_path(&sandbox_root, &primary_save_rel),
+                crate::utils::resolve_case_insensitive_path(&docs_dir, &primary_save_rel),
             )
         };
 
@@ -816,25 +1867,25 @@ pub async fn configure_lab_test_save(
         let sandbox_allowed = [sandbox_saves_dir.clone()];
 
         let clear_sandbox_saves = || {
-            if !file_exts.is_empty() {
-                for entry in walkdir::WalkDir::new(&sandbox_saves_dir)
-                    .max_depth(2)
-                    .into_iter()
-                    .filter_map(|e| e.ok())
-                {
-                    if entry.file_type().is_file() {
-                        let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
-                        let matches_save_ext =
-                            file_exts.iter().any(|ext| fname_lower.ends_with(ext));
-                        if (matches_save_ext || fname_lower == ".sanctuary_seeded_save")
-                            && crate::utils::ensure_strict_descendant_of_roots(
-                                entry.path(),
-                                &sandbox_allowed,
-                            )
-                            .is_ok()
-                        {
-                            let _ = std::fs::remove_file(entry.path());
-                        }
+            for entry in walkdir::WalkDir::new(&sandbox_saves_dir)
+                .max_depth(2)
+                .follow_links(false)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if entry.file_type().is_file() {
+                    let fname = entry.file_name().to_string_lossy().to_string();
+                    let fname_lower = fname.to_lowercase();
+                    let matches_save = matches_save_filename(&fname, &save_exts);
+                    if (matches_save || fname_lower == ".sanctuary_seeded_save")
+                        && fname_lower != ".sanctuary_sandbox_marker"
+                        && crate::utils::ensure_strict_descendant_of_roots(
+                            entry.path(),
+                            &sandbox_allowed,
+                        )
+                        .is_ok()
+                    {
+                        let _ = std::fs::remove_file(entry.path());
                     }
                 }
             }
@@ -863,7 +1914,10 @@ pub async fn configure_lab_test_save(
             }
             "select_sandbox_save" => {
                 if let Some(target_name) = source_save_name.filter(|s| !s.trim().is_empty()) {
-                    let _ = std::fs::write(&seeded_marker, target_name.trim().as_bytes());
+                    let _ = crate::utils::atomic_write_bytes(
+                        &seeded_marker,
+                        target_name.trim().as_bytes(),
+                    );
                 }
             }
             "copy_live_save" => {
@@ -896,6 +1950,7 @@ pub async fn configure_lab_test_save(
                     if found_src.is_none() {
                         for entry in walkdir::WalkDir::new(&live_saves_dir)
                             .max_depth(2)
+                            .follow_links(false)
                             .into_iter()
                             .filter_map(|e| e.ok())
                         {
@@ -927,7 +1982,8 @@ pub async fn configure_lab_test_save(
                 crate::utils::ensure_strict_descendant_of_roots(&dst_path, &sandbox_allowed)?;
 
                 if src_path.is_dir() {
-                    copy_save_directory_recursive(&src_path, &dst_path)?;
+                    copy_save_tree_verified(&src_path, &dst_path)?;
+                    set_tree_readonly(&dst_path, false);
                 } else {
                     std::fs::copy(&src_path, &dst_path).map_err(|e| e.to_string())?;
                     if let Ok(meta) = std::fs::metadata(&dst_path) {
@@ -936,7 +1992,7 @@ pub async fn configure_lab_test_save(
                         let _ = std::fs::set_permissions(&dst_path, perms);
                     }
                 }
-                let _ = std::fs::write(&seeded_marker, clean_fname.as_bytes());
+                let _ = crate::utils::atomic_write_bytes(&seeded_marker, clean_fname.as_bytes());
             }
             _ => return Err(format!("Unsupported Lab Test Save mode: {}", mode)),
         }
@@ -955,7 +2011,17 @@ pub async fn airgap_saves(
 ) -> Result<String, String> {
     let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     tauri::async_runtime::spawn_blocking(move || {
-        apply_save_airgap(&docs_path, enable, &game_schema)
+        let vault_path = get_saved_coordinates().vault_path;
+        apply_save_airgap_with_vault(
+            &docs_path,
+            if vault_path.trim().is_empty() {
+                None
+            } else {
+                Some(vault_path.as_str())
+            },
+            enable,
+            &game_schema,
+        )
     })
     .await
     .map_err(|e| e.to_string())?
@@ -969,29 +2035,30 @@ pub async fn get_airgap_status(
     let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     tauri::async_runtime::spawn_blocking(move || {
         let docs_dir = resolve_docs_root(&docs_path, &game_schema);
-        let targets = resolve_save_airgap_targets(&game_schema);
+        let targets = resolve_deduplicated_save_targets(&docs_dir, &game_schema);
         let airgap_root = docs_dir.join(".sanctuary_lab_airgap");
-        let marker_file = airgap_root.join(".airgap_active.json");
 
         let mut protected_files_count = 0usize;
-        let mut any_airgap_dir = false;
         for t in &targets {
-            let dir = airgap_root.join(t);
+            let dir = crate::utils::resolve_case_insensitive_path(&airgap_root, t);
             if dir.exists() {
-                any_airgap_dir = true;
                 for entry in walkdir::WalkDir::new(&dir)
+                    .follow_links(false)
                     .into_iter()
                     .filter_map(|e| e.ok())
                 {
                     if entry.file_type().is_file() {
-                        protected_files_count += 1;
+                        let fname_lower = entry.file_name().to_string_lossy().to_lowercase();
+                        if !is_airgap_internal_marker_name(&fname_lower) {
+                            protected_files_count += 1;
+                        }
                     }
                 }
             }
         }
 
         Ok(AirgapStatus {
-            active: marker_file.exists() || any_airgap_dir,
+            active: is_airgap_active_for_docs(&docs_dir, &game_schema),
             targets,
             airgap_path: airgap_root.to_string_lossy().to_string(),
             protected_files_count,
@@ -2138,6 +3205,15 @@ pub struct LabVerificationCertificate {
     pub save_file_verified: String,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct LabNotificationLabels {
+    pub failed_title: Option<String>,
+    pub timer_complete_title: Option<String>,
+    pub timer_complete_body: Option<String>,
+    pub verified_title: Option<String>,
+    pub verified_body: Option<String>,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LabVerificationStatus {
     pub active: bool,
@@ -2168,6 +3244,23 @@ pub struct LabVerificationStatus {
     pub certificate: Option<LabVerificationCertificate>,
 }
 
+#[derive(Clone, Debug)]
+struct SaveSlotSnapshot {
+    mtime_ms: u128,
+    size_bytes: u64,
+    fingerprint: String,
+}
+
+#[derive(Clone, Debug)]
+struct PendingSaveCandidate {
+    path: PathBuf,
+    display_name: String,
+    prev_size_bytes: Option<u64>,
+    observed_size_bytes: u64,
+    observed_mtime_ms: u128,
+    detected_epoch: u64,
+}
+
 struct ActiveLabSession {
     dna_hash: String,
     mod_name: String,
@@ -2181,18 +3274,26 @@ struct ActiveLabSession {
     pause_reason: Option<String>,
     started_at_epoch: u64,
     boot_detected_epoch: Option<u64>,
+    menu_entered_epoch: Option<u64>,
+    menu_active_input_seconds: u32,
     awaiting_save_since_epoch: Option<u64>,
-    save_detected_epoch: Option<u64>,
+    awaiting_save_since_ms: u128,
+    stage4_disk_write_bytes: u64,
+    pending_save_candidate: Option<PendingSaveCandidate>,
     verified_save_name: Option<String>,
     tracked_pid: Option<u32>,
+    missing_process_ticks: u32,
+    last_focused_epoch: u64,
     baseline_ram_bytes: u64,
     baseline_disk_read_bytes: u64,
     current_ram_bytes: u64,
     cumulative_disk_read_bytes: u64,
+    cumulative_disk_write_bytes: u64,
     prev_ram_bytes: u64,
     prev_disk_read_bytes: u64,
     boot_plateau_ticks: u32,
     peak_ram_bytes: u64,
+    peak_world_ram_delta_bytes: u64,
     required_active_seconds: u32,
     elapsed_active_seconds: u32,
     max_idle_seconds: u32,
@@ -2205,9 +3306,13 @@ struct ActiveLabSession {
     min_ram_step_percent: u32,
     warm_cache_ram_step_percent: u32,
     seeded_save_present: bool,
-    initial_save_mtimes: HashMap<PathBuf, u64>,
+    seeded_baseline_save_size: Option<u64>,
+    initial_save_snapshots: HashMap<PathBuf, SaveSlotSnapshot>,
+    deployed_payload_fingerprints: Vec<(PathBuf, u64, String)>,
+    last_integrity_sweep_epoch: u64,
     last_poll_epoch: u64,
     linked_files: Vec<String>,
+    notification_labels: LabNotificationLabels,
     notified_awaiting_save: bool,
     notified_verified: bool,
     notified_failed: bool,
@@ -2219,153 +3324,6 @@ struct ActiveLabSession {
 static LAB_SESSION: std::sync::OnceLock<std::sync::Mutex<Option<ActiveLabSession>>> =
     std::sync::OnceLock::new();
 
-struct LabInputWatchState {
-    running: std::sync::atomic::AtomicBool,
-    target_pid: std::sync::atomic::AtomicU32,
-    game_paused: std::sync::atomic::AtomicBool,
-}
-
-static LAB_INPUT_WATCH: std::sync::OnceLock<Arc<LabInputWatchState>> = std::sync::OnceLock::new();
-
-fn get_lab_input_watch() -> &'static Arc<LabInputWatchState> {
-    LAB_INPUT_WATCH.get_or_init(|| {
-        Arc::new(LabInputWatchState {
-            running: std::sync::atomic::AtomicBool::new(false),
-            target_pid: std::sync::atomic::AtomicU32::new(0),
-            game_paused: std::sync::atomic::AtomicBool::new(false),
-        })
-    })
-}
-
-#[cfg(target_os = "windows")]
-fn start_windows_pause_key_watcher(game_schema: &Option<crate::schema::GameSchema>) {
-    use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
-    use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
-
-    let hotkey_enabled = game_schema
-        .as_ref()
-        .and_then(|s| s.lab_verification.as_ref())
-        .and_then(|lv| lv.enable_hotkey_pause_detection)
-        .unwrap_or(false);
-
-    let pause_vks = game_schema
-        .as_ref()
-        .and_then(|s| s.lab_verification.as_ref())
-        .and_then(|lv| lv.pause_key_vk_codes.clone())
-        .filter(|v| !v.is_empty());
-    let resume_vks = game_schema
-        .as_ref()
-        .and_then(|s| s.lab_verification.as_ref())
-        .and_then(|lv| lv.resume_key_vk_codes.clone())
-        .filter(|v| !v.is_empty());
-
-    let watch = get_lab_input_watch().clone();
-    watch.game_paused.store(false, Ordering::SeqCst);
-    let Some(pause_vks) = pause_vks.filter(|_| hotkey_enabled) else {
-        watch.running.store(false, Ordering::SeqCst);
-        return;
-    };
-
-    if watch
-        .running
-        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-        .is_err()
-    {
-        return;
-    }
-
-    std::thread::Builder::new()
-        .name("sanctuary-lab-key-watcher".to_string())
-        .spawn(move || {
-            let mut was_pause_down = false;
-
-            while watch.running.load(Ordering::SeqCst) {
-                let pid = watch.target_pid.load(Ordering::SeqCst);
-                let mut focused = false;
-                if pid != 0 {
-                    unsafe {
-                        let hwnd = GetForegroundWindow();
-                        if !hwnd.0.is_null() {
-                            let mut fg_pid: u32 = 0;
-                            GetWindowThreadProcessId(hwnd, Some(&mut fg_pid));
-                            if fg_pid == pid {
-                                focused = true;
-                            }
-                        }
-                    }
-                }
-
-                if focused {
-                    unsafe {
-                        let is_down = |vk: i32| -> bool {
-                            (GetAsyncKeyState(vk) as u16 & 0x8000) != 0
-                        };
-
-                        let any_pause = pause_vks.iter().any(|&vk| is_down(vk as i32));
-                        if any_pause && !was_pause_down {
-                            let cur = watch.game_paused.load(Ordering::SeqCst);
-                            watch.game_paused.store(!cur, Ordering::SeqCst);
-                        }
-                        was_pause_down = any_pause;
-
-                        if let Some(ref resume_list) = resume_vks {
-                            if resume_list.iter().any(|&vk| is_down(vk as i32)) {
-                                watch.game_paused.store(false, Ordering::SeqCst);
-                            }
-                        }
-                    }
-                } else {
-                    was_pause_down = false;
-                }
-
-                std::thread::sleep(std::time::Duration::from_millis(60));
-            }
-        })
-        .ok();
-}
-
-#[cfg(not(target_os = "windows"))]
-fn start_windows_pause_key_watcher(_game_schema: &Option<crate::schema::GameSchema>) {}
-
-fn stop_windows_pause_key_watcher() {
-    let watch = get_lab_input_watch();
-    watch.running.store(false, Ordering::SeqCst);
-    watch.target_pid.store(0, Ordering::SeqCst);
-    watch.game_paused.store(false, Ordering::SeqCst);
-}
-
-fn spawn_or_refresh_lab_overlay(app: &tauri::AppHandle) {
-    let app_handle = app.clone();
-    std::thread::Builder::new()
-        .name("sanctuary-lab-overlay-spawn".to_string())
-        .spawn(move || {
-            if let Some(win) = app_handle.get_webview_window("lab-hud-overlay") {
-                let _ = win.set_always_on_top(true);
-                let _ = win.set_ignore_cursor_events(true);
-                let _ = win.show();
-            } else if let Ok(win) = tauri::WebviewWindowBuilder::new(
-                &app_handle,
-                "lab-hud-overlay",
-                tauri::WebviewUrl::App("index.html?lab_overlay=1".into()),
-            )
-            .title("Sanctuary Lab HUD")
-            .inner_size(390.0, 118.0)
-            .position(24.0, 24.0)
-            .decorations(false)
-            .transparent(true)
-            .always_on_top(true)
-            .skip_taskbar(true)
-            .focused(false)
-            .resizable(false)
-            .shadow(false)
-            .build()
-            {
-                let _ = win.set_ignore_cursor_events(true);
-            }
-        })
-        .ok();
-}
-
 fn close_lab_overlay(app: &tauri::AppHandle) {
     let app_handle = app.clone();
     std::thread::spawn(move || {
@@ -2376,16 +3334,17 @@ fn close_lab_overlay(app: &tauri::AppHandle) {
 }
 
 fn notify_player_over_game(app: &tauri::AppHandle, title: &str, body: &str, is_error: bool) {
-    let _ = is_error;
+    // Passive OS toast + system chime ONLY — never inject a transparent click-through window over the game!
     #[cfg(target_os = "windows")]
     unsafe {
         #[link(name = "user32")]
         extern "system" {
             fn MessageBeep(uType: u32) -> i32;
         }
-        // MB_ICONHAND = 0x10, MB_ICONASTERISK = 0x40
         let _ = MessageBeep(if is_error { 0x00000010 } else { 0x00000040 });
     }
+    #[cfg(not(target_os = "windows"))]
+    let _ = is_error;
 
     let _ = crate::commands::system::send_sanctuary_notification(
         app.clone(),
@@ -2405,71 +3364,197 @@ fn current_epoch_secs() -> u64 {
         .unwrap_or(0)
 }
 
-fn snapshot_save_mtimes(
+fn current_epoch_millis_u128() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
+}
+
+fn file_mtime_millis(meta: &std::fs::Metadata) -> u128 {
+    meta.modified()
+        .ok()
+        .and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
+}
+
+fn compute_dir_save_slot_snapshot(dir: &Path) -> Option<SaveSlotSnapshot> {
+    use sha2::{Digest, Sha256};
+
+    let mut latest_ms = 0u128;
+    let mut total_bytes = 0u64;
+    let mut file_count = 0usize;
+    let mut hasher = Sha256::new();
+
+    let mut files: Vec<PathBuf> = walkdir::WalkDir::new(dir)
+        .max_depth(4)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+        .map(|e| e.path().to_path_buf())
+        .collect();
+    files.sort();
+
+    for fpath in files {
+        let fname_lower = fpath
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default()
+            .to_lowercase();
+        if is_temporary_or_internal_save_artifact(&fname_lower) {
+            continue;
+        }
+        if let Ok(meta) = std::fs::metadata(&fpath) {
+            file_count += 1;
+            total_bytes = total_bytes.saturating_add(meta.len());
+            let ms = file_mtime_millis(&meta);
+            if ms > latest_ms {
+                latest_ms = ms;
+            }
+            if let Ok((_, _, fp)) = sample_file_fingerprint(&fpath) {
+                hasher.update(fp.as_bytes());
+            }
+        }
+    }
+
+    if file_count == 0 || total_bytes == 0 {
+        None
+    } else {
+        Some(SaveSlotSnapshot {
+            mtime_ms: latest_ms,
+            size_bytes: total_bytes,
+            fingerprint: hex::encode(hasher.finalize()),
+        })
+    }
+}
+
+fn snapshot_save_slots(
     docs_dir: &Path,
     save_targets: &[String],
     save_extensions: &[String],
-) -> HashMap<PathBuf, u64> {
+) -> (HashMap<PathBuf, SaveSlotSnapshot>, Option<u64>) {
     let mut map = HashMap::new();
+    let mut seeded_size: Option<u64> = None;
     if save_targets.is_empty() {
-        return map;
+        return (map, None);
     }
-    let file_exts: Vec<String> = save_extensions
-        .iter()
-        .map(|e| e.trim().to_lowercase())
-        .filter(|e| !e.is_empty() && !matches!(e.as_str(), "/" | "dir" | "directory" | "folder"))
-        .collect();
     let allow_dir_slots = is_directory_save_mode(save_extensions);
 
     for rel in save_targets {
-        let saves_dir = docs_dir.join(rel);
+        let saves_dir = crate::utils::resolve_case_insensitive_path(docs_dir, rel);
         if !saves_dir.exists() {
             continue;
         }
-        if !file_exts.is_empty() {
-            for entry in walkdir::WalkDir::new(&saves_dir)
-                .max_depth(3)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
-                if !entry.file_type().is_file() {
-                    continue;
-                }
-                let name_lower = entry.file_name().to_string_lossy().to_lowercase();
-                if file_exts.iter().any(|ext| name_lower.ends_with(ext)) {
-                    if let Ok(meta) = entry.metadata() {
-                        if let Ok(mtime) = meta.modified() {
-                            if let Ok(dur) = mtime.duration_since(std::time::UNIX_EPOCH) {
-                                map.insert(entry.path().to_path_buf(), dur.as_secs());
-                            }
-                        }
+        let seeded_name = std::fs::read_to_string(saves_dir.join(".sanctuary_seeded_save"))
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+
+        for entry in walkdir::WalkDir::new(&saves_dir)
+            .max_depth(3)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            if allow_dir_slots && entry.depth() > 1 {
+                continue;
+            }
+            let fname = entry.file_name().to_string_lossy().to_string();
+            if !matches_save_filename(&fname, save_extensions) {
+                continue;
+            }
+            if let Ok(meta) = entry.metadata() {
+                if let Ok((size_bytes, _, fingerprint)) = sample_file_fingerprint(entry.path()) {
+                    let snap = SaveSlotSnapshot {
+                        mtime_ms: file_mtime_millis(&meta),
+                        size_bytes,
+                        fingerprint,
+                    };
+                    if seeded_name
+                        .as_ref()
+                        .map_or(false, |sn| sn.eq_ignore_ascii_case(&fname))
+                    {
+                        seeded_size = Some(size_bytes);
                     }
+                    map.insert(entry.path().to_path_buf(), snap);
                 }
             }
         }
+
         if allow_dir_slots {
             if let Ok(entries) = std::fs::read_dir(&saves_dir) {
                 for entry in entries.flatten() {
                     let slot_path = entry.path();
                     let name = entry.file_name().to_string_lossy().to_string();
                     if slot_path.is_dir() && !name.starts_with('.') {
-                        if let Some((slot_mtime, _)) = compute_dir_save_slot_stats(&slot_path) {
-                            map.insert(slot_path, slot_mtime);
+                        if let Some(snap) = compute_dir_save_slot_snapshot(&slot_path) {
+                            if seeded_name
+                                .as_ref()
+                                .map_or(false, |sn| sn.eq_ignore_ascii_case(&name))
+                            {
+                                seeded_size = Some(snap.size_bytes);
+                            }
+                            map.insert(slot_path, snap);
                         }
                     }
                 }
             }
         }
     }
-    map
+    (map, seeded_size)
+}
+
+fn has_inflight_temporary_save_files(docs_dir: &Path, save_targets: &[String]) -> bool {
+    let now_ms = current_epoch_millis_u128();
+    for rel in save_targets {
+        let saves_dir = crate::utils::resolve_case_insensitive_path(docs_dir, rel);
+        if !saves_dir.exists() {
+            continue;
+        }
+        for entry in walkdir::WalkDir::new(&saves_dir)
+            .max_depth(4)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            let lower = entry.file_name().to_string_lossy().to_lowercase();
+            let is_active_temp = lower.ends_with(".tmp")
+                || lower.ends_with(".temp")
+                || lower.ends_with(".part")
+                || lower.ends_with(".partial")
+                || lower.ends_with(".writing")
+                || lower.ends_with(".savetmp")
+                || lower.ends_with(".bak_tmp")
+                || lower.ends_with(".lock")
+                || lower.ends_with("-journal");
+            if is_active_temp {
+                if let Ok(meta) = entry.metadata() {
+                    // Consider temp files touched within the last 15 seconds as actively serializing
+                    if now_ms.saturating_sub(file_mtime_millis(&meta)) <= 15_000 {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
 }
 
 fn check_scratch_activity(docs_dir: &Path, scratch_subdirs: &[String], since_epoch: u64) -> bool {
     for sub in scratch_subdirs {
-        let dir = docs_dir.join(sub);
+        let dir = crate::utils::resolve_case_insensitive_path(docs_dir, sub);
         if dir.exists() {
             for entry in walkdir::WalkDir::new(&dir)
                 .max_depth(3)
+                .follow_links(false)
                 .into_iter()
                 .filter_map(|e| e.ok())
             {
@@ -2488,76 +3573,110 @@ fn check_scratch_activity(docs_dir: &Path, scratch_subdirs: &[String], since_epo
     false
 }
 
-fn detect_new_save_file(
+fn detect_fresh_save_candidate(
     docs_dir: &Path,
     save_targets: &[String],
     save_extensions: &[String],
-    initial_mtimes: &HashMap<PathBuf, u64>,
-    min_epoch: u64,
-) -> Option<String> {
+    initial_snapshots: &HashMap<PathBuf, SaveSlotSnapshot>,
+    seeded_baseline_size: Option<u64>,
+    min_epoch_ms: u128,
+) -> Option<PendingSaveCandidate> {
     if save_targets.is_empty() {
         return None;
     }
-    let file_exts: Vec<String> = save_extensions
-        .iter()
-        .map(|e| e.trim().to_lowercase())
-        .filter(|e| !e.is_empty() && !matches!(e.as_str(), "/" | "dir" | "directory" | "folder"))
-        .collect();
     let allow_dir_slots = is_directory_save_mode(save_extensions);
+    let now_epoch = current_epoch_secs();
 
     for rel in save_targets {
-        let saves_dir = docs_dir.join(rel);
+        let saves_dir = crate::utils::resolve_case_insensitive_path(docs_dir, rel);
         if !saves_dir.exists() {
             continue;
         }
-        if !file_exts.is_empty() {
-            for entry in walkdir::WalkDir::new(&saves_dir)
-                .max_depth(3)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
-                if !entry.file_type().is_file() {
+
+        for entry in walkdir::WalkDir::new(&saves_dir)
+            .max_depth(3)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            if allow_dir_slots && entry.depth() > 1 {
+                continue;
+            }
+            let fname = entry.file_name().to_string_lossy().to_string();
+            if !matches_save_filename(&fname, save_extensions) {
+                continue;
+            }
+            if let Ok(meta) = entry.metadata() {
+                let len = meta.len();
+                if len == 0 {
                     continue;
                 }
-                let fname = entry.file_name().to_string_lossy().to_string();
-                let name_lower = fname.to_lowercase();
-                if !file_exts.iter().any(|ext| name_lower.ends_with(ext)) {
-                    continue;
-                }
-                if let Ok(meta) = entry.metadata() {
-                    if meta.len() == 0 {
-                        continue;
-                    }
-                    if let Ok(mtime) = meta.modified() {
-                        if let Ok(dur) = mtime.duration_since(std::time::UNIX_EPOCH) {
-                            let secs = dur.as_secs();
-                            let prev = initial_mtimes.get(entry.path()).copied().unwrap_or(0);
-                            if secs > prev && secs >= min_epoch {
-                                let _ = std::fs::write(
-                                    saves_dir.join(".sanctuary_seeded_save"),
-                                    fname.as_bytes(),
-                                );
-                                return Some(fname);
+                let mtime_ms = file_mtime_millis(&meta);
+                let prev_snap = initial_snapshots.get(entry.path());
+                let prev_ms = prev_snap.map(|s| s.mtime_ms).unwrap_or(0);
+                // Allow a 1500ms filesystem timestamp granularity tolerance relative to Stage 4 start,
+                // while strictly requiring mtime_ms > prev_ms for pre-existing files!
+                let after_stage_start = mtime_ms >= min_epoch_ms.saturating_sub(1500);
+                if mtime_ms > prev_ms && after_stage_start {
+                    // Reject byte-for-byte duplicate copy of another pre-existing save slot dropped into a new filename
+                    if prev_snap.is_none() {
+                        if let Ok((sz, _, fp)) = sample_file_fingerprint(entry.path()) {
+                            let is_copied_old_slot = initial_snapshots
+                                .values()
+                                .any(|old| old.size_bytes == sz && old.fingerprint == fp);
+                            if is_copied_old_slot {
+                                continue;
                             }
                         }
                     }
+                    return Some(PendingSaveCandidate {
+                        path: entry.path().to_path_buf(),
+                        display_name: fname,
+                        prev_size_bytes: prev_snap
+                            .map(|s| s.size_bytes)
+                            .or(seeded_baseline_size),
+                        observed_size_bytes: len,
+                        observed_mtime_ms: mtime_ms,
+                        detected_epoch: now_epoch,
+                    });
                 }
             }
         }
+
         if allow_dir_slots {
             if let Ok(entries) = std::fs::read_dir(&saves_dir) {
                 for entry in entries.flatten() {
                     let slot_path = entry.path();
                     let dname = entry.file_name().to_string_lossy().to_string();
                     if slot_path.is_dir() && !dname.starts_with('.') {
-                        if let Some((secs, _)) = compute_dir_save_slot_stats(&slot_path) {
-                            let prev = initial_mtimes.get(&slot_path).copied().unwrap_or(0);
-                            if secs > prev && secs >= min_epoch {
-                                let _ = std::fs::write(
-                                    saves_dir.join(".sanctuary_seeded_save"),
-                                    dname.as_bytes(),
-                                );
-                                return Some(dname);
+                        if let Some(snap) = compute_dir_save_slot_snapshot(&slot_path) {
+                            let prev_snap = initial_snapshots.get(&slot_path);
+                            let prev_ms = prev_snap.map(|s| s.mtime_ms).unwrap_or(0);
+                            let after_stage_start =
+                                snap.mtime_ms >= min_epoch_ms.saturating_sub(1500);
+                            if snap.mtime_ms > prev_ms && after_stage_start {
+                                if prev_snap.is_none() {
+                                    let is_copied_old_slot = initial_snapshots.values().any(|old| {
+                                        old.size_bytes == snap.size_bytes
+                                            && old.fingerprint == snap.fingerprint
+                                    });
+                                    if is_copied_old_slot {
+                                        continue;
+                                    }
+                                }
+                                return Some(PendingSaveCandidate {
+                                    path: slot_path,
+                                    display_name: dname,
+                                    prev_size_bytes: prev_snap
+                                        .map(|s| s.size_bytes)
+                                        .or(seeded_baseline_size),
+                                    observed_size_bytes: snap.size_bytes,
+                                    observed_mtime_ms: snap.mtime_ms,
+                                    detected_epoch: now_epoch,
+                                });
                             }
                         }
                     }
@@ -2568,8 +3687,305 @@ fn detect_new_save_file(
     None
 }
 
+fn audit_single_save_file_integrity(path: &Path, min_bytes: u64) -> Result<u64, String> {
+    use std::io::{Read, Seek, SeekFrom};
+
+    let meta = std::fs::metadata(path)
+        .map_err(|e| format!("Save file {:?} could not be read: {}", path, e))?;
+    let size = meta.len();
+    if size < min_bytes {
+        return Err(format!(
+            "Save file '{}' is incomplete or truncated ({} bytes).",
+            path.file_name().unwrap_or_default().to_string_lossy(),
+            size
+        ));
+    }
+
+    let mut f = std::fs::File::open(path)
+        .map_err(|e| format!("Save file {:?} is locked or unreadable: {}", path, e))?;
+
+    let head_len = (size.min(65_536)) as usize;
+    let mut head = vec![0u8; head_len];
+    f.read_exact(&mut head)
+        .map_err(|e| format!("Failed reading save header {:?}: {}", path, e))?;
+
+    // Reject crash-zeroed or uninitialized 0x00 / 0xFF preallocated buffers
+    let head_check_slice = &head[..head.len().min(4096)];
+    if head_check_slice.iter().all(|&b| b == 0x00) {
+        return Err(format!(
+            "Save file '{}' contains a null-zeroed header (serialization aborted mid-write).",
+            path.file_name().unwrap_or_default().to_string_lossy()
+        ));
+    }
+
+    let tail = if size > 65_536 {
+        let tail_offset = size - 65_536;
+        f.seek(SeekFrom::Start(tail_offset))
+            .map_err(|e| format!("Failed seeking save trailer {:?}: {}", path, e))?;
+        let mut t = vec![0u8; 65_536];
+        f.read_exact(&mut t)
+            .map_err(|e| format!("Failed reading save trailer {:?}: {}", path, e))?;
+        t
+    } else {
+        head.clone()
+    };
+
+    // Universal container & structured-format framing checks (100% magic-byte driven, zero hardcoded extensions)
+    // 1. ZIP container (PK\x03\x04): must contain End of Central Directory (PK\x05\x06) in the trailer
+    if head.starts_with(b"PK\x03\x04") {
+        let has_eocd = tail.windows(4).any(|w| w == b"PK\x05\x06");
+        if !has_eocd {
+            return Err(format!(
+                "Archive-backed save '{}' is missing its End-of-Central-Directory record (corrupted/truncated write).",
+                path.file_name().unwrap_or_default().to_string_lossy()
+            ));
+        }
+    }
+    // 2. GZIP stream (\x1F\x8B): must have 10-byte header + 8-byte CRC32/ISIZE trailer
+    else if head.starts_with(&[0x1F, 0x8B]) && size < 18 {
+        return Err(format!(
+            "Compressed save '{}' is truncated ({} bytes < 18-byte GZIP frame).",
+            path.file_name().unwrap_or_default().to_string_lossy(),
+            size
+        ));
+    }
+    // 3. Zstandard frame (\x28\xB5\x2F\xFD)
+    else if head.starts_with(&[0x28, 0xB5, 0x2F, 0xFD]) && size < 12 {
+        return Err(format!(
+            "Compressed save '{}' is truncated ({} bytes < Zstd frame minimum).",
+            path.file_name().unwrap_or_default().to_string_lossy(),
+            size
+        ));
+    }
+    // 4. SQLite 3 database ("SQLite format 3\0"): verify header size >= 100 and page-aligned file length
+    else if head.starts_with(b"SQLite format 3\0") {
+        if size < 100 || head.len() < 18 {
+            return Err("Database-backed save header is truncated (< 100 bytes).".to_string());
+        }
+        let raw_page = u16::from_be_bytes([head[16], head[17]]) as u64;
+        let page_size = if raw_page == 1 { 65_536 } else { raw_page };
+        if page_size >= 512 && page_size.is_power_of_two() && (size < page_size || size % page_size != 0) {
+            return Err(format!(
+                "Database-backed save '{}' has an incomplete page write ({} bytes not aligned to {}B page).",
+                path.file_name().unwrap_or_default().to_string_lossy(),
+                size,
+                page_size
+            ));
+        }
+    } else {
+        // 5. Structured UTF-8 JSON / XML text saves: verify closing delimiter was flushed completely
+        let bom_stripped = if head.starts_with(&[0xEF, 0xBB, 0xBF]) {
+            &head[3..]
+        } else {
+            &head[..]
+        };
+        let probe_len = bom_stripped.len().min(512);
+        if let Ok(head_text) = std::str::from_utf8(&bom_stripped[..probe_len]) {
+            let trimmed_start = head_text.trim_start();
+            let trimmed_tail_bytes = {
+                let mut end = tail.len();
+                while end > 0
+                    && matches!(tail[end - 1], b' ' | b'\t' | b'\r' | b'\n' | 0x00)
+                {
+                    if tail[end - 1] == 0x00 {
+                        // Null padding at the end of a UTF-8 JSON/XML text file indicates mid-flush crash truncation!
+                        return Err(format!(
+                            "Structured save '{}' ends with null bytes instead of a closing delimiter.",
+                            path.file_name().unwrap_or_default().to_string_lossy()
+                        ));
+                    }
+                    end -= 1;
+                }
+                &tail[..end]
+            };
+
+            if trimmed_start.starts_with('{') {
+                if trimmed_tail_bytes.last().copied() != Some(b'}') {
+                    return Err(format!(
+                        "JSON save '{}' is truncated (missing closing '}}').",
+                        path.file_name().unwrap_or_default().to_string_lossy()
+                    ));
+                }
+            } else if trimmed_start.starts_with('[') {
+                if trimmed_tail_bytes.last().copied() != Some(b']') {
+                    return Err(format!(
+                        "JSON array save '{}' is truncated (missing closing ']').",
+                        path.file_name().unwrap_or_default().to_string_lossy()
+                    ));
+                }
+            } else if trimmed_start.starts_with("<?xml")
+                || (trimmed_start.starts_with('<')
+                    && trimmed_start
+                        .as_bytes()
+                        .get(1)
+                        .map_or(false, |c| c.is_ascii_alphabetic()))
+            {
+                if trimmed_tail_bytes.last().copied() != Some(b'>') {
+                    return Err(format!(
+                        "XML save '{}' is truncated (missing closing '>').",
+                        path.file_name().unwrap_or_default().to_string_lossy()
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(size)
+}
+
+pub fn audit_save_file_corruption(
+    save_path: &Path,
+    prev_size_bytes: Option<u64>,
+) -> Result<u64, String> {
+    if !save_path.exists() {
+        return Err("Save checkpoint disappeared before integrity verification completed.".to_string());
+    }
+
+    let total_size = if save_path.is_dir() {
+        let mut sum = 0u64;
+        let mut valid_files = 0usize;
+        for entry in walkdir::WalkDir::new(save_path)
+            .max_depth(4)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            let lower = entry.file_name().to_string_lossy().to_lowercase();
+            if lower.ends_with(".tmp")
+                || lower.ends_with(".part")
+                || lower.ends_with(".savetmp")
+                || lower.ends_with(".corrupt")
+            {
+                return Err(format!(
+                    "Save folder contains incomplete temporary artifact '{}'.",
+                    lower
+                ));
+            }
+            if is_temporary_or_internal_save_artifact(&lower) {
+                continue;
+            }
+            let fsize = audit_single_save_file_integrity(entry.path(), 1)?;
+            sum = sum.saturating_add(fsize);
+            valid_files += 1;
+        }
+        if valid_files == 0 || sum < 32 {
+            return Err("Save directory slot contains no complete save data.".to_string());
+        }
+        sum
+    } else {
+        audit_single_save_file_integrity(save_path, 32)?
+    };
+
+    // Guard against catastrophic truncation compared to the seeded/previous save slot size
+    if let Some(prev_sz) = prev_size_bytes {
+        if prev_sz >= 4096 && total_size < prev_sz / 4 {
+            return Err(format!(
+                "Save size collapsed unexpectedly from {} bytes to {} bytes (< 25% of baseline — probable save truncation).",
+                prev_sz, total_size
+            ));
+        }
+    }
+
+    Ok(total_size)
+}
+
+fn collect_deployed_payload_fingerprints(
+    vault_path: &str,
+    linked_files: &[String],
+) -> Result<Vec<(PathBuf, u64, String)>, String> {
+    let coords = get_saved_coordinates();
+    let mods_root_str = if !coords.mods_path.trim().is_empty() {
+        coords.mods_path.trim()
+    } else {
+        coords.live_path.trim()
+    };
+    let mods_dir = PathBuf::from(mods_root_str);
+
+    let mut candidate_paths: Vec<PathBuf> = Vec::new();
+
+    if !mods_root_str.is_empty() && mods_dir.exists() {
+        if let Ok(raw) = std::fs::read_to_string(mods_dir.join(".sanctuary_deployed_links.json")) {
+            if let Ok(list) = serde_json::from_str::<Vec<String>>(&raw) {
+                for p_str in list {
+                    let p = PathBuf::from(p_str);
+                    if p.is_file() && !candidate_paths.contains(&p) {
+                        candidate_paths.push(p);
+                    }
+                }
+            }
+        }
+        for rel in linked_files {
+            let cleaned = rel.trim().replace('/', std::path::MAIN_SEPARATOR_STR);
+            if cleaned.is_empty() {
+                continue;
+            }
+            let p = mods_dir.join(&cleaned);
+            if p.is_file() && !candidate_paths.contains(&p) {
+                candidate_paths.push(p);
+            }
+        }
+    }
+
+    if !vault_path.trim().is_empty() {
+        if let Some((raw_routed, _)) = crate::utils::get_vault_kv(vault_path, "routed_links") {
+            if let Ok(records) = serde_json::from_str::<Vec<serde_json::Value>>(&raw_routed) {
+                for rec in records {
+                    let dest_opt = rec
+                        .get("dest")
+                        .or_else(|| rec.get("path"))
+                        .and_then(|v| v.as_str())
+                        .or_else(|| rec.as_str());
+                    if let Some(d_str) = dest_opt {
+                        let p = PathBuf::from(d_str);
+                        if p.is_file() && !candidate_paths.contains(&p) {
+                            candidate_paths.push(p);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut verified = Vec::new();
+    for p in candidate_paths {
+        let fname_lower = p
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default()
+            .to_lowercase();
+        if fname_lower.starts_with(".sanctuary") {
+            continue;
+        }
+        let (sz, _, fp) = sample_file_fingerprint(&p)?;
+        verified.push((p, sz, fp));
+    }
+
+    Ok(verified)
+}
+
+fn verify_deployed_payload_intact(expected: &[(PathBuf, u64, String)]) -> Result<(), String> {
+    for (path, expected_sz, expected_fp) in expected {
+        if !path.exists() || !path.is_file() {
+            return Err("lab_err_payload_tampered".to_string());
+        }
+        let (actual_sz, _, actual_fp) =
+            sample_file_fingerprint(path).map_err(|_| "lab_err_payload_tampered".to_string())?;
+        if actual_sz != *expected_sz || actual_fp != *expected_fp {
+            return Err("lab_err_payload_tampered".to_string());
+        }
+    }
+    Ok(())
+}
+
 #[cfg(target_os = "windows")]
-fn get_windows_focus_and_idle(target_pid: Option<u32>) -> (bool, u32) {
+fn get_os_focus_and_idle(
+    target_pid: Option<u32>,
+    sys: &sysinfo::System,
+    exe_candidates: &[String],
+) -> (bool, u32) {
     use windows::Win32::System::SystemInformation::GetTickCount;
     use windows::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
     use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
@@ -2583,6 +3999,13 @@ fn get_windows_focus_and_idle(target_pid: Option<u32>) -> (bool, u32) {
                 GetWindowThreadProcessId(hwnd, Some(&mut fg_pid));
                 if fg_pid == pid {
                     is_focused = true;
+                } else if fg_pid != 0 {
+                    // Multi-process engines (e.g. separate render/window host child process in the same game folder)
+                    if let Some(fg_proc) = sys.process(sysinfo::Pid::from_u32(fg_pid)) {
+                        if process_matches_game_candidates(fg_pid, fg_proc, exe_candidates) {
+                            is_focused = true;
+                        }
+                    }
                 }
             }
         }
@@ -2605,27 +4028,120 @@ fn get_windows_focus_and_idle(target_pid: Option<u32>) -> (bool, u32) {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn get_windows_focus_and_idle(target_pid: Option<u32>) -> (bool, u32) {
+fn get_os_focus_and_idle(
+    target_pid: Option<u32>,
+    _sys: &sysinfo::System,
+    _exe_candidates: &[String],
+) -> (bool, u32) {
     let Some(pid) = target_pid else {
         return (false, 0);
     };
     #[cfg(target_os = "linux")]
     {
-        // Verify process is alive in /proc/<pid> and not stopped (T) or zombie (Z)
         let stat_path = format!("/proc/{}/stat", pid);
+        let mut alive_and_running = std::path::Path::new(&format!("/proc/{}", pid)).exists();
         if let Ok(stat) = std::fs::read_to_string(&stat_path) {
             if let Some(rparen) = stat.rfind(')') {
                 let after = stat[rparen + 1..].trim();
                 let state_char = after.chars().next().unwrap_or('S');
-                let alive_and_running = !matches!(state_char, 'T' | 't' | 'Z' | 'X');
-                return (alive_and_running, 0);
+                alive_and_running = !matches!(state_char, 'T' | 't' | 'Z' | 'X');
             }
         }
-        return (std::path::Path::new(&format!("/proc/{}", pid)).exists(), 0);
+        if !alive_and_running {
+            return (false, 0);
+        }
+
+        // Passive X11/XWayland active window PID check when available; Gamescope/Wayland sessions without _NET_WM_PID stay permissive
+        let mut is_focused = true;
+        if std::env::var_os("DISPLAY").is_some()
+            && std::env::var_os("GAMESCOPE_WAYLAND_DISPLAY").is_none()
+        {
+            if let Ok(root_out) = std::process::Command::new("xprop")
+                .args(["-root", "_NET_ACTIVE_WINDOW"])
+                .output()
+            {
+                let root_txt = String::from_utf8_lossy(&root_out.stdout);
+                if let Some(win_id) = root_txt
+                    .rsplit(|c: char| c.is_whitespace() || c == ',')
+                    .find(|tok| tok.starts_with("0x") && *tok != "0x0")
+                {
+                    if let Ok(pid_out) = std::process::Command::new("xprop")
+                        .args(["-id", win_id, "_NET_WM_PID"])
+                        .output()
+                    {
+                        let pid_txt = String::from_utf8_lossy(&pid_out.stdout);
+                        if let Some(eq) = pid_txt.find('=') {
+                            if let Ok(active_pid) = pid_txt[eq + 1..].trim().parse::<u32>() {
+                                if active_pid > 0 {
+                                    is_focused = active_pid == pid;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Passive Linux session idle query (xprintidle or freedesktop ScreenSaver DBus)
+        let mut idle_secs = 0u32;
+        if let Ok(out) = std::process::Command::new("xprintidle").output() {
+            if out.status.success() {
+                if let Ok(ms) = String::from_utf8_lossy(&out.stdout).trim().parse::<u64>() {
+                    idle_secs = (ms / 1000) as u32;
+                }
+            }
+        } else if let Ok(out) = std::process::Command::new("gdbus")
+            .args([
+                "call",
+                "--session",
+                "--dest",
+                "org.freedesktop.ScreenSaver",
+                "--object-path",
+                "/org/freedesktop/ScreenSaver",
+                "--method",
+                "org.freedesktop.ScreenSaver.GetSessionIdleTime",
+            ])
+            .output()
+        {
+            if out.status.success() {
+                let txt = String::from_utf8_lossy(&out.stdout);
+                let digits: String = txt.chars().filter(|c| c.is_ascii_digit()).collect();
+                if let Ok(val) = digits.parse::<u64>() {
+                    // freedesktop ScreenSaver returns seconds or milliseconds depending on DE
+                    idle_secs = if val > 86_400 {
+                        (val / 1000) as u32
+                    } else {
+                        val as u32
+                    };
+                }
+            }
+        }
+
+        return (is_focused, idle_secs);
     }
     #[cfg(target_os = "macos")]
     {
-        // Query macOS HIDIdleTime (nanoseconds) via ioreg if available
+        let mut is_focused = pid > 0;
+        // Passive lsappinfo frontmost PID check (zero Accessibility/AppleEvents TCC prompts)
+        if let Ok(front_out) = std::process::Command::new("lsappinfo").arg("front").output() {
+            let asn = String::from_utf8_lossy(&front_out.stdout).trim().to_string();
+            if !asn.is_empty() {
+                if let Ok(info_out) = std::process::Command::new("lsappinfo")
+                    .args(["info", "-only", "pid", &asn])
+                    .output()
+                {
+                    let info_txt = String::from_utf8_lossy(&info_out.stdout);
+                    if let Some(eq) = info_txt.find('=') {
+                        if let Ok(front_pid) = info_txt[eq + 1..].trim().parse::<u32>() {
+                            if front_pid > 0 {
+                                is_focused = front_pid == pid;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let mut idle_secs = 0u32;
         if let Ok(out) = std::process::Command::new("ioreg")
             .args(["-c", "IOHIDSystem", "-d", "4"])
@@ -2643,7 +4159,7 @@ fn get_windows_focus_and_idle(target_pid: Option<u32>) -> (bool, u32) {
                 }
             }
         }
-        return (pid > 0, idle_secs);
+        return (is_focused, idle_secs);
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
@@ -3448,13 +4964,14 @@ pub async fn start_lab_verification_session(
     docs_path: String,
     vault_path: String,
     linked_files: Option<Vec<String>>,
+    notification_labels: Option<LabNotificationLabels>,
     state: tauri::State<'_, AppState>,
 ) -> Result<LabVerificationStatus, String> {
     let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
     tauri::async_runtime::spawn_blocking(move || {
         let docs_dir = resolve_docs_root(&docs_path, &game_schema);
-        let exe_names = crate::game_logic::get_executable_names(&game_schema);
-        let save_targets = resolve_save_airgap_targets(&game_schema);
+        let exe_names = collect_candidate_game_exe_names(&game_schema);
+        let save_targets = resolve_deduplicated_save_targets(&docs_dir, &game_schema);
 
         let lv = game_schema.as_ref().and_then(|s| s.lab_verification.clone());
         let wls = lv.as_ref().and_then(|l| l.world_load_signature.clone());
@@ -3464,12 +4981,11 @@ pub async fn start_lab_verification_session(
             .and_then(|l| l.required_active_seconds)
             .unwrap_or(120)
             .max(15);
-        // Default max_idle_seconds to 8s so pausing gameplay or sitting on a menu screen pauses the countdown quickly
         let max_idle_seconds = lv
             .as_ref()
             .and_then(|l| l.max_idle_seconds)
             .unwrap_or(8)
-            .clamp(5, 12);
+            .clamp(5, 15);
         let require_focus = lv.as_ref().and_then(|l| l.require_focus).unwrap_or(true);
         let require_save_checkpoint = lv
             .as_ref()
@@ -3484,7 +5000,7 @@ pub async fn start_lab_verification_session(
             .as_ref()
             .and_then(|w| w.stabilize_boot_seconds)
             .unwrap_or(14)
-            .max(12);
+            .max(10);
         let min_disk_read_mb = wls.as_ref().and_then(|w| w.min_disk_read_mb).unwrap_or(75);
         let min_ram_step_percent = wls
             .as_ref()
@@ -3499,14 +5015,21 @@ pub async fn start_lab_verification_session(
             .and_then(|w| w.scratch_activity_subdirs.clone())
             .unwrap_or_default();
 
-        let seeded_save_present = save_targets
-            .iter()
-            .any(|t| docs_dir.join(t).join(".sanctuary_seeded_save").exists());
-        let now = current_epoch_secs();
-        let initial_save_mtimes =
-            snapshot_save_mtimes(&docs_dir, &save_targets, &save_extensions);
+        let linked_list = linked_files.unwrap_or_default();
+        let deployed_payload_fingerprints =
+            collect_deployed_payload_fingerprints(&vault_path, &linked_list)?;
+        if !linked_list.is_empty() && deployed_payload_fingerprints.is_empty() {
+            return Err("lab_err_payload_tampered".to_string());
+        }
 
-        start_windows_pause_key_watcher(&game_schema);
+        let seeded_save_present = save_targets.iter().any(|t| {
+            crate::utils::resolve_case_insensitive_path(&docs_dir, t)
+                .join(".sanctuary_seeded_save")
+                .exists()
+        });
+        let now = current_epoch_secs();
+        let (initial_save_snapshots, seeded_baseline_save_size) =
+            snapshot_save_slots(&docs_dir, &save_targets, &save_extensions);
 
         let session = ActiveLabSession {
             dna_hash,
@@ -3521,18 +5044,26 @@ pub async fn start_lab_verification_session(
             pause_reason: None,
             started_at_epoch: now,
             boot_detected_epoch: None,
+            menu_entered_epoch: None,
+            menu_active_input_seconds: 0,
             awaiting_save_since_epoch: None,
-            save_detected_epoch: None,
+            awaiting_save_since_ms: 0,
+            stage4_disk_write_bytes: 0,
+            pending_save_candidate: None,
             verified_save_name: None,
             tracked_pid: None,
+            missing_process_ticks: 0,
+            last_focused_epoch: 0,
             baseline_ram_bytes: 0,
             baseline_disk_read_bytes: 0,
             current_ram_bytes: 0,
             cumulative_disk_read_bytes: 0,
+            cumulative_disk_write_bytes: 0,
             prev_ram_bytes: 0,
             prev_disk_read_bytes: 0,
             boot_plateau_ticks: 0,
             peak_ram_bytes: 0,
+            peak_world_ram_delta_bytes: 0,
             required_active_seconds,
             elapsed_active_seconds: 0,
             max_idle_seconds,
@@ -3545,9 +5076,13 @@ pub async fn start_lab_verification_session(
             min_ram_step_percent,
             warm_cache_ram_step_percent,
             seeded_save_present,
-            initial_save_mtimes,
+            seeded_baseline_save_size,
+            initial_save_snapshots,
+            deployed_payload_fingerprints,
+            last_integrity_sweep_epoch: now,
             last_poll_epoch: now,
-            linked_files: linked_files.unwrap_or_default(),
+            linked_files: linked_list,
+            notification_labels: notification_labels.unwrap_or_default(),
             notified_awaiting_save: false,
             notified_verified: false,
             notified_failed: false,
@@ -3579,373 +5114,626 @@ pub async fn poll_lab_verification_session(
             None => return Ok(None),
         };
 
-    if session.stage == "VERIFIED" || session.stage == "FAILED" {
-        return Ok(Some(build_session_status(session)));
-    }
+        if session.stage == "VERIFIED" || session.stage == "FAILED" {
+            return Ok(Some(build_session_status(session)));
+        }
 
-    let now = current_epoch_secs();
-    let dt = now.saturating_sub(session.last_poll_epoch).clamp(1, 3) as u32;
-    session.last_poll_epoch = now;
+        let now = current_epoch_secs();
+        let dt = now.saturating_sub(session.last_poll_epoch).clamp(1, 3) as u32;
+        session.last_poll_epoch = now;
 
-    // 1. Check for crash/exception logs first
-    if let Some(err_msg) = scan_logs_sync(&session.docs_dir, &game_schema) {
-        session.stage = "FAILED".to_string();
-        session.error_log = Some(err_msg.clone());
-        if !session.notified_failed {
-            session.notified_failed = true;
-            notify_player_over_game(
-                &app,
-                "Sanctuary Lab — Simulation Failed",
-                &err_msg,
+        // Dynamically adopt any game executable launched right after start_lab_verification_session (supports custom games with executables: [])
+        let mut live_root_norm_opt: Option<String> = None;
+        let mut direct_launched_pid: Option<u32> = None;
+        if let Some(mutex) = LAST_LAUNCHED_GAME_INFO.get() {
+            if let Ok(info_guard) = mutex.lock() {
+                if let Some(info) = info_guard.as_ref() {
+                    if info.launched_at_epoch >= session.started_at_epoch.saturating_sub(15) {
+                        direct_launched_pid = info.pid;
+                        if !info.live_root_norm.is_empty() {
+                            live_root_norm_opt = Some(info.live_root_norm.clone());
+                        }
+                        if !info.exe_name.is_empty()
+                            && !session
+                                .executable_names
+                                .iter()
+                                .any(|n| n.eq_ignore_ascii_case(&info.exe_name))
+                        {
+                            session.executable_names.push(info.exe_name.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        // 1. Check for crash/exception logs first
+        if let Some(err_msg) = scan_logs_sync(&session.docs_dir, &game_schema) {
+            session.stage = "FAILED".to_string();
+            session.error_log = Some(err_msg.clone());
+            if !session.notified_failed {
+                session.notified_failed = true;
+                let failed_title = session
+                    .notification_labels
+                    .failed_title
+                    .as_deref()
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or("Lab Simulation Failed");
+                notify_player_over_game(&app, failed_title, &err_msg, true);
+            }
+            return Ok(Some(build_session_status(session)));
+        }
+
+        // Periodic passive airgap self-healing + deployed mod payload tamper check
+        if now.saturating_sub(session.last_integrity_sweep_epoch) >= 8 {
+            session.last_integrity_sweep_epoch = now;
+            let _ = heal_active_airgap_if_tampered(
+                &session.docs_dir,
+                if session.vault_path.trim().is_empty() {
+                    None
+                } else {
+                    Some(session.vault_path.as_str())
+                },
+                &game_schema,
+            );
+            if !session.deployed_payload_fingerprints.is_empty() {
+                if let Err(tamper_err) =
+                    verify_deployed_payload_intact(&session.deployed_payload_fingerprints)
+                {
+                    session.stage = "FAILED".to_string();
+                    session.error_log = Some(tamper_err.clone());
+                    if !session.notified_failed {
+                        session.notified_failed = true;
+                        let failed_title = session
+                            .notification_labels
+                            .failed_title
+                            .as_deref()
+                            .filter(|s| !s.trim().is_empty())
+                            .unwrap_or("Lab Simulation Failed");
+                        notify_player_over_game(&app, failed_title, &tamper_err, true);
+                    }
+                    return Ok(Some(build_session_status(session)));
+                }
+            }
+        }
+
+        // 2. Refresh processes via passive OS counters ONLY (zero ReadProcessMemory / PEB scraping)
+        let refresh_kind = passive_process_refresh_kind();
+        let needs_full_refresh = if let Some(pid) = session.tracked_pid {
+            let sys_pid = sysinfo::Pid::from_u32(pid);
+            session.sys.refresh_processes_specifics(
+                sysinfo::ProcessesToUpdate::Some(&[sys_pid]),
                 true,
+                refresh_kind,
+            );
+            !session.sys.processes().contains_key(&sys_pid)
+        } else {
+            true
+        };
+        if needs_full_refresh {
+            session.sys.refresh_processes_specifics(
+                sysinfo::ProcessesToUpdate::All,
+                true,
+                refresh_kind,
             );
         }
-        stop_windows_pause_key_watcher();
-        return Ok(Some(build_session_status(session)));
-    }
 
-    // 2. Refresh processes via sysinfo (single PID when already tracked, fallback to All)
-    let needs_full_refresh = if let Some(pid) = session.tracked_pid {
-        let sys_pid = sysinfo::Pid::from_u32(pid);
-        session
-            .sys
-            .refresh_processes(sysinfo::ProcessesToUpdate::Some(&[sys_pid]), true);
-        !session.sys.processes().contains_key(&sys_pid)
-    } else {
-        true
-    };
-    if needs_full_refresh {
-        session
-            .sys
-            .refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-    }
+        let mut matched_pid: Option<u32> = None;
+        let mut matched_process_stopped = false;
+        let mut best_ram: u64 = 0;
+        let mut best_disk_read: u64 = 0;
+        let mut best_disk_write: u64 = 0;
 
-    let mut matched_pid: Option<u32> = None;
-    let mut best_ram: u64 = 0;
-    let mut best_disk_read: u64 = 0;
+        for (pid, proc_info) in session.sys.processes() {
+            let pid_u32 = pid.as_u32();
+            let mut is_match =
+                process_matches_game_candidates(pid_u32, proc_info, &session.executable_names);
 
-    for (pid, proc_info) in session.sys.processes() {
-        let pname = proc_info.name().to_string_lossy().to_lowercase();
-        let is_wrapper = matches!(
-            pname.as_str(),
-            "reaper"
-                | "steam-launch-wrapper"
-                | "srt-bwrap"
-                | "pressure-vessel-adverb"
-                | "proton"
-                | "python3"
-                | "sh"
-                | "bash"
-                | "wineserver"
-        );
-        if is_wrapper {
-            continue;
-        }
-        let exe_path_lower = proc_info
-            .exe()
-            .map(|p| p.to_string_lossy().replace('\\', "/").to_lowercase())
-            .unwrap_or_default();
-        let cmd_joined_lower: String = proc_info
-            .cmd()
-            .iter()
-            .map(|arg| arg.to_string_lossy().replace('\\', "/").to_lowercase())
-            .collect::<Vec<_>>()
-            .join(" ");
-
-        let is_match = session.executable_names.iter().any(|exe| {
-            let clean_exe = exe.trim().replace('\\', "/").to_lowercase();
-            let exe_filename = clean_exe.rsplit('/').next().unwrap_or(&clean_exe);
-            let stem = exe_filename
-                .trim_end_matches(".exe")
-                .trim_end_matches(".app");
-            if stem.is_empty() {
-                return false;
+            if !is_match && direct_launched_pid == Some(pid_u32) {
+                is_match = true;
             }
-            // Linux /proc/<pid>/comm truncates process names to 15 chars (TASK_COMM_LEN - 1)
-            let stem_15: String = stem.chars().take(15).collect();
-            let direct_name_match = pname == exe_filename
-                || pname == stem
-                || pname.starts_with(stem)
-                || (stem_15.len() == 15 && pname == stem_15);
-            let cmd_or_exe_match = (!exe_path_lower.is_empty()
-                && (exe_path_lower.ends_with(&format!("/{}", exe_filename))
-                    || exe_path_lower.ends_with(&format!("/{}", stem))))
-                || (!cmd_joined_lower.is_empty()
-                    && (cmd_joined_lower.contains(&format!("/{}", exe_filename))
-                        || cmd_joined_lower.ends_with(exe_filename)));
-            direct_name_match || cmd_or_exe_match
-        });
-        if is_match {
-            let mem = proc_info.memory();
-            if mem >= best_ram {
-                best_ram = mem;
-                best_disk_read = proc_info.disk_usage().total_read_bytes;
-                matched_pid = Some(pid.as_u32());
-            }
-        }
-    }
-
-    session.tracked_pid = matched_pid;
-    get_lab_input_watch()
-        .target_pid
-        .store(matched_pid.unwrap_or(0), Ordering::SeqCst);
-
-    if best_ram > 0 {
-        session.current_ram_bytes = best_ram;
-        session.cumulative_disk_read_bytes = best_disk_read;
-        if best_ram > session.peak_ram_bytes {
-            session.peak_ram_bytes = best_ram;
-        }
-    }
-
-    let (focused, idle_secs) = get_windows_focus_and_idle(matched_pid);
-    session.is_focused = focused;
-    session.current_idle_seconds = idle_secs;
-
-    let disk_rate_mb = session
-        .cumulative_disk_read_bytes
-        .saturating_sub(session.prev_disk_read_bytes)
-        / (1024 * 1024);
-    let ram_diff_mb = session.current_ram_bytes.abs_diff(session.prev_ram_bytes) / (1024 * 1024);
-    session.prev_ram_bytes = session.current_ram_bytes;
-    session.prev_disk_read_bytes = session.cumulative_disk_read_bytes;
-
-    // 3. Evaluate 4-stage pipeline
-    match session.stage.as_str() {
-        "BOOTING" => {
-            if matched_pid.is_some() && session.current_ram_bytes > 100 * 1024 * 1024 {
-                let boot_epoch = *session.boot_detected_epoch.get_or_insert(now);
-                let boot_elapsed = now.saturating_sub(boot_epoch);
-
-                // Wait for initial boot Disk I/O and RAM to plateau on the Main Menu
-                if boot_elapsed >= session.stabilize_boot_seconds as u64 {
-                    if disk_rate_mb <= 4 && ram_diff_mb <= 18 {
-                        session.boot_plateau_ticks += 1;
-                    } else {
-                        session.boot_plateau_ticks = 0;
-                    }
-
-                    if session.boot_plateau_ticks >= 3 || boot_elapsed >= 42 {
-                        session.baseline_ram_bytes = session.current_ram_bytes;
-                        session.baseline_disk_read_bytes = session.cumulative_disk_read_bytes;
-                        session.initial_save_mtimes = snapshot_save_mtimes(
-                            &session.docs_dir,
-                            &session.save_targets,
-                            &session.save_extensions,
-                        );
-                        session.stage = "MENU_WAITING".to_string();
-                    }
-                }
-            }
-        }
-        "MENU_WAITING" => {
-            if matched_pid.is_none() && now.saturating_sub(session.started_at_epoch) > 30 {
-                session.stage = "FAILED".to_string();
-                session.error_log = Some(
-                    "Game process terminated while on Main Menu before entering a loaded world."
-                        .to_string(),
-                );
-                stop_windows_pause_key_watcher();
-            } else if matched_pid.is_some() {
-                let disk_delta_mb = session
-                    .cumulative_disk_read_bytes
-                    .saturating_sub(session.baseline_disk_read_bytes)
-                    / (1024 * 1024);
-                let ram_step_mb = session
-                    .current_ram_bytes
-                    .saturating_sub(session.baseline_ram_bytes)
-                    / (1024 * 1024);
-                let ram_step_pct = if session.baseline_ram_bytes > 0
-                    && session.current_ram_bytes > session.baseline_ram_bytes
+            // Fallback for launcher-to-child handoff inside the same game installation directory
+            if !is_match {
+                if let (Some(ref live_root_norm), Some(exe_path)) =
+                    (&live_root_norm_opt, proc_info.exe())
                 {
-                    (((session.current_ram_bytes - session.baseline_ram_bytes) * 100)
-                        / session.baseline_ram_bytes) as u32
-                } else {
-                    0
-                };
-                let scratch_active = check_scratch_activity(
-                    &session.docs_dir,
-                    &session.scratch_subdirs,
-                    session.boot_detected_epoch.unwrap_or(session.started_at_epoch) + 10,
-                );
-
-                let primary_world_loaded = disk_delta_mb >= session.min_disk_read_mb
-                    && (ram_step_pct >= session.min_ram_step_percent || ram_step_mb >= 180);
-                let warm_cache_loaded = ram_step_pct >= session.warm_cache_ram_step_percent
-                    || (scratch_active && (ram_step_pct >= 12 || ram_step_mb >= 90));
-
-                if primary_world_loaded || warm_cache_loaded {
-                    // Wait until the loading screen disk burst finishes settling into live gameplay
-                    if disk_rate_mb <= 15 {
-                        session.initial_save_mtimes = snapshot_save_mtimes(
-                            &session.docs_dir,
-                            &session.save_targets,
-                            &session.save_extensions,
-                        );
-                        get_lab_input_watch()
-                            .game_paused
-                            .store(false, Ordering::SeqCst);
-                        session.stage = "ACTIVE_TESTING".to_string();
-                        session.pause_reason = None;
+                    let proc_norm = crate::utils::normalize_path_key(exe_path);
+                    if !live_root_norm.is_empty() && proc_norm.starts_with(live_root_norm) {
+                        let pname = proc_info.name().to_string_lossy().to_lowercase();
+                        let is_helper = pname.contains("crash")
+                            || pname.contains("uninstall")
+                            || pname.contains("redist")
+                            || pname.contains("setup")
+                            || pname.contains("updater");
+                        if !is_helper {
+                            is_match = true;
+                        }
                     }
                 }
             }
+
+            if is_match {
+                let mem = proc_info.memory();
+                if mem >= best_ram {
+                    best_ram = mem;
+                    let du = proc_info.disk_usage();
+                    best_disk_read = du.total_read_bytes;
+                    best_disk_write = du.total_written_bytes;
+                    matched_pid = Some(pid_u32);
+                    matched_process_stopped =
+                        matches!(proc_info.status(), sysinfo::ProcessStatus::Stop);
+                }
+            }
         }
-        "ACTIVE_TESTING" => {
-            if matched_pid.is_none() {
-                session.stage = "FAILED".to_string();
-                session.error_log = Some(
-                    "Game process exited prematurely before completing timed verification and save checkpoint."
-                        .to_string(),
-                );
-                stop_windows_pause_key_watcher();
-            } else {
-                // Check if user already triggered a save during active testing
-                if session.verified_save_name.is_none() {
-                    if let Some(sname) = detect_new_save_file(
-                        &session.docs_dir,
-                        &session.save_targets,
-                        &session.save_extensions,
-                        &session.initial_save_mtimes,
-                        session.started_at_epoch,
-                    ) {
-                        session.verified_save_name = Some(sname);
-                    }
-                }
 
-                let ram_step_mb = session
-                    .current_ram_bytes
-                    .saturating_sub(session.baseline_ram_bytes)
-                    / (1024 * 1024);
-                let game_paused_key = get_lab_input_watch().game_paused.load(Ordering::SeqCst);
+        if matched_pid.is_some() {
+            session.missing_process_ticks = 0;
+        } else {
+            session.missing_process_ticks = session.missing_process_ticks.saturating_add(1);
+        }
+        session.tracked_pid = matched_pid;
 
-                if session.require_focus && !session.is_focused {
-                    session.pause_reason = Some("UNFOCUSED".to_string());
-                } else if ram_step_mb < 40 && session.baseline_ram_bytes > 0 {
-                    // Player exited world back to Main Menu
-                    session.pause_reason = Some("MAIN_MENU".to_string());
-                } else if game_paused_key {
-                    // Player pressed Esc (Pause Menu) or 0/P/~ (Paused simulation speed)
-                    session.pause_reason = Some("GAME_PAUSED".to_string());
-                } else if session.current_idle_seconds > session.max_idle_seconds {
-                    session.pause_reason = Some("IDLE".to_string());
-                } else {
-                    session.pause_reason = None;
-                    session.elapsed_active_seconds = (session.elapsed_active_seconds + dt)
-                        .min(session.required_active_seconds);
-                }
+        if best_ram > 0 {
+            session.current_ram_bytes = best_ram;
+            session.cumulative_disk_read_bytes = best_disk_read;
+            session.cumulative_disk_write_bytes = best_disk_write;
+            if best_ram > session.peak_ram_bytes {
+                session.peak_ram_bytes = best_ram;
+            }
+        }
 
-                if session.elapsed_active_seconds >= session.required_active_seconds {
-                    if session.require_save_checkpoint {
-                        session.stage = "AWAITING_SAVE".to_string();
-                        session.pause_reason = None;
-                        session.awaiting_save_since_epoch = Some(now);
-                        session.initial_save_mtimes = snapshot_save_mtimes(
-                            &session.docs_dir,
-                            &session.save_targets,
-                            &session.save_extensions,
-                        );
-                        session.verified_save_name = None;
-                        if !session.notified_awaiting_save {
-                            session.notified_awaiting_save = true;
-                            spawn_or_refresh_lab_overlay(&app);
-                            notify_player_over_game(
-                                &app,
-                                "Sanctuary Lab — Test Timer Complete (0:00)!",
-                                "Active simulation timer finished! Save your game now (Esc -> Save) to verify save serialization and unlock publishing.",
-                                false,
-                            );
+        let (focused, idle_secs) =
+            get_os_focus_and_idle(matched_pid, &session.sys, &session.executable_names);
+        session.is_focused = focused;
+        session.current_idle_seconds = idle_secs;
+        if focused {
+            session.last_focused_epoch = now;
+        }
+
+        let disk_rate_mb = session
+            .cumulative_disk_read_bytes
+            .saturating_sub(session.prev_disk_read_bytes)
+            / (1024 * 1024);
+        let ram_diff_bytes = session.current_ram_bytes.abs_diff(session.prev_ram_bytes);
+        session.prev_ram_bytes = session.current_ram_bytes;
+        session.prev_disk_read_bytes = session.cumulative_disk_read_bytes;
+
+        // 3. Evaluate universal, engine-agnostic 4-stage pipeline
+        match session.stage.as_str() {
+            "BOOTING" => {
+                // Support both lightweight 2D/indie engines (>= 4 MB RAM) and heavy 3D engines
+                if matched_pid.is_some() && session.current_ram_bytes >= 4 * 1024 * 1024 {
+                    let boot_epoch = *session.boot_detected_epoch.get_or_insert(now);
+                    let boot_elapsed = now.saturating_sub(boot_epoch);
+
+                    if boot_elapsed >= session.stabilize_boot_seconds as u64 {
+                        let plateau_ram_tol =
+                            (session.current_ram_bytes / 25).max(8 * 1024 * 1024);
+                        if disk_rate_mb <= 4 && ram_diff_bytes <= plateau_ram_tol {
+                            session.boot_plateau_ticks += 1;
+                        } else {
+                            session.boot_plateau_ticks = 0;
                         }
+
+                        if session.boot_plateau_ticks >= 3 || boot_elapsed >= 40 {
+                            session.baseline_ram_bytes = session.current_ram_bytes;
+                            session.baseline_disk_read_bytes = session.cumulative_disk_read_bytes;
+                            let (snaps, seeded_sz) = snapshot_save_slots(
+                                &session.docs_dir,
+                                &session.save_targets,
+                                &session.save_extensions,
+                            );
+                            session.initial_save_snapshots = snaps;
+                            if seeded_sz.is_some() {
+                                session.seeded_baseline_save_size = seeded_sz;
+                            }
+                            session.menu_entered_epoch = Some(now);
+                            session.menu_active_input_seconds = 0;
+                            session.stage = "MENU_WAITING".to_string();
+                        }
+                    }
+                } else if matched_pid.is_none()
+                    && session.boot_detected_epoch.is_some()
+                    && session.missing_process_ticks >= 6
+                    && now.saturating_sub(session.started_at_epoch) > 45
+                {
+                    session.stage = "FAILED".to_string();
+                    session.error_log = Some(
+                        "Game process exited during startup before reaching the Main Menu."
+                            .to_string(),
+                    );
+                }
+            }
+            "MENU_WAITING" => {
+                if matched_pid.is_none()
+                    && session.missing_process_ticks >= 4
+                    && now.saturating_sub(session.started_at_epoch) > 35
+                {
+                    session.stage = "FAILED".to_string();
+                    session.error_log = Some(
+                        "Game process terminated on Main Menu before entering a loaded world."
+                            .to_string(),
+                    );
+                } else if matched_pid.is_some() {
+                    let disk_delta_bytes = session
+                        .cumulative_disk_read_bytes
+                        .saturating_sub(session.baseline_disk_read_bytes);
+                    let ram_step_bytes = session
+                        .current_ram_bytes
+                        .saturating_sub(session.baseline_ram_bytes);
+                    let ram_step_pct = if session.baseline_ram_bytes > 0
+                        && session.current_ram_bytes > session.baseline_ram_bytes
+                    {
+                        (((session.current_ram_bytes - session.baseline_ram_bytes) * 100)
+                            / session.baseline_ram_bytes) as u32
                     } else {
-                        let cert = LabVerificationCertificate {
-                            dna_hash: session.dna_hash.clone(),
-                            mod_name: session.mod_name.clone(),
-                            verified_at: now,
-                            active_seconds: session.elapsed_active_seconds,
-                            baseline_ram_mb: session.baseline_ram_bytes / (1024 * 1024),
-                            peak_ram_mb: session.peak_ram_bytes / (1024 * 1024),
-                            disk_read_mb: session
-                                .cumulative_disk_read_bytes
-                                .saturating_sub(session.baseline_disk_read_bytes)
-                                / (1024 * 1024),
-                            save_file_verified: "checkpoint_bypassed_by_schema".to_string(),
-                        };
-                        persist_certificate_to_vault(&session.vault_path, &cert);
-                        session.certificate = Some(cert);
-                        session.stage = "VERIFIED".to_string();
-                        if !session.notified_verified {
-                            session.notified_verified = true;
-                            notify_player_over_game(
-                                &app,
-                                "Sanctuary Lab — Verification Passed & Signed!",
-                                "SHA-256 certificate recorded. You may now safely exit the game.",
-                                false,
+                        0
+                    };
+                    let scratch_active = check_scratch_activity(
+                        &session.docs_dir,
+                        &session.scratch_subdirs,
+                        session
+                            .boot_detected_epoch
+                            .unwrap_or(session.started_at_epoch)
+                            + 8,
+                    );
+
+                    // Scale world-load Disk & RAM thresholds proportionally to engine baseline footprint
+                    let configured_disk_bytes = session.min_disk_read_mb * 1024 * 1024;
+                    let scaled_disk_target_bytes = configured_disk_bytes
+                        .min((session.baseline_ram_bytes / 3).max(2 * 1024 * 1024));
+                    let scaled_ram_abs_target_bytes = (session.baseline_ram_bytes / 5)
+                        .clamp(8 * 1024 * 1024, 180 * 1024 * 1024);
+
+                    let primary_world_loaded = disk_delta_bytes >= scaled_disk_target_bytes
+                        && (ram_step_pct >= session.min_ram_step_percent
+                            || ram_step_bytes >= scaled_ram_abs_target_bytes);
+                    let warm_cache_loaded = ram_step_pct >= session.warm_cache_ram_step_percent
+                        || (scratch_active
+                            && (ram_step_pct >= 10
+                                || ram_step_bytes >= (scaled_ram_abs_target_bytes / 2)));
+
+                    // Fallback for lightweight 2D engines or preloaded/memory-opaque games:
+                    // requires continuous focused active player input (idle <= 4s), never triggering on AFK menu sitting.
+                    if (!session.require_focus || session.is_focused)
+                        && !matched_process_stopped
+                        && session.current_idle_seconds <= 4
+                    {
+                        session.menu_active_input_seconds =
+                            session.menu_active_input_seconds.saturating_add(dt);
+                    }
+                    let preloaded_engine_world_active = (session.menu_active_input_seconds >= 20
+                        && (ram_step_pct >= 5
+                            || disk_delta_bytes >= 512 * 1024
+                            || scratch_active))
+                        || session.menu_active_input_seconds >= 30;
+
+                    if primary_world_loaded || warm_cache_loaded || preloaded_engine_world_active {
+                        if disk_rate_mb <= 15 {
+                            if !session.deployed_payload_fingerprints.is_empty() {
+                                if let Err(tamper_err) = verify_deployed_payload_intact(
+                                    &session.deployed_payload_fingerprints,
+                                ) {
+                                    session.stage = "FAILED".to_string();
+                                    session.error_log = Some(tamper_err);
+                                    return Ok(Some(build_session_status(session)));
+                                }
+                            }
+                            let (snaps, seeded_sz) = snapshot_save_slots(
+                                &session.docs_dir,
+                                &session.save_targets,
+                                &session.save_extensions,
                             );
+                            session.initial_save_snapshots = snaps;
+                            if seeded_sz.is_some() {
+                                session.seeded_baseline_save_size = seeded_sz;
+                            }
+                            session.peak_world_ram_delta_bytes = ram_step_bytes;
+                            session.stage = "ACTIVE_TESTING".to_string();
+                            session.pause_reason = None;
                         }
-                        stop_windows_pause_key_watcher();
                     }
                 }
             }
-        }
-        "AWAITING_SAVE" => {
-            if matched_pid.is_none() && session.save_detected_epoch.is_none() {
-                session.stage = "FAILED".to_string();
-                session.error_log = Some(
-                    "Game closed before triggering an in-game Save Checkpoint.".to_string(),
-                );
-                stop_windows_pause_key_watcher();
-            } else {
-                if session.save_detected_epoch.is_none() {
-                    if let Some(sname) = detect_new_save_file(
+            "ACTIVE_TESTING" => {
+                if matched_pid.is_none() && session.missing_process_ticks >= 2 {
+                    session.stage = "FAILED".to_string();
+                    session.error_log = Some(
+                        "Game process exited prematurely before completing active gameplay verification."
+                            .to_string(),
+                    );
+                } else if matched_pid.is_some() {
+                    let current_world_delta = session
+                        .current_ram_bytes
+                        .saturating_sub(session.baseline_ram_bytes);
+                    if current_world_delta > session.peak_world_ram_delta_bytes {
+                        session.peak_world_ram_delta_bytes = current_world_delta;
+                    }
+
+                    // Adaptive unload-to-menu check: only triggers when world loading added >= 64 MB
+                    // and > 80% of that world allocation was freed back to the Main Menu.
+                    let unloaded_back_to_menu = session.peak_world_ram_delta_bytes
+                        >= 64 * 1024 * 1024
+                        && current_world_delta < (session.peak_world_ram_delta_bytes / 5);
+
+                    if matched_process_stopped {
+                        session.pause_reason = Some("GAME_PAUSED".to_string());
+                    } else if session.require_focus && !session.is_focused {
+                        session.pause_reason = Some("UNFOCUSED".to_string());
+                    } else if unloaded_back_to_menu {
+                        session.pause_reason = Some("MAIN_MENU".to_string());
+                    } else if session.current_idle_seconds > session.max_idle_seconds {
+                        session.pause_reason = Some("IDLE".to_string());
+                    } else {
+                        session.pause_reason = None;
+                        session.elapsed_active_seconds = (session.elapsed_active_seconds + dt)
+                            .min(session.required_active_seconds);
+                    }
+
+                    if session.elapsed_active_seconds >= session.required_active_seconds {
+                        if !session.deployed_payload_fingerprints.is_empty() {
+                            if let Err(tamper_err) = verify_deployed_payload_intact(
+                                &session.deployed_payload_fingerprints,
+                            ) {
+                                session.stage = "FAILED".to_string();
+                                session.error_log = Some(tamper_err);
+                                return Ok(Some(build_session_status(session)));
+                            }
+                        }
+
+                        let must_verify_save =
+                            session.require_save_checkpoint && !session.save_targets.is_empty();
+                        if must_verify_save {
+                            session.stage = "AWAITING_SAVE".to_string();
+                            session.pause_reason = None;
+                            session.awaiting_save_since_epoch = Some(now);
+                            session.awaiting_save_since_ms = current_epoch_millis_u128();
+                            session.stage4_disk_write_bytes = session.cumulative_disk_write_bytes;
+                            let (snaps, seeded_sz) = snapshot_save_slots(
+                                &session.docs_dir,
+                                &session.save_targets,
+                                &session.save_extensions,
+                            );
+                            session.initial_save_snapshots = snaps;
+                            if seeded_sz.is_some() {
+                                session.seeded_baseline_save_size = seeded_sz;
+                            }
+                            session.pending_save_candidate = None;
+                            session.verified_save_name = None;
+
+                            if !session.notified_awaiting_save {
+                                session.notified_awaiting_save = true;
+                                let title = session
+                                    .notification_labels
+                                    .timer_complete_title
+                                    .as_deref()
+                                    .filter(|s| !s.trim().is_empty())
+                                    .unwrap_or("Lab Timer Complete — Save Now!");
+                                let body = session
+                                    .notification_labels
+                                    .timer_complete_body
+                                    .as_deref()
+                                    .filter(|s| !s.trim().is_empty())
+                                    .unwrap_or("Active gameplay timer finished! Save your game in-world now to verify non-corrupted save serialization.");
+                                notify_player_over_game(&app, title, body, false);
+                            }
+                        } else {
+                            let cert = LabVerificationCertificate {
+                                dna_hash: session.dna_hash.clone(),
+                                mod_name: session.mod_name.clone(),
+                                verified_at: now,
+                                active_seconds: session.elapsed_active_seconds,
+                                baseline_ram_mb: session.baseline_ram_bytes / (1024 * 1024),
+                                peak_ram_mb: session.peak_ram_bytes / (1024 * 1024),
+                                disk_read_mb: session
+                                    .cumulative_disk_read_bytes
+                                    .saturating_sub(session.baseline_disk_read_bytes)
+                                    / (1024 * 1024),
+                                save_file_verified: "no_save_targets_in_schema".to_string(),
+                            };
+                            persist_certificate_to_vault(&session.vault_path, &cert);
+                            session.certificate = Some(cert);
+                            session.stage = "VERIFIED".to_string();
+                            if !session.notified_verified {
+                                session.notified_verified = true;
+                                let title = session
+                                    .notification_labels
+                                    .verified_title
+                                    .as_deref()
+                                    .filter(|s| !s.trim().is_empty())
+                                    .unwrap_or("Lab Verification Passed & Signed!");
+                                let body = session
+                                    .notification_labels
+                                    .verified_body
+                                    .as_deref()
+                                    .filter(|s| !s.trim().is_empty())
+                                    .unwrap_or("SHA-256 verification certificate recorded! You may now safely close the game.");
+                                notify_player_over_game(&app, title, body, false);
+                            }
+                        }
+                    }
+                }
+            }
+            "AWAITING_SAVE" => {
+                // Try detecting a fresh post-Stage-4 save write if none is currently staged
+                if session.pending_save_candidate.is_none() {
+                    if let Some(cand) = detect_fresh_save_candidate(
                         &session.docs_dir,
                         &session.save_targets,
                         &session.save_extensions,
-                        &session.initial_save_mtimes,
-                        session.awaiting_save_since_epoch.unwrap_or(session.started_at_epoch),
+                        &session.initial_save_snapshots,
+                        session.seeded_baseline_save_size,
+                        session.awaiting_save_since_ms,
                     ) {
-                        session.verified_save_name = Some(sname);
-                        session.save_detected_epoch = Some(now);
+                        // Correlate with real engine activity so external file-copying while unfocused cannot spoof Stage 4
+                        let engine_wrote_bytes =
+                            session.cumulative_disk_write_bytes > session.stage4_disk_write_bytes;
+                        let recently_focused = !session.require_focus
+                            || session.is_focused
+                            || now.saturating_sub(session.last_focused_epoch) <= 15;
+
+                        if engine_wrote_bytes || recently_focused {
+                            session.verified_save_name = Some(cand.display_name.clone());
+                            session.pending_save_candidate = Some(cand);
+                        }
                     }
                 }
 
-                if let Some(save_epoch) = session.save_detected_epoch {
-                    // Wait 2 seconds after save to confirm serialization didn't crash the engine
-                    if now.saturating_sub(save_epoch) >= 2 {
-                        let cert = LabVerificationCertificate {
-                            dna_hash: session.dna_hash.clone(),
-                            mod_name: session.mod_name.clone(),
-                            verified_at: now,
-                            active_seconds: session.elapsed_active_seconds,
-                            baseline_ram_mb: session.baseline_ram_bytes / (1024 * 1024),
-                            peak_ram_mb: session.peak_ram_bytes / (1024 * 1024),
-                            disk_read_mb: session
-                                .cumulative_disk_read_bytes
-                                .saturating_sub(session.baseline_disk_read_bytes)
-                                / (1024 * 1024),
-                            save_file_verified: session
-                                .verified_save_name
-                                .clone()
-                                .unwrap_or_else(|| "checkpoint_verified".to_string()),
-                        };
-                        persist_certificate_to_vault(&session.vault_path, &cert);
-                        session.certificate = Some(cert);
-                        session.stage = "VERIFIED".to_string();
-                        if !session.notified_verified {
-                            session.notified_verified = true;
-                            notify_player_over_game(
-                                &app,
-                                "Sanctuary Lab — Verification Passed & Signed!",
-                                "Save checkpoint verified and SHA-256 certificate recorded! You may now safely exit the game.",
-                                false,
-                            );
+                if matched_pid.is_none()
+                    && session.pending_save_candidate.is_none()
+                    && session.missing_process_ticks >= 2
+                {
+                    session.stage = "FAILED".to_string();
+                    session.error_log = Some(
+                        "Game closed before writing an in-game Save Checkpoint.".to_string(),
+                    );
+                } else if let Some(mut cand) = session.pending_save_candidate.clone() {
+                    // Wait for temporary serialization files (.tmp/.part/.savetmp/-journal) to settle
+                    let temp_inflight =
+                        has_inflight_temporary_save_files(&session.docs_dir, &session.save_targets);
+
+                    // Check if the candidate save is still growing/updating across polls
+                    let current_stat: Option<(u64, u128)> = if cand.path.is_dir() {
+                        compute_dir_save_slot_snapshot(&cand.path)
+                            .map(|s| (s.size_bytes, s.mtime_ms))
+                    } else {
+                        std::fs::metadata(&cand.path)
+                            .ok()
+                            .map(|m| (m.len(), file_mtime_millis(&m)))
+                    };
+
+                    match current_stat {
+                        None => {
+                            // Candidate vanished (e.g. engine rolled back a failed temporary save)
+                            session.pending_save_candidate = None;
+                            session.verified_save_name = None;
+                            if matched_pid.is_none() && session.missing_process_ticks >= 2 {
+                                session.stage = "FAILED".to_string();
+                                session.error_log = Some(
+                                    "Game exited and save checkpoint rolled back before completion."
+                                        .to_string(),
+                                );
+                            }
                         }
-                        stop_windows_pause_key_watcher();
+                        Some((cur_sz, cur_ms)) => {
+                            if cur_sz != cand.observed_size_bytes
+                                || cur_ms != cand.observed_mtime_ms
+                            {
+                                // Save serialization is still flushing blocks to disk; reset stabilization clock
+                                cand.observed_size_bytes = cur_sz;
+                                cand.observed_mtime_ms = cur_ms;
+                                cand.detected_epoch = now;
+                                session.pending_save_candidate = Some(cand);
+                            } else if !temp_inflight && now.saturating_sub(cand.detected_epoch) >= 3
+                            {
+                                // Final crash/exception sweep + deployed payload check + save corruption audit
+                                if let Some(err_msg) =
+                                    scan_logs_sync(&session.docs_dir, &game_schema)
+                                {
+                                    session.stage = "FAILED".to_string();
+                                    session.error_log = Some(err_msg.clone());
+                                    if !session.notified_failed {
+                                        session.notified_failed = true;
+                                        let failed_title = session
+                                            .notification_labels
+                                            .failed_title
+                                            .as_deref()
+                                            .filter(|s| !s.trim().is_empty())
+                                            .unwrap_or("Lab Simulation Failed");
+                                        notify_player_over_game(&app, failed_title, &err_msg, true);
+                                    }
+                                    return Ok(Some(build_session_status(session)));
+                                }
+
+                                if !session.deployed_payload_fingerprints.is_empty() {
+                                    if let Err(tamper_err) = verify_deployed_payload_intact(
+                                        &session.deployed_payload_fingerprints,
+                                    ) {
+                                        session.stage = "FAILED".to_string();
+                                        session.error_log = Some(tamper_err);
+                                        return Ok(Some(build_session_status(session)));
+                                    }
+                                }
+
+                                match audit_save_file_corruption(&cand.path, cand.prev_size_bytes) {
+                                    Ok(_verified_bytes) => {
+                                        if let Some(saves_parent) = cand.path.parent() {
+                                            let _ = crate::utils::atomic_write_bytes(
+                                                &saves_parent.join(".sanctuary_seeded_save"),
+                                                cand.display_name.as_bytes(),
+                                            );
+                                        }
+                                        let cert = LabVerificationCertificate {
+                                            dna_hash: session.dna_hash.clone(),
+                                            mod_name: session.mod_name.clone(),
+                                            verified_at: now,
+                                            active_seconds: session.elapsed_active_seconds,
+                                            baseline_ram_mb: session.baseline_ram_bytes
+                                                / (1024 * 1024),
+                                            peak_ram_mb: session.peak_ram_bytes / (1024 * 1024),
+                                            disk_read_mb: session
+                                                .cumulative_disk_read_bytes
+                                                .saturating_sub(session.baseline_disk_read_bytes)
+                                                / (1024 * 1024),
+                                            save_file_verified: cand.display_name.clone(),
+                                        };
+                                        persist_certificate_to_vault(&session.vault_path, &cert);
+                                        session.verified_save_name = Some(cand.display_name);
+                                        session.certificate = Some(cert);
+                                        session.stage = "VERIFIED".to_string();
+                                        if !session.notified_verified {
+                                            session.notified_verified = true;
+                                            let title = session
+                                                .notification_labels
+                                                .verified_title
+                                                .as_deref()
+                                                .filter(|s| !s.trim().is_empty())
+                                                .unwrap_or("Lab Verification Passed & Signed!");
+                                            let body = session
+                                                .notification_labels
+                                                .verified_body
+                                                .as_deref()
+                                                .filter(|s| !s.trim().is_empty())
+                                                .unwrap_or("Save checkpoint verified without corruption! You may now safely close the game.");
+                                            notify_player_over_game(&app, title, body, false);
+                                        }
+                                    }
+                                    Err(corrupt_reason) => {
+                                        session.stage = "FAILED".to_string();
+                                        session.error_log = Some(corrupt_reason.clone());
+                                        if !session.notified_failed {
+                                            session.notified_failed = true;
+                                            let failed_title = session
+                                                .notification_labels
+                                                .failed_title
+                                                .as_deref()
+                                                .filter(|s| !s.trim().is_empty())
+                                                .unwrap_or("Lab Save Integrity Failed");
+                                            notify_player_over_game(
+                                                &app,
+                                                failed_title,
+                                                &corrupt_reason,
+                                                true,
+                                            );
+                                        }
+                                    }
+                                }
+                            } else if temp_inflight
+                                && matched_pid.is_none()
+                                && session.missing_process_ticks >= 3
+                            {
+                                // Engine terminated while temporary serialization files were still open!
+                                session.stage = "FAILED".to_string();
+                                session.error_log = Some(
+                                    "Game crashed or exited mid-serialization while temporary save files were still open."
+                                        .to_string(),
+                                );
+                            }
+                        }
                     }
                 }
             }
+            _ => {}
         }
-        _ => {}
-    }
 
         Ok(Some(build_session_status(session)))
     })
@@ -3955,7 +5743,6 @@ pub async fn poll_lab_verification_session(
 
 #[tauri::command]
 pub async fn stop_lab_verification_session(app: tauri::AppHandle) -> Result<(), String> {
-    stop_windows_pause_key_watcher();
     close_lab_overlay(&app);
     if let Ok(mut guard) = get_lab_session_mutex().lock() {
         *guard = None;
@@ -3973,7 +5760,9 @@ pub fn get_lab_certificates(vault_path: String) -> Result<Vec<LabVerificationCer
         .lock()
         .map_err(|_| "Failed to lock Vault SQLite connection.".to_string())?;
     let mut certs = Vec::new();
-    if let Ok(mut stmt) = conn.prepare("SELECT cert_json FROM lab_certificates ORDER BY verified_at DESC") {
+    if let Ok(mut stmt) =
+        conn.prepare("SELECT cert_json FROM lab_certificates ORDER BY verified_at DESC")
+    {
         if let Ok(rows) = stmt.query_map([], |row| row.get::<_, String>(0)) {
             for r in rows.flatten() {
                 if let Ok(cert) = serde_json::from_str::<LabVerificationCertificate>(&r) {
@@ -3986,12 +5775,241 @@ pub fn get_lab_certificates(vault_path: String) -> Result<Vec<LabVerificationCer
 }
 
 #[tauri::command]
+pub fn verify_lab_certificate_exists(vault_path: String, dna_hash: String) -> Result<bool, String> {
+    let clean_hash = dna_hash.trim();
+    if vault_path.trim().is_empty() || clean_hash.is_empty() {
+        return Ok(false);
+    }
+    let conn_arc = crate::utils::open_db_conn(&vault_path)?;
+    let conn = conn_arc
+        .lock()
+        .map_err(|_| "Failed to lock Vault SQLite connection.".to_string())?;
+    let cert_json: Option<String> = conn
+        .query_row(
+            "SELECT cert_json FROM lab_certificates WHERE dna_hash = ?1",
+            rusqlite::params![clean_hash],
+            |row| row.get(0),
+        )
+        .ok();
+    if let Some(raw) = cert_json {
+        if let Ok(cert) = serde_json::from_str::<LabVerificationCertificate>(&raw) {
+            return Ok(cert.active_seconds >= 15 && !cert.save_file_verified.trim().is_empty());
+        }
+    }
+    Ok(false)
+}
+
+#[tauri::command]
 pub fn record_lab_certificate(
     vault_path: String,
     certificate: LabVerificationCertificate,
 ) -> Result<(), String> {
-    persist_certificate_to_vault(&vault_path, &certificate);
+    // Only allow persisting certificates that were genuinely issued by the Rust Lab Verification Engine
+    let authorized = get_lab_session_mutex()
+        .lock()
+        .ok()
+        .and_then(|g| {
+            g.as_ref().and_then(|s| {
+                if s.stage == "VERIFIED" && s.dna_hash == certificate.dna_hash {
+                    s.certificate.clone()
+                } else {
+                    None
+                }
+            })
+        });
+    let Some(signed_cert) = authorized else {
+        return Err("Refused to record unsigned Lab certificate.".to_string());
+    };
+    persist_certificate_to_vault(&vault_path, &signed_cert);
     Ok(())
 }
+
+#[cfg(test)]
+mod lab_safety_tests {
+    use super::*;
+
+    fn make_test_schema(save_folders: Vec<&str>, save_exts: Vec<&str>) -> Option<crate::schema::GameSchema> {
+        let json = serde_json::json!({
+            "id": "unit_test_engine",
+            "game_id": "unit_test_engine",
+            "display_name": "Unit Test Engine",
+            "executable_names": [],
+            "time_capsule": {
+                "save_airgap_targets": save_folders,
+                "world_state_targets": [],
+                "engine_state_targets": []
+            },
+            "lab_verification": {
+                "required_active_seconds": 60,
+                "require_focus": true,
+                "require_save_checkpoint": true,
+                "save_extensions": save_exts
+            }
+        });
+        Some(serde_json::from_value(json).expect("valid test schema"))
+    }
+
+    #[test]
+    fn test_dual_vault_airgap_evacuates_mirrors_and_heals_external_tampering() {
+        let base = std::env::temp_dir().join(format!(
+            "sanctuary_airgap_test_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let docs_dir = base.join("UserData");
+        let vault_dir = base.join("Vault");
+        let live_saves = docs_dir.join("SaveSlots");
+        std::fs::create_dir_all(&live_saves).unwrap();
+        std::fs::create_dir_all(&vault_dir).unwrap();
+
+        let original_save_bytes = b"{\"world\":\"PreciousUserCampaign\",\"playtime_hours\":412,\"gold\":999999}";
+        let live_slot_path = live_saves.join("campaign_01.json");
+        std::fs::write(&live_slot_path, original_save_bytes).unwrap();
+
+        // Include case-variant duplicate targets ("SaveSlots" + "saveslots") to verify zero double-swap!
+        let schema = make_test_schema(vec!["SaveSlots", "saveslots"], vec![".json"]);
+
+        apply_save_airgap_with_vault(
+            &docs_dir.to_string_lossy(),
+            Some(&vault_dir.to_string_lossy()),
+            true,
+            &schema,
+        )
+        .expect("Airgap enable must succeed");
+
+        // Live folder is now an isolated sandbox; original save is NOT in live folder
+        assert!(live_saves.join(".sanctuary_sandbox_marker").exists());
+        assert!(!live_saves.join("campaign_01.json").exists());
+
+        // Write a sandbox test save inside the live folder during test
+        std::fs::write(
+            live_saves.join("sandbox_run.json"),
+            b"{\"world\":\"DisposableLabSandboxRun\"}",
+        )
+        .unwrap();
+
+        // Simulate catastrophic user/external interference: delete the local .sanctuary_lab_airgap save folder!
+        let local_airgap_target = docs_dir.join(".sanctuary_lab_airgap").join("SaveSlots");
+        set_tree_readonly(&local_airgap_target, false);
+        std::fs::remove_dir_all(&local_airgap_target).unwrap();
+        assert!(!local_airgap_target.exists());
+
+        // Also delete .sanctuary_sandbox_marker and re-invoke enable=true to ensure it STILL refuses to overwrite the Vault mirror!
+        let _ = std::fs::remove_file(live_saves.join(".sanctuary_sandbox_marker"));
+        apply_save_airgap_with_vault(
+            &docs_dir.to_string_lossy(),
+            Some(&vault_dir.to_string_lossy()),
+            true,
+            &schema,
+        )
+        .expect("Idempotent airgap re-enable must succeed safely");
+
+        // Now disable airgap: must self-heal from external Vault mirror and restore campaign_01.json byte-for-byte!
+        apply_save_airgap_with_vault(
+            &docs_dir.to_string_lossy(),
+            Some(&vault_dir.to_string_lossy()),
+            false,
+            &schema,
+        )
+        .expect("Airgap restore must self-heal from Vault mirror");
+
+        let restored = std::fs::read(live_saves.join("campaign_01.json"))
+            .expect("Original campaign save must be restored");
+        assert_eq!(restored.as_slice(), original_save_bytes);
+        assert!(!live_saves.join(".sanctuary_sandbox_marker").exists());
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_crash_stranded_airgap_recovery_from_stale_instance() {
+        let base = std::env::temp_dir().join(format!(
+            "sanctuary_crash_rec_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let docs_dir = base.join("UserData");
+        let vault_dir = base.join("Vault");
+        let live_saves = docs_dir.join("Profiles");
+        std::fs::create_dir_all(&live_saves).unwrap();
+        std::fs::create_dir_all(&vault_dir).unwrap();
+
+        let payload = vec![0x42u8; 8192];
+        std::fs::write(live_saves.join("slot_alpha"), &payload).unwrap();
+
+        // Generic schema with empty save_extensions = [] (extensionless save files!)
+        let schema = make_test_schema(vec!["Profiles"], vec![]);
+
+        apply_save_airgap_with_vault(
+            &docs_dir.to_string_lossy(),
+            Some(&vault_dir.to_string_lossy()),
+            true,
+            &schema,
+        )
+        .unwrap();
+
+        // Simulate OS reboot / crashed previous app session by stamping a stale runtime instance_id
+        let marker_file = docs_dir
+            .join(".sanctuary_lab_airgap")
+            .join(".airgap_active.json");
+        std::fs::write(
+            &marker_file,
+            r#"{"active":true,"instance_id":"crashed-old-os-boot-uuid","targets":["Profiles"]}"#,
+        )
+        .unwrap();
+
+        let report = recover_stranded_airgap_if_needed(
+            &docs_dir,
+            &vault_dir.to_string_lossy(),
+            &schema,
+        )
+        .expect("Stranded crash recovery must succeed");
+        assert!(report.recovered);
+        assert_eq!(
+            std::fs::read(live_saves.join("slot_alpha")).unwrap(),
+            payload
+        );
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_save_corruption_audit_catches_truncation_nulls_and_broken_containers() {
+        let dir = std::env::temp_dir().join(format!(
+            "sanctuary_save_audit_{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // 1. Null-zeroed crash file -> rejected
+        let null_save = dir.join("crashed_zero.bin");
+        std::fs::write(&null_save, vec![0u8; 4096]).unwrap();
+        assert!(audit_save_file_corruption(&null_save, None).is_err());
+
+        // 2. Truncated JSON save (missing closing brace) -> rejected
+        let bad_json = dir.join("truncated.json");
+        std::fs::write(&bad_json, b"{\"player\":\"Hero\",\"inventory\":[\"sword\",\"shield\"").unwrap();
+        assert!(audit_save_file_corruption(&bad_json, None).is_err());
+
+        // 3. Valid JSON save -> accepted
+        let good_json = dir.join("valid.json");
+        std::fs::write(&good_json, b"{\"player\":\"Hero\",\"inventory\":[\"sword\",\"shield\"]}\n").unwrap();
+        assert!(audit_save_file_corruption(&good_json, None).is_ok());
+
+        // 4. Truncated ZIP container (PK\x03\x04 without PK\x05\x06 EOCD) -> rejected
+        let bad_zip = dir.join("truncated_world.sav");
+        let mut fake_zip = b"PK\x03\x04".to_vec();
+        fake_zip.extend_from_slice(&[0x14; 128]);
+        std::fs::write(&bad_zip, &fake_zip).unwrap();
+        assert!(audit_save_file_corruption(&bad_zip, None).is_err());
+
+        // 5. Catastrophic size collapse (< 25% of >= 4KB baseline) -> rejected
+        let collapsed = dir.join("collapsed.bin");
+        std::fs::write(&collapsed, &[0xAB; 512]).unwrap();
+        assert!(audit_save_file_corruption(&collapsed, Some(32_768)).is_err());
+        assert!(audit_save_file_corruption(&collapsed, Some(600)).is_ok());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
 
 
