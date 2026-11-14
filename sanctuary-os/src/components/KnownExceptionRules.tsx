@@ -60,8 +60,6 @@ export function normalizeRuleSeverity(rule: Partial<SchemaExceptionRule>): Norma
 }
 
 function resolveDefaultExceptionFileHint(schema?: any): string {
-  const firstRuleHint = schema?.exception_rules?.find((r: any) => r?.file_hint)?.file_hint;
-  if (firstRuleHint) return String(firstRuleHint);
   const firstLog = schema?.exception_logs?.[0];
   if (firstLog) {
     if (typeof firstLog === "string") return firstLog;
@@ -77,51 +75,150 @@ function normalizeSchemaRulesList(rules: SchemaExceptionRule[]): SchemaException
   return rules.map((r) => {
     const normSev = normalizeRuleSeverity(r);
     return {
-      ...r,
+      id: String(r.id || ""),
+      title: String(r.title || ""),
+      pattern: String(r.pattern || ""),
+      file_hint: r.file_hint ? String(r.file_hint) : undefined,
       raw_log: r.raw_log || "",
       severity: normSev,
+      diagnosis: String(r.diagnosis || ""),
+      resolution: String(r.resolution || ""),
       ignore_in_lab: normSev === "unrelated" ? true : Boolean(r.ignore_in_lab),
       pinned: typeof r.pinned === "boolean" ? r.pinned : undefined,
       pinned_order: typeof r.pinned_order === "number" ? r.pinned_order : undefined,
+      enabled: r.enabled !== false,
     };
   });
+}
+
+const SPOKE_RULES_MEMORY_CACHE: Record<string, SchemaExceptionRule[]> = {};
+const SPOKE_RULES_INFLIGHT: Record<string, Promise<SchemaExceptionRule[]> | undefined> = {};
+const SPOKE_RULES_HYDRATED: Record<string, boolean> = {};
+
+function resolveActiveRulesScopeKey(activeGameSchema?: any): string {
+  const storeState = useStore.getState();
+  const rawWorkspaceId = String(storeState.activeWorkspaceId || "").trim();
+  if (rawWorkspaceId && rawWorkspaceId !== "default_workspace") {
+    return rawWorkspaceId.toLowerCase();
+  }
+  const schema =
+    activeGameSchema && !Array.isArray(activeGameSchema)
+      ? activeGameSchema
+      : storeState.activeGameSchema;
+  return String(schema?.id || schema?.game_id || "default_schema")
+    .trim()
+    .toLowerCase();
+}
+
+function syncRulesToRustRuntime(rules: SchemaExceptionRule[]) {
+  if (!isDesktop()) return;
+  const currentSchema = useStore.getState().activeGameSchema || {};
+  invoke("update_active_game_schema", {
+    schema: { ...currentSchema, exception_rules: rules },
+  }).catch(() => {});
+}
+
+export async function loadExceptionRulesFromSpoke(
+  activeGameSchema?: any
+): Promise<SchemaExceptionRule[]> {
+  const scopeKey = resolveActiveRulesScopeKey(activeGameSchema);
+  if (
+    !hasActiveGameDatabase() ||
+    !scopeKey ||
+    scopeKey === "default_schema" ||
+    scopeKey === "default"
+  ) {
+    return [];
+  }
+
+  if (SPOKE_RULES_INFLIGHT[scopeKey]) {
+    return SPOKE_RULES_INFLIGHT[scopeKey]!;
+  }
+
+  const task = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from("known_exception_rules")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (!error && Array.isArray(data)) {
+        const normalized = normalizeSchemaRulesList(data as SchemaExceptionRule[]);
+        SPOKE_RULES_MEMORY_CACHE[scopeKey] = normalized;
+        SPOKE_RULES_HYDRATED[scopeKey] = true;
+        try {
+          localStorage.setItem(
+            `sanctuary_exception_rules_${scopeKey}`,
+            JSON.stringify(normalized)
+          );
+        } catch {}
+        syncRulesToRustRuntime(normalized);
+        window.dispatchEvent(new CustomEvent("sanctuary-exception-rules-updated"));
+        return normalized;
+      }
+    } catch (e) {
+      console.warn("Failed to fetch known_exception_rules from Spoke database:", e);
+    } finally {
+      delete SPOKE_RULES_INFLIGHT[scopeKey];
+    }
+
+    return SPOKE_RULES_MEMORY_CACHE[scopeKey] || [];
+  })();
+
+  SPOKE_RULES_INFLIGHT[scopeKey] = task;
+  return task;
 }
 
 export function getExceptionRules(activeGameSchema?: any): SchemaExceptionRule[] {
   if (Array.isArray(activeGameSchema)) {
     return activeGameSchema.length > 0 ? normalizeSchemaRulesList(activeGameSchema) : [];
   }
-  const storeState = useStore.getState();
-  const schema =
-    activeGameSchema && !Array.isArray(activeGameSchema)
-      ? activeGameSchema
-      : storeState.activeGameSchema;
-  const rawWorkspaceId = storeState.activeWorkspaceId || "";
-  const schemaId =
-    (rawWorkspaceId && rawWorkspaceId !== "default_workspace" ? rawWorkspaceId : "") ||
-    schema?.id ||
-    schema?.game_id ||
-    "default_schema";
 
-  if (Array.isArray(schema?.exception_rules) && schema.exception_rules.length > 0) {
-    return normalizeSchemaRulesList(schema.exception_rules);
-  }
-
-  if (!hasActiveGameDatabase() && (!schemaId || schemaId === "default_schema" || schemaId === "default")) {
+  const scopeKey = resolveActiveRulesScopeKey(activeGameSchema);
+  if (!scopeKey || scopeKey === "default_schema" || scopeKey === "default") {
     return [];
   }
 
+  if (Array.isArray(SPOKE_RULES_MEMORY_CACHE[scopeKey])) {
+    if (!SPOKE_RULES_HYDRATED[scopeKey] && hasActiveGameDatabase()) {
+      loadExceptionRulesFromSpoke(activeGameSchema).catch(() => {});
+    }
+    return SPOKE_RULES_MEMORY_CACHE[scopeKey];
+  }
+
+  let offlineCached: SchemaExceptionRule[] = [];
   try {
-    const cached = localStorage.getItem(`sanctuary_exception_rules_${schemaId}`);
+    const cached = localStorage.getItem(`sanctuary_exception_rules_${scopeKey}`);
     if (cached) {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return normalizeSchemaRulesList(parsed);
+        offlineCached = normalizeSchemaRulesList(parsed);
+        SPOKE_RULES_MEMORY_CACHE[scopeKey] = offlineCached;
       }
     }
-  } catch { }
+  } catch {}
 
-  return [];
+  if (!SPOKE_RULES_HYDRATED[scopeKey] && hasActiveGameDatabase()) {
+    loadExceptionRulesFromSpoke(activeGameSchema).catch(() => {});
+  }
+
+  return offlineCached;
+}
+
+export function useExceptionRules(activeGameSchema?: any): SchemaExceptionRule[] {
+  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const storeSchema = useStore((s) => s.activeGameSchema);
+  const effectiveSchema = activeGameSchema ?? storeSchema;
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const onUpdated = () => setTick((v) => v + 1);
+    window.addEventListener("sanctuary-exception-rules-updated", onUpdated);
+    loadExceptionRulesFromSpoke(effectiveSchema).catch(() => {});
+    return () => window.removeEventListener("sanctuary-exception-rules-updated", onUpdated);
+  }, [activeWorkspaceId, effectiveSchema?.id]);
+
+  return getExceptionRules(effectiveSchema);
 }
 
 export function matchExceptionRules(
@@ -238,86 +335,80 @@ export async function saveExceptionRulesToSpoke(
   rules: SchemaExceptionRule[],
   activeGameSchema?: any
 ): Promise<void> {
-  const normalizedRules = rules.map((r) => {
-    const sev = normalizeRuleSeverity(r);
-    return {
-      ...r,
-      severity: sev,
-      ignore_in_lab: sev === "unrelated" ? true : !!r.ignore_in_lab,
-      pinned: typeof r.pinned === "boolean" ? r.pinned : undefined,
-      pinned_order: typeof r.pinned_order === "number" ? r.pinned_order : undefined,
-    };
-  });
+  const normalizedRules = normalizeSchemaRulesList(rules);
+  const scopeKey = resolveActiveRulesScopeKey(activeGameSchema);
+  const previousRules = SPOKE_RULES_MEMORY_CACHE[scopeKey] || [];
+  const nextIdSet = new Set(normalizedRules.map((r) => r.id));
+  const deletedIds = previousRules
+    .map((r) => r.id)
+    .filter((id) => Boolean(id) && !nextIdSet.has(id));
 
-  const store = useStore.getState();
-  const currentSchema = activeGameSchema || store.activeGameSchema || {};
-  const schemaId = currentSchema.id || currentSchema.game_id || "default_schema";
-
-  const updatedSchema = {
-    ...currentSchema,
-    exception_rules: normalizedRules,
-  };
+  SPOKE_RULES_MEMORY_CACHE[scopeKey] = normalizedRules;
+  SPOKE_RULES_HYDRATED[scopeKey] = true;
 
   try {
     localStorage.setItem(
-      `sanctuary_exception_rules_${schemaId}`,
+      `sanctuary_exception_rules_${scopeKey}`,
       JSON.stringify(normalizedRules)
     );
-    localStorage.setItem(
-      `sanctuary_master_schema_${schemaId}`,
-      JSON.stringify(updatedSchema)
-    );
-  } catch (e) { }
+  } catch {}
 
-  store.setActiveGameSchema(updatedSchema);
+  syncRulesToRustRuntime(normalizedRules);
 
-  if (isDesktop()) {
-    try {
-      await invoke("update_active_game_schema", { schema: updatedSchema });
-    } catch (e) { }
-  }
+  if (hasActiveGameDatabase()) {
+    const token = useStore.getState().session?.access_token || "";
+    const nowIso = new Date().toISOString();
 
-  try {
-    let { data: existing } = await supabase
-      .from("sanctuary_schemas")
-      .select("id, name, version, schema_data")
-      .eq("id", schemaId)
-      .maybeSingle();
-
-    if (!existing) {
-      const { data: firstRow } = await supabase
-        .from("sanctuary_schemas")
-        .select("id, name, version, schema_data")
-        .limit(1)
-        .maybeSingle();
-      if (firstRow) existing = firstRow;
+    for (const delId of deletedIds) {
+      if (token) {
+        const { error } = await supabase.rpc("secure_delete_cloud_file", {
+          p_token: token,
+          p_target: "known_exception_rules",
+          p_id: delId,
+        });
+        if (error) {
+          console.error("Failed to delete known_exception_rule via RPC:", error);
+        }
+      } else {
+        await supabase.from("known_exception_rules").delete().eq("id", delId);
+      }
     }
 
-    if (existing) {
-      const mergedData = {
-        ...(existing.schema_data || {}),
-        exception_rules: normalizedRules,
-      };
-      await supabase
-        .from("sanctuary_schemas")
-        .update({
-          schema_data: mergedData,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id);
-    } else {
-      await supabase.from("sanctuary_schemas").upsert([
-        {
-          id: schemaId,
-          name: updatedSchema.display_name || updatedSchema.name || schemaId,
-          version: updatedSchema.schema_version || 1,
-          schema_data: updatedSchema,
-          updated_at: new Date().toISOString(),
-        },
-      ]);
+    if (normalizedRules.length > 0) {
+      const dbRows = normalizedRules.map((r) => ({
+        id: r.id,
+        title: r.title,
+        pattern: r.pattern,
+        file_hint: r.file_hint || null,
+        raw_log: r.raw_log || null,
+        severity: r.severity,
+        diagnosis: r.diagnosis || "",
+        resolution: r.resolution || "",
+        ignore_in_lab: Boolean(r.ignore_in_lab),
+        pinned: Boolean(r.pinned),
+        pinned_order: typeof r.pinned_order === "number" ? r.pinned_order : null,
+        enabled: r.enabled !== false,
+        updated_at: nowIso,
+      }));
+
+      if (token) {
+        const { error } = await supabase.rpc("secure_upsert_cloud_file", {
+          p_token: token,
+          p_target: "known_exception_rules",
+          p_payload: dbRows,
+        });
+        if (error) {
+          console.error("Failed to upsert known_exception_rules via RPC:", error);
+          throw error;
+        }
+      } else {
+        const { error } = await supabase.from("known_exception_rules").upsert(dbRows);
+        if (error) {
+          console.error("Failed to upsert known_exception_rules:", error);
+          throw error;
+        }
+      }
     }
-  } catch (e) {
-    console.warn("Could not sync exception_rules to cloud sanctuary_schemas:", e);
   }
 
   window.dispatchEvent(new CustomEvent("sanctuary-exception-rules-updated"));
@@ -680,10 +771,15 @@ export function KnownErrorRuleEditorSidePanel({
       }
       await saveExceptionRulesToSpoke(next, activeGameSchema);
       pushStatus(
-        t("exc_rules_saved_toast", "Known Error Rule saved and synced to Master Schema!"),
+        t("exc_rules_saved_db_toast", "Known Error Rule saved to database."),
         "success"
       );
       onClose();
+    } catch (err: any) {
+      pushStatus(
+        err?.message || t("alert_error", "Error saving:"),
+        "error"
+      );
     } finally {
       setIsSaving(false);
     }
@@ -1644,14 +1740,10 @@ export function KnownErrorRulesManager({
     const refresh = () => {
       const loaded = getExceptionRules(useStore.getState().activeGameSchema);
       setRules(loaded);
-      if (isDesktop()) {
-        const currentSchema = useStore.getState().activeGameSchema || {};
-        invoke("update_active_game_schema", {
-          schema: { ...currentSchema, exception_rules: loaded },
-        }).catch(() => { });
-      }
+      syncRulesToRustRuntime(loaded);
     };
     refresh();
+    loadExceptionRulesFromSpoke(activeGameSchema).catch(() => {});
     window.addEventListener("sanctuary-exception-rules-updated", refresh);
     return () => window.removeEventListener("sanctuary-exception-rules-updated", refresh);
   }, [activeGameSchema]);

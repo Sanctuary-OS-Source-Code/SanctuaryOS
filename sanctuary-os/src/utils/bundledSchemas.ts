@@ -79,7 +79,6 @@ export const BUNDLED_DEFAULT_SCHEMA: Record<string, any> =
       preserve_archive_folder_structure: true,
     },
     install_routes: [],
-    dlc_catalog: [],
     dlc_subdirs: [],
     dlc_file_extensions: [],
     dlc_folder_prefixes: [],
@@ -129,7 +128,6 @@ export const BUNDLED_DEFAULT_SCHEMA: Record<string, any> =
       seed_sandbox_from_latest_save: false,
     },
     exception_logs: [],
-    exception_rules: [],
     time_capsule: {
       world_state_targets: [],
       engine_state_targets: [],
@@ -157,6 +155,8 @@ export function getCachedOrBundledDefaultSchema(): Record<string, any> {
           parsedGameId === 'default' &&
           parsedVer >= bundledVer
         ) {
+          delete parsed.dlc_catalog;
+          delete parsed.exception_rules;
           return parsed;
         }
         localStorage.removeItem(DEFAULT_SCHEMA_CACHE_KEY);

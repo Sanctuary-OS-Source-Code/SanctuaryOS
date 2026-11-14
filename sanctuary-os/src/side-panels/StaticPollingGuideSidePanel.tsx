@@ -9,6 +9,7 @@ import {
   SidePanelFilterBar,
   HoverTooltip,
   resolveModHighlanderSlot,
+  getLoadedDlcIds,
 } from "../shared";
 
 type GuideTabId = "workflow" | "hosting" | "lineage" | "templates";
@@ -40,9 +41,9 @@ export function StaticPollingGuideSidePanel({
     activeGameSchema?.extensions?.supported?.[0] ||
     ".bin";
   const sampleDlcCode = useMemo(() => {
-    const keys = Object.keys(activeGameSchema?.dlc_catalog || {});
-    return keys[0] || "DLC_01";
-  }, [activeGameSchema?.dlc_catalog]);
+    const dbDlcIds = getLoadedDlcIds();
+    return activeDlcIds?.[0] || dbDlcIds[0] || "DLC_01";
+  }, [activeDlcIds]);
 
   const cleanModName = useMemo(() => {
     const raw = (mod?.name || "MyAwesomeMod").split(/[\\/]/).pop() || "MyAwesomeMod";

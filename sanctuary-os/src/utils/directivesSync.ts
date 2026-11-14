@@ -573,7 +573,7 @@ export async function syncDirectivesBidirectional(options?: {
           published_title: nextPublishedTitle,
           published_summary: nextPublishedSummary,
           published_at: dbHasBrokenTabs ? nowIso : publishedAt,
-          version: "v0.6.0-Dev.2",
+          version: "v0.6.0-Dev.13",
           updated_at: nowIso,
           updated_by: "Codebase Auto-Sync",
         });
@@ -592,7 +592,7 @@ export async function syncDirectivesBidirectional(options?: {
         published_at: dbHasBrokenTabs ? nowIso : publishedAt,
         has_unpublished_changes:
           normalizeMarkdown(localContent) !== normalizeMarkdown(nextPublishedContent),
-        version: "v0.6.0-Dev.2",
+        version: "v0.6.0-Dev.13",
         updated_at: nowIso,
         updated_by: "Codebase Auto-Sync",
         sync_state: canWriteHub ? "pushed_to_hub" : "local_fallback",
@@ -742,11 +742,11 @@ export async function syncLegalAndCovenantsBidirectional(options?: {
         ? new Date(dbRow.created_at).getTime()
         : 0;
       const localEpochMs = localSnap?.modified_epoch_ms || 0;
-      const localHasNewerVersionTag =
-        (localContent.includes("v0.6.0-Dev.10") &&
-          !dbContent.includes("v0.6.0-Dev.10")) ||
-        (localContent.includes("v0.6.0-Dev.2") &&
-          !dbContent.includes("v0.6.0-Dev.2"));
+      const localDevTagMatch = localContent.match(/v0\.6\.0-Dev\.(\d+)/i);
+      const dbDevTagMatch = dbContent.match(/v0\.6\.0-Dev\.(\d+)/i);
+      const localDevTagNum = localDevTagMatch ? parseInt(localDevTagMatch[1], 10) : 0;
+      const dbDevTagNum = dbDevTagMatch ? parseInt(dbDevTagMatch[1], 10) : 0;
+      const localHasNewerVersionTag = localDevTagNum > dbDevTagNum;
       const localIsNewer =
         !isSame &&
         ((localEpochMs > 0 && localEpochMs > dbEpochMs + 2000) ||

@@ -50,6 +50,7 @@ DROP TABLE IF EXISTS public.notifications CASCADE;
 DROP TABLE IF EXISTS public.nexus_reports CASCADE;
 DROP TABLE IF EXISTS public.nexus_assets CASCADE;
 DROP TABLE IF EXISTS public.homestead_lab_logs CASCADE;
+DROP TABLE IF EXISTS public.known_exception_rules CASCADE;
 DROP TABLE IF EXISTS public.homestead_workbench_templates CASCADE;
 DROP TABLE IF EXISTS public.heuristic_signatures CASCADE;
 DROP TABLE IF EXISTS public.global_security CASCADE;
@@ -606,6 +607,23 @@ CREATE TABLE public.homestead_lab_logs (
     tester_note TEXT,
     status TEXT DEFAULT 'pending',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE public.known_exception_rules (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    pattern TEXT NOT NULL,
+    file_hint TEXT,
+    raw_log TEXT,
+    severity TEXT NOT NULL DEFAULT 'unstable',
+    diagnosis TEXT NOT NULL DEFAULT '',
+    resolution TEXT NOT NULL DEFAULT '',
+    ignore_in_lab BOOLEAN NOT NULL DEFAULT false,
+    pinned BOOLEAN NOT NULL DEFAULT false,
+    pinned_order INTEGER,
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE public.homestead_workbench_templates (
@@ -2913,6 +2931,7 @@ BEGIN
         'global_security',
         'hardware_bans',
         'heuristic_signatures',
+        'known_exception_rules',
         'sanctuary_lexicons',
         'sanctuary_schemas',
         'sanctuary_support_categories',

@@ -105,7 +105,6 @@
     "wrap_loose_files_in_folders": true
   },
   "external_tools": [],
-  "dlc_catalog": [],
   "conflict_analyzers": [],
   "version_extraction": {
     "method": "pe_header",
@@ -168,19 +167,6 @@
     },
     {
       "exact": "SMAPI-crash.txt"
-    }
-  ],
-  "exception_rules": [
-    {
-      "id": "smapi_mod_crash",
-      "title": "SMAPI Unhandled Mod Exception or Missing Dependency",
-      "pattern": "[ERROR] | Failed loading type | skipped because it requires mods which aren't installed",
-      "file_hint": "SMAPI-latest.txt",
-      "severity": "critical",
-      "diagnosis": "A SMAPI mod failed to load due to a missing required mod ID in manifest.json or an outdated C# .dll.",
-      "resolution": "Install the required dependency mod or update the mod for your current SMAPI / Stardew Valley version.",
-      "ignore_in_lab": false,
-      "enabled": true
     }
   ],
   "time_capsule": {

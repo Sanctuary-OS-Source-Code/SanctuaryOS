@@ -373,6 +373,8 @@ function devLexiconSyncPlugin() {
                 id: 'default',
                 game_id: content.game_id && String(content.game_id).trim() ? content.game_id : 'default',
               };
+              delete (cleanDefault as any).dlc_catalog;
+              delete (cleanDefault as any).exception_rules;
               const dataSchemaPath = path.resolve(__dirname, 'src/data/schemas/default.json');
               const rootSchemaPath = path.resolve(__dirname, 'schema.json');
               const u1 = writeJsonIfChanged(dataSchemaPath, cleanDefault);
@@ -400,6 +402,8 @@ function devLexiconSyncPlugin() {
                     ? content.game_id
                     : content.id || safeId,
               };
+              delete (cleanSpokeSchema as any).dlc_catalog;
+              delete (cleanSpokeSchema as any).exception_rules;
               updated = writeJsonIfChanged(targetPath, cleanSpokeSchema);
             } else {
               res.statusCode = 400;

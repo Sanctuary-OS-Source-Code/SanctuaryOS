@@ -12,6 +12,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   ActionButton,
+  HoverTooltip,
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
@@ -590,12 +591,12 @@ export default function KeepersSupportTickets({
             <button
               type="button"
               onClick={() => setActiveFilter("pending")}
-              title={t("ticket_tab_claimed", "Claimed")}
               className="px-3 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[16px]">
                 {t("icon_arrow_forward", "arrow_forward")}
               </span>
+              <HoverTooltip title={t("ticket_tab_claimed", "Claimed")} />
             </button>
           }
           isEmpty={claimedKeeperTickets.length === 0}
@@ -618,12 +619,12 @@ export default function KeepersSupportTickets({
             <button
               type="button"
               onClick={() => setActiveFilter("bugs")}
-              title={t("keepers_tab_core_bugs", "Core Bugs")}
               className="px-3 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[16px]">
                 {t("icon_arrow_forward", "arrow_forward")}
               </span>
+              <HoverTooltip title={t("keepers_tab_core_bugs", "Core Bugs")} />
             </button>
           }
           isEmpty={bugTickets.length === 0}
@@ -646,12 +647,12 @@ export default function KeepersSupportTickets({
             <button
               type="button"
               onClick={() => setActiveFilter("feedback")}
-              title={t("keepers_tab_feedback_short", "Platform Feedback")}
               className="px-3 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[16px]">
                 {t("icon_arrow_forward", "arrow_forward")}
               </span>
+              <HoverTooltip title={t("keepers_tab_feedback_short", "Platform Feedback")} />
             </button>
           }
           isEmpty={feedbackTickets.length === 0}
@@ -674,12 +675,12 @@ export default function KeepersSupportTickets({
             <button
               type="button"
               onClick={() => setActiveFilter("contact")}
-              title={t("landing_contact_card_title", "Direct Human Contact")}
               className="px-3 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[16px]">
                 {t("icon_arrow_forward", "arrow_forward")}
               </span>
+              <HoverTooltip title={t("landing_contact_card_title", "Direct Human Contact")} />
             </button>
           }
           isEmpty={contactTickets.length === 0}

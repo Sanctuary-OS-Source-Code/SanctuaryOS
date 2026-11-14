@@ -49,6 +49,7 @@ import {
   KnownErrorRulesManager,
   KnownErrorSortField,
   getExceptionRules,
+  useExceptionRules,
   matchExceptionRules,
   extractSuggestedPatternFromLog,
   isUnrelatedGameBugLog,
@@ -415,7 +416,7 @@ export default function Lab({
   const [downloadCardState, setDownloadCardState] = useState<"idle" | "done">("idle");
   const [reportLogViewTab, setReportLogViewTab] = useState<"LAB_REPORT" | "REAL_LOG">("LAB_REPORT");
   const [liveRealLogs, setLiveRealLogs] = useState<ScrubbedRealLogFile[]>([]);
-  const exceptionRules = getExceptionRules(activeGameSchema);
+  const exceptionRules = useExceptionRules(activeGameSchema);
 
   useEffect(() => {
     setSecureCardState("idle");

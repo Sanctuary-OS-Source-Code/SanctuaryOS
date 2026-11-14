@@ -7,8 +7,6 @@ const isSchemaDynamicDictionary = (path: string, isLexicon: boolean): boolean =>
       path.startsWith('extensions.parsers.') ||
       path === 'extensions.magic_bytes' ||
       path.startsWith('extensions.magic_bytes.') ||
-      path === 'dlc_catalog' ||
-      path.startsWith('dlc_catalog.') ||
       path === 'taxonomy' ||
       path.startsWith('taxonomy.') ||
       path === 'save_game_rules.magic_bytes' ||
@@ -22,7 +20,6 @@ const isSchemaIgnoredRootKey = (k: string, currentPath: string, isLexicon: boole
    return (
       k === 'name' ||
       k === 'mod_categories' ||
-      k === 'exception_rules' ||
       k === 'lab_verification' ||
       k === 'external_tools'
    );
@@ -223,9 +220,6 @@ export function deepPurgeDeprecated(base: any, target: any, isLexicon: boolean, 
       }
       if (k === 'schema_version') {
          result[k] = target[k];
-         continue;
-      }
-      if (!isLexicon && currentPath === '' && k === 'external_tools') {
          continue;
       }
       if (isSchemaIgnoredRootKey(k, currentPath, isLexicon)) {

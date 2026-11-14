@@ -226,27 +226,12 @@ export const loadDLCMap = async () => {
     console.error("Failed to load DLC map from DB", e);
   }
 };
+export const getLoadedDlcIds = (): string[] => Object.keys(DLC_MAP);
 export const mapDlcCode = (code: string) => {
   if (!code) return "";
   let baseCode = code.split(" ")[0].toUpperCase();
   baseCode = baseCode.replace(/^([A-Z]+)(\d)$/, "$10$2");
-  try {
-    const activeSchema = useStore.getState().activeGameSchema;
-    const catalog = Array.isArray(activeSchema?.dlc_catalog)
-      ? activeSchema.dlc_catalog
-      : Array.isArray(activeSchema?.taxonomy?.dlc_list)
-        ? activeSchema.taxonomy.dlc_list
-        : [];
-    if (catalog.length > 0) {
-      const found = catalog.find(
-        (d: any) =>
-          String(d?.code || d?.id || "").toUpperCase() === baseCode ||
-          String(d?.code || d?.id || "").toUpperCase() === code.toUpperCase()
-      );
-      if (found?.name) return found.name;
-    }
-  } catch {}
-  return DLC_MAP[baseCode] || code;
+  return DLC_MAP[baseCode] || DLC_MAP[code.toUpperCase()] || code;
 };
 export const getModIcon = (mod: any, schema: any, t: any) => {
   if (

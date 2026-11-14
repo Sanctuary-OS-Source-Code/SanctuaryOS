@@ -1312,7 +1312,6 @@ export function MarketReportPanel({
             icon={t("icon_description", "description")}
           >
             <textarea
-              required
               value={reportState.reason}
               placeholder={t("report_placeholder", "Describe the issue...")}
               onChange={(e) =>

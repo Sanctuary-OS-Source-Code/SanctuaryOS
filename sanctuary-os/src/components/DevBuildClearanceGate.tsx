@@ -974,7 +974,8 @@ export function DevBuildClearanceGate() {
                         {t("icon_alternate_email", "alternate_email")}
                       </span>
                       <input
-                        type="email"
+                        type="text"
+                        inputMode="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         autoComplete="off"

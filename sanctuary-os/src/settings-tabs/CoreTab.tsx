@@ -1130,7 +1130,8 @@ export default function CoreTab() {
                     {t("auth_email_new_label", "New Email Address")}
                   </label>
                   <input
-                    type="email"
+                    type="text"
+                    inputMode="email"
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
                     placeholder={

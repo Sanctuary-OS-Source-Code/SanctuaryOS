@@ -12,6 +12,7 @@ import {
   DashboardStatTile,
   SidePanelFilterBar,
   VAULT_CHIP_CLASS,
+  HoverTooltip,
   PanelHeaderGroup,
   PanelHeaderButton,
 } from "../shared";
@@ -770,13 +771,13 @@ function LockedCycleLedgerSection({
                     <span className="material-symbols-outlined !text-[14px]">
                       {t("icon_remove", "remove")}
                     </span>
+                    <HoverTooltip title={t("decrease", "Decrease")} />
                   </button>
                   <input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={card.deltaValue}
-                    onChange={(e) => card.setDeltaValue(e.target.value)}
+                    onChange={(e) => card.setDeltaValue(e.target.value.replace(/[^0-9.]/g, ""))}
                     className="w-full min-w-0 glass-panel border border-[color-mix(in_srgb,var(--text)_14%,transparent)] rounded-lg px-2 py-1 text-center text-xs font-mono font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
                   />
                   <button
@@ -787,6 +788,7 @@ function LockedCycleLedgerSection({
                     <span className="material-symbols-outlined !text-[14px]">
                       {t("icon_add", "add")}
                     </span>
+                    <HoverTooltip title={t("increase", "Increase")} />
                   </button>
                 </div>
               )}
@@ -1055,9 +1057,8 @@ export function WayfinderDonationSetupSidePanel({
                     {`${t("report_item_spoke_db", "Database Compute & Storage")} ($ USD)`}
                   </label>
                   <input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={dbComputeDollars}
                     onChange={(e) => setDbComputeDollars(e.target.value)}
                     className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
@@ -1068,9 +1069,8 @@ export function WayfinderDonationSetupSidePanel({
                     {`${t("report_item_spoke_auth", "Auth Activity")} ($ USD)`}
                   </label>
                   <input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={authDollars}
                     onChange={(e) => setAuthDollars(e.target.value)}
                     className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
@@ -1081,9 +1081,8 @@ export function WayfinderDonationSetupSidePanel({
                     {`${t("report_item_spoke_realtime", "Realtime Connections & Messages")} ($ USD)`}
                   </label>
                   <input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={realtimeDollars}
                     onChange={(e) => setRealtimeDollars(e.target.value)}
                     className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
@@ -1094,9 +1093,8 @@ export function WayfinderDonationSetupSidePanel({
                     {`${t("report_item_spoke_edge", "Edge Functions")} ($ USD)`}
                   </label>
                   <input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={edgeDollars}
                     onChange={(e) => setEdgeDollars(e.target.value)}
                     className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
@@ -1107,9 +1105,8 @@ export function WayfinderDonationSetupSidePanel({
                     {`${t("report_item_spoke_storage", "File Storage & Egress")} ($ USD)`}
                   </label>
                   <input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={storageDollars}
                     onChange={(e) => setStorageDollars(e.target.value)}
                     className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
@@ -1120,9 +1117,8 @@ export function WayfinderDonationSetupSidePanel({
                     {`${t("report_item_spoke_backups", "Database Backups & Audit Log Retention")} ($ USD)`}
                   </label>
                   <input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={backupsDollars}
                     onChange={(e) => setBackupsDollars(e.target.value)}
                     className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
@@ -1204,7 +1200,8 @@ export function WayfinderDonationSetupSidePanel({
                     )}
                   </label>
                   <input
-                    type="url"
+                    type="text"
+                    inputMode="url"
                     value={donationUrl}
                     onChange={(e) => setDonationUrl(e.target.value)}
                     placeholder={t(
@@ -1698,9 +1695,8 @@ export function KeeperReleasePipelineSidePanel({
                     {`${t("report_item_domain", "Domain Registration & DNS")} (${t("report_annual_usd_suffix", "/ yr")})`}
                   </label>
                   <input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={domainAnnualDollars}
                     onChange={(e) => setDomainAnnualDollars(e.target.value)}
                     className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
@@ -1711,9 +1707,8 @@ export function KeeperReleasePipelineSidePanel({
                     {`${t("report_item_supabase_hub", "Supabase (Core Hub)")} (${t("report_monthly_usd_suffix", "/ mo")})`}
                   </label>
                   <input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={supabaseMonthlyDollars}
                     onChange={(e) => setSupabaseMonthlyDollars(e.target.value)}
                     className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
@@ -1724,9 +1719,8 @@ export function KeeperReleasePipelineSidePanel({
                     {`${t("report_item_windows_signing", "Windows OV/EV Code Signing")} (${t("report_annual_usd_suffix", "/ yr")})`}
                   </label>
                   <input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={windowsAnnualDollars}
                     onChange={(e) => setWindowsAnnualDollars(e.target.value)}
                     className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
@@ -1737,9 +1731,8 @@ export function KeeperReleasePipelineSidePanel({
                     {`${t("report_item_apple_dev", "Apple Developer Program")} (${t("report_annual_usd_suffix", "/ yr")})`}
                   </label>
                   <input
-                    type="number"
-                    min={0}
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={appleAnnualDollars}
                     onChange={(e) => setAppleAnnualDollars(e.target.value)}
                     className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
@@ -1856,9 +1849,8 @@ export function KeeperReleasePipelineSidePanel({
                           {`${sub.label} (${t("report_monthly_usd_suffix", "/mo")})`}
                         </label>
                         <input
-                          type="number"
-                          min={0}
-                          step="0.01"
+                          type="text"
+                          inputMode="decimal"
                           value={sub.value}
                           onChange={(e) => sub.onChange(e.target.value)}
                           className="w-full glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-2.5 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
@@ -1941,27 +1933,29 @@ export function KeeperReleasePipelineSidePanel({
                 <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
                   {t("wf_donation_url_label", "Donation / Checkout Link")}
                 </label>
-                <input
-                  type="url"
-                  value={keepersUrl}
-                  onChange={(e) => setKeepersUrl(e.target.value)}
-                  placeholder={t(
-                    "wf_donation_url_ph",
-                    "https://donate.stripe.com/... or https://ko-fi.com/..."
-                  )}
-                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
-                  {t(
-                    "keepers_email_sender_addr_label",
-                    "Custom Sender Email (From)"
-                  )}
-                </label>
-                <input
-                  type="email"
-                  value={supportEmail}
+                  <input
+                    type="text"
+                    inputMode="url"
+                    value={keepersUrl}
+                    onChange={(e) => setKeepersUrl(e.target.value)}
+                    placeholder={t(
+                      "wf_donation_url_ph",
+                      "https://donate.stripe.com/... or https://ko-fi.com/..."
+                    )}
+                    className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
+                    {t(
+                      "keepers_email_sender_addr_label",
+                      "Custom Sender Email (From)"
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="email"
+                    value={supportEmail}
                   onChange={(e) => setSupportEmail(e.target.value)}
                   placeholder="support@sanctuaryos.gg"
                   className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"

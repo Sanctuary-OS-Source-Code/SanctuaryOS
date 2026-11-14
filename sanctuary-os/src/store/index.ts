@@ -57,9 +57,8 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
   if (!Array.isArray(safe.executable_names)) {
     safe.executable_names = [...(preset.executable_names || [])];
   }
-  if (!Array.isArray(safe.dlc_catalog) && Array.isArray(preset.dlc_catalog)) {
-    safe.dlc_catalog = [...preset.dlc_catalog];
-  }
+  delete safe.dlc_catalog;
+  delete safe.exception_rules;
   if (safe.external_tools === undefined && preset.external_tools !== undefined) {
     safe.external_tools = preset.external_tools;
   }
@@ -127,17 +126,6 @@ export const getSafeSchema = (raw: any, fallbackId: string) => {
         ...(safe.lab_verification?.world_load_signature || {}),
       },
     };
-  }
-  if (!Array.isArray(safe.exception_rules)) {
-    let cachedRules: any[] | null = null;
-    try {
-      const rawRules = localStorage.getItem(`sanctuary_exception_rules_${safe.id}`);
-      if (rawRules) {
-        const parsed = JSON.parse(rawRules);
-        if (Array.isArray(parsed) && parsed.length > 0) cachedRules = parsed;
-      }
-    } catch (e) {}
-    safe.exception_rules = cachedRules || [...(preset.exception_rules || [])];
   }
   if (!safe.time_capsule) {
     safe.time_capsule = {
@@ -1575,6 +1563,8 @@ export const syncMasterSchemas = async (initialSchemaId: string = 'default') => 
             ...BUNDLED_DEFAULT_SCHEMA,
             ...resolvedDefault,
           };
+          delete mergedDefault.dlc_catalog;
+          delete mergedDefault.exception_rules;
           for (const k of Object.keys(BUNDLED_DEFAULT_SCHEMA)) {
             if (!(k in resolvedDefault)) {
               missingInCloud = true;

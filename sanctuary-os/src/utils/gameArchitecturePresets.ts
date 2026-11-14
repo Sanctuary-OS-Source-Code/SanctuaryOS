@@ -1,65 +1,3 @@
-const SIMS4_DLC_CATALOG = [
-  { id: "EP01", code: "EP01", name: "Get to Work", type: "Expansion Pack" },
-  { id: "EP02", code: "EP02", name: "Get Together", type: "Expansion Pack" },
-  { id: "EP03", code: "EP03", name: "City Living", type: "Expansion Pack" },
-  { id: "EP04", code: "EP04", name: "Cats & Dogs", type: "Expansion Pack" },
-  { id: "EP05", code: "EP05", name: "Seasons", type: "Expansion Pack" },
-  { id: "EP06", code: "EP06", name: "Get Famous", type: "Expansion Pack" },
-  { id: "EP07", code: "EP07", name: "Island Living", type: "Expansion Pack" },
-  { id: "EP08", code: "EP08", name: "Discover University", type: "Expansion Pack" },
-  { id: "EP09", code: "EP09", name: "Eco Lifestyle", type: "Expansion Pack" },
-  { id: "EP10", code: "EP10", name: "Snowy Escape", type: "Expansion Pack" },
-  { id: "EP11", code: "EP11", name: "Cottage Living", type: "Expansion Pack" },
-  { id: "EP12", code: "EP12", name: "High School Years", type: "Expansion Pack" },
-  { id: "EP13", code: "EP13", name: "Growing Together", type: "Expansion Pack" },
-  { id: "EP14", code: "EP14", name: "Horse Ranch", type: "Expansion Pack" },
-  { id: "EP15", code: "EP15", name: "For Rent", type: "Expansion Pack" },
-  { id: "EP16", code: "EP16", name: "Lovestruck", type: "Expansion Pack" },
-  { id: "EP17", code: "EP17", name: "Life & Death", type: "Expansion Pack" },
-  { id: "GP01", code: "GP01", name: "Outdoor Retreat", type: "Game Pack" },
-  { id: "GP02", code: "GP02", name: "Spa Day", type: "Game Pack" },
-  { id: "GP03", code: "GP03", name: "Dine Out", type: "Game Pack" },
-  { id: "GP04", code: "GP04", name: "Vampires", type: "Game Pack" },
-  { id: "GP05", code: "GP05", name: "Parenthood", type: "Game Pack" },
-  { id: "GP06", code: "GP06", name: "Jungle Adventure", type: "Game Pack" },
-  { id: "GP07", code: "GP07", name: "StrangerVille", type: "Game Pack" },
-  { id: "GP08", code: "GP08", name: "Realm of Magic", type: "Game Pack" },
-  { id: "GP09", code: "GP09", name: "Star Wars: Journey to Batuu", type: "Game Pack" },
-  { id: "GP10", code: "GP10", name: "Dream Home Decorator", type: "Game Pack" },
-  { id: "GP11", code: "GP11", name: "My Wedding Stories", type: "Game Pack" },
-  { id: "GP12", code: "GP12", name: "Werewolves", type: "Game Pack" },
-  { id: "SP01", code: "SP01", name: "Luxury Party", type: "Stuff Pack" },
-  { id: "SP02", code: "SP02", name: "Perfect Patio", type: "Stuff Pack" },
-  { id: "SP03", code: "SP03", name: "Cool Kitchen", type: "Stuff Pack" },
-  { id: "SP04", code: "SP04", name: "Spooky Stuff", type: "Stuff Pack" },
-  { id: "SP05", code: "SP05", name: "Movie Hangout", type: "Stuff Pack" },
-  { id: "SP06", code: "SP06", name: "Romantic Garden", type: "Stuff Pack" },
-  { id: "SP07", code: "SP07", name: "Kids Room", type: "Stuff Pack" },
-  { id: "SP08", code: "SP08", name: "Backyard Stuff", type: "Stuff Pack" },
-  { id: "SP09", code: "SP09", name: "Vintage Glamour", type: "Stuff Pack" },
-  { id: "SP10", code: "SP10", name: "Bowling Night", type: "Stuff Pack" },
-  { id: "SP11", code: "SP11", name: "Fitness Stuff", type: "Stuff Pack" },
-  { id: "SP12", code: "SP12", name: "Toddler Stuff", type: "Stuff Pack" },
-  { id: "SP13", code: "SP13", name: "Laundry Day", type: "Stuff Pack" },
-  { id: "SP14", code: "SP14", name: "First Pet", type: "Stuff Pack" },
-  { id: "SP15", code: "SP15", name: "Moschino", type: "Stuff Pack" },
-  { id: "SP16", code: "SP16", name: "Tiny Living", type: "Stuff Pack" },
-  { id: "SP17", code: "SP17", name: "Nifty Knitting", type: "Stuff Pack" },
-  { id: "SP18", code: "SP18", name: "Paranormal", type: "Stuff Pack" },
-  { id: "SP22", code: "SP22", name: "Throwback Fit Kit", type: "Kit" },
-  { id: "SP23", code: "SP23", name: "Country Kitchen Kit", type: "Kit" },
-  { id: "SP24", code: "SP24", name: "Bust the Dust Kit", type: "Kit" },
-  { id: "SP46", code: "SP46", name: "Home Chef Hustle", type: "Stuff Pack" },
-  { id: "SP47", code: "SP47", name: "Crystal Creations", type: "Stuff Pack" },
-  { id: "SP64", code: "SP64", name: "Riviera Retreat Kit", type: "Kit" },
-  { id: "SP65", code: "SP65", name: "Cozy Bistro Kit", type: "Kit" },
-  { id: "SP68", code: "SP68", name: "SpongeBob's House Kit", type: "Kit" },
-  { id: "SP70", code: "SP70", name: "SpongeBob Kid's Room Kit", type: "Kit" },
-  { id: "SP75", code: "SP75", name: "Wonderland Playroom Set", type: "Kit" },
-  { id: "SP81", code: "SP81", name: "Prairie Dreams Set", type: "Kit" },
-  { id: "SP82", code: "SP82", name: "Yard Charm Kit", type: "Kit" },
-];
-
 export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
   sims4: {
     id: "sims4",
@@ -69,7 +7,6 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     default_lexicon: "en-sims",
     schema_version: 12,
     min_scout_submissions: 5,
-    dlc_catalog: SIMS4_DLC_CATALOG,
     executable_names: [
       "TS4_x64.exe",
       "TS4.exe",
@@ -270,60 +207,6 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       { exact: "lastCrash.txt" },
       { exact: "mc_lastexception.html" },
     ],
-    exception_rules: [
-      {
-        id: "ts4_store_utils_wallet_ui",
-        title: "StoreUtils / VirtualCurrencyWallet UI Desync (Error #1006)",
-        pattern: "StoreUtils/StoreDisabledByFeatureParameter | VirtualCurrencyWallet | TryGetValueAsBoolean",
-        file_hint: "lastUIException.txt",
-        severity: "warning",
-        diagnosis:
-          "ActionScript UI exception in widgets.shared.utils::StoreUtils / VirtualCurrencyWallet. Frequently triggered on the Main Menu when EA Store feature parameters fail to initialize, or when an outdated UI override (.package) conflicts with current game patch UI widgets.",
-        resolution:
-          "If this occurred on the Main Menu and live gameplay UI works normally, it is often a benign EA Store telemetry quirk (you can toggle 'Ignore During Timed Lab Verification' on this rule if desired). If UI panels are broken in live mode, ensure UI Cheats Extension (.package + .ts4script) and Main Menu overrides match your current game patch.",
-        ignore_in_lab: false,
-        enabled: true,
-      },
-      {
-        id: "ts4_vanilla_milestone_tracker",
-        title: "Vanilla Milestone / Infant Tracker Desync (Base Game Bug)",
-        pattern: "developmental_milestone_tracker | milestone_tracker",
-        file_hint: "lastException.txt",
-        severity: "unrelated",
-        diagnosis:
-          "Normal EA Base Game bug in developmental_milestone_tracker when switching households or loading lots with infants/toddlers whose milestone state became desynchronized in an unmodded save.",
-        resolution:
-          "Not caused by a custom mod. Marked as Unrelated (Normal Game Bug) so it will not auto-fail Lab Proving Runs.",
-        ignore_in_lab: true,
-        enabled: true,
-      },
-      {
-        id: "ts4_python_attr_or_import",
-        title: "Python Script Tuning Mismatch or Missing Core Library",
-        pattern: "AttributeError | ModuleNotFoundError | ImportError",
-        file_hint: "lastException.txt",
-        severity: "critical",
-        diagnosis:
-          "A Python script (.ts4script) attempted to call a game engine attribute or import a module that changed in a recent game patch or requires an external core library (such as Lot51 Core Library, XML Injector, or S4CL).",
-        resolution:
-          "Verify that all required dependency libraries are installed in your Mods folder and that the mod's .ts4script is updated for your active game patch.",
-        ignore_in_lab: false,
-        enabled: true,
-      },
-      {
-        id: "ts4_posture_routing_graph",
-        title: "Posture Graph / Sim Routing Autonomy Exception",
-        pattern: "posture_graph | routing_service | PostureGraphService",
-        file_hint: "lastException.txt",
-        severity: "warning",
-        diagnosis:
-          "A Sim attempted to route to or interact with an object whose footprint, slot, or posture tuning failed validation during live autonomy.",
-        resolution:
-          "Check custom furniture/object overrides on the active lot or custom interaction mods that modify Sim posture tuning.",
-        ignore_in_lab: false,
-        enabled: true,
-      },
-    ],
     time_capsule: {
       world_state_targets: [
         { name: "Saves", path: "saves" },
@@ -499,32 +382,6 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       { exact: "asiloader.log" },
       { exact: "OpenIV.log" },
     ],
-    exception_rules: [
-      {
-        id: "gtav_scripthook_fatal",
-        title: "ScriptHookV Unknown Game Version / Fatal Native Fault",
-        pattern: "FATAL: Unknown game version | FATAL: Can't find native",
-        file_hint: "ScriptHookV.log",
-        severity: "critical",
-        diagnosis:
-          "ScriptHookV.dll does not support the currently installed GTA5.exe build or an .asi plugin invoked a removed native hash.",
-        resolution:
-          "Update ScriptHookV.dll and dinput8.dll to match your current GTA V patch, or revert gameconfig.xml and outdated .asi plugins.",
-        ignore_in_lab: false,
-        enabled: true,
-      },
-      {
-        id: "gtav_shvdn_exception",
-        title: "ScriptHookVDotNet Unhandled .NET Script Exception",
-        pattern: "Caught fatal unhandled exception | System.NullReferenceException | System.MissingMethodException",
-        file_hint: "ScriptHookVDotNet.log",
-        severity: "warning",
-        diagnosis: "A .NET script inside the scripts/ directory threw an unhandled runtime exception.",
-        resolution: "Ensure ScriptHookVDotNet3.dll and NativeUI / LemonUI dependencies are up to date.",
-        ignore_in_lab: false,
-        enabled: true,
-      },
-    ],
     time_capsule: {
       world_state_targets: [{ name: "Profiles", path: "Profiles" }],
       engine_state_targets: [
@@ -695,19 +552,6 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       { starts_with: "CakeHook", ends_with: ".log" },
       { starts_with: "crash", ends_with: ".log" },
     ],
-    exception_rules: [
-      {
-        id: "wwe2k_cakehook_conflict",
-        title: "Duplicate BakedFile Index or Corrupted .cak Header",
-        pattern: "Failed to mount bakedfile | Invalid CAK header | Duplicate baked slot",
-        file_hint: "CakeHook.log",
-        severity: "critical",
-        diagnosis: "Two .cak archives share the same bakedfileXX slot or a .cak archive was built for an incompatible game version.",
-        resolution: "Assign unique bakedfile indices via Load Order prefixing or re-bake the archive in CakeTools.",
-        ignore_in_lab: false,
-        enabled: true,
-      },
-    ],
     time_capsule: {
       world_state_targets: [{ name: "Saves", path: "Saved" }],
       engine_state_targets: [
@@ -855,31 +699,6 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       { starts_with: "crash-", ends_with: ".log" },
       { exact: "skse64.log" },
       { exact: "Papyrus.0.log" },
-    ],
-    exception_rules: [
-      {
-        id: "skyrim_skse_version_mismatch",
-        title: "SKSE64 DLL Plugin Version Mismatch (AE / SE)",
-        pattern: "disabled, incompatible with current runtime version | Failed to load plugin",
-        file_hint: "skse64.log",
-        severity: "critical",
-        diagnosis:
-          "An SKSE64 native .dll plugin was compiled for a different SkyrimSE.exe runtime (e.g. 1.5.97 vs 1.6.1170) or is missing Address Library for SKSE Plugins.",
-        resolution: "Install Address Library for SKSE Plugins and update the offending .dll in Data/SKSE/Plugins.",
-        ignore_in_lab: false,
-        enabled: true,
-      },
-      {
-        id: "skyrim_missing_master",
-        title: "Missing ESM/ESP Master Dependency Crash",
-        pattern: "Missing master | unhandled exception",
-        file_hint: "crash-.log",
-        severity: "critical",
-        diagnosis: "A plugin (.esp/.esl) attempted to reference form IDs from a master file (.esm/.esp) that is not active.",
-        resolution: "Enable all required master plugins above the dependent plugin in your Blueprint.",
-        ignore_in_lab: false,
-        enabled: true,
-      },
     ],
     time_capsule: {
       world_state_targets: [{ name: "Saves", path: "Saves" }],
@@ -1058,19 +877,6 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       { exact: "cyber_engine_tweaks.log" },
       { starts_with: "red4ext", ends_with: ".log" },
     ],
-    exception_rules: [
-      {
-        id: "cp2077_redscript_compile_fail",
-        title: "Redscript Compilation Failure",
-        pattern: "[ERROR] | Compilation failed | unresolved reference",
-        file_hint: "redscript_rCURRENT.log",
-        severity: "critical",
-        diagnosis: "One or more .reds scripts in r6/scripts failed to compile against the current Cyberpunk 2077 script cache.",
-        resolution: "Ensure redscript, RED4ext, Codeware, and ArchiveXL are updated for your game patch.",
-        ignore_in_lab: false,
-        enabled: true,
-      },
-    ],
     time_capsule: {
       world_state_targets: [{ name: "Saves", path: "" }],
       engine_state_targets: [
@@ -1207,7 +1013,6 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       { starts_with: "network_log", ends_with: ".txt" },
       { starts_with: " gold", ends_with: ".log" },
     ],
-    exception_rules: [],
     time_capsule: {
       world_state_targets: [
         { name: "Story Saves", path: "PlayerProfiles/Public/Savegames/Story" },
@@ -1327,19 +1132,6 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       },
     },
     exception_logs: [{ exact: "SMAPI-latest.txt" }, { exact: "SMAPI-crash.txt" }],
-    exception_rules: [
-      {
-        id: "smapi_mod_crash",
-        title: "SMAPI Unhandled Mod Exception or Missing Dependency",
-        pattern: "[ERROR] | Failed loading type | skipped because it requires mods which aren't installed",
-        file_hint: "SMAPI-latest.txt",
-        severity: "critical",
-        diagnosis: "A SMAPI mod failed to load due to a missing required mod ID in manifest.json or an outdated C# .dll.",
-        resolution: "Install the required dependency mod or update the mod for your current SMAPI / Stardew Valley version.",
-        ignore_in_lab: false,
-        enabled: true,
-      },
-    ],
     time_capsule: {
       world_state_targets: [{ name: "Saves", path: "Saves" }],
       engine_state_targets: [{ name: "Mods", path: "Mods" }],
@@ -1367,7 +1159,6 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
     schema_version: 5,
     min_scout_submissions: 3,
     executable_names: [],
-    dlc_catalog: [],
     paths: {
       executable_subdir: "",
       default_mod_dir_windows: "",
@@ -1438,7 +1229,6 @@ export const GAME_ARCHITECTURE_PRESETS: Record<string, Record<string, any>> = {
       },
     },
     exception_logs: [],
-    exception_rules: [],
     time_capsule: {
       world_state_targets: [],
       engine_state_targets: [],

@@ -41,7 +41,7 @@ import { deriveSpokeRelinkCommitmentHash } from "./utils/stagingCrypto";
 import Vault from "./Vault";
 import { scrubLogUserData, buildFormattedLabReportText, extractReportLoadoutFromLogAndContext } from "./utils/logScrubber";
 import { matchExceptionRules } from "./components/KnownErrorDiagnosisBanner";
-import { isUnrelatedGameBugLog, getExceptionRules } from "./components/KnownExceptionRules";
+import { isUnrelatedGameBugLog, getExceptionRules, loadExceptionRulesFromSpoke } from "./components/KnownExceptionRules";
 import { GlobalCommandPalette } from './side-panels/GlobalCommandPalette';
 import { createPortal } from "react-dom";
 import { ContextMenu } from "./ContextMenu";
@@ -1869,6 +1869,7 @@ function App() {
         // Sync master schemas and DLC registry in the background after spoke database URLs are ready
         syncMasterSchemas(schemaId).catch(console.warn);
         loadDLCMap().catch(console.warn);
+        loadExceptionRulesFromSpoke().catch(console.warn);
 
         // Do not blindly overwrite sanctuary_last_active_workspace with globalConfig here!
         // globalConfig might have 'default_workspace' if the rust config is empty, which destroys the user's selection.

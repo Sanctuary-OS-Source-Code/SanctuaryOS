@@ -102,6 +102,8 @@ async function main() {
           ? hubDefaultRows[0].schema_data.game_id
           : 'default',
     };
+    delete defaultData.dlc_catalog;
+    delete defaultData.exception_rules;
     const c1 = writeJsonIfChanged(path.resolve(schemasDir, 'default.json'), defaultData);
     const c2 = writeJsonIfChanged(rootSchemaPath, defaultData);
     if (c1 || c2) {
@@ -149,6 +151,8 @@ async function main() {
             ? row.schema_data.game_id
             : row.schema_data.id || rawId,
       };
+      delete cleanSchema.dlc_catalog;
+      delete cleanSchema.exception_rules;
       const targetPath = path.resolve(schemasDir, `${rawId}.json`);
       if (writeJsonIfChanged(targetPath, cleanSchema)) {
         syncedSpokes++;

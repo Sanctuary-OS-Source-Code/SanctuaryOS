@@ -4,7 +4,7 @@ import { useStore } from '../store';
 import { supabase } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
-import { CustomDropdown, EmptyState, VAULT_CHIP_CLASS } from "../shared";
+import { CustomDropdown, EmptyState, HoverTooltip, VAULT_CHIP_CLASS } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid } from "../components/layouts/ElevatedHubLayout";
@@ -534,12 +534,12 @@ export default function ArchitectSupportTickets({
             <button
               type="button"
               onClick={() => setActiveFilter("pending")}
-              title={t("ticket_tab_claimed", "Claimed")}
               className="px-3 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[16px]">
                 {t("icon_arrow_forward", "arrow_forward")}
               </span>
+              <HoverTooltip title={t("ticket_tab_claimed", "Claimed")} />
             </button>
           }
           isEmpty={claimedTickets.length === 0}
@@ -557,12 +557,12 @@ export default function ArchitectSupportTickets({
             <button
               type="button"
               onClick={() => setActiveFilter("new")}
-              title={t("recent_new_reports", "Recent New Reports")}
               className="px-3 flex items-center justify-center text-[var(--subtext)] hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--text)_4%,transparent)] transition-colors cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[16px]">
                 {t("icon_arrow_forward", "arrow_forward")}
               </span>
+              <HoverTooltip title={t("recent_new_reports", "Recent New Reports")} />
             </button>
           }
           isEmpty={newTickets.length === 0}

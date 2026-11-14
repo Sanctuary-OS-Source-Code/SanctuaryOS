@@ -1,7 +1,7 @@
 # Sanctuary OS — Terms of Service (TOS)
 
-**Document Version:** V6.0 (v0.6.0-Dev.2)  
-**Effective Date:** November 4, 2026  
+**Document Version:** V6.1 (v0.6.0-Dev.13)  
+**Effective Date:** November 14, 2026  
 
 ---
 
@@ -9,33 +9,33 @@
 By creating an account or connecting to the **Sanctuary OS** network across Windows, macOS, Linux, SteamOS, or Web/Mobile PWA, you agree to these Terms of Service ("Terms"), the [End-User License Agreement (EULA)](./EULA.md), the [Privacy Policy](./Privacy%20Policy.md), and the [Global Compliance Protocol](./Compliance%20Protocol.md).
 
 Sanctuary OS operates as a **Federated Hub-and-Spoke Network**:
-* **The Sanctuary OS Hub (`Keepers Core`):** Provides global Single Sign-On (SSO) identity, WebAuthn/FIDO2 Passkey verification, baseline malware heuristics (`keeper_heuristic_signatures`), and the Keepers Core Default Schema.
-* **Community Game Spokes (`Wayfinders`):** Independent, community-owned Supabase databases (`schema.sql`) that govern game-specific mod registries, conflict rules, dispatches, themes, lexicons, and community moderation.
+* **The Sanctuary OS Hub (`Keepers Core`):** Provides global Zero-Knowledge Single Sign-On (SSO) identity, WebAuthn/FIDO2 Passkey verification, baseline malware heuristics (`keeper_heuristic_signatures`), Core Lexicons/Themes, and the Keepers Core Default Schema.
+* **Community Game Spokes (`Wayfinders`):** Independent, community-owned Supabase databases (`schema.sql`) that govern game-specific mod registries, Highlander Exclusive Slots, conflict rules, dispatches, themes, lexicons, community donations, and moderation.
 
 ---
 
 ## 2. The 6-Tier Clearance Hierarchy & FIDO2 Security Vault
 Access to network features is governed by the 6-Tier Clearance Matrix:
-1. **Tier 1 — Citizen (`citizen`):** Access to all 9 Citizen modules, the local **Open Mason Workshop** (`Sandbox`, `IDE`, `3-Tile Artifact Studio`, `Theme Forge`, `Static Edge Export`), Multi-Rig Cloud Blueprints, and Scout Queue submissions.
-2. **Tier 2 — Verified Mason (`mason`):** Verified creator clearance unlocking direct Nexus metadata publishing, the Verified Mason Queue fast-lane, Public Mason Profiles, and the 0%-cut Supporter Bridge.
-3. **Tier 3 — Architect (`architect`):** Spoke Tier-0 registry and conflict matrix moderator, Scout Queue reviewer, and Citizen Support Desk responder.
-4. **Tier 4 — Oversight (`oversight`):** Spoke security administrator managing Spoke Heuristics, Compliance Tiers 1–5 moderation, DEFCON 1 patch shields, and role assignments up to Architect.
-5. **Tier 5 — Wayfinder (`wayfinder`):** Sovereign Spoke owner managing `Spoke Control`, `Spoke Aesthetics`, Master Schemas, Lexicons, Non-Custodial Community Donations, and unilateral **"Cut the Cord"** severance.
-6. **Tier 6 — Keeper (`keeper`):** Sanctuary Foundry Core OS administrator.
+1. **Tier 1 — Citizen (`citizen`):** Access to all 9 Citizen modules (including the `Blueprint Patch Readiness Simulator`), the local **Open Mason Workshop** (`Sandbox`, `IDE`, `3-Tile Artifact Studio`, `Theme Forge`, `Lexicon Studio`, local JSON export/import, and `Static Edge Export` + Auto-Push), Cloud Blueprints (`Public`, `Unlisted`, `Private`), and Scout Queue submissions (`_lab_cert_proof`).
+2. **Tier 2 — Verified Mason (`mason`):** Verified creator clearance unlocking direct cloud Nexus publishing for Mods, Lexicons, Chameleons, and Workbench Templates, the Verified Mason Queue fast-lane, Public Mason Profiles, and the 0%-cut Supporter Bridge.
+3. **Tier 3 — Architect (`architect`):** Spoke Tier-0 registry, Exclusive Slot, Known Error, and conflict matrix moderator, Scout/Mason Queue reviewer, and Citizen Support Desk responder (strictly isolated to Tier 0 without ban or active compliance lock authority).
+4. **Tier 4 — Oversight (`oversight`):** Spoke security administrator managing Spoke Heuristics, `Pending` Tier 1–4 Compliance confirmation & Tier 5 Malware blacklisting, DEFCON 1 patch shields, read/export-only Audit Log review, and role assignments up to Architect.
+5. **Tier 5 — Wayfinder (`wayfinder`):** Sovereign Spoke owner managing `Spoke Control`, `Spoke Aesthetics`, Master Schemas, Lexicons, 100% isolated Non-Custodial Community Donations, and unilateral **"Cut the Cord"** severance.
+6. **Tier 6 — Keeper (`keeper`):** Sanctuary Foundry Core OS administrator (strictly isolated from Partner Spoke operations beyond compliance severance and `Keepers-Only` dev-spoke staging).
 
-**Mandatory FIDO2 Passkey Step-Up & 12-Hour Device Seal:** Users holding Elevated Clearances (`Tier 2 Verified Mason` through `Tier 6 Keeper`) must bind a hardware/biometric **FIDO2 Passkey** or **TOTP Authenticator** via the **Security Vault SidePanel**. Accessing Elevated Hubs or modifying account credentials requires an active per-session FIDO2 Passkey verification or a valid **12-hour Device-Bound Cryptographic Passkey Seal (`sanctuary_passkey_seal_v2`)**. Pre-release Development Builds (`-Dev`) additionally enforce the **Dev Build Clearance Gate** requiring an active Supporter subscription (`dev_build_until`), Partner Spoke staff clearance, or Verified Mason clearance.
-
----
-
-## 3. Metadata-Only Registry & Creator Intellectual Property
-1. **No Unauthorized Redistribution:** The Nexus indexes cryptographic SHA-256 / Blake3 DNA hashes, dependency rules, compatibility telemetry, Workbench config templates, Chameleon themes, and Lexicon dictionaries. Uploading or linking pirated, paywall-circumvented, or stolen creator assets is strictly prohibited.
-2. **Creator Sovereignty:** Masons retain 100% ownership of their intellectual property, external download links, and Static Edge manifests (`manifest.json` / `catalog.json` / `override.json`).
+**Mandatory FIDO2 Passkey Step-Up & 12-Hour Device Seal:** Users holding Elevated Clearances (`Tier 2 Verified Mason` through `Tier 6 Keeper`) must bind a hardware/biometric **FIDO2 Passkey** (Windows Hello, macOS Touch ID, hardware security key, or Companion Passkey Handshake) or **TOTP Authenticator** via the **Security Vault SidePanel**. Accessing Elevated Hubs or modifying account credentials requires an active per-session FIDO2 verification or a valid **12-hour Device-Bound Cryptographic Passkey Seal (`sanctuary_passkey_seal_v2`)**. Pre-release Development Builds (`-Dev`) additionally enforce the **Dev Build Clearance Gate**.
 
 ---
 
-## 4. The Florida Compliance Layer (Tiers 0–5), Strict Tier 0 Isolation & Prohibited Conduct
+## 3. Metadata-Only Registry, Content-Addressed Themes & Creator IP
+1. **No Unauthorized Redistribution:** The Nexus indexes cryptographic SHA-256 / Blake3 DNA hashes, dependency rules, compatibility telemetry, Workbench config templates, Sparse Delta Lexicons, and content-addressed Chameleon themes (`<= 250 KB` WebP wallpapers or external HTTPS URLs). Uploading or linking pirated, paywall-circumvented, or stolen creator assets is strictly prohibited.
+2. **Creator Sovereignty:** Masons retain 100% ownership of their intellectual property, external download links, and Static Edge manifests (`.sanctuary.manifest.json` / `catalog.json` / `.sanctuary.override.json`).
+
+---
+
+## 4. The Florida Compliance Layer (Tiers 0–5), Pending Confirmation & Prohibited Conduct
 All network submissions must adhere to the [Global Compliance Protocol](./Compliance%20Protocol.md):
-* **Public Feeds & Architect Console Are Strictly Tier 0:** Public Nexus discovery feeds, the Tier 3 **Architect Console**, and shared Cloud Blueprints (`SNCXXX`) are restricted exclusively to **Compliance Tier 0 (Public Safe)** artifacts. Any hash flagged as **Tier 1–2 (Explicit / Illicit)** or **Tier 3–4 (Severe / Taboo)** is automatically scrubbed from public feeds, isolated from Tier 3 Architects (escalating strictly to **Oversight Command -> Compliance**), and purged from Cloud Blueprints (`trg_purge_flagged_hash_from_blueprints`), though it remains usable in your private local Vault and via decentralized Static Edge Manifests (`manifest_url`).
+* **Public Feeds & Architect Console Are Strictly Tier 0:** Public Nexus discovery feeds, the Tier 3 **Architect Console**, and shared Cloud Blueprints (`SNCXXX`) are restricted exclusively to **Compliance Tier 0 (Public Safe)** artifacts. Any hash flagged as **Tier 1–4** routes into **Oversight Command -> Compliance** as `Pending`; once confirmed by `Oversight` or `Wayfinder`, it is scrubbed from public feeds and purged from Cloud Blueprints (`trg_purge_flagged_hash_from_blueprints`), while remaining usable in your private local Vault, Personal Rig transfers, and decentralized Static Edge Manifests.
 * **Zero Tolerance for Tier 5 Malware:** Intentionally submitting, disguising, or distributing **Compliance Tier 5 (Malware)**—including credential stealers, webhook exfiltrators, or unauthorized remote execution payloads—results in immediate permanent account termination and domain-salted SHA-256 hardware-hash blacklisting (`hardware_bans`) across the entire Sanctuary network.
 
 ---
@@ -43,10 +43,9 @@ All network submissions must adhere to the [Global Compliance Protocol](./Compli
 ## 5. Non-Custodial Donations, Supporter Perks & 0% Platform Cut
 1. **0% Platform Tax:** Sanctuary OS takes **0%** of Creator (`Mason`) supporter revenue and **0%** of Partner Community (`Spoke`) donations.
 2. **Non-Custodial Third-Party Processors:** When you contribute to a Mason or a Partner Community Spoke (via `Stripe`, `Ko-fi`, `Patreon`, `PayPal`, `Fourthwall`, or `OpenCollective`), your payment is processed directly by that recipient's third-party payment processor. Sanctuary Foundry never collects, holds, or custodies those funds and is not responsible for refunds, chargebacks, or tax receipts on third-party donations.
-3. **Supporter Time Stacking (`+30 Days per $5`):** Verified contributions of `$5 USD` (or equivalent) to either Sanctuary Foundry or a participating Partner Community Spoke grant `+30 days` of **Global Dev Build** access and Supporter Badge recognition. Supporter perks are digital goodwill recognitions, have no cash surrender value, and are non-transferable.
+3. **Supporter Time Stacking (`+30 Days per $5`):** Verified paid contributions of `$5 USD` (or equivalent) to either Sanctuary Foundry or a participating Partner Community Spoke grant `+30 days` of **Global Dev Build** access and Supporter Badge recognition. Supporter perks are digital goodwill recognitions, have no cash surrender value, and are non-transferable.
 
 ---
 
-## 6. Bilateral Spoke Sovereignty ("Cut the Cord")
-Independent Community Spokes connected to the Sanctuary OS Hub are governed by the [Partners Agreement](./Partners%20Agreement.md). Either the Community's Wayfinder or Keepers Core may sever the Spoke Uplink at any time via **Cut the Cord** (`secure_sever_spoke_cord`), immediately scrubbing the Spoke's service key from the Hub while leaving 100% of the Community's Spoke database under the Community's sole control.
-
+## 6. Bilateral Spoke Sovereignty ("Cut the Cord") & `SRK1` Profile Relinking
+Independent Community Spokes connected to the Sanctuary OS Hub are governed by the [Partners Agreement](./Partners%20Agreement.md). Either the Community's Wayfinder or Keepers Core may sever the Spoke Uplink at any time via **Cut the Cord** (`sever_spoke_cord`), permanently scrubbing the Spoke's service key from `public.sanctuary_game_secrets` while leaving 100% of the Community's Spoke database under the Community's sole control and enabling cryptographic **`SRK1` Spoke Relink** profile claiming for returning users.

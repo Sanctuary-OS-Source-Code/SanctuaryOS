@@ -316,6 +316,7 @@ const STAFF_ONLY_TABLES = new Set([
   'global_network_status',
   'global_security',
   'heuristic_signatures',
+  'known_exception_rules',
   'sanctuary_schemas',
   'sanctuary_lexicons',
   'sanctuary_themes',
@@ -1313,7 +1314,7 @@ serve(async (req) => {
 
       const startPing = Date.now()
       const testDb = createClient(resolvedUrl, targetKey, SERVER_AUTH_OPTS)
-      const requiredTables = ['mods', 'profiles', 'system_broadcasts', 'dispatch_poll_votes', 'global_network_status', 'audit_logs']
+      const requiredTables = ['mods', 'profiles', 'system_broadcasts', 'dispatch_poll_votes', 'known_exception_rules', 'dlc_registry', 'global_network_status', 'audit_logs']
       const missingTables: string[] = []
 
       for (const tbl of requiredTables) {

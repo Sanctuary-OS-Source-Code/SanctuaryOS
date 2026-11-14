@@ -41,7 +41,7 @@ import {
   KnownErrorFilterPopoverContent,
   KnownErrorRulesManager,
   KnownErrorSortField,
-  getExceptionRules,
+  useExceptionRules,
   matchExceptionRules,
   NormalizedRuleSeverity,
 } from "./components/KnownExceptionRules";
@@ -748,6 +748,7 @@ export function HomesteadDiagnostics({
   const completedReports = filteredReports.filter(
     (mod: any) => mod.status !== "under_review"
   );
+  const activeExceptionRules = useExceptionRules(activeGameSchema);
 
   const tabs = [
     {
@@ -772,7 +773,7 @@ export function HomesteadDiagnostics({
       id: "known_errors",
       label: t("exc_rules_user_tab_title", "Known Errors"),
       icon: t("icon_rule_settings", "rule_settings"),
-      number: getExceptionRules(activeGameSchema).length.toString(),
+      number: activeExceptionRules.length.toString(),
     },
   ];
 
@@ -949,7 +950,6 @@ export function HomesteadDiagnostics({
   );
 
   const activeRawLog = scrubLogUserData(testLog || submittedLog || "");
-  const activeExceptionRules = getExceptionRules(activeGameSchema);
   const activeMatchedRules = matchExceptionRules(activeRawLog, activeExceptionRules);
   const formattedDiagReportText = activeReport
     ? buildFormattedLabReportText({
@@ -1039,7 +1039,7 @@ export function HomesteadDiagnostics({
                   knownErrorSort !== "severity",
                 content: (
                   <KnownErrorFilterPopoverContent
-                    rules={getExceptionRules(activeGameSchema)}
+                    rules={activeExceptionRules}
                     severityFilter={knownErrorFilter}
                     onSeverityFilterChange={setKnownErrorFilter}
                     labBehaviorFilter={knownErrorLabBehavior}
@@ -1600,13 +1600,23 @@ export function HomesteadDiagnostics({
                     icon={t("icon_warning", "warning")}
                     headerColorClass="text-[var(--danger)]"
                   >
-                    <form onSubmit={submitToNexus} className="flex flex-col gap-3">
+                    <form
+                      noValidate
+                      onSubmit={(e) => {
+                        if (!resolution.trim()) {
+                          e.preventDefault();
+                          return;
+                        }
+                        submitToNexus(e);
+                      }}
+                      className="flex flex-col gap-3"
+                    >
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
                           {t("resolution_suggestion", "Resolution Suggestion")}
                         </label>
                         <input
-                          required
+                          type="text"
                           value={resolution}
                           onChange={(e) => setResolution(e.target.value)}
                           placeholder={

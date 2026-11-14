@@ -3149,13 +3149,12 @@ export const ArtifactScout = () => {
                                                                                         {canReorderWithinSection && (
                                                                                             isEditingNum ? (
                                                                                                 <input
-                                                                                                    type="number"
-                                                                                                    min={1}
-                                                                                                    max={Math.max(1, tierMods.length)}
+                                                                                                    type="text"
+                                                                                                    inputMode="numeric"
                                                                                                     autoFocus
                                                                                                     value={editingOrderVal}
                                                                                                     onChange={(e) =>
-                                                                                                        setEditingOrderVal(e.target.value)
+                                                                                                        setEditingOrderVal(e.target.value.replace(/[^0-9]/g, ""))
                                                                                                     }
                                                                                                     onBlur={() => {
                                                                                                         const parsed = parseInt(
@@ -3881,12 +3880,11 @@ export const ArtifactScout = () => {
                                                                     <div className="pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
                                                                         {isEditingSeq ? (
                                                                             <input
-                                                                                type="number"
-                                                                                min={1}
-                                                                                max={Math.max(1, reorderTierMods.length)}
+                                                                                type="text"
+                                                                                inputMode="numeric"
                                                                                 autoFocus
                                                                                 value={editingOrderVal}
-                                                                                onChange={(e) => setEditingOrderVal(e.target.value)}
+                                                                                onChange={(e) => setEditingOrderVal(e.target.value.replace(/[^0-9]/g, ""))}
                                                                                 onBlur={() => {
                                                                                     const parsed = parseInt(editingOrderVal, 10);
                                                                                     if (!Number.isNaN(parsed)) {

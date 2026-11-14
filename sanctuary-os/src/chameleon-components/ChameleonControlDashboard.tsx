@@ -1844,7 +1844,8 @@ export function ChameleonControlDashboard({
                         {t('icon_link', 'link')}
                       </span>
                       <input
-                        type="url"
+                        type="text"
+                        inputMode="url"
                         value={externalWpUrlInput}
                         onChange={(e) => setExternalWpUrlInput(e.target.value)}
                         onKeyDown={(e) => {

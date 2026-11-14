@@ -25,6 +25,7 @@ import {
   CommandScreenSectionHeading,
 } from "../SharedCommandScreenLayout";
 import { UniversalCard } from "../../components/universal/UniversalCard";
+import { useExceptionRules } from "../../components/KnownExceptionRules";
 import { formatSanctuaryDate } from "../../utils/dateUtils";
 import {
   getHubCommandCache,
@@ -100,9 +101,7 @@ export function ArchitectCommandScreen({
     1,
     Number(activeGameSchema?.min_scout_submissions ?? 5)
   );
-  const exceptionRulesCount = Array.isArray(activeGameSchema?.exception_rules)
-    ? activeGameSchema.exception_rules.length
-    : 0;
+  const exceptionRulesCount = useExceptionRules(activeGameSchema).length;
 
   const cacheScope = `${activeWorkspaceId || "global"}:${minScoutSubmissions}:${userId || "anon"}`;
   const [snapshot, setSnapshot] = useState<ArchitectCommandSnapshot>(

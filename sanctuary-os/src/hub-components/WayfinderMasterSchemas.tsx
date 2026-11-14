@@ -484,6 +484,8 @@ export default function WayfinderMasterSchemas({
       const parsed = JSON.parse(file.content);
       delete parsed.name;
       delete parsed.archive_containers;
+      delete parsed.dlc_catalog;
+      delete parsed.exception_rules;
       if (!parsed.schema_version || typeof parsed.schema_version !== "number")
         parsed.schema_version = 0;
       parsed.schema_version++;

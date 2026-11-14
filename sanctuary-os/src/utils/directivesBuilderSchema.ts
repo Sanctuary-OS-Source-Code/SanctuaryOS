@@ -3983,7 +3983,7 @@ export function getDefaultDirectiveBuilderSchema(
                 icon: t("icon_science", "science"),
                 title: g("100% Nuke Injection & 1v1 Stability Arena (Homestead {Lab})"),
                 desc: g(
-                  "Isolates vanilla saves via save_airgap_targets, strips active symlinks to test suspect {mods} in total isolation, and diagnoses crash logs using schema-driven exception_rules."
+                  "Isolates vanilla saves via save_airgap_targets, strips active symlinks to test suspect {mods} in total isolation, and diagnoses crash logs using database-driven Known Error rules."
                 ),
               },
               {

@@ -640,9 +640,13 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                               {t("workbench_field_min", "Min")}
                            </label>
                            <input
-                              type="number"
+                              type="text"
+                              inputMode="decimal"
                               value={setting.min ?? (setting.type === "tuple" ? -100 : 0)}
-                              onChange={(e) => updateThisSetting((target) => { target.min = Number(e.target.value); })}
+                              onChange={(e) => updateThisSetting((target) => {
+                                 const v = Number(e.target.value.replace(/[^0-9.-]/g, ""));
+                                 target.min = Number.isNaN(v) ? 0 : v;
+                              })}
                               className="h-8 glass-surface rounded-lg px-2.5 text-[11px] font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] focus:outline-none"
                            />
                         </div>
@@ -651,9 +655,13 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                               {t("workbench_field_max", "Max")}
                            </label>
                            <input
-                              type="number"
+                              type="text"
+                              inputMode="decimal"
                               value={setting.max ?? 100}
-                              onChange={(e) => updateThisSetting((target) => { target.max = Number(e.target.value); })}
+                              onChange={(e) => updateThisSetting((target) => {
+                                 const v = Number(e.target.value.replace(/[^0-9.-]/g, ""));
+                                 target.max = Number.isNaN(v) ? 100 : v;
+                              })}
                               className="h-8 glass-surface rounded-lg px-2.5 text-[11px] font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] focus:outline-none"
                            />
                         </div>
@@ -662,9 +670,13 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                               {t("workbench_field_step", "Step")}
                            </label>
                            <input
-                              type="number"
+                              type="text"
+                              inputMode="decimal"
                               value={setting.step ?? 1}
-                              onChange={(e) => updateThisSetting((target) => { target.step = Number(e.target.value) || 1; })}
+                              onChange={(e) => updateThisSetting((target) => {
+                                 const v = Number(e.target.value.replace(/[^0-9.]/g, ""));
+                                 target.step = !v || Number.isNaN(v) ? 1 : v;
+                              })}
                               className="h-8 glass-surface rounded-lg px-2.5 text-[11px] font-mono font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)] focus:outline-none"
                            />
                         </div>

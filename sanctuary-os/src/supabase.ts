@@ -343,7 +343,7 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
         }
 
         if (fnName === 'secure_verify_and_bootstrap_spoke') {
-            const requiredTables = ['mods', 'mod_versions', 'masons', 'blueprints', 'logical_conflicts', 'profiles', 'system_broadcasts', 'dispatch_poll_votes', 'heuristic_signatures', 'global_network_status', 'audit_logs'];
+            const requiredTables = ['mods', 'mod_versions', 'masons', 'blueprints', 'logical_conflicts', 'profiles', 'system_broadcasts', 'dispatch_poll_votes', 'heuristic_signatures', 'known_exception_rules', 'dlc_registry', 'global_network_status', 'audit_logs'];
             const verifiedTables: string[] = [];
             const missingTables: string[] = [];
             for (const tbl of requiredTables) {

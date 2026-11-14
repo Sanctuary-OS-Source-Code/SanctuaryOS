@@ -51,7 +51,6 @@
     "mods_dir_is_shared_with_vanilla": false,
     "preserve_archive_folder_structure": true
   },
-  "dlc_catalog": [],
   "dlc_subdirs": [],
   "display_name": "Default Master Schema",
   "steam_app_id": null,
@@ -66,7 +65,6 @@
   "mod_categories": [],
   "schema_version": 5,
   "default_lexicon": "en-default",
-  "exception_rules": [],
   "executable_names": [],
   "lab_verification": {
     "require_focus": true,

@@ -388,17 +388,8 @@ export function ArtifactRulesTab({
   const [conflictsSearchFilter, setConflictsSearchFilter] = useState<string>("");
 
   const effectiveDlcRegistry = useMemo(() => {
-    if (Array.isArray(dlcRegistry) && dlcRegistry.length > 0) return dlcRegistry;
-    const catalog = activeGameSchema?.dlc_catalog;
-    if (catalog && typeof catalog === "object") {
-      return Object.entries(catalog).map(([id, entry]: [string, any]) => ({
-        id,
-        name: typeof entry === "string" ? entry : entry?.name || id,
-        type: typeof entry === "object" && entry?.type ? entry.type : t("dlc_type_addon", "Add-On"),
-      }));
-    }
-    return [];
-  }, [dlcRegistry, activeGameSchema?.dlc_catalog, t]);
+    return Array.isArray(dlcRegistry) ? dlcRegistry : [];
+  }, [dlcRegistry]);
 
   const dlcCategories = useMemo(() => {
     const types = Array.from(

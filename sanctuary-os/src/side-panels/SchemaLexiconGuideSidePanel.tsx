@@ -302,22 +302,31 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
       example: '"script_max_depth": 1, "module_max_depth": 5',
     },
     {
-      label: t("schema_studio_ver_file", "Version File & Extraction Regex"),
-      jsonKey: "version_detection.version_file_rel_path",
+      label: t("schema_studio_ver_file", "Version File, Key Prefix & JSON Key"),
+      jsonKey: "version_extraction.*",
       desc: t(
-        "schema_doc_ver_file_desc",
-        "Relative path to the file storing the installed game patch string and the regex pattern used to extract it, with Windows Registry and macOS Plist fallbacks."
+        "schema_doc_ver_file_v2_desc",
+        "Extracts the installed game patch string via PE Header, INI Key Prefix, or JSON Property Key (version_extraction.json_key) from a relative file path."
       ),
-      example: '"EngineVersion.ini" • "(\\d+\\.\\d+\\.\\d+\\.\\d+)"',
+      example: '"method": "json_key", "json_key": "build.version"',
     },
     {
-      label: t("schema_studio_dlc_subdirs", "DLC Subdirectories, Regex & Launch Mask"),
-      jsonKey: "dlc_detection.*",
+      label: t("schema_studio_sec_external_tools", "External Launchers & Script Extenders"),
+      jsonKey: "external_tools[]",
+      desc: t(
+        "schema_doc_ext_tools_desc",
+        "Optional script extenders or companion launchers (id, label, role, executable, args, auto_launch) used automatically during Quick Launch and {Lab} runs."
+      ),
+      example: '"role": "script_extender", "executable": "extender_loader.exe"',
+    },
+    {
+      label: t("schema_studio_dlc_subdirs", "DLC Subdirectories, Prefixes & Launch Mask"),
+      jsonKey: "dlc_subdirs / dlc_folder_prefixes / launch_args_dlc_mask_template",
       desc: t(
         "schema_doc_dlc_desc",
         "Subfolders and folder regex used to detect installed DLC packs on Windows/macOS, plus the command-line template for disabling packs during {Lab} testing."
       ),
-      example: '"^(DLC|EXP)_\\d{2}$" • "-disablepacks:{packs}"',
+      example: '"DLC_" • "-disablepacks:{packs}"',
     },
   ];
 
@@ -386,13 +395,40 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
       example: '["shader_cache.bin", "asset_index.dat"]',
     },
     {
-      label: t("schema_studio_binary_parsers", "Binary Extension Parsers & Badges"),
-      jsonKey: "extensions.binary_parsers / badge_labels",
+      label: t("schema_studio_archive_exts", "Archive Containers & Relative Root Anchors"),
+      jsonKey: "extensions.archive_containers / relative_root_anchors",
       desc: t(
-        "schema_doc_parsers_desc",
-        "Maps file extensions to native Rust binary indexers and UI card badge labels (MODULE, SCRIPT, CONFIG)."
+        "schema_doc_archive_anchors_desc",
+        "Supported archive formats (.zip, .7z, .rar) and folder anchors stripped on intake so nested archive trees align cleanly with the target root."
       ),
-      example: '".mod": "chunk_table" • ".mod": "MODULE"',
+      example: '[".zip", ".7z"] • ["Data", "plugins"]',
+    },
+    {
+      label: t("schema_studio_editable_cfg_formats", "Workbench Formats & Auxiliary Assets"),
+      jsonKey: "editable_config_formats / preserve_auxiliary_assets",
+      desc: t(
+        "schema_doc_workbench_aux_desc",
+        "Text formats editable directly in Workbench and the safeguard keeping companion meshes, textures, and sidecar assets bundled with primary {Mod} files."
+      ),
+      example: '[".cfg", ".ini", ".json", ".toml"] • true',
+    },
+    {
+      label: t("schema_studio_twin_exts", "Paired Twin Extensions"),
+      jsonKey: "extensions.twin_extensions",
+      desc: t(
+        "schema_doc_twin_exts_desc",
+        "Extension pairs that belong to a single logical {Mod} unit (e.g. a binary module paired with its companion script or archive) so they deploy and toggle together."
+      ),
+      example: '[[".bin", ".dll"]]',
+    },
+    {
+      label: t("schema_studio_binary_parsers", "Magic Bytes, Parsers & Badge Labels"),
+      jsonKey: "extensions.magic_bytes / parsers / labels",
+      desc: t(
+        "schema_doc_magic_parsers_desc",
+        "Hex header signatures (magic_bytes), parser bindings, and UI badge labels mapped per file extension."
+      ),
+      example: '".bin": "504B0304" • ".bin": "MODULE"',
     },
   ];
 
@@ -446,17 +482,17 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
       example: '"folder_priority" | "manifest_list" | "numeric_prefix" | "timestamp"',
     },
     {
-      label: t("schema_studio_lo_prefix_fmt", "Numeric Prefix & Manifest Line Templates"),
-      jsonKey: "prefix_format / manifest_line_template",
+      label: t("schema_studio_lo_prefix_fmt", "Prefix Format, Separator & Wrapper Templates"),
+      jsonKey: "prefix_format / prefix_separator / line_template / document_header / document_footer",
       desc: t(
-        "schema_doc_lo_templates_desc",
-        "Formatting patterns used when Strategy is set to Numeric Prefix ({index:03}_) or Manifest List (*{filename})."
+        "schema_doc_lo_templates_v2_desc",
+        "Formatting patterns for Numeric Prefix ({index:03}_), Prefix Separator (_), Manifest Line Template (*{file}), and optional XML/JSON Document Header & Footer wrappers."
       ),
-      example: '"{index:03}_" • "*{filename}"',
+      example: '"{index:03}_" • "*{file}"',
     },
     {
       label: t("schema_studio_manifest_content", "Manifest Header Template"),
-      jsonKey: "paths.manifest_content_template",
+      jsonKey: "manifest_content",
       desc: t(
         "schema_doc_manifest_header_desc",
         "Complete manifest header or priority configuration written when compiling Folder Priority override tiers."
@@ -465,30 +501,39 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
     },
     {
       label: t("schema_studio_sec_tiers", "Priority Tiers (ID, Label, Folder Prefix, Weight)"),
-      jsonKey: "priority_tiers[]",
+      jsonKey: "load_order.priority_tiers[]",
       desc: t(
         "schema_doc_tiers_desc",
         "Defines the load order tiers available to {Citizens}. Higher Priority Weight tiers win resource conflicts over lower tiers."
       ),
-      example: 'Tier 0 (Standard, 500) → Tier 3 (Sanctuary3, 800)',
+      example: 'tier_1 ("Sanctuary", Priority 1000)',
     },
     {
-      label: t("schema_studio_lab_stabilize_sec", "{Lab} Boot Stabilization & RAM Steps"),
+      label: t("schema_studio_sec_conflict_analyzers", "Conflict Radar Analyzers"),
+      jsonKey: "conflict_analyzers[]",
+      desc: t(
+        "schema_doc_conflict_analyzers_desc",
+        "Pluggable resource collision analyzers: binary_chunk_index (magic_bytes, endian, header/count/table offsets, entry/key size, bitmask header), archive_member, virtual_fs_path, and json_xml_key."
+      ),
+      example: '"type": "binary_chunk_index", "key_size": 16, "endian": "le"',
+    },
+    {
+      label: t("schema_studio_sec_lab_verification", "{Lab} Governance, Focus, Save & Hotkey Rules"),
       jsonKey: "lab_verification.*",
       desc: t(
-        "schema_doc_lab_ram_desc",
-        "Seconds the game must run steadily before {Lab} marks boot stable, plus Min RAM Step (%) and Warm Cache RAM Step (%) thresholds."
+        "schema_doc_lab_gov_desc",
+        "Controls {Mason} publish and Scout gates, active window focus, save-verify-and-rewind checkpoints, required active seconds, idle grace seconds, and pause/resume VK key codes."
       ),
-      example: '"boot_stabilization_seconds": 12, "min_ram_step_percent": 20',
+      example: '"required_active_seconds": 120, "require_save_checkpoint": true',
     },
     {
-      label: t("schema_studio_lab_save_exts", "{Lab} Save File Extensions"),
-      jsonKey: "lab_verification.save_extensions",
+      label: t("schema_studio_world_load_sig", "World-Load Hardware Telemetry Signature"),
+      jsonKey: "lab_verification.world_load_signature.*",
       desc: t(
-        "schema_doc_lab_saves_desc",
-        "Save file extensions monitored during {Lab} verification runs."
+        "schema_doc_lab_ram_desc",
+        "Seconds the game must run steadily before {Lab} marks boot stable, plus Min Disk Read (MB), Min RAM Step (%), Warm-Cache RAM Step (%), and scratch subdirectories."
       ),
-      example: '[".save", ".sav", ".dat"]',
+      example: '"stabilize_boot_seconds": 14, "min_disk_read_mb": 75',
     },
   ];
 
@@ -501,24 +546,6 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
         "Use Prefix + Extension (e.g. Starts With: crash_report, Ends With: .log) to catch timestamped crash logs, or switch the Rule Type dropdown to Exact Filename (e.g. engine_error.log) for fixed log files."
       ),
       example: 'Starts With: "crash_report" + Ends With: ".log" | Exact: "engine_error.log"',
-    },
-    {
-      label: t("schema_studio_sec_exc_rules", "Exception Rules (ID, File Hint & Threat Level)"),
-      jsonKey: "exception_rules[].id / file_hint / severity",
-      desc: t(
-        "schema_doc_exc_meta_desc",
-        "Unique rule ID, target log filename hint, and severity badge (Critical, Warning, or Info) displayed when a log matches."
-      ),
-      example: '"id": "engine_script_err", "severity": "critical"',
-    },
-    {
-      label: t("schema_doc_exc_kw_title", "Pipe-Separated Keywords, Analysis & Countermeasure"),
-      jsonKey: "keywords / explanation / recommendation",
-      desc: t(
-        "schema_guide_logs_rules_desc",
-        "Each rule scans matched logs for Pipe-Separated Keywords (e.g. AttributeError | ImportError), assigns a Threat Level (Critical, Warning, Info), and surfaces a human-readable Diagnostic Analysis and Countermeasure Protocol."
-      ),
-      example: '"AttributeError | ModuleNotFoundError | ImportError"',
     },
     {
       label: t("schema_studio_tc_world_targets", "World State {Backups} Targets"),
@@ -782,7 +809,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
               className="!w-full"
               icon={t("icon_badge", "badge")}
               label={t("schema_studio_tab_identity", "Identity & Paths")}
-              value={`20 ${t("fields", "Fields")}`}
+              value={`${schemaIdentityFields.length + schemaPathsFields.length + schemaSafeguardsVersionFields.length} ${t("fields", "Fields")}`}
               isActive={schemaTab === "identity_paths"}
               onClick={() => setSchemaTab("identity_paths")}
             />
@@ -791,7 +818,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
               className="!w-full"
               icon={t("icon_alt_route", "alt_route")}
               label={t("schema_studio_tab_routes", "Extensions & Routes")}
-              value={`12 ${t("fields", "Fields")}`}
+              value={`${schemaExtensionsFields.length + schemaInstallRouteFields.length} ${t("fields", "Fields")}`}
               isActive={schemaTab === "routing_ext"}
               onClick={() => setSchemaTab("routing_ext")}
             />
@@ -799,8 +826,8 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
               variant="filter"
               className="!w-full"
               icon={t("icon_low_priority", "low_priority")}
-              label={t("schema_studio_tab_load_order", "Load Order & Tiers")}
-              value={`06 ${t("fields", "Fields")}`}
+              label={t("schema_studio_tab_load_lab", "Load Order, Radar & {Lab}")}
+              value={`${schemaLoadOrderFields.length} ${t("fields", "Fields")}`}
               isActive={schemaTab === "load_lab"}
               onClick={() => setSchemaTab("load_lab")}
             />
@@ -809,7 +836,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
               className="!w-full"
               icon={t("icon_history", "history")}
               label={t("schema_studio_tab_logs_backups", "Logs & {Backups}")}
-              value={`06 ${t("fields", "Fields")}`}
+              value={`${schemaLogsBackupsFields.length} ${t("fields", "Fields")}`}
               isActive={schemaTab === "rules_capsule"}
               onClick={() => setSchemaTab("rules_capsule")}
             />
