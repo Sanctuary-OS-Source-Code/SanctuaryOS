@@ -17,7 +17,7 @@ import {
 } from './ChameleonShared';
 import { Slider } from '../components/universal/Slider';
 import { DashboardStatTile } from '../hub-components/SharedCommandScreenLayout';
-import { UniversalGroup, VAULT_CHIP_CLASS, HoverTooltip } from '../shared';
+import { UniversalGroup, VAULT_CHIP_CLASS, HoverTooltip, SidePanelFilterBar } from '../shared';
 import { useStore } from '../store';
 
 interface ChameleonControlDashboardProps {
@@ -525,7 +525,7 @@ export function ChameleonControlDashboard({
         </div>
 
         {/* Sleek Single-Line 4-Tab Grid */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 w-full">
+        <SidePanelFilterBar className="grid-cols-2 xl:grid-cols-4 gap-2">
           <DashboardStatTile
             variant="filter"
             icon={t('icon_auto_awesome', 'auto_awesome')}
@@ -558,7 +558,7 @@ export function ChameleonControlDashboard({
             onClick={() => setActiveTab('backgrounds')}
             className="!min-h-[44px] !py-1.5 !px-3"
           />
-        </div>
+        </SidePanelFilterBar>
       </div>
 
       {/* Tab Content Body */}

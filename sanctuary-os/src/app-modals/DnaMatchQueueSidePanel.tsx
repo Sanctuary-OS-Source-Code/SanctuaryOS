@@ -8,6 +8,7 @@ import {
   SidePanelHeroCard,
   StatBox,
   DashboardStatTile,
+  SidePanelFilterBar,
   UniversalGroup,
   VAULT_CHIP_CLASS,
   openModDossier,
@@ -705,7 +706,7 @@ export function DnaMatchQueueSidePanel({
         </SidePanelHeroCard>
 
         {!isSuccess && showMultipleCategories && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-3">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -742,7 +743,7 @@ export function DnaMatchQueueSidePanel({
               value={edgeOverrides.length}
               onClick={() => setQueueFilter("edge")}
             />
-          </div>
+          </SidePanelFilterBar>
         )}
 
         {!isSuccess && (

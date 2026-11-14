@@ -5,6 +5,7 @@ import {
   enrichBlueprintsWithPremiumStatus,
   CustomDropdown,
   DashboardStatTile,
+  SidePanelFilterBar,
   EmptyState,
   LoadingScreen,
   SidePanel,
@@ -926,7 +927,7 @@ export default function MasonProfile({
             variant="accent"
           />
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full">
+          <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-3">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -979,7 +980,7 @@ export default function MasonProfile({
                 setModSearch("");
               }}
             />
-          </div>
+          </SidePanelFilterBar>
 
           {activeView === "OVERVIEW" ? (
             <MasonProfileOverview

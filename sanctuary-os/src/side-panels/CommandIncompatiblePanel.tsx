@@ -18,6 +18,7 @@ import {
   InlineFilterGroup,
   SidePanelHeroCard,
   DashboardStatTile,
+  SidePanelFilterBar,
   UniversalGroup,
   VAULT_CHIP_CLASS,
   isScriptExtension,
@@ -2666,7 +2667,7 @@ export default function CommandIncompatiblePanel({
         />
 
         {groupedBrokenMods.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <SidePanelFilterBar className="sm:grid-cols-3 gap-2.5">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -2703,7 +2704,7 @@ export default function CommandIncompatiblePanel({
                 )
               }
             />
-          </div>
+          </SidePanelFilterBar>
         )}
 
         {groupedBrokenMods.length > 0 && (

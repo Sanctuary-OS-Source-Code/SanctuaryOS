@@ -9,10 +9,13 @@ import {
   HoverTooltip,
   PanelHeaderButton,
   DashboardStatTile,
+  SidePanelFilterBar,
   EmptyState,
+} from "../shared";
+import {
   SidePanelHeroCard,
   UniversalGroup,
-} from "../shared";
+} from "../components/universal/UniversalLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
 import {
   fetchUnifiedSanctuaryNotifications,
@@ -20,6 +23,7 @@ import {
   markAllHubNotificationsRead,
   dismissHubNotification,
   dismissAllHubNotifications,
+  syncCrossDeviceNotificationState,
 } from "../utils/notificationHelper";
 
 interface NotificationSidebarProps {
@@ -65,6 +69,7 @@ export default function NotificationSidebar({
   }, [session, activeWorkspaceId, workspaces]);
 
   useEffect(() => {
+    syncCrossDeviceNotificationState(session).catch(() => {});
     fetchNotifications();
 
     const handleNewNotification = () => {
@@ -520,7 +525,7 @@ export default function NotificationSidebar({
         />
 
         {/* 3-Tab Source Filter: Global [All] / OS [Foundry] / Active Spoke [Spoke] */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -548,7 +553,7 @@ export default function NotificationSidebar({
             isActive={filterTab === "spoke"}
             onClick={() => setFilterTab("spoke")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {loading ? (
           <EmptyState

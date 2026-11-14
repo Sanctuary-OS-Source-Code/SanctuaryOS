@@ -4,6 +4,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore, getSafeSchema } from "../store";
 import {
   SidePanel,
+  SidePanelFilterBar,
   SidePanelHeroCard,
   UniversalGroup,
   StatBox,
@@ -1551,7 +1552,7 @@ export default function WayfinderMasterSchemas({
 
     return (
       <div className="flex flex-col gap-5 w-full">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        <SidePanelFilterBar className="md:grid-cols-3 gap-3.5">
           <DashboardStatTile
             variant="filter"
             icon={t("icon_hub", "hub")}
@@ -1579,7 +1580,7 @@ export default function WayfinderMasterSchemas({
             isActive={forkTab === "sql"}
             onClick={() => setForkTab("sql")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {forkTab === "spoke" && (
           <div className="glass-panel rounded-2xl p-5 flex flex-col gap-4 border border-[color-mix(in_srgb,var(--accent)_40%,transparent)]">
@@ -2955,7 +2956,7 @@ export default function WayfinderMasterSchemas({
         }
       >
         <div className="flex flex-col gap-5 mt-2 relative z-10 w-full pb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
             <DashboardStatTile
               variant="filter"
               icon={t("icon_handshake", "handshake")}
@@ -2972,7 +2973,7 @@ export default function WayfinderMasterSchemas({
               active={covenantDocTab === "compliance_protocol"}
               onClick={() => setCovenantDocTab("compliance_protocol")}
             />
-          </div>
+          </SidePanelFilterBar>
 
           <SidePanelHeroCard
             icon={
@@ -3250,7 +3251,7 @@ export default function WayfinderMasterSchemas({
             badge={CANONICAL_DIRECTIVES.forking_guide.category}
             variant="accent"
           >
-            <div className="flex flex-wrap gap-3 pt-1">
+            <div className="flex flex-wrap items-center justify-end gap-2 ml-auto pt-1 w-full">
               <ActionButton
                 variant="glass"
                 icon={t("icon_database", "database")}

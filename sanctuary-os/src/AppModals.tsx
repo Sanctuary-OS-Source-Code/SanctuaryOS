@@ -97,6 +97,9 @@ export const AppModals = React.memo(function AppModals(props: any) {
   const {
     backupType,
     restoreType,
+    completedBackups,
+    backupRestoreError,
+    confirmDialog,
     updatePayload,
     setIsSideBrowserOpen,
     isBlueprintSwapOpen,
@@ -118,6 +121,9 @@ export const AppModals = React.memo(function AppModals(props: any) {
     useShallow((s) => ({
       backupType: s.backupType,
       restoreType: s.restoreType,
+      completedBackups: s.completedBackups,
+      backupRestoreError: s.backupRestoreError,
+      confirmDialog: s.confirmDialog,
       updatePayload: s.updatePayload,
       setIsSideBrowserOpen: s.setIsSideBrowserOpen,
       isBlueprintSwapOpen: s.isBlueprintSwapOpen,
@@ -248,7 +254,11 @@ export const AppModals = React.memo(function AppModals(props: any) {
           <DropzoneSidePanel isDropzoneOpen={isDropzoneOpen} isDragging={isDragging} setIsDragging={setIsDragging} dropzoneState={dropzoneState} setIsDropzoneOpen={setIsDropzoneOpen} setDropzoneState={setDropzoneState} droppedFiles={droppedFiles} setDroppedFiles={setDroppedFiles} ingestProgress={ingestProgress} handleDroppedFiles={handleDroppedFiles} runRadarSweep={runRadarSweep} />
         )}
 
-        {(isBackingUp || isRestoring) && (
+        {(isBackingUp ||
+          isRestoring ||
+          completedBackups.length > 0 ||
+          Boolean(confirmDialog?.isDefcon) ||
+          Boolean(backupRestoreError)) && (
           <BackupRestoreModals isBackingUp={isBackingUp} isRestoring={isRestoring} backupType={backupType} restoreType={restoreType} t={t} />
         )}
 

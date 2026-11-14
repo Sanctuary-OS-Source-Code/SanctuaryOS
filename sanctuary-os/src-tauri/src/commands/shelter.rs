@@ -214,12 +214,7 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
             if let Ok(entries) = fs::read_dir(dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    let is_symlink_or_junction = fs::read_link(&path).is_ok()
-                        || fs::symlink_metadata(&path)
-                            .map(|m| m.file_type().is_symlink())
-                            .unwrap_or(false);
-
-                    if is_symlink_or_junction {
+                    if crate::utils::is_symlink_or_reparse_point(&path) {
                         items.push(path);
                     } else if path.is_dir() {
                         items.push(path.clone());
@@ -242,18 +237,17 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
         items.reverse();
 
         for path in items {
-            let is_symlink_or_junction = fs::read_link(&path).is_ok()
-                || fs::symlink_metadata(&path)
-                    .map(|m| m.file_type().is_symlink())
-                    .unwrap_or(false);
+            let is_symlink_or_junction = crate::utils::is_symlink_or_reparse_point(&path);
+            let fname_lower = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(|s| s.to_lowercase())
+                .unwrap_or_default();
 
             if !is_symlink_or_junction
                 && path.parent() == Some(mods_dir.as_path())
                 && !manifest_leaf.is_empty()
-                && path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .map_or(false, |n| n.eq_ignore_ascii_case(&manifest_leaf))
+                && fname_lower == manifest_leaf
             {
                 continue;
             }
@@ -261,21 +255,42 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
                 let dest = vault_mods_lane.join(rel_path);
 
                 if is_symlink_or_junction {
-                    if fs::remove_file(&path).is_ok() || fs::remove_dir(&path).is_ok() {
+                    if crate::utils::remove_symlink_or_junction(&path) {
                         exorcised += 1;
                     }
-                } else if path.is_dir() {
-                    let _ = fs::remove_dir(&path);
-                } else if !manifest_leaf.is_empty()
-                    && path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .map_or(false, |n| n.eq_ignore_ascii_case(&manifest_leaf))
+                } else if fname_lower.starts_with(".sanctuary_")
+                    || fname_lower == "desktop.ini"
+                    || fname_lower == "thumbs.db"
+                    || fname_lower == ".ds_store"
                 {
+                    let _ = fs::remove_file(&path);
+                } else if path.is_dir() {
+                    if let Ok(meta) = fs::symlink_metadata(&path) {
+                        let mut perms = meta.permissions();
+                        if perms.readonly() {
+                            perms.set_readonly(false);
+                            let _ = fs::set_permissions(&path, perms);
+                        }
+                    }
+                    let _ = fs::remove_dir(&path);
+                } else if !manifest_leaf.is_empty() && fname_lower == manifest_leaf {
                     let _ = fs::remove_file(&path);
                 } else {
                     if let Some(parent) = dest.parent() {
                         let _ = fs::create_dir_all(parent);
+                    }
+                    if dest.exists() {
+                        let same_hash = match (
+                            crate::utils::calculate_hash(&path),
+                            crate::utils::calculate_hash(&dest),
+                        ) {
+                            (Ok(h1), Ok(h2)) => h1 == h2,
+                            _ => false,
+                        };
+                        if same_hash {
+                            let _ = fs::remove_file(&path);
+                            continue;
+                        }
                     }
                     if fs::rename(&path, &dest).is_ok() || fs::copy(&path, &dest).is_ok() {
                         let _ = fs::remove_file(&path);
@@ -284,6 +299,7 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
                 }
             }
         }
+        crate::utils::delete_vault_kv(&config.vault_path, "deployed_links");
 
         Ok(format!(
             "{} ghosts busted, {} physical moved.",

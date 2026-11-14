@@ -14,6 +14,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
+  SidePanelFilterBar,
   SidePanelHeroCard,
   StatBox,
   UniversalGroup,
@@ -300,7 +301,7 @@ export function VaultLocalFolderEditorSidePanel({
           variant={targetSet.isCollection ? "accent" : "success"}
         />
 
-        <div className="grid grid-cols-2 gap-3">
+        <SidePanelFilterBar className="grid-cols-2 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -339,7 +340,7 @@ export function VaultLocalFolderEditorSidePanel({
               setUpdateTrigger((prev) => prev + 1);
             }}
           />
-        </div>
+        </SidePanelFilterBar>
 
         <UniversalGroup
           title={

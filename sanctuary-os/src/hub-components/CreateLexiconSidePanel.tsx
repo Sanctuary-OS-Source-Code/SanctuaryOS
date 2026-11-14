@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import {
   SidePanel,
   DashboardStatTile,
+  SidePanelFilterBar,
   UniversalGroup,
   CustomDropdown,
   ActionButton,
@@ -209,7 +210,7 @@ export default function CreateLexiconSidePanel({
           icon={t("icon_flag", "flag")}
         >
           <div className="flex flex-col gap-3 w-full">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+            <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
               <DashboardStatTile
                 variant="filter"
                 icon={t("icon_auto_awesome", "auto_awesome")}
@@ -232,18 +233,18 @@ export default function CreateLexiconSidePanel({
                   if (!slugTouched) setCustomSlug("");
                 }}
               />
-            </div>
+            </SidePanelFilterBar>
 
             <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed px-1">
               {goal === "vocabulary"
                 ? t(
-                    "lex_create_goal_vocab_desc",
-                    "Rename the 21 Core Terms (such as {Mod}, {Vault}, {Blueprint}, and {Citizen}) to update 95% of the interface automatically while inheriting Standard English for everything else."
-                  )
+                  "lex_create_goal_vocab_desc",
+                  "Rename the 21 Core Terms (such as {Mod}, {Vault}, {Blueprint}, and {Citizen}) to update 95% of the interface automatically while inheriting Standard English for everything else."
+                )
                 : t(
-                    "lex_create_goal_trans_desc",
-                    "Translate the interface into another language. Once created, you can run 1-Click Auto-Translate to populate your pack in seconds and refine any string side-by-side."
-                  )}
+                  "lex_create_goal_trans_desc",
+                  "Translate the interface into another language. Once created, you can run 1-Click Auto-Translate to populate your pack in seconds and refine any string side-by-side."
+                )}
             </p>
           </div>
         </UniversalGroup>

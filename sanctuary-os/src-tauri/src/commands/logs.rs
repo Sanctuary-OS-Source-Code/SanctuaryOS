@@ -81,7 +81,9 @@ pub async fn get_scrubbed_game_logs(
         .unwrap_or_else(|e| e.into_inner())
         .clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let path = PathBuf::from(&docs_path);
+        let config = crate::commands::state_ops::get_saved_coordinates();
+        let path =
+            crate::utils::resolve_effective_docs_path_with_override(&docs_path, &config, &game_schema);
         let mut results: Vec<ScrubbedLogFile> = Vec::new();
         for (rel_name, full_path, mtime) in collect_exception_log_files(&path, &game_schema) {
             let mtime_secs = mtime
@@ -117,7 +119,9 @@ pub async fn scan_game_logs(
         .unwrap_or_else(|e| e.into_inner())
         .clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let path = PathBuf::from(docs_path);
+        let config = crate::commands::state_ops::get_saved_coordinates();
+        let path =
+            crate::utils::resolve_effective_docs_path_with_override(&docs_path, &config, &game_schema);
 
         let mut exceptions = Vec::new();
         let mut has_crash = false;
@@ -166,8 +170,10 @@ pub fn clear_old_logs(docs_path: String, state: tauri::State<'_, AppState>) {
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .clone();
-    let path = PathBuf::from(docs_path);
-    if !crate::utils::is_safe_user_file_path(&path) {
+    let config = crate::commands::state_ops::get_saved_coordinates();
+    let path =
+        crate::utils::resolve_effective_docs_path_with_override(&docs_path, &config, &game_schema);
+    if !crate::utils::is_safe_workspace_target_dir(&path) {
         return;
     }
 

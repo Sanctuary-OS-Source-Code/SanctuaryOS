@@ -13,6 +13,7 @@ import {
   ActionPill,
   CustomDropdown,
   DashboardStatTile,
+  SidePanelFilterBar,
   EmptyState,
   HoverTooltip,
   PanelHeaderGroup,
@@ -175,13 +176,13 @@ export function LiquidGlassAlertCard({
             {icon}
           </span>
         </div>
-        <span className={VAULT_CHIP_CLASS}>
+        <span className={`${VAULT_CHIP_CLASS} max-w-[calc(100%-3.5rem)]`}>
           <span
             className={`material-symbols-outlined !text-[12px] shrink-0 ${iconColorClass}`}
           >
             {badgeIcon || icon}
           </span>
-          <span>{badgeLabel}</span>
+          <span className="truncate">{badgeLabel}</span>
         </span>
       </div>
 
@@ -4646,7 +4647,7 @@ export function BlueprintPatchReadinessSidePanel({
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-center gap-2.5 pt-0.5 w-full">
+                <div className="flex flex-wrap items-center justify-end gap-2 ml-auto pt-1 w-full">
                   {guidedQueue.length > 0 && (
                     <ActionButton
                       variant="primary"
@@ -4723,7 +4724,7 @@ export function BlueprintPatchReadinessSidePanel({
             </SidePanelHeroCard>
 
             {/* Primary Bucket Filter Tiles inside SidePanel */}
-            <div className="grid grid-cols-3 gap-3">
+            <SidePanelFilterBar className="grid-cols-3 gap-3">
               <DashboardStatTile
                 variant="filter"
                 icon={t("icon_gpp_bad", "gpp_bad")}
@@ -4774,7 +4775,7 @@ export function BlueprintPatchReadinessSidePanel({
                   })
                 }
               />
-            </div>
+            </SidePanelFilterBar>
 
             <ActionPill
               className="w-full !max-w-none"

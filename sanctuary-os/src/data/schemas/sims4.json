@@ -904,7 +904,7 @@
       "lexicon_key": "class_dd_unknown"
     }
   ],
-  "schema_version": 12,
+  "schema_version": 13,
   "default_lexicon": "en-sims",
   "exception_rules": [
     {
@@ -957,7 +957,8 @@
     "TS4.exe",
     "TS4_DX9_x64.exe",
     "The Sims 4.app",
-    "The Sims 4"
+    "The Sims 4",
+    "TS4_DX11.exe"
   ],
   "lab_verification": {
     "require_focus": true,
@@ -986,7 +987,7 @@
     "world_load_signature": {
       "min_disk_read_mb": 75,
       "min_ram_step_percent": 25,
-      "stabilize_boot_seconds": 8,
+      "stabilize_boot_seconds": 16,
       "scratch_activity_subdirs": [
         "saves/scratch"
       ],

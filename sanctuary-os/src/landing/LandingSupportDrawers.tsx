@@ -8,6 +8,8 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   CustomDropdown,
+  DashboardStatTile,
+  SidePanelFilterBar,
 } from '../shared';
 import {
   UniversalInput,
@@ -18,7 +20,7 @@ import CitizenTickets from '../CitizenTickets';
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import TicketLogViewer from '../side-panels/TicketLogViewer';
 import { useStore } from '../store';
-import { getActiveGameClient } from '../supabase';
+import { getActiveGameClient, supabase } from '../supabase';
 import { isDesktop } from '../utils/envUtils';
 import { isRootDomain } from '../utils/routingUtils';
 
@@ -179,6 +181,45 @@ export function LandingSupportDrawers({
     activeWorkspaceObj?.name ||
     activeWorkspaceId ||
     t('tab_workspace', 'Workspace');
+  const [myTicketsScope, setMyTicketsScope] = React.useState<'core' | 'spoke'>(
+    'core'
+  );
+  const [spokeTicketsCount, setSpokeTicketsCount] = React.useState<number>(0);
+
+  React.useEffect(() => {
+    if (!hasLoadedSpoke && myTicketsScope === 'spoke') {
+      setMyTicketsScope('core');
+    }
+  }, [hasLoadedSpoke, myTicketsScope]);
+
+  React.useEffect(() => {
+    if (!isMyTicketsDrawerOpen || !userId || !hasLoadedSpoke) {
+      if (!hasLoadedSpoke) setSpokeTicketsCount(0);
+      return;
+    }
+    let isMounted = true;
+    const syncSpokeCount = async () => {
+      try {
+        const res = await supabase
+          .from('sanctuary_tickets')
+          .select('id', { count: 'exact', head: true })
+          .eq('author_id', userId);
+        if (isMounted && typeof res.count === 'number') {
+          setSpokeTicketsCount(res.count);
+        }
+      } catch {
+        // Ignore transient network errors
+      }
+    };
+    syncSpokeCount();
+    return () => {
+      isMounted = false;
+    };
+  }, [isMyTicketsDrawerOpen, userId, hasLoadedSpoke, activeWorkspaceId]);
+
+  const resolvedMyTicketsScope: 'core' | 'spoke' = hasLoadedSpoke
+    ? myTicketsScope
+    : 'core';
 
   return (
     <>
@@ -1398,36 +1439,37 @@ export function LandingSupportDrawers({
             </div>
           </SidePanelHeroCard>
 
-          <UniversalGroup
-            title={t(
-              'landing_feedback_my_tickets_btn',
-              'My Platform Tickets & Feedback'
-            )}
-            icon={t('icon_receipt_long', 'receipt_long')}
-          >
-            <CitizenTickets
-              userId={userId}
-              tableName="keeper_tickets"
-              externalTickets={myPlatformTickets}
-              onSelectTicket={(tk) =>
-                setSelectedMyTicket({ ...tk, table_name: 'keeper_tickets' })
-              }
-              onOpenNewTicket={() => {
-                setIsMyTicketsDrawerOpen(false);
-                setIsFeedbackDrawerOpen(true);
-              }}
-              isSidePanel={true}
-            />
-          </UniversalGroup>
-
           {hasLoadedSpoke && (
+            <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
+              <DashboardStatTile
+                variant="filter"
+                icon={t('icon_receipt_long', 'receipt_long')}
+                label={t('keepers_title', 'Keepers Core')}
+                value={myPlatformTickets?.length ?? 0}
+                isActive={resolvedMyTicketsScope === 'core'}
+                onClick={() => setMyTicketsScope('core')}
+              />
+              <DashboardStatTile
+                variant="filter"
+                icon={t('icon_local_activity', 'local_activity')}
+                label={activeSpokeName}
+                value={spokeTicketsCount}
+                isActive={resolvedMyTicketsScope === 'spoke'}
+                onClick={() => setMyTicketsScope('spoke')}
+              />
+            </SidePanelFilterBar>
+          )}
+
+          {resolvedMyTicketsScope === 'spoke' && hasLoadedSpoke ? (
             <UniversalGroup
               title={`${activeSpokeName} • ${t('support_tickets', 'Support Tickets')}`}
               icon={t('icon_local_activity', 'local_activity')}
             >
               <CitizenTickets
+                key={`landing-spoke-${activeWorkspaceId}`}
                 userId={userId}
                 tableName="sanctuary_tickets"
+                onCountChange={setSpokeTicketsCount}
                 onSelectTicket={(tk) =>
                   setSelectedMyTicket({
                     ...tk,
@@ -1437,6 +1479,29 @@ export function LandingSupportDrawers({
                 onOpenNewTicket={() => {
                   setIsMyTicketsDrawerOpen(false);
                   document.dispatchEvent(new CustomEvent('open-support-modal'));
+                }}
+                isSidePanel={true}
+              />
+            </UniversalGroup>
+          ) : (
+            <UniversalGroup
+              title={t(
+                'landing_feedback_my_tickets_btn',
+                'My Platform Tickets & Feedback'
+              )}
+              icon={t('icon_receipt_long', 'receipt_long')}
+            >
+              <CitizenTickets
+                key="landing-core-keeper"
+                userId={userId}
+                tableName="keeper_tickets"
+                externalTickets={myPlatformTickets}
+                onSelectTicket={(tk) =>
+                  setSelectedMyTicket({ ...tk, table_name: 'keeper_tickets' })
+                }
+                onOpenNewTicket={() => {
+                  setIsMyTicketsDrawerOpen(false);
+                  setIsFeedbackDrawerOpen(true);
                 }}
                 isSidePanel={true}
               />

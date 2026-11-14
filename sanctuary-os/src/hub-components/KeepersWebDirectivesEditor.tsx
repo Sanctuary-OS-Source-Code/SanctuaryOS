@@ -10,11 +10,13 @@ import Link from "@tiptap/extension-link";
 import { IconPlugin } from "../IconPlugin";
 import {
   SidePanel,
+  SidePanelFilterBar,
   CustomDropdown,
   HoverTooltip,
   EmptyState,
   extractPostImage,
   stripMarkdown,
+  getSafeEditorMarkdown,
   PanelHeaderGroup,
   PanelHeaderButton,
   LinkAssetSidePanel,
@@ -314,13 +316,13 @@ export default function KeepersWebDirectivesEditor({
   const editor = useEditor({
     extensions: [StarterKit, Markdown, IconPlugin, Image, Link],
     content: content,
-    onUpdate: ({ editor }) => {
-      if (suppressEditorUpdateRef.current) return;
+    onUpdate: ({ editor: ed }) => {
+      if (!ed || ed.isDestroyed || suppressEditorUpdateRef.current) return;
       if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = setTimeout(() => {
-        if (suppressEditorUpdateRef.current) return;
+        if (suppressEditorUpdateRef.current || !ed || ed.isDestroyed || !(ed.storage as any)?.markdown) return;
         const md = stripDirectiveBuilderComment(
-          (editor.storage as any).markdown.getMarkdown()
+          getSafeEditorMarkdown(ed)
         );
         setContent(md);
         setIsDirty(true);
@@ -360,9 +362,9 @@ export default function KeepersWebDirectivesEditor({
       } else {
         setEditorContentSilently(stripDirectiveBuilderComment(content));
       }
-    } else if (editorMode === "wysiwyg" && editor) {
+    } else if (editorMode === "wysiwyg" && editor && !editor.isDestroyed) {
       const md = stripDirectiveBuilderComment(
-        (editor.storage as any).markdown.getMarkdown()
+        getSafeEditorMarkdown(editor) || content
       );
       setContent(md);
       if (nextMode === "visual" && activeCanonicalSlug) {
@@ -1342,9 +1344,9 @@ export default function KeepersWebDirectivesEditor({
     if (e) e.preventDefault();
 
     let finalMarkdownBody = stripDirectiveBuilderComment(content);
-    if (editor && editorMode === "wysiwyg") {
+    if (editor && !editor.isDestroyed && editorMode === "wysiwyg") {
       finalMarkdownBody = stripDirectiveBuilderComment(
-        (editor.storage as any).markdown.getMarkdown()
+        getSafeEditorMarkdown(editor) || content
       );
       setContent(finalMarkdownBody);
     }
@@ -2497,7 +2499,7 @@ export default function KeepersWebDirectivesEditor({
                 <div className="flex flex-col gap-4 animate-in fade-in duration-200 w-full">
                   {/* 1. 1x3 Directive Tab Selector */}
                   {builderSchema.tabs.length > 1 && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 w-full">
+                    <SidePanelFilterBar className="md:grid-cols-3 gap-3.5">
                       {builderSchema.tabs.map((tab, tIdx) => (
                         <DashboardStatTile
                           key={tab.id}
@@ -2514,7 +2516,7 @@ export default function KeepersWebDirectivesEditor({
                           }}
                         />
                       ))}
-                    </div>
+                    </SidePanelFilterBar>
                   )}
 
                   {/* 2. Top Action Bar + Liquid Glass Add Card Button */}

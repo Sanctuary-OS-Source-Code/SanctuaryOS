@@ -49,6 +49,7 @@ import { GlobalTooltip } from "./GlobalTooltip";
 import { useTooltipStore } from "./store/tooltipStore";
 import { useTheme } from "./ThemeContext";
 import { SystemBackground } from "./SystemBackground";
+import { useLabMilestoneNotifications } from "./components/LabVerificationGate";
 
 const ArchitectHub = React.lazy(() => import("./ArchitectHub"));
 const GlobalFeed = React.lazy(() => import("./GlobalFeed"));
@@ -82,7 +83,9 @@ import {
   seedInitialDeliveredNotifications,
   hasDeliveredNotification,
   fetchUnifiedSanctuaryNotifications,
+  syncCrossDeviceNotificationState,
 } from "./utils/notificationHelper";
+import { deriveUserNotificationSyncToken } from "./utils/stagingCrypto";
 
 function App() {
   if (!window.__sanctuaryCache) {
@@ -685,11 +688,15 @@ function App() {
       return baseTitle;
     };
 
-    const fetchUnread = async () => {
+    const fetchUnread = async (skipCloudPull = false) => {
       if (!navigator.onLine || localStorage.getItem('sanctuary_local_only') === 'true') return;
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const activeSession = sessionData?.session || session;
+
+        if (!skipCloudPull && activeSession?.user?.id) {
+          await syncCrossDeviceNotificationState(activeSession);
+        }
 
         const data = await fetchUnifiedSanctuaryNotifications({
           supabase,
@@ -718,13 +725,19 @@ function App() {
 
           for (const notif of enabledUnread) {
             const uniqueId = `notif:${notif._spokeId || 'global'}:${notif.id}`;
+            const cat =
+              notif._category ||
+              mapDbNotificationTypeToCategory(notif.type, notif.message);
+            const extraMeta = {
+              category: cat,
+              spokeId: notif._spokeId,
+              referenceId: notif.reference_id,
+              dbType: notif.type,
+            };
             if (
-              !hasDeliveredNotification(uniqueId) &&
-              !hasDeliveredNotification(`notif:${notif.id}`)
+              !hasDeliveredNotification(uniqueId, extraMeta) &&
+              !hasDeliveredNotification(`notif:${notif.id}`, extraMeta)
             ) {
-              const cat =
-                notif._category ||
-                mapDbNotificationTypeToCategory(notif.type, notif.message);
               dispatchSanctuaryNotification({
                 uniqueId,
                 category: cat,
@@ -760,58 +773,96 @@ function App() {
       }
     };
 
+    let cancelled = false;
     let interval: any = null;
     let realtimeChannel: any = null;
     let subscribedClient: any = null;
+    let hubSyncChannel: any = null;
+
+    const handleRefreshEvent = () => fetchUnread(true);
 
     const setupNetworkFeatures = async () => {
-      fetchUnread();
+      if (cancelled) return;
+      fetchUnread(false);
       if (!interval) {
-        interval = setInterval(fetchUnread, 30000);
+        interval = setInterval(() => fetchUnread(false), 30000);
       }
-      if (session?.user?.id && !realtimeChannel && navigator.onLine && localStorage.getItem('sanctuary_local_only') !== 'true') {
-        const spokeClient = getActiveGameClient();
-        const targetClient = spokeClient || (isStandaloneFork ? supabaseAuth : null);
-        if (targetClient) {
-          subscribedClient = targetClient;
-          realtimeChannel = targetClient
-            .channel(`sanctuary_user_notifs_${session.user.id}_${activeWorkspaceId || 'spoke'}`)
-            .on(
-              'postgres_changes',
-              {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'notifications',
-                filter: `user_id=eq.${session.user.id}`,
-              },
-              () => {
-                fetchUnread();
-              }
-            )
-            .on(
-              'postgres_changes',
-              {
-                event: 'INSERT',
-                schema: 'public',
-                table: 'system_broadcasts',
-              },
-              (payload: any) => {
-                const row = payload?.new;
-                if (row?.id && row?.is_active) {
-                  const isUrgent = Boolean(row.is_pinned) || String(row.category || '').includes('Alert');
-                  dispatchSanctuaryNotification({
-                    uniqueId: isUrgent ? `urgent_broadcast:${row.id}` : `broadcast:${row.id}`,
-                    category: isUrgent ? 'alert_banner' : 'system_dispatch',
-                    spokeId: activeWorkspaceId || undefined,
-                    title: row.title || t('notify_system_dispatch', 'System Dispatch'),
-                    body: row.message || row.content || '',
-                    data: { broadcastId: row.id, type: 'system_broadcast' },
-                  });
+      if (session?.user?.id && navigator.onLine && localStorage.getItem('sanctuary_local_only') !== 'true') {
+        if (!realtimeChannel) {
+          const spokeClient = getActiveGameClient();
+          const targetClient = spokeClient || (isStandaloneFork ? supabaseAuth : null);
+          if (targetClient) {
+            subscribedClient = targetClient;
+            realtimeChannel = targetClient
+              .channel(`sanctuary_user_notifs_${session.user.id}_${activeWorkspaceId || 'spoke'}`)
+              .on(
+                'postgres_changes',
+                {
+                  event: 'INSERT',
+                  schema: 'public',
+                  table: 'notifications',
+                  filter: `user_id=eq.${session.user.id}`,
+                },
+                () => {
+                  fetchUnread(false);
                 }
-                fetchUnread();
-              }
-            )
-            .subscribe();
+              )
+              .on(
+                'postgres_changes',
+                {
+                  event: 'INSERT',
+                  schema: 'public',
+                  table: 'system_broadcasts',
+                },
+                async (payload: any) => {
+                  const row = payload?.new;
+                  if (row?.id && row?.is_active) {
+                    if (session?.user?.id) {
+                      await syncCrossDeviceNotificationState(session);
+                    }
+                    const isUrgent = Boolean(row.is_pinned) || String(row.category || '').includes('Alert');
+                    dispatchSanctuaryNotification({
+                      uniqueId: isUrgent ? `urgent_broadcast:${row.id}` : `broadcast:${row.id}`,
+                      category: isUrgent ? 'alert_banner' : 'system_dispatch',
+                      spokeId: activeWorkspaceId || undefined,
+                      title: row.title || t('notify_system_dispatch', 'System Dispatch'),
+                      body: row.message || row.content || '',
+                      data: { broadcastId: row.id, referenceId: row.id, type: 'system_broadcast' },
+                    });
+                  }
+                  fetchUnread(true);
+                }
+              )
+              .subscribe();
+          }
+        }
+
+        if (!hubSyncChannel && supabaseAuth) {
+          try {
+            const notifSyncToken = await deriveUserNotificationSyncToken(
+              session.user.id,
+              session.user.email
+            );
+            if (!cancelled && !hubSyncChannel && notifSyncToken) {
+              hubSyncChannel = supabaseAuth
+                .channel(`sanctuary_notif_sync_${notifSyncToken.slice(0, 16)}`)
+                .on(
+                  'postgres_changes',
+                  {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'citizen_staging_queue',
+                    filter: `user_token=eq.${notifSyncToken}`,
+                  },
+                  (payload: any) => {
+                    if (payload?.new?.payload_type === 'notification_state_sync') {
+                      syncCrossDeviceNotificationState(session).catch(() => {});
+                    }
+                  }
+                )
+                .subscribe();
+            }
+          } catch {}
         }
       }
     };
@@ -820,16 +871,17 @@ function App() {
 
     const handleOnline = () => {
       if (localStorage.getItem("sanctuary_local_only") !== "true") {
-        fetchUnread();
+        fetchUnread(false);
         setupNetworkFeatures();
       }
     };
 
-    window.addEventListener('refresh_notifications', fetchUnread);
-    window.addEventListener('sanctuary_notification_prefs_changed', fetchUnread);
+    window.addEventListener('refresh_notifications', handleRefreshEvent);
+    window.addEventListener('sanctuary_notification_prefs_changed', handleRefreshEvent);
     window.addEventListener('online', handleOnline);
 
     return () => {
+      cancelled = true;
       if (interval) clearInterval(interval);
       if (realtimeChannel) {
         try {
@@ -840,8 +892,17 @@ function App() {
           }
         } catch (e) {}
       }
-      window.removeEventListener('refresh_notifications', fetchUnread);
-      window.removeEventListener('sanctuary_notification_prefs_changed', fetchUnread);
+      if (hubSyncChannel) {
+        try {
+          if (supabaseAuth && typeof supabaseAuth.removeChannel === 'function') {
+            supabaseAuth.removeChannel(hubSyncChannel);
+          } else if (typeof hubSyncChannel.unsubscribe === 'function') {
+            hubSyncChannel.unsubscribe();
+          }
+        } catch (e) {}
+      }
+      window.removeEventListener('refresh_notifications', handleRefreshEvent);
+      window.removeEventListener('sanctuary_notification_prefs_changed', handleRefreshEvent);
       window.removeEventListener('online', handleOnline);
     };
   }, [session?.user?.id, activeWorkspaceId]);
@@ -3143,6 +3204,7 @@ function App() {
 
   useDefconRadar(t, askCustom, triggerPrePatchSnapshot, triggerFullEngineBackup);
   useGlobalListeners(fetchBackups, askCustom, t, triggerPrePatchSnapshot, triggerFullEngineBackup, ignoredHashesRef);
+  useLabMilestoneNotifications();
 
   const resolveUserDataDir = (config: any): string =>
     useStore.getState().docsPath ||
@@ -3417,26 +3479,30 @@ function App() {
     errorFoundOverride?: boolean,
   ): Promise<boolean> {
     const targetMod = targetModOverride || activeLabMod;
-    if (!targetMod) return false;
     const isError = errorFoundOverride !== undefined ? errorFoundOverride : testErrorFound;
-    setStatus(t("status_evaluating", "Evaluating Test Results..."));
+    setStatus(
+      t(
+        "lab_status_closing_and_restoring",
+        "Closing sandbox & restoring live saves..."
+      )
+    );
     const config: any = await invoke("get_saved_coordinates").catch(() => ({}));
     const dPath = resolveUserDataDir(config);
     try {
-      await invoke("airgap_saves", { docsPath: dPath, enable: false });
-      await invoke("stop_lab_verification_session");
+      await invoke("teardown_lab_sandbox_session", {
+        docsPath: dPath,
+        closeGame: true,
+      });
     } catch (e: any) {
       const rawErr = typeof e === "string" ? e : e?.message || String(e);
-      if (rawErr.includes("lab_err_game_running_saves_locked")) {
-        setStatus(
-          t(
+      const formattedErr = rawErr.includes("lab_err_game_running_saves_locked")
+        ? t(
             "lab_err_game_running_saves_locked",
             "Close the running game first so your live saves can be unlocked and restored safely."
           )
-        );
-        return false;
-      }
-      setStatus(`${t("status_teardown_error", "Teardown Error:")} ${rawErr}`);
+        : `${t("status_teardown_error", "Teardown Error:")} ${rawErr}`;
+      setStatus(formattedErr);
+      useStore.getState().pushStatus(formattedErr, "error");
       return false;
     }
 
@@ -3450,14 +3516,6 @@ function App() {
     }
 
     try {
-      const effectiveHash = String(targetMod.hash || targetMod.name || "").trim();
-      const hasSignedCertificate = !isError
-        ? await invoke<boolean>("verify_lab_certificate_exists", {
-            vaultPath: config.vault_path || "",
-            dnaHash: effectiveHash,
-          }).catch(() => false)
-        : false;
-
       if (shelterActive) {
         setStatus(t("status_restoring_bunker_full", "Restoring Loadout..."));
         const lastSet = localStorage.getItem(
@@ -3474,6 +3532,26 @@ function App() {
         }
         setShelterActive(false);
       }
+
+      if (!targetMod) {
+        setTestErrorFound(false);
+        setTestLogSnippet("");
+        setStatus(
+          t(
+            "status_airgap_restored",
+            "SAVE AIRGAP DISENGAGED: Live saves restored."
+          )
+        );
+        return true;
+      }
+
+      const effectiveHash = String(targetMod.hash || targetMod.name || "").trim();
+      const hasSignedCertificate = !isError
+        ? await invoke<boolean>("verify_lab_certificate_exists", {
+            vaultPath: config.vault_path || "",
+            dnaHash: effectiveHash,
+          }).catch(() => false)
+        : false;
 
       // If the user exited the sandbox BEFORE completing the 4-stage gameplay & save checkpoint (and no error occurred),
       // restore live saves & loadout cleanly WITHOUT marking the {mod} as Verified!
@@ -3558,16 +3636,26 @@ function App() {
         }
       }
       if (!modId) {
-        const cleanMod = (mod.name || "").split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
-        const { data: modsInDb } = await supabase
-          .from("mods")
-          .select("id, file_extension")
-          .ilike("name", `%${cleanMod}%`);
+        const cleanMod = (mod.name || "")
+          .split(/[\\/]/)
+          .pop()
+          ?.replace(getExtensionRegex(activeGameSchema), "")
+          .trim();
+        if (cleanMod && cleanMod.length >= 4) {
+          const { data: modsInDb } = await supabase
+            .from("mods")
+            .select("id, file_extension")
+            .ilike("name", cleanMod);
 
-        if (modsInDb && modsInDb.length > 0) {
-          const isScript = mod.name?.toLowerCase().includes("script");
-          const exactMatch = modsInDb.find((m: any) => isScript ? m.file_extension?.toLowerCase().includes("script") : !m.file_extension?.toLowerCase().includes("script"));
-          modId = exactMatch ? exactMatch.id : modsInDb[0].id;
+          if (modsInDb && modsInDb.length > 0) {
+            const isScript = mod.name?.toLowerCase().includes("script");
+            const exactMatch = modsInDb.find((m: any) =>
+              isScript
+                ? m.file_extension?.toLowerCase().includes("script")
+                : !m.file_extension?.toLowerCase().includes("script")
+            );
+            modId = exactMatch ? exactMatch.id : modsInDb[0].id;
+          }
         }
       }
 
@@ -3865,9 +3953,27 @@ function App() {
       const config: any = await invoke("get_saved_coordinates");
       await invoke("evacuate_to_shelter");
 
+      const expandSingleTargetOrTwins = (modTarget: any): string[] => {
+        if (!modTarget) return [];
+        if (
+          modTarget.isVirtual &&
+          Array.isArray(modTarget.flavors) &&
+          !modTarget.isCollection &&
+          !modTarget._isCollectionGroup &&
+          modTarget.flavors.length <= 3
+        ) {
+          return modTarget.flavors.map((f: any) => f.name).filter(Boolean);
+        }
+        return [
+          modTarget.physical_path ||
+            modTarget.name ||
+            modTarget.flavors?.[0]?.name,
+        ].filter(Boolean);
+      };
+
       const rawDeploySet = new Set([
-        ...(activeLabMod.isVirtual && activeLabMod.flavors ? activeLabMod.flavors.map((f: any) => f.name) : [activeLabMod.name]),
-        ...(conflictTarget ? (conflictTarget.isVirtual && conflictTarget.flavors ? conflictTarget.flavors.map((f: any) => f.name) : [conflictTarget.name]) : []),
+        ...expandSingleTargetOrTwins(activeLabMod),
+        ...(conflictTarget ? expandSingleTargetOrTwins(conflictTarget) : []),
         ...depPaths,
         ...associatedMods.map((m: any) => m.name),
         ...extraDeployNames
@@ -3959,7 +4065,7 @@ function App() {
       }
       const interval = setInterval(async () => {
         const res = await invoke<string>("scan_game_logs", { docsPath: dPath });
-        if (res !== "Clean") {
+        if (res !== "Clean" && !isUnrelatedGameBugLog(res, useStore.getState().activeGameSchema)) {
           const scrubbedRes = scrubLogUserData(res);
           setTestErrorFound(true);
           setTestLogSnippet(scrubbedRes);

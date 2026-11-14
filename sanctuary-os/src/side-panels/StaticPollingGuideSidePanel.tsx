@@ -6,6 +6,7 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   DashboardStatTile,
+  SidePanelFilterBar,
   HoverTooltip,
   resolveModHighlanderSlot,
 } from "../shared";
@@ -377,7 +378,7 @@ export function StaticPollingGuideSidePanel({
         />
 
         {/* 4-Tile SidePanel Filter Grid (No PillTabs) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -414,7 +415,7 @@ export function StaticPollingGuideSidePanel({
             value="JSON"
             label={t("edge_guide_tab_templates", "JSON Templates")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {/* TAB 1: 5-STEP WORKFLOW */}
         {activeTab === "workflow" && (

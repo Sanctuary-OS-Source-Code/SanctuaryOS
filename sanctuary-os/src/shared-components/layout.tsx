@@ -736,11 +736,11 @@ export function SidePanel({
                     </div>
                   )}
                   <div className="flex flex-col min-w-0 flex-1 justify-center">
-                    <h2 className="leading-tight text-base sm:text-lg md:text-xl font-black text-[var(--text)] capitalize tracking-tight truncate w-full m-0">
+                    <h2 className="leading-snug md:leading-tight text-[15px] sm:text-lg md:text-xl font-black text-[var(--text)] capitalize tracking-tight line-clamp-2 md:truncate break-words w-full m-0">
                       {title}
                     </h2>
                     {subtitle && (
-                      <span className="text-[9px] md:text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-0.5 capitalize tracking-wider md:tracking-[0.18em] leading-snug line-clamp-1 sm:line-clamp-2 break-words">
+                      <span className="text-[9.5px] md:text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-0.5 capitalize tracking-normal sm:tracking-wider md:tracking-[0.18em] leading-snug line-clamp-2 break-words">
                         {subtitle}
                       </span>
                     )}
@@ -766,7 +766,7 @@ export function SidePanel({
 
             {(footer || actions) && (
               <div
-                className={`px-6 pb-6 max-md:pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-5 md:px-7 md:pb-7 flex justify-center items-center gap-4 shrink-0 relative z-30 border-t border-[color-mix(in_srgb,var(--text)_8%,rgba(255,255,255,0.14))] ${footerClass || ""}`}
+                className={`px-4 sm:px-6 pb-4 max-md:pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] pt-3.5 sm:pt-5 md:px-7 md:pb-7 flex flex-wrap justify-center items-center gap-2.5 sm:gap-4 shrink-0 relative z-30 border-t border-[color-mix(in_srgb,var(--text)_8%,rgba(255,255,255,0.14))] ${footerClass || ""}`}
               >
                 {footer}
                 {actions}
@@ -1299,7 +1299,7 @@ export function DashboardStatTile({
   const isMetric = variant === "metric";
   const isFilter = variant === "filter" || isModal;
 
-  let sizeClass = "text-2xl md:text-3xl lg:text-4xl xl:text-5xl";
+  let sizeClass = "text-lg sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl";
   const activeStyles = resolvedActive
     ? "sa-glass-pill-active z-10 !opacity-100"
     : isSpecial || isModal
@@ -1312,18 +1312,19 @@ export function DashboardStatTile({
   if (isMetric) {
     sizeClass =
       strVal.length > 10
-        ? "text-sm sm:text-base"
+        ? "text-xs sm:text-base"
         : strVal.length > 6
-          ? "text-base sm:text-lg"
-          : "text-xl sm:text-2xl";
+          ? "text-sm sm:text-lg"
+          : "text-base sm:text-2xl";
   } else if (isModal || isTextSpecial) {
     sizeClass =
       strVal.length > 13
         ? "text-[11px] sm:text-xs md:text-sm"
         : "text-xs sm:text-sm md:text-base";
-  } else if (strVal.length > 15) sizeClass = "text-sm sm:text-base xl:text-lg";
-  else if (strVal.length > 10) sizeClass = "text-base sm:text-lg xl:text-xl";
-  else if (strVal.length > 5) sizeClass = "text-lg sm:text-xl lg:text-2xl xl:text-3xl";
+  } else if (strVal.length > 15) sizeClass = "text-xs sm:text-base xl:text-lg";
+  else if (strVal.length > 10) sizeClass = "text-sm sm:text-lg xl:text-xl";
+  else if (strVal.length > 5) sizeClass = "text-sm sm:text-xl lg:text-2xl xl:text-3xl";
+  else if (strVal.length > 3) sizeClass = "text-base sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl";
 
   const paddingClass = isMetric
     ? "py-2.5 px-3 sm:py-3 sm:px-3.5"
@@ -1390,7 +1391,7 @@ export function DashboardStatTile({
 
       <div className={`flex flex-col flex-1 min-w-0 relative z-10 py-0.5 sm:py-1 items-start justify-center`}>
         <span
-          className={`${hasValue ? "text-[9px] sm:text-[10px] mb-0.5 tracking-wider truncate" : "text-[10px] sm:text-[11px] md:text-xs tracking-wide leading-snug line-clamp-2 whitespace-normal"} uppercase font-black transition-colors duration-300 w-full ${
+          className={`${hasValue ? "text-[9px] sm:text-[10px] mb-0.5 tracking-normal sm:tracking-wider truncate" : "text-[10px] sm:text-[11px] md:text-xs tracking-normal sm:tracking-wide leading-snug line-clamp-2 whitespace-normal break-words"} uppercase font-black transition-colors duration-300 w-full ${
             resolvedActive
               ? "text-[var(--text)] opacity-100"
               : hasValue
@@ -1402,7 +1403,7 @@ export function DashboardStatTile({
         </span>
         {hasValue && (
           <span
-            className={`${sizeClass} capitalize font-black tracking-tighter leading-tight truncate w-full transition-opacity duration-300 ${
+            className={`${sizeClass} tabular-nums capitalize font-black tracking-tighter leading-tight truncate w-full transition-opacity duration-300 ${
               hasPulse
                 ? `${textColor} animate-pulse`
                 : resolvedActive
@@ -1419,6 +1420,477 @@ export function DashboardStatTile({
         )}
       </div>
     </div>
+  );
+}
+
+interface ExtractedFilterTileItem {
+  key: string;
+  icon?: React.ReactNode;
+  label: React.ReactNode;
+  displayValue?: React.ReactNode;
+  hasValue: boolean;
+  isActive: boolean;
+  onClick?: (e?: any) => void;
+  disabled: boolean;
+  colorClass: string;
+}
+
+function extractFilterTileItems(node: React.ReactNode): ExtractedFilterTileItem[] {
+  if (
+    !node ||
+    typeof node === "boolean" ||
+    typeof node === "string" ||
+    typeof node === "number"
+  ) {
+    return [];
+  }
+  if (Array.isArray(node)) {
+    return node.flatMap((child) => extractFilterTileItems(child));
+  }
+  if (React.isValidElement(node)) {
+    const props = (node.props || {}) as any;
+    if (node.type === React.Fragment) {
+      return extractFilterTileItems(props.children);
+    }
+    const isTile =
+      node.type === DashboardStatTile ||
+      (typeof node.type === "function" &&
+        (node.type as any).name === "DashboardStatTile") ||
+      props.variant === "filter";
+    if (isTile) {
+      const displayValue =
+        props.value !== undefined ? props.value : props.number;
+      const hasValue = displayValue !== undefined && displayValue !== "";
+      const isActive = Boolean(
+        props.isActive !== undefined ? props.isActive : props.active,
+      );
+      return [
+        {
+          key: String(node.key ?? props.label ?? Math.random()),
+          icon: props.icon,
+          label: props.label,
+          displayValue,
+          hasValue,
+          isActive,
+          onClick: props.onClick,
+          disabled: Boolean(props.disabled),
+          colorClass: String(props.colorClass || ""),
+        },
+      ];
+    }
+    if (props.children) {
+      return extractFilterTileItems(props.children);
+    }
+  }
+  return [];
+}
+
+export interface SidePanelFilterBarProps {
+  children: React.ReactNode;
+  className?: string;
+  overlineLabel?: React.ReactNode;
+}
+
+export function SidePanelFilterBar({
+  children,
+  className = "sm:grid-cols-3 gap-3",
+  overlineLabel,
+}: SidePanelFilterBarProps) {
+  const { t } = useLexicon();
+  const [isOpen, setIsOpen] = useState(false);
+  const instanceId = React.useId();
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    isDropUp: boolean;
+  }>({ top: 0, left: 0, width: 280, isDropUp: false });
+
+  const items = React.useMemo(() => extractFilterTileItems(children), [children]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    window.dispatchEvent(
+      new CustomEvent("sa-close-popovers", {
+        detail: { id: instanceId, triggerEl: triggerRef.current },
+      }),
+    );
+    const onOtherOpen = (e: any) => {
+      const detailId =
+        typeof e.detail === "object" && e.detail !== null ? e.detail.id : e.detail;
+      if (detailId === instanceId) return;
+      setIsOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    window.addEventListener("sa-close-popovers", onOtherOpen);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("sa-close-popovers", onOtherOpen);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isOpen, instanceId]);
+
+  React.useLayoutEffect(() => {
+    if (!isOpen) return;
+    const updatePosition = () => {
+      if (window.innerWidth >= 768) {
+        setIsOpen(false);
+        return;
+      }
+      const triggerEl = triggerRef.current;
+      if (!triggerEl) return;
+      const rect = triggerEl.getBoundingClientRect();
+      const popWidth = Math.min(
+        Math.max(rect.width, 220),
+        window.innerWidth - 24,
+      );
+      const leftPos = Math.max(
+        12,
+        Math.min(rect.left, window.innerWidth - popWidth - 12),
+      );
+      const estHeight = Math.min(items.length * 48 + 16, window.innerHeight * 0.65);
+      const shouldDropUp =
+        rect.bottom + estHeight + 12 > window.innerHeight &&
+        rect.top > window.innerHeight - rect.bottom;
+      setCoords({
+        top: shouldDropUp ? rect.top : rect.bottom + 8,
+        left: leftPos,
+        width: popWidth,
+        isDropUp: shouldDropUp,
+      });
+    };
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isOpen, items.length]);
+
+  if (items.length === 0) return null;
+
+  const cleanGridClass = className
+    .split(/\s+/)
+    .filter((tok) => tok && tok !== "grid")
+    .join(" ");
+
+  const mobileSpacingClass = className
+    .split(/\s+/)
+    .filter((tok) =>
+      /^(?:-?(?:m|mx|my|mt|mb|ml|mr)|p|px|py|pt|pb|pl|pr)-/.test(tok),
+    )
+    .join(" ");
+
+  if (items.length === 1) {
+    return <div className={`grid w-full ${cleanGridClass}`}>{children}</div>;
+  }
+
+  const activeIdx = items.findIndex((it) => it.isActive);
+  const activeItem = activeIdx >= 0 ? items[activeIdx] : items[0];
+
+  const labelCounts = new Map<string, number>();
+  for (const it of items) {
+    if (typeof it.label === "string" && it.label.trim()) {
+      const k = it.label.trim();
+      labelCounts.set(k, (labelCounts.get(k) || 0) + 1);
+    }
+  }
+  const allSameStringLabel =
+    labelCounts.size === 1 &&
+    items.every((it) => typeof it.label === "string" && it.hasValue);
+
+  const effectiveOverline =
+    overlineLabel ||
+    (allSameStringLabel && typeof items[0].label === "string"
+      ? normalizeAllCapsForThemeCase(items[0].label)
+      : t("filters", "Filters"));
+
+  const getMobileItemDisplay = (it: ExtractedFilterTileItem) => {
+    if (allSameStringLabel) {
+      return {
+        primaryLabel:
+          typeof it.displayValue === "string"
+            ? normalizeAllCapsForThemeCase(it.displayValue)
+            : it.displayValue,
+        showBadge: false,
+      };
+    }
+    if (
+      typeof it.label === "string" &&
+      (labelCounts.get(it.label.trim()) || 0) > 1 &&
+      it.hasValue
+    ) {
+      const baseLbl = normalizeAllCapsForThemeCase(it.label);
+      const valLbl =
+        typeof it.displayValue === "string"
+          ? normalizeAllCapsForThemeCase(it.displayValue)
+          : it.displayValue;
+      return {
+        primaryLabel: (
+          <span>
+            {baseLbl} &bull; {valLbl}
+          </span>
+        ),
+        showBadge: false,
+      };
+    }
+    if (
+      it.hasValue &&
+      typeof it.displayValue === "string" &&
+      it.displayValue.trim().length > 4 &&
+      !/^[+-]?\$?\d/.test(it.displayValue.trim())
+    ) {
+      const valLbl = normalizeAllCapsForThemeCase(it.displayValue.trim());
+      const subLbl =
+        typeof it.label === "string"
+          ? normalizeAllCapsForThemeCase(it.label)
+          : it.label;
+      return {
+        primaryLabel: (
+          <span className="flex flex-col gap-0.5 min-w-0">
+            <span className="font-black text-[var(--text)] leading-snug break-words">
+              {valLbl}
+            </span>
+            <span className="text-[10px] font-semibold text-[var(--subtext)] opacity-80 leading-snug break-words">
+              {subLbl}
+            </span>
+          </span>
+        ),
+        showBadge: false,
+      };
+    }
+    return {
+      primaryLabel:
+        typeof it.label === "string"
+          ? normalizeAllCapsForThemeCase(it.label)
+          : it.label,
+      showBadge: it.hasValue,
+    };
+  };
+
+  const activeMobileDisplay = getMobileItemDisplay(activeItem);
+
+  const resolveToneColor = (colorCls: string, active: boolean) => {
+    if (colorCls.includes("--danger") || colorCls.includes("red")) {
+      return "text-[var(--danger)]";
+    }
+    if (
+      colorCls.includes("--warning") ||
+      colorCls.includes("amber") ||
+      colorCls.includes("yellow") ||
+      colorCls.includes("orange")
+    ) {
+      return "text-[var(--warning)]";
+    }
+    if (
+      colorCls.includes("--success") ||
+      colorCls.includes("emerald") ||
+      colorCls.includes("green")
+    ) {
+      return "text-[var(--success)]";
+    }
+    return active ? "text-[var(--accent)]" : "text-[var(--subtext)]";
+  };
+
+  const renderTileIcon = (iconNode: React.ReactNode, sizeCls: string) => {
+    if (!iconNode) return null;
+    if (typeof iconNode === "string") {
+      return (
+        <span className={`material-symbols-outlined ${sizeCls} shrink-0`}>
+          {iconNode}
+        </span>
+      );
+    }
+    return iconNode;
+  };
+
+  const portalRoot =
+    typeof document !== "undefined"
+      ? document.getElementById("sa-portals") || document.body
+      : null;
+
+  const activeToneClass = resolveToneColor(activeItem.colorClass, true);
+
+  return (
+    <>
+      <div
+        ref={triggerRef}
+        className={`flex md:hidden w-full shrink-0 relative z-20 ${mobileSpacingClass}`}
+      >
+        <button
+          type="button"
+          data-sa-filter-dropdown="true"
+          onClick={() => setIsOpen((prev) => !prev)}
+          style={
+            {
+              "--glass-outer-shadow": "0 0 #0000",
+              "--glass-nested-shadow": "0 0 #0000",
+            } as React.CSSProperties
+          }
+          className={`w-full min-h-[52px] px-3.5 py-2.5 rounded-2xl glass-panel border transition-all duration-200 flex items-center justify-between gap-3 text-left cursor-pointer ${
+            isOpen
+              ? "sa-glass-pill-active !border-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.28))]"
+              : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_26%,transparent)]"
+          }`}
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {activeItem.icon && (
+              <div
+                className={`w-9 h-9 rounded-xl border border-[color-mix(in_srgb,var(--accent)_65%,rgba(255,255,255,0.45))] bg-[color-mix(in_srgb,var(--accent)_18%,var(--glass-card-icon-bg,rgba(255,255,255,0.1)))] shadow-[0_0_14px_color-mix(in_srgb,var(--accent)_22%,transparent),var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 ${activeToneClass}`}
+              >
+                {renderTileIcon(activeItem.icon, "!text-[18px]")}
+              </div>
+            )}
+            <div className="flex flex-col min-w-0 flex-1 justify-center">
+              <span className="text-[8.5px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-75 leading-none mb-1">
+                {effectiveOverline} &bull;{" "}
+                {(activeIdx >= 0 ? activeIdx : 0) + 1}/{items.length}
+              </span>
+              <span className="text-[13px] font-black tracking-tight text-[var(--text)] leading-snug line-clamp-2 break-words">
+                {activeMobileDisplay.primaryLabel}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {activeMobileDisplay.showBadge && (
+              <span
+                className={`px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[10.5px] font-black tabular-nums tracking-tight leading-none ${
+                  activeItem.colorClass &&
+                  activeToneClass !== "text-[var(--accent)]"
+                    ? activeToneClass
+                    : "text-[var(--text)]"
+                }`}
+              >
+                {typeof activeItem.displayValue === "string"
+                  ? normalizeAllCapsForThemeCase(activeItem.displayValue)
+                  : activeItem.displayValue}
+              </span>
+            )}
+            <span
+              className={`material-symbols-outlined !text-[18px] transition-transform duration-200 shrink-0 ${
+                isOpen
+                  ? "rotate-180 text-[var(--accent)]"
+                  : "text-[var(--subtext)] opacity-80"
+              }`}
+            >
+              {t("icon_expand_more", "expand_more")}
+            </span>
+          </div>
+        </button>
+
+        {isOpen &&
+          portalRoot &&
+          createPortal(
+            <>
+              <div
+                className="!fixed inset-0 pointer-events-auto"
+                style={{ zIndex: 200000 }}
+                onClick={() => setIsOpen(false)}
+              />
+              <div
+                ref={popoverRef}
+                onClick={(e) => e.stopPropagation()}
+                className="!fixed glass-panel portal-glass-fix sa-dropdown-popover pointer-events-auto animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[65vh] !rounded-2xl overflow-hidden text-[var(--text)] shadow-2xl"
+                style={
+                  {
+                    zIndex: 200001,
+                    top: coords.isDropUp ? "auto" : coords.top,
+                    bottom: coords.isDropUp
+                      ? window.innerHeight - coords.top + 8
+                      : "auto",
+                    left: coords.left,
+                    width: coords.width,
+                    margin: 0,
+                    transition: "none",
+                    "--glass-x": `${Math.round(coords.left)}px`,
+                    "--glass-y": `${Math.round(coords.top)}px`,
+                  } as React.CSSProperties
+                }
+              >
+                <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar flex flex-col p-1.5 gap-1 w-full max-h-[65vh]">
+                  {items.map((item, idx) => {
+                    const itemTone = resolveToneColor(
+                      item.colorClass,
+                      item.isActive,
+                    );
+                    const itemMobileDisplay = getMobileItemDisplay(item);
+                    return (
+                      <button
+                        key={`${item.key}-${idx}`}
+                        type="button"
+                        disabled={item.disabled}
+                        onClick={(e) => {
+                          if (item.disabled) return;
+                          setIsOpen(false);
+                          item.onClick?.(e);
+                        }}
+                        className={`sa-dropdown-item flex items-center justify-between gap-3 w-full px-3 py-2.5 rounded-xl text-left group/fitem relative overflow-hidden transition-all ${
+                          item.disabled
+                            ? "opacity-40 cursor-not-allowed"
+                            : "cursor-pointer"
+                        } ${
+                          item.isActive
+                            ? "is-selected sa-glass-active font-bold text-[var(--text)]"
+                            : "font-semibold text-[var(--subtext)] hover:text-[var(--text)]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          {item.icon && (
+                            <div
+                              className={`w-7 h-7 rounded-lg glass-surface border flex items-center justify-center shrink-0 transition-colors ${
+                                item.isActive
+                                  ? "border-[color-mix(in_srgb,var(--accent)_50%,rgba(255,255,255,0.35))]"
+                                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                              } ${itemTone}`}
+                            >
+                              {renderTileIcon(item.icon, "!text-[15px]")}
+                            </div>
+                          )}
+                          <span className="text-xs leading-snug break-words min-w-0 flex-1">
+                            {itemMobileDisplay.primaryLabel}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {itemMobileDisplay.showBadge && (
+                            <span
+                              className={`px-2 py-0.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black tabular-nums leading-none ${
+                                item.isActive
+                                  ? "text-[var(--text)]"
+                                  : "text-[var(--subtext)] group-hover/fitem:text-[var(--text)]"
+                              }`}
+                            >
+                              {typeof item.displayValue === "string"
+                                ? normalizeAllCapsForThemeCase(item.displayValue)
+                                : item.displayValue}
+                            </span>
+                          )}
+                          {item.isActive && (
+                            <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                              {t("icon_check", "check")}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>,
+            portalRoot,
+          )}
+      </div>
+
+      <div className={`hidden md:grid w-full ${cleanGridClass}`}>
+        {children}
+      </div>
+    </>
   );
 }
 export function MobileSegmentedControl({

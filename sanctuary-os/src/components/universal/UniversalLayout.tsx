@@ -178,36 +178,95 @@ export function SidePanelHeroCard({
   const hasWideBadges =
     totalBadges > 2 || (typeof resolvedBadge === "string" && resolvedBadge.length > 24);
 
+  const renderBadgeItems = () => (
+    <>
+      {resolvedBadge && (
+        <span className={VAULT_CHIP_CLASS}>
+          <span
+            className="material-symbols-outlined !text-[12px] shrink-0"
+            style={{ color: `var(${colorVar})` }}
+          >
+            {badgeIcon || icon}
+          </span>
+          <span className="truncate">{resolvedBadge}</span>
+        </span>
+      )}
+      {badges?.map((b, idx) => {
+        const badgeIconColorVar =
+          b.colorClass?.includes("--danger") || b.colorClass?.includes("red")
+            ? "--danger"
+            : b.colorClass?.includes("--warning") ||
+                b.colorClass?.includes("amber") ||
+                b.colorClass?.includes("yellow") ||
+                b.colorClass?.includes("orange")
+              ? "--warning"
+              : b.colorClass?.includes("--success") ||
+                  b.colorClass?.includes("emerald") ||
+                  b.colorClass?.includes("green")
+                ? "--success"
+                : colorVar;
+        const resolvedBadgeLabel =
+          typeof b.label === "string"
+            ? normalizeAllCapsForThemeCase(b.label)
+            : b.label;
+        return (
+          <span
+            key={idx}
+            className="px-2.5 py-1 rounded-lg bg-transparent glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] inline-flex items-center gap-1.5 shrink-0 max-md:shrink min-w-0 max-w-full"
+          >
+            <span
+              className="material-symbols-outlined !text-[12px] shrink-0"
+              style={{ color: `var(${badgeIconColorVar})` }}
+            >
+              {b.icon || icon}
+            </span>
+            <span className="truncate">{resolvedBadgeLabel}</span>
+          </span>
+        );
+      })}
+    </>
+  );
+
   return (
     <div
-      className={`glass-panel rounded-2xl p-4 sm:p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 shrink-0 ${className}`}
+      className={`glass-panel rounded-2xl p-4 sm:p-5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 shrink-0 min-w-0 ${className}`}
     >
-      <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3.5">
-        <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+      <div className="flex items-start justify-between gap-2.5 sm:gap-3.5 min-w-0">
+        <div
+          className={`flex items-start gap-3 sm:gap-3.5 min-w-0 ${
+            hasBadges ? "shrink-0 md:shrink md:flex-1" : "flex-1"
+          }`}
+        >
           <div
             className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
             style={{
               color: `var(${colorVar})`,
             }}
           >
-            <span className="material-symbols-outlined !text-[20px] sm:!text-[22px]">{icon}</span>
+            <span className="material-symbols-outlined !text-[20px] sm:!text-[22px]">
+              {icon}
+            </span>
           </div>
-          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <div
+            className={`flex-col gap-0.5 min-w-0 flex-1 ${
+              hasBadges ? "hidden md:flex" : "flex"
+            }`}
+          >
             {resolvedOverline && (
               <span
-                className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug"
+                className="text-[10px] font-black uppercase tracking-wider md:tracking-[0.16em] leading-snug break-words"
                 style={{ color: `var(${colorVar})` }}
               >
                 {resolvedOverline}
               </span>
             )}
             {resolvedTitle && (
-              <h3 className={`text-sm sm:text-base font-black tracking-tight text-[var(--text)] m-0 leading-snug ${hasBadges ? "hidden sm:block" : ""}`}>
+              <h3 className="text-sm sm:text-base font-black tracking-tight text-[var(--text)] m-0 leading-snug break-words">
                 {resolvedTitle}
               </h3>
             )}
             {resolvedDescription && !hasWideBadges && (
-              <p className={`text-xs font-medium text-[var(--subtext)] leading-relaxed m-0 ${hasBadges ? "hidden sm:block" : ""}`}>
+              <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0 break-words">
                 {resolvedDescription}
               </p>
             )}
@@ -215,66 +274,39 @@ export function SidePanelHeroCard({
         </div>
 
         {hasBadges && (
-          <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
-            {resolvedBadge && (
-              <span className={VAULT_CHIP_CLASS}>
-                <span
-                  className="material-symbols-outlined !text-[12px]"
-                  style={{ color: `var(${colorVar})` }}
-                >
-                  {badgeIcon || icon}
-                </span>
-                <span>{resolvedBadge}</span>
-              </span>
-            )}
-            {badges?.map((b, idx) => {
-              const badgeIconColorVar =
-                b.colorClass?.includes("--danger") || b.colorClass?.includes("red")
-                  ? "--danger"
-                  : b.colorClass?.includes("--warning") ||
-                      b.colorClass?.includes("amber") ||
-                      b.colorClass?.includes("yellow") ||
-                      b.colorClass?.includes("orange")
-                    ? "--warning"
-                    : b.colorClass?.includes("--success") ||
-                        b.colorClass?.includes("emerald") ||
-                        b.colorClass?.includes("green")
-                      ? "--success"
-                      : colorVar;
-              const resolvedBadgeLabel = typeof b.label === "string" ? normalizeAllCapsForThemeCase(b.label) : b.label;
-              return (
-                <span
-                  key={idx}
-                  className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0"
-                >
-                  <span
-                    className="material-symbols-outlined !text-[12px]"
-                    style={{ color: `var(${badgeIconColorVar})` }}
-                  >
-                    {b.icon || icon}
-                  </span>
-                  <span>{resolvedBadgeLabel}</span>
-                </span>
-              );
-            })}
+          <div className="flex items-center gap-1.5 flex-wrap justify-end min-w-0 flex-1 md:flex-initial md:max-w-[46%]">
+            {renderBadgeItems()}
           </div>
         )}
       </div>
 
-      {hasBadges && (resolvedTitle || resolvedDescription) && (
-        <div className={`flex flex-col gap-1 min-w-0 ${hasWideBadges ? "" : "sm:hidden"}`}>
-          {resolvedTitle && (
-            <h3 className="sm:hidden text-sm font-black tracking-tight text-[var(--text)] m-0 leading-snug">
-              {resolvedTitle}
-            </h3>
-          )}
-          {resolvedDescription && (
-            <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
-              {resolvedDescription}
-            </p>
-          )}
-        </div>
-      )}
+      {hasBadges &&
+        (resolvedOverline || resolvedTitle || resolvedDescription) && (
+          <div
+            className={`flex flex-col gap-1 min-w-0 w-full ${
+              hasWideBadges ? "" : "md:hidden"
+            }`}
+          >
+            {resolvedOverline && (
+              <span
+                className="md:hidden text-[10px] font-black uppercase tracking-wider leading-snug break-words"
+                style={{ color: `var(${colorVar})` }}
+              >
+                {resolvedOverline}
+              </span>
+            )}
+            {resolvedTitle && (
+              <h3 className="md:hidden text-sm font-black tracking-tight text-[var(--text)] m-0 leading-snug break-words">
+                {resolvedTitle}
+              </h3>
+            )}
+            {resolvedDescription && (
+              <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0 break-words">
+                {resolvedDescription}
+              </p>
+            )}
+          </div>
+        )}
 
       {children}
     </div>
@@ -467,8 +499,8 @@ export function UniversalGroup({
       className={`glass-panel ![background-image:none] rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col shrink-0 relative ${delayClass} ${className}`}
     >
       {heading && (
-        <div className="px-4 min-h-[52px] border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-stretch justify-between gap-2">
-          <div className="py-3 flex items-center gap-2.5 min-w-0">
+        <div className="px-4 min-h-[52px] border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-wrap sm:flex-nowrap items-center sm:items-stretch justify-between gap-x-2.5 gap-y-1.5">
+          <div className="py-2.5 sm:py-3 flex items-center gap-2.5 min-w-0 flex-1">
             {icon && (
               <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined !text-[15px]">
@@ -477,18 +509,22 @@ export function UniversalGroup({
               </div>
             )}
             <h4
-              className={`text-[11px] font-black uppercase tracking-wider m-0 truncate flex items-center gap-2 ${headerColorClass}`}
+              className={`text-[11px] font-black uppercase tracking-wide sm:tracking-wider leading-snug m-0 min-w-0 ${
+                typeof heading === "string"
+                  ? "line-clamp-2 sm:truncate break-words"
+                  : "flex flex-wrap items-center gap-1.5"
+              } ${headerColorClass}`}
             >
               {heading}
             </h4>
             {count !== undefined && count !== null && (
-              <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black text-[var(--subtext)] shrink-0">
+              <span className="px-2 py-0.5 rounded-lg bg-transparent glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black tabular-nums text-[var(--subtext)] shrink-0">
                 {count}
               </span>
             )}
           </div>
           {resolvedHeaderAction && (
-            <div className="ml-auto flex items-center self-stretch shrink-0 [&:has(.sa-panel-header-group)]:-mr-4 [&:has(.sa-panel-header-group)]:border-l [&:has(.sa-panel-header-group)]:border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+            <div className="ml-auto flex flex-wrap items-center self-stretch shrink-0 max-w-full [&:has(.sa-panel-header-group)]:-mr-4 [&:has(.sa-panel-header-group)]:border-l [&:has(.sa-panel-header-group)]:border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
               {resolvedHeaderAction}
             </div>
           )}

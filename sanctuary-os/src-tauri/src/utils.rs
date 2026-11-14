@@ -938,9 +938,13 @@ pub fn is_protected_save_or_airgap_path(
     for comp in cleaned.components() {
         let seg = comp.as_os_str().to_string_lossy().to_lowercase();
         if seg == ".sanctuary_lab_airgap"
+            || seg == ".sanctuary_lab_sandbox"
+            || seg == ".lab_save_airgap"
+            || seg == ".lab_save_sandbox"
             || seg == ".lab_save_vault"
             || seg == ".airgap_journal.json"
             || seg == ".airgap_active.json"
+            || seg == ".sandbox_state.json"
         {
             return true;
         }
@@ -1367,6 +1371,72 @@ pub fn is_safe_user_file_path(path: &std::path::Path) -> bool {
             } else {
                 protected_exact_dirs.push(strip_windows_verbatim_prefix(&rp));
             }
+        }
+    }
+
+    if protected_exact_dirs
+        .iter()
+        .any(|p| paths_equal_platform(&resolved, p))
+    {
+        return false;
+    }
+
+    true
+}
+
+/// Validates that `path` is a safe game/user-data workspace target directory (such as a configured
+/// `docs_path` or `live_path` root) rather than an OS system path, drive root, top-level profile directory,
+/// or the Sanctuary Vault root itself.
+pub fn is_safe_workspace_target_dir(path: &std::path::Path) -> bool {
+    if path.as_os_str().is_empty() || !path.is_absolute() {
+        return false;
+    }
+    let Ok(resolved) = resolve_canonical_target(path) else {
+        return false;
+    };
+    if is_blocked_sensitive_or_system_path(&resolved) {
+        return false;
+    }
+
+    let mut protected_exact_dirs: Vec<PathBuf> = vec![
+        PathBuf::from("C:\\Users"),
+        PathBuf::from("/Users"),
+        PathBuf::from("/home"),
+        PathBuf::from("/var/home"),
+        PathBuf::from("/Volumes"),
+        PathBuf::from("/run/media"),
+        PathBuf::from("/media"),
+        PathBuf::from("/mnt"),
+        PathBuf::from("/Applications"),
+    ];
+    for dir_opt in [
+        dirs::home_dir(),
+        dirs::document_dir(),
+        dirs::desktop_dir(),
+        dirs::download_dir(),
+        dirs::picture_dir(),
+        dirs::config_dir(),
+        dirs::data_dir(),
+        dirs::data_local_dir(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if let Ok(canon) = resolve_canonical_target(&dir_opt) {
+            protected_exact_dirs.push(canon);
+        } else {
+            protected_exact_dirs.push(strip_windows_verbatim_prefix(&dir_opt));
+        }
+    }
+
+    let saved_coords = crate::commands::state_ops::get_saved_coordinates();
+    let vault_trimmed = saved_coords.vault_path.trim();
+    if !vault_trimmed.is_empty() {
+        let vp = PathBuf::from(vault_trimmed);
+        if let Ok(canon) = resolve_canonical_target(&vp) {
+            protected_exact_dirs.push(canon);
+        } else {
+            protected_exact_dirs.push(strip_windows_verbatim_prefix(&vp));
         }
     }
 
@@ -1966,6 +2036,56 @@ fn rescue_untracked_mod_file(
     true
 }
 
+pub fn is_symlink_or_reparse_point(path: &std::path::Path) -> bool {
+    if std::fs::read_link(path).is_ok() {
+        return true;
+    }
+    let Ok(meta) = std::fs::symlink_metadata(path) else {
+        return false;
+    };
+    if meta.file_type().is_symlink() {
+        return true;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::fs::MetadataExt;
+        let attrs = meta.file_attributes();
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400;
+        const CLOUD_PLACEHOLDER_MASK: u32 = 0x0044_0000; // RECALL_ON_OPEN | RECALL_ON_DATA_ACCESS
+        if (attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0 && (attrs & CLOUD_PLACEHOLDER_MASK) == 0 {
+            return true;
+        }
+    }
+    false
+}
+
+pub fn remove_symlink_or_junction(path: &std::path::Path) -> bool {
+    let is_dir_link = match std::fs::symlink_metadata(path) {
+        Ok(meta) => {
+            #[cfg(target_os = "windows")]
+            {
+                use std::os::windows::fs::MetadataExt;
+                (meta.file_attributes() & 0x0000_0010) != 0 || meta.is_dir()
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                meta.is_dir() || path.is_dir()
+            }
+        }
+        Err(_) => false,
+    };
+
+    if is_dir_link {
+        std::fs::remove_dir(path)
+            .or_else(|_| std::fs::remove_file(path))
+            .is_ok()
+    } else {
+        std::fs::remove_file(path)
+            .or_else(|_| std::fs::remove_dir(path))
+            .is_ok()
+    }
+}
+
 fn safe_wipe_mods_dir_inner(
     dir: &std::path::Path,
     root_mods_dir: &std::path::Path,
@@ -1979,26 +2099,28 @@ fn safe_wipe_mods_dir_inner(
         let items: Vec<_> = entries.flatten().map(|e| e.path()).collect();
         let manifest_leaf = crate::game_logic::resolve_manifest_leaf_lower(game_schema);
         items.into_par_iter().for_each(|path| {
-            let is_symlink_or_junction = std::fs::read_link(&path).is_ok()
-                || std::fs::symlink_metadata(&path)
-                    .map(|m| m.file_type().is_symlink())
-                    .unwrap_or(false);
-
-            if is_symlink_or_junction {
-                if path.is_dir() {
-                    let _ = std::fs::remove_dir(&path);
-                } else {
-                    let _ = std::fs::remove_file(&path);
-                }
+            if is_symlink_or_reparse_point(&path) {
+                let _ = remove_symlink_or_junction(&path);
                 return;
             }
 
-            if !manifest_leaf.is_empty()
-                && path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .map_or(false, |n| n.eq_ignore_ascii_case(&manifest_leaf))
+            let file_name_lower = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(|s| s.to_lowercase())
+                .unwrap_or_default();
+
+            // Preserve the game schema's root manifest file at the top level of mods_dir
+            if dir == root_mods_dir
+                && !manifest_leaf.is_empty()
+                && file_name_lower == manifest_leaf
             {
+                return;
+            }
+
+            // Always remove internal Sanctuary deployment state files
+            if file_name_lower.starts_with(".sanctuary_") {
+                let _ = std::fs::remove_file(&path);
                 return;
             }
 
@@ -2034,21 +2156,33 @@ fn safe_wipe_mods_dir_inner(
                     false,
                     tracked_set,
                 );
+                if let Ok(meta) = std::fs::symlink_metadata(&path) {
+                    let mut perms = meta.permissions();
+                    if perms.readonly() {
+                        perms.set_readonly(false);
+                        let _ = std::fs::set_permissions(&path, perms);
+                    }
+                }
                 let _ = std::fs::remove_dir(&path);
             } else {
-                if !tracked_set.contains(&norm) {
-                    if let Some(ref lane) = vault_mods_lane {
-                        if rescue_untracked_mod_file(
-                            &path,
-                            root_mods_dir,
-                            lane,
-                            supported_exts,
-                            game_schema,
-                        ) {
-                            return;
-                        }
-                    }
-                } else if let Some(ref lane) = vault_mods_lane {
+                if file_name_lower == "desktop.ini"
+                    || file_name_lower == "thumbs.db"
+                    || file_name_lower == ".ds_store"
+                    || (!manifest_leaf.is_empty() && file_name_lower == manifest_leaf)
+                    || tracked_set.contains(&norm)
+                {
+                    let _ = std::fs::remove_file(&path);
+                    return;
+                }
+                let rel_path = path
+                    .strip_prefix(root_mods_dir)
+                    .unwrap_or_else(|_| std::path::Path::new(&file_name_lower));
+                let rel_str = rel_path.to_string_lossy();
+                if crate::game_logic::is_cache_file(game_schema, &rel_str) {
+                    let _ = std::fs::remove_file(&path);
+                    return;
+                }
+                if let Some(ref lane) = vault_mods_lane {
                     if rescue_untracked_mod_file(
                         &path,
                         root_mods_dir,
@@ -2058,20 +2192,44 @@ fn safe_wipe_mods_dir_inner(
                     ) {
                         return;
                     }
+                    // Also evacuate non-mod sidecar/config files (e.g. subfolder `.cfg` / `.json` / `.log`)
+                    // inside a dedicated (!shared_with_vanilla) mods directory into Vault/Mods so
+                    // subdirectories like `MCCC/` are cleanly emptied and removed without losing user configs!
+                    let dest = lane.join(rel_path);
+                    if let Some(parent) = dest.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+                    if std::fs::rename(&path, &dest).is_err() {
+                        if std::fs::copy(&path, &dest).is_ok() {
+                            let _ = std::fs::remove_file(&path);
+                        }
+                    }
                 }
-                let _ = std::fs::remove_file(&path);
             }
         });
     }
 }
 
 pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::schema::GameSchema>) {
+    safe_wipe_mods_dir_with_vault(dir, None, game_schema);
+}
+
+pub fn safe_wipe_mods_dir_with_vault(
+    dir: &std::path::Path,
+    explicit_vault_path: Option<&str>,
+    game_schema: &Option<crate::schema::GameSchema>,
+) {
     let saved_coords = crate::commands::state_ops::get_saved_coordinates();
     let shared_with_vanilla =
         dir_looks_like_shared_game_folder(dir, &saved_coords.live_path, game_schema);
 
-    let vault_mods_lane = if !saved_coords.vault_path.trim().is_empty() {
-        Some(get_vault_mods_lane(&saved_coords.vault_path))
+    let effective_vault_str = explicit_vault_path
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| saved_coords.vault_path.trim());
+
+    let vault_mods_lane = if !effective_vault_str.is_empty() {
+        Some(get_vault_mods_lane(effective_vault_str))
     } else {
         None
     };
@@ -2079,8 +2237,8 @@ pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::sch
 
     let mut tracked_set: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut manifest_locations = vec![dir.join(".sanctuary_deployed_links.json")];
-    if !saved_coords.vault_path.trim().is_empty() {
-        if let Some((raw, _)) = get_vault_kv(&saved_coords.vault_path, "deployed_links") {
+    if !effective_vault_str.is_empty() {
+        if let Some((raw, _)) = get_vault_kv(effective_vault_str, "deployed_links") {
             if let Ok(list) = serde_json::from_str::<Vec<String>>(&raw) {
                 for item in list {
                     let p = std::path::PathBuf::from(&item);
@@ -2090,10 +2248,10 @@ pub fn safe_wipe_mods_dir(dir: &std::path::Path, game_schema: &Option<crate::sch
                     }
                 }
             }
-            delete_vault_kv(&saved_coords.vault_path, "deployed_links");
+            delete_vault_kv(effective_vault_str, "deployed_links");
         }
         manifest_locations.push(
-            std::path::PathBuf::from(&saved_coords.vault_path)
+            std::path::PathBuf::from(effective_vault_str)
                 .join(".sanctuary_deployed_links.json"),
         );
     }
@@ -3283,6 +3441,160 @@ pub fn enforce_retention_policy(target_dir: &Path, keep_count: u32) {
     }
 }
 
+fn estimate_backup_snapshot_physical_bytes(path: &Path) -> u64 {
+    if path.is_file() {
+        return path.metadata().map(|m| m.len()).unwrap_or(0);
+    }
+    if let Ok(raw) = std::fs::read_to_string(path.join(".diff_size_bytes.txt")) {
+        if let Ok(n) = raw.trim().parse::<u64>() {
+            return n;
+        }
+    }
+    if let Ok(raw) = std::fs::read_to_string(path.join(".size_bytes.txt")) {
+        if let Ok(n) = raw.trim().parse::<u64>() {
+            return n;
+        }
+    }
+    0
+}
+
+pub fn enforce_backup_capacity_limit(backup_dirs: &[PathBuf], capacity_gb: u32) {
+    if capacity_gb == 0 {
+        return;
+    }
+    let max_bytes = (capacity_gb as u64).saturating_mul(1024 * 1024 * 1024);
+    let mut unique_dirs: Vec<PathBuf> = Vec::new();
+    for d in backup_dirs {
+        if d.exists() && !unique_dirs.contains(d) {
+            unique_dirs.push(d.clone());
+        }
+    }
+    if unique_dirs.is_empty() {
+        return;
+    }
+
+    let mut snapshots: Vec<(PathBuf, u64, bool)> = Vec::new();
+    let mut dirs_to_purge_async: Vec<PathBuf> = Vec::new();
+
+    for dir in &unique_dirs {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for e in entries.flatten() {
+                let p = e.path();
+                let name = e.file_name().to_string_lossy().into_owned();
+                if name.starts_with(".purging_") && p.is_dir() {
+                    dirs_to_purge_async.push(p);
+                    continue;
+                }
+                let is_archive = p.is_file()
+                    && (p.extension() == Some(std::ffi::OsStr::new("zst"))
+                        || p.extension() == Some(std::ffi::OsStr::new("tar")));
+                let is_world = name.starts_with("World_State");
+                let is_engine = name.starts_with("Engine_Core");
+                let is_snapshot_dir = p.is_dir() && (is_world || is_engine);
+                if is_archive || is_snapshot_dir {
+                    let bytes = estimate_backup_snapshot_physical_bytes(&p);
+                    snapshots.push((p, bytes, is_engine));
+                }
+            }
+        }
+    }
+
+    snapshots.sort_by(|(a, _, _), (b, _, _)| {
+        let name_a = a.file_name().unwrap_or_default().to_string_lossy();
+        let name_b = b.file_name().unwrap_or_default().to_string_lossy();
+        let ts_a = extract_backup_timestamp(&name_a);
+        let ts_b = extract_backup_timestamp(&name_b);
+        ts_b.cmp(&ts_a).then_with(|| {
+            let m_a = a
+                .metadata()
+                .and_then(|m| m.modified())
+                .unwrap_or(std::time::UNIX_EPOCH);
+            let m_b = b
+                .metadata()
+                .and_then(|m| m.modified())
+                .unwrap_or(std::time::UNIX_EPOCH);
+            m_b.cmp(&m_a)
+        })
+    });
+
+    // Always protect the single newest snapshot in each lane (World_State and Engine_Core)
+    let mut newest_world_idx: Option<usize> = None;
+    let mut newest_engine_idx: Option<usize> = None;
+    let mut total_bytes: u64 = 0;
+
+    for (idx, (_, bytes, is_engine)) in snapshots.iter().enumerate() {
+        total_bytes = total_bytes.saturating_add(*bytes);
+        if *is_engine {
+            if newest_engine_idx.is_none() {
+                newest_engine_idx = Some(idx);
+            }
+        } else if newest_world_idx.is_none() {
+            newest_world_idx = Some(idx);
+        }
+    }
+
+    if total_bytes > max_bytes && snapshots.len() > 1 {
+        let now_ms = current_epoch_ms();
+        for (idx, (old_backup, bytes, _)) in snapshots.iter().enumerate().rev() {
+            if total_bytes <= max_bytes {
+                break;
+            }
+            if Some(idx) == newest_world_idx || Some(idx) == newest_engine_idx {
+                continue;
+            }
+            if old_backup.is_dir() {
+                let old_name = old_backup
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned();
+                let purging_path =
+                    old_backup.with_file_name(format!(".purging_{}_{}_{}", now_ms, idx, old_name));
+                if std::fs::rename(old_backup, &purging_path).is_ok() {
+                    dirs_to_purge_async.push(purging_path);
+                } else {
+                    dirs_to_purge_async.push(old_backup.clone());
+                }
+            } else {
+                let _ = std::fs::remove_file(old_backup);
+            }
+            total_bytes = total_bytes.saturating_sub(*bytes);
+        }
+    }
+
+    if !dirs_to_purge_async.is_empty() {
+        std::thread::spawn(move || {
+            for dir in dirs_to_purge_async {
+                let _ = remove_backup_dir_cow_safe(&dir);
+            }
+        });
+    }
+}
+
+pub fn enforce_workspace_backup_capacity(config: &crate::state::WorkspaceConfig) {
+    let cap_gb = config.vault_capacity_gb.unwrap_or(0);
+    if cap_gb == 0 || config.vault_path.trim().is_empty() {
+        return;
+    }
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    let docs_base = config
+        .docs_path
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(&config.mods_path);
+    if let Some(wd) = get_world_backups_dir(docs_base, &config.vault_path) {
+        dirs.push(wd);
+    }
+    dirs.push(PathBuf::from(&config.vault_path).join("Backups").join("World"));
+
+    if let Some(ed) = get_engine_backups_dir(&config.live_path, &config.vault_path) {
+        dirs.push(ed);
+    }
+    dirs.push(PathBuf::from(&config.vault_path).join("Backups").join("Engine"));
+
+    enforce_backup_capacity_limit(&dirs, cap_gb);
+}
+
 pub fn are_paths_on_same_filesystem(p1: &Path, p2: &Path) -> bool {
     #[cfg(unix)]
     {
@@ -3430,6 +3742,30 @@ pub fn resolve_effective_docs_path(
         return resolved.to_string_lossy().to_string();
     }
     get_docs_base_from_mods_path(&config.mods_path)
+}
+
+pub fn resolve_effective_docs_path_with_override(
+    explicit_docs: &str,
+    config: &WorkspaceConfig,
+    schema: &Option<crate::schema::GameSchema>,
+) -> PathBuf {
+    let trimmed = explicit_docs.trim();
+    if !trimmed.is_empty() {
+        let candidate = PathBuf::from(trimmed);
+        if is_mods_dir(&candidate) {
+            let resolved = crate::game_logic::resolve_user_data_root(trimmed, schema);
+            if !resolved.as_os_str().is_empty() {
+                return resolved;
+            }
+        }
+        return candidate;
+    }
+    let fallback = resolve_effective_docs_path(config, schema);
+    if fallback.trim().is_empty() {
+        PathBuf::new()
+    } else {
+        PathBuf::from(fallback.trim())
+    }
 }
 
 pub fn get_world_backups_dir(docs_path: &str, vault_path: &str) -> Option<PathBuf> {

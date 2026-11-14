@@ -9,7 +9,7 @@ import Image from '@tiptap/extension-image';
 import { IconPlugin } from '../IconPlugin';
 import {
   SidePanel, CustomDropdown, EmptyState,
-  extractPostImage, PanelHeaderGroup, PanelHeaderButton, LinkAssetSidePanel,
+  extractPostImage, getSafeEditorMarkdown, PanelHeaderGroup, PanelHeaderButton, LinkAssetSidePanel,
   SidePanelHeroCard, UniversalGroup
 } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
@@ -144,10 +144,12 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
       Image
     ],
     content: content,
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor: ed }) => {
+      if (!ed || ed.isDestroyed) return;
       if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = setTimeout(() => {
-        setContent((editor.storage as any).markdown.getMarkdown());
+        if (!ed || ed.isDestroyed || !(ed.storage as any)?.markdown) return;
+        setContent(getSafeEditorMarkdown(ed));
       }, 500);
     },
     editorProps: {
@@ -381,8 +383,8 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
     e.preventDefault();
 
     let finalContent = content;
-    if (editor && editorMode === "wysiwyg") {
-      finalContent = (editor.storage as any).markdown.getMarkdown();
+    if (editor && !editor.isDestroyed && editorMode === "wysiwyg") {
+      finalContent = getSafeEditorMarkdown(editor) || content;
       setContent(finalContent);
     }
 

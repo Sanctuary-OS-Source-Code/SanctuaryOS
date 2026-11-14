@@ -10,7 +10,9 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
+  SidePanelFilterBar,
   ActionPill,
+  ActionButton,
   HoverTooltip,
   EmptyState,
   VAULT_CHIP_CLASS,
@@ -865,26 +867,19 @@ export function SystemLogModal({
           variant={counts.alerts > 0 ? "warning" : "success"}
         >
           {hasActivePreview && (
-            <div className="pt-2 flex items-center justify-end">
-              <button
-                type="button"
+            <div className="pt-1 flex flex-wrap items-center justify-end gap-2 ml-auto w-full">
+              <ActionButton
+                variant="warning"
+                icon={t("icon_visibility_off", "visibility_off")}
+                label={`${t("stop_preview", "Stop Preview")}${activePreviewLabel ? ` (${activePreviewLabel})` : ""}`}
                 onClick={handleStopAllPreviews}
-                className="relative px-3.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
-              >
-                <span className="material-symbols-outlined !text-[14px]">
-                  {t("icon_visibility_off", "visibility_off")}
-                </span>
-                <span>
-                  {t("stop_preview", "Stop Preview")}
-                  {activePreviewLabel ? ` (${activePreviewLabel})` : ""}
-                </span>
-              </button>
+              />
             </div>
           )}
         </SidePanelHeroCard>
 
         {/* 4-Tile Category Filter Grid (Full-Width, Single-Word Non-Truncating Labels) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full">
+        <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -930,7 +925,7 @@ export function SystemLogModal({
               setActiveGroup(activeGroup === "alerts" ? "all" : "alerts")
             }
           />
-        </div>
+        </SidePanelFilterBar>
 
         {/* Search & Filter Popover Bar (Canonical Nexus/Vault FilterSection Layout) */}
         <ActionPill

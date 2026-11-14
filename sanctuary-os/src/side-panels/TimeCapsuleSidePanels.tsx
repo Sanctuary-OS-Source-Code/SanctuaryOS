@@ -5,6 +5,7 @@ import { useLexicon } from "../LexiconContext";
 import {
   SidePanel,
   DashboardStatTile,
+  SidePanelFilterBar,
   StatBox,
   ActionButton,
   ActionPill,
@@ -138,12 +139,16 @@ export function TimeCapsuleSnapshotDossier({
   const storeDocsPath = useStore((s: any) => s.docsPath);
 
   const docsPath = useMemo(() => {
-    return (
+    const explicit =
       storeDocsPath ||
       activeConfig?.docs_path ||
       activeConfig?.user_data_path ||
-      ""
-    );
+      "";
+    if (explicit && String(explicit).trim()) {
+      return String(explicit).trim();
+    }
+    const modsRaw = String(activeConfig?.mods_path || "").trim();
+    return modsRaw ? modsRaw.replace(/[\\/][^\\/]+[\\/]?$/, "") : "";
   }, [storeDocsPath, activeConfig]);
 
   useEffect(() => {
@@ -293,8 +298,23 @@ export function TimeCapsuleSnapshotDossier({
         await refreshDiff();
       }
       markFilesExtracted([filePath]);
+      useStore
+        .getState()
+        .pushStatus?.(
+          t(
+            "tc_panel_extract_toast",
+            "Extracted {0} file(s) into active game folder!"
+          ).replace("{0}", "1"),
+          "success"
+        );
     } catch (e) {
       console.error(e);
+      useStore
+        .getState()
+        .pushStatus?.(
+          `${t("status_restore_failure", "Restore Failure:")} ${String(e)}`,
+          "error"
+        );
     } finally {
       setExtracting(null);
     }
@@ -345,6 +365,12 @@ export function TimeCapsuleSnapshotDossier({
       }
     } catch (e) {
       console.error(e);
+      useStore
+        .getState()
+        .pushStatus?.(
+          `${t("status_restore_failure", "Restore Failure:")} ${String(e)}`,
+          "error"
+        );
     } finally {
       setExtracting(null);
       setIsBatchExtracting(false);
@@ -1257,7 +1283,7 @@ export function TimeCapsuleSnapshotDossier({
                     )}
             </p>
 
-            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">
               {selectedPaths.size > 0 ? (
                 confirmBatchExtract ? (
                   <>
@@ -1266,7 +1292,6 @@ export function TimeCapsuleSnapshotDossier({
                       icon={t("icon_close", "close")}
                       label={t("btn_cancel", "Cancel")}
                       onClick={() => setConfirmBatchExtract(false)}
-                      className="!px-3.5 !py-2"
                     />
                     <ActionButton
                       variant="accent"
@@ -1276,7 +1301,6 @@ export function TimeCapsuleSnapshotDossier({
                       onClick={() =>
                         handleBatchExtract(Array.from(selectedPaths), true)
                       }
-                      className="!px-4 !py-2"
                     />
                   </>
                 ) : (
@@ -1286,7 +1310,6 @@ export function TimeCapsuleSnapshotDossier({
                       icon={t("icon_clear_all", "clear_all")}
                       label={t("clear", "Clear")}
                       onClick={() => setSelectedPaths(new Set())}
-                      className="!px-3 !py-2"
                     />
                     <ActionButton
                       variant="accent"
@@ -1299,7 +1322,6 @@ export function TimeCapsuleSnapshotDossier({
                       ).replace("{COUNT}", String(selectedPaths.size))}
                       disabled={isBatchExtracting}
                       onClick={() => setConfirmBatchExtract(true)}
-                      className="!px-4 !py-2"
                     />
                   </>
                 )
@@ -1310,7 +1332,6 @@ export function TimeCapsuleSnapshotDossier({
                     icon={t("icon_close", "close")}
                     label={t("btn_cancel", "Cancel")}
                     onClick={() => setConfirmFullRestore(false)}
-                    className="!px-3.5 !py-2"
                   />
                   <ActionButton
                     variant="accent"
@@ -1329,7 +1350,6 @@ export function TimeCapsuleSnapshotDossier({
                       if (onRestoreBackup)
                         onRestoreBackup(normalizedBackup, isEngine);
                     }}
-                    className="!px-4 !py-2"
                   />
                 </>
               ) : confirmRestoreAllDiff ? (
@@ -1339,7 +1359,6 @@ export function TimeCapsuleSnapshotDossier({
                     icon={t("icon_close", "close")}
                     label={t("btn_cancel", "Cancel")}
                     onClick={() => setConfirmRestoreAllDiff(false)}
-                    className="!px-3.5 !py-2"
                   />
                   <ActionButton
                     variant="accent"
@@ -1347,7 +1366,6 @@ export function TimeCapsuleSnapshotDossier({
                     label={`${t("confirm", "Confirm")} (${changedDiffPaths.length})`}
                     disabled={isBatchExtracting}
                     onClick={() => handleBatchExtract(changedDiffPaths, true)}
-                    className="!px-4 !py-2"
                   />
                 </>
               ) : (
@@ -1364,7 +1382,6 @@ export function TimeCapsuleSnapshotDossier({
                       ).replace("{COUNT}", String(changedDiffPaths.length))}
                       disabled={isBatchExtracting}
                       onClick={() => setConfirmRestoreAllDiff(true)}
-                      className="!px-3.5 !py-2"
                     />
                   )}
                   {onRestoreBackup && !isPostBackupSummary && (
@@ -1376,7 +1393,6 @@ export function TimeCapsuleSnapshotDossier({
                         "Restore Full Snapshot"
                       )}
                       onClick={() => setConfirmFullRestore(true)}
-                      className="!px-4 !py-2"
                     />
                   )}
                 </>
@@ -1387,7 +1403,7 @@ export function TimeCapsuleSnapshotDossier({
       </SidePanelHeroCard>
 
       {/* 2. 3-Column DashboardStatTile View Switcher */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+      <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
         <DashboardStatTile
           variant="filter"
           className="!w-full"
@@ -1443,7 +1459,7 @@ export function TimeCapsuleSnapshotDossier({
             setListLimit(40);
           }}
         />
-      </div>
+      </SidePanelFilterBar>
 
       {/* 3. OS-Standard ActionPill Search & Filter Popover */}
       <ActionPill

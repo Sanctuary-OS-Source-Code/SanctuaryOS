@@ -431,6 +431,7 @@ fn main() {
             start_lab_verification_session,
             poll_lab_verification_session,
             stop_lab_verification_session,
+            teardown_lab_sandbox_session,
             get_lab_certificates,
             verify_lab_certificate_exists,
             record_lab_certificate,

@@ -913,23 +913,73 @@ function writeSharedThemeMap(wsId: string, suffix: 'custom_themes' | 'dev_themes
 
 export const ThemeProvider = ({ children }: any) => {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const view = useStore((state) => state.view);
+  const isConfigured = useStore((state) => state.isConfigured);
   const workspaces = useStore((state) => state.workspaces) || [];
   const osRole = useStore((state) => state.osRole);
   const isWebHubRoot = !isDesktop() && isRootDomain();
-  const wsId = isWebHubRoot
+
+  const [isHubSpaceContext, setIsHubSpaceContext] = useState<boolean>(() =>
+    Boolean(
+      isWebHubRoot ||
+      view === 'landing' ||
+      view === 'KeepersCore' ||
+      !isConfigured ||
+      !activeWorkspaceId ||
+      activeWorkspaceId === 'default_workspace' ||
+      activeWorkspaceId === 'default'
+    )
+  );
+
+  useEffect(() => {
+    if (
+      isWebHubRoot ||
+      view === 'landing' ||
+      view === 'KeepersCore' ||
+      !isConfigured ||
+      !activeWorkspaceId ||
+      activeWorkspaceId === 'default_workspace' ||
+      activeWorkspaceId === 'default'
+    ) {
+      setIsHubSpaceContext(true);
+    } else if (view !== 'settings') {
+      setIsHubSpaceContext(false);
+    }
+  }, [isWebHubRoot, view, isConfigured, activeWorkspaceId]);
+
+  const wsId = isHubSpaceContext
     ? 'default_workspace'
-    : (activeWorkspaceId || localStorage.getItem('sanctuary_last_active_workspace') || 'default');
+    : (activeWorkspaceId || localStorage.getItem('sanctuary_last_active_workspace') || 'default_workspace');
+
+  const readWorkspaceStoredThemeId = useCallback((targetWsId: string): string | null => {
+    const cleanTarget = String(targetWsId || 'default_workspace').trim() || 'default_workspace';
+    const direct = localStorage.getItem(`sanctuary_${cleanTarget}_active_theme`);
+    if (direct) return direct;
+    if (cleanTarget === 'default_workspace' || cleanTarget === 'default') {
+      return (
+        localStorage.getItem('sanctuary_default_workspace_active_theme') ||
+        localStorage.getItem('sanctuary_default_active_theme') ||
+        null
+      );
+    }
+    return (
+      localStorage.getItem(`sanctuary_${cleanTarget.toLowerCase()}_active_theme`) ||
+      localStorage.getItem(`sanctuary_${cleanTarget.toUpperCase()}_active_theme`) ||
+      null
+    );
+  }, []);
 
   const [useGlobalThemeState, setUseGlobalThemeState] = useState(() => localStorage.getItem('sanctuary_use_global_theme') === 'true');
   const [CORE_THEMES, setCoreThemes] = useState<any>(() => readCachedCoreThemes());
   const [gameThemes, setGameThemes] = useState<any>(() => readOfflineSpokeThemesFallback(workspaces, wsId));
   const [customThemes, setCustomThemes] = useState(() => readSharedThemeMap(wsId, 'custom_themes'));
   const [devThemes, setDevThemes] = useState(() => readSharedThemeMap(wsId, 'dev_themes'));
+  const [workspaceAssignmentRev, setWorkspaceAssignmentRev] = useState(0);
   const [activeThemeIdState, setActiveThemeIdState] = useState(() => {
     if (localStorage.getItem('sanctuary_use_global_theme') === 'true') {
       return localStorage.getItem('sanctuary_global_theme') || "architect";
     }
-    return localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect";
+    return readWorkspaceStoredThemeId(wsId) || "architect";
   });
   const [previewThemeState, setPreviewThemeState] = useState<{
     id: string;
@@ -941,11 +991,14 @@ export const ThemeProvider = ({ children }: any) => {
     setUseGlobalThemeState(val);
     localStorage.setItem('sanctuary_use_global_theme', String(val));
     if (val) {
-      setActiveThemeIdState(localStorage.getItem('sanctuary_global_theme') || "architect");
+      const nextGlobal = localStorage.getItem('sanctuary_global_theme') || activeThemeIdState || "architect";
+      localStorage.setItem('sanctuary_global_theme', nextGlobal);
+      setActiveThemeIdState(nextGlobal);
     } else {
-      setActiveThemeIdState(localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect");
+      setActiveThemeIdState(readWorkspaceStoredThemeId(wsId) || "architect");
     }
-  }, [wsId]);
+    setWorkspaceAssignmentRev((v) => v + 1);
+  }, [wsId, activeThemeIdState, readWorkspaceStoredThemeId]);
 
   const setActiveThemeId = useCallback((id: string) => {
     setPreviewThemeState(null);
@@ -956,6 +1009,43 @@ export const ThemeProvider = ({ children }: any) => {
     } else {
       localStorage.setItem(`sanctuary_${wsId}_active_theme`, id);
     }
+    setWorkspaceAssignmentRev((v) => v + 1);
+  }, [useGlobalThemeState, wsId]);
+
+  const setGlobalThemeId = useCallback((id: string) => {
+    setPreviewThemeState(null);
+    (window as any).__sanctuaryPreviewTheme = null;
+    localStorage.setItem('sanctuary_global_theme', id);
+    if (useGlobalThemeState) {
+      setActiveThemeIdState(id);
+    }
+    setWorkspaceAssignmentRev((v) => v + 1);
+  }, [useGlobalThemeState]);
+
+  const getWorkspaceThemeId = useCallback((targetWsId: string): string => {
+    return readWorkspaceStoredThemeId(targetWsId) || "architect";
+  }, [readWorkspaceStoredThemeId, workspaceAssignmentRev]);
+
+  const setWorkspaceThemeId = useCallback((targetWsId: string, id: string) => {
+    const cleanTarget = String(targetWsId || 'default_workspace').trim() || 'default_workspace';
+    setPreviewThemeState(null);
+    (window as any).__sanctuaryPreviewTheme = null;
+    localStorage.setItem(`sanctuary_${cleanTarget}_active_theme`, id);
+    if (cleanTarget === 'default_workspace' || cleanTarget === 'default') {
+      localStorage.setItem('sanctuary_default_workspace_active_theme', id);
+      localStorage.setItem('sanctuary_default_active_theme', id);
+    } else {
+      if (localStorage.getItem(`sanctuary_${cleanTarget.toLowerCase()}_active_theme`) !== null) {
+        localStorage.setItem(`sanctuary_${cleanTarget.toLowerCase()}_active_theme`, id);
+      }
+      if (localStorage.getItem(`sanctuary_${cleanTarget.toUpperCase()}_active_theme`) !== null) {
+        localStorage.setItem(`sanctuary_${cleanTarget.toUpperCase()}_active_theme`, id);
+      }
+    }
+    if (!useGlobalThemeState && cleanTarget.toLowerCase() === wsId.toLowerCase()) {
+      setActiveThemeIdState(id);
+    }
+    setWorkspaceAssignmentRev((v) => v + 1);
   }, [useGlobalThemeState, wsId]);
 
   useEffect(() => {
@@ -964,10 +1054,10 @@ export const ThemeProvider = ({ children }: any) => {
     setCustomThemes((prev) => (JSON.stringify(prev) === JSON.stringify(nextCustoms) ? prev : nextCustoms));
     setDevThemes((prev) => (JSON.stringify(prev) === JSON.stringify(nextDevs) ? prev : nextDevs));
     if (!useGlobalThemeState) {
-      const nextId = localStorage.getItem(`sanctuary_${wsId}_active_theme`) || "architect";
+      const nextId = readWorkspaceStoredThemeId(wsId) || "architect";
       setActiveThemeIdState((prev) => (prev === nextId ? prev : nextId));
     }
-  }, [wsId, useGlobalThemeState]);
+  }, [wsId, useGlobalThemeState, readWorkspaceStoredThemeId]);
 
   useEffect(() => {
     const fetchCoreThemes = async () => {
@@ -1783,10 +1873,16 @@ export const ThemeProvider = ({ children }: any) => {
     saveThemeToVault(id, sanitizedJson, false);
   }, [customThemes, wsId, setActiveThemeId, saveThemeToVault]);
 
+  const globalThemeId = useMemo(
+    () => localStorage.getItem('sanctuary_global_theme') || activeThemeIdState || 'architect',
+    [activeThemeIdState, workspaceAssignmentRev]
+  );
+
   const themeContextValue = useMemo(() => ({
     activeThemeId: activeThemeIdState,
     setActiveThemeId,
     currentTheme,
+    allThemes,
     CORE_THEMES: mergedCoreThemes,
     setCoreThemes,
     customThemes,
@@ -1801,6 +1897,11 @@ export const ThemeProvider = ({ children }: any) => {
     deleteTheme,
     useGlobalTheme: useGlobalThemeState,
     setUseGlobalTheme,
+    globalThemeId,
+    setGlobalThemeId,
+    getWorkspaceThemeId,
+    setWorkspaceThemeId,
+    activeSpaceKey: wsId,
     previewThemeId: previewThemeState?.id || null,
     previewThemeName: previewThemeState?.name || null,
     startThemePreview,
@@ -1810,6 +1911,7 @@ export const ThemeProvider = ({ children }: any) => {
     activeThemeIdState,
     setActiveThemeId,
     currentTheme,
+    allThemes,
     mergedCoreThemes,
     customThemes,
     devThemes,
@@ -1823,6 +1925,11 @@ export const ThemeProvider = ({ children }: any) => {
     deleteTheme,
     useGlobalThemeState,
     setUseGlobalTheme,
+    globalThemeId,
+    setGlobalThemeId,
+    getWorkspaceThemeId,
+    setWorkspaceThemeId,
+    wsId,
     previewThemeState?.id,
     previewThemeState?.name,
     startThemePreview,

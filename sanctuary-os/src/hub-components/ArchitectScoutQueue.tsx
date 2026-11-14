@@ -875,29 +875,35 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
                       </code>
                     </div>
                   </div>
-                  <button
-                    type="button"
+                  <ActionButton
+                    variant={copiedHash ? "success" : "glass"}
+                    icon={copiedHash ? t("icon_check", "check") : t("icon_content_copy", "content_copy")}
+                    label={copiedHash ? t("copied", "Copied") : t("btn_copy", "Copy")}
                     onClick={() => {
                       navigator.clipboard.writeText(String(activeScout.dna_hash));
                       setCopiedHash(true);
                       setTimeout(() => setCopiedHash(false), 2000);
                     }}
-                    className="px-2.5 py-1.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
-                  >
-                    <span
-                      className={`material-symbols-outlined !text-[13px] ${
-                        copiedHash ? "text-[var(--success)]" : "text-[var(--accent)]"
-                      }`}
-                    >
-                      {copiedHash ? t("icon_check", "check") : t("icon_content_copy", "content_copy")}
-                    </span>
-                    <span>{copiedHash ? t("copied", "Copied") : t("btn_copy", "Copy")}</span>
-                  </button>
+                  />
                 </div>
               )}
 
               {/* Primary Review Action Buttons */}
-              <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
+                <ActionButton
+                  onClick={() => applyConsensusToForm(activeScout)}
+                  disabled={isProcessing}
+                  variant="glass"
+                  icon={t("icon_auto_fix_high", "auto_fix_high")}
+                  label={t("scout_btn_apply_consensus", "Apply Top Consensus")}
+                />
+                <ActionButton
+                  onClick={() => handleAction("rejected")}
+                  disabled={isProcessing}
+                  variant="danger"
+                  icon={t("icon_delete", "delete")}
+                  label={t("btn_reject", "Reject")}
+                />
                 <ActionButton
                   onClick={() => handleAction("approved")}
                   disabled={isProcessing || isApproveLocked}
@@ -910,23 +916,6 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
                         ? t("lab_tooltip_approve_locked", "Approval Locked (Lab Test Required)")
                         : t("approve", "Approve & Bind")
                   }
-                  className="flex-1 min-w-[200px] justify-center"
-                />
-                <ActionButton
-                  onClick={() => handleAction("rejected")}
-                  disabled={isProcessing}
-                  variant="danger"
-                  icon={t("icon_delete", "delete")}
-                  label={t("btn_reject", "Reject")}
-                  className=" justify-center"
-                />
-                <ActionButton
-                  onClick={() => applyConsensusToForm(activeScout)}
-                  disabled={isProcessing}
-                  variant="glass"
-                  icon={t("icon_auto_fix_high", "auto_fix_high")}
-                  label={t("scout_btn_apply_consensus", "Apply Top Consensus")}
-                  className="justify-center"
                 />
               </div>
             </SidePanelHeroCard>

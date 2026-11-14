@@ -13,9 +13,9 @@ export function CustomSettingsDropdown({ value, options, onChange }: any) {
   );
 }
 
-export const TabContainer = ({ title, icon, actions, children }: any) => (
+export const TabContainer = ({ title, icon, actions, headerRight, children }: any) => (
   <div className="flex flex-col gap-5 w-full relative">
-    <div className="flex items-center justify-start w-full gap-4 relative z-10 min-w-0">
+    <div className="flex flex-wrap items-center justify-between w-full gap-3 relative z-10 min-w-0">
       <div className="glass-panel rounded-xl flex items-stretch shrink-0 min-w-0 max-w-full overflow-hidden">
         <div className="p-2 pr-3.5 md:p-2.5 md:pr-4 flex items-center gap-3 md:gap-3.5 min-w-0">
           {icon && (
@@ -33,6 +33,11 @@ export const TabContainer = ({ title, icon, actions, children }: any) => (
           </div>
         )}
       </div>
+      {headerRight && (
+        <div className="flex items-center gap-2.5 min-w-0 w-full sm:w-auto relative z-20">
+          {headerRight}
+        </div>
+      )}
     </div>
     <div className="flex flex-col gap-8 w-full relative z-10">
       {children}

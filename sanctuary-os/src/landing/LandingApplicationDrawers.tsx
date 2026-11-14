@@ -12,6 +12,7 @@ import {
   SidePanelHeroCard,
   CustomDropdown,
   DashboardStatTile,
+  SidePanelFilterBar,
   UniversalGroup,
 } from '../shared';
 import {
@@ -380,11 +381,10 @@ export function LandingApplicationDrawers({
                       </span>
                     </div>
                     <span
-                      className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border bg-transparent flex items-center gap-1 ${
-                        partnerGate4
-                          ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]'
-                          : 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]'
-                      }`}
+                      className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border bg-transparent flex items-center gap-1 ${partnerGate4
+                        ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]'
+                        : 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]'
+                        }`}
                     >
                       <span className="material-symbols-outlined !text-[12px]">
                         {partnerGate4
@@ -413,11 +413,10 @@ export function LandingApplicationDrawers({
                         setReviewedPartnersDoc(true);
                         setActivePartnerCovenant('PartnersAgreement');
                       }}
-                      className={`p-3.5 rounded-2xl glass-panel border text-left flex flex-col gap-2 cursor-pointer transition-all group ${
-                        reviewedPartnersDoc || partnerGate4
-                          ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:border-[var(--success)]'
-                          : 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)]'
-                      }`}
+                      className={`p-3.5 rounded-2xl glass-panel border text-left flex flex-col gap-2 cursor-pointer transition-all group ${reviewedPartnersDoc || partnerGate4
+                        ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:border-[var(--success)]'
+                        : 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)]'
+                        }`}
                     >
                       <div className="flex items-center justify-between gap-2 w-full">
                         <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5">
@@ -429,11 +428,10 @@ export function LandingApplicationDrawers({
                           </span>
                         </span>
                         <span
-                          className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border bg-transparent flex items-center gap-1 ${
-                            reviewedPartnersDoc || partnerGate4
-                              ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]'
-                              : 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]'
-                          }`}
+                          className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border bg-transparent flex items-center gap-1 ${reviewedPartnersDoc || partnerGate4
+                            ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]'
+                            : 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]'
+                            }`}
                         >
                           <span className="material-symbols-outlined !text-[11px]">
                             {reviewedPartnersDoc || partnerGate4
@@ -466,11 +464,10 @@ export function LandingApplicationDrawers({
                         setReviewedComplianceDoc(true);
                         setActivePartnerCovenant('ComplianceProtocol');
                       }}
-                      className={`p-3.5 rounded-2xl glass-panel border text-left flex flex-col gap-2 cursor-pointer transition-all group ${
-                        reviewedComplianceDoc || partnerGate4
-                          ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:border-[var(--success)]'
-                          : 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)]'
-                      }`}
+                      className={`p-3.5 rounded-2xl glass-panel border text-left flex flex-col gap-2 cursor-pointer transition-all group ${reviewedComplianceDoc || partnerGate4
+                        ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:border-[var(--success)]'
+                        : 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)]'
+                        }`}
                     >
                       <div className="flex items-center justify-between gap-2 w-full">
                         <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5">
@@ -482,11 +479,10 @@ export function LandingApplicationDrawers({
                           </span>
                         </span>
                         <span
-                          className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border bg-transparent flex items-center gap-1 ${
-                            reviewedComplianceDoc || partnerGate4
-                              ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]'
-                              : 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]'
-                          }`}
+                          className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border bg-transparent flex items-center gap-1 ${reviewedComplianceDoc || partnerGate4
+                            ? 'border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]'
+                            : 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]'
+                            }`}
                         >
                           <span className="material-symbols-outlined !text-[11px]">
                             {reviewedComplianceDoc || partnerGate4
@@ -760,7 +756,7 @@ export function LandingApplicationDrawers({
                       onChange={(v: string[]) =>
                         setPartnerInfraReadiness(
                           v[0] ||
-                            'Ready to Provision Dedicated Supabase Project'
+                          'Ready to Provision Dedicated Supabase Project'
                         )
                       }
                       options={[
@@ -789,11 +785,10 @@ export function LandingApplicationDrawers({
                       {`${t('landing_partner_vision', 'Workspace Scope, Install Routing & Governance Plan')} *`}
                     </label>
                     <span
-                      className={`text-[10px] font-mono font-bold ${
-                        partnerVision.trim().length >= 50
-                          ? 'text-[var(--success)]'
-                          : 'text-[var(--warning)]'
-                      }`}
+                      className={`text-[10px] font-mono font-bold ${partnerVision.trim().length >= 50
+                        ? 'text-[var(--success)]'
+                        : 'text-[var(--warning)]'
+                        }`}
                     >
                       {`${partnerVision.trim().length} / 50+ ${t('landing_partner_min_chars_hint', 'Minimum 50 characters required')}`}
                     </span>
@@ -847,9 +842,9 @@ export function LandingApplicationDrawers({
                     isSubmittingPartner
                       ? t('btn_submitting', 'Submitting...')
                       : t(
-                          'landing_partner_submit_btn',
-                          'Submit Partner Spoke Dossier'
-                        )
+                        'landing_partner_submit_btn',
+                        'Submit Partner Spoke Dossier'
+                      )
                   }
                   onClick={handleSubmitPartnerApplication}
                   disabled={isSubmittingPartner}
@@ -875,9 +870,9 @@ export function LandingApplicationDrawers({
         title={
           activePartnerCovenant === 'ComplianceProtocol'
             ? syncedCovenantDocs.ComplianceProtocol?.title ||
-              CANONICAL_LEGAL_DOCS.ComplianceProtocol.title
+            CANONICAL_LEGAL_DOCS.ComplianceProtocol.title
             : syncedCovenantDocs.PartnersAgreement?.title ||
-              CANONICAL_LEGAL_DOCS.PartnersAgreement.title
+            CANONICAL_LEGAL_DOCS.PartnersAgreement.title
         }
         subtitle={t(
           'partner_covenants_subtitle',
@@ -916,7 +911,7 @@ export function LandingApplicationDrawers({
         }
       >
         <div className="flex flex-col gap-5 mt-2 relative z-10 w-full pb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -947,7 +942,7 @@ export function LandingApplicationDrawers({
                 setActivePartnerCovenant('ComplianceProtocol');
               }}
             />
-          </div>
+          </SidePanelFilterBar>
 
           <SidePanelHeroCard
             icon={
@@ -962,31 +957,31 @@ export function LandingApplicationDrawers({
             title={
               activePartnerCovenant === 'ComplianceProtocol'
                 ? syncedCovenantDocs.ComplianceProtocol?.title ||
-                  CANONICAL_LEGAL_DOCS.ComplianceProtocol.title
+                CANONICAL_LEGAL_DOCS.ComplianceProtocol.title
                 : syncedCovenantDocs.PartnersAgreement?.title ||
-                  CANONICAL_LEGAL_DOCS.PartnersAgreement.title
+                CANONICAL_LEGAL_DOCS.PartnersAgreement.title
             }
             description={
               activePartnerCovenant === 'ComplianceProtocol'
                 ? t(
-                    'compliance_protocol_desc',
-                    'Zero-malware enforcement, SHA-256 {mod} verification, DMCA takedown compliance, and GDPR/CCPA privacy standards.'
-                  )
+                  'compliance_protocol_desc',
+                  'Zero-malware enforcement, SHA-256 {mod} verification, DMCA takedown compliance, and GDPR/CCPA privacy standards.'
+                )
                 : t(
-                    'partner_agreement_desc',
-                    'Bilateral Sovereignty (Cut the Cord), 0% non-custodial donations, Spoke maintenance duties, and brand boundaries.'
-                  )
+                  'partner_agreement_desc',
+                  'Bilateral Sovereignty (Cut the Cord), 0% non-custodial donations, Spoke maintenance duties, and brand boundaries.'
+                )
             }
             badge={
               activePartnerCovenant === 'ComplianceProtocol'
                 ? `V${stableVersion} • ${t(
-                    'compliance_protocol_badge',
-                    'Safety & Privacy'
-                  )}`
+                  'compliance_protocol_badge',
+                  'Safety & Privacy'
+                )}`
                 : `V${stableVersion} • ${t(
-                    'partner_agreement_badge',
-                    'Spoke Charter'
-                  )}`
+                  'partner_agreement_badge',
+                  'Spoke Charter'
+                )}`
             }
             badgeIcon={t('icon_verified', 'verified')}
             variant="accent"
@@ -998,9 +993,9 @@ export function LandingApplicationDrawers({
             title={
               activePartnerCovenant === 'ComplianceProtocol'
                 ? syncedCovenantDocs.ComplianceProtocol?.title ||
-                  CANONICAL_LEGAL_DOCS.ComplianceProtocol.title
+                CANONICAL_LEGAL_DOCS.ComplianceProtocol.title
                 : syncedCovenantDocs.PartnersAgreement?.title ||
-                  CANONICAL_LEGAL_DOCS.PartnersAgreement.title
+                CANONICAL_LEGAL_DOCS.PartnersAgreement.title
             }
             icon={t('icon_description', 'description')}
           >
@@ -1008,9 +1003,9 @@ export function LandingApplicationDrawers({
               const activeBody =
                 activePartnerCovenant === 'ComplianceProtocol'
                   ? syncedCovenantDocs.ComplianceProtocol?.content ||
-                    CANONICAL_LEGAL_DOCS.ComplianceProtocol.bundledContent
+                  CANONICAL_LEGAL_DOCS.ComplianceProtocol.bundledContent
                   : syncedCovenantDocs.PartnersAgreement?.content ||
-                    CANONICAL_LEGAL_DOCS.PartnersAgreement.bundledContent;
+                  CANONICAL_LEGAL_DOCS.PartnersAgreement.bundledContent;
               return covenantViewMode === 'ui' ? (
                 <StructuredReleaseNotesView
                   content={activeBody}
@@ -1252,19 +1247,17 @@ export function LandingApplicationDrawers({
                         key={role.id}
                         type="button"
                         onClick={() => setKeeperFocus(role.id)}
-                        className={`p-3.5 rounded-2xl glass-surface border text-left flex flex-col gap-2 transition-all cursor-pointer ${
-                          active
-                            ? 'border-[var(--accent)] sa-glass-active'
-                            : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
-                        }`}
+                        className={`p-3.5 rounded-2xl glass-surface border text-left flex flex-col gap-2 transition-all cursor-pointer ${active
+                          ? 'border-[var(--accent)] sa-glass-active'
+                          : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
+                          }`}
                       >
                         <div className="flex items-center justify-between gap-2 w-full">
                           <div
-                            className={`w-8 h-8 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${
-                              active
-                                ? 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]'
-                                : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)]'
-                            }`}
+                            className={`w-8 h-8 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${active
+                              ? 'border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]'
+                              : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)]'
+                              }`}
                           >
                             <span className="material-symbols-outlined !text-[18px]">
                               {role.icon}
@@ -1272,11 +1265,10 @@ export function LandingApplicationDrawers({
                           </div>
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider shrink-0">
                             <span
-                              className={`material-symbols-outlined !text-[11px] ${
-                                active
-                                  ? 'text-[var(--accent)]'
-                                  : 'text-[var(--subtext)]'
-                              }`}
+                              className={`material-symbols-outlined !text-[11px] ${active
+                                ? 'text-[var(--accent)]'
+                                : 'text-[var(--subtext)]'
+                                }`}
                             >
                               {role.icon}
                             </span>
@@ -1284,11 +1276,10 @@ export function LandingApplicationDrawers({
                           </span>
                         </div>
                         <span
-                          className={`text-xs font-black leading-snug ${
-                            active
-                              ? 'text-[var(--accent)]'
-                              : 'text-[var(--text)]'
-                          }`}
+                          className={`text-xs font-black leading-snug ${active
+                            ? 'text-[var(--accent)]'
+                            : 'text-[var(--text)]'
+                            }`}
                         >
                           {role.title}
                         </span>
@@ -1650,18 +1641,16 @@ export function LandingApplicationDrawers({
                               setKeeperSkills([...keeperSkills, skill.id]);
                             }
                           }}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-surface border text-[11px] font-black transition-all cursor-pointer ${
-                            selected
-                              ? 'border-[var(--accent)] sa-glass-active text-[var(--text)]'
-                              : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
-                          }`}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl glass-surface border text-[11px] font-black transition-all cursor-pointer ${selected
+                            ? 'border-[var(--accent)] sa-glass-active text-[var(--text)]'
+                            : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
+                            }`}
                         >
                           <span
-                            className={`material-symbols-outlined !text-[14px] ${
-                              selected
-                                ? 'text-[var(--accent)]'
-                                : 'text-[var(--subtext)] opacity-70'
-                            }`}
+                            className={`material-symbols-outlined !text-[14px] ${selected
+                              ? 'text-[var(--accent)]'
+                              : 'text-[var(--subtext)] opacity-70'
+                              }`}
                           >
                             {selected
                               ? t('icon_check_circle', 'check_circle')
@@ -1680,11 +1669,10 @@ export function LandingApplicationDrawers({
                       {`${t('landing_keeper_exp_label', 'Shipped Projects, Technical Background & Relevant Experience (Min 40 chars)')} *`}
                     </label>
                     <span
-                      className={`text-[10px] font-mono font-bold shrink-0 ${
-                        keeperExperience.trim().length >= 40
-                          ? 'text-[var(--success)]'
-                          : 'text-[var(--warning)]'
-                      }`}
+                      className={`text-[10px] font-mono font-bold shrink-0 ${keeperExperience.trim().length >= 40
+                        ? 'text-[var(--success)]'
+                        : 'text-[var(--warning)]'
+                        }`}
                     >
                       {`${keeperExperience.trim().length} / 40+`}
                     </span>
@@ -1867,9 +1855,9 @@ export function LandingApplicationDrawers({
                     isSubmittingKeeper
                       ? t('btn_submitting', 'Submitting...')
                       : t(
-                          'landing_keeper_submit_btn',
-                          'Submit Application to Sanctuary Foundry'
-                        )
+                        'landing_keeper_submit_btn',
+                        'Submit Application to Sanctuary Foundry'
+                      )
                   }
                   onClick={handleSubmitKeeperApplication}
                   disabled={isSubmittingKeeper}

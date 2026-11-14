@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { isDesktop } from "./utils/envUtils";
 import { CustomClassificationDropdown } from "./hub-components/SharedRegistry";
 import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
@@ -32,6 +33,7 @@ import {
   LabVerificationGate,
   checkDnaHashVerification,
   recordVerifiedCertificate,
+  verifyKnownTier0CloudHashes,
 } from "./components/LabVerificationGate";
 import { buildFamilyHierarchy } from "./components/artifact-studio/artifactStudioUtils";
 import {
@@ -681,16 +683,58 @@ export function MasonSandbox({
       useStore.getState().pushStatus(t("auto_no_valid_sandbox_45", "No valid sandbox {mod}"), "error");
       return;
     }
-    const verCheck = await checkDnaHashVerification(activeMod.hash);
-    if (requireMasonLabTest && !verCheck.verified) {
+    const resolvedComplianceTier = Number(activeMod.compliance_tier || 0);
+    if (resolvedComplianceTier < 0 || resolvedComplianceTier >= 5) {
+      useStore.getState().pushStatus(
+        t("alert_tier5_prohibited", "Prohibited Safety Tier {mods} cannot be uploaded."),
+        "error"
+      );
+      return;
+    }
+    const cleanHash = String(activeMod.hash || "").trim();
+    const knownCloudCheck = await verifyKnownTier0CloudHashes([cleanHash]);
+    const isUnknownHashUpload = !knownCloudCheck.allowed;
+    const verCheck = await checkDnaHashVerification(cleanHash);
+    const mustPassLab =
+      (resolvedComplianceTier === 0 && isUnknownHashUpload) || requireMasonLabTest;
+
+    if (mustPassLab && (!verCheck.verified || verCheck.failed)) {
       useStore.getState().pushStatus(
         t(
           "lab_gate_locked_mason_msg",
-          "Publish Locked: This spoke requires a clean timed test inside the Homestead Lab before unlocking uploads."
+          "Publish Locked: Unknown Tier 0 {Mason} Queue uploads require a passing timed test inside the Homestead {Lab} before uploading."
         ),
         "error"
       );
       return;
+    }
+    if (resolvedComplianceTier === 0 && isUnknownHashUpload && isDesktop()) {
+      try {
+        const coords: any = await invoke("get_saved_coordinates");
+        const hasHardwareCert = await invoke<boolean>("verify_lab_certificate_exists", {
+          vaultPath: vaultPath || coords?.vault_path || "",
+          dnaHash: cleanHash,
+        });
+        if (!hasHardwareCert) {
+          useStore.getState().pushStatus(
+            t(
+              "lab_gate_locked_mason_msg",
+              "Publish Locked: Unknown Tier 0 {Mason} Queue uploads require a passing timed test inside the Homestead {Lab} before uploading."
+            ),
+            "error"
+          );
+          return;
+        }
+      } catch {
+        useStore.getState().pushStatus(
+          t(
+            "lab_gate_locked_mason_msg",
+            "Publish Locked: Unknown Tier 0 {Mason} Queue uploads require a passing timed test inside the Homestead {Lab} before uploading."
+          ),
+          "error"
+        );
+        return;
+      }
     }
     setIsCommitting(true);
     try {
@@ -698,7 +742,7 @@ export function MasonSandbox({
 
       if (targetModId) {
         const beforeMod = existingMods.find((m) => m.id === targetModId) || null;
-        const updatePayload = {
+        const updatePayload: Record<string, any> = {
           name: activeMod.name,
           description: activeMod.description || "",
           image_url: activeMod.image_url || null,
@@ -706,6 +750,7 @@ export function MasonSandbox({
           category_override: activeMod.category_override || activeMod.type || null,
           sub_type: activeMod.sub_type || null,
           file_extension: activeMod.file_extension || null,
+          compliance_tier: resolvedComplianceTier,
           updated_at: new Date().toISOString(),
           compatible_versions: activeMod.compatible_versions || [],
           folder_structure: activeMod.folder_structure || [],
@@ -714,6 +759,9 @@ export function MasonSandbox({
           highlander_group_id: activeMod.highlander_group_id || null,
           latest_version: activeMod.latest_version || "1.0.0",
         };
+        if (resolvedComplianceTier >= 1 && resolvedComplianceTier <= 4) {
+          updatePayload.status = "pending";
+        }
         // Update existing mod record (when creator chose "Link to Existing Mod -> New Version")
         const { error: updateErr } = await supabase
           .from("mods")
@@ -730,6 +778,10 @@ export function MasonSandbox({
           computeAuditDiff(beforeMod, updatePayload)
         );
       } else {
+        const resolvedInitialStatus =
+          resolvedComplianceTier >= 1 && resolvedComplianceTier <= 4
+            ? "pending"
+            : activeMod.status || "unverified";
         const insertPayload = {
           name: activeMod.name || "Unknown Sandbox Mod",
           mason_id: masonId,
@@ -740,7 +792,8 @@ export function MasonSandbox({
           category_override: activeMod.category_override || activeMod.type || null,
           sub_type: activeMod.sub_type || null,
           file_extension: activeMod.file_extension || null,
-          status: activeMod.status || "unverified",
+          compliance_tier: resolvedComplianceTier,
+          status: resolvedInitialStatus,
           status_reason: String(activeMod.status_reason || "").trim() || null,
           created_at: activeMod.created_at || new Date().toISOString(),
           updated_at: activeMod.updated_at || new Date().toISOString(),
@@ -775,13 +828,14 @@ export function MasonSandbox({
         [
           {
             mod_id: targetModId,
-            dna_hash: activeMod.hash,
+            dna_hash: cleanHash,
             version_label: activeMod.latest_version || "v1.0",
             game_version:
               activeMod.compatible_versions && activeMod.compatible_versions.length > 0
                 ? activeMod.compatible_versions.join(", ")
                 : null,
-          },
+            ...(verCheck?.cert ? { _lab_cert_proof: verCheck.cert } : {}),
+          } as any,
         ],
         { onConflict: "dna_hash" }
       );
@@ -1453,11 +1507,27 @@ export function MasonSandbox({
                   />
                   {isVerifiedMason && (
                     <PanelHeaderButton
-                      icon={requireMasonLabTest && !isActiveModLabVerified ? t("icon_lock", "lock") : t("icon_sync", "sync")}
+                      icon={
+                        ((Number(activeMod?.compliance_tier || 0) === 0 &&
+                          Boolean(activeMod?.hash && !existingHashes.has(activeMod.hash))) ||
+                          requireMasonLabTest) &&
+                        !isActiveModLabVerified
+                          ? t("icon_lock", "lock")
+                          : t("icon_sync", "sync")
+                      }
                       onClick={handleSyncToNetwork}
-                      disabled={isCommitting || (requireMasonLabTest && !isActiveModLabVerified)}
+                      disabled={
+                        isCommitting ||
+                        (((Number(activeMod?.compliance_tier || 0) === 0 &&
+                          Boolean(activeMod?.hash && !existingHashes.has(activeMod.hash))) ||
+                          requireMasonLabTest) &&
+                          !isActiveModLabVerified)
+                      }
                       tooltip={
-                        requireMasonLabTest && !isActiveModLabVerified
+                        ((Number(activeMod?.compliance_tier || 0) === 0 &&
+                          Boolean(activeMod?.hash && !existingHashes.has(activeMod.hash))) ||
+                          requireMasonLabTest) &&
+                        !isActiveModLabVerified
                           ? t("lab_tooltip_publish_locked", "Publish Locked (Lab Test Required)")
                           : isCommitting
                             ? t("btn_syncing", "Syncing...")
@@ -1527,7 +1597,11 @@ export function MasonSandbox({
                   physicalPath={activeMod.physical_path || activeMod.name}
                   isSandboxMod={true}
                   roleContext="mason"
-                  isGateRequired={requireMasonLabTest}
+                  isGateRequired={
+                    (Number(activeMod?.compliance_tier || 0) === 0 &&
+                      Boolean(activeMod?.hash && !existingHashes.has(activeMod.hash))) ||
+                    requireMasonLabTest
+                  }
                   onStatusChange={(st) => setIsActiveModLabVerified(st.verified)}
                 />
               )}

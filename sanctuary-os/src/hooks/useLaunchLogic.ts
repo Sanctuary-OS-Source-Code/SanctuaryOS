@@ -2,6 +2,8 @@ import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { isDesktop } from "../utils/envUtils";
 
 export function useLaunchLogic(
   askCustom: (
@@ -155,12 +157,34 @@ export function useLaunchLogic(
         }
       }
       const latestConfig: any = await invoke("get_saved_coordinates");
+      const autoPurgeCaches =
+        typeof localStorage !== "undefined"
+          ? localStorage.getItem("sanctuary_auto_purge_caches_on_launch") !== "false"
+          : true;
       const msg = await invoke("launch_game", {
         livePath: latestConfig.live_path,
         modsPath: latestConfig.mods_path,
+        disabledDlc: useStore.getState().maskedDLC,
+        autoPurgeCaches,
         gameSchema: useStore.getState().activeGameSchema,
       });
       setStatus(t(msg as string, msg as string));
+
+      if (isDesktop()) {
+        const postLaunchAction =
+          typeof localStorage !== "undefined"
+            ? localStorage.getItem("sanctuary_post_launch_action") || "keep_open"
+            : "keep_open";
+        if (postLaunchAction === "minimize") {
+          setTimeout(() => {
+            getCurrentWebviewWindow().minimize().catch(() => {});
+          }, 600);
+        } else if (postLaunchAction === "close") {
+          setTimeout(() => {
+            getCurrentWebviewWindow().close().catch(() => {});
+          }, 800);
+        }
+      }
     } catch (err) {
       setStatus(
         `${t("status_launch_failed", "error LAUNCH FAILED")}: ${t(

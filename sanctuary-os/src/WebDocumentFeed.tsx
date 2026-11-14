@@ -7,6 +7,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
+  SidePanelFilterBar,
   ActionButton,
   EmptyState,
   stripMarkdown,
@@ -1532,7 +1533,7 @@ export default function WebDocumentFeed({
     return (
       <div className="flex flex-col gap-6">
         {/* 1x3 Top Tiles (Responsive SidePanel Filter Grid) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -1569,7 +1570,7 @@ export default function WebDocumentFeed({
             isActive={guideMode === "roles"}
             onClick={() => setGuideMode("roles")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {/* Mode 1: 7-Stage Interactive UI Walkthrough (Single-Column Stacked Cards: Unselected Compact & Dimmed opacity-50, Active Expanded In-Place) */}
         {guideMode === "walkthrough" && (
@@ -2317,7 +2318,7 @@ export default function WebDocumentFeed({
     return (
       <div className="flex flex-col gap-6">
         {/* 1x3 Interactive Filter Tabs (Responsive SidePanel Filter Grid) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -2357,7 +2358,7 @@ export default function WebDocumentFeed({
               setSelectedPhaseNum(topCompletedPhaseNum);
             }}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {/* Single-Column Stacked Phase Cards (Unselected Compact & Dimmed opacity-50, Active Expanded In-Place) */}
         <div className="flex flex-col gap-3.5 w-full">
@@ -2616,7 +2617,7 @@ export default function WebDocumentFeed({
     return (
       <div className="flex flex-col gap-6">
         {/* 1x3 Top Tiles (Responsive SidePanel Filter Grid) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -2647,7 +2648,7 @@ export default function WebDocumentFeed({
             isActive={forkTab === "sql"}
             onClick={() => setForkTab("sql")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {/* Tab 1: Official Partner Spoke Setup & Cut the Cord */}
         {forkTab === "spoke" && (
@@ -3787,7 +3788,7 @@ export default function WebDocumentFeed({
     return (
       <div className="flex flex-col gap-6">
         {/* 1x3 Top Tiles (Responsive SidePanel Filter Grid) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -3818,7 +3819,7 @@ export default function WebDocumentFeed({
             isActive={archTab === "p3"}
             onClick={() => setArchTab("p3")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {/* Clean 3-Tier Hero Container Below 1x3 Tiles */}
         <div className="relative glass-panel rounded-2xl p-5 flex flex-col gap-4 border !border-[color-mix(in_srgb,var(--text)_22%,transparent)]">
@@ -4273,7 +4274,7 @@ export default function WebDocumentFeed({
     return (
       <div className="flex flex-col gap-6">
         {/* 1x3 Top Tiles (Responsive SidePanel Filter Grid) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -4304,7 +4305,7 @@ export default function WebDocumentFeed({
             isActive={protoTab === "list"}
             onClick={() => setProtoTab("list")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {/* Tab 1: 6-Tier Role Matrix (Single-Column Stacked Cards: Unselected Compact & Dimmed, Selected Expands In-Place) */}
         {protoTab === "roles" && (

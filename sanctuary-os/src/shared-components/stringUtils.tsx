@@ -186,3 +186,17 @@ export const extractPostImage = (markdown: any): string | undefined => {
   return undefined;
 };
 
+export const getSafeEditorMarkdown = (editor: any): string => {
+  if (!editor || editor.isDestroyed) return "";
+  const mdStorage = (editor.storage as any)?.markdown;
+  if (mdStorage && typeof mdStorage.getMarkdown === "function") {
+    try {
+      return mdStorage.getMarkdown() ?? "";
+    } catch {
+      return typeof editor.getText === "function" ? editor.getText() : "";
+    }
+  }
+  return typeof editor.getText === "function" ? editor.getText() : "";
+};
+
+

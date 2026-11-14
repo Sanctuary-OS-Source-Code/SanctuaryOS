@@ -14,6 +14,7 @@ import {
   VAULT_CHIP_CLASS,
   ActionButton,
   DashboardStatTile,
+  SidePanelFilterBar,
 } from "../shared";
 import { SidePanelHeroCard, SidePanelTitleInput } from "./layouts/ElevatedHubLayout";
 import { CommandScreenSectionHeading } from "../hub-components/SharedCommandScreenLayout";
@@ -863,7 +864,7 @@ export function KnownErrorRuleEditorSidePanel({
               />
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
               <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col justify-between gap-2">
                 <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5">
                   <span className="material-symbols-outlined !text-[13px] text-[var(--accent)] shrink-0">
@@ -907,7 +908,7 @@ export function KnownErrorRuleEditorSidePanel({
                       defaultFileHint
                     ) as string
                   }
-                  className="w-full h-10 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+                  className="w-full min-h-10 py-2 glass-panel rounded-xl px-3.5 text-xs font-mono font-bold text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
                 />
               </div>
 
@@ -926,9 +927,9 @@ export function KnownErrorRuleEditorSidePanel({
                     !isBenign &&
                     setRule((prev) => ({ ...prev, ignore_in_lab: !prev.ignore_in_lab }))
                   }
-                  className="w-full h-10 glass-panel rounded-xl px-3.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-between gap-2 text-xs font-black text-[var(--text)] transition-all cursor-pointer"
+                  className="w-full min-h-10 py-2 glass-panel rounded-xl px-3.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-between gap-2 text-xs font-black text-[var(--text)] transition-all cursor-pointer"
                 >
-                  <span className="leading-snug text-left">
+                  <span className="leading-snug text-left break-words">
                     {isBenign || rule.ignore_in_lab
                       ? t("exc_rules_badge_no_autofail", "Ignored in {Lab}")
                       : t("exc_rules_lab_fails_test", "Fails {Lab} Test")}
@@ -959,13 +960,13 @@ export function KnownErrorRuleEditorSidePanel({
                 <button
                   type="button"
                   onClick={() => setRule((prev) => ({ ...prev, pinned: !prev.pinned }))}
-                  className={`w-full h-10 glass-panel rounded-xl px-3.5 border flex items-center justify-between gap-2 text-xs font-black transition-all cursor-pointer ${
+                  className={`w-full min-h-10 py-2 glass-panel rounded-xl px-3.5 border flex items-center justify-between gap-2 text-xs font-black transition-all cursor-pointer ${
                     rule.pinned
                       ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)]"
                       : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)]"
                   }`}
                 >
-                  <span className="leading-snug text-left">
+                  <span className="leading-snug text-left break-words">
                     {rule.pinned
                       ? t("pinned", "Pinned")
                       : t("pin_item", "Pin")}
@@ -2512,7 +2513,7 @@ export function KnownErrorRulesManager({
       >
         <div className="flex flex-col gap-5 mt-2 w-full pb-8">
           {/* 4-TILE SEVERITY FILTER GRID (ALLOWED INSIDE SIDEPANEL) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full">
+          <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-3">
             <DashboardStatTile
               variant="filter"
               icon={t("icon_apps", "apps")}
@@ -2545,7 +2546,7 @@ export function KnownErrorRulesManager({
               isActive={directorySeverity === "unrelated"}
               onClick={() => setDirectorySeverity("unrelated")}
             />
-          </div>
+          </SidePanelFilterBar>
 
           {/* SEARCH + SORT + LAB BEHAVIOR CONTROLS */}
           <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">

@@ -11,6 +11,7 @@ import {
   SidePanelHeroCard,
   StatBox,
   DashboardStatTile,
+  SidePanelFilterBar,
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { isDesktop } from "../utils/envUtils";
@@ -531,7 +532,7 @@ export function CompanionPasskeyHandshakeApprover() {
             }
             variant="accent"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+            <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
               <ActionButton
                 onClick={() => checkPending()}
                 disabled={isChecking}
@@ -542,14 +543,12 @@ export function CompanionPasskeyHandshakeApprover() {
                     ? t("loading", "Loading...")
                     : t("refresh", "Refresh")
                 }
-                className="w-full !py-2.5"
               />
               <ActionButton
                 onClick={handleClosePanel}
                 variant="glass"
                 icon={t("icon_close", "close")}
                 label={t("close", "Close")}
-                className="w-full !py-2.5"
               />
             </div>
           </SidePanelHeroCard>
@@ -1180,7 +1179,7 @@ export function ElevatedPasskeyGate({
               )}
               variant="warning"
             >
-              <div className="pt-2 flex flex-col gap-2.5">
+              <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
                 {isLocalOnlyMode && (
                   <ActionButton
                     onClick={() => {
@@ -1191,7 +1190,6 @@ export function ElevatedPasskeyGate({
                     variant="accent"
                     icon={t("icon_cloud_sync", "cloud_sync")}
                     label={t("passkey_gate_disable_local_only", "Reconnect Cloud & Verify Passkey")}
-                    className="w-full !py-2.5"
                   />
                 )}
                 <ActionButton
@@ -1199,7 +1197,6 @@ export function ElevatedPasskeyGate({
                   variant="glass"
                   icon={t("icon_arrow_back", "arrow_back")}
                   label={t("back", "Back")}
-                  className="w-full !py-2.5"
                 />
               </div>
             </SidePanelHeroCard>
@@ -1266,7 +1263,7 @@ export function ElevatedPasskeyGate({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
             <DashboardStatTile
               variant="filter"
               icon={t("icon_passkey", "passkey")}
@@ -1291,7 +1288,7 @@ export function ElevatedPasskeyGate({
               isActive={mfaEnrollTab === "totp"}
               onClick={() => setMfaEnrollTab("totp")}
             />
-          </div>
+          </SidePanelFilterBar>
 
           {mfaEnrollTab === "passkey" ? (
             !hasPasskey ? (

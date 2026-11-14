@@ -23,8 +23,8 @@ export function ScoutQueueSidePanel({
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
   const activeGameSchema = useStore((state) => state.activeGameSchema);
-  const requireScoutLabTest =
-    activeGameSchema?.lab_verification?.require_for_scout_approval !== false;
+  // Unknown Tier 0 Scout Queue uploads unconditionally require a passing 4-stage {Lab} test
+  const requireScoutLabTest = true;
   const { isScoutPanelOpen, setIsScoutPanelOpen } = useModalStore(
     useShallow((s) => ({
       isScoutPanelOpen: s.isScoutPanelOpen,
@@ -33,7 +33,9 @@ export function ScoutQueueSidePanel({
   );
   const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
 
-  const queueItems = Array.isArray(scoutQueue) ? scoutQueue : [];
+  const queueItems = (Array.isArray(scoutQueue) ? scoutQueue : []).filter(
+    (m: any) => Number(m?.compliance_tier || 0) === 0
+  );
 
   return (
     <SidePanel

@@ -10,6 +10,7 @@ import {
   ActionButton,
   ActionPill,
   DashboardStatTile,
+  SidePanelFilterBar,
   EmptyState,
   HoverTooltip,
   getNormalizedArtifactName,
@@ -956,7 +957,7 @@ export default function BlueprintMatrix({
           icon={t("icon_tune", "tune")}
         >
           <div className="flex flex-col gap-3">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 w-full">
+            <SidePanelFilterBar className="sm:grid-cols-3 gap-2.5">
               <DashboardStatTile
                 variant="filter"
                 icon={t("icon_storefront", "storefront")}
@@ -993,7 +994,7 @@ export default function BlueprintMatrix({
                   setIsMarketListed(false);
                 }}
               />
-            </div>
+            </SidePanelFilterBar>
 
             <div className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center gap-2.5">
               <span
@@ -1382,7 +1383,7 @@ export default function BlueprintMatrix({
             </SidePanelHeroCard>
 
             {/* 2-Row Even Filter Tiles Inside the SidePanel [ All | Unknown | Tier 1 / Tier 2 | Tier 3 | Tier 4 ] */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 w-full">
+            <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-3 gap-2.5">
               <DashboardStatTile
                 variant="filter"
                 icon={t("icon_warning_amber", "warning_amber")}
@@ -1449,7 +1450,7 @@ export default function BlueprintMatrix({
                   setVisibleRestrictedCount(36);
                 }}
               />
-            </div>
+            </SidePanelFilterBar>
 
             <ActionPill
               searchQuery={restrictedSearch}
@@ -1553,7 +1554,7 @@ export default function BlueprintMatrix({
             </SidePanelHeroCard>
 
             {/* 4 Filter Tiles Inside the SidePanel [ Priority 1 | Priority 2 | Priority 3 | Overrides ] */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full">
+            <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-2.5">
               <DashboardStatTile
                 variant="filter"
                 icon={t("icon_low_priority", "low_priority")}
@@ -1598,7 +1599,7 @@ export default function BlueprintMatrix({
                   setVisibleLoadOrderCount(36);
                 }}
               />
-            </div>
+            </SidePanelFilterBar>
 
             <ActionPill
               searchQuery={loadOrderSearch}

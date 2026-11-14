@@ -296,6 +296,17 @@ pub fn save_coordinates(mut config: SolderConfig) -> Result<String, String> {
 
     let config_path = get_config_path();
     crate::utils::atomic_write_bytes(&config_path, json.as_bytes())?;
+
+    // Enforce backup storage capacity cap asynchronously whenever workspace settings are saved
+    let workspaces_for_cap = config.workspaces.clone();
+    std::thread::spawn(move || {
+        for ws in &workspaces_for_cap {
+            if ws.vault_capacity_gb.unwrap_or(0) > 0 {
+                crate::utils::enforce_workspace_backup_capacity(ws);
+            }
+        }
+    });
+
     Ok("backend_locked".into())
 }
 

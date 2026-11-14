@@ -12,6 +12,7 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   DashboardStatTile,
+  SidePanelFilterBar,
 } from "../shared";
 import { notifyOS } from "../utils/notificationHelper";
 
@@ -1099,42 +1100,42 @@ const HUB_GROUPS: {
   iconKey: string;
   iconFallback: string;
 }[] = [
-  {
-    key: "masonActiveTab",
-    labelKey: "sidebar_mason_hub",
-    labelFallback: "{Mason} Workshop",
-    iconKey: "icon_construction",
-    iconFallback: "construction",
-  },
-  {
-    key: "architectActiveTab",
-    labelKey: "sidebar_architect_hub",
-    labelFallback: "Architect Console",
-    iconKey: "icon_analytics",
-    iconFallback: "analytics",
-  },
-  {
-    key: "oversightActiveTab",
-    labelKey: "stat_oversight",
-    labelFallback: "Oversight Command",
-    iconKey: "icon_security",
-    iconFallback: "security",
-  },
-  {
-    key: "wayfinderActiveTab",
-    labelKey: "sidebar_wayfinder_tools",
-    labelFallback: "Wayfinder Operations",
-    iconKey: "icon_terminal",
-    iconFallback: "terminal",
-  },
-  {
-    key: "keepersActiveTab",
-    labelKey: "sidebar_keepers_core",
-    labelFallback: "Keepers Core",
-    iconKey: "icon_admin_panel_settings",
-    iconFallback: "admin_panel_settings",
-  },
-];
+    {
+      key: "masonActiveTab",
+      labelKey: "sidebar_mason_hub",
+      labelFallback: "{Mason} Workshop",
+      iconKey: "icon_construction",
+      iconFallback: "construction",
+    },
+    {
+      key: "architectActiveTab",
+      labelKey: "sidebar_architect_hub",
+      labelFallback: "Architect Console",
+      iconKey: "icon_analytics",
+      iconFallback: "analytics",
+    },
+    {
+      key: "oversightActiveTab",
+      labelKey: "stat_oversight",
+      labelFallback: "Oversight Command",
+      iconKey: "icon_security",
+      iconFallback: "security",
+    },
+    {
+      key: "wayfinderActiveTab",
+      labelKey: "sidebar_wayfinder_tools",
+      labelFallback: "Wayfinder Operations",
+      iconKey: "icon_terminal",
+      iconFallback: "terminal",
+    },
+    {
+      key: "keepersActiveTab",
+      labelKey: "sidebar_keepers_core",
+      labelFallback: "Keepers Core",
+      iconKey: "icon_admin_panel_settings",
+      iconFallback: "admin_panel_settings",
+    },
+  ];
 
 export function openSanctuaryScreenshotTour() {
   window.dispatchEvent(new CustomEvent("sanctuary-open-screenshot-tour"));
@@ -1204,7 +1205,7 @@ export function ScreenshotTourSidePanel({
     if (isOpen) {
       invoke<string>("get_screenshots_root_dir")
         .then((dir) => setOutputDir(dir))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [isOpen]);
 
@@ -1309,7 +1310,7 @@ export function ScreenshotTourSidePanel({
         t("screenshot_tour_title", "Screenshot Tour"),
         `${t("screenshot_tour_snapped_toast", "Saved Screenshot")}: ${obfuscateUserPath(savedPath)}`,
         "SYSTEM"
-      ).catch(() => {});
+      ).catch(() => { });
     } catch (err) {
       console.error("Failed to snap screen:", err);
     } finally {
@@ -1352,7 +1353,7 @@ export function ScreenshotTourSidePanel({
         t("screenshot_tour_title", "Screenshot Tour"),
         `${t("screenshot_tour_snapped_toast", "Saved Screenshot")}: ${obfuscateUserPath(savedPath)}`,
         "SYSTEM"
-      ).catch(() => {});
+      ).catch(() => { });
     } catch (err) {
       console.error("Failed delayed snap:", err);
     } finally {
@@ -1602,7 +1603,7 @@ export function ScreenshotTourSidePanel({
           t("screenshot_tour_title", "Screenshot Tour"),
           `${t("screenshot_tour_complete_toast", "Screenshot Tour Completed")} (${capturedCount})`,
           "SYSTEM"
-        ).catch(() => {});
+        ).catch(() => { });
       }
     }
   };
@@ -1671,28 +1672,25 @@ export function ScreenshotTourSidePanel({
           badge={`${totalPlannedShots}${lastSavedCount > 0 ? ` • ${lastSavedCount}` : ""}`}
           variant="accent"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
             <ActionButton
               variant="glass"
               icon={t("icon_add_a_photo", "add_a_photo")}
               label={t("screenshot_tour_snap_current", "Snap Current Screen")}
               onClick={handleSnapCurrentScreen}
-              className="w-full justify-center"
             />
             <ActionButton
               variant="glass"
               icon={t("icon_timer", "timer")}
               label={t("screenshot_tour_delayed_snap", "Delayed Snap (3s)")}
               onClick={handleDelayedSnapCurrentScreen}
-              className="w-full justify-center"
             />
             <ActionButton
-              variant="primary"
+              variant="accent"
               icon={t("icon_play_arrow", "play_arrow")}
               label={`${t("screenshot_tour_run", "Run Screenshot Tour")} (${totalPlannedShots})`}
               disabled={totalPlannedShots === 0}
               onClick={handleRunTour}
-              className="w-full justify-center"
             />
           </div>
         </SidePanelHeroCard>
@@ -1733,11 +1731,10 @@ export function ScreenshotTourSidePanel({
                   key={opt.ms}
                   type="button"
                   onClick={() => setSettleDelayMs(opt.ms)}
-                  className={`px-2.5 py-1 rounded-lg border text-[10px] font-black transition-all cursor-pointer ${
-                    settleDelayMs === opt.ms
-                      ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
-                      : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)]"
-                  }`}
+                  className={`px-2.5 py-1 rounded-lg border text-[10px] font-black transition-all cursor-pointer ${settleDelayMs === opt.ms
+                    ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
+                    : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)]"
+                    }`}
                 >
                   {opt.label}
                 </button>
@@ -1747,7 +1744,7 @@ export function ScreenshotTourSidePanel({
         </div>
 
         {/* 2x2 INTERACTIVE CATEGORY FILTER TILES (ZERO TRUNCATION) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+        <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
           <DashboardStatTile
             variant="filter"
             icon={t("icon_palette", "palette")}
@@ -1783,7 +1780,7 @@ export function ScreenshotTourSidePanel({
             active={activeCategory === "panels"}
             onClick={() => setActiveCategory("panels")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {/* 1. THEMES SELECTION */}
         {activeCategory === "themes" && (
@@ -1827,11 +1824,10 @@ export function ScreenshotTourSidePanel({
                     key={th.id}
                     type="button"
                     onClick={() => toggleTheme(th.id)}
-                    className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                      isSelected
-                        ? "border-[var(--accent)] text-[var(--text)]"
-                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
-                    }`}
+                    className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${isSelected
+                      ? "border-[var(--accent)] text-[var(--text)]"
+                      : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
+                      }`}
                   >
                     <span
                       className="w-4 h-4 rounded-md border border-white/25 shrink-0"
@@ -1843,16 +1839,15 @@ export function ScreenshotTourSidePanel({
                       {th.name}
                     </span>
                     <span
-                      className={`material-symbols-outlined !text-[16px] shrink-0 ${
-                        isSelected ? "text-[var(--accent)]" : "opacity-30"
-                      }`}
+                      className={`material-symbols-outlined !text-[16px] shrink-0 ${isSelected ? "text-[var(--accent)]" : "opacity-30"
+                        }`}
                     >
                       {isSelected
                         ? t("icon_check_circle", "check_circle")
                         : t(
-                            "icon_radio_button_unchecked",
-                            "radio_button_unchecked"
-                          )}
+                          "icon_radio_button_unchecked",
+                          "radio_button_unchecked"
+                        )}
                     </span>
                   </button>
                 );
@@ -1896,18 +1891,16 @@ export function ScreenshotTourSidePanel({
                     key={step.id}
                     type="button"
                     onClick={() => toggleStep(step.id)}
-                    className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                      isSelected
-                        ? "border-[var(--accent)] text-[var(--text)]"
-                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
-                    }`}
+                    className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${isSelected
+                      ? "border-[var(--accent)] text-[var(--text)]"
+                      : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
+                      }`}
                   >
                     <span
-                      className={`material-symbols-outlined !text-[17px] shrink-0 ${
-                        isSelected
-                          ? "text-[var(--accent)]"
-                          : "text-[var(--subtext)]"
-                      }`}
+                      className={`material-symbols-outlined !text-[17px] shrink-0 ${isSelected
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--subtext)]"
+                        }`}
                     >
                       {t(step.iconKey, step.iconFallback)}
                     </span>
@@ -1915,16 +1908,15 @@ export function ScreenshotTourSidePanel({
                       {t(step.labelKey, step.labelFallback)}
                     </span>
                     <span
-                      className={`material-symbols-outlined !text-[16px] shrink-0 ${
-                        isSelected ? "text-[var(--accent)]" : "opacity-30"
-                      }`}
+                      className={`material-symbols-outlined !text-[16px] shrink-0 ${isSelected ? "text-[var(--accent)]" : "opacity-30"
+                        }`}
                     >
                       {isSelected
                         ? t("icon_check_circle", "check_circle")
                         : t(
-                            "icon_radio_button_unchecked",
-                            "radio_button_unchecked"
-                          )}
+                          "icon_radio_button_unchecked",
+                          "radio_button_unchecked"
+                        )}
                     </span>
                   </button>
                 );
@@ -1969,11 +1961,10 @@ export function ScreenshotTourSidePanel({
                 <button
                   type="button"
                   onClick={() => setActiveHubFilter("ALL")}
-                  className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                    activeHubFilter === "ALL"
-                      ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
-                      : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-                  }`}
+                  className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${activeHubFilter === "ALL"
+                    ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
+                    : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                    }`}
                 >
                   {t("all", "All")}
                 </button>
@@ -1982,11 +1973,10 @@ export function ScreenshotTourSidePanel({
                     key={hub.key}
                     type="button"
                     onClick={() => setActiveHubFilter(hub.key)}
-                    className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
-                      activeHubFilter === hub.key
-                        ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
-                        : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${activeHubFilter === hub.key
+                      ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
+                      : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                      }`}
                   >
                     <span className="material-symbols-outlined !text-[13px]">
                       {t(hub.iconKey, hub.iconFallback)}
@@ -2026,11 +2016,10 @@ export function ScreenshotTourSidePanel({
                       <button
                         type="button"
                         onClick={() => toggleHubSubTabs(hub.key)}
-                        className={`px-2.5 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                          allInHubSelected
-                            ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
-                            : "glass-surface border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)]"
-                        }`}
+                        className={`px-2.5 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${allInHubSelected
+                          ? "bg-transparent border-[var(--accent)] text-[var(--accent)]"
+                          : "glass-surface border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)]"
+                          }`}
                       >
                         {allInHubSelected
                           ? t("clear", "Clear")
@@ -2046,18 +2035,16 @@ export function ScreenshotTourSidePanel({
                             key={step.id}
                             type="button"
                             onClick={() => toggleSubTab(step.id)}
-                            className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                              isSelected
-                                ? "border-[var(--accent)] text-[var(--text)]"
-                                : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
-                            }`}
+                            className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${isSelected
+                              ? "border-[var(--accent)] text-[var(--text)]"
+                              : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
+                              }`}
                           >
                             <span
-                              className={`material-symbols-outlined !text-[16px] shrink-0 ${
-                                isSelected
-                                  ? "text-[var(--accent)]"
-                                  : "text-[var(--subtext)]"
-                              }`}
+                              className={`material-symbols-outlined !text-[16px] shrink-0 ${isSelected
+                                ? "text-[var(--accent)]"
+                                : "text-[var(--subtext)]"
+                                }`}
                             >
                               {t(step.iconKey, step.iconFallback)}
                             </span>
@@ -2065,18 +2052,17 @@ export function ScreenshotTourSidePanel({
                               {t(step.labelKey, step.labelFallback)}
                             </span>
                             <span
-                              className={`material-symbols-outlined !text-[16px] shrink-0 ${
-                                isSelected
-                                  ? "text-[var(--accent)]"
-                                  : "opacity-30"
-                              }`}
+                              className={`material-symbols-outlined !text-[16px] shrink-0 ${isSelected
+                                ? "text-[var(--accent)]"
+                                : "opacity-30"
+                                }`}
                             >
                               {isSelected
                                 ? t("icon_check_circle", "check_circle")
                                 : t(
-                                    "icon_radio_button_unchecked",
-                                    "radio_button_unchecked"
-                                  )}
+                                  "icon_radio_button_unchecked",
+                                  "radio_button_unchecked"
+                                )}
                             </span>
                           </button>
                         );
@@ -2124,18 +2110,16 @@ export function ScreenshotTourSidePanel({
                     key={step.id}
                     type="button"
                     onClick={() => togglePanel(step.id)}
-                    className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${
-                      isSelected
-                        ? "border-[var(--accent)] text-[var(--text)]"
-                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
-                    }`}
+                    className={`glass-surface rounded-xl px-3 py-2.5 border text-left flex items-center gap-2.5 transition-all cursor-pointer ${isSelected
+                      ? "border-[var(--accent)] text-[var(--text)]"
+                      : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] opacity-70 hover:opacity-100"
+                      }`}
                   >
                     <span
-                      className={`material-symbols-outlined !text-[17px] shrink-0 ${
-                        isSelected
-                          ? "text-[var(--accent)]"
-                          : "text-[var(--subtext)]"
-                      }`}
+                      className={`material-symbols-outlined !text-[17px] shrink-0 ${isSelected
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--subtext)]"
+                        }`}
                     >
                       {t(step.iconKey, step.iconFallback)}
                     </span>
@@ -2143,16 +2127,15 @@ export function ScreenshotTourSidePanel({
                       {t(step.labelKey, step.labelFallback)}
                     </span>
                     <span
-                      className={`material-symbols-outlined !text-[16px] shrink-0 ${
-                        isSelected ? "text-[var(--accent)]" : "opacity-30"
-                      }`}
+                      className={`material-symbols-outlined !text-[16px] shrink-0 ${isSelected ? "text-[var(--accent)]" : "opacity-30"
+                        }`}
                     >
                       {isSelected
                         ? t("icon_check_circle", "check_circle")
                         : t(
-                            "icon_radio_button_unchecked",
-                            "radio_button_unchecked"
-                          )}
+                          "icon_radio_button_unchecked",
+                          "radio_button_unchecked"
+                        )}
                     </span>
                   </button>
                 );

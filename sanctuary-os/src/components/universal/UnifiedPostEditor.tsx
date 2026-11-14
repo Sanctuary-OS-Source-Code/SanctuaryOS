@@ -2,7 +2,10 @@ import { useState, useRef, useMemo, useEffect, useLayoutEffect } from "react";
 import { EditorContent, Editor } from "@tiptap/react";
 import { useLexicon } from "../../LexiconContext";
 import { ActionButton } from "../../shared-components/buttons";
-import { DashboardStatTile } from "../../shared-components/layout";
+import {
+  DashboardStatTile,
+  SidePanelFilterBar,
+} from "../../shared-components/layout";
 import { HoverTooltip } from "../../shared-components/alerts";
 import { UniversalGroup } from "./UniversalLayout";
 import IconPicker from "../../IconPicker";
@@ -252,7 +255,7 @@ export function PostEditorModeTiles({
 }) {
   const { t } = useLexicon();
   return (
-    <div className="grid grid-cols-3 gap-3 w-full">
+    <SidePanelFilterBar className="grid-cols-3 gap-3">
       <DashboardStatTile
         variant="filter"
         className="!w-full"
@@ -283,7 +286,7 @@ export function PostEditorModeTiles({
         isActive={mode === "markdown"}
         onClick={() => onModeChange("markdown")}
       />
-    </div>
+    </SidePanelFilterBar>
   );
 }
 
@@ -364,7 +367,8 @@ export function UnifiedPostBodyEditor({
     if (
       (modeChangedToWysiwyg || (mode === "wysiwyg" && contentChanged)) &&
       editor &&
-      !editor.isDestroyed
+      !editor.isDestroyed &&
+      (editor.storage as any)?.markdown
     ) {
       const currentMd =
         (editor.storage as any)?.markdown?.getMarkdown?.() ?? "";
@@ -766,11 +770,10 @@ export function UnifiedPostBodyEditor({
           e.preventDefault();
           onClick();
         }}
-        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-          active
-            ? "glass-surface text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_18%,transparent)] scale-105"
-            : "text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[rgba(var(--text-rgb),0.06)] border border-transparent"
-        }`}
+        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${active
+          ? "glass-surface text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_18%,transparent)] scale-105"
+          : "text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[rgba(var(--text-rgb),0.06)] border border-transparent"
+          }`}
       >
         <span className="material-symbols-outlined !text-[16px] leading-none pointer-events-none">
           {icon}
@@ -927,11 +930,10 @@ export function UnifiedPostBodyEditor({
                           openActionMenuKey === "intro" ? null : "intro"
                         )
                       }
-                      className={`md:hidden w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border flex items-center justify-center cursor-pointer transition-all ${
-                        openActionMenuKey === "intro"
-                          ? "border-[var(--accent)] text-[var(--accent)]"
-                          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-                      }`}
+                      className={`md:hidden w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border flex items-center justify-center cursor-pointer transition-all ${openActionMenuKey === "intro"
+                        ? "border-[var(--accent)] text-[var(--accent)]"
+                        : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                        }`}
                     >
                       <span className="material-symbols-outlined !text-[16px]">
                         {t("icon_more_vert", "more_vert")}
@@ -939,11 +941,10 @@ export function UnifiedPostBodyEditor({
                     </button>
 
                     <div
-                      className={`${
-                        openActionMenuKey === "intro"
-                          ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover p-1.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl"
-                          : "hidden"
-                      } md:flex md:static md:p-0 md:bg-transparent md:border-0 md:shadow-none items-center gap-1.5`}
+                      className={`${openActionMenuKey === "intro"
+                        ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover p-1.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl"
+                        : "hidden"
+                        } md:flex md:static md:p-0 md:bg-transparent md:border-0 md:shadow-none items-center gap-1.5`}
                     >
                       {visualDoc.introTitle.trim() && (
                         <button
@@ -970,16 +971,14 @@ export function UnifiedPostBodyEditor({
                           handleDeleteIntro();
                           if (wasConfirmed) setOpenActionMenuKey(null);
                         }}
-                        className={`h-8 rounded-xl glass-surface border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
-                          confirmDeleteIntro
-                            ? "px-3 sa-glass-pill-danger !text-[var(--text)]"
-                            : "w-8 sa-glass-pill-hover border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-                        }`}
+                        className={`h-8 rounded-xl glass-surface border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${confirmDeleteIntro
+                          ? "px-3 sa-glass-pill-danger !text-[var(--text)]"
+                          : "w-8 sa-glass-pill-hover border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                          }`}
                       >
                         <span
-                          className={`material-symbols-outlined !text-[15px] ${
-                            confirmDeleteIntro ? "text-[var(--danger)]" : ""
-                          }`}
+                          className={`material-symbols-outlined !text-[15px] ${confirmDeleteIntro ? "text-[var(--danger)]" : ""
+                            }`}
                         >
                           {confirmDeleteIntro
                             ? t("icon_delete_forever", "delete_forever")
@@ -1170,11 +1169,10 @@ export function UnifiedPostBodyEditor({
                               : `sec-${sIdx}`
                           )
                         }
-                        className={`md:hidden w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border flex items-center justify-center cursor-pointer transition-all ${
-                          openActionMenuKey === `sec-${sIdx}`
-                            ? "border-[var(--accent)] text-[var(--accent)]"
-                            : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-                        }`}
+                        className={`md:hidden w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border flex items-center justify-center cursor-pointer transition-all ${openActionMenuKey === `sec-${sIdx}`
+                          ? "border-[var(--accent)] text-[var(--accent)]"
+                          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                          }`}
                       >
                         <span className="material-symbols-outlined !text-[16px]">
                           {t("icon_more_vert", "more_vert")}
@@ -1182,11 +1180,10 @@ export function UnifiedPostBodyEditor({
                       </button>
 
                       <div
-                        className={`${
-                          openActionMenuKey === `sec-${sIdx}`
-                            ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover p-1.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl"
-                            : "hidden"
-                        } md:flex md:static md:p-0 md:bg-transparent md:border-0 md:shadow-none items-center gap-1.5`}
+                        className={`${openActionMenuKey === `sec-${sIdx}`
+                          ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover p-1.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl"
+                          : "hidden"
+                          } md:flex md:static md:p-0 md:bg-transparent md:border-0 md:shadow-none items-center gap-1.5`}
                       >
                         <button
                           type="button"
@@ -1221,18 +1218,16 @@ export function UnifiedPostBodyEditor({
                             handleDeleteSection(sIdx);
                             if (wasConfirmed) setOpenActionMenuKey(null);
                           }}
-                          className={`h-8 rounded-xl glass-surface border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
-                            confirmDeleteSecIdx === sIdx
-                              ? "px-3 sa-glass-pill-danger !text-[var(--text)]"
-                              : "w-8 sa-glass-pill-hover border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-                          }`}
+                          className={`h-8 rounded-xl glass-surface border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${confirmDeleteSecIdx === sIdx
+                            ? "px-3 sa-glass-pill-danger !text-[var(--text)]"
+                            : "w-8 sa-glass-pill-hover border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                            }`}
                         >
                           <span
-                            className={`material-symbols-outlined !text-[15px] ${
-                              confirmDeleteSecIdx === sIdx
-                                ? "text-[var(--danger)]"
-                                : ""
-                            }`}
+                            className={`material-symbols-outlined !text-[15px] ${confirmDeleteSecIdx === sIdx
+                              ? "text-[var(--danger)]"
+                              : ""
+                              }`}
                           >
                             {confirmDeleteSecIdx === sIdx
                               ? t("icon_delete_forever", "delete_forever")
@@ -1315,7 +1310,7 @@ export function UnifiedPostBodyEditor({
                       const rawBodyValue = (card.paragraphs || []).join("\n\n");
                       const bodyValue =
                         card.title &&
-                        rawBodyValue.trim().toLowerCase() ===
+                          rawBodyValue.trim().toLowerCase() ===
                           card.title.trim().toLowerCase()
                           ? ""
                           : rawBodyValue;
@@ -1324,9 +1319,8 @@ export function UnifiedPostBodyEditor({
                         <div
                           key={cardKey}
                           data-visual-target={cardKey}
-                          className={`glass-panel rounded-3xl p-3.5 sm:p-5 flex flex-col gap-3 relative group transition-colors focus-within:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] ${
-                            spanFull ? "md:col-span-2" : ""
-                          }`}
+                          className={`glass-panel rounded-3xl p-3.5 sm:p-5 flex flex-col gap-3 relative group transition-colors focus-within:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] ${spanFull ? "md:col-span-2" : ""
+                            }`}
                         >
                           {/* Card Header Bar: Inline Icon + Full-Width Recessed Title Input + Compact Icon Actions */}
                           <div className="flex items-center justify-between gap-2">
@@ -1387,11 +1381,10 @@ export function UnifiedPostBodyEditor({
                                       : cardKey
                                   )
                                 }
-                                className={`md:hidden w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border flex items-center justify-center cursor-pointer transition-all ${
-                                  openActionMenuKey === cardKey
-                                    ? "border-[var(--accent)] text-[var(--accent)]"
-                                    : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-                                }`}
+                                className={`md:hidden w-8 h-8 rounded-xl glass-surface sa-glass-pill-hover border flex items-center justify-center cursor-pointer transition-all ${openActionMenuKey === cardKey
+                                  ? "border-[var(--accent)] text-[var(--accent)]"
+                                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                                  }`}
                               >
                                 <span className="material-symbols-outlined !text-[16px]">
                                   {t("icon_more_vert", "more_vert")}
@@ -1399,11 +1392,10 @@ export function UnifiedPostBodyEditor({
                               </button>
 
                               <div
-                                className={`${
-                                  openActionMenuKey === cardKey
-                                    ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover p-1.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl"
-                                    : "hidden"
-                                } md:flex md:static md:p-0 md:bg-transparent md:border-0 md:shadow-none items-center gap-1`}
+                                className={`${openActionMenuKey === cardKey
+                                  ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover p-1.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl"
+                                  : "hidden"
+                                  } md:flex md:static md:p-0 md:bg-transparent md:border-0 md:shadow-none items-center gap-1`}
                               >
                                 {card.icon && (
                                   <button
@@ -1458,18 +1450,16 @@ export function UnifiedPostBodyEditor({
                                     handleDeleteCard(sIdx, cIdx);
                                     if (wasConfirmed) setOpenActionMenuKey(null);
                                   }}
-                                  className={`h-7 rounded-lg glass-surface border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
-                                    confirmDeleteCardKey === `${sIdx}-${cIdx}`
-                                      ? "px-2.5 sa-glass-pill-danger !text-[var(--text)]"
-                                      : "w-7 sa-glass-pill-hover border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-                                  }`}
+                                  className={`h-7 rounded-lg glass-surface border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${confirmDeleteCardKey === `${sIdx}-${cIdx}`
+                                    ? "px-2.5 sa-glass-pill-danger !text-[var(--text)]"
+                                    : "w-7 sa-glass-pill-hover border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                                    }`}
                                 >
                                   <span
-                                    className={`material-symbols-outlined !text-[14px] ${
-                                      confirmDeleteCardKey === `${sIdx}-${cIdx}`
-                                        ? "text-[var(--danger)]"
-                                        : ""
-                                    }`}
+                                    className={`material-symbols-outlined !text-[14px] ${confirmDeleteCardKey === `${sIdx}-${cIdx}`
+                                      ? "text-[var(--danger)]"
+                                      : ""
+                                      }`}
                                   >
                                     {confirmDeleteCardKey === `${sIdx}-${cIdx}`
                                       ? t("icon_delete_forever", "delete_forever")
@@ -1520,11 +1510,10 @@ export function UnifiedPostBodyEditor({
                           {/* 2-Column Sub-Blocks Grid (Matches Published Sub-Item Grid 1:1) */}
                           {card.subItems && card.subItems.length > 0 && (
                             <div
-                              className={`grid gap-3 ${
-                                card.subItems.length > 1
-                                  ? "grid-cols-1 md:grid-cols-2"
-                                  : "grid-cols-1"
-                              }`}
+                              className={`grid gap-3 ${card.subItems.length > 1
+                                ? "grid-cols-1 md:grid-cols-2"
+                                : "grid-cols-1"
+                                }`}
                             >
                               {card.subItems.map((sub, subIdx) => {
                                 const subTargetKey = `sec-${sIdx}-card-${cIdx}-sub-${subIdx}`;
@@ -1537,9 +1526,8 @@ export function UnifiedPostBodyEditor({
                                   <div
                                     key={`sub-${subIdx}`}
                                     data-visual-target={subTargetKey}
-                                    className={`rounded-2xl p-3.5 sm:p-4 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus-within:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] flex flex-col gap-2.5 relative group/sub transition-colors ${
-                                      isLastOddSub ? "md:col-span-2" : ""
-                                    }`}
+                                    className={`rounded-2xl p-3.5 sm:p-4 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus-within:!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] flex flex-col gap-2.5 relative group/sub transition-colors ${isLastOddSub ? "md:col-span-2" : ""
+                                      }`}
                                   >
                                     <div className="flex items-center justify-between gap-2">
                                       <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-70">
@@ -1887,11 +1875,10 @@ export function UnifiedPostBodyEditor({
                       e.preventDefault();
                       setShowEmotePicker(!showEmotePicker);
                     }}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                      showEmotePicker
-                        ? "glass-surface text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] scale-105"
-                        : "text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[rgba(var(--text-rgb),0.06)] border border-transparent"
-                    }`}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${showEmotePicker
+                      ? "glass-surface text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] scale-105"
+                      : "text-[var(--subtext)] hover:text-[var(--text)] hover:bg-[rgba(var(--text-rgb),0.06)] border border-transparent"
+                      }`}
                   >
                     <span className="material-symbols-outlined !text-[16px] leading-none pointer-events-none">
                       {t("icon_sentiment_satisfied", "sentiment_satisfied")}

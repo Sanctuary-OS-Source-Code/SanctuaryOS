@@ -217,15 +217,15 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
           badgeIcon={statusConfig.icon}
           variant={statusConfig.variant}
         >
-          <ActionButton
-            variant="glass"
-            icon={isHashing ? t("icon_sync", "sync") : t("icon_upload_file", "upload_file")}
-            disabled={isHashing}
-            onClick={handleImport}
-            className="w-full justify-center !py-3.5"
-          >
-            {isHashing ? t("scanning", "Scanning...") : t("verify_panel_import_btn", "Import {Mod}")}
-          </ActionButton>
+          <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
+            <ActionButton
+              variant="glass"
+              icon={isHashing ? t("icon_sync", "sync") : t("icon_upload_file", "upload_file")}
+              disabled={isHashing}
+              onClick={handleImport}
+              label={isHashing ? t("scanning", "Scanning...") : t("verify_panel_import_btn", "Import {Mod}")}
+            />
+          </div>
         </SidePanelHeroCard>
 
         {filePath && (

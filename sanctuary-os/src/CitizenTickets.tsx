@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
 import { EmptyState, InlineFilterGroup, ActionPill, HoverTooltip, VAULT_CHIP_CLASS } from "./shared";
-import { supabase, supabaseAuth } from "./supabase";
+import { supabase, supabaseAuth, getSpokeClientById } from "./supabase";
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { getSupporterState, isFoundryPatron } from "./utils/supporterManager";
@@ -30,6 +30,7 @@ interface CitizenTicketsProps {
   externalSearch?: string;
   externalFilter?: "all" | "open" | "pending" | "closed";
   onCountChange?: (count: number) => void;
+  spokeId?: string;
 }
 
 export default function CitizenTickets({
@@ -44,6 +45,7 @@ export default function CitizenTickets({
   externalSearch,
   externalFilter,
   onCountChange,
+  spokeId,
 }: CitizenTicketsProps) {
   const { t } = useLexicon();
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
@@ -88,9 +90,10 @@ export default function CitizenTickets({
 
       const CACHE_TTL = 2 * 60 * 1000;
       const cache = (window as any).__sanctuaryCache?.support as Record<string, any> | undefined;
+      const targetSpokeKey = spokeId || activeWorkspaceId || "default";
       const cacheKey = tableName === "keeper_tickets"
         ? `coreTickets_${userId}`
-        : `spokeTickets_${activeWorkspaceId || "default"}_${userId}`;
+        : `spokeTickets_${targetSpokeKey}_${userId}`;
       const lastFetchKey = `${cacheKey}_lastFetch`;
 
       if (cache?.[cacheKey] && Array.isArray(cache[cacheKey]) && cache[cacheKey].length > 0) {
@@ -107,7 +110,12 @@ export default function CitizenTickets({
       }
 
       try {
-        const client = tableName === "keeper_tickets" ? supabaseAuth : supabase;
+        const client =
+          tableName === "keeper_tickets"
+            ? supabaseAuth
+            : spokeId
+              ? (await getSpokeClientById(spokeId)) || supabase
+              : supabase;
         const { data, error } = await client
           .from(tableName)
           .select("*")
@@ -138,9 +146,10 @@ export default function CitizenTickets({
 
     const handleRefresh = () => {
       if ((window as any).__sanctuaryCache?.support) {
+        const targetSpokeKey = spokeId || activeWorkspaceId || "default";
         const cacheKey = tableName === "keeper_tickets"
           ? `coreTickets_${userId}`
-          : `spokeTickets_${activeWorkspaceId || "default"}_${userId}`;
+          : `spokeTickets_${targetSpokeKey}_${userId}`;
         delete (window as any).__sanctuaryCache.support[`${cacheKey}_lastFetch`];
       }
       fetchTickets();
@@ -150,7 +159,7 @@ export default function CitizenTickets({
       isMounted = false;
       window.removeEventListener("sanctuary-tickets-updated", handleRefresh);
     };
-  }, [userId, tableName, activeWorkspaceId, externalTickets]);
+  }, [userId, tableName, activeWorkspaceId, spokeId, externalTickets]);
 
   const effectiveSearch = externalSearch !== undefined ? externalSearch : searchQuery;
   const effectiveFilter = externalFilter !== undefined ? externalFilter : activeFilter;

@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { DiffEditor } from '@monaco-editor/react';
 import { useLexicon } from './LexiconContext';
-import { SidePanel, SidePanelHeroCard, DashboardStatTile, ActionPill, HoverTooltip, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS, EmptyState } from './shared';
+import { SidePanel, SidePanelHeroCard, DashboardStatTile, SidePanelFilterBar, ActionPill, HoverTooltip, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS, EmptyState } from './shared';
 import { useTheme } from './ThemeContext';
 import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from './utils/monacoTheme';
 import { parseConfigContent } from './workbench/hooks/useWorkbenchEditor';
@@ -744,7 +744,7 @@ export default function VersionTimeline({
             variant={hasUnsavedChanges ? 'warning' : 'accent'}
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 shrink-0">
+          <SidePanelFilterBar className="sm:grid-cols-3 gap-2.5">
             <DashboardStatTile
               variant="filter"
               icon={t('icon_history', 'history')}
@@ -772,7 +772,7 @@ export default function VersionTimeline({
               onClick={() => setTimelineFilter(timelineFilter === 'pinned' ? 'all' : 'pinned')}
               colorClass="text-[var(--accent)]"
             />
-          </div>
+          </SidePanelFilterBar>
 
           <div className="shrink-0">
             <ActionPill
@@ -1272,7 +1272,7 @@ export default function VersionTimeline({
           />
 
           {diffViewMode === 'visual' && (
-            <div className="grid grid-cols-2 gap-2.5 shrink-0">
+            <SidePanelFilterBar className="grid-cols-2 gap-2.5">
               <DashboardStatTile
                 variant="filter"
                 icon={t('icon_track_changes', 'track_changes')}
@@ -1291,7 +1291,7 @@ export default function VersionTimeline({
                 onClick={() => setDiffOnlyChanged(false)}
                 colorClass="text-[var(--accent)]"
               />
-            </div>
+            </SidePanelFilterBar>
           )}
 
           <div className="shrink-0">

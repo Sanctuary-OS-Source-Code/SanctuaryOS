@@ -4,6 +4,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
+  SidePanelFilterBar,
   ActionButton,
   SidePanelHeroCard,
   UniversalGroup,
@@ -67,7 +68,7 @@ export function LocalFolderModal({
           variant={isCollection ? "accent" : "success"}
         />
 
-        <div className="grid grid-cols-2 gap-3">
+        <SidePanelFilterBar className="grid-cols-2 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -86,7 +87,7 @@ export function LocalFolderModal({
             isActive={isCollection}
             onClick={() => setLocalFolderType("COLLECTION")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         <UniversalGroup
           title={

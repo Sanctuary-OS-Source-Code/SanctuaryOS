@@ -220,20 +220,53 @@ export function CommandScreenSectionHeading({
   );
 }
 
+function flattenStatChildren(node: React.ReactNode): React.ReactNode[] {
+    return React.Children.toArray(node).flatMap((child: any) => {
+        if (!child) return [];
+        if (React.isValidElement(child) && child.type === React.Fragment) {
+            return flattenStatChildren((child.props as any).children);
+        }
+        return [child];
+    });
+}
+
 export function CommandScreenStats({ children, gridClassOverride }: any) {
-    const flatChildren = React.Children.toArray(children).flatMap((child: any) => React.isValidElement(child) && child.type === React.Fragment ? React.Children.toArray((child.props as any).children) : [child]).filter(Boolean);
+    const flatChildren = flattenStatChildren(children);
     const validCount = flatChildren.length;
-    
+    const isOddMulti = !gridClassOverride && validCount > 1 && validCount % 2 === 1;
+
     let gridClass = "grid-cols-2 lg:grid-cols-5";
-    if (gridClassOverride) gridClass = gridClassOverride;
-    else if (validCount === 4) gridClass = "grid-cols-2 lg:grid-cols-4";
-    else if (validCount === 3) gridClass = "grid-cols-2 md:grid-cols-3";
-    else if (validCount === 2) gridClass = "grid-cols-2";
-    else if (validCount === 1) gridClass = "grid-cols-1";
+    let firstItemSpanClass = "";
+    if (gridClassOverride) {
+        gridClass = gridClassOverride;
+    } else if (validCount === 4) {
+        gridClass = "grid-cols-2 lg:grid-cols-4";
+    } else if (validCount === 3) {
+        gridClass = "grid-cols-2 md:grid-cols-3";
+        firstItemSpanClass = "col-span-2 md:col-span-1";
+    } else if (validCount === 2) {
+        gridClass = "grid-cols-2";
+    } else if (validCount === 1) {
+        gridClass = "grid-cols-1";
+    } else if (isOddMulti) {
+        firstItemSpanClass = "col-span-2 lg:col-span-1";
+    }
 
     return (
         <div className={`grid ${gridClass} gap-4 w-full`}>
-            {children}
+            {flatChildren.map((child: any, idx: number) => {
+                if (idx === 0 && firstItemSpanClass) {
+                    return (
+                        <div
+                            key={React.isValidElement(child) && child.key != null ? child.key : `stat-lead-${idx}`}
+                            className={`${firstItemSpanClass} flex min-w-0`}
+                        >
+                            {child}
+                        </div>
+                    );
+                }
+                return child;
+            })}
         </div>
     );
 }
@@ -268,18 +301,33 @@ export function CommandScreenSidebar({ title, subtitle, icon, children, metrics,
                     {children}
                 </div>
             </div>
-            {metrics && (
-                <div className="flex flex-col gap-4">
-                    <CommandScreenSectionHeading
-                        title={metricsTitle || t("hub_metrics", "Hub Metrics")}
-                        subtitle={metricsSubtitle}
-                        icon={metricsIcon || t("icon_monitoring", "monitoring")}
-                    />
-                    <div className="grid grid-cols-2 gap-3.5 w-full">
-                        {metrics}
+            {metrics && (() => {
+                const flatMetrics = flattenStatChildren(metrics);
+                const isOddMetrics = flatMetrics.length > 1 && flatMetrics.length % 2 === 1;
+                return (
+                    <div className="flex flex-col gap-4">
+                        <CommandScreenSectionHeading
+                            title={metricsTitle || t("hub_metrics", "Hub Metrics")}
+                            subtitle={metricsSubtitle}
+                            icon={metricsIcon || t("icon_monitoring", "monitoring")}
+                        />
+                        <div className="grid grid-cols-2 gap-3.5 w-full">
+                            {flatMetrics.map((metric: any, idx: number) =>
+                                idx === 0 && isOddMetrics ? (
+                                    <div
+                                        key={React.isValidElement(metric) && metric.key != null ? metric.key : `metric-lead-${idx}`}
+                                        className="col-span-2 flex min-w-0"
+                                    >
+                                        {metric}
+                                    </div>
+                                ) : (
+                                    metric
+                                )
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 }

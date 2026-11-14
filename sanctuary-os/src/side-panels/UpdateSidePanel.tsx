@@ -4,12 +4,14 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
+  SidePanelFilterBar,
   StatBox,
   HoverTooltip,
   handleOpenUrl,
   SidePanelHeroCard,
   UniversalGroup,
   EmptyState,
+  ActionButton,
 } from "../shared";
 import { useShallow } from "zustand/react/shallow";
 import { useModalStore } from "../store/modalStore";
@@ -149,13 +151,13 @@ export function UpdateSidePanel() {
         seedDevBlog.summary ||
         (seedChangelog.heading
           ? `${seedChangelog.heading} — ${t(
-              "release_notes_dev_card_desc",
-              "Latest preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
-            )}`
+            "release_notes_dev_card_desc",
+            "Latest preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
+          )}`
           : t(
-              "release_notes_dev_card_desc",
-              "Latest preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
-            )),
+            "release_notes_dev_card_desc",
+            "Latest preview features, heuristic refinements, and architectural updates ahead of the next Stable release."
+          )),
       version: defaultDevVersion,
       releaseDate: defaultDevDate,
       platform: t("release_notes_meta_platform_default", "Windows & macOS"),
@@ -376,12 +378,12 @@ export function UpdateSidePanel() {
           updatePayload.downloadUrl ||
           (isDevUpdate
             ? pipelineConfig.dev_build_download_url ||
-              pipelineConfig.dev_release_url ||
-              GITHUB_WEB_DEV_RELEASE_URL
+            pipelineConfig.dev_release_url ||
+            GITHUB_WEB_DEV_RELEASE_URL
             : pipelineConfig.stable_exe_url ||
-              pipelineConfig.stable_msi_url ||
-              pipelineConfig.stable_release_url ||
-              GITHUB_RELEASES_WEB_URL);
+            pipelineConfig.stable_msi_url ||
+            pipelineConfig.stable_release_url ||
+            GITHUB_RELEASES_WEB_URL);
         await downloadAndInstallReleaseAsset(
           fallbackUrl,
           targetVer,
@@ -470,9 +472,9 @@ export function UpdateSidePanel() {
   const activeGitHubUrl = isDevUpdate
     ? pipelineConfig.dev_release_url || GITHUB_WEB_DEV_RELEASE_URL
     : pipelineConfig.stable_release_url ||
-      (cleanTargetVersion
-        ? `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${cleanTargetVersion}`
-        : GITHUB_RELEASES_WEB_URL);
+    (cleanTargetVersion
+      ? `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${cleanTargetVersion}`
+      : GITHUB_RELEASES_WEB_URL);
 
   const isDetailedChangelog = (raw?: string | null): boolean => {
     const trimmed = String(raw || "").trim();
@@ -496,13 +498,13 @@ export function UpdateSidePanel() {
 
   const stableGitHubChangelog =
     isDetailedChangelog(pipelineConfig.stable_release_notes) &&
-    isBundledVersionNewer(pipelineConfig.stable_version, defaultStableVersion)
+      isBundledVersionNewer(pipelineConfig.stable_version, defaultStableVersion)
       ? pipelineConfig.stable_release_notes!.trim()
       : stableChangelog;
 
   const devGitHubChangelog =
     isDetailedChangelog(pipelineConfig.dev_build_notes) &&
-    isBundledVersionNewer(pipelineConfig.dev_build_version, defaultDevVersion)
+      isBundledVersionNewer(pipelineConfig.dev_build_version, defaultDevVersion)
       ? pipelineConfig.dev_build_notes!.trim()
       : devChangelog;
 
@@ -528,8 +530,8 @@ export function UpdateSidePanel() {
     activeView === "changelog"
       ? activeChangelogHeading || t("release_notes_tile_changelog", "Changelog")
       : activeChangelogHeading ||
-        activePostRecord.summary ||
-        t("release_notes_blog_panel_title", "Community Release Notes");
+      activePostRecord.summary ||
+      t("release_notes_blog_panel_title", "Community Release Notes");
 
   const activeMarkdownContent =
     activeView === "changelog"
@@ -613,7 +615,7 @@ export function UpdateSidePanel() {
 
         <div className="px-4 sm:px-8 md:px-10 pb-12 pt-6 gap-4 flex flex-col flex-1 relative z-20 min-w-0">
           {/* 3-Column View Switcher Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -656,7 +658,7 @@ export function UpdateSidePanel() {
               tooltipTitle={t("update_panel_view_github", "View on GitHub")}
               tooltipSubtitle={activeGitHubUrl}
             />
-          </div>
+          </SidePanelFilterBar>
 
           <SidePanelHeroCard
             icon={t("icon_system_update_alt", "system_update_alt")}
@@ -738,44 +740,25 @@ export function UpdateSidePanel() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleInstallUpdate}
-                disabled={isInstalling}
-                className="glass-panel before:!hidden rounded-2xl px-6 py-3 flex items-center justify-center gap-3 border !border-[color-mix(in_srgb,var(--success)_55%,rgba(var(--text-rgb),0.25))] hover:!border-[var(--success)] hover:brightness-110 transition-all duration-300 active:scale-[0.99] disabled:pointer-events-none shrink-0 cursor-pointer relative overflow-hidden group"
-              >
-                <div
-                  className="absolute inset-0 rounded-[inherit] pointer-events-none"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, color-mix(in srgb, var(--success) 18%, rgba(var(--text-rgb, 255, 255, 255), 0.08)) 0%, color-mix(in srgb, var(--success) 4%, transparent) 100%)",
-                  }}
+              <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">
+                <ActionButton
+                  variant="success"
+                  icon={
+                    isInstalling
+                      ? t("icon_sync", "sync")
+                      : canAutoInstall
+                        ? t("icon_system_update_alt", "system_update_alt")
+                        : t("icon_download", "download")
+                  }
+                  label={
+                    isInstalling && downloadProgress !== null
+                      ? `${installStatusText} (${downloadProgress}%)`
+                      : installStatusText
+                  }
+                  disabled={isInstalling}
+                  onClick={handleInstallUpdate}
                 />
-                {isInstalling && downloadProgress !== null && (
-                  <div
-                    className="absolute inset-y-0 left-0 pointer-events-none transition-all duration-200"
-                    style={{
-                      width: `${downloadProgress}%`,
-                      background:
-                        "linear-gradient(90deg, color-mix(in srgb, var(--success) 28%, transparent) 0%, color-mix(in srgb, var(--success) 14%, transparent) 100%)",
-                    }}
-                  />
-                )}
-                <span
-                  className={`material-symbols-outlined !text-[20px] text-[var(--success)] relative z-10 transition-transform duration-300 group-hover:scale-110 ${
-                    isInstalling ? "animate-spin" : ""
-                  }`}
-                >
-                  {isInstalling
-                    ? t("icon_sync", "sync")
-                    : canAutoInstall
-                      ? t("icon_system_update_alt", "system_update_alt")
-                      : t("icon_download", "download")}
-                </span>
-                <span className="text-sm font-black tracking-tight text-[var(--text)] relative z-10">
-                  {installStatusText}
-                </span>
-              </button>
+              </div>
             </div>
           </SidePanelHeroCard>
 

@@ -8,6 +8,7 @@ import {
   CustomDropdown,
   EmptyState,
   DashboardStatTile,
+  SidePanelFilterBar,
   SidePanelHeroCard,
   StatBox,
   UniversalGroup,
@@ -738,7 +739,7 @@ export function AuditLogViewer({
           title={t("audit_retention_window", "Retention Window")}
           icon={t("icon_schedule", "schedule")}
         >
-          <div className="grid grid-cols-2 gap-3 w-full">
+          <SidePanelFilterBar className="grid-cols-2 gap-3">
             {[30, 60, 90, 180].map((days) => (
               <DashboardStatTile
                 key={days}
@@ -751,7 +752,7 @@ export function AuditLogViewer({
                 accentColor="accent"
               />
             ))}
-          </div>
+          </SidePanelFilterBar>
         </UniversalGroup>
       </div>
     </SidePanel>

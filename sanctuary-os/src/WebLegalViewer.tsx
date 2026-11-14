@@ -11,6 +11,7 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   DashboardStatTile,
+  SidePanelFilterBar,
   PanelHeaderGroup,
   PanelHeaderButton,
   EmptyState,
@@ -148,7 +149,7 @@ export default function WebLegalViewer() {
       }
     >
       <div className="flex flex-col gap-5 mt-2 relative z-10 w-full pb-8">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -176,7 +177,7 @@ export default function WebLegalViewer() {
             isActive={activeLegal === "terms"}
             onClick={() => setActiveLegal("terms")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         <SidePanelHeroCard
           icon={t("icon_gavel", "gavel")}

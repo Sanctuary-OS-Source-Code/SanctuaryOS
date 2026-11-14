@@ -223,14 +223,15 @@ export default function ArtifactResolutionSidePanel({
             />
           </div>
 
-          <ActionButton
-            variant="glass"
-            icon={resolving ? t("icon_sync", "sync") : t("icon_delete", "delete")}
-            label={actionLabel}
-            disabled={resolving || loading}
-            onClick={resolveAlerts}
-            className="w-full"
-          />
+          <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
+            <ActionButton
+              variant="danger"
+              icon={resolving ? t("icon_sync", "sync") : t("icon_delete", "delete")}
+              label={actionLabel}
+              disabled={resolving || loading}
+              onClick={resolveAlerts}
+            />
+          </div>
         </SidePanelHeroCard>
 
         <UniversalGroup

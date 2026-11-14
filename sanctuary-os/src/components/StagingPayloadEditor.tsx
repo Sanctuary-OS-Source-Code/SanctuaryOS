@@ -11,6 +11,7 @@ import {
   ActionPill,
   CustomDropdown,
   DashboardStatTile,
+  SidePanelFilterBar,
   EmptyState,
   HoverTooltip,
   PanelHeaderButton,
@@ -1754,7 +1755,7 @@ export default function StagingPayloadEditor({
           </div>
         </>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full mb-6 relative z-10 shrink-0">
+        <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           {subTabs.map((st) => (
             <DashboardStatTile
               key={st.id}
@@ -1767,7 +1768,7 @@ export default function StagingPayloadEditor({
               isActive={activeSubTab === st.id}
             />
           ))}
-        </div>
+        </SidePanelFilterBar>
       )}
 
       {/* TAB 1: OVERVIEW (Clean, Cohesive Hub matching Blueprints.tsx) */}
@@ -2233,23 +2234,23 @@ export default function StagingPayloadEditor({
                   </div>
 
                   {totalPendingChangesCount > 0 && (
-                    <button
-                      type="button"
-                      disabled={isTransmitting}
-                      onClick={() => handleEncryptAndTransmit()}
-                      className="w-full h-10 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 border glass-surface border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] disabled:opacity-40 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined !text-[16px]">
-                        {isTransmitting
-                          ? t("icon_sync", "sync")
-                          : t("icon_encrypted", "encrypted")}
-                      </span>
-                      <span>
-                        {isTransmitting
-                          ? t("staging_btn_transmitting", "Encrypting & Sending...")
-                          : t("staging_btn_transmit", "Encrypt & Send to Desktop")}
-                      </span>
-                    </button>
+                    <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
+                      <ActionButton
+                        variant="accent"
+                        disabled={isTransmitting}
+                        onClick={() => handleEncryptAndTransmit()}
+                        icon={
+                          isTransmitting
+                            ? t("icon_sync", "sync")
+                            : t("icon_encrypted", "encrypted")
+                        }
+                        label={
+                          isTransmitting
+                            ? t("staging_btn_transmitting", "Encrypting & Sending...")
+                            : t("staging_btn_transmit", "Encrypt & Send to Desktop")
+                        }
+                      />
+                    </div>
                   )}
                 </div>
               </SidePanelHeroCard>
@@ -2527,29 +2528,20 @@ export default function StagingPayloadEditor({
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2.5 w-full">
-                    <button
-                      type="button"
+                  <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_edit", "edit")}
+                      label={t("staging_btn_load_to_editor", "Edit")}
                       onClick={() => handleLoadActiveCloudIntoEditor(activeCloud)}
-                      className="h-9 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 border glass-surface border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined !text-[15px]">
-                        {t("icon_edit", "edit")}
-                      </span>
-                      <span>{t("staging_btn_load_to_editor", "Edit")}</span>
-                    </button>
-
-                    <button
-                      type="button"
+                    />
+                    <ActionButton
+                      variant="danger"
+                      icon={t("icon_delete_forever", "delete_forever")}
+                      label={t("staging_btn_shred_short", "Clear")}
                       disabled={isShredding}
                       onClick={() => handleShredActiveCloud(activeCloud)}
-                      className="h-9 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 border glass-surface border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[var(--danger)] hover:border-[var(--danger)] cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined !text-[15px]">
-                        {t("icon_delete_forever", "delete_forever")}
-                      </span>
-                      <span>{t("staging_btn_shred_short", "Clear")}</span>
-                    </button>
+                    />
                   </div>
                 </div>
               </SidePanelHeroCard>
@@ -2719,7 +2711,7 @@ export default function StagingPayloadEditor({
               </SidePanelHeroCard>
 
               {/* Mode Selector using DashboardStatTile variant="filter" */}
-              <div className="grid grid-cols-2 gap-3 w-full">
+              <SidePanelFilterBar className="grid-cols-2 gap-3">
                 <DashboardStatTile
                   variant="filter"
                   icon={t("icon_map", "map")}
@@ -2734,7 +2726,7 @@ export default function StagingPayloadEditor({
                   isActive={stagingDraftMode === "mod_queue"}
                   onClick={() => setStagingDraftMode("mod_queue")}
                 />
-              </div>
+              </SidePanelFilterBar>
 
               <UniversalGroup
                 title={t("staging_tab_settings", "{Blueprint} Settings")}
@@ -2943,50 +2935,50 @@ export default function StagingPayloadEditor({
                 }
                 variant="accent"
               >
-                <button
-                  type="button"
-                  disabled={isTransmitting}
-                  onClick={() => {
-                    if (inspectingPack.type === "desktop_bp") {
-                      handleStageDesktopBlueprintEdit(inspectingPack.data);
-                    } else {
-                      setTargetDesktopBlueprint(null);
-                      loadSavedLocalDraft(inspectingPack.data.id);
-                      setInspectingPack(null);
-                      setActiveSubTab("OVERVIEW");
-                      setIsDraftPanelOpen(true);
+                <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
+                  <ActionButton
+                    variant="accent"
+                    disabled={isTransmitting}
+                    onClick={() => {
+                      if (inspectingPack.type === "desktop_bp") {
+                        handleStageDesktopBlueprintEdit(inspectingPack.data);
+                      } else {
+                        setTargetDesktopBlueprint(null);
+                        loadSavedLocalDraft(inspectingPack.data.id);
+                        setInspectingPack(null);
+                        setActiveSubTab("OVERVIEW");
+                        setIsDraftPanelOpen(true);
+                      }
+                    }}
+                    icon={
+                      inspectingPack.type === "desktop_bp"
+                        ? isTransmitting
+                          ? t("icon_sync", "sync")
+                          : totalPendingChangesCount > 0
+                            ? t("icon_encrypted", "encrypted")
+                            : t("icon_add_circle", "add_circle")
+                        : t("icon_play_circle", "play_circle")
                     }
-                  }}
-                  className="w-full h-10 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 border glass-surface border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] disabled:opacity-40 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined !text-[16px]">
-                    {inspectingPack.type === "desktop_bp"
-                      ? isTransmitting
-                        ? t("icon_sync", "sync")
-                        : totalPendingChangesCount > 0
-                          ? t("icon_encrypted", "encrypted")
-                          : t("icon_add_circle", "add_circle")
-                      : t("icon_play_circle", "play_circle")}
-                  </span>
-                  <span>
-                    {inspectingPack.type === "desktop_bp"
-                      ? isTransmitting
-                        ? t("staging_btn_transmitting", "Encrypting & Sending...")
-                        : totalPendingChangesCount > 0
-                          ? `${t("staging_btn_transmit", "Encrypt & Send to Desktop")} (${totalPendingChangesCount})`
-                          : t("staging_catalog_drawer_title", "Build & Add {Mods}")
-                      : t("staging_btn_use_short", "Use {Blueprint}")}
-                  </span>
-                </button>
+                    label={
+                      inspectingPack.type === "desktop_bp"
+                        ? isTransmitting
+                          ? t("staging_btn_transmitting", "Encrypting & Sending...")
+                          : totalPendingChangesCount > 0
+                            ? `${t("staging_btn_transmit", "Encrypt & Send to Desktop")} (${totalPendingChangesCount})`
+                            : t("staging_catalog_drawer_title", "Build & Add {Mods}")
+                        : t("staging_btn_use_short", "Use {Blueprint}")
+                    }
+                  />
+                </div>
               </SidePanelHeroCard>
 
               <div className="flex flex-col gap-3 w-full">
-                <div
-                  className={`grid grid-cols-2 ${
+                <SidePanelFilterBar
+                  className={`grid-cols-2 ${
                     inspectingPack.type === "desktop_bp"
                       ? "sm:grid-cols-4"
                       : "sm:grid-cols-3"
-                  } gap-3 w-full`}
+                  } gap-3`}
                 >
                   <DashboardStatTile
                     variant="filter"
@@ -3036,7 +3028,7 @@ export default function StagingPayloadEditor({
                     isActive={inspectFilterTab === "PREMIUM"}
                     onClick={() => setInspectFilterTab("PREMIUM")}
                   />
-                </div>
+                </SidePanelFilterBar>
                 <ActionPill
                   searchQuery={inspectSearchQuery}
                   setSearchQuery={setInspectSearchQuery}

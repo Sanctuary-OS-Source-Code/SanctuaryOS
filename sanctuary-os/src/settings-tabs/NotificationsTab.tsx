@@ -3,6 +3,12 @@ import { useLexicon } from '../LexiconContext';
 import { SettingsToggle, TabContainer, SettingsGrid, CustomSettingsDropdown } from './shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import {
+  SidePanelHeroCard,
+  UniversalGroup,
+  StatBox,
+} from '../components/universal/UniversalLayout';
+import { LiquidGlassAlertCard } from '../components/BlueprintPatchReadiness';
+import {
   ActionButton,
   SidePanel,
   ActionPill,
@@ -11,10 +17,8 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   EmptyState,
-  SidePanelHeroCard,
-  UniversalGroup,
-  StatBox,
   CustomDropdown,
+  VAULT_CHIP_CLASS,
 } from '../shared';
 import { supabase, supabaseAuth } from '../supabase';
 import { useStore } from '../store';
@@ -25,8 +29,6 @@ import {
   NotificationDeliveryMode,
   SystemNotificationPermissionState,
   ALL_NOTIFICATION_CATEGORIES,
-  GLOBAL_ONLY_NOTIFICATION_CATEGORIES,
-  SPOKE_NOTIFICATION_CATEGORIES,
   getNotificationMode,
   setNotificationMode,
   setAllNotificationModes,
@@ -34,9 +36,7 @@ import {
   setCrossWorkspaceNotificationsEnabled,
   getAllowedCrossWorkspaceSpokes,
   setAllowedCrossWorkspaceSpokes,
-  getNotificationScopePreference,
   setNotificationScopePreference,
-  hasSpokeNotificationOverrides,
   clearSpokeNotificationOverrides,
   getAvailableSpokeWorkspaces,
   getSystemNotificationPermissionState,
@@ -44,6 +44,10 @@ import {
   notifyOS,
   getModAlertsBlueprintScope,
   setModAlertsBlueprintScope,
+  getMutedSpokesForCategory,
+  setMutedSpokesForCategory,
+  syncCrossDeviceNotificationState,
+  getNotificationLastSyncedAt,
 } from '../utils/notificationHelper';
 
 export default function NotificationsTab() {
@@ -51,6 +55,8 @@ export default function NotificationsTab() {
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
   const workspaces = useStore((state: any) => state.workspaces);
   const playSets = useStore((state: any) => state.playSets);
+  const session = useStore((state: any) => state.session);
+  const localOnly = useStore((state: any) => state.localOnly);
 
   const [modAlertsBpScope, setModAlertsBpScopeState] = useState<string>(() =>
     getModAlertsBlueprintScope()
@@ -60,38 +66,26 @@ export default function NotificationsTab() {
     Array<{ id: string; schema_id: string; name: string; icon?: string }>
   >([]);
 
-  const [selectedScope, setSelectedScope] = useState<string>(() => {
-    const saved = getNotificationScopePreference();
-    if (saved && saved !== 'global') return saved;
-    return 'global';
-  });
-
   const [crossWorkspaceEnabled, setCrossWorkspaceEnabledState] = useState<boolean>(() =>
     getCrossWorkspaceNotificationsEnabled()
   );
 
-  const [allowedCrossSpokes, setAllowedCrossSpokesState] = useState<string[]>(() =>
-    getAllowedCrossWorkspaceSpokes()
-  );
-
-  const activeSpokeKey = selectedScope === 'global' ? undefined : selectedScope;
-
-  const readModesForScope = useCallback((spokeKey?: string) => {
+  const readGlobalModes = useCallback(() => {
     return {
       keepers_news: getNotificationMode('keepers_news', 'global'),
       patch_update_logs: getNotificationMode('patch_update_logs', 'global'),
-      defcon: getNotificationMode('defcon', spokeKey),
-      alert_banner: getNotificationMode('alert_banner', spokeKey),
-      system_dispatch: getNotificationMode('system_dispatch', spokeKey),
-      mod_alerts: getNotificationMode('mod_alerts', spokeKey),
-      new_posts: getNotificationMode('new_posts', spokeKey),
-      replies: getNotificationMode('replies', spokeKey),
-      support: getNotificationMode('support', spokeKey),
+      defcon: getNotificationMode('defcon', 'global'),
+      alert_banner: getNotificationMode('alert_banner', 'global'),
+      system_dispatch: getNotificationMode('system_dispatch', 'global'),
+      mod_alerts: getNotificationMode('mod_alerts', 'global'),
+      new_posts: getNotificationMode('new_posts', 'global'),
+      replies: getNotificationMode('replies', 'global'),
+      support: getNotificationMode('support', 'global'),
     };
   }, []);
 
   const [modes, setModes] = useState<Record<NotificationCategory, NotificationDeliveryMode>>(() =>
-    readModesForScope(activeSpokeKey)
+    readGlobalModes()
   );
 
   const [notifyAuthorOnly, setNotifyAuthorOnly] = useState(
@@ -116,12 +110,11 @@ export default function NotificationsTab() {
   const [masonVerifiedFilter, setMasonVerifiedFilter] = useState<'all' | 'verified' | 'standard'>('all');
 
   useEffect(() => {
+    setNotificationScopePreference('global');
     let mounted = true;
     getAvailableSpokeWorkspaces(supabaseAuth, workspaces).then((list) => {
       if (mounted) {
         setAvailableSpokes(list);
-        const allIds = list.map((s) => s.schema_id);
-        setAllowedCrossSpokesState(getAllowedCrossWorkspaceSpokes(allIds));
       }
     });
     return () => {
@@ -129,27 +122,74 @@ export default function NotificationsTab() {
     };
   }, [workspaces, activeWorkspaceId]);
 
+  const readMutedSpokesMap = useCallback(() => {
+    const map = {} as Record<NotificationCategory, string[]>;
+    ALL_NOTIFICATION_CATEGORIES.forEach((cat) => {
+      map[cat] = getMutedSpokesForCategory(cat);
+    });
+    return map;
+  }, []);
+
+  const [mutedSpokesByCat, setMutedSpokesByCat] = useState<Record<NotificationCategory, string[]>>(
+    () => readMutedSpokesMap()
+  );
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(() =>
+    getNotificationLastSyncedAt()
+  );
+
   const syncState = useCallback(async () => {
-    const currentScope = getNotificationScopePreference();
-    const spokeKey = currentScope === 'global' ? undefined : currentScope;
-    setSelectedScope(currentScope);
     setModAlertsBpScopeState(getModAlertsBlueprintScope());
     setCrossWorkspaceEnabledState(getCrossWorkspaceNotificationsEnabled());
-    setAllowedCrossSpokesState(
-      getAllowedCrossWorkspaceSpokes(availableSpokes.map((s) => s.schema_id))
-    );
-    setModes(readModesForScope(spokeKey));
+    setModes(readGlobalModes());
+    setMutedSpokesByCat(readMutedSpokesMap());
+    setLastSyncedAt(getNotificationLastSyncedAt());
     const perm = await getSystemNotificationPermissionState();
     setPermissionState(perm);
-  }, [readModesForScope, availableSpokes]);
+  }, [readGlobalModes, readMutedSpokesMap]);
 
   useEffect(() => {
     syncState();
+    const handleSyncCompleted = () => setLastSyncedAt(getNotificationLastSyncedAt());
     window.addEventListener('sanctuary_notification_prefs_changed', syncState);
+    window.addEventListener('sanctuary_notification_sync_completed', handleSyncCompleted);
     return () => {
       window.removeEventListener('sanctuary_notification_prefs_changed', syncState);
+      window.removeEventListener('sanctuary_notification_sync_completed', handleSyncCompleted);
     };
   }, [syncState]);
+
+  const handleManualCloudSync = async () => {
+    if (!session?.user?.id || localOnly || isSyncingCloud) return;
+    setIsSyncingCloud(true);
+    try {
+      const ok = await syncCrossDeviceNotificationState(session);
+      setLastSyncedAt(getNotificationLastSyncedAt());
+      if (ok) {
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              'notify_cloud_sync_complete',
+              'Zero-PII alert & notification state synced across devices.'
+            )
+          );
+      }
+    } finally {
+      setIsSyncingCloud(false);
+    }
+  };
+
+  const handleActiveSpokesForCategoryChange = (
+    category: NotificationCategory,
+    selectedActiveSpokeIds: string[]
+  ) => {
+    const allIds = availableSpokes.map((s) => s.schema_id);
+    const activeSet = new Set(selectedActiveSpokeIds.map((id) => String(id || '').trim()));
+    const nextMuted = allIds.filter((id) => !activeSet.has(id));
+    setMutedSpokesForCategory(category, nextMuted);
+    setMutedSpokesByCat((prev) => ({ ...prev, [category]: nextMuted }));
+  };
 
   const fetchFollows = useCallback(async () => {
     const mergedMap = new Map<string, any>();
@@ -271,44 +311,31 @@ export default function NotificationsTab() {
     localStorage.setItem('sanctuary_mason_alerts', JSON.stringify(next));
   };
 
-  const handleScopeChange = (nextScope: string) => {
-    setSelectedScope(nextScope);
-    setNotificationScopePreference(nextScope);
-    const spokeKey = nextScope === 'global' ? undefined : nextScope;
-    setModes(readModesForScope(spokeKey));
-  };
-
   const toggleCrossWorkspace = () => {
     const nextVal = !crossWorkspaceEnabled;
     const allIds = availableSpokes.map((s) => s.schema_id);
     if (nextVal) {
       setCrossWorkspaceEnabledState(true);
       setCrossWorkspaceNotificationsEnabled(true);
-      const nextSpokes = getAllowedCrossWorkspaceSpokes(allIds);
-      const effectiveSpokes = nextSpokes.length > 0 ? nextSpokes : allIds;
-      setAllowedCrossSpokesState(effectiveSpokes);
-      setAllowedCrossWorkspaceSpokes(effectiveSpokes);
+      const existing = getAllowedCrossWorkspaceSpokes(allIds);
+      setAllowedCrossWorkspaceSpokes(existing.length > 0 ? existing : allIds);
     } else {
       setCrossWorkspaceEnabledState(false);
       setCrossWorkspaceNotificationsEnabled(false);
-      setAllowedCrossSpokesState([]);
     }
   };
 
-  const handleAllowedCrossSpokesChange = (nextIds: string[]) => {
-    const cleaned = Array.isArray(nextIds) ? nextIds.map(String) : [];
-    setAllowedCrossSpokesState(cleaned);
-    setAllowedCrossWorkspaceSpokes(cleaned);
-    setCrossWorkspaceEnabledState(cleaned.length > 0);
+  const clearAnyLegacySpokeOverrides = () => {
+    availableSpokes.forEach((sp) => {
+      if (sp?.schema_id) clearSpokeNotificationOverrides(sp.schema_id);
+      if (sp?.id) clearSpokeNotificationOverrides(sp.id);
+    });
   };
 
-  const handleResetSpokeOverrides = () => {
-    if (!activeSpokeKey) return;
-    clearSpokeNotificationOverrides(activeSpokeKey);
-    setModes(readModesForScope(activeSpokeKey));
-  };
-
-  const handleModeChange = async (category: NotificationCategory, nextMode: NotificationDeliveryMode) => {
+  const handleModeChange = async (
+    category: NotificationCategory,
+    nextMode: NotificationDeliveryMode
+  ) => {
     if (nextMode === 'OS' && permissionState !== 'granted') {
       const perm = await requestSystemNotificationPermission();
       setPermissionState(perm);
@@ -324,10 +351,8 @@ export default function NotificationsTab() {
           );
       }
     }
-    const targetSpoke = GLOBAL_ONLY_NOTIFICATION_CATEGORIES.includes(category)
-      ? undefined
-      : activeSpokeKey;
-    setNotificationMode(category, nextMode, targetSpoke);
+    clearAnyLegacySpokeOverrides();
+    setNotificationMode(category, nextMode);
     setModes((prev) => ({ ...prev, [category]: nextMode }));
   };
 
@@ -335,9 +360,10 @@ export default function NotificationsTab() {
     const perm = await requestSystemNotificationPermission();
     setPermissionState(perm);
     if (perm === 'granted') {
+      clearAnyLegacySpokeOverrides();
       ALL_NOTIFICATION_CATEGORIES.forEach((cat) => {
-        if (getNotificationMode(cat, activeSpokeKey) !== 'NONE') {
-          setNotificationMode(cat, 'OS', activeSpokeKey);
+        if (getNotificationMode(cat, 'global') !== 'NONE') {
+          setNotificationMode(cat, 'OS');
         }
       });
       await syncState();
@@ -382,7 +408,8 @@ export default function NotificationsTab() {
       const perm = await requestSystemNotificationPermission();
       setPermissionState(perm);
     }
-    setAllNotificationModes(targetMode, activeSpokeKey);
+    clearAnyLegacySpokeOverrides();
+    setAllNotificationModes(targetMode);
     await syncState();
   };
 
@@ -399,14 +426,12 @@ export default function NotificationsTab() {
   ];
 
   const bulkModeValue = useMemo(() => {
-    const targetCats =
-      selectedScope === 'global' ? ALL_NOTIFICATION_CATEGORIES : SPOKE_NOTIFICATION_CATEGORIES;
-    const uniqueModes = new Set(targetCats.map((cat) => modes[cat]));
+    const uniqueModes = new Set(ALL_NOTIFICATION_CATEGORIES.map((cat) => modes[cat]));
     if (uniqueModes.size === 1) {
       return Array.from(uniqueModes)[0] as NotificationDeliveryMode;
     }
     return 'CUSTOM';
-  }, [modes, selectedScope]);
+  }, [modes]);
 
   const bulkDeliveryOptions = useMemo(() => {
     const base = [
@@ -423,7 +448,7 @@ export default function NotificationsTab() {
     return base;
   }, [bulkModeValue, t]);
 
-  const crossSpokeOptions = useMemo(() => {
+  const spokeOptions = useMemo(() => {
     return availableSpokes.map((spoke) => {
       const isCurrent =
         spoke.schema_id === activeWorkspaceId || spoke.id === activeWorkspaceId;
@@ -436,45 +461,121 @@ export default function NotificationsTab() {
     });
   }, [availableSpokes, activeWorkspaceId, t]);
 
-  const scopeOptions = useMemo(() => {
-    const opts = [
-      {
-        id: 'global',
-        label: t('notify_scope_global', 'Global (All Spokes)'),
-      },
-    ];
-    availableSpokes.forEach((spoke) => {
-      const isCurrent =
-        spoke.schema_id === activeWorkspaceId || spoke.id === activeWorkspaceId;
-      opts.push({
-        id: spoke.schema_id,
-        label: isCurrent
-          ? `${spoke.name} (${t('active', 'Active')})`
-          : `${spoke.name} (${t('notify_scope_spoke_suffix', 'Spoke')})`,
-      });
-    });
-    return opts;
-  }, [availableSpokes, activeWorkspaceId, t]);
+  const isGranted = permissionState === 'granted';
+  const isDenied = permissionState === 'denied';
+  const enabledMasonCount = followedMasons.filter((m) => Boolean(masonAlerts[m.id])).length;
+  const isCloudSyncReady = Boolean(session?.user?.id && !localOnly);
 
-  const selectedSpokeName = useMemo(() => {
-    if (selectedScope === 'global') return t('notify_scope_global_short', 'Global');
-    const found = availableSpokes.find(
-      (s) => s.schema_id === selectedScope || s.id === selectedScope
-    );
-    return found?.name || selectedScope;
-  }, [selectedScope, availableSpokes, t]);
-
-  const spokeHasCustomOverrides = Boolean(
-    activeSpokeKey && hasSpokeNotificationOverrides(activeSpokeKey)
-  );
-
-  const foundryCards: {
+  const renderCategoryCard = (card: {
     id: NotificationCategory;
     title: string;
     subtitle: string;
     icon: string;
     isGlobalOnly?: boolean;
-  }[] = [
+    extraFooter?: React.ReactNode;
+  }) => {
+    const allSpokeIds = availableSpokes.map((s) => s.schema_id);
+    const mutedSet = new Set(mutedSpokesByCat[card.id] || []);
+    const activeSpokeIdsForCat = allSpokeIds.filter((id) => !mutedSet.has(id));
+    const mutedCount = allSpokeIds.length - activeSpokeIdsForCat.length;
+    const isMutedGlobally = modes[card.id] === 'NONE';
+    const showSpokeMuteSelector =
+      !card.isGlobalOnly && availableSpokes.length > 0 && !isMutedGlobally;
+
+    const spokeMuteDisplayLabel =
+      mutedCount === 0
+        ? t('notify_spokes_all_active', 'All Workspaces Active')
+        : activeSpokeIdsForCat.length === 0
+          ? t('notify_all_spokes_muted', 'All Workspaces Muted')
+          : `${activeSpokeIdsForCat.length} ${t('active', 'Active')} • ${mutedCount} ${t('notify_mode_muted', 'Muted')}`;
+
+    return (
+      <UniversalCard
+        key={card.id}
+        headerStyle="inline"
+        title={card.title}
+        subtitle={card.subtitle}
+        icon={card.icon}
+        isActive={!isMutedGlobally}
+        statusColor={
+          isMutedGlobally ||
+          (!card.isGlobalOnly && allSpokeIds.length > 0 && activeSpokeIdsForCat.length === 0)
+            ? 'warning'
+            : undefined
+        }
+        actions={
+          !card.isGlobalOnly && mutedCount > 0 ? (
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[11px] text-[var(--warning)]">
+                {t('icon_notifications_paused', 'notifications_paused')}
+              </span>
+              <span>{`${mutedCount} ${t('notify_mode_muted', 'Muted')}`}</span>
+            </span>
+          ) : undefined
+        }
+        footer={
+          <div className="flex flex-col gap-2.5 w-full">
+            <CustomSettingsDropdown
+              value={modes[card.id]}
+              options={deliveryOptions}
+              onChange={(val: NotificationDeliveryMode) => handleModeChange(card.id, val)}
+            />
+
+            {!isMutedGlobally && card.extraFooter}
+
+            {showSpokeMuteSelector && (
+              <div
+                className="flex flex-col gap-1.5 pt-2 border-t border-[color-mix(in_srgb,var(--text)_7%,transparent)]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between gap-2 px-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-80 flex items-center gap-1">
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {mutedCount > 0
+                        ? t('icon_notifications_paused', 'notifications_paused')
+                        : t('icon_workspaces', 'workspaces')}
+                    </span>
+                    {t('notify_enabled_workspaces_label', 'Enabled Workspaces')}
+                  </span>
+                  {mutedCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleActiveSpokesForCategoryChange(card.id, allSpokeIds)}
+                      className="text-[10px] font-bold text-[var(--accent)] hover:underline cursor-pointer"
+                    >
+                      {t('notify_unmute_all_spokes', 'Unmute All')}
+                    </button>
+                  )}
+                </div>
+                <CustomDropdown
+                  multiSelect={true}
+                  disableTint={true}
+                  value={activeSpokeIdsForCat}
+                  options={spokeOptions}
+                  displayLabel={spokeMuteDisplayLabel}
+                  placeholder={t('notify_all_spokes_muted', 'All Workspaces Muted')}
+                  onChange={(vals: string[]) =>
+                    handleActiveSpokesForCategoryChange(
+                      card.id,
+                      Array.isArray(vals) ? vals : []
+                    )
+                  }
+                />
+              </div>
+            )}
+          </div>
+        }
+      />
+    );
+  };
+
+  const foundryCards: Array<{
+    id: NotificationCategory;
+    title: string;
+    subtitle: string;
+    icon: string;
+    isGlobalOnly?: boolean;
+  }> = [
     {
       id: 'keepers_news',
       title: t('notify_keepers_news', 'Keepers News'),
@@ -497,105 +598,99 @@ export default function NotificationsTab() {
     },
   ];
 
-  const spokeAlertCards: {
-    id: NotificationCategory;
-    title: string;
-    subtitle: string;
-    icon: string;
-    isGlobalOnly?: boolean;
-  }[] = [
-    {
-      id: 'alert_banner',
-      title: t('notify_alert_banner', 'Global Alerts (Spoke Wayfinders)'),
-      subtitle: t(
-        'notify_alert_banner_desc',
-        'Urgent network-wide security advisories and pinned alerts broadcast by Spoke Wayfinders.'
-      ),
-      icon: t('icon_warning', 'warning'),
-    },
-    {
-      id: 'system_dispatch',
-      title: t('notify_system_dispatch', 'System Dispatches'),
-      subtitle: t(
-        'notify_system_dispatch_desc',
-        'Official community announcements, maintenance notices, and updates from Spoke Wayfinders.'
-      ),
-      icon: t('icon_admin_panel_settings', 'admin_panel_settings'),
-    },
-    {
-      id: 'defcon',
-      title: t('notify_defcon_title', 'Game Update & Lockdown Alerts'),
-      subtitle: t(
-        'notify_defcon_desc',
-        'Emergency alerts when a new game update is detected or a safety lockdown is triggered.'
-      ),
-      icon: t('icon_shield', 'shield'),
-    },
-    {
-      id: 'mod_alerts',
-      title: t('notify_mod_alerts_title', '{Mod} Alerts & Patch Casualties'),
-      subtitle: t(
-        'notify_mod_alerts_desc',
-        'Alerts when installed {mods} in your {Vault} or {Blueprints} have updates available, compatibility warnings, or patch casualties.'
-      ),
-      icon: t('icon_radar', 'radar'),
-    },
-  ];
-
-  const renderCategoryCard = (card: {
-    id: NotificationCategory;
-    title: string;
-    subtitle: string;
-    icon: string;
-    isGlobalOnly?: boolean;
-  }) => {
-    const scopeBadgeText = card.isGlobalOnly
-      ? t('notify_scope_global_short', 'Global')
-      : selectedSpokeName;
-
-    return (
-      <UniversalCard
-        key={card.id}
-        title={card.title}
-        subtitle={card.subtitle}
-        icon={card.icon}
-        actions={
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-transparent border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] text-[9px] font-black uppercase tracking-wider">
-            <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
-              {card.isGlobalOnly
-                ? t('icon_public', 'public')
-                : selectedScope === 'global'
-                  ? t('icon_public', 'public')
-                  : t('icon_sports_esports', 'sports_esports')}
-            </span>
-            {scopeBadgeText}
-          </span>
-        }
-        footer={
-          <CustomSettingsDropdown
-            value={modes[card.id]}
-            options={deliveryOptions}
-            onChange={(val: NotificationDeliveryMode) => handleModeChange(card.id, val)}
-          />
-        }
-      />
-    );
-  };
-
-  const isGranted = permissionState === 'granted';
-  const isDenied = permissionState === 'denied';
-  const enabledMasonCount = followedMasons.filter((m) => Boolean(masonAlerts[m.id])).length;
+  const modAlertsScopeOptions = useMemo(() => {
+    return [
+      {
+        id: 'ACTIVE',
+        label: t('staging_desktop_bp_active_badge', 'Active {Blueprint}'),
+      },
+      {
+        id: 'ALL_VAULT',
+        label: t('filter_all_vault_scope', 'All {Vault}'),
+      },
+      ...(Array.isArray(playSets)
+        ? playSets.map((ps: any) => ({
+            id: String(ps?.name || 'Blueprint'),
+            label: `${t('term_blueprint', '{Blueprint}')}: ${String(ps?.name || 'Blueprint')}`,
+          }))
+        : []),
+    ];
+  }, [playSets, t]);
 
   return (
-    <div className="flex flex-col gap-30 w-full pb-48">
-      {/* SECTION 1: System Delivery & Routing Scope */}
+    <div className="flex flex-col gap-12 w-full pb-32">
+      {/* SECTION 1: Delivery Setup & Cross-Device Sync */}
       <TabContainer
-        title={t('notif_section_routing', 'System Delivery & Scope')}
-        icon={t('icon_tune', 'tune')}
+        title={t('notif_section_setup_sync', 'Notification Setup & Sync')}
+        icon={t('icon_notifications_active', 'notifications_active')}
       >
         <SettingsGrid>
-          {/* 1. Test: System & PWA Notification Status / Test Alert Card */}
+          <LiquidGlassAlertCard
+            isAlertCard={isDenied}
+            icon={
+              isDenied
+                ? t('icon_notifications_off', 'notifications_off')
+                : t('icon_cloud_done', 'cloud_done')
+            }
+            accentVar={isDenied ? 'var(--danger)' : 'var(--accent)'}
+            iconColorClass={isDenied ? 'text-[var(--danger)]' : 'text-[var(--accent)]'}
+            badgeIcon={
+              isCloudSyncReady
+                ? t('icon_enhanced_encryption', 'enhanced_encryption')
+                : t('icon_devices', 'devices')
+            }
+            badgeLabel={
+              isCloudSyncReady
+                ? t('notify_zero_pii_synced_badge', 'Zero-PII Synced')
+                : t('notify_local_device_badge', 'Local Device')
+            }
+            overline={t('notify_sync_guide_overline', 'Cross-Device Deduplication')}
+            title={
+              isDenied
+                ? t('notif_os_status_blocked', 'Permission Blocked')
+                : t('notify_sync_guide_title', 'Once Per Alert Across All Rigs')
+            }
+            description={t(
+              'notify_sync_clean_desc',
+              'Seen or dismissed alerts—including the Command Center Global Alert Tile—sync automatically across Desktop, Steam Deck, Web, and Mobile with zero-PII encryption so each alert notifies you at most once.'
+            )}
+            actionLabel={
+              isCloudSyncReady
+                ? isSyncingCloud
+                  ? t('loading', 'Loading')
+                  : t('notify_btn_sync_now', 'Sync Alert State Now')
+                : !isGranted
+                  ? t('notif_os_btn_enable', 'Enable System Notifications')
+                  : undefined
+            }
+            actionIcon={
+              isCloudSyncReady
+                ? t('icon_sync', 'sync')
+                : t('icon_notifications_active', 'notifications_active')
+            }
+            actionVariant={isDenied ? 'danger' : 'glass'}
+            onAction={
+              isCloudSyncReady
+                ? handleManualCloudSync
+                : !isGranted
+                  ? handleEnableSystemNotifications
+                  : undefined
+            }
+          >
+            {lastSyncedAt && isCloudSyncReady && (
+              <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold text-[var(--subtext)] opacity-75">
+                <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                  {t('icon_check_circle', 'check_circle')}
+                </span>
+                <span>
+                  {`${t('notify_last_synced_prefix', 'Last synced')}: ${new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                </span>
+              </div>
+            )}
+          </LiquidGlassAlertCard>
+
           <UniversalCard
+            headerStyle="inline"
             title={t('notif_os_banner_title', 'System & PWA Notifications')}
             subtitle={
               isGranted
@@ -620,8 +715,10 @@ export default function NotificationsTab() {
                   ? t('icon_notifications_off', 'notifications_off')
                   : t('icon_notifications', 'notifications')
             }
+            isActive={isGranted}
+            statusColor={isDenied ? 'danger' : undefined}
             actions={
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider">
+              <span className={VAULT_CHIP_CLASS}>
                 <span
                   className={`material-symbols-outlined !text-[11px] ${
                     isGranted
@@ -637,11 +734,13 @@ export default function NotificationsTab() {
                       ? t('icon_block', 'block')
                       : t('icon_notifications', 'notifications')}
                 </span>
-                {isGranted
-                  ? t('active', 'Active')
-                  : isDenied
-                    ? t('notif_os_status_blocked', 'Permission Blocked')
-                    : t('status', 'Status')}
+                <span>
+                  {isGranted
+                    ? t('active', 'Active')
+                    : isDenied
+                      ? t('notif_os_status_blocked', 'Permission Blocked')
+                      : t('status', 'Status')}
+                </span>
               </span>
             }
             footer={
@@ -674,24 +773,14 @@ export default function NotificationsTab() {
             }
           />
 
-          {/* 2. OS or App: Bulk Delivery Preset Card */}
           <UniversalCard
+            headerStyle="inline"
             title={t('notif_bulk_preset_title', 'Bulk Delivery Preset')}
             subtitle={t(
-              'notif_bulk_preset_desc',
-              'Apply a delivery mode to all notification categories in the selected scope at once.'
+              'notif_bulk_preset_clean_desc',
+              'Quickly switch every alert category below to System (OS), In-App Only, or Muted all at once.'
             )}
             icon={t('icon_done_all', 'done_all')}
-            actions={
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider">
-                <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
-                  {selectedScope === 'global'
-                    ? t('icon_public', 'public')
-                    : t('icon_sports_esports', 'sports_esports')}
-                </span>
-                {selectedSpokeName}
-              </span>
-            }
             footer={
               <CustomSettingsDropdown
                 value={bulkModeValue}
@@ -705,73 +794,17 @@ export default function NotificationsTab() {
             }
           />
 
-          {/* 3. Scope: Notification Rule Scope Card */}
           <UniversalCard
-            title={t('notify_rule_scope_title', 'Notification Rule Scope')}
+            headerStyle="inline"
+            title={t('notify_background_workspaces_title', 'Background Workspace Alerts')}
             subtitle={t(
-              'notify_rule_scope_desc',
-              'Configure delivery rules globally across all workspaces, or customize rules per individual Spoke.'
+              'notify_background_workspaces_desc',
+              'ON: Delivers alerts from your other unmuted game workspaces in the background.\nOFF: Only delivers alerts for your currently active workspace.'
             )}
-            icon={t('icon_hub', 'hub')}
-            actions={
-              selectedScope !== 'global' ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider">
-                  <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
-                    {spokeHasCustomOverrides
-                      ? t('icon_tune', 'tune')
-                      : t('icon_public', 'public')}
-                  </span>
-                  {spokeHasCustomOverrides
-                    ? t('notify_scope_custom_badge', 'Custom Spoke Rules')
-                    : t('notify_scope_inherited_badge', 'Inherits Global')}
-                </span>
-              ) : undefined
-            }
-            footer={
-              <div className="flex flex-col gap-2 w-full">
-                <CustomSettingsDropdown
-                  value={selectedScope}
-                  options={scopeOptions}
-                  onChange={(val: string) => handleScopeChange(val)}
-                />
-                {spokeHasCustomOverrides && (
-                  <ActionButton
-                    variant="glass"
-                    icon={t('icon_restart_alt', 'restart_alt')}
-                    label={t('notify_scope_reset_btn', 'Reset Spoke to Global Defaults')}
-                    onClick={handleResetSpokeOverrides}
-                    className="w-full justify-center !py-1.5 !text-[10px]"
-                  />
-                )}
-              </div>
-            }
-          />
-
-          {/* 4. Cross: Cross-Workspace Notifications Card */}
-          <UniversalCard
-            title={t('notify_cross_workspace_title', 'Cross-Workspace Notifications')}
-            subtitle={t(
-              'notify_cross_workspace_desc',
-              'Show notifications from other workspaces while a different workspace is selected on this device.'
-            )}
-            icon={t('icon_public', 'public')}
+            icon={t('icon_workspaces', 'workspaces')}
+            isActive={crossWorkspaceEnabled}
             onClick={toggleCrossWorkspace}
             actions={<SettingsToggle checked={crossWorkspaceEnabled} />}
-            footer={
-              <div className="relative w-full z-10" onClick={(e) => e.stopPropagation()}>
-                <CustomDropdown
-                  multiSelect={true}
-                  disableTint={true}
-                  value={crossWorkspaceEnabled ? allowedCrossSpokes : []}
-                  options={crossSpokeOptions}
-                  onChange={handleAllowedCrossSpokesChange}
-                  placeholder={t(
-                    'notify_cross_none_placeholder',
-                    'Disabled (Active Workspace Only)'
-                  )}
-                />
-              </div>
-            }
           />
         </SettingsGrid>
       </TabContainer>
@@ -782,105 +815,174 @@ export default function NotificationsTab() {
         icon={t('icon_shield', 'shield')}
       >
         <SettingsGrid>
-          {foundryCards.map(renderCategoryCard)}
+          <LiquidGlassAlertCard
+            isAlertCard={false}
+            icon={t('icon_shield', 'shield')}
+            accentVar="var(--accent)"
+            iconColorClass="text-[var(--accent)]"
+            badgeIcon={t('icon_public', 'public')}
+            badgeLabel={t('notify_scope_global_short', 'Global')}
+            overline={t('notify_foundry_guide_overline', 'Keepers Core Broadcasts')}
+            title={t('notify_foundry_guide_title', 'Platform News & OS Build Logs')}
+            description={t(
+              'notify_foundry_guide_desc',
+              'Keepers Core dispatches apply across the entire Sanctuary OS ecosystem—covering official platform announcements, security updates, and Public or Dev Build release notes.'
+            )}
+          />
+          {foundryCards.map((card) => renderCategoryCard(card))}
         </SettingsGrid>
       </TabContainer>
 
-      {/* SECTION 3: Spoke Alerts & Safeguards */}
+      {/* SECTION 3: Game & Mod Alerts */}
       <TabContainer
-        title={t('notif_section_spoke_alerts', 'Spoke Alerts & Safeguards')}
+        title={t('notif_section_game_mod_alerts', 'Game & {Mod} Alerts')}
         icon={t('icon_warning', 'warning')}
       >
         <SettingsGrid>
-          {spokeAlertCards.map(renderCategoryCard)}
-          <UniversalCard
-            title={t('notify_mod_alerts_scope_title', '{Mod} Alert {Blueprint} Scope')}
-            subtitle={t(
-              'notify_mod_alerts_scope_desc',
-              'Choose whether {Mod} Alerts monitor only your active {Blueprint}, your entire {Vault}, or a specific {Blueprint}.'
+          <LiquidGlassAlertCard
+            isAlertCard={false}
+            icon={t('icon_notifications_paused', 'notifications_paused')}
+            accentVar="var(--accent)"
+            iconColorClass="text-[var(--accent)]"
+            badgeIcon={t('icon_workspaces', 'workspaces')}
+            badgeLabel={`${availableSpokes.length || 1} ${t('workspaces', 'Workspaces')}`}
+            overline={t('notify_spoke_guide_overline', 'Per-Alert Workspace Filtering')}
+            title={t('notify_spoke_guide_title', 'Mute Secondary Workspaces Per Alert Type')}
+            description={t(
+              'notify_spoke_clean_desc',
+              'Each alert type below lets you pick how it notifies you and which game workspaces are enabled—so you can keep urgent advisories active everywhere while muting {Mod} updates on secondary games.'
             )}
-            icon={t('icon_map', 'map')}
-            footer={
-              <CustomSettingsDropdown
-                value={modAlertsBpScope}
-                options={[
-                  {
-                    id: 'ACTIVE',
-                    label: t('staging_desktop_bp_active_badge', 'Active {Blueprint}'),
-                  },
-                  {
-                    id: 'ALL_VAULT',
-                    label: t('filter_all_vault_scope', 'All {Vault}'),
-                  },
-                  ...(Array.isArray(playSets)
-                    ? playSets.map((ps: any) => ({
-                        id: String(ps?.name || 'Blueprint'),
-                        label: `${t('term_blueprint', '{Blueprint}')}: ${String(ps?.name || 'Blueprint')}`,
-                      }))
-                    : []),
-                ]}
-                onChange={(val: string) => {
-                  setModAlertsBpScopeState(val);
-                  setModAlertsBlueprintScope(val);
-                }}
-              />
-            }
           />
+
+          {renderCategoryCard({
+            id: 'alert_banner',
+            title: t('notify_alert_banner', 'Global Alerts (Spoke Wayfinders)'),
+            subtitle: t(
+              'notify_alert_banner_desc',
+              'Urgent network-wide security advisories and pinned alerts broadcast by Spoke Wayfinders.'
+            ),
+            icon: t('icon_warning', 'warning'),
+          })}
+
+          {renderCategoryCard({
+            id: 'system_dispatch',
+            title: t('notify_system_dispatch', 'System Dispatches'),
+            subtitle: t(
+              'notify_system_dispatch_desc',
+              'Official community announcements, maintenance notices, and updates from Spoke Wayfinders.'
+            ),
+            icon: t('icon_admin_panel_settings', 'admin_panel_settings'),
+          })}
+
+          {renderCategoryCard({
+            id: 'defcon',
+            title: t('notify_defcon_title', 'Game Update & Lockdown Alerts'),
+            subtitle: t(
+              'notify_defcon_desc',
+              'Emergency alerts when a new game update is detected or a safety lockdown is triggered.'
+            ),
+            icon: t('icon_shield', 'shield'),
+          })}
+
+          {renderCategoryCard({
+            id: 'mod_alerts',
+            title: t('notify_mod_alerts_title', '{Mod} Alerts & Patch Casualties'),
+            subtitle: t(
+              'notify_mod_alerts_desc',
+              'Alerts when installed {mods} in your {Vault} or {Blueprints} have updates available, compatibility warnings, or patch casualties.'
+            ),
+            icon: t('icon_radar', 'radar'),
+            extraFooter: (
+              <div
+                className="flex flex-col gap-1.5 pt-2 border-t border-[color-mix(in_srgb,var(--text)_7%,transparent)]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] opacity-80 px-0.5 flex items-center gap-1">
+                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                    {t('icon_map', 'map')}
+                  </span>
+                  {t('notify_mod_alerts_scope_short', 'Monitored {Mods}')}
+                </span>
+                <CustomSettingsDropdown
+                  value={modAlertsBpScope}
+                  options={modAlertsScopeOptions}
+                  onChange={(val: string) => {
+                    setModAlertsBpScopeState(val);
+                    setModAlertsBlueprintScope(val);
+                  }}
+                />
+              </div>
+            ),
+          })}
         </SettingsGrid>
       </TabContainer>
 
-      {/* SECTION 4: Comm-Link & Support */}
+      {/* SECTION 4: Comm-Link & Support (Single Cohesive Row — Sub-options Folded Into Parent Cards) */}
       <TabContainer
         title={t('notif_section_commlink', 'Comm-Link & Support')}
         icon={t('icon_forum', 'forum')}
       >
         <SettingsGrid>
+          <LiquidGlassAlertCard
+            isAlertCard={false}
+            icon={t('icon_forum', 'forum')}
+            accentVar="var(--accent)"
+            iconColorClass="text-[var(--accent)]"
+            badgeIcon={t('icon_notifications_active', 'notifications_active')}
+            badgeLabel={`${enabledMasonCount}/${followedMasons.length} ${t('term_masons', '{Masons}')}`}
+            overline={t('notify_commlink_guide_overline', 'Creator & Ticket Subscriptions')}
+            title={t('notify_commlink_guide_title', 'Followed {Masons}, Replies & Support')}
+            description={t(
+              'notify_commlink_guide_desc',
+              'Manage notifications for new {Mason} {dispatches}, thread replies, and Support Ticket updates—with per-workspace mute controls and granular per-{Mason} opt-in.'
+            )}
+            actionLabel={t('notif_per_mason_btn', 'Manage {Mason} Alerts')}
+            actionIcon={t('icon_tune', 'tune')}
+            actionVariant="glass"
+            onAction={() => setShowMasonPanel(true)}
+          />
+
           {renderCategoryCard({
             id: 'new_posts',
             title: t('btn_new_posts', 'Comm-Link Posts'),
             subtitle: t('notify_new_posts_desc', 'Notify when followed {Masons} publish new posts.'),
             icon: t('icon_post_add', 'post_add'),
-          })}
-
-          <UniversalCard
-            title={t('notif_per_mason', 'Per-{Mason} Post Alerts')}
-            subtitle={t('notif_per_mason_desc', 'Enable specific post alerts for {Masons} you follow.')}
-            icon={t('icon_notifications_active', 'notifications_active')}
-            onClick={() => setShowMasonPanel(true)}
-            actions={
-              <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center gap-1.5">
-                <span className="material-symbols-outlined !text-[12px] theme-text-accent">
-                  {t('icon_notifications_active', 'notifications_active')}
-                </span>
-                <span className="text-[10px] font-mono font-bold text-[var(--text)]">
-                  {enabledMasonCount} / {followedMasons.length}
-                </span>
+            extraFooter: (
+              <div
+                className="pt-2 border-t border-[color-mix(in_srgb,var(--text)_7%,transparent)] w-full"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ActionButton
+                  variant="glass"
+                  icon={t('icon_tune', 'tune')}
+                  label={`${t('notif_per_mason_btn', 'Manage {Mason} Alerts')} (${enabledMasonCount}/${followedMasons.length})`}
+                  onClick={() => setShowMasonPanel(true)}
+                  className="w-full justify-center"
+                />
               </div>
-            }
-            footer={
-              <ActionButton
-                variant="glass"
-                icon={t('icon_tune', 'tune')}
-                label={t('notif_per_mason_btn', 'Manage {Mason} Alerts')}
-                className="w-full justify-center pointer-events-none"
-              />
-            }
-          />
+            ),
+          })}
 
           {renderCategoryCard({
             id: 'replies',
             title: t('ui.replies', 'Comm-Link Replies'),
             subtitle: t('notify_replies_desc', 'Direct replies and responses on Comm-Link threads.'),
             icon: t('icon_chat_bubble', 'chat_bubble'),
+            extraFooter: (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleNotifyAuthorOnly();
+                }}
+                className="flex items-center justify-between gap-2 px-3 py-2.5 mt-0.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] cursor-pointer transition-all"
+              >
+                <span className="text-[11px] font-bold text-[var(--text)] leading-snug">
+                  {t('notify_author_only', 'Creator Replies Only')}
+                </span>
+                <SettingsToggle checked={notifyAuthorOnly} />
+              </div>
+            ),
           })}
-
-          <UniversalCard
-            title={t('notify_author_only', 'Creator Replies Only')}
-            subtitle={t('notify_author_only_desc', 'Only notify when the original post creator replies.')}
-            icon={t('icon_person', 'person')}
-            onClick={toggleNotifyAuthorOnly}
-            actions={<SettingsToggle checked={notifyAuthorOnly} />}
-          />
 
           {renderCategoryCard({
             id: 'support',
@@ -894,8 +996,8 @@ export default function NotificationsTab() {
       <SidePanel
         isOpen={showMasonPanel}
         onClose={() => setShowMasonPanel(false)}
-        title={t('notif_per_mason', "Per-{Mason} Post Alerts")}
-        subtitle={t('notif_per_mason_desc', "Enable specific post alerts for {Masons} you follow.")}
+        title={t('notif_per_mason', 'Per-{Mason} Post Alerts')}
+        subtitle={t('notif_per_mason_desc', 'Enable specific post alerts for {Masons} you follow.')}
         icon={t('icon_notifications_active', 'notifications_active')}
         iconColorClass="theme-text-accent"
         widthClass="w-[90vw] md:w-[760px]"
@@ -920,8 +1022,11 @@ export default function NotificationsTab() {
           <SidePanelHeroCard
             icon={t('icon_notifications_active', 'notifications_active')}
             overline={t('tab_notifs', 'Notifications')}
-            title={t('notif_per_mason', "Per-{Mason} Post Alerts")}
-            description={t('notif_per_mason_desc', "Enable specific post alerts for {Masons} you follow.")}
+            title={t('notif_per_mason', 'Per-{Mason} Post Alerts')}
+            description={t(
+              'notif_per_mason_desc',
+              'Enable specific post alerts for {Masons} you follow.'
+            )}
             badge={`${enabledMasonCount} / ${followedMasons.length}`}
             variant="accent"
           >
@@ -929,7 +1034,7 @@ export default function NotificationsTab() {
               <StatBox
                 icon={t('icon_group', 'group')}
                 iconColorClass="text-[var(--accent)]"
-                label={t('notif_per_mason', "Per-{Mason} Post Alerts")}
+                label={t('notif_per_mason', 'Per-{Mason} Post Alerts')}
                 value={followedMasons.length}
               />
               <StatBox
@@ -974,7 +1079,10 @@ export default function NotificationsTab() {
                       options={[
                         { id: 'all', label: t('filter_all', 'All') },
                         { id: 'verified', label: t('verified', 'Verified') },
-                        { id: 'standard', label: t('status_standard_clearance', 'Standard Clearance') },
+                        {
+                          id: 'standard',
+                          label: t('status_standard_clearance', 'Standard Clearance'),
+                        },
                       ]}
                     />
                   </div>
@@ -984,7 +1092,7 @@ export default function NotificationsTab() {
           />
 
           <UniversalGroup
-            title={t('notif_per_mason', "Per-{Mason} Post Alerts")}
+            title={t('notif_per_mason', 'Per-{Mason} Post Alerts')}
             icon={t('icon_group', 'group')}
             headerAction={
               <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[var(--subtext)]">
@@ -996,8 +1104,11 @@ export default function NotificationsTab() {
               <div className="py-6">
                 <EmptyState
                   icon={t('icon_person_search', 'person_search')}
-                  title={t('settings_no_masons', "No {Masons} Followed")}
-                  subtitle={t('notif_per_mason_desc', "Enable specific post alerts for {Masons} you follow.")}
+                  title={t('settings_no_masons', 'No {Masons} Followed')}
+                  subtitle={t(
+                    'notif_per_mason_desc',
+                    'Enable specific post alerts for {Masons} you follow.'
+                  )}
                 />
               </div>
             ) : (
@@ -1029,7 +1140,10 @@ export default function NotificationsTab() {
                       }
                       subtitle={
                         m.tagline ||
-                        t('notif_per_mason_card_fallback_sub', "Receive notifications when this {mason} publishes new {dispatches} or updates.")
+                        t(
+                          'notif_per_mason_card_fallback_sub',
+                          'Receive notifications when this {mason} publishes new {dispatches} or updates.'
+                        )
                       }
                       onClick={() => toggleMasonAlert(m.id)}
                       actions={<SettingsToggle checked={isAlertEnabled} />}

@@ -462,13 +462,6 @@ export function ArchitectCommandScreen({
           onClick={() => onNavigate("support_tickets")}
         />
         <DashboardStatTile
-          icon={t("icon_monitor_heart", "monitor_heart")}
-          value={stats.pendingDiagnostics}
-          label={t("pending_diagnostics", "Diagnostics")}
-          colorClass={stats.pendingDiagnostics > 0 ? "text-[var(--warning)]" : "theme-text-accent"}
-          onClick={() => onNavigate("lab")}
-        />
-        <DashboardStatTile
           icon={t("icon_flag", "flag")}
           value={stats.reportQueue}
           label={t("nexus_reports", "{Nexus} Reports")}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, CustomDropdown, CustomComplianceDropdown, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile, SidePanelHeroCard, SidePanelPillToggle } from "../shared";
+import { SidePanel, CustomDropdown, CustomComplianceDropdown, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile, SidePanelFilterBar, SidePanelHeroCard, SidePanelPillToggle } from "../shared";
 import { UniversalGroup, UniversalInput, UniversalTextArea } from '../components/universal/UniversalLayout';
 import { useStore } from '../store';
 import { createPortal } from 'react-dom';
@@ -383,7 +383,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
         />
 
         {isMalwareOnly && (
-          <div className="grid grid-cols-2 gap-3 w-full">
+          <SidePanelFilterBar className="grid-cols-2 gap-3">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -400,7 +400,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
               isActive={activeTab === 'heuristic'}
               onClick={() => setActiveTab('heuristic')}
             />
-          </div>
+          </SidePanelFilterBar>
         )}
 
         {activeTab === 'registry' ? (

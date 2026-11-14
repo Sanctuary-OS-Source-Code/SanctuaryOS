@@ -692,16 +692,17 @@ export function UpdatesSidePanel({
               />
             </div>
             {filteredUpdates.length > 0 && (
-              <ActionButton
-                variant="primary"
-                icon={t("icon_playlist_play", "playlist_play")}
-                label={t(
-                  "guided_queue_start_btn",
-                  "Guided Batch Update ({0})"
-                ).replace("{0}", String(filteredUpdates.length))}
-                onClick={handleStartGuidedUpdateQueue}
-                className="!h-9 !w-full justify-center !text-[10px]"
-              />
+              <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
+                <ActionButton
+                  variant="accent"
+                  icon={t("icon_playlist_play", "playlist_play")}
+                  label={t(
+                    "guided_queue_start_btn",
+                    "Guided Batch Update ({0})"
+                  ).replace("{0}", String(filteredUpdates.length))}
+                  onClick={handleStartGuidedUpdateQueue}
+                />
+              </div>
             )}
           </div>
         </SidePanelHeroCard>

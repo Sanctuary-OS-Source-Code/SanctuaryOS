@@ -20,6 +20,7 @@ import {
   DashboardStatTile,
   EmptyState,
   HoverTooltip,
+  SidePanelFilterBar,
 } from "../shared";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
 
@@ -651,62 +652,62 @@ export default function LexiconVisualStudio({
     label: string;
     icon: string;
   }> = [
-    {
-      id: "all",
-      label: t("lex_studio_sec_all", "All Sections"),
-      icon: t("icon_apps", "apps"),
-    },
-    {
-      id: "navigation",
-      label: t("lex_studio_sec_nav", "Navigation & Titles"),
-      icon: t("icon_explore", "explore"),
-    },
-    {
-      id: "vault",
-      label: t("lex_studio_cat_vault", "{Vault} & {Mods}"),
-      icon: t("icon_inventory_2", "inventory_2"),
-    },
-    {
-      id: "blueprints",
-      label: t("tab_blueprints", "{Blueprints}"),
-      icon: t("icon_map", "map"),
-    },
-    {
-      id: "nexus",
-      label: t("market_title", "The {Nexus}"),
-      icon: t("icon_hub", "hub"),
-    },
-    {
-      id: "lab",
-      label: t("lex_studio_cat_lab", "{Lab} & Radar"),
-      icon: t("icon_science", "science"),
-    },
-    {
-      id: "backups",
-      label: t("term_backups", "{Backups}"),
-      icon: t("icon_history", "history"),
-    },
-    {
-      id: "workbench",
-      label: t("title_sidebar", "Workbench"),
-      icon: t("icon_design_services", "design_services"),
-    },
-    {
-      id: "hubs",
-      label: t("lex_studio_cat_hubs", "Command Hubs"),
-      icon: t("icon_construction", "construction"),
-    },
-    {
-      id: "common",
-      label: t("lex_studio_sec_common_short", "Common & {Settings}"),
-      icon: t("icon_tune", "tune"),
-    },
-    {
-      id: "landing",
-      label: t("lex_studio_sec_landing", "Website Landing"),
-      icon: t("icon_public", "public"),
-    },
-  ];
+      {
+        id: "all",
+        label: t("lex_studio_sec_all", "All Sections"),
+        icon: t("icon_apps", "apps"),
+      },
+      {
+        id: "navigation",
+        label: t("lex_studio_sec_nav", "Navigation & Titles"),
+        icon: t("icon_explore", "explore"),
+      },
+      {
+        id: "vault",
+        label: t("lex_studio_cat_vault", "{Vault} & {Mods}"),
+        icon: t("icon_inventory_2", "inventory_2"),
+      },
+      {
+        id: "blueprints",
+        label: t("tab_blueprints", "{Blueprints}"),
+        icon: t("icon_map", "map"),
+      },
+      {
+        id: "nexus",
+        label: t("market_title", "The {Nexus}"),
+        icon: t("icon_hub", "hub"),
+      },
+      {
+        id: "lab",
+        label: t("lex_studio_cat_lab", "{Lab} & Radar"),
+        icon: t("icon_science", "science"),
+      },
+      {
+        id: "backups",
+        label: t("term_backups", "{Backups}"),
+        icon: t("icon_history", "history"),
+      },
+      {
+        id: "workbench",
+        label: t("title_sidebar", "Workbench"),
+        icon: t("icon_design_services", "design_services"),
+      },
+      {
+        id: "hubs",
+        label: t("lex_studio_cat_hubs", "Command Hubs"),
+        icon: t("icon_construction", "construction"),
+      },
+      {
+        id: "common",
+        label: t("lex_studio_sec_common_short", "Common & {Settings}"),
+        icon: t("icon_tune", "tune"),
+      },
+      {
+        id: "landing",
+        label: t("lex_studio_sec_landing", "Website Landing"),
+        icon: t("icon_public", "public"),
+      },
+    ];
 
   const filteredSectionCounts = useMemo(() => {
     const counts: Record<StringSectionId, number> = {
@@ -1126,11 +1127,10 @@ export default function LexiconVisualStudio({
     return (
       <div
         key={key}
-        className={`glass-surface rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition-all ${
-          isCustomized
-            ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
-            : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-        } ${isLong ? "md:col-span-2" : ""}`}
+        className={`glass-surface rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition-all ${isCustomized
+          ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+          : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+          } ${isLong ? "md:col-span-2" : ""}`}
       >
         {/* Top Metadata & Action Row */}
         <div className="flex items-center justify-between gap-2 min-w-0">
@@ -1369,7 +1369,7 @@ export default function LexiconVisualStudio({
         )}
 
         {/* 1x4 Task-Oriented Studio Tabs */}
-        <div className="grid grid-cols-2 @[820px]:grid-cols-4 gap-3 w-full">
+        <SidePanelFilterBar className="grid-cols-2 @[820px]:grid-cols-4 gap-3">
           <DashboardStatTile
             variant="filter"
             icon={t("icon_auto_awesome", "auto_awesome")}
@@ -1401,8 +1401,8 @@ export default function LexiconVisualStudio({
             value={
               isTranslating && translateProgress
                 ? `${Math.round(
-                    (translateProgress.completed / Math.max(1, translateProgress.total)) * 100
-                  )}%`
+                  (translateProgress.completed / Math.max(1, translateProgress.total)) * 100
+                )}%`
                 : resolvedLangLabel
             }
             isActive={activeTab === "translate"}
@@ -1420,7 +1420,7 @@ export default function LexiconVisualStudio({
             isActive={activeTab === "settings"}
             onClick={() => setActiveTab("settings")}
           />
-        </div>
+        </SidePanelFilterBar>
       </div>
 
       {/* =====================================================================
@@ -1496,11 +1496,10 @@ export default function LexiconVisualStudio({
                   return (
                     <div
                       key={term.key}
-                      className={`glass-surface rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition-all ${
-                        isCustom
-                          ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
-                          : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                      }`}
+                      className={`glass-surface rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition-all ${isCustom
+                        ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                        }`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <label className="text-[11px] font-black text-[var(--text)] flex items-center gap-1.5 truncate">
@@ -1615,11 +1614,10 @@ export default function LexiconVisualStudio({
                         key={st.id}
                         type="button"
                         onClick={() => setStatusFilter(st.id)}
-                        className={`h-8 px-2.5 rounded-xl border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${
-                          active
-                            ? "sa-glass-pill-active text-[var(--text)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
-                            : "bg-transparent border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-                        }`}
+                        className={`h-8 px-2.5 rounded-xl border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${active
+                          ? "sa-glass-pill-active text-[var(--text)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                          : "bg-transparent border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                          }`}
                       >
                         <span>{st.label}</span>
                         <span className="font-mono opacity-75 tabular-nums">
@@ -1643,11 +1641,10 @@ export default function LexiconVisualStudio({
                   key={sec.id}
                   type="button"
                   onClick={() => setSelectedSection(sec.id)}
-                  className={`h-8 px-3 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
-                    isSelected
-                      ? "sa-glass-pill-active text-[var(--text)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
-                      : "glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
-                  }`}
+                  className={`h-8 px-3 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all ${isSelected
+                    ? "sa-glass-pill-active text-[var(--text)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                    : "glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
+                    }`}
                 >
                   <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                     {sec.icon}
@@ -1695,9 +1692,9 @@ export default function LexiconVisualStudio({
               subtitle={
                 statusFilter === "customized"
                   ? t(
-                      "lex_studio_no_custom_yet",
-                      "No custom string overrides match your filter yet."
-                    )
+                    "lex_studio_no_custom_yet",
+                    "No custom string overrides match your filter yet."
+                  )
                   : undefined
               }
               className="py-10"
@@ -1782,7 +1779,7 @@ export default function LexiconVisualStudio({
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-1">
                     {t("lex_studio_translate_scope_lbl", "Translation Scope")}
                   </label>
-                  <div className="grid grid-cols-1 @[760px]:grid-cols-3 gap-3 w-full">
+                  <SidePanelFilterBar className="@[760px]:grid-cols-3 gap-3">
                     <DashboardStatTile
                       variant="filter"
                       icon={t("icon_bolt", "bolt")}
@@ -1816,7 +1813,7 @@ export default function LexiconVisualStudio({
                       isActive={autoTranslateScope === "all"}
                       onClick={() => setAutoTranslateScope("all")}
                     />
-                  </div>
+                  </SidePanelFilterBar>
                 </div>
 
                 {/* Action & Live Progress Row */}
@@ -1874,7 +1871,7 @@ export default function LexiconVisualStudio({
                         {isTranslating
                           ? t("lex_studio_translating_status", "Translating strings...")
                           : translateStatusMsg ||
-                            t("lex_studio_translate_done", "Auto-translation complete")}
+                          t("lex_studio_translate_done", "Auto-translation complete")}
                       </span>
                       {translateProgress && (
                         <span className="font-mono tabular-nums text-[var(--accent)] shrink-0">
@@ -1981,9 +1978,8 @@ export default function LexiconVisualStudio({
                         {t("lex_studio_replace_custom_only", "Customized strings only")}
                       </span>
                       <div
-                        className={`sa-glass-toggle shrink-0 ${
-                          replaceCustomizedOnly ? "is-on" : ""
-                        }`}
+                        className={`sa-glass-toggle shrink-0 ${replaceCustomizedOnly ? "is-on" : ""
+                          }`}
                         aria-checked={replaceCustomizedOnly}
                       >
                         <div className="sa-glass-toggle-thumb" />
@@ -2145,15 +2141,15 @@ export default function LexiconVisualStudio({
                   <span className="text-[11px] font-medium text-[var(--subtext)]">
                     {isBuiltinFullLexicon
                       ? t(
-                          "lex_studio_baseline_summary_desc",
-                          "Every other {Lexicon} pack automatically inherits missing strings from this file."
-                        )
+                        "lex_studio_baseline_summary_desc",
+                        "Every other {Lexicon} pack automatically inherits missing strings from this file."
+                      )
                       : t(
-                          "lex_studio_sparse_summary_desc",
-                          "Stores {custom} custom entries and automatically inherits {inherited} default strings from en-default.json."
-                        )
-                          .replace("{custom}", totalCustomizedCount.toLocaleString())
-                          .replace("{inherited}", inheritedDefaultCount.toLocaleString())}
+                        "lex_studio_sparse_summary_desc",
+                        "Stores {custom} custom entries and automatically inherits {inherited} default strings from en-default.json."
+                      )
+                        .replace("{custom}", totalCustomizedCount.toLocaleString())
+                        .replace("{inherited}", inheritedDefaultCount.toLocaleString())}
                   </span>
                 </div>
 
@@ -2248,12 +2244,12 @@ export default function LexiconVisualStudio({
                 selectedIconCategory === "core_os"
                   ? Array.from(new Set([...overriddenIcons.map((o) => o.baseGlyph), ...coreOsIcons]))
                   : ICON_CATEGORIES.find((c) => c.name === selectedIconCategory)?.icons ||
-                    coreOsIcons;
+                  coreOsIcons;
 
               const visibleIcons = iconSearchQuery.trim()
                 ? allKnownIcons.filter((ic) =>
-                    ic.toLowerCase().includes(iconSearchQuery.trim().toLowerCase())
-                  )
+                  ic.toLowerCase().includes(iconSearchQuery.trim().toLowerCase())
+                )
                 : baseCategoryIcons;
 
               return (
@@ -2406,11 +2402,10 @@ export default function LexiconVisualStudio({
                         return (
                           <div
                             key={iconKey}
-                            className={`glass-surface rounded-2xl p-3 border flex items-center justify-between gap-2 relative transition-all ${
-                              isOverridden
-                                ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
-                                : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                            }`}
+                            className={`glass-surface rounded-2xl p-3 border flex items-center justify-between gap-2 relative transition-all ${isOverridden
+                              ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                              : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                              }`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
                               <div className="w-8 h-8 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--accent)] shrink-0">

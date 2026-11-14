@@ -587,7 +587,7 @@ export function SystemQueuesSidePanel({
                   subtitle={q.subtitle}
                   description={q.description}
                   imageOverlay={
-                    <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 flex-wrap">
+                    <div className="absolute top-3 inset-x-3 z-20 flex items-center gap-1.5 flex-wrap">
                       <span className={VAULT_CHIP_CLASS}>
                         <span
                           className={`material-symbols-rounded !text-[12px] shrink-0 ${q.badgeColorClass}`}

@@ -27,6 +27,12 @@ export function useGlobalListeners(
     const accumulatedPaths: Set<string> = new Set();
 
     tauriBridge.listenToVaultChanges((path?: string) => {
+      if (
+        typeof localStorage !== "undefined" &&
+        localStorage.getItem("sanctuary_live_vault_watcher_enabled") === "false"
+      ) {
+        return;
+      }
       const modalState = useModalStore.getState();
       if (modalState.isScanning || modalState.isSilentScanning) {
         return;

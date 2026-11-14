@@ -40,6 +40,7 @@ import {
   PanelHeaderButton,
   PanelHeaderGroup,
   SidePanel,
+  SidePanelFilterBar,
   VAULT_CHIP_CLASS,
 } from "./shared";
 
@@ -955,7 +956,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
 
           {/* Primary Mode Switcher Tiles (Sign In vs Create Account) */}
           {!isPasswordRecovery && !showMfaChallenge && signupStep !== "security" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
+            <SidePanelFilterBar className="sm:grid-cols-2 gap-3 shrink-0">
               <DashboardStatTile
                 variant="filter"
                 className="!w-full"
@@ -986,7 +987,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                   setStatus("");
                 }}
               />
-            </div>
+            </SidePanelFilterBar>
           )}
 
           {/* Status / Error Feedback Banner */}
@@ -1170,7 +1171,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
           ) : showMfaChallenge ? (
             <>
               {mfaPasskeys.length > 0 && mfaTotpFactors.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
+                <SidePanelFilterBar className="sm:grid-cols-2 gap-3 shrink-0">
                   <DashboardStatTile
                     variant="filter"
                     className="!w-full"
@@ -1201,7 +1202,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
                       setStatus("");
                     }}
                   />
-                </div>
+                </SidePanelFilterBar>
               )}
 
               {mfaMode === "passkey" && mfaPasskeys.length > 0 ? (

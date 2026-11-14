@@ -361,13 +361,14 @@ export function MissingImportsAlert({
             />
           </div>
 
-          <ActionButton
-            variant="glass"
-            icon={t("icon_check", "check")}
-            label={t("confirm", "Confirm Import")}
-            onClick={() => finalizeImport(pendingImportSet)}
-            className="w-full"
-          />
+          <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
+            <ActionButton
+              variant="glass"
+              icon={t("icon_check", "check")}
+              label={t("confirm", "Confirm Import")}
+              onClick={() => finalizeImport(pendingImportSet)}
+            />
+          </div>
         </SidePanelHeroCard>
 
         {premiumMods.length > 0 && (

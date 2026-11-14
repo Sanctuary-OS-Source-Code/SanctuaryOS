@@ -25,6 +25,7 @@ import {
 import {
   ActionButton,
   DashboardStatTile,
+  SidePanelFilterBar,
   SidePanel,
 } from "../shared";
 import {
@@ -645,7 +646,7 @@ export function DevBuildClearanceGate() {
 
           {/* 3. Primary Mode Switcher Tiles (Sign In vs Create Account) */}
           {!showMfaChallenge && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
               <DashboardStatTile
                 variant="filter"
                 className="!w-full"
@@ -672,7 +673,7 @@ export function DevBuildClearanceGate() {
                   setAuthStatus("");
                 }}
               />
-            </div>
+            </SidePanelFilterBar>
           )}
 
           {/* 4. Status / Error Feedback Banner */}
@@ -705,7 +706,7 @@ export function DevBuildClearanceGate() {
           {showMfaChallenge ? (
             <>
               {mfaPasskeys.length > 0 && mfaTotpFactors.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
                   <DashboardStatTile
                     variant="filter"
                     className="!w-full"
@@ -736,7 +737,7 @@ export function DevBuildClearanceGate() {
                       setAuthStatus("");
                     }}
                   />
-                </div>
+                </SidePanelFilterBar>
               )}
 
               {mfaMode === "passkey" && mfaPasskeys.length > 0 ? (

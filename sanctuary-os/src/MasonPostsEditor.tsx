@@ -5,7 +5,7 @@ import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import {
   SidePanel, EmptyState, LinkAssetSidePanel, PanelHeaderGroup, PanelHeaderButton,
-  extractPostImage, SidePanelPillToggle, UniversalGroup
+  extractPostImage, getSafeEditorMarkdown, SidePanelPillToggle, UniversalGroup
 } from "./shared";
 import { HubOverviewSection } from "./components/universal/UniversalLayout";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
@@ -129,10 +129,12 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       Image
     ],
     content: content,
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor: ed }) => {
+      if (!ed || ed.isDestroyed) return;
       if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = setTimeout(() => {
-        setContent((editor.storage as any).markdown.getMarkdown());
+        if (!ed || ed.isDestroyed || !(ed.storage as any)?.markdown) return;
+        setContent(getSafeEditorMarkdown(ed));
       }, 500);
     },
     editorProps: {
@@ -282,8 +284,8 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     e.preventDefault();
 
     let finalContent = content;
-    if (editor && editorMode === "wysiwyg") {
-      finalContent = (editor.storage as any).markdown.getMarkdown();
+    if (editor && !editor.isDestroyed && editorMode === "wysiwyg") {
+      finalContent = getSafeEditorMarkdown(editor) || content;
       setContent(finalContent);
     }
 
@@ -418,7 +420,7 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       if (activeTab === "active" && p.is_active === false) return false;
       if (activeTab === "inactive" && p.is_active !== false) return false;
       return p.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             p.content?.toLowerCase().includes(searchTerm.toLowerCase());
+        p.content?.toLowerCase().includes(searchTerm.toLowerCase());
     });
   }, [posts, searchTerm, activeTab]);
   const draftKeysStr = useMemo(() => Object.keys(masonHubDrafts).sort().join(','), [masonHubDrafts]);

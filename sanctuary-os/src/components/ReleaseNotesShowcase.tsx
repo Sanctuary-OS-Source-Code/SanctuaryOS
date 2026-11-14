@@ -12,11 +12,13 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
+  SidePanelFilterBar,
   StatBox,
   HoverTooltip,
   LinkAssetSidePanel,
   handleOpenUrl,
-  stripMarkdown
+  stripMarkdown,
+  getSafeEditorMarkdown
 } from "../shared";
 import { SidePanelHeroCard } from "./layouts/ElevatedHubLayout";
 import { UniversalCard } from "./universal/UniversalCard";
@@ -1857,9 +1859,11 @@ export function ReleaseNotesShowcase({
     extensions: [StarterKit, Markdown, IconPlugin, Image],
     content: draftBody,
     onUpdate: ({ editor: ed }) => {
+      if (!ed || ed.isDestroyed) return;
       if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = setTimeout(() => {
-        setDraftBody((ed.storage as any).markdown.getMarkdown());
+        if (!ed || ed.isDestroyed || !(ed.storage as any)?.markdown) return;
+        setDraftBody(getSafeEditorMarkdown(ed));
       }, 300);
     },
     editorProps: {
@@ -2594,8 +2598,8 @@ export function ReleaseNotesShowcase({
       updateTimeoutRef.current = null;
     }
     let finalBody = draftBody;
-    if (editor && editorMode === "wysiwyg") {
-      finalBody = (editor.storage as any).markdown.getMarkdown();
+    if (editor && !editor.isDestroyed && editorMode === "wysiwyg") {
+      finalBody = getSafeEditorMarkdown(editor) || draftBody;
       setDraftBody(finalBody);
     }
     if (!finalBody.trim()) return;
@@ -3360,7 +3364,7 @@ export function ReleaseNotesShowcase({
       >
         <div className="flex flex-col gap-6 pb-12 w-full">
           {/* StatTile Filter Grid inside SidePanel */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+          <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -3391,7 +3395,7 @@ export function ReleaseNotesShowcase({
               isActive={false}
               onClick={() => handleOpenUrl(activeGitHubUrl)}
             />
-          </div>
+          </SidePanelFilterBar>
 
           <SidePanelHeroCard
             title={activeTitle}
@@ -3531,7 +3535,7 @@ export function ReleaseNotesShowcase({
           >
             <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
               {/* Switch between Public and Dev Release Channel + Post vs Changelog */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full">
+              <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-3">
                 <DashboardStatTile
                   variant="filter"
                   className="!w-full"
@@ -3582,7 +3586,7 @@ export function ReleaseNotesShowcase({
                   isActive={editorChannel === "dev" && editorDocType === "changelog"}
                   onClick={() => populateDraftForChannel("dev", "changelog")}
                 />
-              </div>
+              </SidePanelFilterBar>
 
               {editorDocType === "post" && (
                 <UniversalGroup

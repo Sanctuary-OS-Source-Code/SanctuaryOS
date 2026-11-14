@@ -8,6 +8,7 @@ import {
   EmptyState,
   ActionPill,
   DashboardStatTile,
+  SidePanelFilterBar,
   PanelHeaderGroup,
   PanelHeaderButton,
   HoverTooltip,
@@ -125,9 +126,9 @@ export function WorkspaceSidePanel({
         const existingTarget = globalConfig.workspaces.find(
           (w: any) =>
             String(w.id || "").toLowerCase() ===
-              String(globalConfig.active_workspace_id || "").toLowerCase() ||
+            String(globalConfig.active_workspace_id || "").toLowerCase() ||
             String(w.schema_id || "").toLowerCase() ===
-              String(targetSchemaId || "").toLowerCase()
+            String(targetSchemaId || "").toLowerCase()
         );
         if (!existingTarget) {
           const masterVault = globalConfig.vault_path || "";
@@ -285,10 +286,10 @@ export function WorkspaceSidePanel({
     const game = card.game;
     const isActive =
       String(ws.id || "").toLowerCase() ===
-        String(activeWorkspaceId || "").toLowerCase() ||
+      String(activeWorkspaceId || "").toLowerCase() ||
       (isDesktop() &&
         String(ws.schema_id || "").toLowerCase() ===
-          String(activeWorkspaceId || "").toLowerCase());
+        String(activeWorkspaceId || "").toLowerCase());
     const isPinned = isWorkspacePinned(card, pinnedIds);
     const isWorkspaceConfigured = isWorkspaceSetupConfigured(
       card,
@@ -308,20 +309,18 @@ export function WorkspaceSidePanel({
             selectWorkspace(ws);
           }
         }}
-        className={`relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 border text-left group cursor-pointer transition-all duration-300 ${
-          isActive
+        className={`relative glass-panel p-5 rounded-2xl flex flex-col gap-3.5 border text-left group cursor-pointer transition-all duration-300 ${isActive
             ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_65%,transparent)]"
             : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
-        }`}
+          }`}
       >
         {/* Top Row: Icon Box on Left + Status Badge & Pin Button on Right */}
         <div className="flex justify-between items-start gap-3 relative z-10">
           <div
-            className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors duration-300 ${
-              isActive
+            className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors duration-300 ${isActive
                 ? "text-[var(--accent)]"
                 : "text-[var(--subtext)] group-hover:text-[var(--accent)]"
-            }`}
+              }`}
           >
             {game.icon ? (
               <img
@@ -374,11 +373,10 @@ export function WorkspaceSidePanel({
               className="h-6 w-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center transition-all relative group/pin cursor-pointer"
             >
               <span
-                className={`material-symbols-outlined !text-[13px] transition-colors ${
-                  isPinned
+                className={`material-symbols-outlined !text-[13px] transition-colors ${isPinned
                     ? "text-[var(--accent)] opacity-90 group-hover/pin:opacity-100"
                     : "text-[var(--subtext)] opacity-55 group-hover/pin:opacity-100 group-hover/pin:text-[var(--text)]"
-                }`}
+                  }`}
                 style={{
                   fontVariationSettings: isPinned ? '"FILL" 1' : '"FILL" 0',
                 }}
@@ -399,11 +397,10 @@ export function WorkspaceSidePanel({
         {/* Middle Block: Overline + Prominent Title + Concise Description */}
         <div className="flex flex-col gap-1 relative z-10 mt-0.5">
           <span
-            className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${
-              isActive
+            className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${isActive
                 ? "text-[var(--accent)]"
                 : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--accent)] group-hover:opacity-100"
-            }`}
+              }`}
           >
             {t("workspace_card_overline", "Game Workspace")}
           </span>
@@ -413,13 +410,13 @@ export function WorkspaceSidePanel({
           <p className="text-[11px] font-medium text-[var(--subtext)] opacity-80 leading-relaxed m-0">
             {isActive
               ? t(
-                  "workspace_card_desc_active",
-                  "Currently active environment for {mod} deployment, diagnostics, and backups."
-                )
+                "workspace_card_desc_active",
+                "Currently active environment for {mod} deployment, diagnostics, and backups."
+              )
               : t(
-                  "workspace_card_desc_available",
-                  "Select to mount this game workspace and load its {vault}, {blueprints}, and tools."
-                )}
+                "workspace_card_desc_available",
+                "Select to mount this game workspace and load its {vault}, {blueprints}, and tools."
+              )}
           </p>
         </div>
 
@@ -429,11 +426,10 @@ export function WorkspaceSidePanel({
             {ws.schema_id || game.schema_id || ws.id}
           </span>
           <span
-            className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shrink-0 transition-colors ${
-              isActive
+            className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shrink-0 transition-colors ${isActive
                 ? "text-[var(--accent)]"
                 : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--accent)] group-hover:opacity-100"
-            }`}
+              }`}
           >
             <span>
               {isActive && view !== "landing"
@@ -495,7 +491,7 @@ export function WorkspaceSidePanel({
         />
 
         {/* 2-Column Filter Tiles */}
-        <div className="grid grid-cols-2 gap-3">
+        <SidePanelFilterBar className="grid-cols-2 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -514,7 +510,7 @@ export function WorkspaceSidePanel({
             active={filterMode === "pinned"}
             onClick={() => setFilterMode("pinned")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {/* Search & Filter Bar */}
         <ActionPill
@@ -547,9 +543,8 @@ export function WorkspaceSidePanel({
                           key={opt.id}
                           type="button"
                           onClick={() => setFilterMode(opt.id as any)}
-                          className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
-                            active ? "is-selected font-bold" : "font-semibold"
-                          }`}
+                          className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${active ? "is-selected font-bold" : "font-semibold"
+                            }`}
                         >
                           <span className="truncate flex items-center gap-2 min-w-0">
                             {opt.label}
@@ -587,9 +582,8 @@ export function WorkspaceSidePanel({
                           key={opt.id}
                           type="button"
                           onClick={() => setSortMode(opt.id as any)}
-                          className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
-                            active ? "is-selected font-bold" : "font-semibold"
-                          }`}
+                          className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${active ? "is-selected font-bold" : "font-semibold"
+                            }`}
                         >
                           <span className="truncate flex items-center gap-2 min-w-0">
                             {opt.label}

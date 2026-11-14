@@ -12,6 +12,7 @@ import TicketLogViewer from "./side-panels/TicketLogViewer";
 import { UniversalInput, UniversalTextArea, UniversalToggle, SidePanelHeroCard, StatBox } from "./components/universal/UniversalLayout";
 import { getSupporterState, findLocalMasonSupporterPass, isFoundryPatron, LocalMasonSupporter } from "./utils/supporterManager";
 import { scrubLogUserData } from "./utils/logScrubber";
+import { isLocalModKnownTier0, verifyKnownTier0CloudHashes } from "./components/LabVerificationGate";
 
 export default function SupportHub() {
   const activeGameSchema = useStore(state => state.activeGameSchema);
@@ -441,36 +442,88 @@ export default function SupportHub() {
 
       let hasViolations = false;
       let violations: string[] = [];
-      if (activeCategory?.requires_target_mod && targetModId) {
-        const m = storeState.modList.find(ml => ml.id === targetModId);
-        if (m && m.compliance_tier >= 1 && m.compliance_tier <= 4) {
+      let resolvedCloudTargetModId: string | null = null;
+      const hashesToVerifyInCloud: string[] = [];
+
+      if (activeCategory?.requires_target_mod || targetModId) {
+        const m = storeState.modList.find(
+          (ml: any) => ml.dbId === targetModId || ml.id === targetModId || ml.hash === targetModId
+        );
+        if (!m || !isLocalModKnownTier0(m)) {
           hasViolations = true;
-          violations.push(m.displayName || m.name);
+          if (m) violations.push(m.displayName || m.name);
+        } else {
+          const tHash = String(m.hash || (m as any).dna_hash || "").trim();
+          if (tHash) hashesToVerifyInCloud.push(tHash);
+          resolvedCloudTargetModId = String(m.dbId || m.id || "").trim() || null;
         }
       }
       if (activeCategory?.requires_target_mod && activeSet && activeSet.mods) {
-        activeSet.mods.forEach((modName: string) => {
-          const exactMatch = storeState.modList.find((ml: any) => ml.name === modName || ml.displayName === modName);
-          if (exactMatch && exactMatch.compliance_tier >= 1 && exactMatch.compliance_tier <= 4) {
-            hasViolations = true;
-            violations.push(exactMatch.displayName || exactMatch.name);
-            return;
-          }
+        activeSet.mods.forEach((rawModEntry: any) => {
+          const modName =
+            typeof rawModEntry === "string"
+              ? rawModEntry
+              : String(rawModEntry?.name || rawModEntry?.path || "");
+          if (!modName) return;
+          const exactMatch = storeState.modList.find(
+            (ml: any) => ml.name === modName || ml.displayName === modName
+          );
+          const resolvedMod =
+            exactMatch ||
+            storeState.modList.find((ml: any) => {
+              const mBase = ml.name
+                ?.split(/[\\/]/)
+                .pop()
+                ?.replace(getExtensionRegex(activeGameSchema), "");
+              const targetBase = modName
+                .split(/[\\/]/)
+                .pop()
+                ?.replace(getExtensionRegex(activeGameSchema), "");
+              return mBase && targetBase && mBase === targetBase;
+            });
 
-          const fallbackMatch = storeState.modList.find((ml: any) => {
-            const mBase = ml.name?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
-            const targetBase = modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
-            return mBase && targetBase && mBase === targetBase;
-          });
-          if (fallbackMatch && fallbackMatch.compliance_tier >= 1 && fallbackMatch.compliance_tier <= 4) {
+          if (!resolvedMod || !isLocalModKnownTier0(resolvedMod)) {
             hasViolations = true;
-            violations.push(fallbackMatch.displayName || fallbackMatch.name);
+            violations.push(resolvedMod?.displayName || resolvedMod?.name || modName);
+          } else {
+            const rHash = String(resolvedMod.hash || (resolvedMod as any).dna_hash || "").trim();
+            if (rHash) hashesToVerifyInCloud.push(rHash);
           }
         });
       }
 
-      if (hasViolations && activeCategory?.requires_target_mod) {
-        invoke("write_os_log", { message: "Support ticket submitted with policy violations: " + violations.join(", "), level: "WARNING" }).catch(console.error);
+      if (hasViolations && (activeCategory?.requires_target_mod || targetModId)) {
+        const uniqueViolations = [...new Set(violations)];
+        setPolicyViolations(uniqueViolations);
+        invoke("write_os_log", {
+          message: "Blocked support ticket with non-Tier-0 or unknown hashes: " + uniqueViolations.join(", "),
+          level: "WARNING",
+        }).catch(console.error);
+        throw new Error(
+          t(
+            "support_err_known_tier0_required",
+            "Architect support tickets only accept known Tier 0 {mods}. Unknown Tier 0 {mods} must be uploaded through the Scout Queue or {Mason} Queue with a passing {Lab} test."
+          )
+        );
+      }
+
+      if (hashesToVerifyInCloud.length > 0) {
+        const cloudCheck = await verifyKnownTier0CloudHashes(hashesToVerifyInCloud);
+        if (!cloudCheck.allowed) {
+          throw new Error(
+            t(
+              "support_err_known_tier0_required",
+              "Architect support tickets only accept known Tier 0 {mods}. Unknown Tier 0 {mods} must be uploaded through the Scout Queue or {Mason} Queue with a passing {Lab} test."
+            )
+          );
+        }
+        const selectedTargetMod = storeState.modList.find(
+          (ml: any) => ml.dbId === targetModId || ml.id === targetModId || ml.hash === targetModId
+        );
+        const selHash = String(selectedTargetMod?.hash || (selectedTargetMod as any)?.dna_hash || "").trim();
+        if (selHash && cloudCheck.verifiedMap[selHash]?.modId) {
+          resolvedCloudTargetModId = cloudCheck.verifiedMap[selHash].modId;
+        }
       }
 
       let finalLogs = "";
@@ -587,7 +640,7 @@ export default function SupportHub() {
         description: scrubLogUserData(description || "No description provided."),
         status: "open",
         metadata: {
-          target_mod_id: activeCategory?.requires_target_mod ? (targetModId || null) : null,
+          target_mod_id: activeCategory?.requires_target_mod ? (resolvedCloudTargetModId || null) : null,
           target_user_id: activeCategory?.requires_target_user ? (targetUserId || null) : null,
           logs: scrubbedFinalLogs,
           custom_fields: scrubbedCustomFields,
@@ -600,7 +653,6 @@ export default function SupportHub() {
             is_foundry_patron: true,
             patron_months: patronMonths,
           } : {}),
-          ...(hasViolations && activeCategory?.requires_target_mod ? { restricted_violations: [...new Set(violations)] } : {})
         }
       }]);
 
@@ -681,8 +733,9 @@ export default function SupportHub() {
     )
   );
 
-  const selectedModItem = modList.find(
-    (m: any) => m.id === targetModId || m.hash === targetModId
+  const eligibleTargetMods = modList.filter((m: any) => isLocalModKnownTier0(m));
+  const selectedModItem = eligibleTargetMods.find(
+    (m: any) => m.dbId === targetModId || m.id === targetModId || m.hash === targetModId
   );
 
   const getStepSummary = (card: any): string => {
@@ -1067,10 +1120,10 @@ export default function SupportHub() {
                         {card.type === 'TARGET_MOD' && (
                           <div className="flex flex-col gap-4 relative z-[60]">
                             <ModSearchDropdown
-                              modList={modList}
+                              modList={eligibleTargetMods}
                               placeholder={t("support_placeholder_mod_uuid", "{Mod} UUID...") || "Select Mod..."}
                               selectedItem={selectedModItem || (targetModId ? { displayName: targetModId } : null)}
-                              onSelect={(m: any) => setTargetModId(m.id || m.hash)}
+                              onSelect={(m: any) => setTargetModId(m.dbId || m.id || m.hash)}
                               onClear={() => setTargetModId("")}
                             />
                             {matchedSupporterPass && (

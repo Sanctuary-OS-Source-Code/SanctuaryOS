@@ -17,7 +17,13 @@ import {
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import MasonFeed from "./MasonFeed";
-import { dispatchSanctuaryNotification } from "./utils/notificationHelper";
+import {
+  dispatchSanctuaryNotification,
+  dismissGlobalAlert,
+  getNotificationMode,
+  isGlobalAlertDismissed,
+  syncCrossDeviceNotificationState,
+} from "./utils/notificationHelper";
 
 import { fetchEncryptedVaultCompanionSnapshots, syncDesktopCompanionRadarSnapshot, VaultCompanionSnapshot, VaultCompanionArtifact } from "./utils/stagingCrypto";
 import { groupUpdateMods } from './side-panels/CommandCenterSidePanels';
@@ -132,7 +138,17 @@ export default function CommandCenter({
   const [alertsPanelMode, setAlertsPanelMode] = useState<"critical" | "alert" | null>(null);
   const [viewingPost, setViewingPost] = useState<any>(null);
   const [urgentBroadcast, setUrgentBroadcast] = useState<any>(null);
-  const [dismissedBroadcastId, setDismissedBroadcastId] = useState(localStorage.getItem('sanctuary_dismissed_alert_id'));
+  const [alertSyncTick, setAlertSyncTick] = useState(0);
+
+  useEffect(() => {
+    const bumpAlertSync = () => setAlertSyncTick((n) => n + 1);
+    window.addEventListener("sanctuary_global_alert_sync", bumpAlertSync);
+    window.addEventListener("sanctuary_notification_prefs_changed", bumpAlertSync);
+    return () => {
+      window.removeEventListener("sanctuary_global_alert_sync", bumpAlertSync);
+      window.removeEventListener("sanctuary_notification_prefs_changed", bumpAlertSync);
+    };
+  }, []);
   const [nexusCount, setNexusCount] = useState<number | "-">(() => {
     const hs = (window as any).__sanctuaryCache?.nexus?.homeStats;
     if (hs && typeof hs.artifacts === "number") {
@@ -313,18 +329,22 @@ export default function CommandCenter({
         if (cancelled || !navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
 
         const fetchUrgent = async () => {
+          if (session?.user?.id) {
+            await syncCrossDeviceNotificationState(session);
+          }
           const { data } = await supabase.from('system_broadcasts').select('*').eq('is_active', true).eq('is_pinned', true).or('target_audience.ilike.%All%,target_audience.eq.Citizens,target_audience.ilike."Citizens,%",target_audience.ilike."%,Citizens,%",target_audience.ilike."%,Citizens"').order('created_at', { ascending: false }).limit(1);
           if (cancelled) return;
           if (data && data.length > 0) {
             setUrgentBroadcast((prev: any) => {
               if (!prev || prev.id !== data[0].id) {
-                if (localStorage.getItem("sanctuary_dismissed_alert_id") !== String(data[0].id)) {
+                if (!isGlobalAlertDismissed(data[0].id, activeWorkspaceId)) {
                   dispatchSanctuaryNotification({
                     uniqueId: `urgent_broadcast:${data[0].id}`,
                     category: 'alert_banner',
+                    spokeId: activeWorkspaceId || undefined,
                     title: data[0].title || t('notify_alert_banner', 'Urgent Global Alert'),
                     body: data[0].message || data[0].content || '',
-                    data: { broadcastId: data[0].id, type: 'urgent_broadcast' },
+                    data: { broadcastId: data[0].id, referenceId: data[0].id, type: 'urgent_broadcast' },
                   });
                 }
               }
@@ -1053,12 +1073,13 @@ export default function CommandCenter({
 
 
       {(() => {
+        void alertSyncTick;
         const showCritical = (radarTier4Count + radarBrokenCount) > 0;
         const showAlerts = (radarTier3Count + radarUnstableCount) > 0;
         const showUrgentBroadcast = Boolean(
           urgentBroadcast &&
-          dismissedBroadcastId !== String(urgentBroadcast.id) &&
-          localStorage.getItem("sanctuary_notify_alert_banner") !== "false"
+          !isGlobalAlertDismissed(urgentBroadcast.id, activeWorkspaceId) &&
+          getNotificationMode("alert_banner", activeWorkspaceId) !== "NONE"
         );
 
         const systemTiles: React.ReactNode[] = [];
@@ -1116,8 +1137,8 @@ export default function CommandCenter({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  localStorage.setItem("sanctuary_dismissed_alert_id", String(urgentBroadcast.id));
-                  setDismissedBroadcastId(String(urgentBroadcast.id));
+                  dismissGlobalAlert(urgentBroadcast.id, activeWorkspaceId);
+                  setAlertSyncTick((n) => n + 1);
                 }}
                 className="absolute top-3.5 right-3.5 w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_42%,transparent)] text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_65%,transparent)] flex items-center justify-center opacity-0 group-hover/broadcast:opacity-100 transition-all duration-300 z-20 hover:scale-105 cursor-pointer"
               >
@@ -1765,21 +1786,31 @@ export default function CommandCenter({
               </>
             }
           >
-            <CommandScreenQuickLink
-              icon={
-                urgentBroadcast
-                  ? t("icon_priority_high", "priority_high")
-                  : t("icon_campaign", "campaign")
-              }
-              title={t("title_sanctuary_alerts", "Sanctuary Alerts")}
-              subtitle={
-                urgentBroadcast
-                  ? t("urgent_alert_active", "Urgent Alert Active")
-                  : t("view_active_advisories", "View Platform Advisories")
-              }
-              isAlert={Boolean(urgentBroadcast)}
-              onClick={() => setIsAlertsOpen(true)}
-            />
+            {(() => {
+              void alertSyncTick;
+              const isUrgentVisible = Boolean(
+                urgentBroadcast &&
+                !isGlobalAlertDismissed(urgentBroadcast.id, activeWorkspaceId) &&
+                getNotificationMode("alert_banner", activeWorkspaceId) !== "NONE"
+              );
+              return (
+                <CommandScreenQuickLink
+                  icon={
+                    isUrgentVisible
+                      ? t("icon_priority_high", "priority_high")
+                      : t("icon_campaign", "campaign")
+                  }
+                  title={t("title_sanctuary_alerts", "Sanctuary Alerts")}
+                  subtitle={
+                    isUrgentVisible
+                      ? t("urgent_alert_active", "Urgent Alert Active")
+                      : t("view_active_advisories", "View Platform Advisories")
+                  }
+                  isAlert={isUrgentVisible}
+                  onClick={() => setIsAlertsOpen(true)}
+                />
+              );
+            })()}
 
             {hasCcSupport && (
               <CommandScreenQuickLink

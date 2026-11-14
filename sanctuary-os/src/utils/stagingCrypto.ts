@@ -511,6 +511,151 @@ export async function pullEncryptedSupporterVault(
   }
 }
 
+export interface EncryptedNotificationSyncPayload {
+  version: 1;
+  updated_at: string;
+  prefs_updated_at?: number;
+  delivered_ids?: Record<string, number>;
+  read_hub_ids?: Record<string, number>;
+  dismissed_hub_ids?: Record<string, number>;
+  dismissed_global_alerts?: Record<string, number>;
+  prefs?: {
+    os_enabled?: boolean;
+    cross_workspace_enabled?: boolean;
+    allowed_cross_spokes?: string[] | null;
+    mod_alerts_bp_scope?: string;
+    notify_author_only?: boolean;
+    modes_global?: Record<string, string>;
+    modes_by_spoke?: Record<string, Record<string, string>>;
+    muted_spokes_by_category?: Record<string, string[]>;
+    mason_alerts?: Record<string, Record<string, boolean>>;
+  };
+}
+
+export async function deriveUserNotificationSyncToken(
+  userId: string,
+  email?: string,
+  explicitSecret?: string
+): Promise<string> {
+  const secret = await resolveStagingVaultSecret(userId, explicitSecret);
+  return sha256HexUtf8(
+    `sanctuary_notif_sync_v1:${userId}:${(email || "").trim().toLowerCase()}:${secret}`
+  );
+}
+
+export async function pushEncryptedNotificationSyncState(
+  syncPayload: EncryptedNotificationSyncPayload,
+  session: any
+): Promise<boolean> {
+  if (!session?.user?.id) return false;
+  if (
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("sanctuary_local_only") === "true"
+  ) {
+    return false;
+  }
+  if (typeof navigator !== "undefined" && !navigator.onLine) return false;
+  try {
+    const notifToken = await deriveUserNotificationSyncToken(
+      session.user.id,
+      session.user.email
+    );
+    const salt = window.crypto.getRandomValues(new Uint8Array(16));
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const key = await deriveAesGcmKey(session.user.id, session.user.email, salt);
+
+    const rawPlaintext = new TextEncoder().encode(JSON.stringify(syncPayload));
+    const plaintext = await maybeCompressBytes(rawPlaintext);
+    const ciphertext = await window.crypto.subtle.encrypt(
+      { name: "AES-GCM", iv: iv as unknown as BufferSource },
+      key,
+      plaintext as unknown as BufferSource
+    );
+
+    const client = supabaseAuth || supabase;
+    const tenYearsMs = 10 * 365 * 24 * 60 * 60 * 1000;
+    const { data: insertedRows, error } = await client
+      .from("citizen_staging_queue")
+      .insert([
+        {
+          user_token: notifToken,
+          payload_type: "notification_state_sync",
+          encrypted_payload: bytesToBase64(new Uint8Array(ciphertext)),
+          iv: bytesToBase64(iv),
+          salt: bytesToBase64(salt),
+          item_count: 0,
+          expires_at: new Date(Date.now() + tenYearsMs).toISOString(),
+        },
+      ])
+      .select("id");
+    if (error) throw error;
+
+    const insertedId = Array.isArray(insertedRows) ? insertedRows[0]?.id : undefined;
+    if (insertedId) {
+      await client
+        .from("citizen_staging_queue")
+        .delete()
+        .eq("user_token", notifToken)
+        .eq("payload_type", "notification_state_sync")
+        .neq("id", insertedId);
+    }
+    return true;
+  } catch (err) {
+    console.warn("Failed to push Zero-PII notification sync state:", err);
+    return false;
+  }
+}
+
+export async function pullEncryptedNotificationSyncState(
+  session: any
+): Promise<EncryptedNotificationSyncPayload | null> {
+  if (!session?.user?.id) return null;
+  if (
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("sanctuary_local_only") === "true"
+  ) {
+    return null;
+  }
+  if (typeof navigator !== "undefined" && !navigator.onLine) return null;
+  try {
+    const notifToken = await deriveUserNotificationSyncToken(
+      session.user.id,
+      session.user.email
+    );
+    const client = supabaseAuth || supabase;
+    const { data, error } = await client
+      .from("citizen_staging_queue")
+      .select("encrypted_payload, iv, salt, created_at")
+      .eq("user_token", notifToken)
+      .eq("payload_type", "notification_state_sync")
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (error || !Array.isArray(data) || data.length === 0) return null;
+    const row = data[0];
+    if (!row?.encrypted_payload || !row?.iv || !row?.salt) return null;
+
+    const salt = base64ToBytes(row.salt);
+    const iv = base64ToBytes(row.iv);
+    const ciphertext = base64ToBytes(row.encrypted_payload);
+    const key = await deriveAesGcmKey(session.user.id, session.user.email, salt);
+    const decryptedBuffer = await window.crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: iv as unknown as BufferSource },
+      key,
+      ciphertext as unknown as BufferSource
+    );
+    const decompressedBytes = await maybeDecompressBytes(new Uint8Array(decryptedBuffer));
+    const parsed = JSON.parse(
+      new TextDecoder().decode(decompressedBytes)
+    ) as EncryptedNotificationSyncPayload;
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch (err) {
+    console.warn("Failed to pull Zero-PII notification sync state:", err);
+    return null;
+  }
+}
+
 export async function deriveUserStagingToken(
   userId: string,
   email?: string,

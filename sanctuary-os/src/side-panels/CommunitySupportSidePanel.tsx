@@ -7,6 +7,7 @@ import {
   UniversalGroup,
   StatBox,
   DashboardStatTile,
+  SidePanelFilterBar,
   ActionButton,
   handleOpenUrl,
 } from "../shared";
@@ -831,7 +832,7 @@ export function CommunitySupportSidePanel({
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         {/* TARGET PARTNER SELECTOR (FOUNDRY & ACTIVE SPOKE — 2 CENTERED TILES) */}
         {!singlePartnerOnly && (
-          <div className="grid grid-cols-2 gap-3 w-full">
+          <SidePanelFilterBar className="grid-cols-2 gap-3">
             {spokeTileOptions.map((opt) => (
               <DashboardStatTile
                 key={opt.id}
@@ -843,7 +844,7 @@ export function CommunitySupportSidePanel({
                 onClick={() => setSelectedPartnerId(String(opt.id))}
               />
             ))}
-          </div>
+          </SidePanelFilterBar>
         )}
 
         {/* SELECTED COMMUNITY DONATION HERO CARD */}
@@ -948,18 +949,19 @@ export function CommunitySupportSidePanel({
           )}
 
           {hasConfiguredUrl ? (
-            <ActionButton
-              variant="glass"
-              icon={t("icon_open_in_new", "open_in_new")}
-              label={
-                selectedPartnerId === "keepers_core"
-                  ? `${t("supporter_keepers_btn", "Support Sanctuary Foundry")} (${selectedPartner.payment_processor})`
-                  : `${t("supporter_btn_donate_partner", "Support Community")} (${selectedPartner.payment_processor})`
-              }
-              disabled={isSyncing}
-              onClick={handleCheckout}
-              className="w-full"
-            />
+            <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
+              <ActionButton
+                variant="glass"
+                icon={t("icon_open_in_new", "open_in_new")}
+                label={
+                  selectedPartnerId === "keepers_core"
+                    ? `${t("supporter_keepers_btn", "Support Sanctuary Foundry")} (${selectedPartner.payment_processor})`
+                    : `${t("supporter_btn_donate_partner", "Support Community")} (${selectedPartner.payment_processor})`
+                }
+                disabled={isSyncing}
+                onClick={handleCheckout}
+              />
+            </div>
           ) : (
             <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] flex flex-col gap-1.5">
               <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 w-fit">
@@ -982,7 +984,7 @@ export function CommunitySupportSidePanel({
         </SidePanelHeroCard>
 
         {/* SUB-TAB NAVIGATION (COST REPORT VS DEV BUILD PERKS) */}
-        <div className="grid grid-cols-2 gap-3 w-full">
+        <SidePanelFilterBar className="grid-cols-2 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -999,7 +1001,7 @@ export function CommunitySupportSidePanel({
             isActive={activeSubTab === "perks"}
             onClick={() => setActiveSubTab("perks")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {activeSubTab === "report" ? (
           <TransparentCostReportBlock goal={activeGoal} />

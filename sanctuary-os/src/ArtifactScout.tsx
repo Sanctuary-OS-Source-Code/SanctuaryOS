@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, ActionPill, PanelHeaderGroup, PanelHeaderButton, StatBox, openModDossier, countBlueprintArtifacts } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTooltip, EmptyState, SidePanel, ActionButton, HoverTabDrawer, VerticalTabButton, DashboardStatTile, SidePanelFilterBar, ActionPill, PanelHeaderGroup, PanelHeaderButton, StatBox, openModDossier, countBlueprintArtifacts } from "./shared";
 import { getExtensionRegex, formatDisplayName, getFileLabel, isScriptExtension } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
 import { UniversalGroup, SidePanelHeroCard } from "./components/layouts/ElevatedHubLayout";
@@ -3696,7 +3696,7 @@ export const ArtifactScout = () => {
                                 >
                                     <div className="flex flex-col gap-3.5 shrink-0">
                                         {/* Tier Filter Tiles (Sanctuary SidePanel standard: DashboardStatTile variant="filter") */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 shrink-0">
+                                        <SidePanelFilterBar className="sm:grid-cols-3 gap-2.5">
                                             {compiledOrder.priorityTiers
                                                 .map((pt, idx) => ({ pt, idx }))
                                                 .filter(({ pt, idx }) => idx > 0 && !!pt.folder)
@@ -3717,7 +3717,7 @@ export const ArtifactScout = () => {
                                                         />
                                                     );
                                                 })}
-                                        </div>
+                                        </SidePanelFilterBar>
 
                                         <p className="text-[11px] font-bold text-[var(--subtext)] opacity-85 m-0">
                                             {t(

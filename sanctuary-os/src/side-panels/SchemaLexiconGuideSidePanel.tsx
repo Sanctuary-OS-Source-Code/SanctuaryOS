@@ -4,6 +4,7 @@ import {
   SidePanel,
   SidePanelHeroCard,
   DashboardStatTile,
+  SidePanelFilterBar,
   UniversalGroup,
   ActionButton,
   PanelHeaderGroup,
@@ -775,7 +776,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
 
         {/* 4-Tile Navigation Grid (Matches the exact 4 tabs of each Studio) */}
         {isSchema ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-3">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -812,9 +813,9 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
               isActive={schemaTab === "rules_capsule"}
               onClick={() => setSchemaTab("rules_capsule")}
             />
-          </div>
+          </SidePanelFilterBar>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-3">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -851,7 +852,7 @@ export const SchemaLexiconGuideSidePanel: React.FC<SchemaLexiconGuideSidePanelPr
               isActive={lexiconTab === "cheatsheet"}
               onClick={() => setLexiconTab("cheatsheet")}
             />
-          </div>
+          </SidePanelFilterBar>
         )}
 
         {/* ================================================================= */}

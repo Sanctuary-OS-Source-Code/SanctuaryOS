@@ -10,6 +10,7 @@ import {
   UniversalGroup,
   StatBox,
   DashboardStatTile,
+  SidePanelFilterBar,
   VAULT_CHIP_CLASS,
   PanelHeaderGroup,
   PanelHeaderButton,
@@ -1020,7 +1021,7 @@ export function WayfinderDonationSetupSidePanel({
         </SidePanelHeroCard>
 
         {/* SUB-TABS INSIDE SIDE PANEL */}
-        <div className="grid grid-cols-2 gap-3 w-full">
+        <SidePanelFilterBar className="grid-cols-2 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -1037,7 +1038,7 @@ export function WayfinderDonationSetupSidePanel({
             isActive={activeSubTab === "checkout"}
             onClick={() => setActiveSubTab("checkout")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {activeSubTab === "report" ? (
           <div className="flex flex-col gap-4">
@@ -1526,7 +1527,7 @@ export function KeeperReleasePipelineSidePanel({
         </SidePanelHeroCard>
 
         {/* SUB-TABS INSIDE SIDE PANEL */}
-        <div className="grid grid-cols-3 gap-2.5 w-full">
+        <SidePanelFilterBar className="grid-cols-3 gap-2.5">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -1551,7 +1552,7 @@ export function KeeperReleasePipelineSidePanel({
             isActive={activeSubTab === "checkout"}
             onClick={() => setActiveSubTab("checkout")}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {activeSubTab === "pipeline" && (
           <UniversalGroup

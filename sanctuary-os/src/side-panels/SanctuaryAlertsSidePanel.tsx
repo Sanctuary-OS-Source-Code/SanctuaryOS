@@ -4,6 +4,7 @@ import { useLexicon } from "../LexiconContext";
 import {
   SidePanel,
   SidePanelHeroCard,
+  SidePanelFilterBar,
   UniversalGroup,
   DashboardStatTile,
   extractPostImage,
@@ -143,10 +144,13 @@ export function SanctuaryAlertsSidePanel({
         iconColorClass="text-[var(--accent)]"
         widthClass="w-[90vw] md:w-[760px]"
         title={t("title_sanctuary_alerts", "Sanctuary Alerts")}
-        subtitle={t("subtitle_sanctuary_alerts", "Official System & Security Advisories")}
+        subtitle={t(
+          "sanctuary_alerts_subtitle",
+          "Official System & Security Advisories"
+        )}
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -174,7 +178,7 @@ export function SanctuaryAlertsSidePanel({
               isActive={filterStatus === "All"}
               onClick={() => setFilterStatus("All")}
             />
-          </div>
+          </SidePanelFilterBar>
 
           <SidePanelHeroCard
             icon={
@@ -183,10 +187,13 @@ export function SanctuaryAlertsSidePanel({
                 : t("icon_notifications", "notifications")
             }
             overline={t("title_sanctuary_alerts", "Sanctuary Alerts")}
-            title={t("subtitle_sanctuary_alerts", "Official System & Security Advisories")}
+            title={t(
+              "sanctuary_alerts_subtitle",
+              "Official System & Security Advisories"
+            )}
             description={t(
-              "alert_card_read_more",
-              "Real-time system dispatches, game version alerts, and security advisories."
+              "sanctuary_alerts_hero_desc",
+              "Real-time system {dispatches}, game version alerts, and security advisories."
             )}
             badge={`${filteredPosts.length}`}
             badgeIcon={t("icon_podcasts", "podcasts")}
@@ -313,7 +320,7 @@ export function SanctuaryAlertsSidePanel({
                           : undefined
                       }
                       imageOverlay={
-                        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+                        <div className="absolute top-3 inset-x-3 flex flex-wrap gap-1.5 z-30 pointer-events-none">
                           <span className={VAULT_CHIP_CLASS}>
                             <span
                               className={`material-symbols-outlined !text-[12px] shrink-0 ${

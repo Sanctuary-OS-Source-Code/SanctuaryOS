@@ -9,6 +9,7 @@ import {
   UniversalGroup,
   StatBox,
   DashboardStatTile,
+  SidePanelFilterBar,
   ActionButton,
   PanelHeaderGroup,
   PanelHeaderButton,
@@ -2788,7 +2789,7 @@ export function MarketBlueprintPanel({
             </div>
           </UniversalGroup>
 
-          <div className="grid grid-cols-2 gap-3">
+          <SidePanelFilterBar className="grid-cols-2 gap-3">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -2813,7 +2814,7 @@ export function MarketBlueprintPanel({
                 setVisibleCount(40);
               }}
             />
-          </div>
+          </SidePanelFilterBar>
 
           <ActionPill
             searchQuery={searchQuery}

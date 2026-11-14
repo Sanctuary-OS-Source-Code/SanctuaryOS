@@ -6,6 +6,7 @@ import CodeSnippetSidebar from "./CodeSnippetSidebar";
 import {
   SidePanel,
   renderTextWithIcons,
+  getSafeEditorMarkdown,
   EmptyState,
   ActionButton,
   PanelHeaderGroup,
@@ -14,6 +15,7 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   DashboardStatTile,
+  SidePanelFilterBar,
   StatBox,
   handleOpenUrl,
 } from "../shared";
@@ -70,11 +72,13 @@ function RichReplyEditor({
       IconPlugin,
     ],
     content: value,
-    onUpdate: ({ editor }) => {
-      setIsEmpty(editor.isEmpty);
+    onUpdate: ({ editor: ed }) => {
+      if (!ed || ed.isDestroyed) return;
+      setIsEmpty(ed.isEmpty);
       if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = setTimeout(() => {
-        onChange((editor.storage as any).markdown.getMarkdown());
+        if (!ed || ed.isDestroyed || !(ed.storage as any)?.markdown) return;
+        onChange(getSafeEditorMarkdown(ed));
       }, 500);
     },
     editorProps: {
@@ -86,8 +90,19 @@ function RichReplyEditor({
   });
 
   useEffect(() => {
-    if (editor && value !== undefined) {
-      const currentContent = (editor.storage as any).markdown.getMarkdown();
+    return () => {
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      editor &&
+      !editor.isDestroyed &&
+      (editor.storage as any)?.markdown &&
+      value !== undefined
+    ) {
+      const currentContent = getSafeEditorMarkdown(editor);
       if (value !== currentContent) {
         if (!editor.isFocused || value === "") {
           editor.commands.setContent(value);
@@ -810,7 +825,7 @@ export default function MasonPostViewer({
       >
         <div className="flex flex-col gap-6 mt-2 relative z-10 w-full pb-8">
           {/* Top StatTile Navigation: View -> Visual / Post (matching Update Post layout without View On GitHub) */}
-          <div className="grid grid-cols-2 gap-4 w-full">
+          <SidePanelFilterBar className="grid-cols-2 gap-4">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -831,7 +846,7 @@ export default function MasonPostViewer({
               isActive={viewMode === "normal"}
               onClick={() => setViewMode("normal")}
             />
-          </div>
+          </SidePanelFilterBar>
 
           <SidePanelHeroCard
             title={renderTextWithIcons(td ? td(post.title || "", { forceTranslate: forceTranslatePost }) : post.title)}

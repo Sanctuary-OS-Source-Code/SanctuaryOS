@@ -12,6 +12,7 @@ import {
   StatBox,
   ActionButton,
   DashboardStatTile,
+  SidePanelFilterBar,
   PanelHeaderGroup,
   PanelHeaderButton,
   VAULT_CHIP_CLASS,
@@ -49,6 +50,12 @@ export function BackupRestoreModals({
   const setIsDefconBackupSession = useModalStore(
     (state) => state.setIsDefconBackupSession
   );
+  const backupRestoreError = useModalStore(
+    (state) => state.backupRestoreError
+  );
+  const setBackupRestoreError = useModalStore(
+    (state) => state.setBackupRestoreError
+  );
 
   const [selectedCompletedIdx, setSelectedCompletedIdx] = useState(0);
   const [activeLocation, setActiveLocation] = useState("");
@@ -73,8 +80,13 @@ export function BackupRestoreModals({
 
   const isDefconPrompt = Boolean(confirmDialog?.isDefcon);
   const isBusy = Boolean(isBackingUp || isRestoring);
+  const isErrorSummary =
+    !isDefconPrompt && !isBusy && Boolean(backupRestoreError);
   const isPostSummary =
-    !isDefconPrompt && !isBusy && completedBackups.length > 0;
+    !isDefconPrompt &&
+    !isBusy &&
+    !isErrorSummary &&
+    completedBackups.length > 0;
 
   useEffect(() => {
     if (!isDefconPrompt || !isDesktop()) return;
@@ -92,7 +104,7 @@ export function BackupRestoreModals({
     };
   }, [isDefconPrompt]);
 
-  const isOpen = isDefconPrompt || isBusy || isPostSummary;
+  const isOpen = isDefconPrompt || isBusy || isErrorSummary || isPostSummary;
   const isLocked = isDefconPrompt || isBusy;
 
   // Apply OS-wide Malware-style lockdown while Defcon Prompt or Active Backup/Restore is running
@@ -147,6 +159,7 @@ export function BackupRestoreModals({
   const handleCloseSummary = () => {
     if (isLocked) return;
     setCompletedBackups([]);
+    setBackupRestoreError(null);
     setShowDefconAlert(false);
     setIsDefconBackupSession(false);
   };
@@ -189,13 +202,19 @@ export function BackupRestoreModals({
         : isEngineRestore
           ? t("overlay_restoring_engine", "Restoring Engine Core")
           : t("overlay_restoring_world", "Restoring World State")
-      : lastOpWasRestore
-        ? t("status_restored", "Restored")
-        : t("tc_complete_title", "Snapshot Complete");
+      : isErrorSummary
+        ? lastOpWasRestore
+          ? t("status_restore_failure", "Restore Failure:")
+              .replace(/:\s*$/, "")
+          : t("alert_backup_failed", "Save File Backup Failed:")
+              .replace(/:\s*$/, "")
+        : lastOpWasRestore
+          ? t("status_restored", "Restored")
+          : t("tc_complete_title", "Snapshot Complete");
 
   const activeSubtitle = isDefconPrompt
     ? t("defcon_panel_subtitle", "Emergency Pre-Patch Protection")
-    : isBusy
+    : isBusy || isErrorSummary
       ? categoryLabel
       : lastOpWasRestore
         ? categoryLabel
@@ -210,9 +229,11 @@ export function BackupRestoreModals({
       ? isBackingUp
         ? t("icon_archive", "archive")
         : t("icon_unarchive", "unarchive")
-      : t("icon_verified", "verified");
+      : isErrorSummary
+        ? t("icon_error", "error")
+        : t("icon_verified", "verified");
 
-  const activeIconColorClass = isDefconPrompt
+  const activeIconColorClass = isDefconPrompt || isErrorSummary
     ? "text-[var(--danger)]"
     : isBusy
       ? isDangerTheme
@@ -633,12 +654,55 @@ export function BackupRestoreModals({
             </>
           )}
 
-          {/* STATE 3: POST-BACKUP SUMMARY & DIFFS (UNLOCKED, STAYS OPEN UNTIL CLOSED) */}
+          {/* STATE 3A: ERROR SUMMARY (NEVER HIDDEN OR SILENT) */}
+          {isErrorSummary && (
+            <div className="glass-panel rounded-2xl p-6 border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] flex flex-col gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined !text-[22px]">
+                    {t("icon_error", "error")}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--danger)]">
+                    {t("error", "Error")}
+                  </span>
+                  <p className="text-sm font-bold text-[var(--text)] leading-relaxed m-0 break-words">
+                    {backupRestoreError}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <ActionButton
+                  variant="glass"
+                  icon={t("icon_close", "close")}
+                  label={t("close", "Close")}
+                  onClick={handleCloseSummary}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* STATE 3: POST-BACKUP / POST-RESTORE SUMMARY & DIFFS (UNLOCKED, STAYS OPEN UNTIL CLOSED) */}
           {isPostSummary && (
             <>
+              {lastOpWasRestore && (
+                <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--success)_40%,transparent)] flex items-center gap-3">
+                  <span className="material-symbols-outlined !text-[20px] text-[var(--success)] shrink-0">
+                    {t("icon_verified", "verified")}
+                  </span>
+                  <span className="text-xs font-bold text-[var(--text)] leading-relaxed">
+                    {t(
+                      "tc_restore_complete_banner",
+                      "Snapshot restored into your active game directory and verified against your {Vault} Save Mirror."
+                    )}
+                  </span>
+                </div>
+              )}
+
               {/* If multiple snapshots were created in this session (e.g., Defcon World State + Engine Core), show a DashboardStatTile switcher */}
               {completedBackups.length > 1 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
                   {completedBackups.map((bName, idx) => {
                     const sig = parseBackupSignatureFallback(bName, t);
                     const isEng = sig.isEngine;
@@ -662,7 +726,7 @@ export function BackupRestoreModals({
                       />
                     );
                   })}
-                </div>
+                </SidePanelFilterBar>
               )}
 
               <TimeCapsuleSnapshotDossier

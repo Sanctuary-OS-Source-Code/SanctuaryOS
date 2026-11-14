@@ -74,27 +74,37 @@ export function ActionButton({
 
   const basePadding = iconOnly
     ? "w-10 h-10 rounded-xl !p-0 shrink-0"
-    : "px-6 py-3.5 rounded-xl";
+    : "px-4 py-3 sm:px-6 sm:py-3.5 rounded-xl";
+
+  const hasFullWidth = className.includes("w-full");
+  const hasFlex1 = className.includes("flex-1");
+  const wrapperWidthClass = iconOnly
+    ? "inline-block shrink-0"
+    : hasFullWidth
+      ? "w-full min-w-0"
+      : hasFlex1
+        ? "flex-1 min-w-0"
+        : "max-w-full";
 
   return (
-    <div className={`relative ${iconOnly ? "inline-block" : className.includes("w-full") ? "w-full" : ""}`}>
+    <div className={`relative ${wrapperWidthClass}`}>
       <button
         type={type}
         form={form}
         onClick={onClick}
         onDoubleClick={onDoubleClick}
         disabled={disabled}
-        className={`relative overflow-hidden border ${basePadding} text-[11px] font-semibold capitalize tracking-wider transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none group ${variantClasses} ${className}`}
+        className={`relative overflow-hidden border ${basePadding} ${hasFlex1 && !hasFullWidth ? "w-full" : ""} max-w-full text-[11px] font-semibold capitalize tracking-wider transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none group ${variantClasses} ${className}`}
       >
         {icon && (
           <span
-            className={`material-symbols-outlined ${iconOnly ? "!text-[18px]" : "!text-[16px]"} ${iconColorClass} relative z-10 transition-transform group-hover:-translate-y-0.5`}
+            className={`material-symbols-outlined shrink-0 ${iconOnly ? "!text-[18px]" : "!text-[16px]"} ${iconColorClass} relative z-10 transition-transform group-hover:-translate-y-0.5`}
           >
             {icon}
           </span>
         )}
         {!iconOnly && (
-          <span className="relative z-10 flex items-center gap-2">
+          <span className="relative z-10 flex items-center gap-2 min-w-0">
             {label}
             {children}
           </span>

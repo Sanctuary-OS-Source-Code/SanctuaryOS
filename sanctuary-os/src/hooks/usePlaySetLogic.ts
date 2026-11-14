@@ -52,18 +52,18 @@ export function compileLoadOrder(
     strategy === "numeric_prefix"
       ? "001_<file>"
       : strategy === "timestamp"
-      ? "mtime"
-      : loadOrderCfg.manifest_file || (strategy === "manifest_list" ? "loadorder.txt" : "");
+        ? "mtime"
+        : loadOrderCfg.manifest_file || (strategy === "manifest_list" ? "loadorder.txt" : "");
   const prefixFormat = loadOrderCfg.prefix_format || "{index:03}_";
   const priorityTiers: { id: string; label: string; folder: string; priority: number }[] =
     Array.isArray(loadOrderCfg.priority_tiers) && loadOrderCfg.priority_tiers.length > 0
       ? [...loadOrderCfg.priority_tiers].sort((a, b) => (a.priority || 0) - (b.priority || 0))
       : [
-          { id: "default", label: "Base Tier", folder: "", priority: 500 },
-          { id: "tier_1", label: "Priority Tier 1", folder: "Sanctuary", priority: 1000 },
-          { id: "tier_2", label: "Priority Tier 2", folder: "Sanctuary2", priority: 2000 },
-          { id: "tier_3", label: "Priority Tier 3", folder: "Sanctuary3", priority: 3000 },
-        ];
+        { id: "default", label: "Base Tier", folder: "", priority: 500 },
+        { id: "tier_1", label: "Priority Tier 1", folder: "Sanctuary", priority: 1000 },
+        { id: "tier_2", label: "Priority Tier 2", folder: "Sanctuary2", priority: 2000 },
+        { id: "tier_3", label: "Priority Tier 3", folder: "Sanctuary3", priority: 3000 },
+      ];
 
   const folderToTierIndex = new Map<string, number>();
   priorityTiers.forEach((tier, idx) => {
@@ -576,8 +576,8 @@ export function unpackBlueprintLoadOrder(
   const rawList: any[] = Array.isArray(rawPayload?.mods)
     ? rawPayload.mods
     : Array.isArray(rawPayload?.artifacts)
-    ? rawPayload.artifacts
-    : [];
+      ? rawPayload.artifacts
+      : [];
 
   const ruleMap = new Map<string, LoadOrderRule>();
   const addRule = (r: any) => {
@@ -810,7 +810,7 @@ export async function precomputeBlueprintConflicts(
             }
           });
         }
-      } catch {}
+      } catch { }
     }
 
     const payload = {
@@ -838,7 +838,7 @@ export async function precomputeBlueprintConflicts(
       window.dispatchEvent(
         new CustomEvent("sanctuary-radar-cache-updated", { detail: { scope: scopeName, payload } })
       );
-    } catch {}
+    } catch { }
 
     return payload;
   } catch (e) {
@@ -941,8 +941,8 @@ function executeConflictOverride(
           loserName ||
           (modPair && modPair.includes("::")
             ? modPair
-                .split("::")
-                .find((part) => !cleanWinner.includes(part.toLowerCase()) && !part.toLowerCase().includes(cleanWinner))
+              .split("::")
+              .find((part) => !cleanWinner.includes(part.toLowerCase()) && !part.toLowerCase().includes(cleanWinner))
             : undefined);
         if (canonicalWinnerFile && resolvedLoser) {
           const rawLoserFile = resolvedLoser.split(/[\\/]/).pop() || resolvedLoser;
@@ -1572,12 +1572,12 @@ export function usePlaySetLogic() {
 
             const kids = targetMod.isVirtual
               ? Array.from(
-                  new Set([
-                    ...(byFamilyOrDbId.get(String(targetMod.dbId)) || []),
-                    ...(bySetId.get(String(targetMod.dbId)) || []),
-                    ...(Array.isArray(targetMod.flavors) ? targetMod.flavors : []),
-                  ])
-                ).filter((m: any) => m && !m.isVirtual && m.name)
+                new Set([
+                  ...(byFamilyOrDbId.get(String(targetMod.dbId)) || []),
+                  ...(bySetId.get(String(targetMod.dbId)) || []),
+                  ...(Array.isArray(targetMod.flavors) ? targetMod.flavors : []),
+                ])
+              ).filter((m: any) => m && !m.isVirtual && m.name)
               : [];
 
             const willEquip = forceActive
@@ -1596,13 +1596,13 @@ export function usePlaySetLogic() {
               const hasFlavors = kids.some((k) => k.relationshipType === "flavor");
               const chosenKids = hasFlavors
                 ? [
-                    ...kids.filter((k) => k.relationshipType !== "flavor"),
-                    ...(kids.some(
-                      (k) => k.relationshipType === "flavor" && isCurrentlyEquipped(k.name)
-                    )
-                      ? []
-                      : kids.filter((k) => k.relationshipType === "flavor").slice(0, 1)),
-                  ]
+                  ...kids.filter((k) => k.relationshipType !== "flavor"),
+                  ...(kids.some(
+                    (k) => k.relationshipType === "flavor" && isCurrentlyEquipped(k.name)
+                  )
+                    ? []
+                    : kids.filter((k) => k.relationshipType === "flavor").slice(0, 1)),
+                ]
                 : kids;
               for (const k of chosenKids) {
                 if (k?.name) {
@@ -1659,19 +1659,19 @@ export function usePlaySetLogic() {
                 const mBaseFam = getPreBaseFamilyKey(m);
                 const isHighlanderSlotRival = Boolean(
                   modSlot &&
-                    mSlot &&
-                    mSlot.key === modSlot.key &&
-                    mBaseFam !== modBaseFam
+                  mSlot &&
+                  mSlot.key === modSlot.key &&
+                  mBaseFam !== modBaseFam
                 );
                 const isIntraFamilyFlavorRival = Boolean(
                   modObj.relationshipType === "flavor" &&
-                    m.relationshipType === "flavor" &&
-                    modBaseFam &&
-                    mBaseFam === modBaseFam
+                  m.relationshipType === "flavor" &&
+                  modBaseFam &&
+                  mBaseFam === modBaseFam
                 );
                 const isCommunityRival = Boolean(
                   m.communityGroupId &&
-                    String(m.communityGroupId) === String(modObj.communityGroupId)
+                  String(m.communityGroupId) === String(modObj.communityGroupId)
                 );
                 const isBetaRival =
                   ((modObj.relationshipType !== "beta" &&
@@ -2071,19 +2071,19 @@ export function usePlaySetLogic() {
               const mBaseFam = getModBaseFamilyKey(m);
               const isHighlanderSlotRival = Boolean(
                 modSlot &&
-                  mSlot &&
-                  mSlot.key === modSlot.key &&
-                  mBaseFam !== modBaseFam
+                mSlot &&
+                mSlot.key === modSlot.key &&
+                mBaseFam !== modBaseFam
               );
               const isIntraFamilyFlavorRival = Boolean(
                 modObj.relationshipType === "flavor" &&
-                  m.relationshipType === "flavor" &&
-                  modBaseFam &&
-                  mBaseFam === modBaseFam
+                m.relationshipType === "flavor" &&
+                modBaseFam &&
+                mBaseFam === modBaseFam
               );
               const isCommunityRival = Boolean(
                 m.communityGroupId &&
-                  String(m.communityGroupId) === String(modObj.communityGroupId)
+                String(m.communityGroupId) === String(modObj.communityGroupId)
               );
               const isBetaRival =
                 ((modObj.relationshipType !== "beta" && m.relationshipType === "beta") ||
@@ -2141,7 +2141,7 @@ export function usePlaySetLogic() {
                 if (matchedMod && matchedMod.name) {
                   deepDelete(matchedMod.name, true);
                   setStatus(
-                    `${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(matchedMod.displayName || matchedMod.name)} ${t("artifact_removed", "Will {Remove}")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`
+                    `${t("anarchy_intercept", "Conflict Intercept")}: ${formatDisplayName(matchedMod.displayName || matchedMod.name)} ${t("artifact_removed", "Will {Remove}")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`
                   );
                 }
               }
@@ -2213,7 +2213,7 @@ export function usePlaySetLogic() {
                   if (isReverseMatch) {
                     deepDelete(activeM.name, true);
                     setStatus(
-                      `${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(activeM.displayName || activeM.name)} ${t("artifact_removed", "Will {Remove}")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`
+                      `${t("anarchy_intercept", "Conflict Intercept")}: ${formatDisplayName(activeM.displayName || activeM.name)} ${t("artifact_removed", "Will {Remove}")} due to collision with ${formatDisplayName(modObj.displayName || modObj.name)}.`
                     );
                     break;
                   }
@@ -2268,11 +2268,11 @@ export function usePlaySetLogic() {
                 const isAddonOfTarget =
                   m.hash && modObj.hash
                     ? localSets.some(
-                        (s: any) =>
-                          (s.archetypes?.core === modObj.hash ||
-                            s.archetypes?.twins?.includes(modObj.hash)) &&
-                          s.archetypes?.addons?.includes(m.hash)
-                      )
+                      (s: any) =>
+                        (s.archetypes?.core === modObj.hash ||
+                          s.archetypes?.twins?.includes(modObj.hash)) &&
+                        s.archetypes?.addons?.includes(m.hash)
+                    )
                     : false;
 
                 if (
@@ -2317,7 +2317,7 @@ export function usePlaySetLogic() {
               if (removeEntryByName(targetName)) {
                 didAnyUnequip = true;
                 setStatus(
-                  `${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(targetName)} ${t("artifact_removed", "Will {Remove}")}.`
+                  `${t("anarchy_intercept", "Conflict Intercept")}: ${formatDisplayName(targetName)} ${t("artifact_removed", "Will {Remove}")}.`
                 );
               }
             }
@@ -2326,12 +2326,12 @@ export function usePlaySetLogic() {
 
           const kids = targetMod.isVirtual
             ? Array.from(
-                new Set([
-                  ...(byFamilyOrDbId.get(String(targetMod.dbId)) || []),
-                  ...(bySetId.get(String(targetMod.dbId)) || []),
-                  ...(Array.isArray(targetMod.flavors) ? targetMod.flavors : []),
-                ])
-              ).filter((m: any) => m && !m.isVirtual && m.name)
+              new Set([
+                ...(byFamilyOrDbId.get(String(targetMod.dbId)) || []),
+                ...(bySetId.get(String(targetMod.dbId)) || []),
+                ...(Array.isArray(targetMod.flavors) ? targetMod.flavors : []),
+              ])
+            ).filter((m: any) => m && !m.isVirtual && m.name)
             : [];
           const hasIntraFamilyFlavorVariants =
             targetMod.isVirtual && kids.some((k) => k.relationshipType === "flavor");
@@ -2405,7 +2405,7 @@ export function usePlaySetLogic() {
             }
             if (forceRemove && targetList.length === 1) {
               setStatus(
-                `${t("anarchy_intercept", "Conflict Intercept (Severity 4 Collision)")}: ${formatDisplayName(targetMod.displayName || targetMod.name)} ${t("artifact_removed", "Will {Remove}")}.`
+                `${t("anarchy_intercept", "Conflict Intercept")}: ${formatDisplayName(targetMod.displayName || targetMod.name)} ${t("artifact_removed", "Will {Remove}")}.`
               );
             }
           }
@@ -2641,81 +2641,81 @@ export function usePlaySetLogic() {
       let localOverridesDirty = false;
       try {
         localOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
-      } catch {}
+      } catch { }
 
       (parsed.mods || []).forEach((importedMod: any) => {
-          let found = null;
-          const rawNameToCheck = typeof importedMod === 'string' ? importedMod : (importedMod.name || importedMod.path || '');
-          const cleanImportedFile = rawNameToCheck.split(/[\\/]/).pop() || rawNameToCheck;
+        let found = null;
+        const rawNameToCheck = typeof importedMod === 'string' ? importedMod : (importedMod.name || importedMod.path || '');
+        const cleanImportedFile = rawNameToCheck.split(/[\\/]/).pop() || rawNameToCheck;
 
-          if (importedMod && typeof importedMod !== 'string' && importedMod.hash) {
-              found = hashToMod.get(importedMod.hash);
-          }
+        if (importedMod && typeof importedMod !== 'string' && importedMod.hash) {
+          found = hashToMod.get(importedMod.hash);
+        }
+        if (!found) {
+          found = modMap.get(rawNameToCheck) || modMap.get(cleanImportedFile);
           if (!found) {
-              found = modMap.get(rawNameToCheck) || modMap.get(cleanImportedFile);
-              if (!found) {
-                  const targetBase = cleanImportedFile.replace(extRegex, '');
-                  if (targetBase) found = baseToMod.get(targetBase);
-              }
+            const targetBase = cleanImportedFile.replace(extRegex, '');
+            if (targetBase) found = baseToMod.get(targetBase);
           }
+        }
 
-          if (importedMod && typeof importedMod !== 'string') {
-              const targetHash = importedMod.hash || found?.hash;
-              const extractedMeta: Record<string, any> = {};
-              const metaKeys = [
-                'displayName', 'url', 'manifest_url', 'author', 'version',
-                'description', 'image_url', 'category_override', 'sub_type',
-                'file_extension', 'requiredDLC', 'compatible_versions',
-                'compliance_tier', 'allow_write', 'is_paid', 'is_early_access',
-                'created_at', 'updated_at', 'requirements', 'twins', 'conflicts', 'isLocalOverride'
-              ];
-              metaKeys.forEach((k) => {
-                if (importedMod[k] !== undefined && importedMod[k] !== "") {
-                  extractedMeta[k] = importedMod[k];
-                }
-              });
-              const metaKey = found ? found.name : rawNameToCheck;
-              if (metaKey && Object.keys(extractedMeta).length > 0) {
-                nextModMeta[metaKey] = extractedMeta;
-              }
-              if (targetHash && (importedMod.isLocalOverride || importedMod.displayName || importedMod.manifest_url || importedMod.description)) {
-                const existingOvr = localOverrides[targetHash];
-                if (!existingOvr?.is_user_dossier) {
-                  localOverrides[targetHash] = {
-                    ...(existingOvr || {}),
-                    ...extractedMeta,
-                    displayName: existingOvr?.displayName || extractedMeta.displayName,
-                    author: existingOvr?.author || extractedMeta.author,
-                    version: existingOvr?.version || extractedMeta.version,
-                    url: existingOvr?.url || extractedMeta.url,
-                    manifest_url: existingOvr?.manifest_url || extractedMeta.manifest_url,
-                  };
-                  localOverridesDirty = true;
-                }
-              }
+        if (importedMod && typeof importedMod !== 'string') {
+          const targetHash = importedMod.hash || found?.hash;
+          const extractedMeta: Record<string, any> = {};
+          const metaKeys = [
+            'displayName', 'url', 'manifest_url', 'author', 'version',
+            'description', 'image_url', 'category_override', 'sub_type',
+            'file_extension', 'requiredDLC', 'compatible_versions',
+            'compliance_tier', 'allow_write', 'is_paid', 'is_early_access',
+            'created_at', 'updated_at', 'requirements', 'twins', 'conflicts', 'isLocalOverride'
+          ];
+          metaKeys.forEach((k) => {
+            if (importedMod[k] !== undefined && importedMod[k] !== "") {
+              extractedMeta[k] = importedMod[k];
+            }
+          });
+          const metaKey = found ? found.name : rawNameToCheck;
+          if (metaKey && Object.keys(extractedMeta).length > 0) {
+            nextModMeta[metaKey] = extractedMeta;
           }
+          if (targetHash && (importedMod.isLocalOverride || importedMod.displayName || importedMod.manifest_url || importedMod.description)) {
+            const existingOvr = localOverrides[targetHash];
+            if (!existingOvr?.is_user_dossier) {
+              localOverrides[targetHash] = {
+                ...(existingOvr || {}),
+                ...extractedMeta,
+                displayName: existingOvr?.displayName || extractedMeta.displayName,
+                author: existingOvr?.author || extractedMeta.author,
+                version: existingOvr?.version || extractedMeta.version,
+                url: existingOvr?.url || extractedMeta.url,
+                manifest_url: existingOvr?.manifest_url || extractedMeta.manifest_url,
+              };
+              localOverridesDirty = true;
+            }
+          }
+        }
 
-          if (found) {
-              const resolvedClean = found.name.split(/[\\/]/).pop() || found.name;
-              if (cleanImportedFile) {
-                  nameRemap.set(cleanImportedFile.toLowerCase(), resolvedClean);
-              }
-              rawAvailableMods.push(found.name);
-              if (found.hash) nextModHashes[found.name] = found.hash;
-              else if (typeof importedMod !== 'string' && importedMod.hash) nextModHashes[found.name] = importedMod.hash;
+        if (found) {
+          const resolvedClean = found.name.split(/[\\/]/).pop() || found.name;
+          if (cleanImportedFile) {
+            nameRemap.set(cleanImportedFile.toLowerCase(), resolvedClean);
           }
-          else {
-              missing.push(importedMod);
-              if (typeof importedMod !== 'string') {
-                  if (importedMod.hash) nextModHashes[rawNameToCheck] = importedMod.hash;
-              }
+          rawAvailableMods.push(found.name);
+          if (found.hash) nextModHashes[found.name] = found.hash;
+          else if (typeof importedMod !== 'string' && importedMod.hash) nextModHashes[found.name] = importedMod.hash;
+        }
+        else {
+          missing.push(importedMod);
+          if (typeof importedMod !== 'string') {
+            if (importedMod.hash) nextModHashes[rawNameToCheck] = importedMod.hash;
           }
+        }
       });
 
       if (localOverridesDirty) {
         try {
           localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOverrides));
-        } catch {}
+        } catch { }
       }
 
       const { loadRules, modTiers, loadOrder, ignoredConflicts, formatModWithTier } = unpackBlueprintLoadOrder(
@@ -2733,7 +2733,7 @@ export function usePlaySetLogic() {
           const merged = Array.from(new Set([...(prevIgnored || []), ...ignoredConflicts]));
           try {
             localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(merged));
-          } catch {}
+          } catch { }
           return merged;
         });
       }
@@ -2741,7 +2741,7 @@ export function usePlaySetLogic() {
       let baseName = `${parsed.name} (Imported)`;
       let newName = baseName;
       let counter = 1;
-      while(
+      while (
         playSets.some((s) => s.name.toLowerCase() === newName.toLowerCase())
       ) {
         newName = `${baseName} (${counter})`;
@@ -2773,7 +2773,7 @@ export function usePlaySetLogic() {
   }
   function finalizeImport(setToAdd: any) {
     if (!setToAdd) return;
-    
+
     let finalName = setToAdd.name;
     let copyIndex = 1;
     while (playSets.some((s: any) => s.name.toLowerCase() === finalName.toLowerCase())) {
@@ -2799,231 +2799,231 @@ export function usePlaySetLogic() {
       (typeof setName === "number"
         ? latestPlaySets[setName]
         : latestPlaySets.find((s: any) => s.name === setName) ||
-          playSets.find((s) => s.name === setName));
+        playSets.find((s) => s.name === setName));
     if (!targetSet) return;
     const resolvedSetName = targetSet.name || String(setName);
     setStatus(
       `${t("status_deploying_prefix", "DEPLOYING: {Blueprint} [")}${resolvedSetName}${t("status_deploying_suffix", "]...")}`,
     );
     await new Promise(resolve => setTimeout(resolve, 50));
-    
+
     try {
       useStore.setState({ activeConflictCount: { total: 0, tier4: 0, tier3: 0 }, activeBrokenCounts: { broken: 0, unstable: 0 } });
       console.time("equipPlaySet_JS_overhead");
       const config: any = await invoke("get_saved_coordinates");
-        let deployPayload: any[] = [];
-        const fileNameToPathMap = new Map<string, string>();
-        const normalize = (s: string) => s.replace(/[^a-z0-9]/gi, "").toLowerCase();
-        
-        const customExtRegexStr = `\\.(${(activeGameSchema?.extensions?.supported || []).map((e: any) => e.replace('.', '')).join('|') || '[a-z0-9]+'}|cfg|ini|dat|tmbin|json|xml|log|txt)$`;
-        const customExtRegex = new RegExp(customExtRegexStr, 'i');
-        const extRegex = getExtensionRegex(activeGameSchema);
+      let deployPayload: any[] = [];
+      const fileNameToPathMap = new Map<string, string>();
+      const normalize = (s: string) => s.replace(/[^a-z0-9]/gi, "").toLowerCase();
 
-        const modMap = new Map<string, any>();
-        const modBaseMap = new Map<string, any>();
-        modList.forEach((m: any) => {
-            modMap.set(m.name, m);
-            const mBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, '');
-            if (mBase) modBaseMap.set(mBase, m);
-        });
-        
-        const buildPathMap = (nodes: any[], currentPath: string) => {
-            for (const node of nodes) {
-                if (node.node_type === "folder" || node.type === "folder") {
-                    const nextPath = currentPath ? `${currentPath}/${node.name}` : node.name;
-                    if (node.children) buildPathMap(node.children, nextPath);
-                } else if (node.node_type === "file" || node.type === "file") {
-                    fileNameToPathMap.set(node.name.toLowerCase(), currentPath);
-                    const noExt = node.name.replace(customExtRegex, "");
-                    fileNameToPathMap.set(noExt.toLowerCase(), currentPath);
-                    if (node.assignedModName) {
-                        fileNameToPathMap.set(normalize(node.assignedModName), currentPath);
-                    }
-                }
-            }
-        };
+      const customExtRegexStr = `\\.(${(activeGameSchema?.extensions?.supported || []).map((e: any) => e.replace('.', '')).join('|') || '[a-z0-9]+'}|cfg|ini|dat|tmbin|json|xml|log|txt)$`;
+      const customExtRegex = new RegExp(customExtRegexStr, 'i');
+      const extRegex = getExtensionRegex(activeGameSchema);
 
-        targetSet.mods.forEach((rawMod: any) => {
-            const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
-            if (!modName) return;
+      const modMap = new Map<string, any>();
+      const modBaseMap = new Map<string, any>();
+      modList.forEach((m: any) => {
+        modMap.set(m.name, m);
+        const mBase = m.name.split(/[\\/]/).pop()?.replace(extRegex, '');
+        if (mBase) modBaseMap.set(mBase, m);
+      });
 
-            let modObj = modMap.get(modName);
-            if (!modObj) {
-                const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
-                if (targetBase) modObj = modBaseMap.get(targetBase);
-            }
-            
-            let parsedStructure = modObj?.folder_structure;
-            if (typeof parsedStructure === 'string') {
-                 try { parsedStructure = JSON.parse(parsedStructure); } catch (e) {}
-            }
-            if (Array.isArray(parsedStructure) && parsedStructure.length > 0) {
-                 buildPathMap(parsedStructure, "");
-            }
-        });
-
-        targetSet.mods.forEach((rawMod: any) => {
-            const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
-            if (!modName) return;
-
-            const strippedModName = stripPriorityTierPrefix(modName, activeGameSchema);
-            let modObj = modMap.get(modName) || modMap.get(strippedModName);
-            if (!modObj) {
-                const targetBase = strippedModName.split(/[\\/]/).pop()?.replace(extRegex, '');
-                if (targetBase) modObj = modBaseMap.get(targetBase);
-            }
-            if (!modObj && modList.length > 0) return;
-
-            const vaultSourcePath = modObj?.name || strippedModName;
-            const flatFileName = vaultSourcePath.split(/[\\/]/).pop() || vaultSourcePath;
-            let targetPath = flatFileName;
-            
-            const flatLower = flatFileName.toLowerCase();
-            const noExt = flatFileName.replace(customExtRegex, "").toLowerCase();
-            const norm = normalize(noExt);
-
-            const folderPath = fileNameToPathMap.get(flatLower) ?? fileNameToPathMap.get(noExt) ?? fileNameToPathMap.get(norm);
-            if (folderPath !== undefined && folderPath !== null) {
-                targetPath = folderPath ? `${folderPath}/${flatFileName}` : flatFileName;
-            }
-            
-            if (modName.toLowerCase().startsWith("sanctuary/") || modName.toLowerCase().startsWith("sanctuary\\")) {
-                targetPath = `Sanctuary/${targetPath}`;
-            }
-            
-            deployPayload.push({ path: vaultSourcePath, allow_write: modObj?.allow_write || false, target_path: targetPath });
-        });
-
-        const explicitlyDeployedFlatNames = new Set(
-            deployPayload.map(dp => {
-                const flat = dp.path.split(/[\\/]/).pop() || dp.path;
-                return flat.toLowerCase();
-            })
-        );
-
-        const deployPayloadPaths = new Set(deployPayload.map(dp => dp.path));
-
-        modList.forEach((m: any) => {
-            if (deployPayloadPaths.has(m.name)) return;
-            
-            const flatFileName = m.name.split(/[\\/]/).pop() || m.name;
-            const flatLower = flatFileName.toLowerCase();
-            const noExt = flatFileName.replace(customExtRegex, "").toLowerCase();
-            const norm = normalize(noExt);
-            
-            if (!explicitlyDeployedFlatNames.has(flatLower)) {
-                const folderPath = fileNameToPathMap.get(flatLower) ?? fileNameToPathMap.get(noExt) ?? fileNameToPathMap.get(norm);
-                if (folderPath !== undefined && folderPath !== null) {
-                    let targetPath = folderPath ? `${folderPath}/${flatFileName}` : flatFileName;
-                    if (m.name.toLowerCase().startsWith("sanctuary/") || m.name.toLowerCase().startsWith("sanctuary\\")) {
-                        targetPath = `Sanctuary/${targetPath}`;
-                    }
-                    deployPayload.push({ path: m.name, allow_write: true, target_path: targetPath });
-                    explicitlyDeployedFlatNames.add(flatLower);
-                    deployPayloadPaths.add(m.name);
-                }
-            }
-        });
-
-        const potentialPrefixMap = new Map<string, any>();
-        deployPayload.forEach(dp => {
-            if ((dp.target_path || dp.folder_structure) && !dp.target_path?.match(/\.(cfg|ini|json|xml|log|txt)$/i)) {
-                const flatFileName = dp.path.split(/[\\/]/).pop() || dp.path;
-                const prefixMatch = flatFileName.match(/^([a-zA-Z0-9]+)[_ -]/);
-                const prefix = prefixMatch ? prefixMatch[1].toLowerCase() : flatFileName.split('.')[0].toLowerCase();
-                if (!potentialPrefixMap.has(prefix)) {
-                    potentialPrefixMap.set(prefix, dp);
-                }
-            }
-        });
-
-        modList.forEach(m => {
-            if (m.name.match(/\.(cfg|ini|json|xml|log|txt)$/i)) {
-                if (!deployPayloadPaths.has(m.name)) {
-                    const flatFileName = m.name.split(/[\\/]/).pop() || m.name;
-                    const prefixMatch = flatFileName.match(/^([a-zA-Z0-9]+)[_ -]/);
-                    const prefix = prefixMatch ? prefixMatch[1].toLowerCase() : flatFileName.split('.')[0].toLowerCase();
-                    
-                    const matchingMod = potentialPrefixMap.get(prefix);
-                    
-                    if (matchingMod) {
-                        let folderName = "";
-                        if (matchingMod.target_path && matchingMod.target_path.includes('/')) {
-                            folderName = matchingMod.target_path.split('/')[0];
-                        } else if (matchingMod.folder_structure && Array.isArray(matchingMod.folder_structure) && matchingMod.folder_structure.length > 0) {
-                            folderName = matchingMod.folder_structure[0].name;
-                        }
-                        
-                        if (folderName) {
-                            deployPayload.push({ path: m.name, allow_write: true, target_path: `${folderName}/${flatFileName}` });
-                        } else {
-                            deployPayload.push({ path: m.name, allow_write: true, target_path: flatFileName });
-                        }
-                        deployPayloadPaths.add(m.name);
-                    }
-                }
-            }
-        });
-
-        deployPayload.forEach(dp => {
-           if (dp.target_path && dp.target_path.match(/\.(cfg|ini|json|xml|log|txt)$/i)) {
-               const flatFileName = dp.path.split(/[\\/]/).pop() || dp.path;
-               const prefixMatch = flatFileName.match(/^([a-zA-Z0-9]+)[_ -]/);
-               const prefix = prefixMatch ? prefixMatch[1].toLowerCase() : flatFileName.split('.')[0].toLowerCase();
-               
-               const matchingMod = potentialPrefixMap.get(prefix);
-
-               if (matchingMod && matchingMod !== dp) {
-                   let folderName = "";
-                   if (matchingMod.target_path && matchingMod.target_path.includes('/')) {
-                       folderName = matchingMod.target_path.split('/')[0];
-                   } else if (matchingMod.folder_structure && Array.isArray(matchingMod.folder_structure) && matchingMod.folder_structure.length > 0) {
-                       folderName = matchingMod.folder_structure[0].name;
-                   }
-                   
-                   if (folderName) {
-                       dp.target_path = `${folderName}/${flatFileName}`;
-                   }
-               }
-           }
-        });
-
-        const compiledOrder = compileLoadOrder(
-          targetSet.mods || [],
-          targetSet.loadRules || [],
-          targetSet.modTiers || {},
-          targetSet.loadOrder || [],
-          activeGameSchema,
-          modList
-        );
-        const compiledByClean = new Map<string, CompiledLoadOrderItem>();
-        compiledOrder.items.forEach((item) => {
-          compiledByClean.set(item.cleanName.toLowerCase(), item);
-        });
-        const knownTierFoldersLower = new Set(
-          compiledOrder.priorityTiers.map((pt) => (pt.folder || "").toLowerCase()).filter(Boolean)
-        );
-
-        deployPayload.forEach((dp) => {
-          const flatFileName = dp.path.split(/[\\/]/).pop() || dp.path;
-          const compiled = compiledByClean.get(flatFileName.toLowerCase());
-          if (compiled) {
-            dp.load_order_index = compiled.index;
-            if (compiled.tierFolder) {
-              dp.priority_tier = compiled.tierFolder;
-              const currentTarget = (dp.target_path || flatFileName).replace(/\\/g, "/");
-              const segs = currentTarget.split("/");
-              if (segs.length > 1 && knownTierFoldersLower.has(segs[0].toLowerCase())) {
-                segs[0] = compiled.tierFolder;
-                dp.target_path = segs.join("/");
-              } else {
-                dp.target_path = `${compiled.tierFolder}/${currentTarget}`;
-              }
+      const buildPathMap = (nodes: any[], currentPath: string) => {
+        for (const node of nodes) {
+          if (node.node_type === "folder" || node.type === "folder") {
+            const nextPath = currentPath ? `${currentPath}/${node.name}` : node.name;
+            if (node.children) buildPathMap(node.children, nextPath);
+          } else if (node.node_type === "file" || node.type === "file") {
+            fileNameToPathMap.set(node.name.toLowerCase(), currentPath);
+            const noExt = node.name.replace(customExtRegex, "");
+            fileNameToPathMap.set(noExt.toLowerCase(), currentPath);
+            if (node.assignedModName) {
+              fileNameToPathMap.set(normalize(node.assignedModName), currentPath);
             }
           }
-        });
+        }
+      };
 
-        deployPayload.sort((a, b) => (a.load_order_index ?? 999999) - (b.load_order_index ?? 999999));
+      targetSet.mods.forEach((rawMod: any) => {
+        const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
+        if (!modName) return;
+
+        let modObj = modMap.get(modName);
+        if (!modObj) {
+          const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
+          if (targetBase) modObj = modBaseMap.get(targetBase);
+        }
+
+        let parsedStructure = modObj?.folder_structure;
+        if (typeof parsedStructure === 'string') {
+          try { parsedStructure = JSON.parse(parsedStructure); } catch (e) { }
+        }
+        if (Array.isArray(parsedStructure) && parsedStructure.length > 0) {
+          buildPathMap(parsedStructure, "");
+        }
+      });
+
+      targetSet.mods.forEach((rawMod: any) => {
+        const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
+        if (!modName) return;
+
+        const strippedModName = stripPriorityTierPrefix(modName, activeGameSchema);
+        let modObj = modMap.get(modName) || modMap.get(strippedModName);
+        if (!modObj) {
+          const targetBase = strippedModName.split(/[\\/]/).pop()?.replace(extRegex, '');
+          if (targetBase) modObj = modBaseMap.get(targetBase);
+        }
+        if (!modObj && modList.length > 0) return;
+
+        const vaultSourcePath = modObj?.name || strippedModName;
+        const flatFileName = vaultSourcePath.split(/[\\/]/).pop() || vaultSourcePath;
+        let targetPath = flatFileName;
+
+        const flatLower = flatFileName.toLowerCase();
+        const noExt = flatFileName.replace(customExtRegex, "").toLowerCase();
+        const norm = normalize(noExt);
+
+        const folderPath = fileNameToPathMap.get(flatLower) ?? fileNameToPathMap.get(noExt) ?? fileNameToPathMap.get(norm);
+        if (folderPath !== undefined && folderPath !== null) {
+          targetPath = folderPath ? `${folderPath}/${flatFileName}` : flatFileName;
+        }
+
+        if (modName.toLowerCase().startsWith("sanctuary/") || modName.toLowerCase().startsWith("sanctuary\\")) {
+          targetPath = `Sanctuary/${targetPath}`;
+        }
+
+        deployPayload.push({ path: vaultSourcePath, allow_write: modObj?.allow_write || false, target_path: targetPath });
+      });
+
+      const explicitlyDeployedFlatNames = new Set(
+        deployPayload.map(dp => {
+          const flat = dp.path.split(/[\\/]/).pop() || dp.path;
+          return flat.toLowerCase();
+        })
+      );
+
+      const deployPayloadPaths = new Set(deployPayload.map(dp => dp.path));
+
+      modList.forEach((m: any) => {
+        if (deployPayloadPaths.has(m.name)) return;
+
+        const flatFileName = m.name.split(/[\\/]/).pop() || m.name;
+        const flatLower = flatFileName.toLowerCase();
+        const noExt = flatFileName.replace(customExtRegex, "").toLowerCase();
+        const norm = normalize(noExt);
+
+        if (!explicitlyDeployedFlatNames.has(flatLower)) {
+          const folderPath = fileNameToPathMap.get(flatLower) ?? fileNameToPathMap.get(noExt) ?? fileNameToPathMap.get(norm);
+          if (folderPath !== undefined && folderPath !== null) {
+            let targetPath = folderPath ? `${folderPath}/${flatFileName}` : flatFileName;
+            if (m.name.toLowerCase().startsWith("sanctuary/") || m.name.toLowerCase().startsWith("sanctuary\\")) {
+              targetPath = `Sanctuary/${targetPath}`;
+            }
+            deployPayload.push({ path: m.name, allow_write: true, target_path: targetPath });
+            explicitlyDeployedFlatNames.add(flatLower);
+            deployPayloadPaths.add(m.name);
+          }
+        }
+      });
+
+      const potentialPrefixMap = new Map<string, any>();
+      deployPayload.forEach(dp => {
+        if ((dp.target_path || dp.folder_structure) && !dp.target_path?.match(/\.(cfg|ini|json|xml|log|txt)$/i)) {
+          const flatFileName = dp.path.split(/[\\/]/).pop() || dp.path;
+          const prefixMatch = flatFileName.match(/^([a-zA-Z0-9]+)[_ -]/);
+          const prefix = prefixMatch ? prefixMatch[1].toLowerCase() : flatFileName.split('.')[0].toLowerCase();
+          if (!potentialPrefixMap.has(prefix)) {
+            potentialPrefixMap.set(prefix, dp);
+          }
+        }
+      });
+
+      modList.forEach(m => {
+        if (m.name.match(/\.(cfg|ini|json|xml|log|txt)$/i)) {
+          if (!deployPayloadPaths.has(m.name)) {
+            const flatFileName = m.name.split(/[\\/]/).pop() || m.name;
+            const prefixMatch = flatFileName.match(/^([a-zA-Z0-9]+)[_ -]/);
+            const prefix = prefixMatch ? prefixMatch[1].toLowerCase() : flatFileName.split('.')[0].toLowerCase();
+
+            const matchingMod = potentialPrefixMap.get(prefix);
+
+            if (matchingMod) {
+              let folderName = "";
+              if (matchingMod.target_path && matchingMod.target_path.includes('/')) {
+                folderName = matchingMod.target_path.split('/')[0];
+              } else if (matchingMod.folder_structure && Array.isArray(matchingMod.folder_structure) && matchingMod.folder_structure.length > 0) {
+                folderName = matchingMod.folder_structure[0].name;
+              }
+
+              if (folderName) {
+                deployPayload.push({ path: m.name, allow_write: true, target_path: `${folderName}/${flatFileName}` });
+              } else {
+                deployPayload.push({ path: m.name, allow_write: true, target_path: flatFileName });
+              }
+              deployPayloadPaths.add(m.name);
+            }
+          }
+        }
+      });
+
+      deployPayload.forEach(dp => {
+        if (dp.target_path && dp.target_path.match(/\.(cfg|ini|json|xml|log|txt)$/i)) {
+          const flatFileName = dp.path.split(/[\\/]/).pop() || dp.path;
+          const prefixMatch = flatFileName.match(/^([a-zA-Z0-9]+)[_ -]/);
+          const prefix = prefixMatch ? prefixMatch[1].toLowerCase() : flatFileName.split('.')[0].toLowerCase();
+
+          const matchingMod = potentialPrefixMap.get(prefix);
+
+          if (matchingMod && matchingMod !== dp) {
+            let folderName = "";
+            if (matchingMod.target_path && matchingMod.target_path.includes('/')) {
+              folderName = matchingMod.target_path.split('/')[0];
+            } else if (matchingMod.folder_structure && Array.isArray(matchingMod.folder_structure) && matchingMod.folder_structure.length > 0) {
+              folderName = matchingMod.folder_structure[0].name;
+            }
+
+            if (folderName) {
+              dp.target_path = `${folderName}/${flatFileName}`;
+            }
+          }
+        }
+      });
+
+      const compiledOrder = compileLoadOrder(
+        targetSet.mods || [],
+        targetSet.loadRules || [],
+        targetSet.modTiers || {},
+        targetSet.loadOrder || [],
+        activeGameSchema,
+        modList
+      );
+      const compiledByClean = new Map<string, CompiledLoadOrderItem>();
+      compiledOrder.items.forEach((item) => {
+        compiledByClean.set(item.cleanName.toLowerCase(), item);
+      });
+      const knownTierFoldersLower = new Set(
+        compiledOrder.priorityTiers.map((pt) => (pt.folder || "").toLowerCase()).filter(Boolean)
+      );
+
+      deployPayload.forEach((dp) => {
+        const flatFileName = dp.path.split(/[\\/]/).pop() || dp.path;
+        const compiled = compiledByClean.get(flatFileName.toLowerCase());
+        if (compiled) {
+          dp.load_order_index = compiled.index;
+          if (compiled.tierFolder) {
+            dp.priority_tier = compiled.tierFolder;
+            const currentTarget = (dp.target_path || flatFileName).replace(/\\/g, "/");
+            const segs = currentTarget.split("/");
+            if (segs.length > 1 && knownTierFoldersLower.has(segs[0].toLowerCase())) {
+              segs[0] = compiled.tierFolder;
+              dp.target_path = segs.join("/");
+            } else {
+              dp.target_path = `${compiled.tierFolder}/${currentTarget}`;
+            }
+          }
+        }
+      });
+
+      deployPayload.sort((a, b) => (a.load_order_index ?? 999999) - (b.load_order_index ?? 999999));
 
       console.timeEnd("equipPlaySet_JS_overhead");
       const msg = await invoke("deploy_playset_bulk", {
@@ -3033,14 +3033,14 @@ export function usePlaySetLogic() {
       });
       setActiveSetName(resolvedSetName);
       localStorage.setItem(`sanctuary_${useStore.getState().activeWorkspaceId || "default"}_active_set`, resolvedSetName);
-      
+
       const currentSets = useStore.getState().playSets || playSets;
       const newIndex = currentSets.findIndex((s: any) => s.name === resolvedSetName);
       if (newIndex !== -1 && setActivePlaySetIndex) {
         setActivePlaySetIndex(newIndex);
       }
       setStatus(`${t("icon_check_circle", "check_circle")} ${t("btn_deployed", "DEPLOYED")} ${msg as string} ${t("backend_deployed_suffix", "{mods}.")} `);
-      precomputeBlueprintConflicts(resolvedSetName, targetSet.mods, config.vault_path).catch(() => {});
+      precomputeBlueprintConflicts(resolvedSetName, targetSet.mods, config.vault_path).catch(() => { });
     } catch (err) {
       const errStr = typeof err === "string" ? err : (err as any)?.message || String(err);
       setStatus(`${t("status_deploy_failed", "Deployment Failed:")} ${t(errStr, errStr)}`);
@@ -3050,12 +3050,12 @@ export function usePlaySetLogic() {
   const getMissingStrings = (setName: string) => {
     const targetSet = playSets.find((s: any) => s.name === setName);
     if (!targetSet || !targetSet.mods) return [];
-    
+
     let changed = false;
     const nextMods: string[] = [];
     const nextHashes = { ...(targetSet.modHashes || {}) };
     const missing: string[] = [];
-    
+
     const extRegex = getExtensionRegex(activeGameSchema);
 
     for (const rawMod of targetSet.mods) {
@@ -3078,11 +3078,11 @@ export function usePlaySetLogic() {
             changed = true;
           }
         }
-        
+
         if (!healed) {
           const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
           const baseMatch = targetBase ? baseToMod.get(targetBase) : null;
-          
+
           if (baseMatch) {
             nextMods.push(baseMatch.name);
             if (baseMatch.hash) nextHashes[baseMatch.name] = baseMatch.hash;
@@ -3091,14 +3091,14 @@ export function usePlaySetLogic() {
             changed = true;
           }
         }
-        
+
         if (!healed) {
           nextMods.push(modName);
           missing.push(modName);
         }
       }
     }
-    
+
     if (changed) {
       setTimeout(() => {
         setPlaySets((prev: any[]) => {
@@ -3113,7 +3113,7 @@ export function usePlaySetLogic() {
         });
       }, 0);
     }
-    
+
     const ignored = targetSet.ignoredGhosts || [];
     return missing.filter(m => !ignored.includes(m));
   };
@@ -3125,7 +3125,7 @@ export function usePlaySetLogic() {
       if (target) {
         if (!target.ignoredGhosts) target.ignoredGhosts = [];
         if (!target.ignoredGhosts.includes(modName)) {
-            target.ignoredGhosts.push(modName);
+          target.ignoredGhosts.push(modName);
         }
       }
 

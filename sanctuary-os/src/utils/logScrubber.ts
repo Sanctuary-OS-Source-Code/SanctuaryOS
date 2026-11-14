@@ -210,8 +210,18 @@ export function resolveLabReportNumber(report: any, allReports: any[] = []): num
     return report.reportNumber;
   }
   if (Array.isArray(allReports) && allReports.length > 0 && report) {
-    // Oldest report is #1, newest report is #N
-    const chronological = [...allReports].reverse();
+    // Oldest report is #1, newest report is #N (strictly chronological by timestamp)
+    const chronological = allReports
+      .map((r, originalIdx) => ({ r, originalIdx }))
+      .sort((a, b) => {
+        const ta = new Date(a.r?.time || 0).getTime();
+        const tb = new Date(b.r?.time || 0).getTime();
+        const validA = Number.isFinite(ta) ? ta : 0;
+        const validB = Number.isFinite(tb) ? tb : 0;
+        if (validA !== validB) return validA - validB;
+        return b.originalIdx - a.originalIdx;
+      })
+      .map((item) => item.r);
     const idx = chronological.findIndex(
       (r) =>
         (report.id && r?.id === report.id) ||

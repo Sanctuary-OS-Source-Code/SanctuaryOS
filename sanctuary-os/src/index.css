@@ -207,3 +207,10 @@ html[data-sa-light-mode="true"] textarea::selection {
   background-color: #fff;
   box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 50%, transparent);
 }
+
+/* Pause background WebView2 animations while a game window has foreground focus to prevent DXGI/MPO swapchain flicker */
+html[data-sa-game-focused="true"] *,
+html[data-sa-game-focused="true"] *::before,
+html[data-sa-game-focused="true"] *::after {
+  animation-play-state: paused !important;
+}

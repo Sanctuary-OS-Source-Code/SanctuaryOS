@@ -631,7 +631,41 @@ pub async fn backup_universe(
 ) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
-        let game_docs_path = PathBuf::from(&docs_path);
+        let app_state = app.state::<AppState>();
+        let game_schema = app_state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
+
+        if crate::commands::deployment::is_any_game_process_running(&game_schema) {
+            return Err(
+                "Close the running game before sealing a World State snapshot so save files are not locked."
+                    .into(),
+            );
+        }
+
+        let game_docs_path =
+            crate::utils::resolve_effective_docs_path_with_override(&docs_path, &config, &game_schema);
+        if !crate::utils::is_safe_workspace_target_dir(&game_docs_path) {
+            return Err("Blocked: Refusing to snapshot an invalid or protected system path.".into());
+        }
+        let effective_docs_str = game_docs_path.to_string_lossy().to_string();
+
+        // Automatically recover any stranded Save Airgap left by a prior OS/app crash before snapshotting
+        let _ = crate::commands::deployment::recover_stranded_airgap_if_needed(
+            &game_docs_path,
+            &config.vault_path,
+            &game_schema,
+        );
+        if crate::commands::deployment::is_airgap_active_for_docs(&game_docs_path, &game_schema) {
+            return Err(
+                "Save Airgap Shield is currently active for a live Lab test. Conclude the Lab test first so Time Capsule snapshots your real live saves."
+                    .into(),
+            );
+        }
+        crate::commands::deployment::mirror_live_saves_to_vault(
+            &game_docs_path,
+            &config.vault_path,
+            &game_schema,
+        );
+
         let backup_name = format!(
             "World_State--{}--{}",
             version,
@@ -641,12 +675,13 @@ pub async fn backup_universe(
                 .as_secs()
         );
         // Anchor World State backups to the same physical drive as docs_path so hardlinks never break if Vault is on a different drive
-        let parent_dir = crate::utils::get_world_backups_dir(&docs_path, &config.vault_path)
-            .unwrap_or_else(|| {
-                PathBuf::from(&config.vault_path)
-                    .join("Backups")
-                    .join("World")
-            });
+        let parent_dir =
+            crate::utils::get_world_backups_dir(&effective_docs_str, &config.vault_path)
+                .unwrap_or_else(|| {
+                    PathBuf::from(&config.vault_path)
+                        .join("Backups")
+                        .join("World")
+                });
         let backup_path = parent_dir.join(&backup_name);
 
         let mut search_dirs = vec![parent_dir.clone()];
@@ -663,22 +698,6 @@ pub async fn backup_universe(
 
         let _ = std::fs::create_dir_all(&backup_path);
         crate::utils::clean_stray_snapshot_meta_files(&game_docs_path);
-
-        let app_state = app.state::<AppState>();
-        let game_schema = app_state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
-
-        // Automatically recover any stranded Save Airgap left by a prior OS/app crash before snapshotting
-        let _ = crate::commands::deployment::recover_stranded_airgap_if_needed(
-            &game_docs_path,
-            &config.vault_path,
-            &game_schema,
-        );
-        if crate::commands::deployment::is_airgap_active_for_docs(&game_docs_path, &game_schema) {
-            return Err(
-                "Save Airgap Shield is currently active for a live Lab test. Conclude the Lab test first so Time Capsule snapshots your real live saves."
-                    .into(),
-            );
-        }
 
         let mut targets = Vec::new();
         if let Some(schema) = &game_schema {
@@ -763,6 +782,7 @@ pub async fn backup_universe(
         if let Some(cycles) = config.world_retention_cycles {
             crate::utils::enforce_retention_policy(&parent_dir, cycles);
         }
+        crate::utils::enforce_workspace_backup_capacity(&config);
 
         let _ = app.emit(
             "backup-progress",
@@ -791,7 +811,18 @@ pub async fn backup_engine_full(
         let config = get_saved_coordinates();
         let app_state = app.state::<AppState>();
         let game_schema = app_state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
-        let base_path = crate::game_logic::resolve_game_engine_root(&live_path, &game_schema);
+        if crate::commands::deployment::is_any_game_process_running(&game_schema) {
+            return Err("Close the running game before sealing an Engine Core snapshot.".into());
+        }
+        let effective_live = if live_path.trim().is_empty() {
+            config.live_path.clone()
+        } else {
+            live_path
+        };
+        let base_path = crate::game_logic::resolve_game_engine_root(&effective_live, &game_schema);
+        if !crate::utils::is_safe_workspace_target_dir(&base_path) {
+            return Err("Blocked: Refusing to snapshot an invalid or protected engine path.".into());
+        }
         let backup_name = format!(
             "Engine_Core--{}--{}",
             version,
@@ -800,7 +831,8 @@ pub async fn backup_engine_full(
                 .unwrap()
                 .as_secs()
         );
-        let parent_dir = crate::utils::get_engine_backups_dir(&live_path, &config.vault_path)
+        let parent_dir =
+            crate::utils::get_engine_backups_dir(&effective_live, &config.vault_path)
             .unwrap_or_else(|| {
                 PathBuf::from(&config.vault_path)
                     .join("Backups")
@@ -908,6 +940,7 @@ pub async fn backup_engine_full(
         if let Some(cycles) = config.engine_retention_cycles {
             crate::utils::enforce_retention_policy(&parent_dir, cycles);
         }
+        crate::utils::enforce_workspace_backup_capacity(&config);
 
         let _ = app.emit(
             "backup-progress",
@@ -1307,12 +1340,26 @@ fn prune_extraneous_target_entries(arc_dir: &Path, target_dir: &Path) {
     }
 }
 
+fn is_rel_under_protected_dir(rel_norm: &str, protected_dirs: &[String]) -> bool {
+    let clean_rel = rel_norm.trim_matches('/');
+    protected_dirs.iter().any(|pd| {
+        let clean_pd = pd.replace('\\', "/").trim_matches('/').to_string();
+        !clean_pd.is_empty()
+            && (clean_rel.eq_ignore_ascii_case(&clean_pd)
+                || (clean_rel.len() > clean_pd.len()
+                    && clean_rel[..clean_pd.len()].eq_ignore_ascii_case(&clean_pd)
+                    && clean_rel.as_bytes().get(clean_pd.len()) == Some(&b'/')))
+    })
+}
+
 fn restore_snapshot_parallel_cow(
-    app: &tauri::AppHandle,
+    app: Option<&tauri::AppHandle>,
     arc: &Path,
     target: &Path,
     action_label: &str,
-) -> Result<(), String> {
+    protected_additive_dirs: &[String],
+    substituted_dirs: &[(String, PathBuf)],
+) -> Result<usize, String> {
     use rayon::prelude::*;
     use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
@@ -1335,11 +1382,17 @@ fn restore_snapshot_parallel_cow(
         }
     }
 
-    // Prune extraneous files/folders inside each top-level directory present in the snapshot
+    // Prune extraneous files/folders inside each top-level directory present in the snapshot,
+    // EXCEPT protected save directories (`save_airgap_targets`), which are ALWAYS restored additively
+    // so restoring a partial or older World State snapshot can NEVER delete non-overlapping save slots!
     if let Ok(entries) = std::fs::read_dir(arc) {
         for e in entries.flatten() {
             let file_name = e.file_name();
-            if file_name.to_string_lossy().starts_with('.') {
+            let fname_str = file_name.to_string_lossy().to_string();
+            if fname_str.starts_with('.') {
+                continue;
+            }
+            if is_rel_under_protected_dir(&fname_str, protected_additive_dirs) {
                 continue;
             }
             let arc_sub = e.path();
@@ -1370,6 +1423,8 @@ fn restore_snapshot_parallel_cow(
 
     let mut raw_items = Vec::new();
     let mut unique_dirs = std::collections::HashSet::new();
+    let substituted_rel_names: Vec<String> =
+        substituted_dirs.iter().map(|(rel, _)| rel.clone()).collect();
 
     for entry in walkdir::WalkDir::new(arc).into_iter().filter_map(|e| e.ok()) {
         if !entry.file_type().is_file() {
@@ -1381,6 +1436,9 @@ fn restore_snapshot_parallel_cow(
         };
         let rel_norm = rel.to_string_lossy().replace('\\', "/");
         if rel_norm.split('/').any(|part| part.starts_with('.')) {
+            continue;
+        }
+        if is_rel_under_protected_dir(&rel_norm, &substituted_rel_names) {
             continue;
         }
 
@@ -1400,6 +1458,42 @@ fn restore_snapshot_parallel_cow(
             src_len,
             src_mtime,
         });
+    }
+
+    for (sub_rel, sub_src_dir) in substituted_dirs {
+        let dest_sub_root = crate::utils::resolve_case_insensitive_path(target, sub_rel);
+        for entry in walkdir::WalkDir::new(sub_src_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            let arc_path = entry.path().to_path_buf();
+            let Ok(inner_rel) = arc_path.strip_prefix(sub_src_dir) else {
+                continue;
+            };
+            let inner_norm = inner_rel.to_string_lossy().replace('\\', "/");
+            if inner_norm.split('/').any(|part| part.starts_with('.')) {
+                continue;
+            }
+            let rel_norm = format!("{}/{}", sub_rel.trim_matches('/'), inner_norm);
+            let target_path = dest_sub_root.join(inner_rel);
+            if let Some(parent) = target_path.parent() {
+                unique_dirs.insert(parent.to_path_buf());
+            }
+            let meta = entry.metadata().ok();
+            let src_len = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+            let src_mtime = meta.as_ref().and_then(|m| m.modified().ok());
+
+            raw_items.push(RawRestoreItem {
+                arc_path,
+                target_path,
+                rel_norm,
+                src_len,
+                src_mtime,
+            });
+        }
     }
 
     for dir in unique_dirs {
@@ -1491,17 +1585,19 @@ fn restore_snapshot_parallel_cow(
             } else {
                 done
             };
-            let _ = app.emit(
-                "backup-progress",
-                serde_json::json!({
-                    "current": current_pct,
-                    "total": 100,
-                    "files_done": display_files_done,
-                    "files_total": total,
-                    "current_file": current_file,
-                    "action": action_label
-                }),
-            );
+            if let Some(app_handle) = app {
+                let _ = app_handle.emit(
+                    "backup-progress",
+                    serde_json::json!({
+                        "current": current_pct,
+                        "total": 100,
+                        "files_done": display_files_done,
+                        "files_total": total,
+                        "current_file": current_file,
+                        "action": action_label
+                    }),
+                );
+            }
         }
     };
 
@@ -1548,7 +1644,7 @@ fn restore_snapshot_parallel_cow(
         },
     );
 
-    Ok(())
+    Ok(total)
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -1874,9 +1970,13 @@ pub async fn extract_backup_file(
         let target_root = if backup_name.starts_with("Engine_Core") {
             crate::game_logic::resolve_game_engine_root(&config.live_path, &game_schema)
         } else {
-            PathBuf::from(&docs_path)
+            crate::utils::resolve_effective_docs_path_with_override(
+                &docs_path,
+                &config,
+                &game_schema,
+            )
         };
-        if !crate::utils::is_safe_user_file_path(&target_root) {
+        if !crate::utils::is_safe_workspace_target_dir(&target_root) {
             return Err("Blocked: Refusing to extract into a protected system path.".into());
         }
 
@@ -1938,7 +2038,11 @@ pub async fn diff_backup(
         let target_root = if backup_name.starts_with("Engine_Core") {
             crate::game_logic::resolve_game_engine_root(&config.live_path, &game_schema)
         } else {
-            PathBuf::from(&docs_path)
+            crate::utils::resolve_effective_docs_path_with_override(
+                &docs_path,
+                &config,
+                &game_schema,
+            )
         };
 
         let mut backup_items: Vec<(PathBuf, String, u64, Option<std::time::SystemTime>)> =
@@ -2070,18 +2174,40 @@ pub async fn restore_game_data(
         let config = get_saved_coordinates();
         let app_state = app.state::<AppState>();
         let game_schema = app_state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
+
+        if crate::commands::deployment::is_any_game_process_running(&game_schema) {
+            return Err(
+                "Close the running game before restoring a snapshot so files are not locked."
+                    .into(),
+            );
+        }
+
         let arc =
             find_backup(&config.vault_path, &backup_name).ok_or("Backup not found in Vault")?;
 
-        let target = if backup_name.contains("Engine") {
-            crate::game_logic::resolve_game_engine_root(&live_path, &game_schema)
+        let is_engine_restore = backup_name.contains("Engine");
+        let effective_live = if live_path.trim().is_empty() {
+            config.live_path.clone()
         } else {
-            PathBuf::from(docs_path)
+            live_path
         };
-        if !crate::utils::is_safe_user_file_path(&target) {
+        let target = if is_engine_restore {
+            crate::game_logic::resolve_game_engine_root(&effective_live, &game_schema)
+        } else {
+            crate::utils::resolve_effective_docs_path_with_override(
+                &docs_path,
+                &config,
+                &game_schema,
+            )
+        };
+        if !crate::utils::is_safe_workspace_target_dir(&target) {
             return Err("Blocked: Refusing to restore into a protected system path.".into());
         }
-        if !backup_name.contains("Engine") {
+
+        let mut protected_save_dirs: Vec<String> = Vec::new();
+        let mut substituted_save_dirs: Vec<(String, PathBuf)> = Vec::new();
+
+        if !is_engine_restore {
             let _ = crate::commands::deployment::recover_stranded_airgap_if_needed(
                 &target,
                 &config.vault_path,
@@ -2092,6 +2218,39 @@ pub async fn restore_game_data(
                     "Cannot restore World State while a Homestead Lab Save Airgap session is active. Conclude the Lab test first."
                         .into(),
                 );
+            }
+
+            // Mirror any existing live saves into the Secondary Vault Mirror before modifying World State
+            crate::commands::deployment::mirror_live_saves_to_vault(
+                &target,
+                &config.vault_path,
+                &game_schema,
+            );
+
+            protected_save_dirs =
+                crate::commands::deployment::resolve_deduplicated_save_targets(&target, &game_schema);
+
+            // If this snapshot accidentally captured a legacy Lab sandbox marker inside a save directory,
+            // automatically substitute the newest clean World State save directory so real live saves are restored!
+            if arc.is_dir() {
+                for save_rel in &protected_save_dirs {
+                    let arc_save_dir = crate::utils::resolve_case_insensitive_path(&arc, save_rel);
+                    if arc_save_dir.is_dir()
+                        && (arc_save_dir.join(".sanctuary_sandbox_marker").exists()
+                            || arc_save_dir.join(".sanctuary_seeded_save").exists())
+                    {
+                        if let Some(clean_save_dir) =
+                            crate::commands::deployment::find_clean_world_state_save_dir(
+                                &target,
+                                Some(&config.vault_path),
+                                save_rel,
+                                &game_schema,
+                            )
+                        {
+                            substituted_save_dirs.push((save_rel.clone(), clean_save_dir));
+                        }
+                    }
+                }
             }
         }
         let allowed_backup_roots =
@@ -2110,34 +2269,31 @@ pub async fn restore_game_data(
                 }),
             );
 
-            let action_str: String = if backup_name.contains("Engine") {
+            let action_str: String = if is_engine_restore {
                 "Restoring Engine Core...".into()
             } else {
                 "Restoring World State...".into()
             };
 
-            restore_snapshot_parallel_cow(&app, &arc, &target, &action_str)?;
-
-            final_total = walkdir::WalkDir::new(&arc)
-                .into_iter()
-                .filter_map(|e| e.ok())
-                .filter(|e| {
-                    e.file_type().is_file()
-                        && e.path()
-                            .strip_prefix(&arc)
-                            .map(|r| !r.to_string_lossy().replace('\\', "/").split('/').any(|p| p.starts_with('.')))
-                            .unwrap_or(false)
-                })
-                .count();
+            final_total = restore_snapshot_parallel_cow(
+                Some(&app),
+                &arc,
+                &target,
+                &action_str,
+                &protected_save_dirs,
+                &substituted_save_dirs,
+            )?;
         } else {
             // Legacy tar.zst
-            if !backup_name.contains("Engine") {
+            if !is_engine_restore {
                 let mut targets_to_clear: Vec<String> = Vec::new();
                 if let Some(schema) = &game_schema {
                     if let Some(tc) = &schema.time_capsule {
                         for t in &tc.world_state_targets {
                             let expanded = crate::game_logic::expand_env_vars(&t.path);
-                            if !expanded.trim().is_empty() {
+                            if !expanded.trim().is_empty()
+                                && !is_rel_under_protected_dir(&expanded, &protected_save_dirs)
+                            {
                                 targets_to_clear.push(expanded);
                             }
                         }
@@ -2244,6 +2400,14 @@ pub async fn restore_game_data(
             }
         }
 
+        if !is_engine_restore {
+            crate::commands::deployment::mirror_live_saves_to_vault(
+                &target,
+                &config.vault_path,
+                &game_schema,
+            );
+        }
+
         let _ = app.emit(
             "backup-progress",
             serde_json::json!({
@@ -2260,4 +2424,101 @@ pub async fn restore_game_data(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_world_state_restore_is_additive_on_saves_and_substitutes_contaminated_sandbox_snapshot() {
+        let tmp = std::env::temp_dir().join(format!(
+            "sanctuary_tc_restore_test_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let clean_saves = tmp.join("clean_snapshot_saves");
+        let contaminated_arc = tmp.join("World_State--contaminated");
+        let target_docs = tmp.join("GameUserData");
+
+        std::fs::create_dir_all(&clean_saves).unwrap();
+        std::fs::write(clean_saves.join("Slot_0001.sav"), b"CLEAN_SLOT_1").unwrap();
+        std::fs::write(clean_saves.join("Slot_0002.sav"), b"CLEAN_SLOT_2").unwrap();
+
+        std::fs::create_dir_all(contaminated_arc.join("Saves")).unwrap();
+        std::fs::write(
+            contaminated_arc.join("Saves").join(".sanctuary_sandbox_marker"),
+            b"isolated",
+        )
+        .unwrap();
+        std::fs::write(
+            contaminated_arc.join("Saves").join("Slot_ffff.sav"),
+            b"SANDBOX_ONLY",
+        )
+        .unwrap();
+
+        std::fs::create_dir_all(contaminated_arc.join("BlueprintsData")).unwrap();
+        std::fs::write(
+            contaminated_arc.join("BlueprintsData").join("item_a.bin"),
+            b"BLUEPRINT_A",
+        )
+        .unwrap();
+
+        // Pre-populate target_docs with an extra user save slot (`Slot_9999.sav`) and an extraneous non-save file
+        std::fs::create_dir_all(target_docs.join("Saves")).unwrap();
+        std::fs::write(
+            target_docs.join("Saves").join("Slot_9999.sav"),
+            b"EXISTING_LIVE_SLOT_9999",
+        )
+        .unwrap();
+        std::fs::create_dir_all(target_docs.join("BlueprintsData")).unwrap();
+        std::fs::write(
+            target_docs.join("BlueprintsData").join("stale_item.bin"),
+            b"STALE",
+        )
+        .unwrap();
+
+        assert!(crate::utils::is_safe_workspace_target_dir(&target_docs));
+        assert!(!crate::utils::is_safe_workspace_target_dir(Path::new("")));
+
+        let protected = vec!["Saves".to_string()];
+        let substituted = vec![("Saves".to_string(), clean_saves.clone())];
+
+        let restored_count = restore_snapshot_parallel_cow(
+            None,
+            &contaminated_arc,
+            &target_docs,
+            "Testing Restore...",
+            &protected,
+            &substituted,
+        )
+        .expect("restore_snapshot_parallel_cow should succeed");
+
+        assert_eq!(restored_count, 3);
+        // Clean snapshot saves restored:
+        assert_eq!(
+            std::fs::read(target_docs.join("Saves").join("Slot_0001.sav")).unwrap(),
+            b"CLEAN_SLOT_1"
+        );
+        assert_eq!(
+            std::fs::read(target_docs.join("Saves").join("Slot_0002.sav")).unwrap(),
+            b"CLEAN_SLOT_2"
+        );
+        // Existing non-overlapping live save NEVER deleted:
+        assert_eq!(
+            std::fs::read(target_docs.join("Saves").join("Slot_9999.sav")).unwrap(),
+            b"EXISTING_LIVE_SLOT_9999"
+        );
+        // Sandbox save NOT copied into live saves:
+        assert!(!target_docs.join("Saves").join("Slot_ffff.sav").exists());
+        // Non-save folder restored & extraneous file pruned normally:
+        assert_eq!(
+            std::fs::read(target_docs.join("BlueprintsData").join("item_a.bin")).unwrap(),
+            b"BLUEPRINT_A"
+        );
+        assert!(!target_docs.join("BlueprintsData").join("stale_item.bin").exists());
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 }

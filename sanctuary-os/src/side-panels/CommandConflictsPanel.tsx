@@ -7,6 +7,7 @@ import {
   InlineFilterGroup,
   SidePanelHeroCard,
   DashboardStatTile,
+  SidePanelFilterBar,
   UniversalGroup,
 } from "../shared";
 import { useLexicon } from "../LexiconContext";
@@ -176,7 +177,7 @@ export default function CommandConflictsPanel({
         />
 
         {activeConflicts.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <SidePanelFilterBar className="sm:grid-cols-3 gap-2.5">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -211,7 +212,7 @@ export default function CommandConflictsPanel({
                 setSeverityFilter(severityFilter === "overlap" ? "all" : "overlap")
               }
             />
-          </div>
+          </SidePanelFilterBar>
         )}
 
         {activeConflicts.length > 0 && (

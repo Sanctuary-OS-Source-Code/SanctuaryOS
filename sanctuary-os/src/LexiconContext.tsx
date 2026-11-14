@@ -518,8 +518,63 @@ async function resolveVaultLexiconRoots(): Promise<{ masterVault: string; spokeV
 
 export const LexiconProvider = ({ children }: any) => {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const view = useStore((state) => state.view);
+  const isConfigured = useStore((state) => state.isConfigured);
   const isWebHubRoot = !isDesktop() && isRootDomain();
-  const wsId = isWebHubRoot ? 'default_workspace' : (activeWorkspaceId || 'default');
+
+  const [isHubSpaceContext, setIsHubSpaceContext] = useState<boolean>(() =>
+    Boolean(
+      isWebHubRoot ||
+      view === 'landing' ||
+      view === 'KeepersCore' ||
+      !isConfigured ||
+      !activeWorkspaceId ||
+      activeWorkspaceId === 'default_workspace' ||
+      activeWorkspaceId === 'default'
+    )
+  );
+
+  useEffect(() => {
+    if (
+      isWebHubRoot ||
+      view === 'landing' ||
+      view === 'KeepersCore' ||
+      !isConfigured ||
+      !activeWorkspaceId ||
+      activeWorkspaceId === 'default_workspace' ||
+      activeWorkspaceId === 'default'
+    ) {
+      setIsHubSpaceContext(true);
+    } else if (view !== 'settings') {
+      setIsHubSpaceContext(false);
+    }
+  }, [isWebHubRoot, view, isConfigured, activeWorkspaceId]);
+
+  const wsId = isHubSpaceContext
+    ? 'default_workspace'
+    : (activeWorkspaceId || localStorage.getItem('sanctuary_last_active_workspace') || 'default_workspace');
+
+  const readWorkspaceStoredLexiconId = useCallback((targetWsId: string): string | null => {
+    const cleanTarget = String(targetWsId || 'default_workspace').trim() || 'default_workspace';
+    try {
+      const direct = localStorage.getItem(`sanctuary_${cleanTarget}_lang`);
+      if (direct) return direct;
+      if (cleanTarget === 'default_workspace' || cleanTarget === 'default') {
+        return (
+          localStorage.getItem('sanctuary_default_workspace_lang') ||
+          localStorage.getItem('sanctuary_default_lang') ||
+          null
+        );
+      }
+      return (
+        localStorage.getItem(`sanctuary_${cleanTarget.toLowerCase()}_lang`) ||
+        localStorage.getItem(`sanctuary_${cleanTarget.toUpperCase()}_lang`) ||
+        null
+      );
+    } catch {
+      return null;
+    }
+  }, []);
 
   const BUILTIN_LEXICON_IDS = new Set(['en-default', 'en-sanctuary', 'en-sims', 'Simlish']);
 
@@ -641,13 +696,14 @@ export const LexiconProvider = ({ children }: any) => {
     name: string;
     dict: Record<string, any>;
   } | null>(null);
+  const [workspaceLexiconRev, setWorkspaceLexiconRev] = useState(0);
   const [activeLangState, setActiveLangState] = useState(() => {
     const defaultLang = resolveGameDefaultLexicon(activeGameSchema, lexiconMeta);
 
     if (localStorage.getItem('sanctuary_use_global_lexicon') === 'true') {
       return localStorage.getItem('sanctuary_global_lang') || "en-sanctuary";
     }
-    return localStorage.getItem(`sanctuary_${wsId}_lang`) || defaultLang;
+    return readWorkspaceStoredLexiconId(wsId) || defaultLang;
   });
   const [builtinLoadTick, setBuiltinLoadTick] = useState(0);
 
@@ -719,12 +775,15 @@ export const LexiconProvider = ({ children }: any) => {
     setUseGlobalLexiconState(val);
     try { localStorage.setItem('sanctuary_use_global_lexicon', String(val)); } catch { }
     if (val) {
-      setActiveLangState(localStorage.getItem('sanctuary_global_lang') || "en-sanctuary");
+      const nextGlobal = localStorage.getItem('sanctuary_global_lang') || activeLangState || "en-sanctuary";
+      try { localStorage.setItem('sanctuary_global_lang', nextGlobal); } catch { }
+      setActiveLangState(nextGlobal);
     } else {
       const defaultLang = resolveGameDefaultLexicon(activeGameSchema, lexiconMeta);
-      setActiveLangState(localStorage.getItem(`sanctuary_${wsId}_lang`) || defaultLang);
+      setActiveLangState(readWorkspaceStoredLexiconId(wsId) || defaultLang);
     }
-  }, [activeGameSchema, lexiconMeta, wsId]);
+    setWorkspaceLexiconRev((v) => v + 1);
+  }, [activeGameSchema, lexiconMeta, wsId, activeLangState, readWorkspaceStoredLexiconId]);
 
   const setActiveLang = useCallback((lang: string) => {
     setPreviewLexiconState(null);
@@ -736,7 +795,64 @@ export const LexiconProvider = ({ children }: any) => {
         localStorage.setItem(`sanctuary_${wsId}_lang`, lang);
       }
     } catch { }
+    setWorkspaceLexiconRev((v) => v + 1);
   }, [useGlobalLexiconState, wsId]);
+
+  const setGlobalLexiconId = useCallback((lang: string) => {
+    setPreviewLexiconState(null);
+    try {
+      localStorage.setItem('sanctuary_global_lang', lang);
+    } catch { }
+    if (useGlobalLexiconState) {
+      setActiveLangState(lang);
+    }
+    setWorkspaceLexiconRev((v) => v + 1);
+  }, [useGlobalLexiconState]);
+
+  const getWorkspaceLexiconId = useCallback((targetWsId: string): string | null => {
+    return readWorkspaceStoredLexiconId(targetWsId);
+  }, [readWorkspaceStoredLexiconId, workspaceLexiconRev]);
+
+  const setWorkspaceLexiconId = useCallback((targetWsId: string, lang: string | null) => {
+    const cleanTarget = String(targetWsId || 'default_workspace').trim() || 'default_workspace';
+    setPreviewLexiconState(null);
+    try {
+      if (!lang || lang === '__auto__') {
+        localStorage.removeItem(`sanctuary_${cleanTarget}_lang`);
+        if (cleanTarget === 'default_workspace' || cleanTarget === 'default') {
+          localStorage.removeItem('sanctuary_default_workspace_lang');
+          localStorage.removeItem('sanctuary_default_lang');
+        } else {
+          localStorage.removeItem(`sanctuary_${cleanTarget.toLowerCase()}_lang`);
+          localStorage.removeItem(`sanctuary_${cleanTarget.toUpperCase()}_lang`);
+        }
+        if (!useGlobalLexiconState && cleanTarget.toLowerCase() === wsId.toLowerCase()) {
+          const fallbackDefault =
+            cleanTarget === 'default_workspace' || cleanTarget === 'default'
+              ? 'en-sanctuary'
+              : resolveGameDefaultLexicon(activeGameSchema, lexiconMeta);
+          setActiveLangState(fallbackDefault);
+        }
+      } else {
+        localStorage.setItem(`sanctuary_${cleanTarget}_lang`, lang);
+        if (cleanTarget === 'default_workspace' || cleanTarget === 'default') {
+          localStorage.setItem('sanctuary_default_workspace_lang', lang);
+          localStorage.setItem('sanctuary_default_lang', lang);
+        } else {
+          if (localStorage.getItem(`sanctuary_${cleanTarget.toLowerCase()}_lang`) !== null) {
+            localStorage.setItem(`sanctuary_${cleanTarget.toLowerCase()}_lang`, lang);
+          }
+          if (localStorage.getItem(`sanctuary_${cleanTarget.toUpperCase()}_lang`) !== null) {
+            localStorage.setItem(`sanctuary_${cleanTarget.toUpperCase()}_lang`, lang);
+          }
+        }
+        if (!useGlobalLexiconState && cleanTarget.toLowerCase() === wsId.toLowerCase()) {
+          setActiveLangState(lang);
+        }
+      }
+    } catch { }
+    setWorkspaceLexiconRev((v) => v + 1);
+  }, [useGlobalLexiconState, wsId, activeGameSchema, lexiconMeta]);
 
   // When workspace changes, hydrate from local storage
   useEffect(() => {
@@ -758,10 +874,10 @@ export const LexiconProvider = ({ children }: any) => {
     }
     if (!useGlobalLexiconState) {
       const defaultLang = resolveGameDefaultLexicon(activeGameSchema, parsedMeta);
-      const nextLang = localStorage.getItem(`sanctuary_${wsId}_lang`) || defaultLang;
+      const nextLang = readWorkspaceStoredLexiconId(wsId) || defaultLang;
       setActiveLangState((prev: string) => (prev === nextLang ? prev : nextLang));
     }
-  }, [wsId, useGlobalLexiconState, activeGameSchema]);
+  }, [wsId, useGlobalLexiconState, activeGameSchema, readWorkspaceStoredLexiconId]);
 
   useEffect(() => {
     const handleLiveLexiconUpdate = (e: Event) => {
@@ -1173,7 +1289,7 @@ export const LexiconProvider = ({ children }: any) => {
           } catch { }
           setLexiconMeta((prev) => (JSON.stringify(prev) === JSON.stringify(meta) ? prev : meta));
 
-          if (!useGlobalLexiconState && !localStorage.getItem(`sanctuary_${wsId}_lang`)) {
+          if (!useGlobalLexiconState && !readWorkspaceStoredLexiconId(wsId)) {
             const currentSchema = useStore.getState().activeGameSchema;
             const resolvedDefault = resolveGameDefaultLexicon(currentSchema, meta);
             if (resolvedDefault) {
@@ -1459,6 +1575,10 @@ export const LexiconProvider = ({ children }: any) => {
 
   const previewLexiconId = previewLexiconState?.id || null;
   const previewLexiconName = previewLexiconState?.name || null;
+  const globalLexiconId = useMemo(
+    () => localStorage.getItem('sanctuary_global_lang') || activeLangState || 'en-sanctuary',
+    [activeLangState, workspaceLexiconRev]
+  );
 
   const lexiconContextValue = useMemo(
     () => ({
@@ -1475,6 +1595,11 @@ export const LexiconProvider = ({ children }: any) => {
       lexiconMeta,
       useGlobalLexicon: useGlobalLexiconState,
       setUseGlobalLexicon,
+      globalLexiconId,
+      setGlobalLexiconId,
+      getWorkspaceLexiconId,
+      setWorkspaceLexiconId,
+      activeSpaceKey: wsId,
       osLogoUrl,
       titleAreaConfig,
       saveTitleAreaConfig,
@@ -1499,6 +1624,11 @@ export const LexiconProvider = ({ children }: any) => {
       lexiconMeta,
       useGlobalLexiconState,
       setUseGlobalLexicon,
+      globalLexiconId,
+      setGlobalLexiconId,
+      getWorkspaceLexiconId,
+      setWorkspaceLexiconId,
+      wsId,
       osLogoUrl,
       titleAreaConfig,
       saveTitleAreaConfig,
@@ -1552,6 +1682,11 @@ export const useLexicon = () => {
       lexiconMeta: [],
       useGlobalLexicon: false,
       setUseGlobalLexicon: () => { },
+      globalLexiconId: 'en-sanctuary',
+      setGlobalLexiconId: () => { },
+      getWorkspaceLexiconId: () => null,
+      setWorkspaceLexiconId: () => { },
+      activeSpaceKey: 'default_workspace',
       osLogoUrl: '/icon.png',
       titleAreaConfig: DEFAULT_CORE_TITLE_AREA_CONFIG,
       saveTitleAreaConfig: async () => DEFAULT_CORE_TITLE_AREA_CONFIG,

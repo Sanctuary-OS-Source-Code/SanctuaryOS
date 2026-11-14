@@ -10,6 +10,7 @@ import {
   InlineFilterGroup,
   SidePanelHeroCard,
   DashboardStatTile,
+  SidePanelFilterBar,
   UniversalGroup,
 } from "../shared";
 import { useStore } from "../store";
@@ -308,7 +309,7 @@ export default function CommandAlertsPanel({
         />
 
         {totalIssues > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <SidePanelFilterBar className="sm:grid-cols-3 gap-2.5">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -343,7 +344,7 @@ export default function CommandAlertsPanel({
                 setActiveTab(activeTab === "conflicts" ? "all" : "conflicts")
               }
             />
-          </div>
+          </SidePanelFilterBar>
         )}
 
         <ActionPill

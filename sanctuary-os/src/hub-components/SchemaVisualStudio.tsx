@@ -12,6 +12,7 @@ import {
   CustomDropdown,
   DashboardStatTile,
   HoverTooltip,
+  SidePanelFilterBar,
 } from "../shared";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
 
@@ -727,7 +728,7 @@ export default function SchemaVisualStudio({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 @[820px]:grid-cols-4 gap-3 w-full">
+        <SidePanelFilterBar className="grid-cols-2 @[820px]:grid-cols-4 gap-3">
           <DashboardStatTile
             variant="filter"
             icon={t("icon_badge", "badge")}
@@ -763,7 +764,7 @@ export default function SchemaVisualStudio({
             isActive={activeTab === "rules_capsule"}
             onClick={() => setActiveTab("rules_capsule")}
           />
-        </div>
+        </SidePanelFilterBar>
       </div>
 
       {/* =====================================================================

@@ -5,6 +5,19 @@ import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "../utils/envUtils";
 
+function deriveDocsFallbackFromConfig(stateDocsPath: string | undefined, config: any): string {
+  const explicit =
+    stateDocsPath || config?.docs_path || config?.user_data_path || "";
+  if (explicit && String(explicit).trim()) {
+    return String(explicit).trim();
+  }
+  const modsRaw = String(config?.mods_path || "").trim();
+  if (modsRaw) {
+    return modsRaw.replace(/[\\/][^\\/]+[\\/]?$/, "");
+  }
+  return "";
+}
+
 export function useBackupLogic(detectGameVersion: () => void) {
   const { setStatus, setBackupList, selectedVersion } = useStore(
     useShallow((s) => ({
@@ -37,6 +50,7 @@ export function useBackupLogic(detectGameVersion: () => void) {
   async function restoreGameBackup(filename: string) {
     setStatus(`${t("status_restoring_prefix", "Restoring: ")}${filename}...`);
     useModalStore.getState().setCompletedBackups([]);
+    useModalStore.getState().setBackupRestoreError(null);
     useModalStore.getState().setIsDefconBackupSession(false);
     useModalStore
       .getState()
@@ -45,27 +59,37 @@ export function useBackupLogic(detectGameVersion: () => void) {
       );
     useStore.getState().setBackupProgress(null);
     setIsRestoring(true);
+    let succeeded = false;
     try {
       const config: any = await invoke("get_saved_coordinates");
       const state = useStore.getState();
-      const dPath = state.docsPath || config?.docs_path || config?.user_data_path || "";
+      const dPath = deriveDocsFallbackFromConfig(state.docsPath, config);
       const msg = await invoke("restore_game_data", {
         docsPath: dPath,
         livePath: config.live_path,
         backupName: filename,
         gameSchema: state.activeGameSchema,
       });
-      setStatus(msg as string);
+      succeeded = true;
       const cleanName = filename.replace(/^Secured:\s*/i, "").trim();
       if (cleanName) {
         useModalStore.getState().setCompletedBackups([cleanName]);
       }
+      const successMsg = `${t("status_restored", "Restored")}: ${cleanName || String(msg)}`;
+      setStatus(successMsg);
+      useStore.getState().pushStatus?.(successMsg, "success");
       fetchBackups();
     } catch (err) {
-      setStatus(`${t("status_restore_failure", "Restore failed: ")}${err}`);
+      const errText = String(err);
+      const fullErr = `${t("status_restore_failure", "Restore Failure:")} ${errText}`;
+      useModalStore.getState().setBackupRestoreError(errText);
+      setStatus(fullErr);
+      useStore.getState().pushStatus?.(fullErr, "error");
     } finally {
       setIsRestoring(false);
-      detectGameVersion();
+      if (succeeded) {
+        detectGameVersion();
+      }
     }
   }
 
@@ -90,6 +114,7 @@ export function useBackupLogic(detectGameVersion: () => void) {
       useModalStore.getState().setCompletedBackups([]);
       useModalStore.getState().setIsDefconBackupSession(false);
     }
+    useModalStore.getState().setBackupRestoreError(null);
     useModalStore.getState().setBackupType("engine");
     useStore.getState().setBackupProgress(null);
     setIsBackingUp(true);
@@ -108,7 +133,14 @@ export function useBackupLogic(detectGameVersion: () => void) {
       }
       fetchBackups();
     } catch (err) {
-      alert(`${t("alert_backup_failed", "Backup failed: ")}${err}`);
+      const errText = String(err);
+      useModalStore.getState().setBackupRestoreError(errText);
+      useStore
+        .getState()
+        .pushStatus?.(
+          `${t("alert_backup_failed", "Save File Backup Failed:")} ${errText}`,
+          "error"
+        );
     } finally {
       setIsBackingUp(false);
     }
@@ -117,13 +149,14 @@ export function useBackupLogic(detectGameVersion: () => void) {
   const triggerPrePatchSnapshot = async (keepPreviousCompleted = false) => {
     const config: any = await invoke("get_saved_coordinates");
     const state = useStore.getState();
-    const docsBase = state.docsPath || config?.docs_path || config?.user_data_path || "";
-    if (!docsBase || !config?.vault_path) return;
+    const docsBase = deriveDocsFallbackFromConfig(state.docsPath, config);
+    if (!config?.vault_path) return;
     const liveVersion = state.selectedVersion || selectedVersion || "Local";
     if (!keepPreviousCompleted) {
       useModalStore.getState().setCompletedBackups([]);
       useModalStore.getState().setIsDefconBackupSession(false);
     }
+    useModalStore.getState().setBackupRestoreError(null);
     setStatus(
       `${t("icon_inventory_2", "inventory_2")} ${t(
         "status_executing_prepatch_snapshot",
@@ -155,7 +188,14 @@ export function useBackupLogic(detectGameVersion: () => void) {
       );
     } catch (err) {
       console.error(err);
-      alert(`${t("alert_backup_failed", "Backup failed: ")}${err}`);
+      const errText = String(err);
+      useModalStore.getState().setBackupRestoreError(errText);
+      useStore
+        .getState()
+        .pushStatus?.(
+          `${t("alert_backup_failed", "Save File Backup Failed:")} ${errText}`,
+          "error"
+        );
     } finally {
       setIsBackingUp(false);
     }

@@ -5,7 +5,6 @@ import { PanelHeaderGroup, PanelHeaderButton } from '../shared';
 import CitizenTickets from '../CitizenTickets';
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { useStore } from '../store';
-import { getActiveGameClient } from '../supabase';
 import { isDesktop } from '../utils/envUtils';
 import { isRootDomain } from '../utils/routingUtils';
 
@@ -32,12 +31,15 @@ export default function TicketsTab({
     activeWorkspaceId &&
       activeWorkspaceId !== 'default_workspace' &&
       activeWorkspaceId !== 'web' &&
-      !isWebHub &&
-      getActiveGameClient()
+      !isWebHub
   );
 
   const activeWorkspaceObj = Array.isArray(availableWorkspaces)
-    ? availableWorkspaces.find((w: any) => w.id === activeWorkspaceId)
+    ? availableWorkspaces.find(
+        (w: any) =>
+          String(w?.id || '').toLowerCase() === String(activeWorkspaceId || '').toLowerCase() ||
+          String(w?.schema_id || '').toLowerCase() === String(activeWorkspaceId || '').toLowerCase()
+      )
     : null;
   const activeSpokeName =
     activeGameSchema?.display_name ||
@@ -50,9 +52,7 @@ export default function TicketsTab({
     localStorage.setItem('sanctuary_landing_tab', 'support');
     useStore.getState().setView('landing');
     setTimeout(() => {
-      window.dispatchEvent(
-        new CustomEvent('sanctuary-landing-tab', { detail: 'support' })
-      );
+      window.dispatchEvent(new CustomEvent('sanctuary-landing-tab', { detail: 'support' }));
     }, 60);
   };
 
@@ -60,48 +60,14 @@ export default function TicketsTab({
     document.dispatchEvent(new CustomEvent('open-support-modal'));
   };
 
-  const showCoreSection = scopeFilter === 'all' || scopeFilter === 'core';
   const showSpokeSection =
     hasLoadedSpoke && (scopeFilter === 'all' || scopeFilter === 'spoke');
+  const showCoreSection =
+    !hasLoadedSpoke || scopeFilter === 'all' || scopeFilter === 'core';
 
   return (
-    <div className="flex flex-col gap-10 w-full">
-      {showCoreSection && (
-        <TabContainer
-          title={t(
-            'landing_feedback_my_tickets_btn',
-            'My Platform Tickets & Feedback'
-          )}
-          icon={t('icon_receipt_long', 'receipt_long')}
-          actions={
-            <PanelHeaderGroup>
-              <PanelHeaderButton
-                icon={t('icon_add_circle', 'add_circle')}
-                tooltip={t(
-                  'landing_feedback_btn_open',
-                  'Transmit Platform Feedback'
-                )}
-                variant="accent"
-                onClick={handleOpenCoreFeedback}
-              />
-            </PanelHeaderGroup>
-          }
-        >
-          <CitizenTickets
-            userId={userId}
-            tableName="keeper_tickets"
-            embedded={true}
-            externalSearch={searchQuery}
-            externalFilter={ticketStatusFilter}
-            onSelectTicket={(tk) =>
-              setSelectedTicket({ ...tk, table_name: 'keeper_tickets' })
-            }
-            onOpenNewTicket={handleOpenCoreFeedback}
-          />
-        </TabContainer>
-      )}
-
-      {showSpokeSection && (
+    <div className="flex flex-col gap-12 w-full pb-32">
+      {showSpokeSection && activeWorkspaceId && (
         <TabContainer
           title={`${activeSpokeName} • ${t('support_tickets', 'Support Tickets')}`}
           icon={t('icon_local_activity', 'local_activity')}
@@ -117,8 +83,10 @@ export default function TicketsTab({
           }
         >
           <CitizenTickets
+            key={`spoke_tickets_${activeWorkspaceId}`}
             userId={userId}
             tableName="sanctuary_tickets"
+            spokeId={String(activeWorkspaceId)}
             embedded={true}
             externalSearch={searchQuery}
             externalFilter={ticketStatusFilter}
@@ -126,6 +94,36 @@ export default function TicketsTab({
               setSelectedTicket({ ...tk, table_name: 'sanctuary_tickets' })
             }
             onOpenNewTicket={handleOpenSpokeTicket}
+          />
+        </TabContainer>
+      )}
+
+      {showCoreSection && (
+        <TabContainer
+          title={t('landing_feedback_my_tickets_btn', 'My Platform Tickets & Feedback')}
+          icon={t('icon_receipt_long', 'receipt_long')}
+          actions={
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t('icon_add_circle', 'add_circle')}
+                tooltip={t('landing_feedback_btn_open', 'Transmit Platform Feedback')}
+                variant="accent"
+                onClick={handleOpenCoreFeedback}
+              />
+            </PanelHeaderGroup>
+          }
+        >
+          <CitizenTickets
+            key="core_tickets"
+            userId={userId}
+            tableName="keeper_tickets"
+            embedded={true}
+            externalSearch={searchQuery}
+            externalFilter={ticketStatusFilter}
+            onSelectTicket={(tk) =>
+              setSelectedTicket({ ...tk, table_name: 'keeper_tickets' })
+            }
+            onOpenNewTicket={handleOpenCoreFeedback}
           />
         </TabContainer>
       )}

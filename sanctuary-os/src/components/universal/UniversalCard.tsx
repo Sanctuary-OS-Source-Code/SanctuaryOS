@@ -3,6 +3,7 @@ import { useLexicon } from "../../LexiconContext";
 
 export interface UniversalCardProps {
   layout?: "vertical" | "horizontal" | "compact" | "vertical-compact" | "stat";
+  headerStyle?: "banner" | "inline";
   isActive?: boolean;
   isGhosted?: boolean;
   isDisabled?: boolean;
@@ -41,6 +42,7 @@ export type UniversalCardComponentProps = UniversalCardProps & Omit<React.HTMLAt
 
 export function UniversalCard({
   layout = "vertical",
+  headerStyle = "banner",
   isActive = false,
   isGhosted = false,
   isDisabled = false,
@@ -89,9 +91,9 @@ export function UniversalCard({
       contentClasses = "flex-col justify-center grow min-w-0";
       break;
     case "vertical-compact":
-      layoutClasses = "flex-col";
-      imageContainerClasses = "w-full h-[116px]";
-      contentClasses = `flex-col p-4`;
+      layoutClasses = "flex-col overflow-hidden";
+      imageContainerClasses = headerStyle === "inline" ? "w-full" : "w-full h-[116px]";
+      contentClasses = headerStyle === "inline" ? "flex-col px-4 pb-4 pt-3" : "flex-col p-4";
       break;
     case "stat":
       layoutClasses = "flex-col items-center justify-center p-4 text-center min-h-[100px] shadow-none";
@@ -100,9 +102,9 @@ export function UniversalCard({
       break;
     case "vertical":
     default:
-      layoutClasses = "flex-col";
-      imageContainerClasses = "w-full h-32";
-      contentClasses = `flex-col p-5`;
+      layoutClasses = headerStyle === "inline" ? "flex-col overflow-hidden" : "flex-col";
+      imageContainerClasses = headerStyle === "inline" ? "w-full" : "w-full h-32";
+      contentClasses = headerStyle === "inline" ? "flex-col px-5 pb-5 pt-3.5" : "flex-col p-5";
       break;
   }
 
@@ -159,6 +161,60 @@ export function UniversalCard({
             <span className={`material-symbols-outlined !text-[22px] transition-colors ${isActive ? 'theme-text-accent opacity-100' : 'opacity-50 group-hover:opacity-80'}`}>{icon}</span>
           )}
         </div>
+      );
+    }
+
+    if (headerStyle === "inline" && !(image && !imageError)) {
+      const statusStr = String(statusColor || "").toLowerCase();
+      const headerAccentVar =
+        statusStr.includes("danger") || statusStr.includes("red")
+          ? "var(--danger)"
+          : statusStr.includes("warning") || statusStr.includes("amber") || statusStr.includes("orange")
+            ? "var(--warning)"
+            : isActive || statusStr.includes("success") || statusStr.includes("emerald")
+              ? "var(--success)"
+              : "var(--accent)";
+      const padCls = layout === "vertical-compact" ? "px-4 pt-4" : "px-5 pt-5";
+      return (
+        <>
+          {icon && (
+            <span
+              className="material-symbols-outlined absolute -right-3 -bottom-4 !text-[80px] opacity-[0.035] pointer-events-none select-none rotate-[-10deg]"
+              style={{ color: headerAccentVar }}
+            >
+              {icon}
+            </span>
+          )}
+          <div className={`flex items-center justify-between gap-3 shrink-0 relative z-10 ${padCls} ${innerGhostClasses}`}>
+            <div
+              className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
+              style={
+                isActive
+                  ? { borderColor: `color-mix(in srgb, ${headerAccentVar} 42%, rgba(255, 255, 255, 0.2))` }
+                  : undefined
+              }
+            >
+              {customIcon ? (
+                customIcon
+              ) : (
+                <span
+                  className="material-symbols-outlined !text-[22px] transition-transform duration-300"
+                  style={{ color: headerAccentVar }}
+                >
+                  {icon || t("icon_tune", "tune")}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0 ml-auto">
+              {imageOverlay && (
+                <div className="[&_.absolute]:!static [&_.top-3]:!top-auto [&_.right-3]:!right-auto flex items-center">
+                  {imageOverlay}
+                </div>
+              )}
+              {actions && <div className="flex items-center gap-2">{actions}</div>}
+            </div>
+          </div>
+        </>
       );
     }
 
@@ -363,17 +419,24 @@ export function UniversalCard({
                     </span>
 
                     <div
-                      className={`absolute inset-x-3 ${isCompactBanner ? "top-[50px] h-11" : "top-[52px] h-14"
-                        } flex items-stretch gap-2 pointer-events-none z-10`}
+                      className={`absolute inset-x-3 ${
+                        isCompactBanner
+                          ? "top-[50px] h-11"
+                          : "top-[56px] h-12 sm:top-[52px] sm:h-14"
+                      } flex items-stretch gap-2 pointer-events-none z-10`}
                     >
                       {/* Left Icon Tile (1:1 Square) */}
                       <div
-                        className={`${isCompactBanner ? "w-11 h-11 rounded-lg" : "w-14 h-14 rounded-xl"
-                          } glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.08))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.035))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
+                        className={`${
+                          isCompactBanner
+                            ? "w-11 h-11 rounded-lg"
+                            : "w-12 h-12 sm:w-14 sm:h-14 rounded-xl"
+                        } glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.08))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.035))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1 gap-0.5 shrink-0`}
                       >
                         <span
-                          className={`material-symbols-outlined ${isCompactBanner ? "!text-[16px]" : "!text-[20px]"
-                            } ${!isDisabled && isInteractive ? "group-hover/card:scale-110 group-hover:scale-110" : ""} transition-transform duration-300`}
+                          className={`material-symbols-outlined ${
+                            isCompactBanner ? "!text-[16px]" : "!text-[18px] sm:!text-[20px]"
+                          } ${!isDisabled && isInteractive ? "group-hover/card:scale-110 group-hover:scale-110" : ""} transition-transform duration-300`}
                           style={{ color: headerAccentVar }}
                         >
                           {resolvedBannerIcon}
@@ -395,7 +458,7 @@ export function UniversalCard({
                             </span>
                           </div>
                           {topRightLabel && (
-                            <div className="shrink-0 max-w-[38%] px-2 rounded-lg glass-surface flex items-center justify-center min-w-0">
+                            <div className="shrink-0 max-w-[46%] px-2 rounded-lg glass-surface flex items-center justify-center min-w-0">
                               <span className="text-[7px] font-mono font-black uppercase tracking-wider text-[var(--subtext)] opacity-85 truncate">
                                 {topRightLabel}
                               </span>
@@ -464,11 +527,14 @@ export function UniversalCard({
       )}
 
       {/* Floating or Inline Actions */}
-      {actions && layout !== 'horizontal' && layout !== 'compact' && (
-        <div className="absolute z-[70] top-3 right-3 flex items-center gap-2">
-          {actions}
-        </div>
-      )}
+      {actions &&
+        layout !== 'horizontal' &&
+        layout !== 'compact' &&
+        !(headerStyle === 'inline' && !(image && !imageError)) && (
+          <div className="absolute z-[70] top-3 right-3 flex items-center gap-2">
+            {actions}
+          </div>
+        )}
 
       {/* Main Content Layout */}
       {renderMedia()}
@@ -489,7 +555,7 @@ export function UniversalCard({
             <div className={`flex min-w-0 w-full ${layout === 'stat' ? 'justify-center flex-col items-center gap-3 mb-2' : 'items-center gap-2'} relative group/title`}>
               {/* Removed large inline icon since it now renders in the banner */}
 
-              <span className={`flex-none min-w-0 w-full break-words font-bold tracking-tight text-[var(--text)] ${layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm line-clamp-2 leading-snug' : layout === 'vertical-compact' ? 'text-[15px] line-clamp-2 leading-snug' : layout === 'stat' ? 'text-base' : 'text-[15px] md:text-base line-clamp-2 leading-snug'} sanctuary-title ${!isDisabled && isInteractive ? 'group-hover/card:text-[var(--accent)] group-hover:text-[var(--accent)]' : ''} transition-colors duration-300`}>
+              <span className={`flex-none min-w-0 w-full break-words font-bold tracking-tight text-[var(--text)] ${headerStyle === 'inline' ? 'text-[15px] md:text-base leading-snug' : layout === 'compact' ? 'text-sm truncate' : layout === 'horizontal' ? 'text-sm line-clamp-2 leading-snug' : layout === 'vertical-compact' ? 'text-[15px] line-clamp-2 leading-snug' : layout === 'stat' ? 'text-base' : 'text-[15px] md:text-base line-clamp-2 leading-snug'} sanctuary-title ${!isDisabled && isInteractive ? 'group-hover/card:text-[var(--accent)] group-hover:text-[var(--accent)]' : ''} transition-colors duration-300`}>
                 {resolvedTitle}
               </span>
               {/* layout !== 'stat' && typeof title === 'string' && (
@@ -498,13 +564,53 @@ export function UniversalCard({
             </div>
 
             {resolvedSubtitle && layout !== 'stat' && (
-              <div className="sanctuary-subtitle text-xs font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-3 relative group/subtitle w-full">
-                {resolvedSubtitle}
-              </div>
+              headerStyle === 'inline' && typeof resolvedSubtitle === 'string' && resolvedSubtitle.includes('\n') ? (
+                <div className="flex flex-col gap-1.5 text-xs font-medium text-[var(--subtext)] opacity-85 leading-relaxed break-words relative group/subtitle w-full">
+                  {resolvedSubtitle.split('\n').filter((line) => line.trim().length > 0).map((line, idx) => {
+                    const prefixMatch = line.match(/^(ON:|OFF:)\s*(.*)$/i);
+                    return (
+                      <div key={idx} className="leading-relaxed">
+                        {prefixMatch ? (
+                          <>
+                            <span
+                              className={`font-bold tracking-wide mr-1 ${
+                                prefixMatch[1].toUpperCase() === 'ON:'
+                                  ? 'text-[var(--text)] opacity-95'
+                                  : 'text-[var(--subtext)] opacity-95'
+                              }`}
+                            >
+                              {prefixMatch[1].toUpperCase()}
+                            </span>
+                            <span>{prefixMatch[2]}</span>
+                          </>
+                        ) : (
+                          line
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div
+                  className={`${
+                    headerStyle === 'inline'
+                      ? 'whitespace-pre-line break-words opacity-85'
+                      : 'sanctuary-subtitle line-clamp-3 opacity-80'
+                  } text-xs font-medium text-[var(--subtext)] leading-relaxed relative group/subtitle w-full`}
+                >
+                  {resolvedSubtitle}
+                </div>
+              )
             )}
 
             {resolvedDescription && layout !== 'stat' && (
-              <div className="text-xs font-medium text-[var(--subtext)] opacity-80 leading-relaxed line-clamp-3 w-full">
+              <div
+                className={`text-xs font-medium text-[var(--subtext)] leading-relaxed w-full ${
+                  headerStyle === 'inline'
+                    ? 'whitespace-pre-line break-words opacity-85'
+                    : 'line-clamp-3 opacity-80'
+                }`}
+              >
                 {resolvedDescription}
               </div>
             )}

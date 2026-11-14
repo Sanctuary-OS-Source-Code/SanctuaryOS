@@ -7,6 +7,7 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   DashboardStatTile,
+  SidePanelFilterBar,
   EmptyState,
   CustomDropdown,
   HoverTooltip,
@@ -148,7 +149,7 @@ export default function SidePanelMasonPin({
           variant="accent"
         />
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-3 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -185,7 +186,7 @@ export default function SidePanelMasonPin({
               setActiveCategory("ALL");
             }}
           />
-        </div>
+        </SidePanelFilterBar>
 
         <UniversalGroup
           title={
@@ -225,28 +226,28 @@ export default function SidePanelMasonPin({
                 options={
                   activeTab === "mod"
                     ? modCategories.map((cat: any) => ({
-                        id: cat,
-                        label: cat === "ALL" ? t("all_classes", "All Classes") : cat,
-                        icon: t("icon_folder", "folder"),
-                      }))
+                      id: cat,
+                      label: cat === "ALL" ? t("all_classes", "All Classes") : cat,
+                      icon: t("icon_folder", "folder"),
+                    }))
                     : activeTab === "blueprint"
                       ? blueprintVersions.map((ver: any) => ({
-                          id: ver,
-                          label:
-                            ver === "ALL" ? t("filter_all_versions", "All Versions") : ver,
-                          icon:
-                            ver === "ALL"
-                              ? t("icon_folder", "folder")
-                              : t("icon_map", "map"),
-                        }))
+                        id: ver,
+                        label:
+                          ver === "ALL" ? t("filter_all_versions", "All Versions") : ver,
+                        icon:
+                          ver === "ALL"
+                            ? t("icon_folder", "folder")
+                            : t("icon_map", "map"),
+                      }))
                       : assetCategories.map((cat: any) => ({
-                          id: cat,
-                          label:
-                            cat === "ALL"
-                              ? t("all_types", "All Types")
-                              : t(cat, cat) || cat,
-                          icon: t("icon_folder", "folder"),
-                        }))
+                        id: cat,
+                        label:
+                          cat === "ALL"
+                            ? t("all_types", "All Types")
+                            : t(cat, cat) || cat,
+                        icon: t("icon_folder", "folder"),
+                      }))
                 }
               />
             </div>
@@ -271,11 +272,10 @@ export default function SidePanelMasonPin({
                           handlePin("mod", mod.id);
                         }
                       }}
-                      className={`relative flex items-center gap-3.5 px-4 py-3.5 glass-surface border rounded-2xl transition-all duration-300 cursor-pointer group ${
-                        isPinned
-                          ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
-                      }`}
+                      className={`relative flex items-center gap-3.5 px-4 py-3.5 glass-surface border rounded-2xl transition-all duration-300 cursor-pointer group ${isPinned
+                        ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                        : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+                        }`}
                     >
                       <div className="w-10 h-10 rounded-xl shrink-0 overflow-hidden glass-surface flex items-center justify-center border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)]">
                         {mod.image_url ? (
@@ -286,11 +286,10 @@ export default function SidePanelMasonPin({
                           />
                         ) : (
                           <span
-                            className={`material-symbols-rounded !text-xl transition-all duration-300 ${
-                              isPinned
-                                ? "text-[var(--accent)]"
-                                : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--accent)]"
-                            }`}
+                            className={`material-symbols-rounded !text-xl transition-all duration-300 ${isPinned
+                              ? "text-[var(--accent)]"
+                              : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--accent)]"
+                              }`}
                           >
                             {modIcon}
                           </span>
@@ -357,11 +356,10 @@ export default function SidePanelMasonPin({
                             e.stopPropagation();
                             handlePin("mod", mod.id);
                           }}
-                          className={`relative flex items-center justify-center w-8 h-8 rounded-lg glass-surface border transition-all cursor-pointer ${
-                            isPinned
-                              ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]"
-                              : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                          }`}
+                          className={`relative flex items-center justify-center w-8 h-8 rounded-lg glass-surface border transition-all cursor-pointer ${isPinned
+                            ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]"
+                            : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                            }`}
                         >
                           <HoverTooltip
                             title={
@@ -419,11 +417,10 @@ export default function SidePanelMasonPin({
                           handlePin("blueprint", bp.id);
                         }
                       }}
-                      className={`relative flex items-center gap-3.5 px-4 py-3.5 glass-surface border rounded-2xl transition-all duration-300 cursor-pointer group ${
-                        isPinned
-                          ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
-                      }`}
+                      className={`relative flex items-center gap-3.5 px-4 py-3.5 glass-surface border rounded-2xl transition-all duration-300 cursor-pointer group ${isPinned
+                        ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                        : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+                        }`}
                     >
                       <div className="w-10 h-10 rounded-xl shrink-0 overflow-hidden glass-surface flex items-center justify-center border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)]">
                         {bp.image_url ? (
@@ -434,11 +431,10 @@ export default function SidePanelMasonPin({
                           />
                         ) : (
                           <span
-                            className={`material-symbols-rounded !text-xl transition-all duration-300 ${
-                              isPinned
-                                ? "text-[var(--accent)]"
-                                : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--accent)]"
-                            }`}
+                            className={`material-symbols-rounded !text-xl transition-all duration-300 ${isPinned
+                              ? "text-[var(--accent)]"
+                              : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--accent)]"
+                              }`}
                           >
                             {bpIcon}
                           </span>
@@ -505,11 +501,10 @@ export default function SidePanelMasonPin({
                             e.stopPropagation();
                             handlePin("blueprint", bp.id);
                           }}
-                          className={`relative flex items-center justify-center w-8 h-8 rounded-lg glass-surface border transition-all cursor-pointer ${
-                            isPinned
-                              ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]"
-                              : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                          }`}
+                          className={`relative flex items-center justify-center w-8 h-8 rounded-lg glass-surface border transition-all cursor-pointer ${isPinned
+                            ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]"
+                            : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                            }`}
                         >
                           <HoverTooltip
                             title={
@@ -571,11 +566,10 @@ export default function SidePanelMasonPin({
                         handlePin("asset", asset.id);
                       }
                     }}
-                    className={`relative flex items-center gap-3.5 px-4 py-3.5 glass-surface border rounded-2xl transition-all duration-300 cursor-pointer group ${
-                      isPinned
-                        ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                        : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
-                    }`}
+                    className={`relative flex items-center gap-3.5 px-4 py-3.5 glass-surface border rounded-2xl transition-all duration-300 cursor-pointer group ${isPinned
+                      ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                      : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+                      }`}
                   >
                     <div className="w-10 h-10 rounded-xl shrink-0 overflow-hidden glass-surface flex items-center justify-center border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)]">
                       {asset.image_url ? (
@@ -586,11 +580,10 @@ export default function SidePanelMasonPin({
                         />
                       ) : (
                         <span
-                          className={`material-symbols-rounded !text-xl transition-all duration-300 ${
-                            isPinned
-                              ? "text-[var(--accent)]"
-                              : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--accent)]"
-                          }`}
+                          className={`material-symbols-rounded !text-xl transition-all duration-300 ${isPinned
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--subtext)] opacity-75 group-hover:text-[var(--accent)]"
+                            }`}
                         >
                           {smIcon}
                         </span>
@@ -659,11 +652,10 @@ export default function SidePanelMasonPin({
                           e.stopPropagation();
                           handlePin("asset", asset.id);
                         }}
-                        className={`relative flex items-center justify-center w-8 h-8 rounded-lg glass-surface border transition-all cursor-pointer ${
-                          isPinned
-                            ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]"
-                            : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                        }`}
+                        className={`relative flex items-center justify-center w-8 h-8 rounded-lg glass-surface border transition-all cursor-pointer ${isPinned
+                          ? "border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]"
+                          : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                          }`}
                       >
                         <HoverTooltip
                           title={

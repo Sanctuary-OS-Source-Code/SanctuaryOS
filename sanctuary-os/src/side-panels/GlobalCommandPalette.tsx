@@ -6,6 +6,7 @@ import {
   SidePanel,
   PanelHeaderButton,
   DashboardStatTile,
+  SidePanelFilterBar,
   EmptyState,
   VAULT_CHIP_CLASS,
   ModData,
@@ -1822,14 +1823,13 @@ export function GlobalCommandPalette({
     });
 
     const settingsSubsections: { id: string; label: string; icon: string; kw: string; desktopOnly?: boolean }[] = [
-      { id: "CORE", label: t("tab_core", "Core"), icon: t("icon_account_circle", "account_circle"), kw: "core account profile paths coordinates vault passkey 2fa webauthn" },
-      { id: "SUPPORTER", label: t("tab_supporter", "Supporter & Perks"), icon: t("icon_volunteer_activism", "volunteer_activism"), kw: "supporter perks dev builds donations" },
-      { id: "TICKETS", label: t("support_tickets", "Support Tickets"), icon: t("icon_confirmation_number", "confirmation_number"), kw: "support tickets feedback core spoke my tickets" },
-      { id: "ENGINE", label: t("tab_engine", "Engine"), icon: t("icon_history", "history"), kw: "engine retention backups cycles defcon emergency agency", desktopOnly: true },
-      { id: "CLIENT", label: t("tab_preferences", "Preferences"), icon: t("icon_tune", "tune"), kw: "client preferences interface behavior date format browser version history", desktopOnly: false },
-      { id: "NOTIFICATIONS", label: t("tab_notifs", "Notifications"), icon: t("icon_notifications", "notifications"), kw: "notifications alerts sounds defcon lockdown", desktopOnly: false },
-      { id: "AESTHETICS", label: t("tab_aesthetics", "Aesthetics"), icon: t("icon_format_paint", "format_paint"), kw: "aesthetics chameleons themes lexicons fonts glass", desktopOnly: false },
-      { id: "LOGIC", label: t("tab_logic", "Logic Integrity"), icon: t("icon_flag", "flag"), kw: "logic integrity anarchy highlander rules conflicts", desktopOnly: true },
+      { id: "CORE", label: t("settings_tab_account_system", "Account & System"), icon: t("icon_shield_person", "shield_person"), kw: "core os account profile privacy offline malware passkey 2fa webauthn blinded email browser hotkeys controller" },
+      { id: "VAULT", label: t("settings_tab_vault_blueprints", "{Vault} & {Blueprints}"), icon: t("icon_inventory_2", "inventory_2"), kw: "vault path master storage intake drag drop version history atomic logic blueprint safeguards highlander family dependencies conflicts workbench config snapshots overrides", desktopOnly: true },
+      { id: "ENGINE", label: t("settings_tab_game_backups", "Game & {Backups}"), icon: t("icon_sports_esports", "sports_esports"), kw: "game paths executable library saves auto detect quick launch window cache backups time capsule defcon emergency retention", desktopOnly: true },
+      { id: "AESTHETICS", label: t("settings_tab_appearance_v2", "Appearance"), icon: t("icon_palette", "palette"), kw: "appearance chameleons themes lexicons workspace spaces date format images cards", desktopOnly: false },
+      { id: "NOTIFICATIONS", label: t("tab_notifs", "Notifications"), icon: t("icon_notifications", "notifications"), kw: "notifications alerts sounds defcon lockdown mute spoke", desktopOnly: false },
+      { id: "SUPPORTER", label: t("tab_supporter", "Supporter & Perks"), icon: t("icon_volunteer_activism", "volunteer_activism"), kw: "supporter perks dev builds donations", desktopOnly: false },
+      { id: "TICKETS", label: t("support_tickets", "Support Tickets"), icon: t("icon_confirmation_number", "confirmation_number"), kw: "support tickets feedback core spoke my tickets", desktopOnly: false },
     ];
     for (const sub of settingsSubsections) {
       if (sub.desktopOnly && !isDesktop()) continue;
@@ -1846,7 +1846,7 @@ export function GlobalCommandPalette({
       });
     }
 
-    // Individual Settings Deep-Link Cards (including DEFCON Protocol, Retention, Version History, etc.)
+    // Individual Settings Deep-Link Cards (including Master Vault Path, Per-Space Themes/Lexicons, DEFCON Protocol, etc.)
     const deepSettingsCards: {
       id: string;
       tab: string;
@@ -1856,6 +1856,26 @@ export function GlobalCommandPalette({
       kw: string;
       desktopOnly?: boolean;
     }[] = [
+      {
+        id: "setting_master_vault_path",
+        tab: "VAULT",
+        title: t("vault_path", "The {Vault} Path"),
+        subtitle: t(
+          "vault_universal_desc",
+          "Universal Master {Vault} directory shared across the Hub (Themes & Lexicons) and all Spoke workspaces."
+        ),
+        icon: t("icon_account_balance", "account_balance"),
+        kw: "master vault path universal storage directory root folder",
+        desktopOnly: true,
+      },
+      {
+        id: "setting_space_themes_lexicons",
+        tab: "AESTHETICS",
+        title: t("settings_chameleon_assignment_title", "Workspace {Chameleon} Assignment"),
+        subtitle: t("term_chameleons", "Themes"),
+        icon: t("icon_workspaces", "workspaces"),
+        kw: "per space workspace theme chameleon lexicon language routing assign",
+      },
       {
         id: "setting_defcon_protocol",
         tab: "ENGINE",
@@ -1871,7 +1891,7 @@ export function GlobalCommandPalette({
       {
         id: "setting_engine_agency",
         tab: "ENGINE",
-        title: t("engine_agency", "Emergency Level"),
+        title: t("engine_agency", "Emergency Backup Level"),
         subtitle: t("agency_full_desc", "Automatic backups & protection."),
         icon: t("icon_tune", "tune"),
         kw: "defcon level emergency agency full auto semi manual backup protection",
@@ -1880,15 +1900,24 @@ export function GlobalCommandPalette({
       {
         id: "setting_backup_retention",
         tab: "ENGINE",
-        title: `${t("vault_capacity", "{Backups} Limit")} & ${t("game_retention", "Game Files Retention")}`,
-        subtitle: t("version_storage_limit", "Version Storage Limit"),
+        title: `${t("vault_capacity", "{Backups} Limit")} & ${t("engine_retention", "Game Files Retention Policy")}`,
+        subtitle: t("term_backups", "Backups"),
         icon: t("icon_storage", "storage"),
         kw: "backups limit retention saves storage capacity version copies days",
         desktopOnly: true,
       },
       {
+        id: "setting_workbench_history",
+        tab: "VAULT",
+        title: t("settings_workbench_section", "Workbench Config History"),
+        subtitle: t("settings_workbench_guide_title", "Config File Undo Snapshots"),
+        icon: t("icon_construction", "construction"),
+        kw: "workbench config history revisions storage snapshots undo",
+        desktopOnly: true,
+      },
+      {
         id: "setting_version_history",
-        tab: "CLIENT",
+        tab: "VAULT",
         title: t("version_pool_auto_archive", "Version History System"),
         subtitle: t(
           "version_pool_auto_archive_desc",
@@ -1900,7 +1929,7 @@ export function GlobalCommandPalette({
       },
       {
         id: "setting_ingest_mode",
-        tab: "CLIENT",
+        tab: "VAULT",
         title: t("settings_ingest_file_mode_title", "Drag & Drop File Behavior"),
         subtitle: t(
           "settings_ingest_file_mode_desc",
@@ -1908,10 +1937,11 @@ export function GlobalCommandPalette({
         ),
         icon: t("icon_drive_file_move", "drive_file_move"),
         kw: "drag drop file behavior payload intake copy move import",
+        desktopOnly: true,
       },
       {
         id: "setting_date_format",
-        tab: "CLIENT",
+        tab: "AESTHETICS",
         title: t("settings_date_format_title", "Date Format"),
         subtitle: t(
           "settings_date_format_desc",
@@ -1922,7 +1952,7 @@ export function GlobalCommandPalette({
       },
       {
         id: "setting_internal_browser",
-        tab: "CLIENT",
+        tab: "CORE",
         title: t("settings_use_internal_browser", "Use the Sanctuary Browser"),
         subtitle: t(
           "use_internal_browser_desc",
@@ -1934,7 +1964,7 @@ export function GlobalCommandPalette({
       },
       {
         id: "setting_local_only",
-        tab: "CLIENT",
+        tab: "CORE",
         title: t("local_only", "Local Network Only"),
         subtitle: t("local_only_desc", "Block external uploads/downloads. Strict offline mode."),
         icon: t("icon_wifi_off", "wifi_off"),
@@ -1942,7 +1972,7 @@ export function GlobalCommandPalette({
       },
       {
         id: "setting_malware_share",
-        tab: "CLIENT",
+        tab: "CORE",
         title: t("malware_share_title", "Share Malware Reports"),
         subtitle: t(
           "malware_share_desc",
@@ -1960,12 +1990,12 @@ export function GlobalCommandPalette({
         kw: "defcon lockdown alerts notifications patch detected emergency",
       },
       {
-        id: "setting_anarchy_highlander",
-        tab: "LOGIC",
-        title: t("tab_logic", "Logic Integrity"),
-        subtitle: makeSubDesc(settingsTitle, t("tab_logic", "Logic Integrity")),
-        icon: t("icon_flag", "flag"),
-        kw: "anarchy highlander logic integrity conflict rules override",
+        id: "setting_blueprint_safeguards",
+        tab: "VAULT",
+        title: t("anarchy_title", "{Blueprint} Safeguards"),
+        subtitle: t("anarchy_highlander", "Swap Exclusive {Mods}"),
+        icon: t("icon_psychology", "psychology"),
+        kw: "atomic logic anarchy blueprint safeguards highlander nuclear family dependencies conflict intercept",
         desktopOnly: true,
       },
     ];
@@ -4296,7 +4326,7 @@ export function GlobalCommandPalette({
         )}
 
         {/* 2x2 Category Filter Tiles (Full-Width Labels — Never Cut Off) */}
-        <div className="grid grid-cols-2 gap-3">
+        <SidePanelFilterBar className="grid-cols-2 gap-3">
           <DashboardStatTile
             variant="filter"
             icon={t("icon_apps", "apps")}
@@ -4337,7 +4367,7 @@ export function GlobalCommandPalette({
               inputRef.current?.focus();
             }}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {/* Results Grid */}
         {filteredItems.length === 0 ? (

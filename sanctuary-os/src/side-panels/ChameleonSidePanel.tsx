@@ -10,6 +10,7 @@ import {
   PanelHeaderGroup,
   PanelHeaderButton,
   ActionPill,
+  ActionButton,
 } from "../shared";
 import { ChameleonEditorPanel } from "../side-panels/ChameleonEditorPanel";
 import { ThemeCard } from "../chameleon-components/ThemeCard";
@@ -257,30 +258,22 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                 />
               ))}
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
+            <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">
+              <ActionButton
+                variant="glass"
+                icon={t("icon_tune", "tune")}
+                label={t("btn_open_theme_forge", "Open Theme Forge")}
                 onClick={() => setIsEditorOpen(true)}
-                className="px-3 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <span className="material-symbols-outlined !text-[14px]">
-                  {t("icon_tune", "tune")}
-                </span>
-                <span>{t("btn_open_theme_forge", "Open Theme Forge")}</span>
-              </button>
-              <button
-                type="button"
+              />
+              <ActionButton
+                variant="glass"
+                icon={t("icon_add", "add")}
+                label={t("btn_create_theme", "Create Theme")}
                 onClick={() => {
                   createNewTheme();
                   setIsEditorOpen(true);
                 }}
-                className="px-3 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_35%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                  {t("icon_add", "add")}
-                </span>
-                <span>{t("btn_create_theme", "Create Theme")}</span>
-              </button>
+              />
             </div>
           </div>
         </SidePanelHeroCard>

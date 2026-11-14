@@ -5,8 +5,10 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import {
+  ActionButton,
   ActionPill,
   DashboardStatTile,
+  SidePanelFilterBar,
   EmptyState,
   SidePanel,
   VAULT_CHIP_CLASS,
@@ -538,51 +540,39 @@ export default function VaultCompanionRadarSidePanel({
               badgeIcon={heroIcon}
               variant={heroVariant}
             >
-              <div className="flex flex-wrap items-center gap-2.5 w-full mt-1">
+              <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
                 {updatesItems.length > 0 &&
                   filterMode !== "CRITICAL" &&
                   filterMode !== "ALERTS" && (
-                    <button
-                      type="button"
+                    <ActionButton
+                      variant="accent"
+                      icon={t("icon_playlist_add", "playlist_add")}
+                      label={t(
+                        "staging_radar_stage_all_btn",
+                        "Stage All Updates ({0})"
+                      ).replace("{0}", String(updatesItems.length))}
                       onClick={handleStageAllUpdates}
-                      className="flex-1 min-w-[160px] h-10 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 border glass-surface border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined !text-[16px]">
-                        {t("icon_playlist_add", "playlist_add")}
-                      </span>
-                      <span>
-                        {t(
-                          "staging_radar_stage_all_btn",
-                          "Stage All Updates ({0})"
-                        ).replace("{0}", String(updatesItems.length))}
-                      </span>
-                    </button>
+                    />
                   )}
 
                 {issueItemsToYeet.length > 0 &&
                   (filterMode === "CRITICAL" ||
                     filterMode === "ALERTS" ||
                     updatesItems.length === 0) && (
-                    <button
-                      type="button"
+                    <ActionButton
+                      variant="danger"
+                      icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+                      label={t(
+                        "staging_radar_yeet_all_btn",
+                        "{Remove} All Issues ({0})"
+                      ).replace("{0}", String(issueItemsToYeet.length))}
                       onClick={handleYeetAllIssues}
-                      className="flex-1 min-w-[160px] h-10 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center justify-center gap-2 border glass-surface border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] hover:border-[var(--danger)] cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined !text-[16px]">
-                        {t("icon_remove_circle_outline", "remove_circle_outline")}
-                      </span>
-                      <span>
-                        {t(
-                          "staging_radar_yeet_all_btn",
-                          "{Remove} All Issues ({0})"
-                        ).replace("{0}", String(issueItemsToYeet.length))}
-                      </span>
-                    </button>
+                    />
                   )}
               </div>
             </SidePanelHeroCard>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full">
+            <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-2.5">
               <DashboardStatTile
                 variant="filter"
                 className="!w-full"
@@ -619,7 +609,7 @@ export default function VaultCompanionRadarSidePanel({
                 isActive={filterMode === "ALL"}
                 onClick={() => setFilterMode("ALL")}
               />
-            </div>
+            </SidePanelFilterBar>
 
             <ActionPill
               searchQuery={searchQuery}

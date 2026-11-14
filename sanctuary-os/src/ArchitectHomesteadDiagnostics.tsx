@@ -8,6 +8,7 @@ import {
   getExtensionRegex,
   cleanSearchName,
   DashboardStatTile,
+  SidePanelFilterBar,
   StatBox,
   SidePanelHeroCard,
   UniversalGroup,
@@ -1516,7 +1517,7 @@ export function HomesteadDiagnostics({
 
                 {/* 2-Column StatTile Log Switcher */}
                 {activeRawLog && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                  <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
                     <DashboardStatTile
                       variant="filter"
                       className="!w-full"
@@ -1535,7 +1536,7 @@ export function HomesteadDiagnostics({
                       isActive={diagLogViewTab === "REAL_LOG"}
                       onClick={() => setDiagLogViewTab("REAL_LOG")}
                     />
-                  </div>
+                  </SidePanelFilterBar>
                 )}
 
                 {/* Unified Log Terminal with Privacy Scrubber Badge & Copy Telemetry */}

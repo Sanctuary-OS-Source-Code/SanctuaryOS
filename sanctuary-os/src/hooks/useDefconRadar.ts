@@ -10,6 +10,7 @@ import {
   dispatchSanctuaryNotification,
   getNotificationMode,
   clearDeliveredNotification,
+  syncCrossDeviceNotificationState,
 } from "../utils/notificationHelper";
 
 const MAX_HANDLED_INCIDENTS = 30;
@@ -119,9 +120,14 @@ export function useDefconRadar(
     let cancelled = false;
     const baseNotifId = `defcon:${wsScope}:level_1`;
 
-    const dispatchOsOrAppNotification = (incidentId: string) => {
+    const dispatchOsOrAppNotification = async (incidentId: string) => {
       const mode = getNotificationMode("defcon", wsScope);
       if (mode === "NONE") return;
+      const activeSession = useStore.getState().session;
+      if (activeSession?.user?.id) {
+        await syncCrossDeviceNotificationState(activeSession);
+      }
+      if (cancelled) return;
       dispatchSanctuaryNotification({
         uniqueId: `${baseNotifId}:${incidentId}`,
         category: "defcon",

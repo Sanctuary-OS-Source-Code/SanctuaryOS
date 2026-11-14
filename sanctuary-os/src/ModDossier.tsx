@@ -33,6 +33,7 @@ import {
   StatBox,
   ActionButton,
   DashboardStatTile,
+  SidePanelFilterBar,
   getModFallbackUrl,
   handleOpenUrl,
   PanelHeaderGroup,
@@ -54,6 +55,8 @@ import {
   LabVerificationGate,
   LabVerificationBadge,
   checkDnaHashVerification,
+  recordVerifiedCertificate,
+  verifyKnownTier0CloudHashes,
 } from "./components/LabVerificationGate";
 import {
   groupModVersionPoolItems,
@@ -242,9 +245,8 @@ function DossierFilterSection({ title, options, value, onChange, t }: any) {
               key={opt.id}
               type="button"
               onClick={() => onChange(opt.id)}
-              className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
-                active ? "is-selected font-bold" : "font-semibold"
-              }`}
+              className={`sa-dropdown-item flex items-center justify-between gap-2.5 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${active ? "is-selected font-bold" : "font-semibold"
+                }`}
             >
               <span className="truncate flex items-center gap-2 min-w-0">
                 {opt.label}
@@ -274,14 +276,14 @@ async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | nul
     rawHash && !/^(virtual_|set_|local_)/i.test(rawHash)
       ? rawHash
       : String(
-          targetMod._groupedMods?.find(
-            (gm: any) => gm?.hash && !/^(virtual_|set_|local_)/i.test(String(gm.hash))
-          )?.hash ||
-            targetMod.flavors?.find(
-              (fl: any) => fl?.hash && !/^(virtual_|set_|local_)/i.test(String(fl.hash))
-            )?.hash ||
-            ""
-        ).trim();
+        targetMod._groupedMods?.find(
+          (gm: any) => gm?.hash && !/^(virtual_|set_|local_)/i.test(String(gm.hash))
+        )?.hash ||
+        targetMod.flavors?.find(
+          (fl: any) => fl?.hash && !/^(virtual_|set_|local_)/i.test(String(fl.hash))
+        )?.hash ||
+        ""
+      ).trim();
 
   const rawNameStr = String(
     (targetMod.displayName && !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(targetMod.displayName))
@@ -498,7 +500,7 @@ async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | nul
           const latestV =
             Array.isArray(m.mod_versions) && m.mod_versions.length > 0
               ? m.mod_versions.find((mv: any) => !isPlaceholderVersionStr(mv?.version_label, t)) ||
-                m.mod_versions[0]
+              m.mod_versions[0]
               : null;
           return {
             id: cid,
@@ -602,7 +604,7 @@ async function fetchSpokeModMetadata(targetMod: any, t?: any): Promise<any | nul
     const rowLatestVer =
       Array.isArray(row.mod_versions) && row.mod_versions.length > 0
         ? row.mod_versions.find((mv: any) => !isPlaceholderVersionStr(mv?.version_label, t)) ||
-          row.mod_versions[0]
+        row.mod_versions[0]
         : null;
     const rowAuthor = pickFirstValidAuthor(t, row) || undefined;
     hydratedByIdMap[String(row.id).toLowerCase()] = {
@@ -863,11 +865,11 @@ function mergeHydratedMod(
     Array.isArray(baseMod.compatible_versions) && baseMod.compatible_versions.length > 0
       ? baseMod.compatible_versions
       : hydratedMeta?.compatible_versions ||
-        childSources.find(
-          (cs: any) =>
-            Array.isArray(cs?.compatible_versions) && cs.compatible_versions.length > 0
-        )?.compatible_versions ||
-        [];
+      childSources.find(
+        (cs: any) =>
+          Array.isArray(cs?.compatible_versions) && cs.compatible_versions.length > 0
+      )?.compatible_versions ||
+      [];
 
   const latestVerCreated =
     baseMod.mod_versions?.[0]?.created_at ||
@@ -958,13 +960,13 @@ function mergeHydratedMod(
       0,
     is_paid: Boolean(
       baseMod.is_paid ||
-        hydratedMeta?.is_paid ||
-        childSources.some((cs: any) => Boolean(cs?.is_paid))
+      hydratedMeta?.is_paid ||
+      childSources.some((cs: any) => Boolean(cs?.is_paid))
     ),
     is_early_access: Boolean(
       baseMod.is_early_access ||
-        hydratedMeta?.is_early_access ||
-        childSources.some((cs: any) => Boolean(cs?.is_early_access))
+      hydratedMeta?.is_early_access ||
+      childSources.some((cs: any) => Boolean(cs?.is_early_access))
     ),
     highlanderGroupId:
       baseMod.highlanderGroupId ||
@@ -1051,12 +1053,12 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
   const rawTitle =
     item._groupedTitle ||
     (item.displayName &&
-    !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(item.displayName))
+      !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(item.displayName))
       ? item.displayName
       : (item.name || "")
-          .replace(/^(FOLDER_|SET_|LOCAL_SET_)/i, "")
-          .split(/[/\\]/)
-          .pop() || "");
+        .replace(/^(FOLDER_|SET_|LOCAL_SET_)/i, "")
+        .split(/[/\\]/)
+        .pop() || "");
   const title =
     formatCleanModTitle(
       String(rawTitle).replace(/_/g, " ").replace(/\.[^/.]+$/, "")
@@ -1100,9 +1102,9 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
 
   const image =
     showImages &&
-    (item.image_url || item.imageUrl) &&
-    String(item.image_url || item.imageUrl) !== "null" &&
-    String(item.image_url || item.imageUrl).trim() !== ""
+      (item.image_url || item.imageUrl) &&
+      String(item.image_url || item.imageUrl) !== "null" &&
+      String(item.image_url || item.imageUrl).trim() !== ""
       ? item.image_url || item.imageUrl
       : undefined;
 
@@ -1138,15 +1140,13 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
           handleOpenUrl(searchOrDownloadUrl);
         }
       }}
-      className={`glass-panel rounded-2xl p-3.5 border flex flex-col justify-between gap-3 transition-all duration-200 cursor-pointer relative ${
-        isExpanded && groupedMods.length > 1 ? "sm:col-span-2" : ""
-      } ${
-        !isInstalled
+      className={`glass-panel rounded-2xl p-3.5 border flex flex-col justify-between gap-3 transition-all duration-200 cursor-pointer relative ${isExpanded && groupedMods.length > 1 ? "sm:col-span-2" : ""
+        } ${!isInstalled
           ? "border-[color-mix(in_srgb,var(--danger)_32%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)]"
           : isEquipped
             ? "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_55%,transparent)]"
             : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
-      }`}
+        }`}
     >
       {/* Top Tier: Icon Well + Title & Subtitle */}
       <div className="flex items-center gap-3 min-w-0 w-full">
@@ -1208,9 +1208,8 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
           {relationType === "requirement" ? (
             <span className={VAULT_CHIP_CLASS}>
               <span
-                className={`material-symbols-outlined !text-[12px] shrink-0 ${
-                  isInstalled ? "text-[var(--accent)]" : "text-[var(--danger)]"
-                }`}
+                className={`material-symbols-outlined !text-[12px] shrink-0 ${isInstalled ? "text-[var(--accent)]" : "text-[var(--danger)]"
+                  }`}
               >
                 {isInstalled
                   ? t("icon_extension", "extension")
@@ -1239,23 +1238,22 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
           ) : (
             <span className={VAULT_CHIP_CLASS}>
               <span
-                className={`material-symbols-outlined !text-[12px] shrink-0 ${
-                  isBroken
-                    ? "text-[var(--danger)]"
-                    : isWarn
-                      ? "text-[var(--warning)]"
-                      : statusRaw === "stable" ||
-                          statusRaw === t("status_stable", "stable").toLowerCase()
-                        ? "text-[var(--success)]"
-                        : "text-[var(--subtext)]"
-                }`}
+                className={`material-symbols-outlined !text-[12px] shrink-0 ${isBroken
+                  ? "text-[var(--danger)]"
+                  : isWarn
+                    ? "text-[var(--warning)]"
+                    : statusRaw === "stable" ||
+                      statusRaw === t("status_stable", "stable").toLowerCase()
+                      ? "text-[var(--success)]"
+                      : "text-[var(--subtext)]"
+                  }`}
               >
                 {isBroken
                   ? t("icon_pest_control", "pest_control")
                   : isWarn
                     ? t("icon_warning", "warning")
                     : statusRaw === "stable" ||
-                        statusRaw === t("status_stable", "stable").toLowerCase()
+                      statusRaw === t("status_stable", "stable").toLowerCase()
                       ? t("icon_verified_user", "verified_user")
                       : t("icon_label", "label")}
               </span>
@@ -1263,7 +1261,7 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
                 {isBroken
                   ? t("status_corrupted", "Broken")
                   : statusRaw === "stable" ||
-                      statusRaw === t("status_stable", "stable").toLowerCase()
+                    statusRaw === t("status_stable", "stable").toLowerCase()
                     ? t("status_stable", "Stable")
                     : statusRaw
                       ? statusRaw.replace(/_/g, " ")
@@ -1282,11 +1280,10 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
                 e.stopPropagation();
                 setIsExpanded((prev) => !prev);
               }}
-              className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                isExpanded
-                  ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
-                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]"
-              }`}
+              className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${isExpanded
+                ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
+                : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]"
+                }`}
             >
               <span className="material-symbols-outlined !text-[15px]">
                 {t("icon_account_tree", "account_tree")}
@@ -1344,11 +1341,10 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
                 e.stopPropagation();
                 onToggleGroup(item);
               }}
-              className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                isEquipped
-                  ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)]"
-                  : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:border-[var(--success)]"
-              }`}
+              className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${isEquipped
+                ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)]"
+                : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:border-[var(--success)]"
+                }`}
             >
               <span className="material-symbols-outlined !text-[15px]">
                 {isEquipped ? t("icon_close", "close") : t("icon_add", "add")}
@@ -1379,11 +1375,10 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
                       kidStaged
                     );
                   }}
-                  className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-                    kidStaged
-                      ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
-                      : "text-[var(--subtext)] hover:text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                  }`}
+                  className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${kidStaged
+                    ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                    : "text-[var(--subtext)] hover:text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                    }`}
                 >
                   <span className="material-symbols-outlined !text-[15px]">
                     {kidStaged
@@ -1445,11 +1440,10 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
                           e.stopPropagation();
                           onToggleSingle(gm.name);
                         }}
-                        className={`w-6 h-6 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer ${
-                          childEquipped
-                            ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
-                            : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_40%,transparent)]"
-                        }`}
+                        className={`w-6 h-6 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer ${childEquipped
+                          ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
+                          : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_40%,transparent)]"
+                          }`}
                       >
                         <span className="material-symbols-outlined !text-[14px]">
                           {childEquipped
@@ -1483,7 +1477,7 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
       typeof props.isModNameEquipped === "function"
         ? props.isModNameEquipped
         : (n: string) =>
-            Array.isArray(props.activeMods) && props.activeMods.includes(n);
+          Array.isArray(props.activeMods) && props.activeMods.includes(n);
     let mask = "";
     for (let i = 0; i < gMods.length; i++) {
       const n = gMods[i]?.name;
@@ -1565,6 +1559,8 @@ export default function ModDossier({
 
   const requireScoutLabTest =
     activeGameSchema?.lab_verification?.require_for_scout_approval !== false;
+  const mustPassLabForScout =
+    Boolean(rawMod?.is_unknown || !rawMod?.isSynced) || requireScoutLabTest;
   const session = useStore((state) => state.session);
   const [isDossierOpen, setIsDossierOpen] = useState(true);
   const [isModLabVerified, setIsModLabVerified] = useState<boolean>(false);
@@ -1621,7 +1617,7 @@ export default function ModDossier({
           });
         }
       }
-    } catch {}
+    } catch { }
   }, []);
 
   useEffect(() => {
@@ -1649,7 +1645,7 @@ export default function ModDossier({
         dnaHash,
       });
       await loadDossierVersionPool(true);
-    } catch {}
+    } catch { }
   };
 
   const handleDeleteDossierVersion = async (relPath: string, dnaHash: string) => {
@@ -1666,7 +1662,7 @@ export default function ModDossier({
         dnaHash,
       });
       await loadDossierVersionPool(true);
-    } catch {}
+    } catch { }
   };
 
   const filterVersionGroupsForTarget = React.useCallback(
@@ -1749,7 +1745,7 @@ export default function ModDossier({
           });
         }
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       cancelled = true;
     };
@@ -1816,7 +1812,7 @@ export default function ModDossier({
           });
         }
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       cancelled = true;
     };
@@ -1850,10 +1846,10 @@ export default function ModDossier({
   const targetDbId =
     mod?.dbId ||
     (isNexusView &&
-    mod?.id &&
-    String(mod.id).match(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    )
+      mod?.id &&
+      String(mod.id).match(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      )
       ? mod.id
       : null);
   const [isBanned, setIsBanned] = useState(false);
@@ -2106,19 +2102,19 @@ export default function ModDossier({
 
         const resolvedSubMods = isKidInstalled
           ? matchedPhysical.map((pm: any) =>
-              mergeHydratedMod(pm, dbMeta, vaultIndex, t)
-            )
+            mergeHydratedMod(pm, dbMeta, vaultIndex, t)
+          )
           : [hydratedKid];
 
         const rawTitle = (
           (hydratedKid.displayName &&
-          !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(hydratedKid.displayName)) &&
-          !UUID_REGEX.test(String(hydratedKid.displayName).split("@")[0])
+            !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(hydratedKid.displayName)) &&
+            !UUID_REGEX.test(String(hydratedKid.displayName).split("@")[0])
             ? hydratedKid.displayName
             : (hydratedKid.name || "")
-                .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
-                .split(/[/\\]/)
-                .pop()) || ""
+              .replace(/^(FOLDER_|SET_|LOCAL_SET_|virtual_)/i, "")
+              .split(/[/\\]/)
+              .pop()) || ""
         )
           .replace(/_/g, " ")
           .replace(/\.[^/.]+$/, "");
@@ -2148,7 +2144,7 @@ export default function ModDossier({
                   (gm.hash && rsm.hash && gm.hash === rsm.hash) ||
                   (extractCleanUuid(gm.dbId, gm.id) &&
                     extractCleanUuid(gm.dbId, gm.id) ===
-                      extractCleanUuid(rsm.dbId, rsm.id))
+                    extractCleanUuid(rsm.dbId, rsm.id))
               );
               if (!alreadyHas) {
                 existing._groupedMods.push(rsm);
@@ -2505,8 +2501,8 @@ export default function ModDossier({
     const selfNames = new Set<string>(
       mod.isVirtual && Array.isArray(mod.flavors) && mod.flavors.length > 0
         ? mod.flavors
-            .map((fl: any) => String(fl?.name || "").toLowerCase())
-            .filter(Boolean)
+          .map((fl: any) => String(fl?.name || "").toLowerCase())
+          .filter(Boolean)
         : [String(mod.name || "").toLowerCase()].filter(Boolean)
     );
 
@@ -2578,8 +2574,8 @@ export default function ModDossier({
         resolvedModules =
           nonSelfFlavors.length > 0
             ? nonSelfFlavors.map((fl: any) =>
-                mergeHydratedMod(fl, dbHydrated, vaultIndex, t)
-              )
+              mergeHydratedMod(fl, dbHydrated, vaultIndex, t)
+            )
             : [mergeHydratedMod(virtualMatch, dbHydrated, vaultIndex, t)];
         primaryMatch = mergeHydratedMod(
           { ...virtualMatch, ...(resolvedModules[0] || {}) },
@@ -2592,18 +2588,18 @@ export default function ModDossier({
         const fallbackBase =
           typeof rawItem === "string"
             ? {
-                id: rawItem,
-                dbId: cleanId || undefined,
-                name: dbHydrated?.name || rawItem,
-                displayName: dbHydrated?.name || rawItem,
-              }
+              id: rawItem,
+              dbId: cleanId || undefined,
+              name: dbHydrated?.name || rawItem,
+              displayName: dbHydrated?.name || rawItem,
+            }
             : {
-                ...rawItem,
-                dbId: cleanId || rawItem.dbId || rawItem.id,
-                name: dbHydrated?.name || rawItem.name || rawItem.displayName || String(rawId),
-                displayName:
-                  dbHydrated?.name || rawItem.displayName || rawItem.name || String(rawId),
-              };
+              ...rawItem,
+              dbId: cleanId || rawItem.dbId || rawItem.id,
+              name: dbHydrated?.name || rawItem.name || rawItem.displayName || String(rawId),
+              displayName:
+                dbHydrated?.name || rawItem.displayName || rawItem.name || String(rawId),
+            };
         primaryMatch = mergeHydratedMod(fallbackBase, dbHydrated, vaultIndex, t);
         resolvedModules = [primaryMatch];
       }
@@ -2611,7 +2607,7 @@ export default function ModDossier({
       const rawDisplay =
         dbHydrated?.name ||
         (primaryMatch.displayName &&
-        !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(primaryMatch.displayName))
+          !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(primaryMatch.displayName))
           ? primaryMatch.displayName
           : "") ||
         (typeof rawItem === "object" && (rawItem.displayName || rawItem.name)) ||
@@ -3103,12 +3099,12 @@ export default function ModDossier({
 
     const isGameVersionMismatch = Boolean(
       selectedVersion &&
-        effectiveTargetVer &&
-        effectiveTargetVer !== "Unknown" &&
-        effectiveTargetVer !== "ALL" &&
-        effectiveTargetVer !== "ANY" &&
-        effectiveTargetVer.toLowerCase() !== "global" &&
-        !isVersionMatch([effectiveTargetVer], selectedVersion)
+      effectiveTargetVer &&
+      effectiveTargetVer !== "Unknown" &&
+      effectiveTargetVer !== "ALL" &&
+      effectiveTargetVer !== "ANY" &&
+      effectiveTargetVer.toLowerCase() !== "global" &&
+      !isVersionMatch([effectiveTargetVer], selectedVersion)
     );
 
     // 2. Missing DLC
@@ -3317,20 +3313,20 @@ export default function ModDossier({
             const eqBaseFam = getModBaseFamilyKey(eq);
             const isHighlanderSlotRival = Boolean(
               tmSlot &&
-                eqSlot &&
-                tmSlot.key === eqSlot.key &&
-                eqBaseFam !== tmBaseFam
+              eqSlot &&
+              tmSlot.key === eqSlot.key &&
+              eqBaseFam !== tmBaseFam
             );
             const isIntraFamilyFlavorRival = Boolean(
               tm.relationshipType === "flavor" &&
-                eq.relationshipType === "flavor" &&
-                tmBaseFam &&
-                eqBaseFam === tmBaseFam
+              eq.relationshipType === "flavor" &&
+              tmBaseFam &&
+              eqBaseFam === tmBaseFam
             );
             const isCommunityRival = Boolean(
               tm.communityGroupId &&
-                eq.communityGroupId &&
-                String(tm.communityGroupId) === String(eq.communityGroupId)
+              eq.communityGroupId &&
+              String(tm.communityGroupId) === String(eq.communityGroupId)
             );
             const isBetaRival =
               ((tm.relationshipType === "beta" && eq.relationshipType !== "beta") ||
@@ -3398,9 +3394,9 @@ export default function ModDossier({
         const enemyId = c.enemy_id ? extractCleanUuid(c.enemy_id).toLowerCase() : "";
         const enemyClean = c.enemy_name
           ? String(c.enemy_name)
-              .replace(/\.[^/.]+$/i, "")
-              .toUpperCase()
-              .replace(/_SCRIPT(S)?$/i, "")
+            .replace(/\.[^/.]+$/i, "")
+            .toUpperCase()
+            .replace(/_SCRIPT(S)?$/i, "")
           : "";
 
         const matchedEquipped =
@@ -3429,9 +3425,9 @@ export default function ModDossier({
           const enemyId = c.enemy_id ? extractCleanUuid(c.enemy_id).toLowerCase() : "";
           const enemyClean = c.enemy_name
             ? String(c.enemy_name)
-                .replace(/\.[^/.]+$/i, "")
-                .toUpperCase()
-                .replace(/_SCRIPT(S)?$/i, "")
+              .replace(/\.[^/.]+$/i, "")
+              .toUpperCase()
+              .replace(/_SCRIPT(S)?$/i, "")
             : "";
           const isMatch =
             (enemyId && tmUuidSet.has(enemyId)) ||
@@ -3493,7 +3489,7 @@ export default function ModDossier({
         if (kidGroup?.isInstalled === false) return;
         const gMods: any[] =
           Array.isArray(kidGroup?._groupedMods) &&
-          kidGroup._groupedMods.length > 0
+            kidGroup._groupedMods.length > 0
             ? kidGroup._groupedMods
             : [kidGroup];
         gMods.forEach((gm: any) => addValidName(gm?.name));
@@ -3715,9 +3711,9 @@ export default function ModDossier({
       is_early_access: metaInputs.is_early_access || false,
       status_reason: metaInputs.statusMsg?.trim() || "",
       ...(normStatus === "corrupted" ||
-      normStatus === "broken" ||
-      normStatus === "unstable" ||
-      normStatus === "stable"
+        normStatus === "broken" ||
+        normStatus === "unstable" ||
+        normStatus === "stable"
         ? { status: normStatus === "broken" ? "corrupted" : normStatus }
         : {}),
     });
@@ -3798,16 +3794,16 @@ export default function ModDossier({
         atomic_logic: {
           required_dlc:
             Array.isArray(metaInputs.requiredDLC) &&
-            metaInputs.requiredDLC.length > 0
+              metaInputs.requiredDLC.length > 0
               ? metaInputs.requiredDLC
               : Array.isArray(mod.requiredDLC)
                 ? mod.requiredDLC
                 : [],
           dependencies: Array.isArray(mod.requirements)
             ? mod.requirements.map((r: any) => ({
-                hash: String(r.hash || r.id || r),
-                min_version: r.min_version || null,
-              }))
+              hash: String(r.hash || r.id || r),
+              min_version: r.min_version || null,
+            }))
             : [],
           twins: Array.isArray(mod.twins)
             ? mod.twins.map((tw: any) => String(tw.hash || tw.id || tw))
@@ -3815,21 +3811,21 @@ export default function ModDossier({
           addons: [],
           conflicts: Array.isArray(mod.conflicts)
             ? mod.conflicts.map((c: any) => ({
-                hash: String(c.enemy_id || c.enemy_name || ""),
-                severity: Number(c.severity_rank || 3),
-                description: c.resolution_note || undefined,
-              }))
+              hash: String(c.enemy_id || c.enemy_name || ""),
+              severity: Number(c.severity_rank || 3),
+              description: c.resolution_note || undefined,
+            }))
             : [],
           flavors: Array.isArray(mod.flavors)
             ? mod.flavors.map((f: any) => f.hash).filter(Boolean)
             : [],
           ...(resolveModHighlanderSlot(mod)
             ? {
-                highlander_group: {
-                  slug: resolveModHighlanderSlot(mod)!.key,
-                  name: resolveModHighlanderSlot(mod)!.name,
-                },
-              }
+              highlander_group: {
+                slug: resolveModHighlanderSlot(mod)!.key,
+                name: resolveModHighlanderSlot(mod)!.name,
+              },
+            }
             : {}),
         },
         virtual_filesystem: {
@@ -3928,7 +3924,7 @@ export default function ModDossier({
         Math.max(
           1,
           customTier ??
-            (reason === "adult" ? 2 : reason === "NSFW" ? 1 : flagComplianceTier || 1)
+          (reason === "adult" ? 2 : reason === "NSFW" ? 1 : flagComplianceTier || 1)
         )
       );
       const cleanNotes =
@@ -3972,15 +3968,73 @@ export default function ModDossier({
       return;
     }
 
-    if (requireScoutLabTest && mod?.hash) {
-      const verRes = await checkDnaHashVerification(mod.hash);
-      if (!verRes.verified) {
+    if (Number(mod?.compliance_tier || 0) !== 0) {
+      useStore
+        .getState()
+        .pushStatus(
+          t(
+            "alert_architect_known_tier0_only",
+            "Only Tier 0 {mods} can be submitted to Architects. Unknown Tier 0 {mods} require a passing {Lab} test."
+          ),
+          "error"
+        );
+      return;
+    }
+
+    const cleanHash = String(mod?.hash || "").trim();
+    if (!cleanHash || cleanHash === "calculating") {
+      useStore
+        .getState()
+        .pushStatus(
+          t("err_missing_mod_hash", "Valid SHA-256 hash required before submitting."),
+          "error"
+        );
+      return;
+    }
+
+    const knownCloudCheck = await verifyKnownTier0CloudHashes([cleanHash]);
+    const isUnknownHashUpload = !knownCloudCheck.allowed;
+    const verRes = await checkDnaHashVerification(cleanHash);
+
+    if ((isUnknownHashUpload || requireScoutLabTest) && (!verRes.verified || verRes.failed)) {
+      useStore
+        .getState()
+        .pushStatus(
+          t(
+            "lab_gate_locked_scout_msg",
+            "Submission Locked: Unknown Tier 0 Scout Queue uploads require a passing timed {Lab} test before submission."
+          ),
+          "error"
+        );
+      return;
+    }
+
+    if (isUnknownHashUpload && isDesktop()) {
+      try {
+        const coords: any = await invoke("get_saved_coordinates");
+        const hasHardwareCert = await invoke<boolean>("verify_lab_certificate_exists", {
+          vaultPath: coords?.vault_path || "",
+          dnaHash: cleanHash,
+        });
+        if (!hasHardwareCert) {
+          useStore
+            .getState()
+            .pushStatus(
+              t(
+                "lab_gate_locked_scout_msg",
+                "Submission Locked: Unknown Tier 0 Scout Queue uploads require a passing timed {Lab} test before submission."
+              ),
+              "error"
+            );
+          return;
+        }
+      } catch {
         useStore
           .getState()
           .pushStatus(
             t(
               "lab_gate_locked_scout_msg",
-              "Submission Locked: This spoke requires a clean timed test before unlocking Scout Queue submissions."
+              "Submission Locked: Unknown Tier 0 Scout Queue uploads require a passing timed {Lab} test before submission."
             ),
             "error"
           );
@@ -4003,14 +4057,14 @@ export default function ModDossier({
     setIsSaving(true);
     const { error } = await supabase.from("scout_suggestions").insert([
       {
-        dna_hash: mod.hash,
+        dna_hash: cleanHash,
         suggested_name: metaInputs.name,
         suggested_author: metaInputs.author,
         suggested_url: metaInputs.url,
         suggested_type: localCategory || mod.type || "FILE",
         suggested_bonded_to: bondedHash,
         suggested_version:
-          metaInputs.version || deriveHumanReadableVersion(mod.name, mod.hash),
+          metaInputs.version || deriveHumanReadableVersion(mod.name, cleanHash),
         suggested_sub_type:
           getFileLabel(mod.name || "", activeGameSchema) === "PACKAGE"
             ? "Package"
@@ -4022,11 +4076,12 @@ export default function ModDossier({
         submitter_id: session.user.id,
         description: metaInputs.desc || null,
         image_url: metaInputs.image || null,
-        compliance_tier: mod.compliance_tier || 0,
+        compliance_tier: 0,
         is_paid: metaInputs.is_paid || false,
         is_early_access: metaInputs.is_early_access || false,
         status: "pending",
-      },
+        ...(verRes?.cert ? { _lab_cert_proof: verRes.cert } : {}),
+      } as any,
     ]);
 
     if (error) {
@@ -4034,11 +4089,14 @@ export default function ModDossier({
         .getState()
         .pushStatus(`Failed to submit to Vault: ${error.message}`);
     } else {
+      if (verRes?.cert) {
+        await recordVerifiedCertificate(verRes.cert);
+      }
       const submitted = JSON.parse(
         localStorage.getItem("sanctuary_submitted_hashes") || "[]"
       );
-      if (mod.hash && !submitted.includes(mod.hash)) {
-        submitted.push(mod.hash);
+      if (cleanHash && !submitted.includes(cleanHash)) {
+        submitted.push(cleanHash);
         localStorage.setItem(
           "sanctuary_submitted_hashes",
           JSON.stringify(submitted)
@@ -4119,11 +4177,11 @@ export default function ModDossier({
       mod.version,
       ...(Array.isArray(mod.flavors)
         ? mod.flavors.flatMap((f: any) => [
-            f?.isLocalOverride ? f?.version : undefined,
-            ...(Array.isArray(f?.mod_versions) ? f.mod_versions.map((mv: any) => mv?.version_label) : []),
-            f?.latest_version,
-            f?.version,
-          ])
+          f?.isLocalOverride ? f?.version : undefined,
+          ...(Array.isArray(f?.mod_versions) ? f.mod_versions.map((mv: any) => mv?.version_label) : []),
+          f?.latest_version,
+          f?.version,
+        ])
         : []),
     ];
     const valid = candidates.find((v) => !isPlaceholderVersionStr(v, t));
@@ -4214,10 +4272,10 @@ export default function ModDossier({
                 )}
                 {isCorrecting &&
                   session &&
-                  !(Number(mod.compliance_tier || 0) >= 1 && Number(mod.compliance_tier || 0) <= 4) && (
+                  Number(mod.compliance_tier || 0) === 0 && (
                     <PanelHeaderButton
                       icon={
-                        requireScoutLabTest && !isModLabVerified
+                        mustPassLabForScout && !isModLabVerified
                           ? t("icon_lock", "lock")
                           : t("icon_send", "send")
                       }
@@ -4229,7 +4287,7 @@ export default function ModDossier({
                       variant="success"
                       onClick={handleSubmitToVault}
                       disabled={
-                        isSaving || (requireScoutLabTest && !isModLabVerified)
+                        isSaving || (mustPassLabForScout && !isModLabVerified)
                       }
                     />
                   )}
@@ -4256,10 +4314,10 @@ export default function ModDossier({
               mod._isLocalSandbox ||
               mod.isSandbox ||
               String(mod.status || "").toLowerCase().includes("sandbox")) &&
-              !mod.isVirtual &&
-              !isNexusView &&
-              !mod.name?.startsWith("LOCAL_SET_") &&
-              isDesktop()
+            !mod.isVirtual &&
+            !isNexusView &&
+            !mod.name?.startsWith("LOCAL_SET_") &&
+            isDesktop()
           );
           const canEditDesktop = Boolean(isDesktop());
           const canShredMalware = Boolean(
@@ -4267,9 +4325,9 @@ export default function ModDossier({
           );
           const canFlagMod = Boolean(
             !(Number(mod.compliance_tier || 0) >= 1 && Number(mod.compliance_tier || 0) <= 4) &&
-              targetDbId &&
-              session &&
-              !isBanned
+            targetDbId &&
+            session &&
+            !isBanned
           );
 
           if (
@@ -4332,32 +4390,32 @@ export default function ModDossier({
               )}
               {mod.name?.startsWith("LOCAL_SET_")
                 ? canEditDesktop && (
-                    <PanelHeaderButton
-                      icon={t("icon_tune", "tune")}
-                      tooltip={t("local_folders_edit", "Edit Folder")}
-                      variant="warning"
-                      onClick={() => {
-                        handleClose();
-                        window.dispatchEvent(
-                          new CustomEvent("openLocalFolderEditor", {
-                            detail: mod.dbId,
-                          })
-                        );
-                      }}
-                    />
-                  )
+                  <PanelHeaderButton
+                    icon={t("icon_tune", "tune")}
+                    tooltip={t("local_folders_edit", "Edit Folder")}
+                    variant="warning"
+                    onClick={() => {
+                      handleClose();
+                      window.dispatchEvent(
+                        new CustomEvent("openLocalFolderEditor", {
+                          detail: mod.dbId,
+                        })
+                      );
+                    }}
+                  />
+                )
                 : canEditDesktop && (
-                    <PanelHeaderButton
-                      icon={t("icon_edit", "edit")}
-                      tooltip={
-                        isCorrecting
-                          ? t("btn_submit_corrections", "Submit Corrections")
-                          : t("btn_edit", "Edit")
-                      }
-                      variant="warning"
-                      onClick={() => setEditMode(true)}
-                    />
-                  )}
+                  <PanelHeaderButton
+                    icon={t("icon_edit", "edit")}
+                    tooltip={
+                      isCorrecting
+                        ? t("btn_submit_corrections", "Submit Corrections")
+                        : t("btn_edit", "Edit")
+                    }
+                    variant="warning"
+                    onClick={() => setEditMode(true)}
+                  />
+                )}
               {canShredMalware && (
                 <PanelHeaderButton
                   icon={t("icon_delete_forever", "delete_forever")}
@@ -4388,7 +4446,7 @@ export default function ModDossier({
             title={statusLabel}
             description={
               (mod.status_reason &&
-              !/^\[ARCHITECT\b/i.test(String(mod.status_reason).trim())
+                !/^\[ARCHITECT\b/i.test(String(mod.status_reason).trim())
                 ? mod.status_reason
                 : "") ||
               mod._alert_reason ||
@@ -4407,29 +4465,29 @@ export default function ModDossier({
             badges={[
               ...(resolveModHighlanderSlot(mod)
                 ? [
-                    {
-                      label: `${t("highlander_exclusive_slot", "Exclusive Slot")}: ${resolveModHighlanderSlot(mod)!.name}`,
-                      icon: t("icon_swap_horiz", "swap_horiz"),
-                      colorClass: "text-[var(--accent)]",
-                    },
-                  ]
+                  {
+                    label: `${t("highlander_exclusive_slot", "Exclusive Slot")}: ${resolveModHighlanderSlot(mod)!.name}`,
+                    icon: t("icon_swap_horiz", "swap_horiz"),
+                    colorClass: "text-[var(--accent)]",
+                  },
+                ]
                 : []),
               ...((editMode ? metaInputs.is_early_access : mod.is_early_access)
                 ? [
-                    {
-                      label: t("badge_early_access", "Early Access"),
-                      icon: t("icon_science", "science"),
-                    },
-                  ]
+                  {
+                    label: t("badge_early_access", "Early Access"),
+                    icon: t("icon_science", "science"),
+                  },
+                ]
                 : []),
               ...((editMode ? metaInputs.is_paid : mod.is_paid)
                 ? [
-                    {
-                      label: t("badge_paid", "Paid"),
-                      icon: t("icon_monetization_on", "monetization_on"),
-                      colorClass: "text-[var(--warning)]",
-                    },
-                  ]
+                  {
+                    label: t("badge_paid", "Paid"),
+                    icon: t("icon_monetization_on", "monetization_on"),
+                    colorClass: "text-[var(--warning)]",
+                  },
+                ]
                 : []),
             ]}
             variant={statusVariant}
@@ -4571,8 +4629,7 @@ export default function ModDossier({
           {!mod.isVirtual &&
             !isNexusView &&
             mod.hash &&
-            mod.compliance_tier !== 1 &&
-            mod.compliance_tier !== 2 &&
+            Number(mod.compliance_tier || 0) === 0 &&
             editMode &&
             isCorrecting && (
               <LabVerificationGate
@@ -4580,14 +4637,14 @@ export default function ModDossier({
                 modName={mod.displayName || mod.name || "Artifact"}
                 physicalPath={mod.physical_path || mod.name}
                 roleContext="scout"
-                isGateRequired={requireScoutLabTest}
+                isGateRequired={mustPassLabForScout}
                 onStatusChange={(st) => setIsModLabVerified(st.verified)}
                 onOpenInFullLab={
                   onSendToLab
                     ? () => {
-                        handleClose();
-                        onSendToLab();
-                      }
+                      handleClose();
+                      onSendToLab();
+                    }
                     : undefined
                 }
               />
@@ -4608,8 +4665,8 @@ export default function ModDossier({
                     onClick={
                       (mod.mason_id || hydratedMeta?.mason_id) && onOpenMasonProfile
                         ? () => {
-                            onOpenMasonProfile(mod.mason_id || hydratedMeta?.mason_id);
-                          }
+                          onOpenMasonProfile(mod.mason_id || hydratedMeta?.mason_id);
+                        }
                         : undefined
                     }
                   />
@@ -4623,8 +4680,8 @@ export default function ModDossier({
                     label={t("label_game_version", "Game Version")}
                     value={
                       familyVersion === "Unknown" ||
-                      familyVersion === "ALL" ||
-                      familyVersion === ""
+                        familyVersion === "ALL" ||
+                        familyVersion === ""
                         ? t("any", "Any")
                         : familyVersion
                     }
@@ -4824,17 +4881,16 @@ export default function ModDossier({
                   </div>
                   <div className="flex flex-col gap-1.5 md:col-span-2">
                     <label
-                      className={`text-[10px] font-black uppercase tracking-wider px-1 flex items-center gap-1.5 ${
+                      className={`text-[10px] font-black uppercase tracking-wider px-1 flex items-center gap-1.5 ${String(metaInputs.status || mod.status || "").toLowerCase() ===
+                        "corrupted" ||
                         String(metaInputs.status || mod.status || "").toLowerCase() ===
-                          "corrupted" ||
-                        String(metaInputs.status || mod.status || "").toLowerCase() ===
-                          "broken"
-                          ? "text-[var(--danger)]"
-                          : String(metaInputs.status || mod.status || "").toLowerCase() ===
-                              "unstable"
-                            ? "text-[var(--warning)]"
-                            : "text-[var(--subtext)]"
-                      }`}
+                        "broken"
+                        ? "text-[var(--danger)]"
+                        : String(metaInputs.status || mod.status || "").toLowerCase() ===
+                          "unstable"
+                          ? "text-[var(--warning)]"
+                          : "text-[var(--subtext)]"
+                        }`}
                     >
                       <span className="material-symbols-outlined !text-[13px]">
                         {t("icon_report_problem", "report_problem")}
@@ -4868,11 +4924,10 @@ export default function ModDossier({
                         ? t("icon_monetization_on", "monetization_on")
                         : t("icon_money_off", "money_off")
                     }
-                    label={`${t("label_is_paid", "Paid {Mod}")}: ${
-                      metaInputs.is_paid
-                        ? t("badge_paid", "Paid")
-                        : t("badge_free", "Free")
-                    }`}
+                    label={`${t("label_is_paid", "Paid {Mod}")}: ${metaInputs.is_paid
+                      ? t("badge_paid", "Paid")
+                      : t("badge_free", "Free")
+                      }`}
                     activeColor="var(--warning)"
                   />
                   <SidePanelPillToggle
@@ -4883,11 +4938,10 @@ export default function ModDossier({
                         ? t("icon_science", "science")
                         : t("icon_public", "public")
                     }
-                    label={`${t("badge_early_access", "Early Access")}: ${
-                      metaInputs.is_early_access
-                        ? t("badge_early_access", "Early Access")
-                        : t("badge_standard", "Standard")
-                    }`}
+                    label={`${t("badge_early_access", "Early Access")}: ${metaInputs.is_early_access
+                      ? t("badge_early_access", "Early Access")
+                      : t("badge_standard", "Standard")
+                      }`}
                     activeColor="var(--accent)"
                   />
                 </div>
@@ -4967,11 +5021,10 @@ export default function ModDossier({
                   <button
                     type="button"
                     onClick={handleToggleAll}
-                    className={`h-7 px-3 rounded-lg glass-surface border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
-                      allEquipped
-                        ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)]"
-                        : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] hover:border-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)]"
-                    }`}
+                    className={`h-7 px-3 rounded-lg glass-surface border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${allEquipped
+                      ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)]"
+                      : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] hover:border-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)]"
+                      }`}
                   >
                     <span className="material-symbols-outlined !text-[14px]">
                       {allEquipped
@@ -4987,7 +5040,7 @@ export default function ModDossier({
                 )
               }
             >
-              <div className="grid grid-cols-3 gap-2.5 mb-3">
+              <SidePanelFilterBar className="grid-cols-3 gap-2.5 mb-3">
                 <DashboardStatTile
                   variant="filter"
                   className="!w-full"
@@ -5018,7 +5071,7 @@ export default function ModDossier({
                   isActive={collectionFilter === "missing"}
                   onClick={() => setCollectionFilter("missing")}
                 />
-              </div>
+              </SidePanelFilterBar>
 
               <div className="mb-3">
                 <ActionPill
@@ -5106,12 +5159,12 @@ export default function ModDossier({
           const rawKidTitle =
             kidToRender._groupedTitle ||
             (kidToRender.displayName &&
-            !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(kidToRender.displayName))
+              !/^(FOLDER_|SET_|LOCAL_SET_)/i.test(String(kidToRender.displayName))
               ? kidToRender.displayName
               : (kidToRender.name || "")
-                  .replace(/^(FOLDER_|SET_|LOCAL_SET_)/i, "")
-                  .split(/[/\\]/)
-                  .pop() || "");
+                .replace(/^(FOLDER_|SET_|LOCAL_SET_)/i, "")
+                .split(/[/\\]/)
+                .pop() || "");
           const cleanKidTitle =
             formatCleanModTitle(
               String(rawKidTitle).replace(/_/g, " ").replace(/\.[^/.]+$/, "")
@@ -5138,8 +5191,8 @@ export default function ModDossier({
             kidCompat.length > 0 ? getHighestVersion(kidCompat) : familyVersion;
           const kidGameVersionLabel =
             kidHighestVer === "Unknown" ||
-            kidHighestVer === "ALL" ||
-            kidHighestVer === ""
+              kidHighestVer === "ALL" ||
+              kidHighestVer === ""
               ? t("any", "Any")
               : kidHighestVer;
 
@@ -5172,24 +5225,24 @@ export default function ModDossier({
 
           const kidModules: any[] =
             Array.isArray(kidToRender._groupedMods) &&
-            kidToRender._groupedMods.length > 0
+              kidToRender._groupedMods.length > 0
               ? kidToRender._groupedMods
               : Array.isArray(kidToRender.flavors) &&
-                  kidToRender.flavors.length > 0
+                kidToRender.flavors.length > 0
                 ? kidToRender.flavors
                 : [kidToRender];
 
           const groupedKidModules =
             kidModules.length > 1 ||
-            kidToRender.isVirtual ||
-            kidToRender.isParent ||
-            kidToRender.isCollection ||
-            (Array.isArray(kidToRender.hydratedCollectionChildren) &&
-              kidToRender.hydratedCollectionChildren.length > 1)
+              kidToRender.isVirtual ||
+              kidToRender.isParent ||
+              kidToRender.isCollection ||
+              (Array.isArray(kidToRender.hydratedCollectionChildren) &&
+                kidToRender.hydratedCollectionChildren.length > 1)
               ? buildGroupedCollectionModules(
-                  kidModules,
-                  kidToRender.hydratedCollectionChildren || []
-                )
+                kidModules,
+                kidToRender.hydratedCollectionChildren || []
+              )
               : [];
 
           const kidInVaultCount = groupedKidModules.filter(
@@ -5455,8 +5508,8 @@ export default function ModDossier({
                       onClick={
                         kidToRender.mason_id && onOpenMasonProfile
                           ? () => {
-                              onOpenMasonProfile(kidToRender.mason_id);
-                            }
+                            onOpenMasonProfile(kidToRender.mason_id);
+                          }
                           : undefined
                       }
                     />
@@ -5490,7 +5543,7 @@ export default function ModDossier({
                       icon={t("icon_shield", "shield")}
                       iconColorClass={
                         kidToRender.compliance_tier === 1 ||
-                        kidToRender.compliance_tier === 2
+                          kidToRender.compliance_tier === 2
                           ? "text-[var(--warning)]"
                           : "text-[var(--success)]"
                       }
@@ -5556,11 +5609,10 @@ export default function ModDossier({
                         <button
                           type="button"
                           onClick={() => safeToggleGroup(kidToRender)}
-                          className={`h-7 px-3 rounded-lg glass-surface border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
-                            isKidEquipped
-                              ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)]"
-                              : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] hover:border-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)]"
-                          }`}
+                          className={`h-7 px-3 rounded-lg glass-surface border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${isKidEquipped
+                            ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)]"
+                            : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] hover:border-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)]"
+                            }`}
                         >
                           <span className="material-symbols-outlined !text-[14px]">
                             {isKidEquipped
@@ -5576,7 +5628,7 @@ export default function ModDossier({
                       )
                     }
                   >
-                    <div className="grid grid-cols-3 gap-2.5 mb-3">
+                    <SidePanelFilterBar className="grid-cols-3 gap-2.5 mb-3">
                       <DashboardStatTile
                         variant="filter"
                         className="!w-full"
@@ -5607,7 +5659,7 @@ export default function ModDossier({
                         isActive={kidCollectionFilter === "missing"}
                         onClick={() => setKidCollectionFilter("missing")}
                       />
-                    </div>
+                    </SidePanelFilterBar>
 
                     <div className="mb-3">
                       <ActionPill
@@ -5966,10 +6018,10 @@ export default function ModDossier({
 
           const primaryVariant: "danger" | "warning" | "accent" =
             isGameVersionMismatch ||
-            missingDeps.length > 0 ||
-            missingPacks.length > 0 ||
-            brokenMods.length > 0 ||
-            fatalConflicts.length > 0
+              missingDeps.length > 0 ||
+              missingPacks.length > 0 ||
+              brokenMods.length > 0 ||
+              fatalConflicts.length > 0
               ? "danger"
               : flavorRivals.length > 0
                 ? "accent"
@@ -6031,9 +6083,9 @@ export default function ModDossier({
                   description={
                     isSwapPrimary
                       ? t(
-                          "highlander_swap_prompt_desc",
-                          "Another {mod} in this exclusive slot is already equipped. Swap to replace it cleanly, or keep both equipped and track the overlap in Conflict Radar."
-                        )
+                        "highlander_swap_prompt_desc",
+                        "Another {mod} in this exclusive slot is already equipped. Swap to replace it cleanly, or keep both equipped and track the overlap in Conflict Radar."
+                      )
                       : targetLabel || cleanArtifactTitle
                   }
                   badge={

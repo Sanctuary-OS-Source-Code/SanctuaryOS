@@ -13,6 +13,7 @@ import {
   ActionPill,
   InlineFilterGroup,
   DashboardStatTile,
+  SidePanelFilterBar,
   handleOpenUrl,
   filterBlueprintModArtifacts,
   stripPriorityTierPrefix,
@@ -373,7 +374,7 @@ export default function BlueprintArchitect({
         )}
 
         {/* 3-Tab Switcher: Updates / Alerts / Critical Alerts */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <SidePanelFilterBar className="sm:grid-cols-3 gap-2.5">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -413,7 +414,7 @@ export default function BlueprintArchitect({
               setCategoryFilter("all");
             }}
           />
-        </div>
+        </SidePanelFilterBar>
 
         {/* Search & Filter Bar */}
         <ActionPill

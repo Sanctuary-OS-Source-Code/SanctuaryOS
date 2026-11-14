@@ -240,16 +240,17 @@ export default function CommandRadarSweepPanel({
             />
           </div>
 
-          <ActionButton
-            variant="glass"
-            icon={t("icon_radar", "radar")}
-            label={isScanning ? t("scanning", "Scanning...") : t("btn_radar", "Radar Sweep")}
-            disabled={isScanning}
-            onClick={() => {
-              if (!isScanning && runRadarSweep) runRadarSweep();
-            }}
-            className="w-full"
-          />
+          <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-1">
+            <ActionButton
+              variant="glass"
+              icon={t("icon_radar", "radar")}
+              label={isScanning ? t("scanning", "Scanning...") : t("btn_radar", "Radar Sweep")}
+              disabled={isScanning}
+              onClick={() => {
+                if (!isScanning && runRadarSweep) runRadarSweep();
+              }}
+            />
+          </div>
         </SidePanelHeroCard>
 
         <UniversalGroup

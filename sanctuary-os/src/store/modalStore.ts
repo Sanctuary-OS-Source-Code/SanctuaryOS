@@ -57,6 +57,8 @@ interface ModalState {
   setIsRestoring: (val: boolean) => void;
   restoreType: 'world' | 'engine' | null;
   setRestoreType: (val: 'world' | 'engine' | null) => void;
+  backupRestoreError: string | null;
+  setBackupRestoreError: (val: string | null) => void;
   ingestProgress: any;
   setIngestProgress: (val: any) => void;
   isScanning: boolean;
@@ -410,6 +412,8 @@ export const useModalStore = create<ModalState>((set, get) => ({
   setIsRestoring: (isRestoring) => set({ isRestoring }),
   restoreType: null,
   setRestoreType: (restoreType) => set({ restoreType }),
+  backupRestoreError: null,
+  setBackupRestoreError: (backupRestoreError) => set({ backupRestoreError }),
   ingestProgress: null,
   setIngestProgress: (ingestProgress) => set({ ingestProgress }),
   isScanning: false,

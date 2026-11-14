@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { supabase } from "../supabase";
@@ -23,7 +24,10 @@ export interface LabTestSaveStatus {
   active_test_save?: LabSaveFileInfo | null;
   sandbox_saves: LabSaveFileInfo[];
   available_live_saves: LabSaveFileInfo[];
+  vault_mirror_saves?: LabSaveFileInfo[];
   airgap_active: boolean;
+  fresh_sandbox_armed?: boolean;
+  game_running?: boolean;
 }
 
 export interface LabVerificationCertificate {
@@ -126,6 +130,180 @@ export function getCachedFailedMap(): Record<string, string> {
   return {};
 }
 
+let lastMilestoneChimeKey = "";
+let lastMilestoneChimeAt = 0;
+
+export function playLabMilestoneChime(
+  kind: "timer_complete" | "verified" | "failed" | string,
+  dnaHash = ""
+) {
+  try {
+    const now = Date.now();
+    const dedupKey = `${kind}:${dnaHash}`;
+    if (dedupKey === lastMilestoneChimeKey && now - lastMilestoneChimeAt < 2500) {
+      return;
+    }
+    lastMilestoneChimeKey = dedupKey;
+    lastMilestoneChimeAt = now;
+
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
+
+    const playNote = (freq: number, startOffset: number, duration: number, gainPeak = 0.16) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = kind === "failed" ? "sawtooth" : "triangle";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + startOffset);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + startOffset);
+      gain.gain.exponentialRampToValueAtTime(gainPeak, ctx.currentTime + startOffset + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + startOffset + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + startOffset);
+      osc.stop(ctx.currentTime + startOffset + duration + 0.02);
+    };
+
+    if (kind === "timer_complete") {
+      // Double ascending chime so fullscreen players unmistakably know the timer is up & they can Save & End
+      playNote(587.33, 0.0, 0.14, 0.18);
+      playNote(880.0, 0.13, 0.14, 0.18);
+      playNote(1174.66, 0.26, 0.24, 0.2);
+      playNote(880.0, 0.62, 0.14, 0.16);
+      playNote(1174.66, 0.76, 0.3, 0.2);
+      setTimeout(() => ctx.close().catch(() => {}), 1400);
+    } else if (kind === "verified") {
+      playNote(523.25, 0.0, 0.12, 0.16);
+      playNote(659.25, 0.11, 0.12, 0.16);
+      playNote(783.99, 0.22, 0.14, 0.18);
+      playNote(1046.5, 0.35, 0.32, 0.2);
+      setTimeout(() => ctx.close().catch(() => {}), 1100);
+    } else {
+      playNote(440.0, 0.0, 0.18, 0.14);
+      playNote(311.13, 0.18, 0.28, 0.14);
+      setTimeout(() => ctx.close().catch(() => {}), 800);
+    }
+  } catch (e) {}
+}
+
+export function useLabMilestoneNotifications() {
+  const { t } = useLexicon();
+  const tRef = useRef(t);
+  tRef.current = t;
+
+  useEffect(() => {
+    if (!isDesktop()) return;
+    let unlistenFn: (() => void) | null = null;
+    listen<{
+      kind: string;
+      title: string;
+      body: string;
+      dna_hash: string;
+      mod_name: string;
+      is_error: boolean;
+    }>("sanctuary-lab-milestone", (event) => {
+      const p = event.payload;
+      if (!p) return;
+      if (!isDesktop()) {
+        playLabMilestoneChime(p.kind, p.dna_hash);
+      }
+      const tr = tRef.current;
+      const title =
+        p.kind === "stage3_started"
+          ? tr("lab_overlay_stage3_started_title", "WORLD LOADED — ACTIVE TEST TIMER STARTED")
+          : p.title;
+      const body =
+        p.kind === "stage3_started"
+          ? tr(
+              "lab_overlay_stage3_started_desc",
+              "Play actively in-game until you hear the completion chime, then save your game."
+            )
+          : p.body;
+      useStore
+        .getState()
+        .pushStatus(
+          `${title} — ${body}`,
+          p.is_error ? "error" : p.kind === "verified" ? "success" : "info"
+        );
+    })
+      .then((fn) => {
+        unlistenFn = fn;
+      })
+      .catch(() => {});
+
+    return () => {
+      if (unlistenFn) unlistenFn();
+    };
+  }, []);
+}
+
+export function isLocalModKnownTier0(mod: any): boolean {
+  if (!mod) return false;
+  if (Number(mod.compliance_tier || 0) !== 0) return false;
+  if (mod.is_unknown) return false;
+  const statusLower = String(mod.status || "").trim().toLowerCase();
+  if (statusLower === "unverified" || statusLower === "rejected") return false;
+  const hash = String(mod.dna_hash || mod.hash || "").trim();
+  if (!hash || hash === "calculating") return false;
+  const cloudModId = String(mod.mod_id || mod.cloud_id || mod.id || "").trim();
+  const hasKnownCloudRecord =
+    mod.is_verified === true ||
+    (Boolean(cloudModId) &&
+      !cloudModId.startsWith("local_") &&
+      !cloudModId.includes("/") &&
+      !cloudModId.includes("\\"));
+  return hasKnownCloudRecord;
+}
+
+export async function verifyKnownTier0CloudHashes(dnaHashes: string[]): Promise<{
+  allowed: boolean;
+  verifiedMap: Record<string, { versionId: string; modId: string }>;
+  blockedHashes: string[];
+}> {
+  const uniqueHashes = Array.from(
+    new Set(
+      (dnaHashes || [])
+        .map((h) => String(h || "").trim())
+        .filter((h) => h.length > 0 && h !== "calculating")
+    )
+  );
+  if (uniqueHashes.length === 0) {
+    return { allowed: false, verifiedMap: {}, blockedHashes: [] };
+  }
+
+  const verifiedMap: Record<string, { versionId: string; modId: string }> = {};
+  const { data: rows, error } = await supabase
+    .from("mod_versions")
+    .select("id, mod_id, dna_hash, mods(id, compliance_tier, status)")
+    .in("dna_hash", uniqueHashes);
+
+  if (error || !rows) {
+    return { allowed: false, verifiedMap: {}, blockedHashes: uniqueHashes };
+  }
+
+  for (const row of rows as any[]) {
+    const hash = String(row?.dna_hash || "").trim();
+    const parentMod = Array.isArray(row?.mods) ? row.mods[0] : row?.mods;
+    if (!hash || !row?.id || !row?.mod_id || !parentMod) continue;
+    const tier = Number(parentMod.compliance_tier || 0);
+    const statusLower = String(parentMod.status || "").trim().toLowerCase();
+    // Known Tier 0 means cataloged Tier 0 and NOT an unreviewed/rejected upload
+    if (tier === 0 && statusLower !== "unverified" && statusLower !== "rejected") {
+      verifiedMap[hash] = { versionId: String(row.id), modId: String(row.mod_id) };
+    }
+  }
+
+  const blockedHashes = uniqueHashes.filter((h) => !verifiedMap[h]);
+  return {
+    allowed: blockedHashes.length === 0,
+    verifiedMap,
+    blockedHashes,
+  };
+}
+
 export async function recordVerifiedCertificate(cert: LabVerificationCertificate) {
   try {
     const spokeKey = resolveSpokeLabKey();
@@ -140,16 +318,23 @@ export async function recordVerifiedCertificate(cert: LabVerificationCertificate
     }
 
     if (isDesktop()) {
-      const config: any = await invoke("get_saved_coordinates");
-      if (config?.vault_path) {
-        await invoke("record_lab_certificate", {
-          vaultPath: config.vault_path,
-          certificate: cert,
-        });
+      try {
+        const config: any = await invoke("get_saved_coordinates");
+        if (config?.vault_path) {
+          await invoke("record_lab_certificate", {
+            vaultPath: config.vault_path,
+            certificate: cert,
+          });
+        }
+      } catch {
+        // Certificate was already persisted to Vault SQLite by Rust when Stage 4 completed
       }
     }
 
-    // Also record in Supabase homestead_lab_logs ONLY if version exists and mod is verified Tier 0
+    // Record PASS_VERIFIED_4STAGE receipt in Supabase homestead_lab_logs ONLY for:
+    // 1. Tier 0 mod_versions (including newly submitted Mason Queue items awaiting Architect review), OR
+    // 2. Tier 0 pending scout_suggestions uploads (so Architects can verify the passing test).
+    // Never write Tier 1-5 or unsubmitted local unknown hashes to cloud logs!
     const { data: verData } = await supabase
       .from("mod_versions")
       .select("id, mod_id, mods(compliance_tier, status)")
@@ -159,28 +344,69 @@ export async function recordVerifiedCertificate(cert: LabVerificationCertificate
     const verMod = Array.isArray((verData as any)?.mods)
       ? (verData as any).mods[0]
       : (verData as any)?.mods;
+    const receiptNote = JSON.stringify({
+      type: "PASS_VERIFIED_4STAGE",
+      dna_hash: cert.dna_hash,
+      active_seconds: cert.active_seconds,
+      peak_ram_mb: cert.peak_ram_mb,
+      disk_read_mb: cert.disk_read_mb,
+      save_file_verified: cert.save_file_verified,
+      verified_at: cert.verified_at,
+    });
+
     if (
       verData &&
       verMod &&
       Number(verMod.compliance_tier || 0) === 0 &&
-      String(verMod.status || "").toLowerCase() !== "unverified"
+      String(verMod.status || "").toLowerCase() !== "rejected"
     ) {
-      await supabase.from("homestead_lab_logs").insert([
-        {
-          mod_id: verData.mod_id,
-          version_id: verData.id,
-          log_snippet: "Clean",
-          tester_note: JSON.stringify({
-            type: "PASS_VERIFIED_4STAGE",
-            dna_hash: cert.dna_hash,
-            active_seconds: cert.active_seconds,
-            peak_ram_mb: cert.peak_ram_mb,
-            disk_read_mb: cert.disk_read_mb,
-            save_file_verified: cert.save_file_verified,
-            verified_at: cert.verified_at,
-          }),
-        },
-      ]);
+      const { data: existingReceipt } = await supabase
+        .from("homestead_lab_logs")
+        .select("id")
+        .eq("version_id", verData.id)
+        .ilike("tester_note", "%PASS_VERIFIED_4STAGE%")
+        .limit(1);
+
+      if (!existingReceipt || existingReceipt.length === 0) {
+        await supabase.from("homestead_lab_logs").insert([
+          {
+            mod_id: verData.mod_id,
+            version_id: verData.id,
+            log_snippet: "Clean",
+            tester_note: receiptNote,
+            _lab_cert_proof: cert,
+          } as any,
+        ]);
+      }
+    } else if (!verData) {
+      const { data: scoutRow } = await supabase
+        .from("scout_suggestions")
+        .select("id, status, suggested_metadata")
+        .eq("dna_hash", cert.dna_hash)
+        .neq("status", "rejected")
+        .limit(1)
+        .maybeSingle();
+
+      const scoutTier = Number((scoutRow as any)?.suggested_metadata?.compliance_tier || 0);
+      if (scoutRow && scoutTier === 0) {
+        const { data: existingScoutReceipt } = await supabase
+          .from("homestead_lab_logs")
+          .select("id")
+          .ilike("tester_note", `%${cert.dna_hash}%`)
+          .limit(1);
+
+        if (!existingScoutReceipt || existingScoutReceipt.length === 0) {
+          await supabase.from("homestead_lab_logs").insert([
+            {
+              mod_id: null,
+              version_id: null,
+              log_snippet: "Clean",
+              tester_note: receiptNote,
+              _lab_cert_proof: cert,
+            } as any,
+          ]);
+        }
+      }
     }
 
     window.dispatchEvent(new CustomEvent("sanctuary-lab-cert-updated", { detail: { dna_hash: cert.dna_hash } }));
@@ -191,9 +417,10 @@ export async function recordVerifiedCertificate(cert: LabVerificationCertificate
 
 export function recordFailedVerification(dnaHash: string, errorLog: string) {
   try {
+    const spokeKey = resolveSpokeLabKey();
     const failMap = getCachedFailedMap();
     failMap[dnaHash] = scrubLogUserData(errorLog);
-    localStorage.setItem(LOCAL_FAIL_STORAGE_KEY, JSON.stringify(failMap));
+    localStorage.setItem(`${LOCAL_FAIL_STORAGE_KEY}_${spokeKey}`, JSON.stringify(failMap));
     window.dispatchEvent(new CustomEvent("sanctuary-lab-cert-updated", { detail: { dna_hash: dnaHash } }));
   } catch (e) {}
 }
@@ -223,7 +450,7 @@ export async function checkDnaHashVerification(dnaHash?: string | null): Promise
         const match = (certs || []).find((c) => c.dna_hash === dnaHash);
         if (match) {
           localMap[dnaHash] = match;
-          localStorage.setItem(LOCAL_CERT_STORAGE_KEY, JSON.stringify(localMap));
+          localStorage.setItem(`${LOCAL_CERT_STORAGE_KEY}_${resolveSpokeLabKey()}`, JSON.stringify(localMap));
           return { verified: true, failed: false, cert: match };
         }
       }
@@ -275,7 +502,7 @@ export async function checkDnaHashVerification(dnaHash?: string | null): Promise
             save_file_verified: parsed.save_file_verified || "Cloud_Verified.save",
           };
           localMap[dnaHash] = cert;
-          localStorage.setItem(LOCAL_CERT_STORAGE_KEY, JSON.stringify(localMap));
+          localStorage.setItem(`${LOCAL_CERT_STORAGE_KEY}_${resolveSpokeLabKey()}`, JSON.stringify(localMap));
           return { verified: true, failed: false, cert };
         }
       }
@@ -413,6 +640,8 @@ export function LabVerificationGate({
     return null;
   });
   const [isStarting, setIsStarting] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
+  const [showAllLinkedFiles, setShowAllLinkedFiles] = useState(false);
   const pollRef = useRef<any>(null);
 
   const activeSession = externalStatus || liveStatus;
@@ -426,6 +655,15 @@ export function LabVerificationGate({
       saveLabSessionMemory(activeSession);
     }
   }, [activeSession]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const focused = Boolean(isRunning && activeSession?.is_focused);
+    document.documentElement.dataset.saGameFocused = focused ? "true" : "false";
+    return () => {
+      document.documentElement.dataset.saGameFocused = "false";
+    };
+  }, [isRunning, activeSession?.is_focused]);
 
   const syncVerificationState = useCallback(async () => {
     const effectiveHash = dnaHash || modName;
@@ -444,35 +682,40 @@ export function LabVerificationGate({
     }
   }, [dnaHash, modName, onStatusChange]);
 
-  const cleanupSandboxAfterInlineRun = useCallback(async (): Promise<boolean> => {
-    if (!isDesktop()) return true;
-    try {
-      const config: any = await invoke("get_saved_coordinates");
-      const dPath = String(
-        config?.docs_path || config?.user_data_path || config?.mods_path || ""
-      ).trim();
-      if (dPath) {
-        await invoke("airgap_saves", { docsPath: dPath, enable: false });
+  const cleanupSandboxAfterInlineRun = useCallback(
+    async (closeGame = true): Promise<boolean> => {
+      if (!isDesktop()) return true;
+      try {
+        const config: any = await invoke("get_saved_coordinates");
+        const dPath = String(
+          config?.docs_path || config?.user_data_path || config?.mods_path || ""
+        ).trim();
+        await invoke("teardown_lab_sandbox_session", {
+          docsPath: dPath,
+          closeGame,
+        });
+        await invoke("repopulate_from_shelter");
+        return true;
+      } catch (e: any) {
+        const rawErr = typeof e === "string" ? e : e?.message || String(e);
+        if (rawErr.includes("lab_err_game_running_saves_locked")) {
+          useStore
+            .getState()
+            .pushStatus(
+              t(
+                "lab_err_game_running_saves_locked",
+                "Close the running game first so your live saves can be unlocked and restored safely."
+              ),
+              "error"
+            );
+        } else {
+          useStore.getState().pushStatus(rawErr, "error");
+        }
+        return false;
       }
-      await invoke("stop_lab_verification_session");
-      await invoke("repopulate_from_shelter");
-      return true;
-    } catch (e: any) {
-      const rawErr = typeof e === "string" ? e : e?.message || String(e);
-      if (rawErr.includes("lab_err_game_running_saves_locked")) {
-        useStore
-          .getState()
-          .pushStatus(
-            t(
-              "lab_err_game_running_saves_locked",
-              "Close the running game first so your live saves can be unlocked and restored safely."
-            ),
-            "error"
-          );
-      }
-      return false;
-    }
-  }, [t]);
+    },
+    [t]
+  );
 
   const attachPollingLoop = useCallback(
     (effectiveHash: string) => {
@@ -668,22 +911,28 @@ export function LabVerificationGate({
   };
 
   const handleStopInlineTimedTest = async () => {
-    const cleaned = await cleanupSandboxAfterInlineRun();
-    if (!cleaned) return;
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-    setLiveStatus(null);
-    saveLabSessionMemory(null);
-    if (onStatusChange) {
-      onStatusChange({
-        verified: !!verifiedCert,
-        failed: !!failedError,
-        running: false,
-        cert: verifiedCert,
-        errorLog: failedError,
-      });
+    if (isStopping) return;
+    setIsStopping(true);
+    try {
+      const cleaned = await cleanupSandboxAfterInlineRun(true);
+      if (!cleaned) return;
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      setLiveStatus(null);
+      saveLabSessionMemory(null);
+      if (onStatusChange) {
+        onStatusChange({
+          verified: !!verifiedCert,
+          failed: !!failedError,
+          running: false,
+          cert: verifiedCert,
+          errorLog: failedError,
+        });
+      }
+    } finally {
+      setIsStopping(false);
     }
   };
 
@@ -700,6 +949,9 @@ export function LabVerificationGate({
     if (!reason) return null;
     if (reason === "UNFOCUSED") {
       return t("lab_pause_unfocused", "PAUSED: Game Window Unfocused (Alt-Tabbed)");
+    }
+    if (reason === "LOADING_WORLD") {
+      return t("lab_pause_loading_world", "PAUSED: Loading World or Zone Assets...");
     }
     if (reason === "GAME_PAUSED") {
       return t("lab_pause_game_paused", "PAUSED: In-Game Pause or Menu Screen Detected (Resume Live Gameplay)");
@@ -736,11 +988,11 @@ export function LabVerificationGate({
   };
 
   return (
-    <div className="w-full shrink-0 rounded-2xl p-4 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] transition-all flex flex-col gap-3">
-      {/* Top Header Row */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+    <div className="w-full shrink-0 rounded-2xl p-4 glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] transition-all flex flex-col gap-3.5">
+      {/* Top Header Row — Title on Left, Status Badge Pinned Right */}
+      <div className="flex items-start justify-between gap-3 w-full">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] shrink-0">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--accent)] shrink-0">
             <span className="material-symbols-outlined !text-[18px]">
               {verifiedCert
                 ? t("icon_verified", "verified")
@@ -749,13 +1001,10 @@ export function LabVerificationGate({
                 : t("icon_science", "science")}
             </span>
           </div>
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-black text-[var(--text)] tracking-wider uppercase leading-snug">
-                {t("lab_gate_title", "Live Simulation Verification Gate")}
-              </span>
-              <LabVerificationBadge dnaHash={dnaHash} required={isGateRequired} compact />
-            </div>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-xs font-black text-[var(--text)] tracking-wider uppercase leading-snug">
+              {t("lab_gate_title", "Live Simulation Verification Gate")}
+            </span>
             <span className="text-[11px] font-semibold text-[var(--subtext)] opacity-80 leading-snug">
               {!isRunning && (!verifiedCert || failedError)
                 ? getLockedNotice()
@@ -764,27 +1013,31 @@ export function LabVerificationGate({
           </div>
         </div>
 
-        {!isRunning && isDesktop() && (
-          <div className="flex flex-wrap items-center justify-end gap-2 ml-auto shrink-0">
-            <ActionButton
-              variant="accent"
-              icon={t("icon_play_circle", "play_circle")}
-              label={t("lab_btn_start_timed_test", "Run Timed Lab Verification")}
-              disabled={isStarting}
-              onClick={handleStartInlineTimedTest}
-            />
-
-            {onOpenInFullLab && (
-              <ActionButton
-                variant="glass"
-                icon={t("icon_science", "science")}
-                label={t("lab_btn_open_full_lab", "Open in {Lab}")}
-                onClick={onOpenInFullLab}
-              />
-            )}
-          </div>
-        )}
+        <div className="flex items-center justify-end ml-auto shrink-0 pt-0.5">
+          <LabVerificationBadge dnaHash={dnaHash} required={isGateRequired} compact />
+        </div>
       </div>
+
+      {!isRunning && isDesktop() && (
+        <div className="flex flex-wrap items-center justify-end gap-2 ml-auto w-full pt-0.5">
+          <ActionButton
+            variant="accent"
+            icon={t("icon_play_circle", "play_circle")}
+            label={t("lab_btn_start_timed_test", "Run Timed Lab Verification")}
+            disabled={isStarting}
+            onClick={handleStartInlineTimedTest}
+          />
+
+          {onOpenInFullLab && (
+            <ActionButton
+              variant="glass"
+              icon={t("icon_science", "science")}
+              label={t("lab_btn_open_full_lab", "Open in {Lab}")}
+              onClick={onOpenInFullLab}
+            />
+          )}
+        </div>
+      )}
 
       {/* Verified Receipt Display */}
       {verifiedCert && !isRunning && (
@@ -847,20 +1100,52 @@ export function LabVerificationGate({
               </span>
             </div>
 
-            {activeSession.linked_files && activeSession.linked_files.length > 0 && (
-              <div className="px-3.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[10px] font-black tracking-wide flex items-center gap-2">
-                <span className="material-symbols-outlined !text-[15px] shrink-0 text-[var(--success)]">
-                  {t("icon_link", "link")}
-                </span>
-                <span className="leading-snug break-words">
-                  {t("lab_linked_files_badge", "Symlinked to Live {Mods} Folder")}:{" "}
-                  {activeSession.linked_files.join(", ")}
-                </span>
-              </div>
-            )}
+            {activeSession.linked_files && activeSession.linked_files.length > 0 && (() => {
+              const cleanBasenames = activeSession.linked_files.map(
+                (f) => String(f || "").split(/[\\/]/).pop() || String(f || "")
+              );
+              const firstFile = cleanBasenames[0] || "";
+              const extraCount = cleanBasenames.length - 1;
+              return (
+                <div className="px-3.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[10px] font-black tracking-wide flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="material-symbols-outlined !text-[15px] shrink-0 text-[var(--success)]">
+                        {t("icon_link", "link")}
+                      </span>
+                      <span className="leading-snug truncate">
+                        {t("lab_linked_files_badge", "Symlinked to Live {Mods} Folder")}:{" "}
+                        <span className="font-mono">{firstFile}</span>
+                      </span>
+                    </div>
+                    {extraCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllLinkedFiles((prev) => !prev)}
+                        className="px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--text)_15%,transparent)] text-[9px] font-mono font-bold text-[var(--accent)] hover:border-[var(--accent)] transition-colors cursor-pointer shrink-0 bg-transparent"
+                      >
+                        {showAllLinkedFiles ? t("close", "Close") : `+${extraCount}`}
+                      </button>
+                    )}
+                  </div>
+                  {showAllLinkedFiles && extraCount > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                      {cleanBasenames.map((fname, idx) => (
+                        <span
+                          key={`${fname}_${idx}`}
+                          className="px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-mono font-semibold text-[var(--subtext)] bg-transparent truncate max-w-full"
+                        >
+                          {fname}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
-          {/* 4-Stage Stepper in a 2x2 Grid so labels never get cut off */}
+          {/* 4-Stage Stepper in a 2x2 Grid — Subtle Frosted Liquid Glass */}
           <div className="grid grid-cols-2 gap-2.5">
             {[
               { id: "BOOTING", label: t("lab_stage_booting", "1. Booting Engine") },
@@ -873,15 +1158,23 @@ export function LabVerificationGate({
               return (
                 <div
                   key={st.id}
-                  className={`px-3.5 py-2.5 rounded-xl border text-[10px] font-black tracking-wide flex items-center gap-2 transition-all bg-transparent ${
+                  className={`px-3.5 py-2.5 rounded-xl glass-surface border text-[10px] font-black tracking-wide flex items-center gap-2 transition-all ${
                     isCurr
-                      ? "border-[var(--accent)] text-[var(--accent)] shadow-sm"
+                      ? "border-[color-mix(in_srgb,var(--text)_18%,transparent)] bg-[color-mix(in_srgb,var(--text)_4%,transparent)] text-[var(--text)]"
                       : isDone
-                      ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                      : "border-[rgba(var(--text-rgb),0.14)] text-[var(--subtext)] opacity-75"
+                      ? "border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-90"
+                      : "border-[color-mix(in_srgb,var(--text)_8%,transparent)] text-[var(--subtext)] opacity-60"
                   }`}
                 >
-                  <span className="material-symbols-outlined !text-[15px] shrink-0">
+                  <span
+                    className={`material-symbols-outlined !text-[15px] shrink-0 ${
+                      isDone
+                        ? "text-[var(--success)]"
+                        : isCurr
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--subtext)]"
+                    }`}
+                  >
                     {isDone
                       ? t("icon_done", "done")
                       : isCurr
@@ -894,8 +1187,31 @@ export function LabVerificationGate({
             })}
           </div>
 
+          {/* Unmistakable Stage 4 Timer-Up Callout Banner — Liquid Glass */}
+          {activeSession.stage === "AWAITING_SAVE" && (
+            <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--text)] flex items-start gap-3">
+              <span className="material-symbols-outlined !text-[20px] shrink-0 mt-0.5 text-[var(--success)]">
+                {t("icon_notifications_active", "notifications_active")}
+              </span>
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-xs font-black uppercase tracking-wider leading-snug text-[var(--text)]">
+                  {t(
+                    "lab_banner_timer_up_save_now",
+                    "Timer Complete — Save Your Game Now to Finish"
+                  )}
+                </span>
+                <span className="text-[11px] font-bold text-[var(--subtext)] leading-relaxed">
+                  {t(
+                    "lab_banner_timer_up_save_now_desc",
+                    "Active gameplay timer is up! Save inside your game now so {Lab} can verify save integrity, then close the game and end the test."
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Current Stage Description & Countdown */}
-          <div className="p-4 rounded-xl glass-surface border border-[rgba(var(--text-rgb),0.14)] flex items-center justify-between gap-4 flex-wrap">
+          <div className="p-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-4 flex-wrap">
             <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
               <span className="text-xs font-black text-[var(--text)] uppercase tracking-wider">
                 {activeSession.stage === "BOOTING" && t("lab_stage_booting", "1. Booting Engine")}
@@ -911,7 +1227,7 @@ export function LabVerificationGate({
               </span>
 
               {activeSession.pause_reason && (
-                <div className="mt-1.5 px-3 py-1.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[10px] font-black tracking-wider uppercase flex items-center gap-1.5">
+                <div className="mt-1.5 px-3 py-1.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-[10px] font-black tracking-wider uppercase flex items-center gap-1.5">
                   <span className="material-symbols-outlined !text-[14px] shrink-0 text-[var(--warning)]">
                     {t("icon_pause_circle", "pause_circle")}
                   </span>
@@ -920,7 +1236,7 @@ export function LabVerificationGate({
               )}
             </div>
 
-            <div className="flex flex-col items-end px-4 py-2.5 rounded-xl glass-surface border border-[rgba(var(--text-rgb),0.14)] shrink-0">
+            <div className="flex flex-col items-end px-4 py-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] shrink-0">
               <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-wider">
                 {t("lab_cert_active_time", "Active Sim Time")}
               </span>
@@ -930,7 +1246,7 @@ export function LabVerificationGate({
                     ? "text-[var(--warning)]"
                     : activeSession.stage === "AWAITING_SAVE"
                     ? "text-[var(--success)]"
-                    : "text-[var(--accent)]"
+                    : "text-[var(--text)]"
                 }`}
               >
                 {formatTime(activeSession.remaining_active_seconds)}
@@ -940,7 +1256,7 @@ export function LabVerificationGate({
 
           {/* 4 Hardware & OS Telemetry Metrics in a 2x2 Grid with Frosted Glass */}
           <div className="grid grid-cols-2 gap-2.5">
-            <div className="p-3 rounded-xl glass-surface border border-[rgba(var(--text-rgb),0.12)] flex flex-col gap-1">
+            <div className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1">
               <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-wider flex items-center gap-1.5">
                 <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                   {t("icon_memory", "memory")}
@@ -952,7 +1268,7 @@ export function LabVerificationGate({
               </span>
             </div>
 
-            <div className="p-3 rounded-xl glass-surface border border-[rgba(var(--text-rgb),0.12)] flex flex-col gap-1">
+            <div className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1">
               <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-wider flex items-center gap-1.5">
                 <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                   {t("icon_hard_drive", "hard_drive")}
@@ -964,7 +1280,7 @@ export function LabVerificationGate({
               </span>
             </div>
 
-            <div className="p-3 rounded-xl glass-surface border border-[rgba(var(--text-rgb),0.12)] flex flex-col gap-1">
+            <div className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1">
               <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-wider flex items-center gap-1.5">
                 <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                   {t("icon_center_focus_strong", "center_focus_strong")}
@@ -985,7 +1301,7 @@ export function LabVerificationGate({
               </span>
             </div>
 
-            <div className="p-3 rounded-xl glass-surface border border-[rgba(var(--text-rgb),0.12)] flex flex-col gap-1">
+            <div className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1">
               <span className="text-[9px] font-black text-[var(--subtext)] uppercase tracking-wider flex items-center gap-1.5">
                 <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                   {t("icon_save", "save")}
@@ -1021,8 +1337,17 @@ export function LabVerificationGate({
         <div className="flex items-center justify-end pt-1 ml-auto w-full">
           <ActionButton
             variant="danger"
-            icon={t("icon_stop_circle", "stop_circle")}
-            label={t("lab_btn_stop_timed_test", "Abort Timed Test")}
+            icon={
+              isStopping
+                ? t("icon_sync", "sync")
+                : t("icon_stop_circle", "stop_circle")
+            }
+            label={
+              isStopping
+                ? t("lab_btn_ending_test", "Closing Game & Restoring...")
+                : t("lab_btn_stop_timed_test", "Abort Timed Test")
+            }
+            disabled={isStopping}
             onClick={handleStopInlineTimedTest}
           />
         </div>
@@ -1114,7 +1439,9 @@ export function LabInGameOverlay() {
               {!isVerified && !isTimerUp && status.stage === "MENU_WAITING" && t("lab_stage_menu_waiting", "2. Waiting for Live Simulation...")}
               {!isVerified && !isTimerUp && status.stage === "ACTIVE_TESTING" && (
                 isPaused
-                  ? (status.pause_reason === "GAME_PAUSED"
+                  ? (status.pause_reason === "LOADING_WORLD"
+                      ? t("lab_pause_loading_world", "PAUSED: Loading World or Zone Assets...")
+                      : status.pause_reason === "GAME_PAUSED"
                       ? t("lab_pause_game_paused", "PAUSED: In-Game Pause or Menu Screen Detected")
                       : status.pause_reason === "MAIN_MENU"
                       ? t("lab_pause_main_menu", "PAUSED: Returned to Main Menu")
