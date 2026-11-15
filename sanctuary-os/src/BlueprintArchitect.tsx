@@ -11,6 +11,7 @@ import {
   PanelHeaderButton,
   HoverTooltip,
   ActionPill,
+  ActionButton,
   InlineFilterGroup,
   DashboardStatTile,
   SidePanelFilterBar,
@@ -30,6 +31,10 @@ import {
   ConflictComparisonCard,
 } from "./side-panels/CommandIncompatiblePanel";
 import { groupUpdateMods, UpdateModCard } from "./side-panels/CommandCenterSidePanels";
+import {
+  groupBlueprintArtifactsByFamily,
+  BlueprintInspectorModCard,
+} from "./side-panels/NexusSidePanels";
 
 export default function BlueprintArchitect({
   isOpen,
@@ -53,9 +58,10 @@ export default function BlueprintArchitect({
 
   const [ignoredConflicts, setIgnoredConflicts] = useState<Set<string>>(new Set());
   const [ignoredBroken, setIgnoredBroken] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<"updates" | "alerts" | "critical">("critical");
+  const [activeTab, setActiveTab] = useState<"updates" | "alerts" | "critical" | "all">("critical");
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [allModsLimit, setAllModsLimit] = useState<number>(40);
   const [nameInput, setNameInput] = useState("");
   const [radarCacheTick, setRadarCacheTick] = useState(0);
 
@@ -163,16 +169,63 @@ export default function BlueprintArchitect({
     [activeConflicts]
   );
 
+  const localVaultHashes = useMemo(() => {
+    const hashes = new Set<string>();
+    (modList || []).forEach((m: any) => {
+      if (m?.hash) hashes.add(m.hash);
+      if (Array.isArray(m?.flavors)) {
+        m.flavors.forEach((fl: any) => {
+          if (fl?.hash) hashes.add(fl.hash);
+        });
+      }
+    });
+    return hashes;
+  }, [modList]);
+
+  const groupedAllMods = useMemo(() => {
+    if (!isOpen) return [];
+    return groupBlueprintArtifactsByFamily(
+      activeMods.map((m: any) => ({
+        ...m,
+        origName: m._originalSetName || m.name,
+      })),
+      { modList, activeGameSchema, localVaultHashes }
+    );
+  }, [isOpen, activeMods, modList, activeGameSchema, localVaultHashes]);
+
+  const filteredAllMods = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return groupedAllMods;
+    return groupedAllMods.filter((f: any) => {
+      if (String(f._groupedTitle || f.name || "").toLowerCase().includes(q)) return true;
+      if (String(f.author || "").toLowerCase().includes(q)) return true;
+      if (Array.isArray(f._groupedMods)) {
+        return f._groupedMods.some(
+          (gm: any) =>
+            String(gm._cleanModuleTitle || "").toLowerCase().includes(q) ||
+            String(gm._cleanFilePart || gm.origName || gm.name || "").toLowerCase().includes(q) ||
+            String(gm.author || "").toLowerCase().includes(q)
+        );
+      }
+      return false;
+    });
+  }, [groupedAllMods, searchQuery]);
+
   const updatesCount = groupedUpdates.length;
   const alertsCount = groupedAmberMods.length + warningConflicts.length;
   const criticalCount = groupedRedMods.length + criticalConflicts.length;
   const totalAllIssues = updatesCount + alertsCount + criticalCount;
 
   useEffect(() => {
+    setAllModsLimit(40);
+  }, [searchQuery]);
+
+  useEffect(() => {
     if (isOpen) {
       setSearchQuery("");
       setCategoryFilter("all");
-      if (initialTab && ["updates", "alerts", "critical"].includes(initialTab)) {
+      setAllModsLimit(40);
+      if (initialTab && ["updates", "alerts", "critical", "all"].includes(initialTab)) {
         setActiveTab(initialTab);
       } else if (criticalCount > 0) {
         setActiveTab("critical");
@@ -181,7 +234,7 @@ export default function BlueprintArchitect({
       } else if (updatesCount > 0) {
         setActiveTab("updates");
       } else {
-        setActiveTab("critical");
+        setActiveTab("all");
       }
     }
   }, [isOpen, initialTab, criticalCount, alertsCount, updatesCount]);
@@ -373,8 +426,8 @@ export default function BlueprintArchitect({
           />
         )}
 
-        {/* 3-Tab Switcher: Updates / Alerts / Critical Alerts */}
-        <SidePanelFilterBar className="sm:grid-cols-3 gap-2.5">
+        {/* 4-Tab Switcher: Updates / Alerts / Critical Alerts / All {Mods} */}
+        <SidePanelFilterBar className="sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
@@ -414,6 +467,19 @@ export default function BlueprintArchitect({
               setCategoryFilter("all");
             }}
           />
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_extension", "extension")}
+            label={t("blueprint_all_mods_tab", "All {Mods}")}
+            number={groupedAllMods.length}
+            colorClass="text-[var(--accent)]"
+            isActive={activeTab === "all"}
+            onClick={() => {
+              setActiveTab("all");
+              setCategoryFilter("all");
+            }}
+          />
         </SidePanelFilterBar>
 
         {/* Search & Filter Bar */}
@@ -422,7 +488,7 @@ export default function BlueprintArchitect({
           setSearchQuery={setSearchQuery}
           searchPlaceholder={t("nav_search", "Search...")}
           primaryPopover={
-            activeTab !== "updates"
+            activeTab === "alerts" || activeTab === "critical"
               ? {
                   icon: t("icon_tune", "tune"),
                   label: t("filters", "Filters"),
@@ -457,6 +523,68 @@ export default function BlueprintArchitect({
           }
         />
 
+        {/* Tab 4: All {Mods} */}
+        {activeTab === "all" && (
+          <>
+            {filteredAllMods.length > 0 ? (
+              <UniversalGroup
+                title={`${t("blueprint_all_mods_tab", "All {Mods}")} (${filteredAllMods.length})`}
+                icon={t("icon_extension", "extension")}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
+                  {filteredAllMods.slice(0, allModsLimit).map((m: any, idx: number) => (
+                    <BlueprintInspectorModCard
+                      key={`${m._groupKey || m.name || idx}-${idx}`}
+                      mod={m}
+                      activeGameSchema={activeGameSchema}
+                      t={t}
+                      onUnequip={
+                        allow_write && toggleInActiveSet
+                          ? () => {
+                              const members =
+                                Array.isArray(m._groupedMods) && m._groupedMods.length > 0
+                                  ? m._groupedMods
+                                  : [m];
+                              members.forEach((gm: any) => {
+                                toggleInActiveSet(
+                                  gm.origName || gm._originalSetName || gm._rawFirstPath || gm.name,
+                                  true,
+                                  true
+                                );
+                              });
+                            }
+                          : undefined
+                      }
+                      unequipTooltip={t("remove_from_blueprint", "Remove from {Blueprint}")}
+                    />
+                  ))}
+                  {filteredAllMods.length > allModsLimit && (
+                    <div className="col-span-full w-full flex justify-center mt-2">
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_expand_more", "expand_more")}
+                        label={`${t("btn_show_more", "Show More")} (${
+                          filteredAllMods.length - allModsLimit
+                        })`}
+                        onClick={() => setAllModsLimit((prev) => prev + 40)}
+                      />
+                    </div>
+                  )}
+                </div>
+              </UniversalGroup>
+            ) : (
+              <EmptyState
+                icon={t("icon_extension_off", "extension_off")}
+                title={
+                  searchQuery.trim()
+                    ? t("no_matches_found", "No matching {mods} found.")
+                    : t("empty", "Empty")
+                }
+              />
+            )}
+          </>
+        )}
+
         {/* Tab 1: Updates */}
         {activeTab === "updates" && (
           <>
@@ -487,7 +615,7 @@ export default function BlueprintArchitect({
         )}
 
         {/* Tab 2 & 3: Alerts / Critical Alerts */}
-        {activeTab !== "updates" && (
+        {(activeTab === "alerts" || activeTab === "critical") && (
           <>
             {filteredConflicts.length > 0 && (
               <UniversalGroup

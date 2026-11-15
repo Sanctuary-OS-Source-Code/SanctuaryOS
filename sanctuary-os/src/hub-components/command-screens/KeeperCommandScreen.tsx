@@ -170,7 +170,7 @@ export function KeeperCommandScreen({
       supabaseAuth
         .from("profiles")
         .select("id", { count: "exact", head: true })
-        .in("os_role", ["keeper", "core_dev", "admin"]),
+        .in("role", ["keeper", "core_dev", "admin"]),
       supabaseAuth.from("sanctuary_themes").select("id", { count: "exact", head: true }),
       supabaseAuth.from("sanctuary_lexicons").select("id", { count: "exact", head: true }),
       supabaseAuth
@@ -181,9 +181,12 @@ export function KeeperCommandScreen({
         .neq("category", "KeeperPipelineConfig"),
       supabaseAuth
         .from("sanctuary_schemas")
-        .select("schema_id, schema_version")
+        .select("id, version, schema_data")
         .limit(5),
-      supabaseAuth.from("keeper_web_news").select("id", { count: "exact", head: true }),
+      supabaseAuth
+        .from("system_broadcasts")
+        .select("id", { count: "exact", head: true })
+        .eq("is_active", true),
     ]);
 
     const latency = Date.now() - pingStart;
@@ -222,7 +225,8 @@ export function KeeperCommandScreen({
 
     const defaultSchemaRow =
       (schemasRes?.data || []).find(
-        (s: any) => String(s.schema_id || "").toLowerCase() === "default"
+        (s: any) =>
+          String(s.id || s.schema_data?.schema_id || "").toLowerCase() === "default"
       ) || schemasRes?.data?.[0];
 
     const nextSnapshot: KeeperCommandSnapshot = {
@@ -237,7 +241,11 @@ export function KeeperCommandScreen({
         activeThemes: themesRes?.count || 0,
         lexicons: lexiconsRes?.count || 0,
         activeBroadcasts: activeBroadcastsCountRes?.count || 0,
-        defaultSchemaVersion: Number(defaultSchemaRow?.schema_version || 1),
+        defaultSchemaVersion: Number(
+          defaultSchemaRow?.version ||
+            defaultSchemaRow?.schema_data?.schema_version ||
+            1
+        ),
         webNewsCount: webNewsRes?.count || 0,
         networkLatency: latency,
         networkStatus: latency > 5000 ? "DEGRADED" : "ONLINE",

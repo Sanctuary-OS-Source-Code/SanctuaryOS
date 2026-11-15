@@ -4,8 +4,12 @@ import { useStore } from '../store';
 import { supabase } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
-import { CustomDropdown, EmptyState, HoverTooltip, VAULT_CHIP_CLASS } from "../shared";
-import { UniversalCard } from "../components/universal/UniversalCard";
+import { CustomDropdown, EmptyState, HoverTooltip, InlineFilterGroup } from "../shared";
+import {
+  SupportTicketCard,
+  sortTicketsPriorityFirst,
+  getTicketSupporterFlags,
+} from "../components/universal/SupportTicketCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid } from "../components/layouts/ElevatedHubLayout";
 import SASupportSettings from "./SASupportSettings";
@@ -50,6 +54,8 @@ export default function ArchitectSupportTickets({
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<"overview" | "new" | "pending" | "closed" | "settings">(initialTab || "overview");
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<"all" | "priority">("all");
+  const [modNameMap, setModNameMap] = useState<Record<string, string>>({});
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryOptions, setCategoryOptions] = useState<any[]>([]);
@@ -121,13 +127,22 @@ export default function ArchitectSupportTickets({
         }
       }
 
+      const nextModNames: Record<string, string> = {};
       if (validModIds.length > 0) {
-        const { data: modsData } = await supabase.from('mods').select('id, mason_id, compliance_tier').in('id', validModIds);
+        const { data: modsData } = await supabase.from('mods').select('id, name, mason_id, compliance_tier').in('id', validModIds);
         modsData?.forEach(m => {
           modAuthorMap[m.id] = m.mason_id;
           modAuthorMap[`TIER_${m.id}`] = String(Number(m.compliance_tier || 0));
+          if (m.name) nextModNames[m.id] = String(m.name);
+        });
+        hashes.forEach(h => {
+          const resolvedId = modAuthorMap[`HASH_MAP_${h}`];
+          if (resolvedId && nextModNames[resolvedId]) {
+            nextModNames[h] = nextModNames[resolvedId];
+          }
         });
       }
+      setModNameMap(nextModNames);
 
       let finalTickets = mergedTickets;
       if (userRole !== "mason") {
@@ -167,7 +182,12 @@ export default function ArchitectSupportTickets({
           const hoursOld = ageMs / (1000 * 60 * 60);
 
           let escalationTiers = 0;
-          if (escalationPath === 'urgent') {
+          const isPriorityTicket = Boolean(
+            t.metadata?.priority_ticket ||
+              t.metadata?.is_mason_supporter ||
+              t.metadata?.expedited_support
+          );
+          if (escalationPath === 'urgent' || isPriorityTicket) {
             escalationTiers = Math.floor(hoursOld / 24);
           } else if (escalationPath === 'standard') {
             escalationTiers = Math.floor(hoursOld / 72);
@@ -222,7 +242,7 @@ export default function ArchitectSupportTickets({
         });
       }
 
-      setTickets(finalTickets);
+      setTickets(sortTicketsPriorityFirst(finalTickets));
 
       const uniqueCats = [...new Set(finalTickets.map(t => t.ticket_type || t.category || "GENERAL"))];
       const dynamicOptions = [
@@ -383,46 +403,21 @@ export default function ArchitectSupportTickets({
   ];
 
   const renderTicketCard = (ticket: Ticket) => {
-    const statusLower = ticket.status?.toLowerCase() || 'new';
-    const isNew = statusLower === 'new' || statusLower === 'open';
-    const isResolved = statusLower === 'closed' || statusLower === 'resolved';
-    const isRejected = statusLower === 'rejected';
-    const isPending = statusLower === 'investigating' || statusLower === 'pending';
-    const isEscalated = statusLower === 'escalated';
-
-    const statusIconColor = isResolved
-      ? "text-[var(--success)]"
-      : isEscalated || isRejected
-        ? "text-[var(--danger)]"
-        : isPending
-          ? "text-[var(--warning)]"
-          : "text-[var(--accent)]";
-
-    const statusIcon = isResolved
-      ? t("icon_check_circle", "check_circle")
-      : isRejected
-        ? t("icon_cancel", "cancel")
-        : isEscalated
-          ? t("icon_priority_high", "priority_high")
-          : isPending
-            ? t("icon_schedule", "schedule")
-            : t("icon_confirmation_number", "confirmation_number");
-
-    const statusLabel = isNew
-      ? t("ticket_status_open", "Open")
-      : isResolved
-        ? t("ticket_status_resolved", "Resolved")
-        : isRejected
-          ? t("ticket_status_rejected", "Rejected")
-          : isEscalated
-            ? t("ticket_status_escalated", "Escalated")
-            : isPending
-              ? t("ticket_status_pending", "Pending")
-              : t(`ticket_status_${statusLower}`, ticket.status || "Open");
+    const rawModId = String(ticket.target_mod_id || ticket.metadata?.target_mod_id || "").trim();
+    const resolvedModName = rawModId ? modNameMap[rawModId] || null : null;
+    const replyCount = Array.isArray(ticket.metadata?.replies)
+      ? ticket.metadata.replies.length
+      : 0;
 
     return (
-      <UniversalCard
+      <SupportTicketCard
         key={ticket.id}
+        ticket={ticket}
+        t={t}
+        claimedBySelf={userRole !== "mason" && isClaimedTicket(ticket)}
+        resolvedModName={resolvedModName}
+        replyCount={replyCount}
+        authorLabel={ticket.author_username || null}
         onClick={() => setSelectedTicket(ticket)}
         onContextMenu={(e) => {
           const menuItems: SanctuaryContextMenuItem[] = [
@@ -440,75 +435,7 @@ export default function ArchitectSupportTickets({
           ];
           openSanctuaryContextMenu(e, menuItems);
         }}
-        layout="vertical"
-        isGhosted={isResolved || isRejected}
-        icon={t("icon_support_agent", "support_agent")}
-        imageOverlay={
-          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-            <div className={VAULT_CHIP_CLASS}>
-              <span className={`material-symbols-outlined !text-[12px] ${statusIconColor}`}>
-                {statusIcon}
-              </span>
-              <span>{statusLabel}</span>
-            </div>
-            {userRole !== "mason" && isClaimedTicket(ticket) && (
-              <div className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                  {t("icon_assignment_ind", "assignment_ind")}
-                </span>
-                <span>{t("ticket_tab_claimed", "Claimed")}</span>
-              </div>
-            )}
-            {(ticket.metadata?.expedited_support || ticket.metadata?.urgent) && (
-              <div className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
-                  {t("icon_bolt", "bolt")}
-                </span>
-                <span>{t("urgent", "Urgent")}</span>
-              </div>
-            )}
-          </div>
-        }
-        title={ticket.title}
-        subtitle={ticket.author_username ? `${ticket.author_username} • #${ticket.id.slice(0, 8)}` : `#${ticket.id.slice(0, 8)}`}
-        badges={
-          <>
-            {(ticket.ticket_type || ticket.category) && (
-              <div className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                  {t("icon_local_activity", "local_activity")}
-                </span>
-                <span>{(ticket.ticket_type || ticket.category || "").replace(/_/g, " ")}</span>
-              </div>
-            )}
-            {(ticket.target_mod_id || ticket.metadata?.target_mod_id) && (
-              <div className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-                  {t("icon_extension", "extension")}
-                </span>
-                <span className="truncate max-w-[140px]">
-                  {String(ticket.target_mod_id || ticket.metadata?.target_mod_id).slice(0, 12)}
-                </span>
-              </div>
-            )}
-          </>
-        }
-        footer={
-          <div className="flex justify-between items-center w-full">
-            <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
-              <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today", "calendar_today")}</span>
-              {new Date(ticket.created_at).toLocaleDateString()}
-            </span>
-            <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
-              {t("view_ticket", "View Ticket")} <span className="material-symbols-outlined !text-[12px]">{t("icon_arrow_forward", "arrow_forward")}</span>
-            </span>
-          </div>
-        }
-      >
-        <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
-          {ticket.description}
-        </p>
-      </UniversalCard>
+      />
     );
   };
 
@@ -569,7 +496,7 @@ export default function ArchitectSupportTickets({
           emptyIcon={t("icon_support_agent", "support_agent")}
           emptyTitle={
             userRole === "mason"
-              ? t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.")
+              ? t("no_bug_reports", "No bug reports found.")
               : t("no_tickets", "No Support Tickets")
           }
         >
@@ -579,22 +506,25 @@ export default function ArchitectSupportTickets({
     );
   };
 
-  const filteredTickets = tickets.filter(t => {
+  const filteredTickets = tickets.filter(tk => {
+    if (priorityFilter === "priority" && !getTicketSupporterFlags(tk).isPriority) {
+      return false;
+    }
     if (activeCategory !== "all") {
-      const tCat = t.ticket_type || t.category || "GENERAL";
+      const tCat = tk.ticket_type || tk.category || "GENERAL";
       if (tCat !== activeCategory) return false;
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      if (!(t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q))) return false;
+      if (!(tk.title?.toLowerCase().includes(q) || tk.description?.toLowerCase().includes(q))) return false;
     }
 
     if (activeFilter === "new") {
-      return isUnclaimedOpenTicket(t);
+      return isUnclaimedOpenTicket(tk);
     } else if (activeFilter === "pending") {
-      return isClaimedTicket(t);
+      return isClaimedTicket(tk);
     } else if (activeFilter === "closed") {
-      return isClosedTicket(t);
+      return isClosedTicket(tk);
     }
 
     return true;
@@ -658,9 +588,9 @@ export default function ArchitectSupportTickets({
                 icon: t("icon_tune", "tune"),
                 label: t("filters", "Filters") || "Filters",
                 content: (
-                  <div className="flex flex-col w-[300px] p-4 text-left">
-                    <div className="flex flex-col mb-5 w-full">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
+                  <div className="flex flex-col w-[300px] p-4 text-left gap-4">
+                    <div className="flex flex-col w-full gap-2">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1 flex items-center gap-2">
                         {t("category", "Category") || "Category"}
                       </div>
                       <CustomDropdown
@@ -670,6 +600,19 @@ export default function ArchitectSupportTickets({
                         onChange={(v: string[]) => setActiveCategory(v[0])}
                         options={categoryOptions.length > 0 ? categoryOptions : [{ id: "all", label: t("all_types", "All Types") }]}
                         disableTint={true}
+                      />
+                    </div>
+                    <div className="flex flex-col w-full gap-2">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-1 flex items-center gap-2">
+                        {t("ticket_filter_queue", "Priority Queue")}
+                      </div>
+                      <InlineFilterGroup
+                        value={priorityFilter}
+                        onChange={(v) => setPriorityFilter(v as "all" | "priority")}
+                        options={[
+                          { id: "all", label: t("filter_all", "All") },
+                          { id: "priority", label: t("ticket_filter_priority_only", "Priority Only") },
+                        ]}
                       />
                     </div>
                   </div>
@@ -717,7 +660,7 @@ export default function ArchitectSupportTickets({
       ) : isLoading ? (
         <EmptyState
           icon={t("icon_sync", "sync")}
-          title={t("intercepting", "Intercepting {Dispatches}...")}
+          title={t("loading_tickets", "Loading support tickets...")}
         />
       ) : activeFilter === 'overview' ? (
         renderLanding()
@@ -735,7 +678,7 @@ export default function ArchitectSupportTickets({
             searchQuery
               ? t("no_matches", "No matches found")
               : userRole === "mason" && activeFilter === "new"
-                ? t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.")
+                ? t("no_bug_reports", "No bug reports found.")
                 : t("no_tickets", "No Support Tickets")
           }
         >

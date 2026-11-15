@@ -32,6 +32,16 @@ export interface LocalMasonSupporter {
   expires_at: number;
 }
 
+export interface LocalSpokeSupporter {
+  spoke_id: string;
+  spoke_name: string;
+  provider: string;
+  pledge_cents: number;
+  verified_at: number;
+  expires_at: number;
+  tx_nonce?: string;
+}
+
 export interface LocalDevBuildStatus {
   user_id: string;
   dev_build_until: number;
@@ -44,6 +54,7 @@ export interface LocalDevBuildStatus {
 export interface LocalSupporterStatePayload {
   follows: LocalMasonFollow[];
   supporters: LocalMasonSupporter[];
+  spoke_supporters?: LocalSpokeSupporter[];
   dev_build: LocalDevBuildStatus;
   removed_follows?: Record<string, number>;
   removed_supporters?: Record<string, number>;
@@ -77,6 +88,7 @@ function sanitizeTombstoneMap(
 function mergeSupporterVaultStates(
   localFollows: LocalMasonFollow[],
   localSupporters: LocalMasonSupporter[],
+  localSpokeSupporters: LocalSpokeSupporter[],
   localRemovedFollows: Record<string, number>,
   localRemovedSupporters: Record<string, number>,
   remote: EncryptedSupporterVaultPayload | null,
@@ -84,6 +96,7 @@ function mergeSupporterVaultStates(
 ): {
   follows: LocalMasonFollow[];
   supporters: LocalMasonSupporter[];
+  spokeSupporters: LocalSpokeSupporter[];
   removedFollows: Record<string, number>;
   removedSupporters: Record<string, number>;
   changedLocal: boolean;
@@ -92,6 +105,9 @@ function mergeSupporterVaultStates(
   const remoteFollows: LocalMasonFollow[] = Array.isArray(remote?.follows) ? remote!.follows : [];
   const remoteSupporters: LocalMasonSupporter[] = Array.isArray(remote?.supporters)
     ? remote!.supporters
+    : [];
+  const remoteSpokeSupporters: LocalSpokeSupporter[] = Array.isArray(remote?.spokeSupporters)
+    ? remote!.spokeSupporters
     : [];
   const remoteRemovedFollows = sanitizeTombstoneMap(remote?.removedFollowKeys, nowSecs);
   const remoteRemovedSupporters = sanitizeTombstoneMap(remote?.removedSupporterKeys, nowSecs);
@@ -174,15 +190,45 @@ function mergeSupporterVaultStates(
   }
   mergedSupporters.sort((a, b) => Number(b.verified_at || 0) - Number(a.verified_at || 0));
 
+  const spokeById = new Map<string, LocalSpokeSupporter>();
+  for (const item of [...remoteSpokeSupporters, ...localSpokeSupporters]) {
+    const sid = String(item?.spoke_id || "").trim().toLowerCase();
+    const expiresAt = Number(item?.expires_at || 0);
+    if (!sid || (expiresAt > 0 && expiresAt <= nowSecs)) continue;
+    const prev = spokeById.get(sid);
+    const curVer = Number(item.verified_at || 0);
+    const prevVer = Number(prev?.verified_at || 0);
+    if (
+      !prev ||
+      curVer > prevVer ||
+      (curVer === prevVer && expiresAt > Number(prev.expires_at || 0))
+    ) {
+      spokeById.set(sid, {
+        spoke_id: sid,
+        spoke_name: String(item.spoke_name || prev?.spoke_name || sid),
+        provider: String(item.provider || prev?.provider || "partner_donation"),
+        pledge_cents: Number(item.pledge_cents ?? prev?.pledge_cents ?? 500),
+        verified_at: curVer || nowSecs,
+        expires_at: expiresAt || nowSecs + 30 * 86400,
+        tx_nonce: item.tx_nonce || prev?.tx_nonce,
+      });
+    }
+  }
+  const mergedSpokeSupporters = Array.from(spokeById.values()).sort(
+    (a, b) => Number(b.verified_at || 0) - Number(a.verified_at || 0)
+  );
+
   const serializeSig = (
     fl: LocalMasonFollow[],
     sp: LocalMasonSupporter[],
+    sk: LocalSpokeSupporter[],
     rf: Record<string, number>,
     rs: Record<string, number>
   ) =>
     JSON.stringify({
       fl: fl.map((x) => `${x.mason_id}:${x.followed_at}`).sort(),
       sp: sp.map((x) => `${x.mason_id}:${x.verified_at}:${x.expires_at}`).sort(),
+      sk: sk.map((x) => `${x.spoke_id}:${x.verified_at}:${x.expires_at}`).sort(),
       rf: Object.entries(rf).sort(([a], [b]) => a.localeCompare(b)),
       rs: Object.entries(rs).sort(([a], [b]) => a.localeCompare(b)),
     });
@@ -190,12 +236,14 @@ function mergeSupporterVaultStates(
   const mergedSig = serializeSig(
     mergedFollows,
     mergedSupporters,
+    mergedSpokeSupporters,
     mergedRemovedFollows,
     mergedRemovedSupporters
   );
   const localSig = serializeSig(
     localFollows,
     localSupporters.filter((s) => Number(s?.expires_at || 0) > nowSecs),
+    localSpokeSupporters.filter((s) => !s?.expires_at || Number(s.expires_at) > nowSecs),
     localRemovedFollows,
     localRemovedSupporters
   );
@@ -203,6 +251,7 @@ function mergeSupporterVaultStates(
     ? serializeSig(
         remoteFollows,
         remoteSupporters.filter((s) => Number(s?.expires_at || 0) > nowSecs),
+        remoteSpokeSupporters.filter((s) => !s?.expires_at || Number(s.expires_at) > nowSecs),
         remoteRemovedFollows,
         remoteRemovedSupporters
       )
@@ -211,12 +260,14 @@ function mergeSupporterVaultStates(
   const hasAnyState =
     mergedFollows.length > 0 ||
     mergedSupporters.length > 0 ||
+    mergedSpokeSupporters.length > 0 ||
     Object.keys(mergedRemovedFollows).length > 0 ||
     Object.keys(mergedRemovedSupporters).length > 0;
 
   return {
     follows: mergedFollows,
     supporters: mergedSupporters,
+    spokeSupporters: mergedSpokeSupporters,
     removedFollows: mergedRemovedFollows,
     removedSupporters: mergedRemovedSupporters,
     changedLocal: mergedSig !== localSig,
@@ -255,6 +306,7 @@ async function syncSupporterVaultWithCloud(
       ...state,
       follows: refreshed.follows,
       supporters: refreshed.supporters,
+      spoke_supporters: refreshed.spoke_supporters || [],
       removed_follows: refreshed.removed_follows,
       removed_supporters: refreshed.removed_supporters,
     };
@@ -278,6 +330,7 @@ async function syncSupporterVaultWithCloud(
     const merged = mergeSupporterVaultStates(
       state.follows,
       state.supporters,
+      state.spoke_supporters || [],
       localRmFollows,
       localRmSupporters,
       remote,
@@ -286,6 +339,7 @@ async function syncSupporterVaultWithCloud(
 
     state.follows = merged.follows;
     state.supporters = merged.supporters;
+    state.spoke_supporters = merged.spokeSupporters;
     state.removed_follows = merged.removedFollows;
     state.removed_supporters = merged.removedSupporters;
 
@@ -309,6 +363,7 @@ async function syncSupporterVaultWithCloud(
           syncedAt: new Date().toISOString(),
           follows: merged.follows,
           supporters: merged.supporters,
+          spokeSupporters: merged.spokeSupporters,
           removedFollowKeys: merged.removedFollows,
           removedSupporterKeys: merged.removedSupporters,
         },
@@ -359,6 +414,7 @@ function readFallbackVault(userId: string): LocalSupporterStatePayload {
       return {
         follows: Array.isArray(parsed.follows) ? parsed.follows : [],
         supporters: Array.isArray(parsed.supporters) ? parsed.supporters : [],
+        spoke_supporters: Array.isArray(parsed.spoke_supporters) ? parsed.spoke_supporters : [],
         dev_build: resolvedDevBuild,
         removed_follows: sanitizeTombstoneMap(parsed.removed_follows),
         removed_supporters: sanitizeTombstoneMap(parsed.removed_supporters),
@@ -370,6 +426,7 @@ function readFallbackVault(userId: string): LocalSupporterStatePayload {
   return {
     follows: [],
     supporters: [],
+    spoke_supporters: [],
     dev_build: defaultDevBuild,
     removed_follows: {},
     removed_supporters: {},
@@ -438,6 +495,9 @@ export async function getSupporterState(
       if (sqliteState) {
         const rmFollows = state.removed_follows || {};
         const rmSupporters = state.removed_supporters || {};
+        const fbSpokeSupporters = Array.isArray(state.spoke_supporters)
+          ? state.spoke_supporters
+          : [];
         state = {
           ...sqliteState,
           follows: (sqliteState.follows || []).filter(
@@ -447,6 +507,9 @@ export async function getSupporterState(
             (s) =>
               !(rmSupporters[s.mason_id] && rmSupporters[s.mason_id] >= Number(s.verified_at || 0))
           ),
+          spoke_supporters: Array.isArray((sqliteState as any).spoke_supporters)
+            ? (sqliteState as any).spoke_supporters
+            : fbSpokeSupporters,
           removed_follows: rmFollows,
           removed_supporters: rmSupporters,
           dev_build: isAuthenticatedUser
@@ -779,6 +842,8 @@ export async function stackGlobalDevBuildDonation(params: {
   amountUsd: number;
   txNonce: string;
   targetId?: string;
+  spokeName?: string;
+  provider?: string;
 }): Promise<{
   devBuild: LocalDevBuildStatus;
   monthsAdded: number;
@@ -894,6 +959,22 @@ export async function stackGlobalDevBuildDonation(params: {
     params.targetId || "keepers_core",
     cleanNonce,
   );
+
+  let returnState = currentState;
+  const cleanTargetId = String(params.targetId || "keepers_core").trim().toLowerCase();
+  if (cleanTargetId && cleanTargetId !== "keepers_core") {
+    returnState = await recordLocalSpokeSupporterPass({
+      spokeId: cleanTargetId,
+      spokeName: params.spokeName || params.targetId,
+      provider: params.provider || "partner_donation",
+      pledgeCents: amountCents,
+      monthsAdded: finalMonthsAdded || Math.max(1, Math.floor(amountCents / 500)),
+      expiresAt: finalUntil,
+      txNonce: cleanNonce,
+    });
+    returnState.dev_build = updatedDevBuild;
+    writeFallbackVault(returnState);
+  }
 
   return {
     devBuild: updatedDevBuild,
@@ -1856,6 +1937,90 @@ export function findLocalMasonSupporterPass(
       return false;
     }) || null
   );
+}
+
+export async function recordLocalSpokeSupporterPass(params: {
+  spokeId: string;
+  spokeName?: string;
+  provider?: string;
+  pledgeCents?: number;
+  monthsAdded?: number;
+  expiresAt?: number;
+  txNonce?: string;
+}): Promise<LocalSupporterStatePayload> {
+  const spokeId = String(params.spokeId || "").trim().toLowerCase();
+  if (!spokeId || spokeId === "keepers_core") {
+    return getSupporterState();
+  }
+  const vaultPath = useStore.getState().vaultPath || "";
+  const userId = useStore.getState().session?.user?.id || "local_citizen";
+  const now = Math.floor(Date.now() / 1000);
+  const currentState = await getSupporterState(vaultPath, userId);
+  const existingList = Array.isArray(currentState.spoke_supporters)
+    ? [...currentState.spoke_supporters]
+    : [];
+  const prevIdx = existingList.findIndex(
+    (s) => String(s?.spoke_id || "").trim().toLowerCase() === spokeId
+  );
+  const prev = prevIdx >= 0 ? existingList[prevIdx] : undefined;
+  const computedExpiry =
+    params.expiresAt && params.expiresAt > now
+      ? params.expiresAt
+      : Math.max(now, Number(prev?.expires_at || 0)) +
+        Math.max(1, Number(params.monthsAdded || 1)) * 30 * 86400;
+
+  const nextEntry: LocalSpokeSupporter = {
+    spoke_id: spokeId,
+    spoke_name: String(params.spokeName || prev?.spoke_name || params.spokeId).trim(),
+    provider: String(params.provider || prev?.provider || "partner_donation"),
+    pledge_cents: Number(params.pledgeCents ?? prev?.pledge_cents ?? 500),
+    verified_at: now,
+    expires_at: computedExpiry,
+    tx_nonce: params.txNonce || prev?.tx_nonce,
+  };
+
+  if (prevIdx >= 0) {
+    existingList[prevIdx] = nextEntry;
+  } else {
+    existingList.unshift(nextEntry);
+  }
+
+  currentState.spoke_supporters = existingList;
+  writeFallbackVault(currentState);
+  try {
+    return await syncSupporterVaultWithCloud(currentState, vaultPath, userId, true);
+  } catch {
+    return currentState;
+  }
+}
+
+export function isSpokeSupporter(
+  supporterState?: LocalSupporterStatePayload | null,
+  spokeIdOrName?: string | null
+): LocalSpokeSupporter | null {
+  const list = supporterState?.spoke_supporters;
+  if (!Array.isArray(list) || list.length === 0) return null;
+  const now = Math.floor(Date.now() / 1000);
+  const norm = String(spokeIdOrName || "").trim().toLowerCase();
+  return (
+    list.find((s) => {
+      if (s?.expires_at && s.expires_at < now) return false;
+      if (!norm) return true;
+      return (
+        String(s?.spoke_id || "").trim().toLowerCase() === norm ||
+        String(s?.spoke_name || "").trim().toLowerCase() === norm
+      );
+    }) || null
+  );
+}
+
+export function findAnyActiveMasonSupporterPasses(
+  supporterState?: LocalSupporterStatePayload | null
+): LocalMasonSupporter[] {
+  const list = supporterState?.supporters;
+  if (!Array.isArray(list) || list.length === 0) return [];
+  const now = Math.floor(Date.now() / 1000);
+  return list.filter((s) => !s?.expires_at || s.expires_at >= now);
 }
 
 export interface KeepersPipelineConfig {

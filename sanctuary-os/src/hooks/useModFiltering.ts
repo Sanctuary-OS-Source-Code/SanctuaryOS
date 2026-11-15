@@ -1,5 +1,5 @@
 import { useState, useMemo, useDeferredValue } from 'react';
-import { isSupportedExtension } from '../shared';
+import { isVaultArtifactVisible } from '../shared';
 
 export function useModFiltering(displayModList: any[], _playSets: any[], _activeSetName: string, activeGameSchema: any, t: any, isActive = true) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -34,14 +34,8 @@ export function useModFiltering(displayModList: any[], _playSets: any[], _active
       }
       const checkMatch = (m: any) => {
         if (!m.isVirtual && m.name) {
-          if (!isSupportedExtension(m.name, activeGameSchema)) {
+          if (!isVaultArtifactVisible(m.name, activeGameSchema)) {
             return false;
-          }
-          if (activeGameSchema?.extensions?.vault_visible) {
-            const isVaultVisible = activeGameSchema.extensions.vault_visible.some((ext: string) => 
-              m.name.toLowerCase().endsWith(ext.toLowerCase())
-            );
-            if (!isVaultVisible) return false;
           }
         }
         const name = (m.displayName || m.name || "").toLowerCase();

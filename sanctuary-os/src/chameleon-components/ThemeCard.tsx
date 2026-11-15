@@ -636,7 +636,7 @@ export const DynamicBlueprintPreviewBanner = React.memo(function DynamicBlueprin
     data?.version ||
     '';
 
-  const rowCount = modCount > 0 ? Math.min(modCount, 3) : 1;
+  const rowCount = modCount > 0 ? Math.min(modCount, 2) : 1;
   const previewRows = React.useMemo(
     () =>
       Array.from({ length: rowCount }, (_, idx) => {
@@ -655,9 +655,10 @@ export const DynamicBlueprintPreviewBanner = React.memo(function DynamicBlueprin
               .replace(/\s+/g, ' ')
               .trim()
           : `${t('term_mod', 'Mod')} #0${idx + 1}`;
-        const isScript =
-          isScriptExtension(String(rawLabel), activeGameSchema) ||
-          String(rawLabel).toLowerCase().includes('script');
+        const isScript = Boolean(
+          (typeof item === 'object' && (item?.isScript || item?.is_script)) ||
+            isScriptExtension(String(rawLabel), activeGameSchema)
+        );
         return {
           seq: `0${idx + 1}`,
           label: cleanLabel,
@@ -676,7 +677,7 @@ export const DynamicBlueprintPreviewBanner = React.memo(function DynamicBlueprin
           'radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--accent) 22%, transparent) 0%, transparent 62%), var(--glass-card-banner-bg)',
       }}
     >
-      <div className="absolute inset-x-3 top-12 bottom-2.5 flex gap-2 pointer-events-none z-10">
+      <div className="absolute inset-x-3 top-12 bottom-3 flex gap-2 pointer-events-none z-10">
         {/* Mini Blueprint Node Summary */}
         <div className="w-16 h-full rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1.5 gap-0.5 shrink-0">
           <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
@@ -690,29 +691,29 @@ export const DynamicBlueprintPreviewBanner = React.memo(function DynamicBlueprin
           </span>
         </div>
 
-        {/* Mini Load-Order Stack */}
-        <div className="flex-1 h-full flex flex-col justify-between gap-1 min-w-0">
+        {/* Crisp 2-Row Liquid Glass Load-Order Console */}
+        <div className="flex-1 h-full flex flex-col justify-center gap-1.5 min-w-0">
           {previewRows.map((row) => (
             <div
               key={row.seq}
-              className="flex-1 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-1.5 min-w-0"
+              className="flex-1 min-h-0 px-2.5 py-1 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2 min-w-0"
             >
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-[7px] font-mono font-black text-[var(--accent)] opacity-85 shrink-0">
+                <span className="text-[9px] font-mono font-black text-[var(--accent)] opacity-85 shrink-0">
                   #{row.seq}
                 </span>
                 <span
-                  className={`text-[8px] font-bold text-[var(--text)] truncate ${row.hasReal ? 'opacity-90' : 'opacity-45'
+                  className={`text-[10px] font-bold text-[var(--text)] truncate ${row.hasReal ? 'opacity-90' : 'opacity-45'
                     }`}
                 >
                   {row.label}
                 </span>
               </div>
               <span
-                className={`text-[6.5px] font-mono font-black uppercase tracking-wider shrink-0 ${row.isScript ? 'text-[var(--success)]' : 'text-[var(--subtext)] opacity-75'
+                className={`text-[8px] font-mono font-black uppercase tracking-wider shrink-0 ${row.isScript ? 'text-[var(--success)]' : 'text-[var(--subtext)] opacity-75'
                   }`}
               >
-                {row.isScript ? t('scr_short', 'SCR') : t('pkg_short', 'PKG')}
+                {row.isScript ? t('type_script_short', 'SCRIPT') : t('type_module_short', 'MOD')}
               </span>
             </div>
           ))}

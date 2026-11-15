@@ -6,6 +6,7 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   StatBox,
+  ActionButton,
   PanelHeaderGroup,
   PanelHeaderButton,
 } from "../shared";
@@ -15,7 +16,7 @@ interface FlagContentSidePanelProps {
   isOpen: boolean;
   onClose: () => void;
   targetId: string;
-  targetType: "post" | "comment" | "broadcast";
+  targetType: "post" | "comment" | "broadcast" | "collection";
   userId: string;
   backdropZ?: string;
   panelZ?: string;
@@ -54,6 +55,11 @@ export default function FlagContentSidePanel({
         .getState()
         .pushStatus(`${t("flag_error", "Failed to submit flag")}: ${error.message}`);
     } else {
+      window.dispatchEvent(
+        new CustomEvent("sanctuary-content-flagged", {
+          detail: { targetType, targetId },
+        })
+      );
       useStore.getState().pushStatus(t("flag_success", "Report submitted"));
       setReason("");
       onClose();
@@ -64,8 +70,8 @@ export default function FlagContentSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("flag_title", "Flag Content")}
-      subtitle={t("flag_subtitle", "Report policy violations for review")}
+      title={t("flag_content_title", "Flag Content")}
+      subtitle={t("flag_content_subtitle", "Report policy violations for review")}
       icon={t("icon_flag", "flag")}
       iconColorClass="text-[var(--danger)]"
       widthClass="w-[90vw] md:w-[680px]"
@@ -92,9 +98,9 @@ export default function FlagContentSidePanel({
         <SidePanelHeroCard
           icon={t("icon_flag", "flag")}
           overline={t("action_required", "Content Moderation")}
-          title={t("flag_title", "Flag Content")}
+          title={t("flag_content_title", "Flag Content")}
           description={t(
-            "flag_subtitle",
+            "flag_content_hero_desc",
             "Provide context on why this content violates community standards."
           )}
           badge={targetType.toUpperCase()}
@@ -118,7 +124,7 @@ export default function FlagContentSidePanel({
         </SidePanelHeroCard>
 
         <UniversalGroup
-          title={t("flag_reason", "Reason for Report")}
+          title={t("reason", "Reason")}
           icon={t("icon_description", "description")}
         >
           <textarea
@@ -130,6 +136,21 @@ export default function FlagContentSidePanel({
             )}
             className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text)] outline-none focus:border-[var(--accent)] transition-all resize-none h-44 custom-scrollbar"
           />
+          <div className="flex flex-wrap items-center justify-end gap-2.5 w-full">
+            <ActionButton
+              variant="glass"
+              label={t("cancel", "Cancel")}
+              onClick={onClose}
+              disabled={isSubmitting}
+            />
+            <ActionButton
+              variant="danger"
+              icon={t("icon_flag", "flag")}
+              label={t("flag_submit", "Submit Flag")}
+              disabled={!reason.trim() || isSubmitting}
+              onClick={() => handleSubmit()}
+            />
+          </div>
         </UniversalGroup>
       </form>
     </SidePanel>

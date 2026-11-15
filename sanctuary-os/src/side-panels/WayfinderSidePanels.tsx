@@ -54,6 +54,14 @@ export function ServerHealthSidePanel({
   const [uplinkAnonKey, setUplinkAnonKey] = useState("");
   const [uplinkServiceKey, setUplinkServiceKey] = useState("");
   const [updatingKeys, setUpdatingKeys] = useState(false);
+  const [credentialStatus, setCredentialStatus] = useState<{
+    has_credential?: boolean;
+    credential_kind?: string;
+    key_version?: string;
+    key_fingerprint?: string;
+    rotated_at?: string | null;
+  } | null>(null);
+  const [rotatingToken, setRotatingToken] = useState(false);
 
   const [severReason, setSeverReason] = useState("");
   const [severConfirmText, setSeverConfirmText] = useState("");
@@ -87,6 +95,20 @@ export function ServerHealthSidePanel({
       setConfirmSever(false);
       setSeverReason("");
       setSeverConfirmText("");
+      const targetGameId = activeWs.game_id || activeWs.schema_id || activeWorkspaceId;
+      if (targetGameId) {
+        (supabase as any)
+          .rpc("secure_get_spoke_credential_status", {
+            p_game_id: targetGameId,
+            p_payload: {},
+          })
+          .then((res: any) => {
+            if (!res?.error && res?.data) {
+              setCredentialStatus(res.data);
+            }
+          })
+          .catch(() => { });
+      }
     }
   }, [isOpen, isKeepers, activeWs?.id]);
 
@@ -96,7 +118,6 @@ export function ServerHealthSidePanel({
       schema_id: (activeWs?.schema_id || activeWs?.id || "").toUpperCase(),
       supabase_url: uplinkUrl.trim(),
       supabase_anon_key: uplinkAnonKey.trim(),
-      supabase_service_key: uplinkServiceKey.trim() || undefined,
       founder_identifier: session?.user?.id || undefined,
     };
     const token = "SANCTUARY-UPLINK://" + btoa(JSON.stringify(payload));
@@ -123,11 +144,13 @@ export function ServerHealthSidePanel({
     }
     setUpdatingKeys(true);
     try {
-      const res: any = await supabase.rpc("secure_update_spoke_uplink", {
+      const targetGameId = activeWs?.game_id || activeWs?.schema_id || activeWorkspaceId;
+      const res: any = await (supabase as any).rpc("secure_update_spoke_uplink", {
+        p_game_id: targetGameId,
         p_payload: {
           supabase_url: uplinkUrl.trim(),
           supabase_anon_key: uplinkAnonKey.trim(),
-          supabase_service_key: uplinkServiceKey.trim(),
+          spoke_gateway_token: uplinkServiceKey.trim(),
         },
       });
       if (res?.error || res?.data?.error) {
@@ -136,6 +159,17 @@ export function ServerHealthSidePanel({
       const { syncGameDatabases } = await import("../store");
       await syncGameDatabases();
       setUplinkServiceKey("");
+      if (targetGameId) {
+        try {
+          const credRes: any = await (supabase as any).rpc("secure_get_spoke_credential_status", {
+            p_game_id: targetGameId,
+            p_payload: {},
+          });
+          if (!credRes?.error && credRes?.data) {
+            setCredentialStatus(credRes.data);
+          }
+        } catch { }
+      }
       useStore
         .getState()
         .pushStatus(
@@ -149,6 +183,44 @@ export function ServerHealthSidePanel({
       useStore.getState().pushStatus(err.message, "error");
     } finally {
       setUpdatingKeys(false);
+    }
+  };
+
+  const handleRotateGatewayToken = async () => {
+    const targetGameId = activeWs?.game_id || activeWs?.schema_id || activeWorkspaceId;
+    if (!targetGameId) return;
+    setRotatingToken(true);
+    try {
+      const res: any = await (supabase as any).rpc("secure_rotate_spoke_gateway_token", {
+        p_game_id: targetGameId,
+        p_payload: {},
+      });
+      const errMsg = res?.error?.message || res?.data?.error;
+      if (errMsg) {
+        throw new Error(errMsg);
+      }
+      setCredentialStatus({
+        has_credential: true,
+        credential_kind: res?.data?.credential_kind || "spoke_gateway",
+        key_version: res?.data?.key_version || "v1:master",
+        key_fingerprint: res?.data?.key_fingerprint || "",
+        rotated_at: res?.data?.rotated_at || new Date().toISOString(),
+      });
+      useStore
+        .getState()
+        .pushStatus(
+          `${t("spoke_token_rotated_toast", "Spoke Gateway Token rotated and sealed:")} ${res?.data?.key_fingerprint || "spk_gw_..."}`,
+          "success"
+        );
+    } catch (err: any) {
+      useStore
+        .getState()
+        .pushStatus(
+          err?.message || t("spoke_token_rotate_failed", "Failed to rotate Spoke Gateway Token"),
+          "error"
+        );
+    } finally {
+      setRotatingToken(false);
     }
   };
 
@@ -178,7 +250,7 @@ export function ServerHealthSidePanel({
         .pushStatus(
           t(
             "wf_cut_cord_success",
-            "Uplink severed. Your Spoke database is now independent and its service key has been scrubbed from the Hub."
+            "Uplink severed. Your Spoke database is now independent, its Spoke Gateway Tokens have been revoked, and its Hub Vault credential has been purged."
           ),
           "info"
         );
@@ -338,8 +410,8 @@ export function ServerHealthSidePanel({
                       <span className={`${VAULT_CHIP_CLASS} shrink-0`}>
                         <span
                           className={`material-symbols-rounded !text-[12px] shrink-0 ${isOnline
-                              ? "text-[var(--success)]"
-                              : "text-[var(--warning)]"
+                            ? "text-[var(--success)]"
+                            : "text-[var(--warning)]"
                             }`}
                         >
                           {isOnline
@@ -470,30 +542,155 @@ export function ServerHealthSidePanel({
             <p className="text-xs font-bold text-[var(--subtext)] leading-relaxed">
               {t(
                 "wf_uplink_key_rotation_desc",
-                "Rotate your community Supabase keys or generate an Uplink Bundle token for Keepers Core."
+                "Rotate your Spoke Gateway Token (spk_gw_*), update Supabase credentials, or copy a secret-free Uplink Bundle for Keepers Core."
               )}
             </p>
-            <input
-              type="text"
-              value={uplinkUrl}
-              onChange={(e) => setUplinkUrl(e.target.value)}
-              placeholder={t("ui_supabase_url", "Supabase Project URL")}
-              className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-            />
-            <input
-              type="text"
-              value={uplinkAnonKey}
-              onChange={(e) => setUplinkAnonKey(e.target.value)}
-              placeholder={t("ui_supabase_key", "Supabase Anon Key")}
-              className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-            />
-            <input
-              type="password"
-              value={uplinkServiceKey}
-              onChange={(e) => setUplinkServiceKey(e.target.value)}
-              placeholder={t("ui_supabase_service_key", "Supabase Service Key")}
-              className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-            />
+            <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2.5">
+              <div className="flex items-center gap-2 text-[var(--accent)]">
+                <span className="material-symbols-outlined !text-[16px]">
+                  {t("icon_terminal", "terminal")}
+                </span>
+                <span className="text-xs font-black uppercase tracking-wider">
+                  {t("spoke_workflow_guide_title", "How to Link or Mint a Spoke Gateway Token")}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5 text-[11px] font-medium text-[var(--subtext)] leading-relaxed">
+                <p className="m-0">
+                  {t(
+                    "spoke_workflow_step_1",
+                    "1. Run schema.sql in the Spoke's Supabase SQL Editor to initialize all 52 tables and gateway auth."
+                  )}
+                </p>
+                <p className="m-0">
+                  {t(
+                    "spoke_workflow_step_2",
+                    "2. Run SELECT public.mint_spoke_gateway_token(); in the Spoke's SQL Editor and copy the one-time spk_gw_... token:"
+                  )}
+                </p>
+                <div className="flex items-center justify-between gap-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-3 py-1.5 my-0.5">
+                  <code className="text-[11px] font-mono font-bold text-[var(--accent)] break-all select-all">
+                    {"SELECT public.mint_spoke_gateway_token();"}
+                  </code>
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_content_copy", "content_copy")}
+                    onClick={() => {
+                      navigator.clipboard.writeText("SELECT public.mint_spoke_gateway_token();");
+                      useStore
+                        .getState()
+                        .pushStatus(
+                          t("spoke_mint_sql_copied", "Mint Gateway Token SQL copied to clipboard!"),
+                          "success"
+                        );
+                    }}
+                    className="!px-2.5 !py-1 shrink-0"
+                  >
+                    {t("spoke_btn_copy_mint_sql", "Copy SQL")}
+                  </ActionButton>
+                </div>
+                <p className="m-0">
+                  {t(
+                    "spoke_workflow_step_3_wayfinder",
+                    "3. Once linked, click Rotate Gateway Token above for 1-click zero-downtime rotation (no SQL needed). Only paste a manual spk_gw_... token below when linking for the first time, updating keys, or reconnecting after severing."
+                  )}
+                </p>
+              </div>
+            </div>
+            {credentialStatus && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div
+                  className={`${VAULT_CHIP_CLASS} ${!credentialStatus.has_credential
+                    ? "!text-[var(--danger)] !border-[var(--danger)]/30"
+                    : credentialStatus.credential_kind !== "spoke_gateway"
+                      ? "!text-[var(--warning)] !border-[var(--warning)]/30"
+                      : "!text-[var(--success)] !border-[var(--success)]/30"
+                    }`}
+                >
+                  <span className="material-symbols-outlined !text-[12px]">
+                    {credentialStatus.has_credential
+                      ? t("icon_encrypted", "encrypted")
+                      : t("icon_warning", "warning")}
+                  </span>
+                  <span>
+                    {credentialStatus.has_credential
+                      ? credentialStatus.credential_kind === "spoke_gateway"
+                        ? t("spoke_cred_vault_sealed", "Envelope + Vault Sealed")
+                        : t("spoke_cred_legacy_sealed", "Legacy Key Sealed")
+                      : t("spoke_cred_missing", "No Uplink Token Sealed")}
+                  </span>
+                  {credentialStatus.key_fingerprint && (
+                    <span className="font-mono opacity-80">
+                      ({credentialStatus.key_fingerprint})
+                    </span>
+                  )}
+                </div>
+                {credentialStatus.has_credential && (
+                  <ActionButton
+                    variant="glass"
+                    icon={
+                      rotatingToken
+                        ? t("icon_sync", "sync")
+                        : t("icon_autorenew", "autorenew")
+                    }
+                    onClick={handleRotateGatewayToken}
+                    disabled={rotatingToken}
+                    className="!px-3 !py-1.5"
+                  >
+                    {rotatingToken
+                      ? t("spoke_rotating_token", "Rotating Token...")
+                      : t("spoke_btn_rotate_token", "Rotate Gateway Token")}
+                  </ActionButton>
+                )}
+              </div>
+            )}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 ml-1">
+                {t("ui_supabase_url", "Supabase Project URL")}
+              </label>
+              <input
+                type="text"
+                value={uplinkUrl}
+                onChange={(e) => setUplinkUrl(e.target.value)}
+                placeholder={t("ui_supabase_url", "Supabase Project URL")}
+                className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 ml-1">
+                {t("ui_supabase_key", "Supabase Anon Key")}
+              </label>
+              <input
+                type="text"
+                value={uplinkAnonKey}
+                onChange={(e) => setUplinkAnonKey(e.target.value)}
+                placeholder={t("ui_supabase_key", "Supabase Anon Key")}
+                className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 ml-1">
+                {t("spoke_gateway_token_label", "Spoke Gateway Token")}
+              </label>
+              <input
+                type="password"
+                value={uplinkServiceKey}
+                onChange={(e) => setUplinkServiceKey(e.target.value)}
+                placeholder={t(
+                  "spoke_gateway_token_ph",
+                  "spk_gw_... (scoped HMAC token, or leave blank to keep sealed credential)"
+                )}
+                className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+              />
+            </div>
+            <ActionButton
+              variant="glass"
+              icon={t("icon_sync_lock", "sync_lock")}
+              onClick={handleUpdateKeys}
+              disabled={updatingKeys || !uplinkServiceKey.trim()}
+              className="w-full justify-center !py-3 mt-1"
+            >
+              {t("wf_uplink_btn_update_keys", "Update Active Uplink Keys")}
+            </ActionButton>
           </div>
         </UniversalGroup>
 
@@ -503,7 +700,7 @@ export function ServerHealthSidePanel({
           headerColorClass="text-[var(--danger)]"
         >
           <div className="flex flex-col gap-3 w-full">
-            <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] flex flex-col gap-2">
+            <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-col gap-2">
               <div className="flex items-center gap-2 text-[var(--danger)]">
                 <span className="material-symbols-outlined !text-[16px]">
                   {t("icon_warning", "warning")}
@@ -518,12 +715,12 @@ export function ServerHealthSidePanel({
               <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
                 {t(
                   "wf_sever_warning_desc",
-                  "Cutting the cord immediately deactivates your Spoke on the Sanctuary OS Hub and permanently scrubs your Service Role Key from Keepers Core. 100% of your Spoke database tables remain intact in your own Supabase project."
+                  "Cutting the cord immediately deactivates the Spoke on the Sanctuary OS Hub, revokes all active Spoke Gateway Tokens, and permanently purges its sealed Vault credential from Keepers Core. 100% of the Spoke database tables remain intact in the community's own Supabase project."
                 )}
               </p>
             </div>
 
-            <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col gap-2">
+            <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-col gap-2">
               <div className="flex items-center gap-2 text-[var(--accent)]">
                 <span className="material-symbols-outlined !text-[16px]">
                   {t("icon_passkey", "passkey")}
@@ -551,7 +748,7 @@ export function ServerHealthSidePanel({
                 "wf_cut_cord_reason_ph",
                 "Optional reason for severing the uplink (logged to Audit Trail)..."
               )}
-              className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] focus:outline-none focus:border-[var(--danger)]"
+              className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--danger)]"
             />
 
             <div className="flex flex-col gap-1.5">
@@ -569,7 +766,7 @@ export function ServerHealthSidePanel({
                   setConfirmSever(false);
                 }}
                 placeholder={t("wf_sever_type_confirm_ph", "CUT THE CORD")}
-                className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono font-black uppercase tracking-wider text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] focus:outline-none focus:border-[var(--danger)]"
+                className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono font-black uppercase tracking-wider text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--danger)]"
               />
             </div>
 
@@ -699,11 +896,10 @@ function LockedCycleLedgerSection({
         <button
           type="button"
           onClick={() => setIsUnlocked((prev) => !prev)}
-          className={`px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
-            isUnlocked
-              ? "border-[var(--accent)] text-[var(--accent)]"
-              : "border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-          }`}
+          className={`px-2.5 py-1 rounded-lg border bg-transparent text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 cursor-pointer transition-colors ${isUnlocked
+            ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--accent)]"
+            : "border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+            }`}
         >
           <span className="material-symbols-outlined !text-[13px]">
             {isUnlocked
@@ -730,14 +926,13 @@ function LockedCycleLedgerSection({
           {cards.map((card) => (
             <div
               key={card.id}
-              className={`p-3.5 rounded-2xl glass-surface border flex flex-col justify-between gap-2.5 transition-colors ${
-                isUnlocked
-                  ? "border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
-                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
-              }`}
+              className={`p-3.5 rounded-2xl glass-surface border flex flex-col justify-between gap-2.5 transition-colors ${isUnlocked
+                ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
+                : "border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_28%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                   <span className="material-symbols-outlined !text-[15px]">
                     {card.icon}
                   </span>
@@ -766,7 +961,7 @@ function LockedCycleLedgerSection({
                   <button
                     type="button"
                     onClick={() => applyFieldDelta(card.id, -1)}
-                    className="w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[var(--warning)] text-[var(--text)] hover:text-[var(--warning)] flex items-center justify-center shrink-0 cursor-pointer transition-colors"
+                    className="w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--text)] hover:text-[var(--warning)] flex items-center justify-center shrink-0 cursor-pointer transition-colors"
                   >
                     <span className="material-symbols-outlined !text-[14px]">
                       {t("icon_remove", "remove")}
@@ -783,7 +978,7 @@ function LockedCycleLedgerSection({
                   <button
                     type="button"
                     onClick={() => applyFieldDelta(card.id, 1)}
-                    className="w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[var(--success)] text-[var(--text)] hover:text-[var(--success)] flex items-center justify-center shrink-0 cursor-pointer transition-colors"
+                    className="w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--text)] hover:text-[var(--success)] flex items-center justify-center shrink-0 cursor-pointer transition-colors"
                   >
                     <span className="material-symbols-outlined !text-[14px]">
                       {t("icon_add", "add")}
@@ -1751,7 +1946,7 @@ export function KeeperReleasePipelineSidePanel({
                         )}
                       </span>
                     </div>
-                    <span className="px-2.5 py-0.5 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-xs font-black font-mono text-[var(--accent)]">
+                    <span className="px-2.5 py-0.5 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-xs font-black font-mono text-[var(--accent)]">
                       {`$${(Math.max(0, dollarsToCents(infraOtherMonthlyDollars)) / 100).toFixed(2)} ${t("report_monthly_usd_suffix", "/mo")}`}
                     </span>
                   </div>
@@ -1933,29 +2128,29 @@ export function KeeperReleasePipelineSidePanel({
                 <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
                   {t("wf_donation_url_label", "Donation / Checkout Link")}
                 </label>
-                  <input
-                    type="text"
-                    inputMode="url"
-                    value={keepersUrl}
-                    onChange={(e) => setKeepersUrl(e.target.value)}
-                    placeholder={t(
-                      "wf_donation_url_ph",
-                      "https://donate.stripe.com/... or https://ko-fi.com/..."
-                    )}
-                    className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
-                    {t(
-                      "keepers_email_sender_addr_label",
-                      "Custom Sender Email (From)"
-                    )}
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="email"
-                    value={supportEmail}
+                <input
+                  type="text"
+                  inputMode="url"
+                  value={keepersUrl}
+                  onChange={(e) => setKeepersUrl(e.target.value)}
+                  placeholder={t(
+                    "wf_donation_url_ph",
+                    "https://donate.stripe.com/... or https://ko-fi.com/..."
+                  )}
+                  className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] ml-2">
+                  {t(
+                    "keepers_email_sender_addr_label",
+                    "Custom Sender Email (From)"
+                  )}
+                </label>
+                <input
+                  type="text"
+                  inputMode="email"
+                  value={supportEmail}
                   onChange={(e) => setSupportEmail(e.target.value)}
                   placeholder="support@sanctuaryos.gg"
                   className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"

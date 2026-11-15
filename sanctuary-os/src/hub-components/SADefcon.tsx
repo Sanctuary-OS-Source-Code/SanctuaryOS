@@ -76,6 +76,7 @@ export function DefconSidePanel({
     }
 
     useStore.getState().setDefconLevel(1);
+    useStore.getState().setIsPatchDetected(true);
     await logArchitectAction(
       "Triggered Global DEFCON 1 Override",
       "global_network_status",
@@ -123,6 +124,7 @@ export function DefconSidePanel({
     }
 
     useStore.getState().setDefconLevel(5);
+    useStore.getState().setIsPatchDetected(false);
     await logArchitectAction(
       "Stood Down Global DEFCON Alert",
       "global_network_status",

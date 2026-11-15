@@ -4,7 +4,8 @@ import { readDir, writeTextFile, exists, remove } from "@tauri-apps/plugin-fs";
 import { supabase } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
-import { isScriptExtension } from "../shared";
+import { isScriptExtension, VAULT_CHIP_CLASS } from "../shared";
+import { getTicketSupporterFlags, sortTicketsPriorityFirst } from "./universal/SupportTicketCard";
 import { logArchitectAction } from "../lib/audit";
 import { StructureNode } from "../ModStructureBuilder";
 import { useWorkbenchFiles } from "../workbench/hooks/useWorkbenchFiles";
@@ -24,6 +25,10 @@ import { ArtifactEntryChoice } from "./artifact-studio/ArtifactEntryChoice";
 import { ArtifactFilesTab } from "./artifact-studio/ArtifactFilesTab";
 import { ArtifactRulesTab } from "./artifact-studio/ArtifactRulesTab";
 import { ArtifactIdeDrawer } from "./artifact-studio/ArtifactIdeDrawer";
+import {
+  fetchModLabReports,
+  LabReportDiagnosticCards,
+} from "./KnownExceptionRules";
 
 export {
   type StudioTabId,
@@ -98,6 +103,7 @@ export function ArtifactWorkspace({
   const [myCollections, setMyCollections] = useState<any[]>([]);
   const [localSandboxFiles, setLocalSandboxFiles] = useState<any[]>(sandboxMods || []);
   const [modTickets, setModTickets] = useState<any[]>([]);
+  const [labReports, setLabReports] = useState<any[]>([]);
 
   // Active Mod Links
   const [parentRel, setParentRel] = useState<any | null>(null);
@@ -280,9 +286,13 @@ export function ArtifactWorkspace({
   useEffect(() => {
     if (!mod?.id || !isUuid(mod.id)) {
       setModTickets([]);
+      setLabReports([]);
       return;
     }
     let active = true;
+    fetchModLabReports(mod.id, 5).then((rows) => {
+      if (active) setLabReports(rows);
+    });
     supabase
       .from("sanctuary_tickets")
       .select("*")
@@ -304,7 +314,7 @@ export function ArtifactWorkspace({
           const targetId = tk.target_mod_id || tk.metadata?.target_mod_id;
           return targetId === mod.id;
         });
-        setModTickets(matched);
+        setModTickets(sortTicketsPriorityFirst(matched));
       });
     return () => {
       active = false;
@@ -882,19 +892,52 @@ export function ArtifactWorkspace({
     }
   };
 
+  const pruneStructureFileNodes = (
+    nodes: StructureNode[],
+    shouldRemove: (node: StructureNode) => boolean
+  ): StructureNode[] =>
+    (nodes || [])
+      .filter((n) => !((n.type === "file" || (!n.type && !Array.isArray(n.children))) && shouldRemove(n)))
+      .map((n) =>
+        (n.type === "folder" || Array.isArray(n.children)) && Array.isArray(n.children)
+          ? { ...n, children: pruneStructureFileNodes(n.children, shouldRemove) }
+          : n
+      );
+
   const handleUnlinkChildModule = async (rel: any) => {
+    const relModId = String(rel?.child_id || rel?.mod?.id || rel?.mod?.hash || "");
+    const relFileBase = String(rel?.mod?.name || "").split(/[\\/]/).pop()?.toLowerCase() || "";
+    const cleanedNodes = pruneStructureFileNodes(structureNodes, (n) => {
+      const nBase = String(n.name || "").split(/[\\/]/).pop()?.toLowerCase() || "";
+      return Boolean(
+        (relModId && n.assignedModId && String(n.assignedModId) === relModId) ||
+          (relFileBase && nBase === relFileBase)
+      );
+    });
+    const prunedChanged = JSON.stringify(cleanedNodes) !== JSON.stringify(structureNodes);
+
     if (isCloudMod && rel.id && !String(rel.id).startsWith("local_")) {
       await supabase.rpc("secure_delete_cloud_file", {
         p_token: getAuthToken(),
         p_target: "mod_relationships",
         p_id: rel.id,
       });
+      if (prunedChanged) {
+        onUpdateMod({
+          ...mod,
+          folder_structure: cleanedNodes,
+          injected_folders_str: flattenStructureNodesToPaths(cleanedNodes).join(", "),
+        });
+      }
       await loadModLinks();
       if (onRefreshParentList) onRefreshParentList();
     } else {
       const next = childRels.filter((r) => r.id !== rel.id);
       setChildRels(next);
-      persistLocalSandboxConfig({ local_child_rels: next });
+      persistLocalSandboxConfig({
+        local_child_rels: next,
+        ...(prunedChanged ? { folder_structure_nodes: cleanedNodes } : {}),
+      });
     }
   };
 
@@ -990,12 +1033,13 @@ export function ArtifactWorkspace({
   const linkedConfigFiles = useMemo(() => {
     const map = new Map<string, { name: string; path: string }>();
     const excludedSet = new Set(excludedConfigNames.map((n) => n.toLowerCase()));
+    const attachedSet = new Set(attachedConfigNames.map((n) => n.toLowerCase()));
     for (const cfg of sandboxConfigFiles) {
       if (excludedSet.has(cfg.name.toLowerCase())) continue;
       const cfgStem = cfg.name.replace(/\.[^/.]+$/, "").toLowerCase();
       if (
-        (modStem && modStem.length >= 4 && (cfgStem === modStem || cfgStem.startsWith(modStem))) ||
-        attachedConfigNames.includes(cfg.name)
+        (modStem && modStem.length >= 4 && cfgStem === modStem) ||
+        attachedSet.has(cfg.name.toLowerCase())
       ) {
         map.set(cfg.name, cfg);
       }
@@ -1050,14 +1094,30 @@ export function ArtifactWorkspace({
   };
 
   const handleDetachConfig = (fileName: string) => {
-    const nextAttached = attachedConfigNames.filter((n) => n.toLowerCase() !== fileName.toLowerCase());
+    const targetLower = fileName.split(/[\\/]/).pop()?.toLowerCase() || fileName.toLowerCase();
+    const nextAttached = attachedConfigNames.filter((n) => n.toLowerCase() !== targetLower);
     const nextExcluded = Array.from(new Set([...excludedConfigNames, fileName]));
+    const cleanedNodes = pruneStructureFileNodes(
+      structureNodes,
+      (n) => (n.name || "").split(/[\\/]/).pop()?.toLowerCase() === targetLower
+    );
     setAttachedConfigNames(nextAttached);
     setExcludedConfigNames(nextExcluded);
-    persistLocalSandboxConfig({
-      attached_configs: nextAttached,
-      excluded_configs: nextExcluded,
-    });
+    if (isCloudMod) {
+      onUpdateMod({
+        ...mod,
+        attached_configs: nextAttached,
+        excluded_configs: nextExcluded,
+        folder_structure: cleanedNodes,
+        injected_folders_str: flattenStructureNodesToPaths(cleanedNodes).join(", "),
+      });
+    } else {
+      persistLocalSandboxConfig({
+        attached_configs: nextAttached,
+        excluded_configs: nextExcluded,
+        folder_structure_nodes: cleanedNodes,
+      });
+    }
     useStore.getState().pushStatus(t("btn_saved", "Saved"), "info");
   };
 
@@ -1072,14 +1132,30 @@ export function ArtifactWorkspace({
     if (cwSelectedFile?.name === cfg.name) {
       useStore.getState().setCwSelectedFile(null);
     }
-    const nextAttached = attachedConfigNames.filter((n) => n.toLowerCase() !== cfg.name.toLowerCase());
+    const targetLower = cfg.name.split(/[\\/]/).pop()?.toLowerCase() || cfg.name.toLowerCase();
+    const nextAttached = attachedConfigNames.filter((n) => n.toLowerCase() !== targetLower);
     const nextExcluded = Array.from(new Set([...excludedConfigNames, cfg.name]));
+    const cleanedNodes = pruneStructureFileNodes(
+      structureNodes,
+      (n) => (n.name || "").split(/[\\/]/).pop()?.toLowerCase() === targetLower
+    );
     setAttachedConfigNames(nextAttached);
     setExcludedConfigNames(nextExcluded);
-    persistLocalSandboxConfig({
-      attached_configs: nextAttached,
-      excluded_configs: nextExcluded,
-    });
+    if (isCloudMod) {
+      onUpdateMod({
+        ...mod,
+        attached_configs: nextAttached,
+        excluded_configs: nextExcluded,
+        folder_structure: cleanedNodes,
+        injected_folders_str: flattenStructureNodesToPaths(cleanedNodes).join(", "),
+      });
+    } else {
+      persistLocalSandboxConfig({
+        attached_configs: nextAttached,
+        excluded_configs: nextExcluded,
+        folder_structure_nodes: cleanedNodes,
+      });
+    }
     await scanSandboxConfigs();
     useStore.getState().pushStatus(t("btn_saved", "Saved"), "success");
   };
@@ -1668,7 +1744,7 @@ export function ArtifactWorkspace({
         }
         setModTickets([]);
       }
-      const nextMod = { ...mod, status: "stable", _openTickets: [] };
+      const nextMod = { ...mod, status: "stable", status_reason: null, _openTickets: [] };
       onUpdateMod(nextMod);
 
       if (isCloudMod && isUuid(mod.id)) {
@@ -1685,6 +1761,7 @@ export function ArtifactWorkspace({
             url: mod.url || null,
             latest_version: mod.latest_version || "1.0.0",
             status: "stable",
+            status_reason: null,
             compliance_tier: mod.compliance_tier || 0,
             is_paid: Boolean(mod.is_paid),
             is_early_access: Boolean(mod.is_early_access),
@@ -1713,25 +1790,29 @@ export function ArtifactWorkspace({
 
   if (showEntryChoice && mode === "sandbox") {
     return (
-      <ArtifactEntryChoice
-        entryLinkMode={entryLinkMode}
-        setEntryLinkMode={setEntryLinkMode}
-        entryModuleRole={entryModuleRole}
-        setEntryModuleRole={setEntryModuleRole}
-        entryTargetMod={entryTargetMod}
-        setEntryTargetMod={setEntryTargetMod}
-        myModCandidates={myModCandidates}
-        isPullingFromTarget={isPullingFromTarget}
-        onStartNewMod={() => {
-          persistLocalSandboxConfig({
-            setup_choice_completed: true,
-            setup_mode: "new_mod",
-          });
-          setShowEntryChoice(false);
-          onTabChange("overview");
-        }}
-        onPullFromExistingMod={handlePullFromExistingMod}
-      />
+      <div className="w-full h-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <div className="min-h-full flex flex-col px-5 pt-4 pb-8 sm:px-6 sm:pb-9 md:px-7 md:pt-5 md:pb-10">
+          <ArtifactEntryChoice
+            entryLinkMode={entryLinkMode}
+            setEntryLinkMode={setEntryLinkMode}
+            entryModuleRole={entryModuleRole}
+            setEntryModuleRole={setEntryModuleRole}
+            entryTargetMod={entryTargetMod}
+            setEntryTargetMod={setEntryTargetMod}
+            myModCandidates={myModCandidates}
+            isPullingFromTarget={isPullingFromTarget}
+            onStartNewMod={() => {
+              persistLocalSandboxConfig({
+                setup_choice_completed: true,
+                setup_mode: "new_mod",
+              });
+              setShowEntryChoice(false);
+              onTabChange("overview");
+            }}
+            onPullFromExistingMod={handlePullFromExistingMod}
+          />
+        </div>
+      </div>
     );
   }
 
@@ -1745,7 +1826,8 @@ export function ArtifactWorkspace({
   const assignedCloudCollections = myCollections.filter((col) => assignedCollectionIds.has(col.id));
 
   return (
-    <div className="flex flex-col w-full h-full min-h-0 overflow-y-auto custom-scrollbar p-6 gap-6">
+    <div className="w-full h-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
+      <div className="min-h-full flex flex-col px-5 pt-4 pb-8 sm:px-6 sm:pb-9 md:px-7 md:pt-5 md:pb-10 gap-6">
       {/* 3 Top Tiles — Clean Matte Surface */}
       <div className="grid grid-cols-3 gap-3 shrink-0">
         {topTiles.map((tile) => {
@@ -1872,6 +1954,13 @@ export function ArtifactWorkspace({
                   </div>
                 )}
 
+                {labReports.length > 0 && (
+                  <LabReportDiagnosticCards
+                    reports={labReports}
+                    activeGameSchema={useStore.getState().activeGameSchema}
+                  />
+                )}
+
                 {modTickets.length > 0 && (
                   <div className="flex flex-col gap-2">
                     {modTickets.map((tk: any, idx: number) => {
@@ -1893,16 +1982,42 @@ export function ArtifactWorkspace({
                       const dateStr = tk.created_at
                         ? new Date(tk.created_at).toLocaleDateString()
                         : "";
+                      const flags = getTicketSupporterFlags(tk);
                       return (
                         <div
                           key={tk.id || idx}
                           className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[9px] font-black uppercase tracking-widest text-[var(--danger)]">
-                                {tk.status || t("flagged", "Flagged")}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={VAULT_CHIP_CLASS}>
+                                <span
+                                  className={`material-symbols-outlined !text-[12px] ${
+                                    flags.isPriority ? "text-[var(--warning)]" : "text-[var(--danger)]"
+                                  }`}
+                                >
+                                  {flags.isPriority
+                                    ? t("icon_bolt", "bolt")
+                                    : t("icon_flag", "flag")}
+                                </span>
+                                <span>{tk.status || t("flagged", "Flagged")}</span>
                               </span>
+                              {flags.isMasonSupporter && (
+                                <span className={VAULT_CHIP_CLASS}>
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                                    {t("icon_bolt", "bolt")}
+                                  </span>
+                                  <span>{t("ticket_badge_mason_priority", "Priority • {Mason} Supporter")}</span>
+                                </span>
+                              )}
+                              {flags.isSpokeSupporter && (
+                                <span className={VAULT_CHIP_CLASS}>
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                    {t("icon_favorite", "favorite")}
+                                  </span>
+                                  <span>{t("ticket_badge_spoke_supporter", "Spoke Supporter")}</span>
+                                </span>
+                              )}
                               <span className="text-xs font-black text-[var(--text)]">
                                 {titleText}
                               </span>
@@ -1917,7 +2032,7 @@ export function ArtifactWorkspace({
                                 <button
                                   type="button"
                                   onClick={() => handleResolveSingleTicket(tk.id)}
-                                  className="px-2.5 py-1 rounded-lg glass-surface hover:bg-[color-mix(in_srgb,var(--success)_16%,transparent)] border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--success)] transition-all flex items-center gap-1 cursor-pointer"
+                                  className="px-2.5 py-1 rounded-lg glass-surface hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--success)] transition-all flex items-center gap-1 cursor-pointer"
                                 >
                                   <span className="material-symbols-outlined !text-[12px]">
                                     {t("icon_check_circle", "check_circle")}
@@ -2025,6 +2140,7 @@ export function ArtifactWorkspace({
       {/* TILE 2: FILES & FOLDERS */}
       {normalizedTab === "files" && (
         <ArtifactFilesTab
+          mode={mode}
           mod={mod}
           modStem={modStem}
           isCloudMod={isCloudMod}
@@ -2158,6 +2274,7 @@ export function ArtifactWorkspace({
         wbShowTimeline={wbShowTimeline}
         setWbShowTimeline={setWbShowTimeline}
       />
+      </div>
     </div>
   );
 }

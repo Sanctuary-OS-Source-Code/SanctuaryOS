@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { ViewHeader, formatDisplayName, isVersionMatch, getHighestVersion, getExtensionRegex, getModIcon, isScriptExtension, isSupportedExtension, stripPriorityTierPrefix, deduplicateBlueprintArtifacts } from "./shared";
+import { ViewHeader, formatDisplayName, isVersionMatch, getHighestVersion, getExtensionRegex, getModIcon, isScriptExtension, isVaultArtifactVisible, stripPriorityTierPrefix, deduplicateBlueprintArtifacts } from "./shared";
 import { formatCleanModTitle } from "./side-panels/CommandIncompatiblePanel";
 import { useLexicon } from './LexiconContext';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSectionHeading, CommandScreenSidebar, CommandScreenQuickLink } from "./hub-components/SharedCommandScreenLayout";
@@ -201,6 +201,7 @@ const Vault = React.memo(function Vault(props: any) {
     return sourceMods
       .filter((m: any) => {
         if (!m?.name || m.isVirtual) return false;
+        if (!isVaultArtifactVisible(m.name, activeGameSchema)) return false;
         if (normalSet.has(m.name) || cleanedSet.has(m.name)) return true;
         const mFileLower = (m.name.split(/[\\/]/).pop() || m.name).toLowerCase();
         return Boolean(mFileLower && cleanFileLowerSet.has(mFileLower));
@@ -364,13 +365,7 @@ const Vault = React.memo(function Vault(props: any) {
 
       const isFileVaultVisible = (m: any) => {
         if (!m?.isVirtual && m?.name) {
-          if (!isSupportedExtension(m.name, activeGameSchema)) return false;
-          if (activeGameSchema?.extensions?.vault_visible) {
-            const isVaultVisible = activeGameSchema.extensions.vault_visible.some((ext: string) =>
-              m.name.toLowerCase().endsWith(ext.toLowerCase())
-            );
-            if (!isVaultVisible) return false;
-          }
+          return isVaultArtifactVisible(m.name, activeGameSchema);
         }
         return true;
       };
@@ -393,6 +388,9 @@ const Vault = React.memo(function Vault(props: any) {
       let modGameVersions: string[] = [];
       if (mod.isVirtual) {
         const visibleFlavors = (mod.flavors || []).filter(isFileVaultVisible);
+        if (Array.isArray(mod.flavors) && mod.flavors.length > 0 && visibleFlavors.length === 0) {
+          return null;
+        }
         const sourceFlavors = visibleFlavors.length > 0 ? visibleFlavors : (mod.flavors || []);
         modGameVersions = Array.from(
           new Set(
@@ -705,13 +703,7 @@ const Vault = React.memo(function Vault(props: any) {
         if (!dbIdStr.startsWith("f_") && !dbIdStr.startsWith("local_")) return false;
       }
       if (!mod.isVirtual && mod.name) {
-        if (!isSupportedExtension(mod.name, activeGameSchema)) return false;
-        if (activeGameSchema?.extensions?.vault_visible) {
-          const isVaultVisible = activeGameSchema.extensions.vault_visible.some((ext: string) =>
-            mod.name.toLowerCase().endsWith(ext.toLowerCase())
-          );
-          if (!isVaultVisible) return false;
-        }
+        if (!isVaultArtifactVisible(mod.name, activeGameSchema)) return false;
       }
       const modNameUpper = String(mod.displayName || mod.meta_name || mod.name || mod.title || "").toUpperCase().trim();
       const baseModName = modNameUpper.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/, "") || modNameUpper;
@@ -1160,7 +1152,7 @@ const Vault = React.memo(function Vault(props: any) {
         >
           <div
             style={{ overflow: "visible" }}
-            className="w-full h-full glass-panel portal-glass-fix sa-dropdown-popover !overflow-visible rounded-2xl p-2 border border-[color-mix(in_srgb,var(--text)_14%,rgba(255,255,255,0.22))] shadow-[0_24px_60px_rgba(0,0,0,0.65)] flex flex-col gap-1"
+            className="w-full h-full glass-panel portal-glass-fix sa-dropdown-popover !overflow-visible rounded-2xl p-2 flex flex-col gap-1"
           >
             {(() => {
             const ctxMod = vaultContextMenu.mod;
@@ -1234,7 +1226,7 @@ const Vault = React.memo(function Vault(props: any) {
             const isTargetSelected = selectedMods.includes(ctxMod.name);
 
             const menuBtnClass =
-              "w-full rounded-xl text-left px-2.5 py-2 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-bold text-[var(--text)] flex items-center justify-between gap-2.5 transition-all cursor-pointer group/ctxitem";
+              "sa-dropdown-item w-full rounded-xl text-left px-2.5 py-2 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-bold text-[var(--text)] flex items-center justify-between gap-2.5 transition-all cursor-pointer group/ctxitem";
             const iconWellClass =
               "w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors";
 
@@ -1451,7 +1443,7 @@ const Vault = React.memo(function Vault(props: any) {
                         openSubmenuLeft ? "right-full pr-1.5" : "left-full pl-1.5"
                       }`}
                     >
-                      <div className="w-full glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl p-2 border border-[color-mix(in_srgb,var(--text)_14%,rgba(255,255,255,0.22))] shadow-[0_24px_60px_rgba(0,0,0,0.65)] flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="w-full glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl p-2 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150">
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1571,7 +1563,7 @@ const Vault = React.memo(function Vault(props: any) {
                         openSubmenuLeft ? "right-full pr-1.5" : "left-full pl-1.5"
                       }`}
                     >
-                      <div className="w-full glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl p-2 border border-[color-mix(in_srgb,var(--text)_14%,rgba(255,255,255,0.22))] shadow-[0_24px_60px_rgba(0,0,0,0.65)] flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="w-full glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl p-2 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150">
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1783,7 +1775,7 @@ const Vault = React.memo(function Vault(props: any) {
           })()}
           </div>
         </div>,
-        document.body
+        document.getElementById("sa-portals") || document.body
       )}
     </div>);
 });

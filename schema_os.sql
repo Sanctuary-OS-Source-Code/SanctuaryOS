@@ -18,44 +18,163 @@ GRANT USAGE ON SCHEMA sanctuary_internal TO authenticated, service_role;
 
 CREATE TABLE IF NOT EXISTS sanctuary_internal.runtime_secrets (
     key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
+    value TEXT NOT NULL DEFAULT '[VAULT_SEALED]',
+    vault_secret_id UUID,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE sanctuary_internal.runtime_secrets
+    ADD COLUMN IF NOT EXISTS vault_secret_id UUID;
+
 REVOKE ALL ON TABLE sanctuary_internal.runtime_secrets FROM PUBLIC, anon, authenticated;
 GRANT ALL ON TABLE sanctuary_internal.runtime_secrets TO service_role;
+ALTER TABLE sanctuary_internal.runtime_secrets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_role_runtime_secrets" ON sanctuary_internal.runtime_secrets;
+CREATE POLICY "service_role_runtime_secrets" ON sanctuary_internal.runtime_secrets
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE OR REPLACE FUNCTION sanctuary_internal.read_runtime_secret(p_key TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+DECLARE
+    v_val TEXT;
+    v_vault_id UUID;
+BEGIN
+    SELECT value, vault_secret_id
+    INTO v_val, v_vault_id
+    FROM sanctuary_internal.runtime_secrets
+    WHERE key = p_key;
+
+    IF v_vault_id IS NOT NULL AND to_regnamespace('vault') IS NOT NULL THEN
+        EXECUTE 'SELECT decrypted_secret FROM vault.decrypted_secrets WHERE id = $1'
+        INTO v_val
+        USING v_vault_id;
+        RETURN v_val;
+    END IF;
+
+    IF v_val = '[VAULT_SEALED]' THEN
+        RETURN NULL;
+    END IF;
+    RETURN v_val;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION sanctuary_internal.read_runtime_secret(TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION sanctuary_internal.read_runtime_secret(TEXT) TO service_role;
+
+CREATE OR REPLACE FUNCTION sanctuary_internal.write_runtime_secret(p_key TEXT, p_value TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+DECLARE
+    v_clean TEXT := NULLIF(btrim(COALESCE(p_value, '')), '');
+    v_existing_vault_id UUID;
+    v_secret_name TEXT := 'sanctuary_runtime:' || p_key;
+    v_new_vault_id UUID;
+BEGIN
+    SELECT vault_secret_id INTO v_existing_vault_id
+    FROM sanctuary_internal.runtime_secrets
+    WHERE key = p_key;
+
+    IF v_clean IS NULL THEN
+        IF v_existing_vault_id IS NOT NULL AND to_regnamespace('vault') IS NOT NULL THEN
+            EXECUTE 'DELETE FROM vault.secrets WHERE id = $1' USING v_existing_vault_id;
+        END IF;
+        DELETE FROM sanctuary_internal.runtime_secrets WHERE key = p_key;
+        RETURN;
+    END IF;
+
+    IF to_regnamespace('vault') IS NOT NULL THEN
+        IF v_existing_vault_id IS NULL THEN
+            EXECUTE 'SELECT id FROM vault.secrets WHERE name = $1 LIMIT 1'
+            INTO v_existing_vault_id
+            USING v_secret_name;
+        END IF;
+
+        IF v_existing_vault_id IS NOT NULL THEN
+            EXECUTE 'SELECT vault.update_secret($1, $2, $3, $4)'
+            USING v_existing_vault_id, v_clean, v_secret_name, 'Sanctuary OS runtime secret';
+            v_new_vault_id := v_existing_vault_id;
+        ELSE
+            EXECUTE 'SELECT vault.create_secret($1, $2, $3)'
+            INTO v_new_vault_id
+            USING v_clean, v_secret_name, 'Sanctuary OS runtime secret';
+        END IF;
+
+        INSERT INTO sanctuary_internal.runtime_secrets (key, value, vault_secret_id, updated_at)
+        VALUES (p_key, '[VAULT_SEALED]', v_new_vault_id, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET value = '[VAULT_SEALED]',
+            vault_secret_id = EXCLUDED.vault_secret_id,
+            updated_at = NOW();
+    ELSE
+        INSERT INTO sanctuary_internal.runtime_secrets (key, value, vault_secret_id, updated_at)
+        VALUES (p_key, v_clean, NULL, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET value = EXCLUDED.value,
+            vault_secret_id = NULL,
+            updated_at = NOW();
+    END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION sanctuary_internal.write_runtime_secret(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION sanctuary_internal.write_runtime_secret(TEXT, TEXT) TO service_role;
+
+CREATE OR REPLACE FUNCTION sanctuary_internal.cleanup_runtime_secret_vault()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+BEGIN
+    IF OLD.vault_secret_id IS NOT NULL AND to_regnamespace('vault') IS NOT NULL THEN
+        EXECUTE 'DELETE FROM vault.secrets WHERE id = $1' USING OLD.vault_secret_id;
+    END IF;
+    RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_cleanup_runtime_secret_vault ON sanctuary_internal.runtime_secrets;
+CREATE TRIGGER trg_cleanup_runtime_secret_vault
+    AFTER DELETE ON sanctuary_internal.runtime_secrets
+    FOR EACH ROW EXECUTE FUNCTION sanctuary_internal.cleanup_runtime_secret_vault();
+
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    IF to_regnamespace('vault') IS NOT NULL THEN
+        FOR r IN
+            SELECT key, value
+            FROM sanctuary_internal.runtime_secrets
+            WHERE vault_secret_id IS NULL
+              AND COALESCE(value, '') <> ''
+              AND value <> '[VAULT_SEALED]'
+        LOOP
+            PERFORM sanctuary_internal.write_runtime_secret(r.key, r.value);
+        END LOOP;
+    END IF;
+END;
+$$;
 
 -- ============================================================================
--- 2. CLEANUP (IDEMPOTENT RESET)
+-- 2. IDEMPOTENT UPGRADE NOTICE (NON-DESTRUCTIVE COPY & PASTE)
 -- ============================================================================
-DROP TABLE IF EXISTS public.keeper_email_dispatches CASCADE;
-DROP TABLE IF EXISTS public.monthly_donation_ledgers CASCADE;
-DROP TABLE IF EXISTS public.sanctuary_game_secrets CASCADE;
-DROP TABLE IF EXISTS public.citizen_staging_queue CASCADE;
-DROP TABLE IF EXISTS public.pwa_push_subscriptions CASCADE;
-DROP TABLE IF EXISTS public.system_directives CASCADE;
-DROP TABLE IF EXISTS public.dispatch_poll_votes CASCADE;
-DROP TABLE IF EXISTS public.system_broadcasts CASCADE;
-DROP TABLE IF EXISTS public.keeper_dispatch_poll_votes CASCADE;
-DROP TABLE IF EXISTS public.keeper_system_broadcasts CASCADE;
-DROP TABLE IF EXISTS public.keeper_heuristic_signatures CASCADE;
-DROP TABLE IF EXISTS public.keeper_tickets CASCADE;
-DROP TABLE IF EXISTS public.keeper_support_categories CASCADE;
-DROP TABLE IF EXISTS public.sanctuary_theme_images CASCADE;
-DROP TABLE IF EXISTS public.sanctuary_themes CASCADE;
-DROP TABLE IF EXISTS public.sanctuary_lexicons CASCADE;
-DROP TABLE IF EXISTS public.sanctuary_schemas CASCADE;
-DROP TABLE IF EXISTS public.sanctuary_games CASCADE;
-DROP TABLE IF EXISTS public.audit_logs CASCADE;
-DROP TABLE IF EXISTS public.hardware_bans CASCADE;
-DROP TABLE IF EXISTS public.donation_event_nonces CASCADE;
-DROP TABLE IF EXISTS public.profiles CASCADE;
+-- All tables below use CREATE TABLE IF NOT EXISTS and additive ALTER TABLE ...
+-- ADD COLUMN IF NOT EXISTS blocks so this script can be safely pasted and
+-- re-run inside the Supabase SQL Editor on existing databases without data loss.
 
 -- ============================================================================
 -- 3. CORE IDENTITY, DONATION LEDGERS & SPOKE REGISTRY TABLES
 -- ============================================================================
 
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     username TEXT UNIQUE,
     email TEXT,
@@ -70,12 +189,12 @@ CREATE TABLE public.profiles (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.donation_event_nonces (
+CREATE TABLE IF NOT EXISTS public.donation_event_nonces (
     tx_hash TEXT PRIMARY KEY,
     processed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.monthly_donation_ledgers (
+CREATE TABLE IF NOT EXISTS public.monthly_donation_ledgers (
     month_key TEXT NOT NULL,
     target_id TEXT NOT NULL,
     covered_cents BIGINT NOT NULL DEFAULT 0,
@@ -86,7 +205,7 @@ CREATE TABLE public.monthly_donation_ledgers (
     PRIMARY KEY (month_key, target_id)
 );
 
-CREATE TABLE public.sanctuary_schemas (
+CREATE TABLE IF NOT EXISTS public.sanctuary_schemas (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     schema_data JSONB NOT NULL,
@@ -95,7 +214,7 @@ CREATE TABLE public.sanctuary_schemas (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
 );
 
-CREATE TABLE public.sanctuary_lexicons (
+CREATE TABLE IF NOT EXISTS public.sanctuary_lexicons (
     id TEXT PRIMARY KEY,
     name TEXT,
     badge TEXT,
@@ -105,7 +224,7 @@ CREATE TABLE public.sanctuary_lexicons (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.sanctuary_themes (
+CREATE TABLE IF NOT EXISTS public.sanctuary_themes (
     id TEXT PRIMARY KEY,
     name TEXT,
     version INTEGER DEFAULT 1,
@@ -114,7 +233,7 @@ CREATE TABLE public.sanctuary_themes (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.sanctuary_theme_images (
+CREATE TABLE IF NOT EXISTS public.sanctuary_theme_images (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     theme_id TEXT REFERENCES public.sanctuary_themes(id) ON DELETE CASCADE,
     file_name TEXT NOT NULL,
@@ -123,7 +242,7 @@ CREATE TABLE public.sanctuary_theme_images (
 );
 
 -- Registered Community Spoke Databases (Public Connection Metadata Only)
-CREATE TABLE public.sanctuary_games (
+CREATE TABLE IF NOT EXISTS public.sanctuary_games (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     schema_id TEXT NOT NULL,
@@ -137,27 +256,57 @@ CREATE TABLE public.sanctuary_games (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Isolated Spoke Service-Role Credentials (Strictly Restricted to service_role)
-CREATE TABLE public.sanctuary_game_secrets (
+-- Envelope-Encrypted & Vault-Sealed Spoke Credentials (Split-Custody, service_role only)
+DROP TABLE IF EXISTS public.sanctuary_game_secrets CASCADE;
+
+CREATE TABLE IF NOT EXISTS sanctuary_internal.spoke_credentials (
     game_id UUID PRIMARY KEY REFERENCES public.sanctuary_games(id) ON DELETE CASCADE,
-    supabase_service_key TEXT,
+    envelope_ciphertext TEXT NOT NULL DEFAULT 'vault_sealed',
+    vault_secret_id UUID,
+    key_version TEXT NOT NULL DEFAULT 'v1:master',
+    credential_kind TEXT NOT NULL DEFAULT 'spoke_gateway',
+    key_fingerprint TEXT NOT NULL DEFAULT '',
+    rotated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-REVOKE ALL ON TABLE public.sanctuary_game_secrets FROM PUBLIC, anon, authenticated;
-GRANT ALL ON TABLE public.sanctuary_game_secrets TO service_role;
+REVOKE ALL ON TABLE sanctuary_internal.spoke_credentials FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE sanctuary_internal.spoke_credentials TO service_role;
+ALTER TABLE sanctuary_internal.spoke_credentials ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_role_spoke_credentials" ON sanctuary_internal.spoke_credentials;
+CREATE POLICY "service_role_spoke_credentials" ON sanctuary_internal.spoke_credentials
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE OR REPLACE FUNCTION sanctuary_internal.cleanup_spoke_credential_vault()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+BEGIN
+    IF OLD.vault_secret_id IS NOT NULL AND to_regnamespace('vault') IS NOT NULL THEN
+        EXECUTE 'DELETE FROM vault.secrets WHERE id = $1' USING OLD.vault_secret_id;
+    END IF;
+    RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_cleanup_spoke_credential_vault ON sanctuary_internal.spoke_credentials;
+CREATE TRIGGER trg_cleanup_spoke_credential_vault
+    AFTER DELETE ON sanctuary_internal.spoke_credentials
+    FOR EACH ROW EXECUTE FUNCTION sanctuary_internal.cleanup_spoke_credential_vault();
 
 -- ============================================================================
 -- 4. GLOBAL SECURITY, CORE HEURISTICS & IMMUTABLE AUDIT TRAIL
 -- ============================================================================
 
-CREATE TABLE public.hardware_bans (
+CREATE TABLE IF NOT EXISTS public.hardware_bans (
     hwid_hash TEXT PRIMARY KEY,
     reason TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.keeper_heuristic_signatures (
+CREATE TABLE IF NOT EXISTS public.keeper_heuristic_signatures (
     id TEXT PRIMARY KEY,
     signature TEXT NOT NULL,
     match_type TEXT NOT NULL,
@@ -169,7 +318,7 @@ CREATE TABLE public.keeper_heuristic_signatures (
     notes TEXT
 );
 
-CREATE TABLE public.audit_logs (
+CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     action TEXT,
     target_table TEXT,
@@ -185,7 +334,7 @@ CREATE TABLE public.audit_logs (
 -- 5. KEEPERS CORE SUPPORT, DISPATCHES, POLLS, DIRECTIVES & PUSH
 -- ============================================================================
 
-CREATE TABLE public.keeper_support_categories (
+CREATE TABLE IF NOT EXISTS public.keeper_support_categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     category_code TEXT NOT NULL UNIQUE,
     category_name TEXT NOT NULL,
@@ -200,12 +349,14 @@ CREATE TABLE public.keeper_support_categories (
     show_description_box BOOLEAN DEFAULT true,
     show_logs_box BOOLEAN DEFAULT false,
     attach_blueprints BOOLEAN DEFAULT false,
+    telemetry_config JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.keeper_tickets (
+CREATE TABLE IF NOT EXISTS public.keeper_tickets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     author_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    assigned_to UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     ticket_type TEXT,
     title TEXT,
     description TEXT,
@@ -213,10 +364,11 @@ CREATE TABLE public.keeper_tickets (
     target_mod_id UUID,
     target_blueprint_id UUID,
     metadata JSONB DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.keeper_email_dispatches (
+CREATE TABLE IF NOT EXISTS public.keeper_email_dispatches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     ticket_id UUID REFERENCES public.keeper_tickets(id) ON DELETE SET NULL,
     sender_user_id UUID,
@@ -234,7 +386,7 @@ CREATE TABLE public.keeper_email_dispatches (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE public.keeper_system_broadcasts (
+CREATE TABLE IF NOT EXISTS public.keeper_system_broadcasts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title TEXT NOT NULL,
     description TEXT,
@@ -252,10 +404,19 @@ CREATE TABLE public.keeper_system_broadcasts (
     published_message TEXT,
     published_at TIMESTAMP WITH TIME ZONE,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_by TEXT DEFAULT 'Keepers Core',
+    revision INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.keeper_dispatch_poll_votes (
+CREATE UNIQUE INDEX IF NOT EXISTS idx_keeper_broadcasts_singleton_category
+ON public.keeper_system_broadcasts (category)
+WHERE category IN (
+    'EULA', 'Privacy', 'Terms', 'PartnersAgreement', 'ComplianceProtocol',
+    'ReleasePost_Public', 'ReleasePost_Dev', 'ReleaseChangelog_Public', 'ReleaseChangelog_Dev'
+);
+
+CREATE TABLE IF NOT EXISTS public.keeper_dispatch_poll_votes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     broadcast_id UUID NOT NULL REFERENCES public.keeper_system_broadcasts(id) ON DELETE CASCADE,
     poll_id TEXT NOT NULL DEFAULT 'default',
@@ -265,7 +426,7 @@ CREATE TABLE public.keeper_dispatch_poll_votes (
     UNIQUE (broadcast_id, poll_id, option_id, user_id)
 );
 
-CREATE TABLE public.system_broadcasts (
+CREATE TABLE IF NOT EXISTS public.system_broadcasts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     title TEXT,
@@ -277,10 +438,11 @@ CREATE TABLE public.system_broadcasts (
     action_required TEXT DEFAULT 'No Action Required',
     poll_data JSONB,
     code_snippet TEXT,
-    is_pinned TEXT
+    is_pinned TEXT,
+    has_pending_flag BOOLEAN NOT NULL DEFAULT false
 );
 
-CREATE TABLE public.dispatch_poll_votes (
+CREATE TABLE IF NOT EXISTS public.dispatch_poll_votes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     broadcast_id UUID NOT NULL REFERENCES public.system_broadcasts(id) ON DELETE CASCADE,
     poll_id TEXT NOT NULL DEFAULT 'default',
@@ -290,7 +452,7 @@ CREATE TABLE public.dispatch_poll_votes (
     UNIQUE (broadcast_id, poll_id, option_id, user_id)
 );
 
-CREATE TABLE public.system_directives (
+CREATE TABLE IF NOT EXISTS public.system_directives (
     slug TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     summary TEXT,
@@ -301,13 +463,14 @@ CREATE TABLE public.system_directives (
     version TEXT DEFAULT 'v0.6.0-Dev.13',
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_by TEXT DEFAULT 'Keepers Core',
+    revision INTEGER NOT NULL DEFAULT 1,
     published_content TEXT,
     published_title TEXT,
     published_summary TEXT,
     published_at TIMESTAMP WITH TIME ZONE
 );
 
-CREATE TABLE public.citizen_staging_queue (
+CREATE TABLE IF NOT EXISTS public.citizen_staging_queue (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_token TEXT NOT NULL,
     payload_type TEXT NOT NULL DEFAULT 'mod_queue',
@@ -319,7 +482,7 @@ CREATE TABLE public.citizen_staging_queue (
     expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '24 hours')
 );
 
-CREATE TABLE public.pwa_push_subscriptions (
+CREATE TABLE IF NOT EXISTS public.pwa_push_subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     endpoint TEXT UNIQUE NOT NULL,
     p256dh TEXT NOT NULL,
@@ -335,6 +498,14 @@ CREATE TABLE public.pwa_push_subscriptions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- ============================================================================
+-- 5B. IDEMPOTENT COLUMN UPGRADES FOR EXISTING HUB DATABASES
+-- ============================================================================
+ALTER TABLE IF EXISTS public.keeper_tickets ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+ALTER TABLE IF EXISTS public.keeper_tickets ADD COLUMN IF NOT EXISTS assigned_to UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS public.keeper_support_categories ADD COLUMN IF NOT EXISTS telemetry_config JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE IF EXISTS public.system_broadcasts ADD COLUMN IF NOT EXISTS has_pending_flag BOOLEAN NOT NULL DEFAULT false;
 
 -- ============================================================================
 -- 6. INDEXES
@@ -442,7 +613,7 @@ SECURITY DEFINER
 SET search_path = public, sanctuary_internal
 AS $$
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') IS DISTINCT FROM 'service_role'
+    IF COALESCE(auth.role(), '') IS DISTINCT FROM 'service_role'
        AND COALESCE(current_setting('sanctuary.internal_rpc', true), '') IS DISTINCT FROM 'true'
        AND session_user NOT IN ('postgres', 'supabase_admin')
        AND NOT sanctuary_internal.is_hub_keeper()
@@ -485,8 +656,8 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    SELECT value INTO v_endpoint FROM sanctuary_internal.runtime_secrets WHERE key = 'pwa_push_endpoint';
-    SELECT value INTO v_secret FROM sanctuary_internal.runtime_secrets WHERE key = 'pwa_push_secret';
+    v_endpoint := sanctuary_internal.read_runtime_secret('pwa_push_endpoint');
+    v_secret := sanctuary_internal.read_runtime_secret('pwa_push_secret');
     IF COALESCE(v_endpoint, '') = '' THEN
         RETURN NEW;
     END IF;
@@ -526,8 +697,8 @@ BEGIN
 
     IF NEW.is_active IS DISTINCT FROM false
        AND EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'net') THEN
-        SELECT value INTO v_endpoint FROM sanctuary_internal.runtime_secrets WHERE key = 'pwa_push_endpoint';
-        SELECT value INTO v_secret FROM sanctuary_internal.runtime_secrets WHERE key = 'pwa_push_secret';
+        v_endpoint := sanctuary_internal.read_runtime_secret('pwa_push_endpoint');
+        v_secret := sanctuary_internal.read_runtime_secret('pwa_push_secret');
         IF COALESCE(v_endpoint, '') <> '' THEN
             EXECUTE 'SELECT net.http_post(url := $1, headers := $2, body := $3)'
             USING
@@ -616,7 +787,7 @@ BEGIN
         RAISE EXCEPTION 'Retention window must be at least 30 days.';
     END IF;
 
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') IS DISTINCT FROM 'service_role'
+    IF COALESCE(auth.role(), '') IS DISTINCT FROM 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin')
        AND NOT sanctuary_internal.is_hub_keeper()
     THEN
@@ -674,7 +845,7 @@ BEGIN
         RAISE EXCEPTION 'Invalid donation amount.';
     END IF;
 
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') IS DISTINCT FROM 'service_role'
+    IF COALESCE(auth.role(), '') IS DISTINCT FROM 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin')
        AND NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = (SELECT auth.uid()) AND role = 'keeper')
     THEN
@@ -761,7 +932,7 @@ DECLARE
     v_ledger_title TEXT;
     v_payload TEXT;
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+    IF COALESCE(auth.role(), '') <> 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin') THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
@@ -864,15 +1035,12 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, sanctuary_internal
 AS $$
-DECLARE
-    v_val TEXT;
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+    IF COALESCE(auth.role(), '') <> 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin') THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
-    SELECT value INTO v_val FROM sanctuary_internal.runtime_secrets WHERE key = p_key;
-    RETURN v_val;
+    RETURN sanctuary_internal.read_runtime_secret(p_key);
 END;
 $$;
 
@@ -883,17 +1051,11 @@ SECURITY DEFINER
 SET search_path = public, sanctuary_internal
 AS $$
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+    IF COALESCE(auth.role(), '') <> 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin') THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
-    IF p_value IS NULL OR btrim(p_value) = '' THEN
-        DELETE FROM sanctuary_internal.runtime_secrets WHERE key = p_key;
-    ELSE
-        INSERT INTO sanctuary_internal.runtime_secrets (key, value, updated_at)
-        VALUES (p_key, btrim(p_value), NOW())
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
-    END IF;
+    PERFORM sanctuary_internal.write_runtime_secret(p_key, p_value);
 END;
 $$;
 
@@ -901,6 +1063,231 @@ REVOKE ALL ON FUNCTION public.internal_get_runtime_secret(TEXT) FROM PUBLIC, ano
 REVOKE ALL ON FUNCTION public.internal_set_runtime_secret(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.internal_get_runtime_secret(TEXT) TO service_role;
 GRANT EXECUTE ON FUNCTION public.internal_set_runtime_secret(TEXT, TEXT) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.internal_upsert_spoke_credential(
+    p_game_id UUID,
+    p_envelope_ciphertext TEXT,
+    p_key_version TEXT DEFAULT 'v1:master',
+    p_credential_kind TEXT DEFAULT 'spoke_gateway',
+    p_key_fingerprint TEXT DEFAULT ''
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+DECLARE
+    v_clean_env TEXT := btrim(COALESCE(p_envelope_ciphertext, ''));
+    v_existing_vault_id UUID;
+    v_new_vault_id UUID;
+    v_secret_name TEXT := 'sanctuary_spoke:' || p_game_id::text;
+BEGIN
+    IF COALESCE(auth.role(), '') <> 'service_role'
+       AND session_user NOT IN ('postgres', 'supabase_admin') THEN
+        RAISE EXCEPTION 'Forbidden';
+    END IF;
+
+    IF left(v_clean_env, 7) <> 'enc:v1:' THEN
+        RAISE EXCEPTION 'Spoke credential must be sealed in an enc:v1 envelope before DB storage';
+    END IF;
+
+    SELECT vault_secret_id INTO v_existing_vault_id
+    FROM sanctuary_internal.spoke_credentials
+    WHERE game_id = p_game_id;
+
+    IF to_regnamespace('vault') IS NOT NULL THEN
+        IF v_existing_vault_id IS NULL THEN
+            EXECUTE 'SELECT id FROM vault.secrets WHERE name = $1 LIMIT 1'
+            INTO v_existing_vault_id
+            USING v_secret_name;
+        END IF;
+
+        IF v_existing_vault_id IS NOT NULL THEN
+            EXECUTE 'SELECT vault.update_secret($1, $2, $3, $4)'
+            USING v_existing_vault_id, v_clean_env, v_secret_name, 'Sanctuary OS Split-Custody Spoke Credential';
+            v_new_vault_id := v_existing_vault_id;
+        ELSE
+            EXECUTE 'SELECT vault.create_secret($1, $2, $3)'
+            INTO v_new_vault_id
+            USING v_clean_env, v_secret_name, 'Sanctuary OS Split-Custody Spoke Credential';
+        END IF;
+
+        INSERT INTO sanctuary_internal.spoke_credentials (
+            game_id, envelope_ciphertext, vault_secret_id, key_version, credential_kind, key_fingerprint, rotated_at, updated_at
+        )
+        VALUES (
+            p_game_id,
+            'vault_sealed',
+            v_new_vault_id,
+            COALESCE(NULLIF(btrim(p_key_version), ''), 'v1:master'),
+            COALESCE(NULLIF(btrim(p_credential_kind), ''), 'spoke_gateway'),
+            COALESCE(btrim(p_key_fingerprint), ''),
+            NOW(),
+            NOW()
+        )
+        ON CONFLICT (game_id) DO UPDATE
+        SET envelope_ciphertext = 'vault_sealed',
+            vault_secret_id = EXCLUDED.vault_secret_id,
+            key_version = EXCLUDED.key_version,
+            credential_kind = EXCLUDED.credential_kind,
+            key_fingerprint = EXCLUDED.key_fingerprint,
+            rotated_at = NOW(),
+            updated_at = NOW();
+    ELSE
+        INSERT INTO sanctuary_internal.spoke_credentials (
+            game_id, envelope_ciphertext, vault_secret_id, key_version, credential_kind, key_fingerprint, rotated_at, updated_at
+        )
+        VALUES (
+            p_game_id,
+            v_clean_env,
+            NULL,
+            COALESCE(NULLIF(btrim(p_key_version), ''), 'v1:master'),
+            COALESCE(NULLIF(btrim(p_credential_kind), ''), 'spoke_gateway'),
+            COALESCE(btrim(p_key_fingerprint), ''),
+            NOW(),
+            NOW()
+        )
+        ON CONFLICT (game_id) DO UPDATE
+        SET envelope_ciphertext = EXCLUDED.envelope_ciphertext,
+            vault_secret_id = NULL,
+            key_version = EXCLUDED.key_version,
+            credential_kind = EXCLUDED.credential_kind,
+            key_fingerprint = EXCLUDED.key_fingerprint,
+            rotated_at = NOW(),
+            updated_at = NOW();
+    END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.internal_get_spoke_credential(p_game_id UUID)
+RETURNS TABLE (
+    envelope_ciphertext TEXT,
+    key_version TEXT,
+    credential_kind TEXT,
+    key_fingerprint TEXT,
+    rotated_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+DECLARE
+    v_rec RECORD;
+    v_decrypted TEXT;
+BEGIN
+    IF COALESCE(auth.role(), '') <> 'service_role'
+       AND session_user NOT IN ('postgres', 'supabase_admin') THEN
+        RAISE EXCEPTION 'Forbidden';
+    END IF;
+
+    SELECT sc.*
+    INTO v_rec
+    FROM sanctuary_internal.spoke_credentials sc
+    WHERE sc.game_id = p_game_id;
+
+    IF NOT FOUND THEN
+        RETURN;
+    END IF;
+
+    v_decrypted := v_rec.envelope_ciphertext;
+    IF v_rec.vault_secret_id IS NOT NULL AND to_regnamespace('vault') IS NOT NULL THEN
+        EXECUTE 'SELECT decrypted_secret FROM vault.decrypted_secrets WHERE id = $1'
+        INTO v_decrypted
+        USING v_rec.vault_secret_id;
+    ELSIF v_decrypted = 'vault_sealed' THEN
+        v_decrypted := NULL;
+    END IF;
+
+    IF COALESCE(v_decrypted, '') = '' THEN
+        RETURN;
+    END IF;
+
+    envelope_ciphertext := v_decrypted;
+    key_version := v_rec.key_version;
+    credential_kind := v_rec.credential_kind;
+    key_fingerprint := v_rec.key_fingerprint;
+    rotated_at := v_rec.rotated_at;
+    updated_at := v_rec.updated_at;
+    RETURN NEXT;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.internal_list_spoke_credentials()
+RETURNS TABLE (
+    game_id UUID,
+    envelope_ciphertext TEXT,
+    key_version TEXT,
+    credential_kind TEXT,
+    key_fingerprint TEXT,
+    rotated_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+DECLARE
+    v_rec RECORD;
+    v_decrypted TEXT;
+BEGIN
+    IF COALESCE(auth.role(), '') <> 'service_role'
+       AND session_user NOT IN ('postgres', 'supabase_admin') THEN
+        RAISE EXCEPTION 'Forbidden';
+    END IF;
+
+    FOR v_rec IN
+        SELECT sc.*
+        FROM sanctuary_internal.spoke_credentials sc
+        ORDER BY sc.game_id
+    LOOP
+        v_decrypted := v_rec.envelope_ciphertext;
+        IF v_rec.vault_secret_id IS NOT NULL AND to_regnamespace('vault') IS NOT NULL THEN
+            EXECUTE 'SELECT decrypted_secret FROM vault.decrypted_secrets WHERE id = $1'
+            INTO v_decrypted
+            USING v_rec.vault_secret_id;
+        ELSIF v_decrypted = 'vault_sealed' THEN
+            v_decrypted := NULL;
+        END IF;
+
+        IF COALESCE(v_decrypted, '') <> '' THEN
+            game_id := v_rec.game_id;
+            envelope_ciphertext := v_decrypted;
+            key_version := v_rec.key_version;
+            credential_kind := v_rec.credential_kind;
+            key_fingerprint := v_rec.key_fingerprint;
+            rotated_at := v_rec.rotated_at;
+            updated_at := v_rec.updated_at;
+            RETURN NEXT;
+        END IF;
+    END LOOP;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.internal_delete_spoke_credential(p_game_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+BEGIN
+    IF COALESCE(auth.role(), '') <> 'service_role'
+       AND session_user NOT IN ('postgres', 'supabase_admin') THEN
+        RAISE EXCEPTION 'Forbidden';
+    END IF;
+
+    DELETE FROM sanctuary_internal.spoke_credentials WHERE game_id = p_game_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.internal_upsert_spoke_credential(UUID, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.internal_get_spoke_credential(UUID) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.internal_list_spoke_credentials() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.internal_delete_spoke_credential(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.internal_upsert_spoke_credential(UUID, TEXT, TEXT, TEXT, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.internal_get_spoke_credential(UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.internal_list_spoke_credentials() TO service_role;
+GRANT EXECUTE ON FUNCTION public.internal_delete_spoke_credential(UUID) TO service_role;
 
 -- ============================================================================
 -- 9. INTERNAL WEBAUTHN SUBDOMAIN ORIGIN VERIFICATION HELPERS (SERVICE_ROLE ONLY)
@@ -915,7 +1302,7 @@ AS $$
 DECLARE
     v_result JSONB;
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+    IF COALESCE(auth.role(), '') <> 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin') THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
@@ -945,7 +1332,7 @@ AS $$
 DECLARE
     v_result JSONB;
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+    IF COALESCE(auth.role(), '') <> 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin') THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
@@ -988,7 +1375,7 @@ AS $$
 DECLARE
     v_result JSONB;
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+    IF COALESCE(auth.role(), '') <> 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin') THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
@@ -1034,7 +1421,7 @@ AS $$
 DECLARE
     v_result JSONB;
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+    IF COALESCE(auth.role(), '') <> 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin') THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
@@ -1509,7 +1896,6 @@ ALTER TABLE public.sanctuary_lexicons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sanctuary_themes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sanctuary_theme_images ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sanctuary_games ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.sanctuary_game_secrets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.hardware_bans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.keeper_heuristic_signatures ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
@@ -1525,82 +1911,110 @@ ALTER TABLE public.citizen_staging_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pwa_push_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Profiles (Hub PII & donation balances locked to self or Hub Staff)
+DROP POLICY IF EXISTS "hub_profiles_select" ON public.profiles;
 CREATE POLICY "hub_profiles_select" ON public.profiles
     FOR SELECT TO authenticated
     USING (id = (SELECT auth.uid()) OR sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_profiles_insert" ON public.profiles;
 CREATE POLICY "hub_profiles_insert" ON public.profiles
     FOR INSERT TO authenticated
     WITH CHECK (id = (SELECT auth.uid()) OR sanctuary_internal.is_hub_keeper());
+DROP POLICY IF EXISTS "hub_profiles_update" ON public.profiles;
 CREATE POLICY "hub_profiles_update" ON public.profiles
     FOR UPDATE TO authenticated
     USING (id = (SELECT auth.uid()) OR sanctuary_internal.is_hub_keeper())
     WITH CHECK (id = (SELECT auth.uid()) OR sanctuary_internal.is_hub_keeper());
+DROP POLICY IF EXISTS "hub_profiles_delete" ON public.profiles;
 CREATE POLICY "hub_profiles_delete" ON public.profiles
     FOR DELETE TO authenticated
     USING (sanctuary_internal.is_hub_keeper());
 
 -- Service-Role Vault Tables
+DROP POLICY IF EXISTS "Service role manages donation nonces" ON public.donation_event_nonces;
 CREATE POLICY "Service role manages donation nonces" ON public.donation_event_nonces
-    FOR ALL TO service_role USING (true) WITH CHECK (true);
-CREATE POLICY "Service role manages game secrets" ON public.sanctuary_game_secrets
     FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- Monthly Donation Ledgers
+DROP POLICY IF EXISTS "hub_monthly_donation_ledgers_select" ON public.monthly_donation_ledgers;
 CREATE POLICY "hub_monthly_donation_ledgers_select" ON public.monthly_donation_ledgers
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_monthly_donation_ledgers_insert" ON public.monthly_donation_ledgers;
 CREATE POLICY "hub_monthly_donation_ledgers_insert" ON public.monthly_donation_ledgers
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_keeper());
+DROP POLICY IF EXISTS "hub_monthly_donation_ledgers_update" ON public.monthly_donation_ledgers;
 CREATE POLICY "hub_monthly_donation_ledgers_update" ON public.monthly_donation_ledgers
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_keeper()) WITH CHECK (sanctuary_internal.is_hub_keeper());
+DROP POLICY IF EXISTS "hub_monthly_donation_ledgers_delete" ON public.monthly_donation_ledgers;
 CREATE POLICY "hub_monthly_donation_ledgers_delete" ON public.monthly_donation_ledgers
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_keeper());
 
 -- Master Schemas, Lexicons, Themes & Theme Images
+DROP POLICY IF EXISTS "hub_sanctuary_schemas_select" ON public.sanctuary_schemas;
 CREATE POLICY "hub_sanctuary_schemas_select" ON public.sanctuary_schemas
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_sanctuary_schemas_insert" ON public.sanctuary_schemas;
 CREATE POLICY "hub_sanctuary_schemas_insert" ON public.sanctuary_schemas
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_sanctuary_schemas_update" ON public.sanctuary_schemas;
 CREATE POLICY "hub_sanctuary_schemas_update" ON public.sanctuary_schemas
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_staff()) WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_sanctuary_schemas_delete" ON public.sanctuary_schemas;
 CREATE POLICY "hub_sanctuary_schemas_delete" ON public.sanctuary_schemas
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_staff());
 
+DROP POLICY IF EXISTS "hub_sanctuary_lexicons_select" ON public.sanctuary_lexicons;
 CREATE POLICY "hub_sanctuary_lexicons_select" ON public.sanctuary_lexicons
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_sanctuary_lexicons_insert" ON public.sanctuary_lexicons;
 CREATE POLICY "hub_sanctuary_lexicons_insert" ON public.sanctuary_lexicons
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_sanctuary_lexicons_update" ON public.sanctuary_lexicons;
 CREATE POLICY "hub_sanctuary_lexicons_update" ON public.sanctuary_lexicons
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_staff()) WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_sanctuary_lexicons_delete" ON public.sanctuary_lexicons;
 CREATE POLICY "hub_sanctuary_lexicons_delete" ON public.sanctuary_lexicons
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_staff());
 
+DROP POLICY IF EXISTS "hub_sanctuary_themes_select" ON public.sanctuary_themes;
 CREATE POLICY "hub_sanctuary_themes_select" ON public.sanctuary_themes
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_sanctuary_themes_insert" ON public.sanctuary_themes;
 CREATE POLICY "hub_sanctuary_themes_insert" ON public.sanctuary_themes
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_sanctuary_themes_update" ON public.sanctuary_themes;
 CREATE POLICY "hub_sanctuary_themes_update" ON public.sanctuary_themes
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_staff()) WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_sanctuary_themes_delete" ON public.sanctuary_themes;
 CREATE POLICY "hub_sanctuary_themes_delete" ON public.sanctuary_themes
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_staff());
 
+DROP POLICY IF EXISTS "hub_sanctuary_theme_images_select" ON public.sanctuary_theme_images;
 CREATE POLICY "hub_sanctuary_theme_images_select" ON public.sanctuary_theme_images
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_sanctuary_theme_images_insert" ON public.sanctuary_theme_images;
 CREATE POLICY "hub_sanctuary_theme_images_insert" ON public.sanctuary_theme_images
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_sanctuary_theme_images_update" ON public.sanctuary_theme_images;
 CREATE POLICY "hub_sanctuary_theme_images_update" ON public.sanctuary_theme_images
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_staff()) WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_sanctuary_theme_images_delete" ON public.sanctuary_theme_images;
 CREATE POLICY "hub_sanctuary_theme_images_delete" ON public.sanctuary_theme_images
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_staff());
 
 -- Spoke Registry & Global Security
+DROP POLICY IF EXISTS "hub_sanctuary_games_select_anon" ON public.sanctuary_games;
 CREATE POLICY "hub_sanctuary_games_select_anon" ON public.sanctuary_games
     FOR SELECT TO anon USING (COALESCE(is_keepers_only, false) = false);
+DROP POLICY IF EXISTS "hub_sanctuary_games_select_auth" ON public.sanctuary_games;
 CREATE POLICY "hub_sanctuary_games_select_auth" ON public.sanctuary_games
     FOR SELECT TO authenticated USING (COALESCE(is_keepers_only, false) = false OR sanctuary_internal.is_hub_keeper());
+DROP POLICY IF EXISTS "hub_sanctuary_games_insert" ON public.sanctuary_games;
 CREATE POLICY "hub_sanctuary_games_insert" ON public.sanctuary_games
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_keeper());
+DROP POLICY IF EXISTS "hub_sanctuary_games_update" ON public.sanctuary_games;
 CREATE POLICY "hub_sanctuary_games_update" ON public.sanctuary_games
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_keeper()) WITH CHECK (sanctuary_internal.is_hub_keeper());
+DROP POLICY IF EXISTS "hub_sanctuary_games_delete" ON public.sanctuary_games;
 CREATE POLICY "hub_sanctuary_games_delete" ON public.sanctuary_games
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_keeper());
 
@@ -1612,7 +2026,7 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), auth.role()) = 'authenticated' THEN
+    IF COALESCE(auth.role(), '') = 'authenticated' THEN
         IF TG_OP = 'INSERT' THEN
             NEW.donation_url := NULL;
             NEW.payment_processor := 'STRIPE';
@@ -1637,7 +2051,7 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), auth.role()) = 'authenticated' THEN
+    IF COALESCE(auth.role(), '') = 'authenticated' THEN
         IF TG_OP = 'DELETE' THEN
             IF OLD.category = 'SpokeDonationConfig' THEN
                 RAISE EXCEPTION 'Forbidden: Spoke donation configuration is isolated to the Spoke Wayfinder';
@@ -1659,119 +2073,165 @@ CREATE TRIGGER trg_protect_spoke_donation_broadcasts
     BEFORE INSERT OR UPDATE OR DELETE ON public.keeper_system_broadcasts
     FOR EACH ROW EXECUTE FUNCTION sanctuary_internal.protect_spoke_donation_broadcasts();
 
+DROP POLICY IF EXISTS "hub_hardware_bans_select" ON public.hardware_bans;
 CREATE POLICY "hub_hardware_bans_select" ON public.hardware_bans
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_hardware_bans_insert" ON public.hardware_bans;
 CREATE POLICY "hub_hardware_bans_insert" ON public.hardware_bans
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_keeper());
+DROP POLICY IF EXISTS "hub_hardware_bans_update" ON public.hardware_bans;
 CREATE POLICY "hub_hardware_bans_update" ON public.hardware_bans
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_keeper()) WITH CHECK (sanctuary_internal.is_hub_keeper());
+DROP POLICY IF EXISTS "hub_hardware_bans_delete" ON public.hardware_bans;
 CREATE POLICY "hub_hardware_bans_delete" ON public.hardware_bans
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_keeper());
 
+DROP POLICY IF EXISTS "hub_keeper_heuristic_signatures_select" ON public.keeper_heuristic_signatures;
 CREATE POLICY "hub_keeper_heuristic_signatures_select" ON public.keeper_heuristic_signatures
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_keeper_heuristic_signatures_insert" ON public.keeper_heuristic_signatures;
 CREATE POLICY "hub_keeper_heuristic_signatures_insert" ON public.keeper_heuristic_signatures
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_keeper_heuristic_signatures_update" ON public.keeper_heuristic_signatures;
 CREATE POLICY "hub_keeper_heuristic_signatures_update" ON public.keeper_heuristic_signatures
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_staff()) WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_keeper_heuristic_signatures_delete" ON public.keeper_heuristic_signatures;
 CREATE POLICY "hub_keeper_heuristic_signatures_delete" ON public.keeper_heuristic_signatures
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_staff());
 
 -- Append-Only Core Audit Trail
+DROP POLICY IF EXISTS "hub_audit_logs_select" ON public.audit_logs;
 CREATE POLICY "hub_audit_logs_select" ON public.audit_logs
     FOR SELECT TO authenticated USING (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_audit_logs_insert" ON public.audit_logs;
 CREATE POLICY "hub_audit_logs_insert" ON public.audit_logs
     FOR INSERT TO authenticated
     WITH CHECK ((SELECT auth.uid()) IS NOT NULL AND (actor_id IS NULL OR actor_id = (SELECT auth.uid())));
 
 -- Support Categories, Tickets & Email Dispatches
+DROP POLICY IF EXISTS "hub_keeper_support_categories_select" ON public.keeper_support_categories;
 CREATE POLICY "hub_keeper_support_categories_select" ON public.keeper_support_categories
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_keeper_support_categories_insert" ON public.keeper_support_categories;
 CREATE POLICY "hub_keeper_support_categories_insert" ON public.keeper_support_categories
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_keeper_support_categories_update" ON public.keeper_support_categories;
 CREATE POLICY "hub_keeper_support_categories_update" ON public.keeper_support_categories
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_staff()) WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_keeper_support_categories_delete" ON public.keeper_support_categories;
 CREATE POLICY "hub_keeper_support_categories_delete" ON public.keeper_support_categories
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_staff());
 
+DROP POLICY IF EXISTS "hub_keeper_tickets_select" ON public.keeper_tickets;
 CREATE POLICY "hub_keeper_tickets_select" ON public.keeper_tickets
     FOR SELECT TO authenticated
     USING (author_id = (SELECT auth.uid()) OR sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_keeper_tickets_insert" ON public.keeper_tickets;
 CREATE POLICY "hub_keeper_tickets_insert" ON public.keeper_tickets
     FOR INSERT TO authenticated
     WITH CHECK ((SELECT auth.uid()) IS NOT NULL AND (author_id = (SELECT auth.uid()) OR author_id IS NULL));
+DROP POLICY IF EXISTS "hub_keeper_tickets_update" ON public.keeper_tickets;
 CREATE POLICY "hub_keeper_tickets_update" ON public.keeper_tickets
     FOR UPDATE TO authenticated
     USING (author_id = (SELECT auth.uid()) OR sanctuary_internal.is_hub_staff())
     WITH CHECK (author_id = (SELECT auth.uid()) OR sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_keeper_tickets_delete" ON public.keeper_tickets;
 CREATE POLICY "hub_keeper_tickets_delete" ON public.keeper_tickets
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_staff());
 
+DROP POLICY IF EXISTS "hub_keeper_email_dispatches_select" ON public.keeper_email_dispatches;
 CREATE POLICY "hub_keeper_email_dispatches_select" ON public.keeper_email_dispatches
     FOR SELECT TO authenticated USING (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_keeper_email_dispatches_insert" ON public.keeper_email_dispatches;
 CREATE POLICY "hub_keeper_email_dispatches_insert" ON public.keeper_email_dispatches
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_keeper_email_dispatches_update" ON public.keeper_email_dispatches;
 CREATE POLICY "hub_keeper_email_dispatches_update" ON public.keeper_email_dispatches
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_staff()) WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_keeper_email_dispatches_delete" ON public.keeper_email_dispatches;
 CREATE POLICY "hub_keeper_email_dispatches_delete" ON public.keeper_email_dispatches
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_keeper());
 
 -- Broadcasts, Polls & System Directives
+DROP POLICY IF EXISTS "hub_keeper_system_broadcasts_select" ON public.keeper_system_broadcasts;
 CREATE POLICY "hub_keeper_system_broadcasts_select" ON public.keeper_system_broadcasts
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_keeper_system_broadcasts_insert" ON public.keeper_system_broadcasts;
 CREATE POLICY "hub_keeper_system_broadcasts_insert" ON public.keeper_system_broadcasts
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_keeper_system_broadcasts_update" ON public.keeper_system_broadcasts;
 CREATE POLICY "hub_keeper_system_broadcasts_update" ON public.keeper_system_broadcasts
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_staff()) WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_keeper_system_broadcasts_delete" ON public.keeper_system_broadcasts;
 CREATE POLICY "hub_keeper_system_broadcasts_delete" ON public.keeper_system_broadcasts
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_staff());
 
+DROP POLICY IF EXISTS "hub_keeper_dispatch_poll_votes_select" ON public.keeper_dispatch_poll_votes;
 CREATE POLICY "hub_keeper_dispatch_poll_votes_select" ON public.keeper_dispatch_poll_votes
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_keeper_dispatch_poll_votes_insert" ON public.keeper_dispatch_poll_votes;
 CREATE POLICY "hub_keeper_dispatch_poll_votes_insert" ON public.keeper_dispatch_poll_votes
     FOR INSERT TO authenticated WITH CHECK (user_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "hub_keeper_dispatch_poll_votes_delete" ON public.keeper_dispatch_poll_votes;
 CREATE POLICY "hub_keeper_dispatch_poll_votes_delete" ON public.keeper_dispatch_poll_votes
     FOR DELETE TO authenticated USING (user_id = (SELECT auth.uid()));
 
+DROP POLICY IF EXISTS "hub_system_broadcasts_select" ON public.system_broadcasts;
 CREATE POLICY "hub_system_broadcasts_select" ON public.system_broadcasts
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_system_broadcasts_insert" ON public.system_broadcasts;
 CREATE POLICY "hub_system_broadcasts_insert" ON public.system_broadcasts
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_system_broadcasts_update" ON public.system_broadcasts;
 CREATE POLICY "hub_system_broadcasts_update" ON public.system_broadcasts
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_staff()) WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_system_broadcasts_delete" ON public.system_broadcasts;
 CREATE POLICY "hub_system_broadcasts_delete" ON public.system_broadcasts
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_staff());
 
+DROP POLICY IF EXISTS "hub_dispatch_poll_votes_select" ON public.dispatch_poll_votes;
 CREATE POLICY "hub_dispatch_poll_votes_select" ON public.dispatch_poll_votes
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_dispatch_poll_votes_insert" ON public.dispatch_poll_votes;
 CREATE POLICY "hub_dispatch_poll_votes_insert" ON public.dispatch_poll_votes
     FOR INSERT TO authenticated WITH CHECK (user_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "hub_dispatch_poll_votes_delete" ON public.dispatch_poll_votes;
 CREATE POLICY "hub_dispatch_poll_votes_delete" ON public.dispatch_poll_votes
     FOR DELETE TO authenticated USING (user_id = (SELECT auth.uid()));
 
+DROP POLICY IF EXISTS "hub_system_directives_select" ON public.system_directives;
 CREATE POLICY "hub_system_directives_select" ON public.system_directives
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "hub_system_directives_insert" ON public.system_directives;
 CREATE POLICY "hub_system_directives_insert" ON public.system_directives
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_system_directives_update" ON public.system_directives;
 CREATE POLICY "hub_system_directives_update" ON public.system_directives
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_staff()) WITH CHECK (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_system_directives_delete" ON public.system_directives;
 CREATE POLICY "hub_system_directives_delete" ON public.system_directives
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_staff());
 
 -- Ephemeral Encrypted Staging Queue & PWA Push Subscriptions
+DROP POLICY IF EXISTS "hub_staging_queue_select" ON public.citizen_staging_queue;
 CREATE POLICY "hub_staging_queue_select" ON public.citizen_staging_queue
     FOR SELECT TO public USING (expires_at IS NULL OR expires_at > NOW());
+DROP POLICY IF EXISTS "hub_staging_queue_insert" ON public.citizen_staging_queue;
 CREATE POLICY "hub_staging_queue_insert" ON public.citizen_staging_queue
     FOR INSERT TO public WITH CHECK (length(user_token) >= 16 AND length(encrypted_payload) <= 10485760);
+DROP POLICY IF EXISTS "hub_staging_queue_update" ON public.citizen_staging_queue;
 CREATE POLICY "hub_staging_queue_update" ON public.citizen_staging_queue
     FOR UPDATE TO public
     USING (length(user_token) >= 16)
     WITH CHECK (length(user_token) >= 16 AND length(encrypted_payload) <= 10485760);
+DROP POLICY IF EXISTS "hub_staging_queue_delete" ON public.citizen_staging_queue;
 CREATE POLICY "hub_staging_queue_delete" ON public.citizen_staging_queue
     FOR DELETE TO public USING (length(user_token) >= 16);
 
+DROP POLICY IF EXISTS "hub_pwa_push_subscriptions_select" ON public.pwa_push_subscriptions;
 CREATE POLICY "hub_pwa_push_subscriptions_select" ON public.pwa_push_subscriptions
     FOR SELECT TO authenticated USING (user_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "hub_pwa_push_subscriptions_insert" ON public.pwa_push_subscriptions;
 CREATE POLICY "hub_pwa_push_subscriptions_insert" ON public.pwa_push_subscriptions
     FOR INSERT TO anon, authenticated
     WITH CHECK (
@@ -1780,6 +2240,7 @@ CREATE POLICY "hub_pwa_push_subscriptions_insert" ON public.pwa_push_subscriptio
         AND length(auth) >= 8
         AND (user_id IS NULL OR user_id = (SELECT auth.uid()))
     );
+DROP POLICY IF EXISTS "hub_pwa_push_subscriptions_update" ON public.pwa_push_subscriptions;
 CREATE POLICY "hub_pwa_push_subscriptions_update" ON public.pwa_push_subscriptions
     FOR UPDATE TO authenticated
     USING (user_id = (SELECT auth.uid()) OR user_id IS NULL)
@@ -1789,6 +2250,7 @@ CREATE POLICY "hub_pwa_push_subscriptions_update" ON public.pwa_push_subscriptio
         AND length(auth) >= 8
         AND user_id = (SELECT auth.uid())
     );
+DROP POLICY IF EXISTS "hub_pwa_push_subscriptions_delete" ON public.pwa_push_subscriptions;
 CREATE POLICY "hub_pwa_push_subscriptions_delete" ON public.pwa_push_subscriptions
     FOR DELETE TO authenticated USING (user_id = (SELECT auth.uid()));
 

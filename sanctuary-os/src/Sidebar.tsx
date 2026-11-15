@@ -78,8 +78,11 @@ export function Sidebar({
     setView,
     userRole,
     osRole,
+    defconLevel,
     isPatchDetected,
     isConfigured,
+    pendingWorkspaceSetupId,
+    setPendingWorkspaceSetupId,
     activeWorkspaceId,
     activeGameSchema,
     masonActiveTab,
@@ -99,8 +102,11 @@ export function Sidebar({
       setView: state.setView,
       userRole: state.userRole,
       osRole: state.osRole,
+      defconLevel: state.defconLevel,
       isPatchDetected: state.isPatchDetected,
       isConfigured: state.isConfigured,
+      pendingWorkspaceSetupId: state.pendingWorkspaceSetupId,
+      setPendingWorkspaceSetupId: state.setPendingWorkspaceSetupId,
       activeWorkspaceId: state.activeWorkspaceId,
       activeGameSchema: state.activeGameSchema,
       masonActiveTab: state.masonActiveTab,
@@ -120,6 +126,11 @@ export function Sidebar({
       showDefconAlert: s.showDefconAlert,
       stagingDraftItems: s.stagingDraftItems,
     }))
+  );
+  const isDefconLaunchAlert = Boolean(
+    isPatchDetected ||
+      showDefconAlert ||
+      (typeof defconLevel === "number" && defconLevel > 0 && defconLevel < 5)
   );
   const [, setGlobalGames] = React.useState<any[]>([]);
   const [hoveredTooltip, setHoveredTooltip] = React.useState<{ label: string, top: number } | null>(null);
@@ -168,17 +179,28 @@ export function Sidebar({
     ["core_dev", "admin", "keeper"].includes(osRole)
   );
 
+  const isWorkspaceSetupOverlay = Boolean(
+    isDesktop() && !isConfigured && pendingWorkspaceSetupId && view !== "landing"
+  );
+
   const [isLandingContext, setIsLandingContext] = React.useState<boolean>(() =>
-    view === "landing" || !isConfigured || (!isDesktop() && isRootDomain())
+    view === "landing" || (!isConfigured && !isWorkspaceSetupOverlay) || (!isDesktop() && isRootDomain())
   );
 
   React.useEffect(() => {
-    if (view === "landing" || !isConfigured || (!isDesktop() && isRootDomain())) {
+    if (view === "landing" || (!isConfigured && !isWorkspaceSetupOverlay) || (!isDesktop() && isRootDomain())) {
       setIsLandingContext(true);
     } else if (view !== "KeepersCore" && view !== "settings") {
       setIsLandingContext(false);
     }
-  }, [view, isConfigured]);
+  }, [view, isConfigured, isWorkspaceSetupOverlay]);
+
+  const navigateToLandingSection = (section: string) => {
+    setPendingWorkspaceSetupId(null);
+    setActiveLandingSection(section as any);
+    setView("landing");
+    scrollToLandingSection(section);
+  };
 
   React.useEffect(() => {
     const handleLandingTab = (e: Event) => {
@@ -220,7 +242,7 @@ export function Sidebar({
         <div
           className={`relative flex items-center cursor-pointer glass-surface rounded-xl border hover:border-[color-mix(in_srgb,var(--accent)_40%,var(--glass-border-top))] transition-all duration-300 z-[100] shrink-0 group/logo overflow-hidden mx-3.5 mt-3.5 mb-2 ${isSidebarCollapsed ? 'justify-center p-2 min-h-[52px]' : 'justify-between p-2.5 min-h-[56px]'}`}
           onClick={() => {
-            if (isRootDomain() && (!isDesktop() || !isConfigured)) {
+            if (!isWorkspaceSetupOverlay && isRootDomain() && (!isDesktop() || !isConfigured)) {
               setView("landing");
               setIsSidebarCollapsed(!isSidebarCollapsed);
             } else {
@@ -277,11 +299,7 @@ export function Sidebar({
             <>
               <NavButton
                 active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'overview'}
-                onClick={() => {
-                  setActiveLandingSection('overview');
-                  setView("landing");
-                  scrollToLandingSection('overview');
-                }}
+                onClick={() => navigateToLandingSection('overview')}
                 icon={t("icon_dashboard", "dashboard")}
                 label={t("overview", "Overview")}
                 isCollapsed={isSidebarCollapsed}
@@ -290,11 +308,7 @@ export function Sidebar({
               />
               <NavButton
                 active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'workspaces'}
-                onClick={() => {
-                  setActiveLandingSection('workspaces');
-                  setView("landing");
-                  scrollToLandingSection('workspaces');
-                }}
+                onClick={() => navigateToLandingSection('workspaces')}
                 icon={t("icon_public", "public")}
                 label={t("landing_workspaces", "Active Workspaces")}
                 isCollapsed={isSidebarCollapsed}
@@ -303,11 +317,7 @@ export function Sidebar({
               />
               <NavButton
                 active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'news'}
-                onClick={() => {
-                  setActiveLandingSection('news');
-                  setView("landing");
-                  scrollToLandingSection('news');
-                }}
+                onClick={() => navigateToLandingSection('news')}
                 icon={t("icon_newspaper", "newspaper")}
                 label={t("landing_news", "Sanctuary Foundry News")}
                 isCollapsed={isSidebarCollapsed}
@@ -316,11 +326,7 @@ export function Sidebar({
               />
               <NavButton
                 active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'directives'}
-                onClick={() => {
-                  setActiveLandingSection('directives');
-                  setView("landing");
-                  scrollToLandingSection('directives');
-                }}
+                onClick={() => navigateToLandingSection('directives')}
                 icon={t("icon_folder_special", "folder_special")}
                 label={t("landing_system_directives", "Public Documents") || "System Directives"}
                 isCollapsed={isSidebarCollapsed}
@@ -330,11 +336,7 @@ export function Sidebar({
               {!isDesktop() && (
                 <NavButton
                   active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'download'}
-                  onClick={() => {
-                    setActiveLandingSection('download');
-                    setView("landing");
-                    scrollToLandingSection('download');
-                  }}
+                  onClick={() => navigateToLandingSection('download')}
                   icon={t("icon_download", "download")}
                   label={t("landing_download_sidebar", "Download Sanctuary OS")}
                   isCollapsed={isSidebarCollapsed}
@@ -344,11 +346,7 @@ export function Sidebar({
               )}
               <NavButton
                 active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'support'}
-                onClick={() => {
-                  setActiveLandingSection('support');
-                  setView("landing");
-                  scrollToLandingSection('support');
-                }}
+                onClick={() => navigateToLandingSection('support')}
                 icon={t("icon_support_agent", "support_agent")}
                 label={t("landing_nav_feedback", "Feedback & Support")}
                 isCollapsed={isSidebarCollapsed}
@@ -357,11 +355,7 @@ export function Sidebar({
               />
               <NavButton
                 active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'partners'}
-                onClick={() => {
-                  setActiveLandingSection('partners');
-                  setView("landing");
-                  scrollToLandingSection('partners');
-                }}
+                onClick={() => navigateToLandingSection('partners')}
                 icon={t("icon_handshake", "handshake")}
                 label={t("landing_partners_tab", "Partner Spokes")}
                 isCollapsed={isSidebarCollapsed}
@@ -370,11 +364,7 @@ export function Sidebar({
               />
               <NavButton
                 active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'legal'}
-                onClick={() => {
-                  setActiveLandingSection('legal');
-                  setView("landing");
-                  scrollToLandingSection('legal');
-                }}
+                onClick={() => navigateToLandingSection('legal')}
                 icon={t("icon_gavel", "gavel")}
                 label={t("landing_legal_tab", "Legal")}
                 isCollapsed={isSidebarCollapsed}
@@ -383,11 +373,7 @@ export function Sidebar({
               />
               <NavButton
                 active={view !== "settings" && view !== "KeepersCore" && activeLandingSection === 'donations'}
-                onClick={() => {
-                  setActiveLandingSection('donations');
-                  setView("landing");
-                  scrollToLandingSection('donations');
-                }}
+                onClick={() => navigateToLandingSection('donations')}
                 icon={t("icon_volunteer_activism", "volunteer_activism")}
                 label={t("wf_tab_donations", "Donations")}
                 isCollapsed={isSidebarCollapsed}
@@ -726,7 +712,7 @@ export function Sidebar({
                 disabled={!isConfigured}
                 className={`relative w-full h-11 px-3 rounded-xl font-black capitalize tracking-[0.16em] transition-all duration-300 flex items-center justify-center gap-2.5 group/btn overflow-hidden border cursor-pointer ${!isConfigured
                   ? "glass-surface !border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] opacity-30 cursor-not-allowed"
-                  : isPatchDetected || showDefconAlert
+                  : isDefconLaunchAlert
                     ? "glass-surface !border-[color-mix(in_srgb,var(--danger)_55%,rgba(255,255,255,0.32))] hover:!border-[color-mix(in_srgb,var(--danger)_75%,rgba(255,255,255,0.45))] text-[var(--danger)]"
                     : "glass-surface !border-[color-mix(in_srgb,var(--success)_55%,rgba(255,255,255,0.32))] hover:!border-[color-mix(in_srgb,var(--success)_75%,rgba(255,255,255,0.45))] text-[var(--success)]"
                   }`}
@@ -737,7 +723,7 @@ export function Sidebar({
                     className="absolute inset-0 rounded-[inherit] pointer-events-none transition-opacity duration-300 opacity-85 group-hover/btn:opacity-100"
                     style={{
                       background:
-                        isPatchDetected || showDefconAlert
+                        isDefconLaunchAlert
                           ? "linear-gradient(135deg, color-mix(in srgb, var(--danger) 18%, rgba(255, 255, 255, 0.06)) 0%, color-mix(in srgb, var(--danger) 5%, transparent) 55%, transparent 100%)"
                           : "linear-gradient(135deg, color-mix(in srgb, var(--success) 18%, rgba(255, 255, 255, 0.06)) 0%, color-mix(in srgb, var(--success) 5%, transparent) 55%, transparent 100%)",
                     }}

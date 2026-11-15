@@ -22,6 +22,7 @@ import { UniversalCard } from "../../components/universal/UniversalCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../ContextMenu";
 import { formatSanctuaryDate } from "../../utils/dateUtils";
 import { isDesktop } from "../../utils/envUtils";
+import { escapePostgrestFilterValue } from "../../utils/postgrestUtils";
 import {
   getHubCommandCache,
   setHubCommandCache,
@@ -80,7 +81,7 @@ const DEFAULT_MASON_SNAPSHOT: MasonCommandSnapshot = {
 export function MasonCommandScreen({
   onNavigate,
   masonId,
-  masonName: _masonName,
+  masonName,
   isVerifiedMason = false,
   session,
   onOpenRecentReplies,
@@ -110,6 +111,14 @@ export function MasonCommandScreen({
   const refreshMasonDashboard = useCallback(async () => {
     const ownerIds = Array.from(new Set([masonId, userId].filter(Boolean)));
     const targetRoleTag = isVerifiedMason ? "{Mason}" : "{Citizen}";
+    const nexusAuthorOrClauses = ownerIds
+      .map((id) => escapePostgrestFilterValue(id))
+      .filter(Boolean)
+      .map((safeId) => `author_id.eq.${safeId}`);
+    const safeMasonName = escapePostgrestFilterValue(masonName);
+    if (safeMasonName) {
+      nexusAuthorOrClauses.push(`author.ilike."${safeMasonName}"`);
+    }
 
     const [
       broadcastsRes,
@@ -143,16 +152,16 @@ export function MasonCommandScreen({
       ownerIds.length > 0
         ? supabase
             .from("blueprints")
-            .select("id, name, description, created_at, downloads, is_public", { count: "exact" })
+            .select("id, name, game_version, created_at, downloads, is_public", { count: "exact" })
             .in("mason_id", ownerIds)
             .order("created_at", { ascending: false })
             .limit(4)
         : Promise.resolve({ data: [], count: 0 } as any),
-      ownerIds.length > 0
+      nexusAuthorOrClauses.length > 0
         ? supabase
             .from("nexus_assets")
-            .select("id, name, asset_type, version, downloads, is_public, is_outdated, created_at")
-            .in("author", ownerIds)
+            .select("id, name, description, asset_type, version, downloads, is_public, json_data, author, author_id, created_at")
+            .or(nexusAuthorOrClauses.join(","))
             .order("created_at", { ascending: false })
         : Promise.resolve({ data: [] } as any),
       isVerifiedMason && masonId
@@ -165,7 +174,7 @@ export function MasonCommandScreen({
       isVerifiedMason && masonId
         ? supabase
             .from("collections")
-            .select("id, name, description, created_at", { count: "exact" })
+            .select("id, name, set_type, status, created_at", { count: "exact" })
             .eq("mason_id", masonId)
             .order("created_at", { ascending: false })
             .limit(3)
@@ -180,7 +189,7 @@ export function MasonCommandScreen({
       isVerifiedMason && masonId
         ? supabase
             .from("mason_followers")
-            .select("id", { count: "exact", head: true })
+            .select("*", { count: "exact", head: true })
             .eq("mason_id", masonId)
         : Promise.resolve({ count: 0 } as any),
     ]);
@@ -270,14 +279,16 @@ export function MasonCommandScreen({
         String(m.status || "").toLowerCase()
       )
     ).length;
-    const outdatedNexus = nexusAssets.filter((a: any) => Boolean(a.is_outdated)).length;
+    const outdatedNexus = nexusAssets.filter((a: any) => Boolean(a.json_data?.is_outdated)).length;
 
     const studioCards: any[] = [
       ...(blueprintsRes?.data || []).slice(0, 2).map((bp: any) => ({
         id: bp.id,
         title: bp.name || t("term_blueprint", "{Blueprint}"),
         subtitle: t("term_blueprint", "{Blueprint}"),
-        description: bp.description || t("published_blueprint_desc", "Published {Blueprint} loadout in {Nexus}."),
+        description: bp.game_version
+          ? `${t("version", "Version")} ${bp.game_version} • ${bp.downloads || 0} ${t("downloads", "Downloads")}`
+          : t("published_blueprint_desc", "Published {Blueprint} loadout in {Nexus}."),
         created_at: bp.created_at,
         kind: "blueprint",
         targetTab: "nexus",
@@ -306,7 +317,7 @@ export function MasonCommandScreen({
             : isTemplate
               ? t("icon_data_object", "data_object")
               : t("icon_translate", "translate"),
-          is_outdated: Boolean(asset.is_outdated),
+          is_outdated: Boolean(asset.json_data?.is_outdated),
         };
       }),
     ].slice(0, 3);
@@ -336,7 +347,7 @@ export function MasonCommandScreen({
 
     setSnapshot(nextSnapshot);
     setHubCommandCache("mason", cacheScope, nextSnapshot);
-  }, [cacheScope, isVerifiedMason, masonId, t, userId]);
+  }, [cacheScope, isVerifiedMason, masonId, masonName, t, userId]);
 
   useEffect(() => {
     const cached = getHubCommandCache<MasonCommandSnapshot>("mason", cacheScope);
@@ -367,12 +378,14 @@ export function MasonCommandScreen({
       <CommandScreenStats>
         {urgentBroadcast ? (
           <AlertStatTile
+            key="urgent-alert"
             broadcast={urgentBroadcast}
             active={true}
             onClick={() => setIsAlertsOpen(true)}
           />
         ) : isVerifiedMason ? (
           <DashboardStatTile
+            key="mason-mods"
             icon={t("icon_deployed_code", "deployed_code")}
             value={stats.artifacts}
             label={t("term_mods", "{Mods}")}
@@ -381,6 +394,7 @@ export function MasonCommandScreen({
           />
         ) : (
           <DashboardStatTile
+            key="citizen-sandbox"
             icon={t("icon_handyman", "handyman")}
             value={localSandboxCount}
             label={t("filter_dev", "Sandbox")}
@@ -392,6 +406,7 @@ export function MasonCommandScreen({
         {isVerifiedMason ? (
           <>
             <DashboardStatTile
+              key="mason-bugs"
               icon={t("icon_bug_report", "bug_report")}
               value={stats.bugs}
               label={t("open_bug_reports", "Bug Reports")}
@@ -405,6 +420,7 @@ export function MasonCommandScreen({
               }}
             />
             <DashboardStatTile
+              key="mason-replies"
               icon={t("icon_forum", "forum")}
               value={stats.replies}
               label={t("mason_replies_label", "Replies")}
@@ -412,6 +428,7 @@ export function MasonCommandScreen({
               onClick={() => onOpenRecentReplies && onOpenRecentReplies()}
             />
             <DashboardStatTile
+              key="mason-nexus"
               icon={t("icon_hub", "hub")}
               value={totalNexusAndAesthetics}
               label={t("nexus_and_aesthetics", "{Nexus} & Aesthetics")}
@@ -419,6 +436,7 @@ export function MasonCommandScreen({
               onClick={() => onNavigate("nexus")}
             />
             <DashboardStatTile
+              key="mason-support"
               icon={t("icon_confirmation_number", "confirmation_number")}
               value={stats.support}
               label={t("support_tickets", "Support Tickets")}
@@ -429,6 +447,7 @@ export function MasonCommandScreen({
         ) : (
           <>
             <DashboardStatTile
+              key="citizen-blueprints"
               icon={t("icon_map", "map")}
               value={stats.blueprints}
               label={t("term_blueprints", "{Blueprints}")}
@@ -436,6 +455,7 @@ export function MasonCommandScreen({
               onClick={() => onNavigate("nexus")}
             />
             <DashboardStatTile
+              key="citizen-chameleons"
               icon={t("icon_palette", "palette")}
               value={stats.chameleons}
               label={t("term_chameleons", "{Chameleons}")}
@@ -443,6 +463,7 @@ export function MasonCommandScreen({
               onClick={() => (isDesktop() ? onNavigate("chameleons") : onNavigate("nexus"))}
             />
             <DashboardStatTile
+              key="citizen-lexicons"
               icon={t("icon_translate", "translate")}
               value={stats.lexicons}
               label={t("term_lexicons", "{Lexicons}")}
@@ -450,6 +471,7 @@ export function MasonCommandScreen({
               onClick={() => onNavigate("nexus")}
             />
             <DashboardStatTile
+              key="citizen-support"
               icon={t("icon_confirmation_number", "confirmation_number")}
               value={stats.support}
               label={t("support_tickets", "Support Tickets")}

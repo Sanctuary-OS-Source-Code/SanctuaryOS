@@ -25,7 +25,7 @@ export default function WayfinderKeeperSidePanel({ isOpen, onClose, userId }: Ci
         subtitle={t("wf_keeper_support_subtitle", "Direct Escalation Channel to Sanctuary Keepers")}
         icon={t("icon_admin_panel_settings", "admin_panel_settings")}
         iconColorClass="text-[var(--accent)]"
-        widthClass="w-[90vw] md:w-[760px]"
+        widthClass="w-[92vw] md:w-[840px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
@@ -59,6 +59,7 @@ export default function WayfinderKeeperSidePanel({ isOpen, onClose, userId }: Ci
             <WayfinderKeeperTickets 
               userId={userId} 
               onSelectTicket={setSelectedTicket}
+              isSidePanel={true}
             />
           </div>
         </div>

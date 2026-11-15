@@ -1,12 +1,34 @@
 import { useStore } from '../store';
 import { getExtensionRegex } from "./modUtils";
 
+const stripVerDecorators = (raw: string) =>
+  String(raw || "")
+    .trim()
+    .replace(/^(?:>=|<=|!)?\s*[vV]?\.?/, "")
+    .replace(/\+\s*$/, "")
+    .trim();
+
+const normalizeVerToken = (raw: string) =>
+  String(raw || "")
+    .replace(/^V\.?/i, "")
+    .trim();
+
 export const compareVersions = (v1: string, v2: string) => {
   if (!v1 && !v2) return 0;
   if (!v1) return -1;
   if (!v2) return 1;
-  const p1 = v1.replace(/^V\.?/i, "").trim().split(".").map(Number);
-  const p2 = v2.replace(/^V\.?/i, "").trim().split(".").map(Number);
+  const p1 = stripVerDecorators(v1)
+    .split(".")
+    .map((s) => {
+      const n = parseInt(s, 10);
+      return Number.isFinite(n) ? n : 0;
+    });
+  const p2 = stripVerDecorators(v2)
+    .split(".")
+    .map((s) => {
+      const n = parseInt(s, 10);
+      return Number.isFinite(n) ? n : 0;
+    });
   for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
     const n1 = p1[i] || 0;
     const n2 = p2[i] || 0;
@@ -16,99 +38,207 @@ export const compareVersions = (v1: string, v2: string) => {
   return 0;
 };
 
-export const isVersionMatch = (reqs: string[] | string, userVer: string) => {
-  if (!reqs || reqs.length === 0) return true;
-  if (typeof reqs === "string") {
-    if (
-      reqs.includes("ALL") ||
-      reqs.includes("ANY") ||
-      reqs.includes("Unknown") ||
-      reqs.includes("UNKNOWN")
-    )
-      return true;
-  } else {
-    if (
-      reqs.includes("ALL") ||
-      reqs.includes("ANY") ||
-      reqs.includes("Unknown") ||
-      reqs.includes("UNKNOWN")
-    )
-      return true;
+const matchesSingleVersionRule = (rawRule: string, cleanTarget: string): boolean => {
+  const rule = normalizeVerToken(rawRule);
+  if (!rule) return false;
+  const lower = rule.toLowerCase();
+  if (
+    lower === "vlocal" ||
+    lower === "local" ||
+    lower === "any" ||
+    lower === "all" ||
+    lower === "unknown" ||
+    lower === "global"
+  ) {
+    return true;
   }
-  if (!userVer) return true;
-  const userVerArray =
-    typeof userVer === "string"
-      ? userVer.split(",").map((s) => s.replace(/^V\.?/i, "").trim())
-      : [userVer];
-  const reqArray =
-    typeof reqs === "string" ? reqs.split(",").map((s) => s.trim()) : reqs;
 
-  return reqArray.some((req) => {
-    if (!req) return false;
-    const cleanReq = req.replace(/^V\.?/i, "").trim();
-    if (
-      cleanReq.toLowerCase() === "vlocal" ||
-      cleanReq.toLowerCase() === "any" ||
-      cleanReq.toLowerCase() === "all"
-    )
-      return true;
-    if (cleanReq.includes(" - ") || cleanReq.includes("..")) {
-      const parts = cleanReq
-        .split(/\s*-\s*|\.\./)
-        .map((p) => p.replace(/^V\.?/i, "").trim())
-        .filter(Boolean);
-      if (parts.length === 2) {
-        const low = compareVersions(parts[0], parts[1]) <= 0 ? parts[0] : parts[1];
-        const high = compareVersions(parts[0], parts[1]) <= 0 ? parts[1] : parts[0];
-        return userVerArray.some(
-          (uv) => compareVersions(uv, low) >= 0 && compareVersions(uv, high) <= 0,
-        );
-      }
+  if (rule.includes("..") || rule.includes(" - ") || /\d\s*-\s*\d/.test(rule)) {
+    const parts = rule
+      .split(/\s*-\s*|\.\./)
+      .map((p) => normalizeVerToken(p))
+      .filter(Boolean);
+    if (parts.length === 2) {
+      const low = compareVersions(parts[0], parts[1]) <= 0 ? parts[0] : parts[1];
+      const high = compareVersions(parts[0], parts[1]) <= 0 ? parts[1] : parts[0];
+      return (
+        compareVersions(cleanTarget, low) >= 0 &&
+        (compareVersions(cleanTarget, high) <= 0 ||
+          cleanTarget.startsWith(high + "."))
+      );
     }
-    return userVerArray.some(
-      (uv) => uv === cleanReq || uv.startsWith(cleanReq + "."),
+  }
+
+  if (rule.endsWith("+") || rule.startsWith(">=")) {
+    const minVer = normalizeVerToken(rule.replace(/^>=\s*/, "").replace(/\+\s*$/, ""));
+    if (!minVer) return false;
+    return compareVersions(cleanTarget, minVer) >= 0;
+  }
+
+  if (rule.startsWith("<=")) {
+    const maxVer = normalizeVerToken(rule.replace(/^<=\s*/, ""));
+    if (!maxVer) return false;
+    return (
+      compareVersions(cleanTarget, maxVer) <= 0 ||
+      cleanTarget.startsWith(maxVer + ".")
     );
+  }
+
+  return (
+    cleanTarget === rule ||
+    cleanTarget.startsWith(rule + ".") ||
+    rule.startsWith(cleanTarget + ".")
+  );
+};
+
+export const isVersionMatch = (reqs: string[] | string, userVer: string) => {
+  const reqArray = (
+    typeof reqs === "string"
+      ? reqs.split(",")
+      : Array.isArray(reqs)
+        ? reqs.flatMap((r) => String(r || "").split(","))
+        : []
+  )
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (reqArray.length === 0) return true;
+  if (!userVer) return true;
+
+  const userVerArray = (
+    typeof userVer === "string" ? userVer.split(",") : [String(userVer)]
+  )
+    .map((s) => normalizeVerToken(s))
+    .filter(Boolean);
+
+  if (
+    userVerArray.length === 0 ||
+    userVerArray.some((uv) => {
+      const l = uv.toLowerCase();
+      return !l || l === "unknown" || l === "all" || l === "any";
+    })
+  ) {
+    return true;
+  }
+
+  const exclusions: string[] = [];
+  const positives: string[] = [];
+  for (const raw of reqArray) {
+    if (raw.startsWith("!")) {
+      const ex = raw.slice(1).trim();
+      if (ex) exclusions.push(ex);
+    } else {
+      positives.push(raw);
+    }
+  }
+
+  const hasWildcardPositive = positives.some((p) => {
+    const l = normalizeVerToken(p).toLowerCase();
+    return (
+      l === "all" ||
+      l === "any" ||
+      l === "unknown" ||
+      l === "vlocal" ||
+      l === "local" ||
+      l === "global"
+    );
+  });
+
+  if (hasWildcardPositive && exclusions.length === 0) {
+    return true;
+  }
+
+  return userVerArray.some((uv) => {
+    if (exclusions.some((ex) => matchesSingleVersionRule(ex, uv))) {
+      return false;
+    }
+    if (positives.length === 0 || hasWildcardPositive) {
+      return true;
+    }
+    return positives.some((pos) => matchesSingleVersionRule(pos, uv));
   });
 };
 
 export const getHighestVersion = (reqs: string[] | string) => {
-  if (!reqs || reqs.length === 0) return "Unknown";
-  if (reqs.includes("ALL")) return "ALL";
-  const reqArray =
-    typeof reqs === "string" ? reqs.split(",").map((s) => s.trim()) : reqs;
-  const flatReqs = reqArray.flatMap((r) =>
-    r.split(/,|\s+-\s+|\.\./).map((s) => s.trim()).filter(Boolean)
-  );
-  const sorted = [...flatReqs].sort((a, b) => {
-    const partsA = a.split(".").map(Number);
-    const partsB = b.split(".").map(Number);
-    for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
-      const valA = partsA[i] || 0;
-      const valB = partsB[i] || 0;
-      if (valA !== valB) return valB - valA;
-    }
-    return 0;
-  });
+  const reqArray = (
+    typeof reqs === "string"
+      ? reqs.split(",")
+      : Array.isArray(reqs)
+        ? reqs.flatMap((r) => String(r || "").split(","))
+        : []
+  )
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (reqArray.length === 0) return "Unknown";
+  const positives = reqArray.filter((r) => !r.startsWith("!"));
+  if (positives.some((r) => ["all", "any"].includes(normalizeVerToken(r).toLowerCase()))) {
+    return "ALL";
+  }
+  const flatReqs = positives
+    .flatMap((r) => r.split(/\s+-\s+|\.\./))
+    .map((s) => stripVerDecorators(s))
+    .filter((s) => Boolean(s) && /^\d/.test(s));
+  if (flatReqs.length === 0) {
+    return reqArray.some((r) => r.startsWith("!")) ? "ALL" : "Unknown";
+  }
+  const sorted = [...flatReqs].sort((a, b) => compareVersions(b, a));
   return sorted[0];
 };
 
 export const getLowestVersion = (versions: string[]): string => {
   if (!versions || versions.length === 0) return "";
-  const expanded = versions.flatMap((v) =>
-    v.split(/,|\s+-\s+|\.\./).map((s) => s.trim()).filter(Boolean)
-  );
+  const expanded = versions
+    .flatMap((v) => String(v || "").split(","))
+    .map((s) => s.trim())
+    .filter((s) => Boolean(s) && !s.startsWith("!"))
+    .flatMap((v) => v.split(/\s+-\s+|\.\./))
+    .map((s) => stripVerDecorators(s))
+    .filter((s) => Boolean(s) && /^\d/.test(s));
   if (expanded.length === 0) return "";
-  return expanded.reduce((a, b) => {
-    const aParts = a.split(".").map(Number);
-    const bParts = b.split(".").map(Number);
-    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-      const aVal = aParts[i] || 0;
-      const bVal = bParts[i] || 0;
-      if (aVal < bVal) return a;
-      if (aVal > bVal) return b;
+  return expanded.reduce((a, b) => (compareVersions(a, b) < 0 ? a : b));
+};
+
+export const formatVersionRangesLabel = (
+  reqs?: readonly unknown[] | string | null
+): string => {
+  const reqArray = (
+    typeof reqs === "string"
+      ? reqs.split(",")
+      : Array.isArray(reqs)
+        ? reqs.flatMap((r) => String(r || "").split(","))
+        : []
+  )
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (reqArray.length === 0) return "Unknown";
+  if (
+    reqArray.length === 1 &&
+    ["all", "any", "unknown"].includes(normalizeVerToken(reqArray[0]).toLowerCase())
+  ) {
+    return reqArray[0].toLowerCase() === "unknown" ? "Unknown" : "ALL";
+  }
+
+  const formatted = reqArray.map((raw) => {
+    const isNeg = raw.startsWith("!");
+    const body = normalizeVerToken(isNeg ? raw.slice(1) : raw);
+    let label = body;
+    if (body.includes("..") || body.includes(" - ") || /\d\s*-\s*\d/.test(body)) {
+      const parts = body
+        .split(/\s*-\s*|\.\./)
+        .map((p) => normalizeVerToken(p))
+        .filter(Boolean);
+      if (parts.length === 2) {
+        label = `${parts[0]}\u2013${parts[1]}`;
+      }
     }
-    return a;
+    return isNeg ? `!${label}` : label;
   });
+
+  if (formatted.length > 3) {
+    return `${formatted.slice(0, 2).join(", ")} +${formatted.length - 2}`;
+  }
+  return formatted.join(", ");
 };
 
 export const deriveHumanReadableVersion = (

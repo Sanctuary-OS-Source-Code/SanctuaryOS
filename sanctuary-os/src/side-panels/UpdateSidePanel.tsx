@@ -523,15 +523,10 @@ export function UpdateSidePanel() {
       ? t("release_notes_github_changelog_title", "Full Change Log")
       : activePostRecord.title;
 
-  const activeChangelogHeading =
-    parseLatestChangelogBlock(resolvedChangelogMarkdown).heading || seedChangelog.heading;
-
   const activeGroupTitle =
     activeView === "changelog"
-      ? activeChangelogHeading || t("release_notes_tile_changelog", "Changelog")
-      : activeChangelogHeading ||
-      activePostRecord.summary ||
-      t("release_notes_blog_panel_title", "Community Release Notes");
+      ? t("release_notes_full_changelog_heading", "Full Change Log")
+      : t("release_notes_post_overview_heading", "Release Overview");
 
   const activeMarkdownContent =
     activeView === "changelog"

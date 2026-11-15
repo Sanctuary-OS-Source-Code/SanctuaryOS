@@ -986,7 +986,20 @@ export function LandingApplicationDrawers({
             badgeIcon={t('icon_verified', 'verified')}
             variant="accent"
           >
-            <LegalDocVersionInfoBlock />
+            <LegalDocVersionInfoBlock
+              content={
+                activePartnerCovenant === 'ComplianceProtocol'
+                  ? syncedCovenantDocs.ComplianceProtocol?.content ||
+                    CANONICAL_LEGAL_DOCS.ComplianceProtocol.bundledContent
+                  : syncedCovenantDocs.PartnersAgreement?.content ||
+                    CANONICAL_LEGAL_DOCS.PartnersAgreement.bundledContent
+              }
+              updatedAt={
+                activePartnerCovenant === 'ComplianceProtocol'
+                  ? syncedCovenantDocs.ComplianceProtocol?.updated_at
+                  : syncedCovenantDocs.PartnersAgreement?.updated_at
+              }
+            />
           </SidePanelHeroCard>
 
           <UniversalGroup

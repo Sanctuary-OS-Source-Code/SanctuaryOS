@@ -105,6 +105,14 @@ export function StaticPollingGuideSidePanel({
         name: cleanModName,
         author: authorStr,
         version: versionStr,
+        game_version:
+          Array.isArray(mod?.compatible_versions) && mod.compatible_versions.length > 0
+            ? mod.compatible_versions[0]
+            : "1.0.0",
+        compatible_versions:
+          Array.isArray(mod?.compatible_versions) && mod.compatible_versions.length > 0
+            ? mod.compatible_versions
+            : ["1.0.0"],
         release_date: new Date().toISOString().split("T")[0],
         category: mod?.category_override || "Script",
         compliance_tier: typeof mod?.compliance_tier === "number" ? mod.compliance_tier : 1,

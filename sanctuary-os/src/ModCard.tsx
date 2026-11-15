@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { HoverTooltip, formatDisplayName, getModIcon, getExtensionRegex, isScriptExtension, cleanSearchName, mapDlcCode, isVersionMatch, getHighestVersion, getLowestVersion, parseStringArray } from "./shared";
+import { HoverTooltip, formatDisplayName, getModIcon, getExtensionRegex, isScriptExtension, cleanSearchName, mapDlcCode, isVersionMatch, getHighestVersion, formatVersionRangesLabel, parseStringArray } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
 import { UniversalCard } from "./components/universal/UniversalCard";
@@ -79,29 +79,42 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
 
   const hasMissingDeps = missingDeps.length > 0;
 
-  const getVersions = (target: any) => {
-    const v = target.compatible_versions;
-    return typeof v === 'string' ? v.split(',').map((s: string) => s.trim()) : (v || []);
+  const getVersions = (target: any): string[] => {
+    const v = target?.compatible_versions;
+    return typeof v === 'string'
+      ? v.split(',').map((s: string) => s.trim()).filter(Boolean)
+      : Array.isArray(v)
+        ? v.map((s: any) => String(s || "").trim()).filter(Boolean)
+        : [];
   };
+
+  const modVersions = getVersions(mod);
+  const flavorWithVersions = (mod.isVirtual && Array.isArray(mod.flavors) ? mod.flavors : []).filter(
+    (f: any) => getVersions(f).length > 0
+  );
+  const mismatchedFlavorVersions = gameVersion
+    ? flavorWithVersions
+        .filter((f: any) => !isVersionMatch(getVersions(f), gameVersion))
+        .flatMap((f: any) => getVersions(f))
+    : [];
 
   let familyVersion = "Unknown";
   if (mod.isVirtual) {
-    const highestPerFlavor = (mod.flavors || [])
-      .map((f: any) => getHighestVersion(getVersions(f)))
-      .filter((v: string) => v && v !== "Unknown" && v !== "ALL" && v !== "ANY" && v.toLowerCase() !== "global");
-    familyVersion = highestPerFlavor.length > 0 ? getLowestVersion(highestPerFlavor) : getHighestVersion(getVersions(mod));
+    const allFlavorRules = flavorWithVersions.flatMap((f: any) => getVersions(f)).filter(Boolean);
+    familyVersion = allFlavorRules.length > 0
+      ? formatVersionRangesLabel(allFlavorRules)
+      : modVersions.length > 0
+        ? formatVersionRangesLabel(modVersions)
+        : "Unknown";
   } else {
-    familyVersion = getHighestVersion(getVersions(mod));
+    familyVersion = modVersions.length > 0 ? formatVersionRangesLabel(modVersions) : "Unknown";
   }
 
   const isGameVersionMismatch = Boolean(
     gameVersion &&
-    familyVersion !== "Unknown" &&
-    familyVersion !== "ALL" &&
-    familyVersion !== "ANY" &&
-    familyVersion.toLowerCase() !== "global" &&
-    familyVersion !== "" &&
-    !isVersionMatch([familyVersion], gameVersion)
+    (mod.isVirtual && flavorWithVersions.length > 0
+      ? mismatchedFlavorVersions.length > 0
+      : modVersions.length > 0 && !isVersionMatch(modVersions, gameVersion))
   );
 
   const hasLiveGhostIssue = missingPacks.length > 0 || hasMissingDeps || isGameVersionMismatch;
@@ -111,7 +124,12 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
     return null;
   }
 
-  const requiredVersions = [familyVersion];
+  const requiredVersions =
+    mismatchedFlavorVersions.length > 0
+      ? Array.from(new Set(mismatchedFlavorVersions))
+      : modVersions.length > 0
+        ? modVersions
+        : [familyVersion];
   const isBetaSwap = isSelfBetaSwap !== undefined ? isSelfBetaSwap : (!isInActiveSet && (mod.relationshipType === 'beta' || (mod.relationshipType !== 'core' && mod.sub_type?.toLowerCase() === 'beta') || (mod.isVirtual && mod.flavors?.some((f: any) => f.relationshipType === 'beta' || (f.relationshipType !== 'core' && f.sub_type?.toLowerCase() === 'beta')))));
   const isSwappedState = isSelfSwapped !== undefined ? isSelfSwapped : ((isFlavorSwap || isBetaSwap) && !isInActiveSet);
   const isNemesisEquipped = !isInActiveSet && casualtyList.length > 0 && !casualtyList.every((c: any) => mod.flavors?.some((f: any) => f.name === (c.name || c) || f.displayName === (c.name || c) || (c.name || c) === (f.displayName || f.name))) && !isSwappedState;
@@ -215,9 +233,8 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
 
   const chipClass =
     "px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0";
-  const isTier1Or2 = mod.compliance_tier === 1 || mod.compliance_tier === 2;
   const hasExplicitStatus = mod.status && mod.status.trim() !== "" && mod.status.toLowerCase() !== 'local folder' && mod.status.toLowerCase() !== 'local node';
-  const statusType = hasExplicitStatus ? mod.status.toLowerCase() : (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2) ? 'local' : 'local';
+  const statusType = hasExplicitStatus ? mod.status.toLowerCase() : (!mod.dbId || mod.version?.toLowerCase() === 'v.local') ? 'local' : 'local';
   const isStatusBroken = isSelfBroken;
 
   let statusIcon = t("icon_science", "science");
@@ -274,11 +291,11 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
   const extLabel = isScript
     ? t("type_script", "Script")
     : !mod.isCollection
-      ? t("type_package", "Package")
+      ? t("module", "Module")
       : null;
 
   const statusBadgeLabel = (() => {
-    if (!hasExplicitStatus && (!mod.dbId || mod.version?.toLowerCase() === 'v.local' || isTier1Or2)) return t("badge_local", "Unlinked");
+    if (!hasExplicitStatus && (!mod.dbId || mod.version?.toLowerCase() === 'v.local')) return t("badge_local", "Unlinked");
     const raw = (mod.status || "");
     let cleaned = raw.replace(/[[]"]/g, "");
     if (cleaned === 'bunker') cleaned = 'vault';
@@ -303,7 +320,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
   })();
 
   const statusGameVersionValue = mod.compatible_versions && mod.compatible_versions.length > 0
-    ? getHighestVersion(mod.compatible_versions)
+    ? formatVersionRangesLabel(mod.compatible_versions)
     : t("filter_all", "All");
 
   const statusUpdatedDateValue = (() => {
@@ -352,7 +369,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
   return (
     <div id={id} className="relative group/shadow min-h-[160px] h-full flex flex-col shadow-xl transition-colors duration-300 z-10 hover:z-[100]" style={{ borderRadius: 'var(--radius)' }}>
       {isGhostPlaceholder && (
-        <div className="absolute inset-0 z-50 rounded-[var(--radius)] border-2 border-[var(--accent)] shadow-[0_0_30px_rgba(var(--accent-rgb),0.2)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] pointer-events-none" />
+        <div className="absolute inset-0 z-50 rounded-[var(--radius)] border border-dashed border-[color-mix(in_srgb,var(--text)_28%,transparent)] bg-[color-mix(in_srgb,var(--text)_5%,transparent)] pointer-events-none" />
       )}
       <div className="relative w-full h-full flex flex-col">
 
@@ -418,18 +435,18 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
               if (mod.name?.startsWith('LOCAL_SET_')) {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'copy';
-                e.currentTarget.classList.add('shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', '!border-[var(--accent)]');
+                e.currentTarget.classList.add('shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', 'sa-glass-active');
               }
             }}
             onDragLeave={(e) => {
               if (mod.name?.startsWith('LOCAL_SET_')) {
-                e.currentTarget.classList.remove('shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', '!border-[var(--accent)]');
+                e.currentTarget.classList.remove('shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', 'sa-glass-active');
               }
             }}
             onDrop={(e) => {
               if (mod.name?.startsWith('LOCAL_SET_')) {
                 e.preventDefault();
-                e.currentTarget.classList.remove('shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', '!border-[var(--accent)]');
+                e.currentTarget.classList.remove('shadow-[0_0_50px_rgba(var(--accent-rgb),0.5)]', 'sa-glass-active');
                 const droppedHash = e.dataTransfer.getData('sanctuary/mod-hash');
                 if (droppedHash) {
                   const localSts = JSON.parse(localStorage.getItem(`sanctuary_${useStore.getState().activeWorkspaceId}_playsets`) || "[]");
@@ -495,13 +512,13 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                     className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer pointer-events-auto ${
                       isShadowed
                         ? isSwappedState
-                          ? 'border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] text-[var(--accent)]'
-                          : 'border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] text-[var(--danger)]'
+                          ? 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--accent)]'
+                          : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--danger)]'
                         : hasTier3 && !isInActiveSet
-                          ? 'border-[color-mix(in_srgb,var(--warning)_35%,transparent)] hover:border-[var(--warning)] text-[var(--warning)]'
+                          ? 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--warning)]'
                           : isInActiveSet
-                            ? 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)]'
-                            : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)] text-[var(--success)]'
+                            ? 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--danger)]'
+                            : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--success)]'
                     }`}
                   >
                     {isShadowed ? (
@@ -534,7 +551,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                           : isGameVersionMismatch
                             ? (
                               <>
-                                <div className="w-full truncate">{t("tooltip_required", "Required:")} {getHighestVersion(requiredVersions || [])}</div>
+                                <div className="w-full truncate">{t("tooltip_required", "Required:")} {formatVersionRangesLabel(requiredVersions || [])}</div>
                                 <div className="w-full truncate">{t("tooltip_current", "Current:")} {gameVersion || t("unknown", "Unknown")}</div>
                               </>
                             )
@@ -627,18 +644,18 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                     <>
                       {isGameVersionMismatch && (
                         <div className="relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl">
-                          <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex items-center justify-center shrink-0">
+                          <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0">
                             <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_sports_esports", "sports_esports")}</span>
                           </div>
                           <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
                             <span className="text-[8.5px] font-black text-[var(--danger)] uppercase tracking-wider leading-none">{t("required_version", "Required Game Version")}</span>
-                            <span className="text-[11px] font-black text-[var(--text)] tracking-tight leading-tight truncate">{getHighestVersion(requiredVersions || [])}</span>
+                            <span className="text-[11px] font-black text-[var(--text)] tracking-tight leading-tight truncate">{formatVersionRangesLabel(requiredVersions || [])}</span>
                           </div>
                           <HoverTooltip
                             onlyWhenTruncated
                             variant="danger"
                             icon={t("icon_sports_esports", "sports_esports")}
-                            title={getHighestVersion(requiredVersions || [])}
+                            title={formatVersionRangesLabel(requiredVersions || [])}
                             subtitle={t("required_version", "Required Game Version")}
                           />
                         </div>
@@ -647,7 +664,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                         const dlcName = mapDlcCode(p);
                         return (
                           <div key={p} className="relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl">
-                            <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex items-center justify-center shrink-0">
+                            <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_currency_exchange", "currency_exchange")}</span>
                             </div>
                             <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
@@ -670,8 +687,8 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                         return (
                           <div key={reqIdStr}
                             onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(req); } }}
-                            className={`relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl transition-colors ${onInspectItem ? 'cursor-pointer hover:border-[color-mix(in_srgb,var(--danger)_42%,transparent)] group/inspect' : ''}`}>
-                            <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex items-center justify-center shrink-0">
+                            className={`relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl transition-colors ${onInspectItem ? 'cursor-pointer hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] group/inspect' : ''}`}>
+                            <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_extension", "extension")}</span>
                             </div>
                             <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
@@ -696,7 +713,7 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                           const dlcName = mapDlcCode(p);
                           return (
                             <div key={p} className="relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl">
-                              <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex items-center justify-center shrink-0">
+                              <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0">
                                 <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_currency_exchange", "currency_exchange")}</span>
                               </div>
                               <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
@@ -714,12 +731,12 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                           );
                         }) : (
                           <div className="relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl">
-                            <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex items-center justify-center shrink-0">
+                            <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_sports_esports", "sports_esports")}</span>
                             </div>
                             <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
                               <span className="text-[8.5px] font-black text-[var(--danger)] uppercase tracking-wider leading-none">{t("required_version", "Required Game Version")}</span>
-                              <span className="text-[11px] font-black text-[var(--text)] tracking-tight leading-tight truncate">{getHighestVersion(requiredVersions || [])}</span>
+                              <span className="text-[11px] font-black text-[var(--text)] tracking-tight leading-tight truncate">{formatVersionRangesLabel(requiredVersions || [])}</span>
                             </div>
                           </div>
                         )
@@ -733,8 +750,8 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                       return (
                         <div key={i}
                           onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(c); } }}
-                          className={`relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl transition-colors ${onInspectItem ? `cursor-pointer group/inspect ${delayedConfirmMode === 'flavor_swap' ? 'hover:border-[color-mix(in_srgb,var(--accent)_42%,transparent)]' : 'hover:border-[color-mix(in_srgb,var(--danger)_42%,transparent)]'}` : ''}`}>
-                          <div className={`w-7 h-7 rounded-lg glass-surface border flex items-center justify-center shrink-0 ${delayedConfirmMode === 'flavor_swap' ? 'border-[color-mix(in_srgb,var(--accent)_32%,transparent)]' : 'border-[color-mix(in_srgb,var(--danger)_32%,transparent)]'}`}>
+                          className={`relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl transition-colors ${onInspectItem ? 'cursor-pointer hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] group/inspect' : ''}`}>
+                          <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0">
                             <span className={`material-symbols-outlined !text-[14px] ${delayedConfirmMode === 'flavor_swap' ? 'text-[var(--accent)]' : 'text-[var(--danger)]'}`}>{itemIcon}</span>
                           </div>
                           <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
@@ -760,8 +777,8 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                       return (
                         <div key={i}
                           onClick={(e) => { if (onInspectItem) { e.stopPropagation(); onInspectItem(b); } }}
-                          className={`relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl transition-colors ${onInspectItem ? 'cursor-pointer hover:border-[color-mix(in_srgb,var(--danger)_42%,transparent)] group/inspect' : ''}`}>
-                          <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] flex items-center justify-center shrink-0">
+                          className={`relative flex items-center gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] py-2.5 px-3 min-h-[46px] rounded-xl transition-colors ${onInspectItem ? 'cursor-pointer hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] group/inspect' : ''}`}>
+                          <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0">
                             <span className="material-symbols-outlined !text-[14px] text-[var(--danger)]">{t("icon_broken_image", "broken_image")}</span>
                           </div>
                           <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
@@ -785,8 +802,8 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                     <div className="flex flex-col relative gap-2">
                       <div className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)] mb-0.5 px-1">{t("select_winner", "Select Winner")}</div>
                       <div className="relative flex flex-col gap-4">
-                        <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, mod.name); } }, 10); }} className="relative flex items-center justify-start gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] transition-all duration-300 py-2.5 px-3 min-h-[46px] rounded-xl w-full text-left group/btn cursor-pointer">
-                          <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--warning)_32%,transparent)] flex items-center justify-center shrink-0">
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, mod.name); } }, 10); }} className="relative flex items-center justify-start gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all duration-300 py-2.5 px-3 min-h-[46px] rounded-xl w-full text-left group/btn cursor-pointer">
+                          <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0">
                             <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">{t("icon_tune", "tune")}</span>
                           </div>
                           <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
@@ -808,8 +825,8 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                           </div>
                           <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent" />
                         </div>
-                        <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, tier3List[0]?.rawName || tier3List[0]?.name); } }, 10); }} className="relative flex items-center justify-start gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] transition-all duration-300 py-2.5 px-3 min-h-[46px] rounded-xl w-full text-left group/btn cursor-pointer">
-                          <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--warning)_32%,transparent)] flex items-center justify-center shrink-0">
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); setTimeout(() => { if (onResolveConflict) { onResolveConflict(e, tier3List, mod, tier3List[0]?.rawName || tier3List[0]?.name); } }, 10); }} className="relative flex items-center justify-start gap-2.5 shrink-0 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all duration-300 py-2.5 px-3 min-h-[46px] rounded-xl w-full text-left group/btn cursor-pointer">
+                          <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0">
                             <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">{t("icon_tune", "tune")}</span>
                           </div>
                           <div className="flex flex-col justify-center min-w-0 flex-1 gap-0.5">
@@ -835,14 +852,14 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                   <div className="absolute top-0 left-3.5 right-3.5 h-px bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--text)_10%,transparent)] to-transparent pointer-events-none" />
                   {delayedConfirmMode === 'tier3' ? (
                   <>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--warning)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
                       <span className="material-symbols-outlined !text-[13px] shrink-0">{t("icon_warning", "warning")}</span>
                       <span>{t("btn_ignore_conflict", "Ignore Conflict")}</span>
                     </button>
                   </>
                 ) : delayedConfirmMode === 'broken' || delayedConfirmMode === 'dlc' ? (
                   <>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--danger)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
                       <span className="material-symbols-outlined !text-[13px] shrink-0">{t("icon_warning", "warning")}</span>
                       <span>{t("btn_equip_anyway", "Proceed Anyway")}</span>
                     </button>
@@ -854,29 +871,29 @@ function ModCardInner({ mod, gameVersion, isInActiveSet, onSelect: _onSelect, on
                   </>
                 ) : delayedConfirmMode === 'flavor_swap' ? (
                   <>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-black text-[9.5px] uppercase tracking-wider px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words transition-all cursor-pointer text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-black text-[9.5px] uppercase tracking-wider px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words transition-all cursor-pointer text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]">
                       <span className="material-symbols-outlined !text-[13px] shrink-0">{t("icon_swap_horiz", "swap_horiz")}</span>
                       <span>{t("btn_swap_mods", "Swap {Mods}")}</span>
                     </button>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true, true); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
                       <span className="material-symbols-outlined !text-[13px] shrink-0 text-[var(--warning)]">{t("icon_layers", "layers")}</span>
                       <span>{t("btn_keep_both", "Keep Both")}</span>
                     </button>
                   </>
                 ) : (
                   <>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-black text-[9.5px] uppercase tracking-wider px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words transition-all cursor-pointer text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)]">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); onToggleSet(e, true, false); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] font-black text-[9.5px] uppercase tracking-wider px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words transition-all cursor-pointer text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]">
                       <span className="material-symbols-outlined !text-[13px] shrink-0">{t("icon_delete", "delete")}</span>
                       <span>{t("btn_purge_confirm", "{Remove} {Mods}")}</span>
                     </button>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--text)] hover:text-[var(--success)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] hover:text-[var(--success)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
                       <span className="material-symbols-outlined !text-[13px] shrink-0 text-[var(--success)]">{t("icon_shield", "shield")}</span>
                       <span>{t("btn_safety", "Back to Safety")}</span>
                     </button>
                   </>
                 )}
                 {(delayedConfirmMode === 'tier3' || delayedConfirmMode === 'broken' || delayedConfirmMode === 'dlc') && (
-                  <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--text)] hover:text-[var(--success)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmMode(null); }} className="flex-1 glass-surface min-w-0 py-2 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] hover:text-[var(--success)] font-black text-[9.5px] uppercase tracking-wider transition-all px-2.5 min-h-[34px] flex items-center justify-center gap-1.5 leading-tight whitespace-normal text-center break-words cursor-pointer">
                     <span className="material-symbols-outlined !text-[13px] shrink-0 text-[var(--success)]">{t("icon_shield", "shield")}</span>
                     <span>{t("btn_safety", "Back to Safety")}</span>
                   </button>

@@ -138,10 +138,10 @@ export function ElevatedHubLayout({
           ref={ownHeaderRef}
           className={`flex flex-col md:flex-row w-full items-stretch md:items-center mb-6 md:mb-8 shrink-0 gap-3 md:gap-5 ${centerTitle ? 'justify-between' : 'justify-between'}`}
         >
-          <div className={`flex items-center gap-3 min-w-0 ${centerTitle ? 'flex-1 justify-start' : 'shrink-0'}`}>
+          <div className={`flex items-center gap-3 min-w-0 ${centerTitle ? 'flex-1 justify-start' : ''}`}>
             {backButton}
             {shouldRenderTitleBlock && !centerTitle && (
-              <div className="glass-panel rounded-2xl p-2.5 pr-4 md:p-3 md:pr-5 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 w-fit max-w-full">
+              <div className="glass-panel rounded-2xl p-2.5 pr-4 md:p-3 md:pr-5 flex items-center gap-3 md:gap-3.5 min-w-0 w-fit max-w-full overflow-hidden">
                 {headerIcon && (
                   <div className="w-9 h-9 md:w-11 md:h-11 rounded-xl flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))]">
                     <span className={`material-symbols-outlined !text-[18px] md:!text-[22px] ${(headerIconColorClass || 'text-[var(--accent)]').split(' ').filter((c) => !c.startsWith('border-') && !c.startsWith('bg-')).join(' ')}`}>
@@ -149,22 +149,24 @@ export function ElevatedHubLayout({
                     </span>
                   </div>
                 )}
-                <div className="flex flex-col gap-0.5 items-start justify-center text-left flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 w-full min-w-0">
+                <div className="flex flex-col gap-1 items-start justify-center text-left min-w-0 max-w-full">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 w-full min-w-0 max-w-full">
                     <h1
-                      className={`text-base md:text-xl font-black tracking-tight leading-tight m-0 text-left text-[var(--text)] shrink-0 transition-colors ${onHeaderTitleClick ? 'hover:theme-text-accent cursor-pointer' : ''}`}
+                      className={`text-base md:text-xl font-black tracking-tight leading-tight m-0 text-left text-[var(--text)] min-w-0 max-w-full whitespace-normal break-words transition-colors ${onHeaderTitleClick ? 'hover:theme-text-accent cursor-pointer' : ''}`}
                       onClick={onHeaderTitleClick}
                     >
                       {headerTitle}
                     </h1>
                     {headerBreadcrumb && (
-                      <span className="px-2.5 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] md:text-[11px] font-black uppercase tracking-wider text-[var(--text)] leading-tight">
-                        {headerBreadcrumb}
-                      </span>
+                      <div className="flex items-center min-w-0 max-w-full">
+                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 min-h-[22px] max-w-full rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] md:text-[11px] font-black uppercase tracking-wider text-[var(--text)]">
+                          <span className="truncate leading-snug">{headerBreadcrumb}</span>
+                        </span>
+                      </div>
                     )}
                   </div>
                   {headerSubtitle && (
-                    <h2 className="text-[10px] md:text-[11px] font-medium tracking-wide text-[var(--subtext)] m-0 text-left opacity-80 leading-snug break-words max-w-2xl">
+                    <h2 className={`text-[10px] md:text-[11px] font-medium tracking-wide text-[var(--subtext)] m-0 text-left opacity-80 leading-snug break-words w-full max-w-2xl ${headerBreadcrumb ? 'mt-1' : ''}`}>
                       {headerSubtitle}
                     </h2>
                   )}
@@ -174,7 +176,7 @@ export function ElevatedHubLayout({
           </div>
 
           {shouldRenderTitleBlock && centerTitle && (
-            <div className="glass-panel rounded-2xl p-2.5 px-4 md:p-3 md:px-5 flex items-center justify-center gap-3 shrink-0 min-w-0 mx-auto">
+            <div className="glass-panel rounded-2xl p-2.5 px-4 md:p-3 md:px-5 flex items-center justify-center gap-3 min-w-0 max-w-full overflow-hidden mx-auto">
               {headerIcon && (
                 <div className="w-9 h-9 md:w-11 md:h-11 rounded-xl flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))]">
                   <span className={`material-symbols-outlined !text-[18px] md:!text-[22px] ${(headerIconColorClass || 'text-[var(--accent)]').split(' ').filter((c) => !c.startsWith('border-') && !c.startsWith('bg-')).join(' ')}`}>
@@ -182,22 +184,24 @@ export function ElevatedHubLayout({
                   </span>
                 </div>
               )}
-              <div className="flex flex-col gap-0.5 items-center justify-center text-center min-w-0">
-                <div className="flex flex-wrap items-center justify-center gap-2 min-w-0">
+              <div className="flex flex-col gap-1 items-center justify-center text-center min-w-0 max-w-full">
+                <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 min-w-0 max-w-full">
                   <h1
-                    className={`text-base md:text-xl font-black tracking-tight leading-tight m-0 text-[var(--text)] transition-colors ${onHeaderTitleClick ? 'hover:theme-text-accent cursor-pointer' : ''}`}
+                    className={`text-base md:text-xl font-black tracking-tight leading-tight m-0 text-[var(--text)] min-w-0 max-w-full whitespace-normal break-words transition-colors ${onHeaderTitleClick ? 'hover:theme-text-accent cursor-pointer' : ''}`}
                     onClick={onHeaderTitleClick}
                   >
                     {headerTitle}
                   </h1>
                   {headerBreadcrumb && (
-                    <span className="px-2.5 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] md:text-[11px] font-black uppercase tracking-wider text-[var(--text)] leading-tight">
-                      {headerBreadcrumb}
-                    </span>
+                    <div className="flex items-center min-w-0 max-w-full">
+                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 min-h-[22px] max-w-full rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] md:text-[11px] font-black uppercase tracking-wider text-[var(--text)]">
+                        <span className="truncate leading-snug">{headerBreadcrumb}</span>
+                      </span>
+                    </div>
                   )}
                 </div>
                 {headerSubtitle && (
-                  <h2 className="text-[10px] md:text-[11px] font-medium tracking-wide text-[var(--subtext)] m-0 opacity-80 leading-snug">
+                  <h2 className={`text-[10px] md:text-[11px] font-medium tracking-wide text-[var(--subtext)] m-0 opacity-80 leading-snug break-words max-w-full ${headerBreadcrumb ? 'mt-1' : ''}`}>
                     {headerSubtitle}
                   </h2>
                 )}

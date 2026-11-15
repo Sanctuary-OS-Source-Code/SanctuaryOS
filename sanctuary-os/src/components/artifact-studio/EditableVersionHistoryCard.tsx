@@ -206,7 +206,7 @@ export function ArtifactVersionHistorySection({
               value={manualVersionHash}
               onChange={(e) => setManualVersionHash(e.target.value)}
               placeholder={t("studio_version_manual_hash_ph", "Paste SHA-256 hash...")}
-              className="h-12 glass-surface rounded-[var(--radius)] px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+              className="h-11 glass-surface rounded-xl px-4 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -214,12 +214,12 @@ export function ArtifactVersionHistorySection({
               value={newVersionLabel}
               onChange={(e) => setNewVersionLabel(e.target.value)}
               placeholder={t("studio_version_edit_label_ph", "Version (e.g. 1.0.0)")}
-              className="h-12 glass-surface rounded-[var(--radius)] px-3.5 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex-1 outline-none focus:border-[var(--accent)]"
+              className="h-11 glass-surface rounded-xl px-4 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex-1 outline-none focus:border-[var(--accent)]"
             />
             <button
               type="button"
               onClick={onAddVersionUnified}
-              className="h-12 px-4 rounded-[var(--radius)] glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+              className="h-11 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
             >
               <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
                 {t("icon_add", "add")}

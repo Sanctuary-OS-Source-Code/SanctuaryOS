@@ -328,20 +328,23 @@ export default function CodeSnippetSidebar({
       </div>
 
       <div className="monaco-wrapper flex-1 min-h-0 relative w-full">
-        <Editor
-          height="100%"
-          language={detectedLanguage}
-          theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
-          beforeMount={ensureSanctuaryThemes}
-          value={workingContent}
-          onMount={(editor, monaco) => {
-            ensureSanctuaryThemes(monaco);
-            monaco.editor.setTheme(
-              isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"
-            );
-            leftEditorRef.current = editor;
-            (window as any).monaco = monaco;
-          }}
+        <div className="absolute inset-0">
+          <Editor
+            height="100%"
+            width="100%"
+            language={detectedLanguage}
+            theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
+            beforeMount={ensureSanctuaryThemes}
+            value={workingContent}
+            onMount={(editor, monaco) => {
+              ensureSanctuaryThemes(monaco);
+              monaco.editor.setTheme(
+                isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"
+              );
+              leftEditorRef.current = editor;
+              (window as any).monaco = monaco;
+              editor.layout();
+            }}
           options={{
             readOnly: true,
             domReadOnly: true,
@@ -365,6 +368,7 @@ export default function CodeSnippetSidebar({
             scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
           }}
         />
+        </div>
       </div>
     </div>
   );
@@ -499,19 +503,22 @@ export default function CodeSnippetSidebar({
                     </div>
                   </div>
                   <div className="monaco-wrapper flex-1 min-h-0 relative w-full">
-                    <Editor
-                      height="100%"
-                      language="json"
-                      theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
-                      beforeMount={ensureSanctuaryThemes}
-                      value={JSON.stringify(enDefaultRaw, null, 2)}
-                      onMount={(editor, monaco) => {
-                        ensureSanctuaryThemes(monaco);
-                        monaco.editor.setTheme(
-                          isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"
-                        );
-                        rightEditorRef.current = editor;
-                      }}
+                    <div className="absolute inset-0">
+                      <Editor
+                        height="100%"
+                        width="100%"
+                        language="json"
+                        theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
+                        beforeMount={ensureSanctuaryThemes}
+                        value={JSON.stringify(enDefaultRaw, null, 2)}
+                        onMount={(editor, monaco) => {
+                          ensureSanctuaryThemes(monaco);
+                          monaco.editor.setTheme(
+                            isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"
+                          );
+                          rightEditorRef.current = editor;
+                          editor.layout();
+                        }}
                       options={{
                         readOnly: true,
                         domReadOnly: true,
@@ -531,6 +538,7 @@ export default function CodeSnippetSidebar({
                         scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
                       }}
                     />
+                    </div>
                   </div>
                 </div>
               )}

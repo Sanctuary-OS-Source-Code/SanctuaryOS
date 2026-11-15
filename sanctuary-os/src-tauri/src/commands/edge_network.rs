@@ -248,6 +248,8 @@ pub struct EdgeArtifactMeta {
     pub author: String,
     pub version: String,
     pub game_version: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub compatible_versions: Vec<String>,
     pub release_date: String,
     pub game_id: String,
 }

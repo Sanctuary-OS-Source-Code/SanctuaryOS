@@ -109,6 +109,35 @@ interface ModalState {
   setIsSystemStatusOpen: (val: boolean | ((prev: boolean) => boolean)) => void;
   isQueuesPanelOpen: boolean;
   setIsQueuesPanelOpen: (val: boolean | ((prev: boolean) => boolean)) => void;
+  isCloudSyncGuardOpen: boolean;
+  setIsCloudSyncGuardOpen: (val: boolean | ((prev: boolean) => boolean)) => void;
+  cloudSyncGuardContext: {
+    pendingActionLabel?: string;
+    onConsentProceed?: () => void;
+    onConsentGranted?: () => void;
+    pathsOverride?: {
+      master_vault_path?: string | null;
+      vault_path?: string | null;
+      mods_path?: string | null;
+      docs_path?: string | null;
+      live_path?: string | null;
+    } | null;
+  } | null;
+  openCloudSyncGuard: (
+    ctx?: {
+      pendingActionLabel?: string;
+      onConsentProceed?: () => void;
+      onConsentGranted?: () => void;
+      pathsOverride?: {
+        master_vault_path?: string | null;
+        vault_path?: string | null;
+        mods_path?: string | null;
+        docs_path?: string | null;
+        live_path?: string | null;
+      } | null;
+    } | null
+  ) => void;
+  closeCloudSyncGuard: () => void;
   pendingPasskeyHandshakes: any[];
   setPendingPasskeyHandshakes: (val: any[]) => void;
   isPasskeyHandshakePanelOpen: boolean;
@@ -464,6 +493,25 @@ export const useModalStore = create<ModalState>((set, get) => ({
   setIsSystemStatusOpen: (isSystemStatusOpen) => set((state) => ({ isSystemStatusOpen: typeof isSystemStatusOpen === 'function' ? isSystemStatusOpen(state.isSystemStatusOpen) : isSystemStatusOpen })),
   isQueuesPanelOpen: false,
   setIsQueuesPanelOpen: (isQueuesPanelOpen) => set((state) => ({ isQueuesPanelOpen: typeof isQueuesPanelOpen === 'function' ? isQueuesPanelOpen(state.isQueuesPanelOpen) : isQueuesPanelOpen })),
+  isCloudSyncGuardOpen: false,
+  setIsCloudSyncGuardOpen: (isCloudSyncGuardOpen) =>
+    set((state) => ({
+      isCloudSyncGuardOpen:
+        typeof isCloudSyncGuardOpen === "function"
+          ? isCloudSyncGuardOpen(state.isCloudSyncGuardOpen)
+          : isCloudSyncGuardOpen,
+    })),
+  cloudSyncGuardContext: null,
+  openCloudSyncGuard: (ctx = null) =>
+    set({
+      isCloudSyncGuardOpen: true,
+      cloudSyncGuardContext: ctx || null,
+    }),
+  closeCloudSyncGuard: () =>
+    set({
+      isCloudSyncGuardOpen: false,
+      cloudSyncGuardContext: null,
+    }),
   
   sideBrowserUrl: '',
   sideBrowserTrigger: 0,

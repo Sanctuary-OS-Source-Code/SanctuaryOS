@@ -1,4 +1,4 @@
-const CACHE_NAME = "sanctuary-os-pwa-v12";
+const CACHE_NAME = "sanctuary-os-pwa-v13";
 const PRECACHE_URLS = [
   "/",
   "/index.html",
@@ -59,14 +59,14 @@ self.addEventListener("push", (event) => {
     `sanctuary_push_${actionTypeId}_${Date.now()}`;
   const rawSpokeId = String(payload.data?.spokeId || "").trim().toLowerCase();
   const basePath =
-    rawSpokeId && rawSpokeId !== "global" ? `/${rawSpokeId}` : "/sims4";
+    rawSpokeId && rawSpokeId !== "global" ? `/${rawSpokeId}` : "/";
   let targetUrl =
     payload.url ||
     (actionTypeId === "PASSKEY_HANDSHAKE"
-      ? `${basePath}?open_passkey_handshake=1`
-      : `${basePath}?open_notifications=1`);
+      ? `${basePath}${basePath.endsWith("/") ? "" : "/"}?open_passkey_handshake=1`
+      : `${basePath}${basePath.endsWith("/") ? "" : "/"}?open_notifications=1`);
   if (targetUrl.startsWith("/?")) {
-    targetUrl = `${basePath}${targetUrl.slice(1)}`;
+    targetUrl = basePath === "/" ? targetUrl : `${basePath}${targetUrl.slice(1)}`;
   }
 
   const notifOptions = {
@@ -111,14 +111,14 @@ self.addEventListener("notificationclick", (event) => {
   const actionTypeId = String(notifData.actionTypeId || "");
   const rawSpokeId = String(notifData.spokeId || "").trim().toLowerCase();
   const basePath =
-    rawSpokeId && rawSpokeId !== "global" ? `/${rawSpokeId}` : "/sims4";
+    rawSpokeId && rawSpokeId !== "global" ? `/${rawSpokeId}` : "/";
   let targetUrl =
     notifData.url ||
     (actionTypeId === "PASSKEY_HANDSHAKE"
-      ? `${basePath}?open_passkey_handshake=1`
-      : `${basePath}?open_notifications=1`);
+      ? `${basePath}${basePath.endsWith("/") ? "" : "/"}?open_passkey_handshake=1`
+      : `${basePath}${basePath.endsWith("/") ? "" : "/"}?open_notifications=1`);
   if (targetUrl.startsWith("/?")) {
-    targetUrl = `${basePath}${targetUrl.slice(1)}`;
+    targetUrl = basePath === "/" ? targetUrl : `${basePath}${targetUrl.slice(1)}`;
   }
 
   event.waitUntil(
@@ -161,10 +161,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Never intercept Supabase API/Realtime or Vite HMR endpoints
+  // Never intercept Supabase API/Realtime or Vite HMR/source endpoints
   if (
     url.hostname.includes("supabase.co") ||
     url.pathname.startsWith("/__") ||
+    url.pathname.startsWith("/src/") ||
+    url.pathname.startsWith("/@") ||
     url.pathname.includes("@vite") ||
     url.pathname.includes("node_modules")
   ) {

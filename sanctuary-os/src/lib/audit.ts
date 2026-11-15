@@ -38,6 +38,7 @@ const DEFAULT_IGNORED_DIFF_KEYS = new Set([
   "actor_id",
   "author_id",
   "supabase_service_key",
+  "spoke_gateway_token",
   "mod_versions",
   "masons",
   "profiles",

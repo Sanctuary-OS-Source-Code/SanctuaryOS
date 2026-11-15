@@ -174,7 +174,7 @@ export function ArchitectCommandScreen({
         .from("sanctuary_tickets")
         .select("*")
         .order("created_at", { ascending: false }),
-      supabase.from("support_categories").select("*"),
+      supabase.from("sanctuary_support_categories").select("*"),
       supabase
         .from("homestead_lab_logs")
         .select("*, mods(id, name, master_author, status, compliance_tier, latest_version)")

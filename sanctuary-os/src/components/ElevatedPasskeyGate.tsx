@@ -3,7 +3,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useTooltipStore } from "../store/tooltipStore";
-import { supabaseAuth } from "../supabase";
+import { supabaseAuth, getBrandConfig } from "../supabase";
 import {
   ActionButton,
   LoadingScreen,
@@ -20,6 +20,7 @@ import { notifyOS } from "../utils/notificationHelper";
 import {
   fetchMfaSecurityState,
   getCachedMfaSecurityState,
+  prewarmPasskeyAuthenticationOptions,
   registerFidoPasskey,
   authenticateFidoPasskey,
   deleteSecurityFactor,
@@ -778,6 +779,16 @@ export function ElevatedPasskeyGate({
     (isOfflineOrUnauthenticated || (!loading && (!hasPasskey || hasPendingMfaChallenge)));
 
   useEffect(() => {
+    if (
+      hasPendingMfaChallenge &&
+      !isOfflineOrUnauthenticated &&
+      isNativeLocalPasskeySupported()
+    ) {
+      void prewarmPasskeyAuthenticationOptions();
+    }
+  }, [hasPendingMfaChallenge, isOfflineOrUnauthenticated]);
+
+  useEffect(() => {
     if (!isHubLocked) {
       useTooltipStore.getState().clearTooltip();
       return;
@@ -926,6 +937,14 @@ export function ElevatedPasskeyGate({
       setBusy(false);
       return;
     }
+    const optimistic = getCachedMfaSecurityState(session?.user?.id);
+    if (optimistic) {
+      setMfaState(optimistic);
+      setLoading(false);
+      setBusy(false);
+      void refreshState();
+      return;
+    }
     await refreshState();
     setBusy(false);
   };
@@ -962,7 +981,7 @@ export function ElevatedPasskeyGate({
 
       const { data, error } = await supabaseAuth.auth.mfa.enroll({
         factorType: "totp",
-        issuer: "Sanctuary OS",
+        issuer: getBrandConfig().appTitle || "Sanctuary OS",
         friendlyName,
       });
       if (error) throw error;

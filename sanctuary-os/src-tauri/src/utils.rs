@@ -1095,7 +1095,7 @@ fn paths_equal_platform(a: &Path, b: &Path) -> bool {
     path_is_within_root(a, b) && path_is_within_root(b, a)
 }
 
-fn is_blocked_sensitive_or_system_path(resolved: &Path) -> bool {
+pub fn is_blocked_sensitive_or_system_path(resolved: &Path) -> bool {
     let stripped = strip_windows_verbatim_prefix(resolved);
     let win_norm = stripped
         .to_string_lossy()
@@ -4711,35 +4711,137 @@ pub fn save_mod_versions_index(
     }
 }
 
-pub fn is_game_version_compatible(compatible_versions: &[String], target_game_version: &str) -> bool {
-    let clean_target = target_game_version
-        .trim()
+fn compare_version_strs(v1: &str, v2: &str) -> std::cmp::Ordering {
+    fn clean_parts(raw: &str) -> Vec<u64> {
+        raw.trim()
+            .trim_start_matches(|c: char| c == '>' || c == '<' || c == '=' || c == '!')
+            .trim()
+            .trim_start_matches(|c: char| c == 'v' || c == 'V' || c == '.')
+            .trim_end_matches('+')
+            .trim()
+            .split('.')
+            .map(|seg| seg.parse::<u64>().unwrap_or(0))
+            .collect()
+    }
+    let p1 = clean_parts(v1);
+    let p2 = clean_parts(v2);
+    let max_len = p1.len().max(p2.len());
+    for i in 0..max_len {
+        let a = *p1.get(i).unwrap_or(&0);
+        let b = *p2.get(i).unwrap_or(&0);
+        match a.cmp(&b) {
+            std::cmp::Ordering::Equal => continue,
+            ord => return ord,
+        }
+    }
+    std::cmp::Ordering::Equal
+}
+
+fn clean_single_ver_token(raw: &str) -> String {
+    raw.trim()
         .trim_start_matches(|c: char| c == 'v' || c == 'V' || c == '.')
         .trim()
-        .to_lowercase();
-    if clean_target.is_empty() || clean_target == "unknown" || clean_target == "all" {
+        .to_lowercase()
+}
+
+fn matches_single_version_rule(raw_rule: &str, clean_target: &str) -> bool {
+    let rule = clean_single_ver_token(raw_rule);
+    if rule.is_empty() {
+        return false;
+    }
+    if matches!(
+        rule.as_str(),
+        "any" | "all" | "unknown" | "vlocal" | "local" | "global"
+    ) {
+        return true;
+    }
+    if rule.contains("..") || rule.contains('-') {
+        let parts: Vec<String> = if rule.contains("..") {
+            rule.split("..")
+                .map(clean_single_ver_token)
+                .filter(|s| !s.is_empty())
+                .collect()
+        } else {
+            rule.split('-')
+                .map(clean_single_ver_token)
+                .filter(|s| !s.is_empty())
+                .collect()
+        };
+        if parts.len() == 2
+            && parts[0].chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false)
+            && parts[1].chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false)
+        {
+            let (low, high) =
+                if compare_version_strs(&parts[0], &parts[1]) != std::cmp::Ordering::Greater {
+                    (&parts[0], &parts[1])
+                } else {
+                    (&parts[1], &parts[0])
+                };
+            let ge_low = compare_version_strs(clean_target, low) != std::cmp::Ordering::Less;
+            let le_high = compare_version_strs(clean_target, high) != std::cmp::Ordering::Greater
+                || clean_target.starts_with(&format!("{}.", high));
+            return ge_low && le_high;
+        }
+    }
+    if rule.ends_with('+') || rule.starts_with(">=") {
+        let min_ver =
+            clean_single_ver_token(rule.trim_start_matches(">=").trim_end_matches('+'));
+        if min_ver.is_empty() {
+            return false;
+        }
+        return compare_version_strs(clean_target, &min_ver) != std::cmp::Ordering::Less;
+    }
+    if rule.starts_with("<=") {
+        let max_ver = clean_single_ver_token(rule.trim_start_matches("<="));
+        if max_ver.is_empty() {
+            return false;
+        }
+        return compare_version_strs(clean_target, &max_ver) != std::cmp::Ordering::Greater
+            || clean_target.starts_with(&format!("{}.", max_ver));
+    }
+    clean_target == rule
+        || clean_target.starts_with(&format!("{}.", rule))
+        || rule.starts_with(&format!("{}.", clean_target))
+}
+
+pub fn is_game_version_compatible(compatible_versions: &[String], target_game_version: &str) -> bool {
+    let clean_target = clean_single_ver_token(target_game_version);
+    if clean_target.is_empty() || matches!(clean_target.as_str(), "unknown" | "all" | "any") {
         return true;
     }
     if compatible_versions.is_empty() {
         return false;
     }
-    for v in compatible_versions {
-        let clean_v = v
-            .trim()
-            .trim_start_matches(|c: char| c == 'v' || c == 'V' || c == '.')
-            .trim()
-            .to_lowercase();
-        if clean_v.is_empty() || clean_v == "any" || clean_v == "all" || clean_v == "vlocal" || clean_v == "local" {
-            return true;
-        }
-        if clean_v == clean_target
-            || clean_target.starts_with(&format!("{}.", clean_v))
-            || clean_v.starts_with(&format!("{}.", clean_target))
-        {
-            return true;
+    let mut exclusions: Vec<String> = Vec::new();
+    let mut positives: Vec<String> = Vec::new();
+    for entry in compatible_versions {
+        for raw_token in entry.split(',') {
+            let trimmed = raw_token.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if let Some(rest) = trimmed.strip_prefix('!') {
+                let ex = rest.trim();
+                if !ex.is_empty() {
+                    exclusions.push(ex.to_string());
+                }
+            } else {
+                positives.push(trimmed.to_string());
+            }
         }
     }
-    false
+    if exclusions
+        .iter()
+        .any(|ex| matches_single_version_rule(ex, &clean_target))
+    {
+        return false;
+    }
+    if positives.is_empty() {
+        return !exclusions.is_empty();
+    }
+    positives
+        .iter()
+        .any(|pos| matches_single_version_rule(pos, &clean_target))
 }
 
 pub fn is_mod_version_archiving_enabled(vault_path: &str) -> bool {

@@ -120,10 +120,43 @@ export interface SystemDirectiveRecord {
   published_summary?: string;
   published_at?: string;
   has_unpublished_changes?: boolean;
+  has_local_md_changes?: boolean;
+  local_md_content?: string;
+  revision: number;
   version: string;
   updated_at: string;
   updated_by?: string;
   sync_state?: "synced" | "pushed_to_hub" | "pulled_to_codebase" | "local_fallback";
+}
+
+export interface KeeperLegalDocRecord {
+  id: string;
+  category: LegalDocCategory;
+  slug: LocalDocSlug;
+  file_path: string;
+  title: string;
+  content: string;
+  message: string;
+  published_title: string;
+  published_content: string;
+  published_at: string;
+  updated_at: string;
+  created_at: string;
+  updated_by: string;
+  revision: number;
+  is_active: boolean;
+  has_unpublished_changes: boolean;
+  has_local_md_changes?: boolean;
+  local_md_content?: string;
+}
+
+export interface DocSaveResult<T = any> {
+  ok: boolean;
+  conflict?: boolean;
+  serverRow?: T;
+  row?: T;
+  error?: any;
+  wroteLocal?: boolean;
 }
 
 interface LocalDirectiveSnapshot {
@@ -146,9 +179,9 @@ export const CANONICAL_DIRECTIVES: Record<
 > = {
   citizen_guide: {
     slug: "citizen_guide",
-    title: "Interactive Citizen Guide & Neural Walkthrough",
+    title: "Interactive Citizen Guide & OS Walkthrough",
     summary:
-      "10-stage interactive walkthrough of Sanctuary OS, 12 operational & creator modules (Static Edge Direct Push, Master Schema & Lexicon Studios, Spoke Covenants), and the 6-Tier Clearance Hierarchy.",
+      "10-stage interactive walkthrough of Sanctuary OS, 12 operational & creator modules (including Static Edge Direct Push, Master Schema & Lexicon Studios, and Spoke Covenants), and the 6-Tier Clearance Hierarchy.",
     category: "Citizen Guide",
     file_path: "Citizen Guide.md",
     bundledContent: citizenGuideRaw,
@@ -166,7 +199,7 @@ export const CANONICAL_DIRECTIVES: Record<
     slug: "phase_roadmap",
     title: "Engineering Phase Roadmap (Phase 14 → Phase 1)",
     summary:
-      "Reverse-chronological engineering timeline from Phase 14 (V0.6.0 Agnostic Multi-Engine Expansion) and Phase 13 (V5.8 Multi-Engine Studios & Bilateral Cloud Sync) down to Phase 1 (Genesis & Cartographer).",
+      "Interactive reverse-chronological engineering timeline tracking Sanctuary OS from Phase 14 (V0.6.0 Agnostic Multi-Engine Expansion) and Phase 13 (V5.8 Multi-Engine Studios & Bilateral Cloud Sync) down to Phase 1.",
     category: "Phase Roadmap",
     file_path: "Phase Roadmap.md",
     bundledContent: phaseRoadmapRaw,
@@ -175,7 +208,7 @@ export const CANONICAL_DIRECTIVES: Record<
     slug: "master_architecture",
     title: "Master Architecture & Feature Blueprint",
     summary:
-      "Deep-dive interactive explorer into the Tauri v2 Rust core, Master Schema & Lexicon Visual Studios, Hub-and-Spoke Cloud Federation with Bilateral Codebase Sync, Symlink Airgap 2.5, and the Universal 21+17 Heuristic Scanner.",
+      "Deep-dive interactive explorer into the Tauri v2 Rust core, Universal Master Schema, Code-Switch, Mirror Uplink, Symlink Airgap, Edge Pulse, Groundhog Sandbox, and Bytecode Hound.",
     category: "Master Architecture",
     file_path: "Master Architecture & Feature Document.md",
     bundledContent: masterArchitectureRaw,
@@ -184,7 +217,7 @@ export const CANONICAL_DIRECTIVES: Record<
     slug: "master_protocols",
     title: "Master Protocol List & 6-Tier Clearance Matrix",
     summary:
-      "Interactive directory of all 33 Sanctuary OS operational protocols across 4 Domains, Florida Compliance Tiers 0–5, Universal 21+17 Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy.",
+      "Interactive directory of all 30 Sanctuary OS operational protocols across 4 Domains, Florida Compliance Tiers 0–5, Bytecode Hound heuristics, and the 6-Tier Role Clearance Hierarchy.",
     category: "Master Protocol List",
     file_path: "Master Protocol List.md",
     bundledContent: masterProtocolsRaw,
@@ -199,8 +232,116 @@ export const DIRECTIVE_ORDER: DirectiveSlug[] = [
   "master_protocols",
 ];
 
-const normalizeMarkdown = (txt: string): string =>
-  (txt || "").replace(/\r\n/g, "\n").trim();
+export function normalizeDocMarkdown(txt: string): string {
+  return (txt || "").replace(/\r\n/g, "\n").trim();
+}
+
+const normalizeMarkdown = normalizeDocMarkdown;
+
+export function hashNormalizedDoc(txt: string): string {
+  const norm = normalizeDocMarkdown(txt);
+  let h1 = 0x811c9dc5;
+  let h2 = 0x9e3779b9;
+  for (let i = 0; i < norm.length; i++) {
+    const ch = norm.charCodeAt(i);
+    h1 ^= ch;
+    h1 = Math.imul(h1, 0x01000193);
+    h2 ^= ch + ((i & 0xff) << 1);
+    h2 = Math.imul(h2, 0x85ebca6b);
+  }
+  return `${(h1 >>> 0).toString(16).padStart(8, "0")}${(h2 >>> 0)
+    .toString(16)
+    .padStart(8, "0")}_${norm.length}`;
+}
+
+const DOC_SYNC_HASHES_KEY = "sanctuary_doc_sync_hashes_v1";
+const PUBLISHED_DIRECTIVES_CACHE_KEY = "sanctuary_published_directives_cache_v1";
+const PUBLISHED_LEGAL_CACHE_KEY = "sanctuary_published_legal_cache_v1";
+
+type SyncHashLedger = Record<
+  string,
+  { lastSyncedPublishedHash: string; updatedAtMs: number }
+>;
+
+function readJsonStorage<T>(key: string, fallback: T): T {
+  try {
+    if (typeof localStorage === "undefined") return fallback;
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJsonStorage(key: string, val: unknown): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(key, JSON.stringify(val));
+  } catch {
+    // Ignore storage quota or private-mode errors
+  }
+}
+
+export function markLocalDocSyncedHash(slug: LocalDocSlug, content: string): void {
+  const ledger = readJsonStorage<SyncHashLedger>(DOC_SYNC_HASHES_KEY, {});
+  ledger[slug] = {
+    lastSyncedPublishedHash: hashNormalizedDoc(content),
+    updatedAtMs: Date.now(),
+  };
+  writeJsonStorage(DOC_SYNC_HASHES_KEY, ledger);
+}
+
+export async function syncPublishedToLocalFallbackIfSafe(params: {
+  slug: LocalDocSlug;
+  publishedContent: string;
+  bundledBaseline: string;
+  localSnapshot?: { content: string };
+  forceOverwriteLocal?: boolean;
+}): Promise<{
+  localState: "synced" | "local_ahead" | "unavailable";
+  localContent: string;
+}> {
+  const pubContent = params.publishedContent || "";
+  const pubHash = hashNormalizedDoc(pubContent);
+  const bundledHash = hashNormalizedDoc(params.bundledBaseline || "");
+  const localContent = params.localSnapshot?.content ?? params.bundledBaseline ?? "";
+  const localHash = hashNormalizedDoc(localContent);
+
+  const ledger = readJsonStorage<SyncHashLedger>(DOC_SYNC_HASHES_KEY, {});
+  const lastSynced = ledger[params.slug]?.lastSyncedPublishedHash;
+
+  if (pubHash === localHash) {
+    ledger[params.slug] = {
+      lastSyncedPublishedHash: pubHash,
+      updatedAtMs: Date.now(),
+    };
+    writeJsonStorage(DOC_SYNC_HASHES_KEY, ledger);
+    return { localState: "synced", localContent };
+  }
+
+  const canWriteDownstream =
+    params.forceOverwriteLocal === true ||
+    (!lastSynced && localHash === bundledHash) ||
+    (Boolean(lastSynced) && localHash === lastSynced);
+
+  if (canWriteDownstream && pubContent.trim().length > 50) {
+    const wroteOk = await writeLocalDirectiveFile(params.slug, pubContent);
+    if (wroteOk) {
+      ledger[params.slug] = {
+        lastSyncedPublishedHash: pubHash,
+        updatedAtMs: Date.now(),
+      };
+      writeJsonStorage(DOC_SYNC_HASHES_KEY, ledger);
+      return { localState: "synced", localContent: pubContent };
+    }
+    return { localState: "unavailable", localContent };
+  }
+
+  // Local `.md` file has unimported workspace modifications — protect it from overwrite
+  return { localState: "local_ahead", localContent };
+}
 
 export function extractDirectiveMetaFromMarkdown(
   content: string,
@@ -400,21 +541,41 @@ export async function writeLocalDirectiveFile(
 
 export async function syncDirectivesBidirectional(options?: {
   canWriteHub?: boolean;
+  forcePullLocal?: boolean;
 }): Promise<SystemDirectiveRecord[]> {
   const canWriteHub = options?.canWriteHub ?? false;
+  const forcePullLocal = options?.forcePullLocal ?? false;
   const localMap = await readAllLocalDocSnapshots();
+  const publishedCache = readJsonStorage<Record<string, any>>(
+    PUBLISHED_DIRECTIVES_CACHE_KEY,
+    {}
+  );
 
   const { data: dbRows, error } = await supabaseAuth
     .from("system_directives")
     .select("*");
 
   const dbMap = new Map<DirectiveSlug, any>();
-  if (!error && Array.isArray(dbRows)) {
+  const hasHubConnection = !error && Array.isArray(dbRows);
+  if (hasHubConnection) {
+    const nextCache: Record<string, any> = { ...publishedCache };
     for (const row of dbRows) {
       if (row.slug && CANONICAL_DIRECTIVES[row.slug as DirectiveSlug]) {
         dbMap.set(row.slug as DirectiveSlug, row);
+        nextCache[row.slug] = {
+          title: row.title,
+          summary: row.summary,
+          published_title: row.published_title || row.title,
+          published_summary: row.published_summary || row.summary,
+          published_content: row.published_content || row.content,
+          published_at: row.published_at || row.updated_at,
+          updated_at: row.updated_at,
+          updated_by: row.updated_by,
+          revision: Number(row.revision || 1),
+        };
       }
     }
+    writeJsonStorage(PUBLISHED_DIRECTIVES_CACHE_KEY, nextCache);
   }
 
   const syncedRecords: SystemDirectiveRecord[] = [];
@@ -422,226 +583,135 @@ export async function syncDirectivesBidirectional(options?: {
   for (const slug of DIRECTIVE_ORDER) {
     const canonical = CANONICAL_DIRECTIVES[slug];
     const localSnap = localMap[slug];
-    const dbRow = dbMap.get(slug);
-    const localContent = localSnap?.content || canonical.bundledContent;
-    const localMeta = extractDirectiveMetaFromMarkdown(
-      localContent,
-      canonical.title,
-      canonical.summary,
-      slug
-    );
+    let dbRow = dbMap.get(slug);
 
-    if (!dbRow) {
+    // Seed missing canonical row ONLY on a brand-new unseeded Hub when Keeper has write privileges
+    if (hasHubConnection && !dbRow && canWriteHub) {
       const nowIso = new Date().toISOString();
-      const record: SystemDirectiveRecord = {
-        slug,
-        title: localMeta.title,
-        summary: localMeta.summary,
-        category: canonical.category,
-        file_path: canonical.file_path,
-        content: localContent,
-        published_content: localContent,
-        published_title: localMeta.title,
-        published_summary: localMeta.summary,
-        published_at: nowIso,
-        has_unpublished_changes: false,
-        version: "v0.6.0",
-        updated_at: nowIso,
-        updated_by: "Sanctuary Foundry",
-        sync_state: "local_fallback",
-      };
+      const seedContent = canonical.bundledContent;
+      const seedMeta = extractDirectiveMetaFromMarkdown(
+        seedContent,
+        canonical.title,
+        canonical.summary,
+        slug
+      );
+      const { data: seeded } = await supabaseAuth
+        .from("system_directives")
+        .upsert(
+          {
+            slug,
+            title: seedMeta.title,
+            summary: seedMeta.summary,
+            category: canonical.category,
+            file_path: canonical.file_path,
+            content: seedContent,
+            published_content: seedContent,
+            published_title: seedMeta.title,
+            published_summary: seedMeta.summary,
+            published_at: nowIso,
+            version: "v0.6.0",
+            revision: 1,
+            updated_at: nowIso,
+            updated_by: "Sanctuary Foundry",
+          },
+          { onConflict: "slug", ignoreDuplicates: true }
+        )
+        .select()
+        .maybeSingle();
 
-      if (canWriteHub) {
-        const { data: inserted } = await supabaseAuth
+      if (seeded) {
+        dbRow = seeded;
+      } else {
+        const { data: refetched } = await supabaseAuth
           .from("system_directives")
-          .upsert({
-            slug: record.slug,
-            title: record.title,
-            summary: record.summary,
-            category: record.category,
-            file_path: record.file_path,
-            content: record.content,
-            published_content: record.published_content,
-            published_title: record.published_title,
-            published_summary: record.published_summary,
-            published_at: record.published_at,
-            version: record.version,
-            updated_at: record.updated_at,
-            updated_by: record.updated_by,
-          })
-          .select()
+          .select("*")
+          .eq("slug", slug)
           .maybeSingle();
-        if (inserted) {
-          record.updated_at = inserted.updated_at || record.updated_at;
-          record.sync_state = "pushed_to_hub";
-        }
+        if (refetched) dbRow = refetched;
       }
-
-      syncedRecords.push(record);
-      continue;
     }
 
-    const dbContent = dbRow.content || "";
-    const publishedContent = dbRow.published_content || dbContent || localContent;
-    const publishedTitle = dbRow.published_title || dbRow.title || localMeta.title;
-    const publishedSummary =
-      dbRow.published_summary || dbRow.summary || localMeta.summary;
-    const publishedAt =
-      dbRow.published_at || dbRow.updated_at || new Date().toISOString();
-    const isSameContent =
-      normalizeMarkdown(dbContent) === normalizeMarkdown(localContent);
-
-    if (isSameContent) {
-      if (
-        canWriteHub &&
-        (dbRow.title !== localMeta.title || dbRow.summary !== localMeta.summary)
-      ) {
-        await supabaseAuth.from("system_directives").upsert({
-          slug,
-          title: localMeta.title,
-          summary: localMeta.summary,
-          category: dbRow.category || canonical.category,
-          file_path: canonical.file_path,
-          content: localContent,
-          published_content: publishedContent,
-          published_title: publishedTitle,
-          published_summary: publishedSummary,
-          published_at: publishedAt,
-          version: dbRow.version || "v0.6.0",
-          updated_at: dbRow.updated_at || new Date().toISOString(),
-          updated_by: dbRow.updated_by || "Codebase Auto-Sync",
-        });
-      }
-
-      syncedRecords.push({
-        slug,
-        title: localMeta.title,
-        summary: localMeta.summary,
-        category: dbRow.category || canonical.category,
-        file_path: canonical.file_path,
-        content: localContent,
-        published_content: publishedContent,
-        published_title: publishedTitle,
-        published_summary: publishedSummary,
-        published_at: publishedAt,
-        has_unpublished_changes:
-          normalizeMarkdown(localContent) !== normalizeMarkdown(publishedContent),
-        version: dbRow.version || "v0.6.0",
-        updated_at: dbRow.updated_at || new Date().toISOString(),
-        updated_by: dbRow.updated_by || "Sanctuary Foundry",
-        sync_state: "synced",
-      });
-      continue;
-    }
-
-    const dbEpochMs = dbRow.updated_at ? new Date(dbRow.updated_at).getTime() : 0;
-    const localEpochMs = localSnap?.modified_epoch_ms || 0;
-    const dbSchemaVerMatch = dbContent.match(/"_schemaVersion"\s*:\s*(\d+)/);
-    const dbSchemaVer = dbSchemaVerMatch ? parseInt(dbSchemaVerMatch[1], 10) : 0;
-    const localBulletCount = (localContent.match(/^[ \t]*[-*]\s+\*\*/gm) || []).length;
-    const dbBulletCount = (dbContent.match(/^[ \t]*[-*]\s+\*\*/gm) || []).length;
-    const dbHasBrokenTabs =
-      (dbSchemaVer > 0 && dbSchemaVer < 83) ||
-      dbContent.includes("(In Progress) (In Progress)") ||
-      (slug === "phase_roadmap" &&
-        (dbContent.includes('"value": "Active Era)"') ||
-          dbContent.includes("## Phase 14 (V0.6.0): Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Guided Diagnostics & Cross-Platform Vault Companion") ||
-          !dbContent.includes("External Mod Manager Migration & Out-of-Tree Setup Importer")));
-    const localIsNewer =
-      (localEpochMs > 0 && localEpochMs > dbEpochMs + 2000) ||
-      localBulletCount > dbBulletCount ||
-      dbHasBrokenTabs;
-
-    // 1. If local file is newer or contains newer codebase milestones/schema than DB:
-    // Sync the file & database working `content` column (and update `published_content` when repairing a <83 compiled snapshot).
-    if (localIsNewer) {
-      const nowIso = new Date(
-        Math.max(localEpochMs, dbEpochMs + 1000, Date.now())
-      ).toISOString();
-      const nextPublishedContent = dbHasBrokenTabs ? localContent : publishedContent;
-      const nextPublishedTitle = dbHasBrokenTabs ? localMeta.title : publishedTitle;
-      const nextPublishedSummary = dbHasBrokenTabs ? localMeta.summary : publishedSummary;
-      if (canWriteHub) {
-        await supabaseAuth.from("system_directives").upsert({
-          slug,
-          title: localMeta.title,
-          summary: localMeta.summary,
-          category: dbRow.category || canonical.category,
-          file_path: canonical.file_path,
-          content: localContent,
-          published_content: nextPublishedContent,
-          published_title: nextPublishedTitle,
-          published_summary: nextPublishedSummary,
-          published_at: dbHasBrokenTabs ? nowIso : publishedAt,
-          version: "v0.6.0-Dev.13",
-          updated_at: nowIso,
-          updated_by: "Codebase Auto-Sync",
-        });
-      }
-
-      syncedRecords.push({
-        slug,
-        title: localMeta.title,
-        summary: localMeta.summary,
-        category: dbRow.category || canonical.category,
-        file_path: canonical.file_path,
-        content: localContent,
-        published_content: nextPublishedContent,
-        published_title: nextPublishedTitle,
-        published_summary: nextPublishedSummary,
-        published_at: dbHasBrokenTabs ? nowIso : publishedAt,
-        has_unpublished_changes:
-          normalizeMarkdown(localContent) !== normalizeMarkdown(nextPublishedContent),
-        version: "v0.6.0-Dev.13",
-        updated_at: nowIso,
-        updated_by: "Codebase Auto-Sync",
-        sync_state: canWriteHub ? "pushed_to_hub" : "local_fallback",
-      });
-    } else if (dbContent.trim().length > 200) {
-      // 2. Cloud-First Update Model: Desktop & Web pull working updates from Hub DB (`system_directives.content`)
-      // and update local `.md` backup file when running in Desktop / Dev mode.
-      await writeLocalDirectiveFile(slug, dbContent);
-      const dbMeta = extractDirectiveMetaFromMarkdown(
-        dbContent,
+    if (dbRow) {
+      const workingContent = dbRow.content || canonical.bundledContent;
+      const publishedContent = dbRow.published_content || workingContent;
+      const workingMeta = extractDirectiveMetaFromMarkdown(
+        workingContent,
         dbRow.title || canonical.title,
         dbRow.summary || canonical.summary,
         slug
       );
+      const publishedTitle =
+        dbRow.published_title || dbRow.title || workingMeta.title;
+      const publishedSummary =
+        dbRow.published_summary || dbRow.summary || workingMeta.summary;
+      const publishedAt =
+        dbRow.published_at || dbRow.updated_at || new Date().toISOString();
+
+      const localSync = await syncPublishedToLocalFallbackIfSafe({
+        slug,
+        publishedContent,
+        bundledBaseline: canonical.bundledContent,
+        localSnapshot: localSnap,
+        forceOverwriteLocal: forcePullLocal,
+      });
+
+      const localMatchesPub =
+        normalizeMarkdown(localSnap?.content || "") ===
+        normalizeMarkdown(publishedContent);
+
       syncedRecords.push({
         slug,
-        title: dbMeta.title,
-        summary: dbMeta.summary,
+        title: dbRow.title || workingMeta.title,
+        summary: dbRow.summary || workingMeta.summary,
         category: dbRow.category || canonical.category,
         file_path: canonical.file_path,
-        content: dbContent,
+        content: workingContent,
         published_content: publishedContent,
         published_title: publishedTitle,
         published_summary: publishedSummary,
         published_at: publishedAt,
         has_unpublished_changes:
-          normalizeMarkdown(dbContent) !== normalizeMarkdown(publishedContent),
+          normalizeMarkdown(workingContent) !== normalizeMarkdown(publishedContent),
+        has_local_md_changes: localSync.localState === "local_ahead",
+        local_md_content: localSync.localContent,
+        revision: Number(dbRow.revision || 1),
         version: dbRow.version || "v0.6.0",
-        updated_at: dbRow.updated_at || new Date().toISOString(),
+        updated_at: dbRow.updated_at || publishedAt,
         updated_by: dbRow.updated_by || "Keepers Core",
-        sync_state: "pulled_to_codebase",
+        sync_state:
+          localSync.localState === "synced" && !localMatchesPub
+            ? "pulled_to_codebase"
+            : "synced",
       });
     } else {
+      const cached = publishedCache[slug];
+      const fallbackContent =
+        cached?.published_content || localSnap?.content || canonical.bundledContent;
+      const fallbackMeta = extractDirectiveMetaFromMarkdown(
+        fallbackContent,
+        cached?.published_title || canonical.title,
+        cached?.published_summary || canonical.summary,
+        slug
+      );
+      const nowIso = new Date().toISOString();
       syncedRecords.push({
         slug,
-        title: localMeta.title,
-        summary: localMeta.summary,
+        title: cached?.published_title || fallbackMeta.title,
+        summary: cached?.published_summary || fallbackMeta.summary,
         category: canonical.category,
         file_path: canonical.file_path,
-        content: localContent,
-        published_content: publishedContent,
-        published_title: publishedTitle,
-        published_summary: publishedSummary,
-        published_at: publishedAt,
-        has_unpublished_changes:
-          normalizeMarkdown(localContent) !== normalizeMarkdown(publishedContent),
+        content: fallbackContent,
+        published_content: fallbackContent,
+        published_title: cached?.published_title || fallbackMeta.title,
+        published_summary: cached?.published_summary || fallbackMeta.summary,
+        published_at: cached?.published_at || nowIso,
+        has_unpublished_changes: false,
+        has_local_md_changes: false,
+        local_md_content: localSnap?.content || canonical.bundledContent,
+        revision: Number(cached?.revision || 1),
         version: "v0.6.0",
-        updated_at: dbRow.updated_at || new Date().toISOString(),
-        updated_by: "Sanctuary Foundry",
+        updated_at: cached?.updated_at || nowIso,
+        updated_by: cached?.updated_by || "Sanctuary Foundry",
         sync_state: "local_fallback",
       });
     }
@@ -650,164 +720,170 @@ export async function syncDirectivesBidirectional(options?: {
   return syncedRecords;
 }
 
-let inFlightLegalSyncPromise: Promise<Record<LegalDocCategory, any>> | null =
-  null;
+let inFlightLegalSyncPromise: Promise<
+  Record<LegalDocCategory, KeeperLegalDocRecord>
+> | null = null;
 
 export async function syncLegalAndCovenantsBidirectional(options?: {
   canWriteHub?: boolean;
-  forcePushLocal?: boolean;
-}): Promise<Record<LegalDocCategory, any>> {
-  if (inFlightLegalSyncPromise && !options?.forcePushLocal) {
+  forcePullLocal?: boolean;
+}): Promise<Record<LegalDocCategory, KeeperLegalDocRecord>> {
+  if (inFlightLegalSyncPromise && !options?.forcePullLocal) {
     return inFlightLegalSyncPromise;
   }
 
-  const run = async (): Promise<Record<LegalDocCategory, any>> => {
+  const run = async (): Promise<Record<LegalDocCategory, KeeperLegalDocRecord>> => {
     const canWriteHub = options?.canWriteHub ?? false;
-    const forcePushLocal = options?.forcePushLocal ?? false;
+    const forcePullLocal = options?.forcePullLocal ?? false;
     const localMap = await readAllLocalDocSnapshots();
+    const publishedCache = readJsonStorage<Record<string, any>>(
+      PUBLISHED_LEGAL_CACHE_KEY,
+      {}
+    );
 
-    const { data: dbRows } = await supabaseAuth
+    const { data: dbRows, error } = await supabaseAuth
       .from("keeper_system_broadcasts")
       .select("*")
       .in("category", LEGAL_DOC_CATEGORIES)
-      .order("created_at", { ascending: false });
+      .order("updated_at", { ascending: false });
 
     const latestByCat = new Map<LegalDocCategory, any>();
-    if (Array.isArray(dbRows)) {
+    const hasHubConnection = !error && Array.isArray(dbRows);
+    if (hasHubConnection) {
+      const nextCache: Record<string, any> = { ...publishedCache };
       for (const row of dbRows) {
         const cat = row.category as LegalDocCategory;
         if (cat && CANONICAL_LEGAL_DOCS[cat] && !latestByCat.has(cat)) {
           latestByCat.set(cat, row);
+          nextCache[cat] = {
+            id: row.id,
+            title: row.published_title || row.title,
+            published_title: row.published_title || row.title,
+            published_message: row.published_message || row.message,
+            published_at: row.published_at || row.updated_at || row.created_at,
+            updated_at: row.updated_at || row.created_at,
+            updated_by: row.updated_by || "Keepers Core",
+            revision: Number(row.revision || 1),
+            is_active: row.is_active !== false,
+          };
         }
       }
+      writeJsonStorage(PUBLISHED_LEGAL_CACHE_KEY, nextCache);
     }
 
-    const result = {} as Record<LegalDocCategory, any>;
+    const result = {} as Record<LegalDocCategory, KeeperLegalDocRecord>;
 
     for (const cat of LEGAL_DOC_CATEGORIES) {
       const canonical = CANONICAL_LEGAL_DOCS[cat];
       const localSnap = localMap[canonical.slug];
-      const localContent = localSnap?.content || canonical.bundledContent;
-      const dbRow = latestByCat.get(cat);
+      let dbRow = latestByCat.get(cat);
 
-      if (!dbRow) {
+      if (hasHubConnection && !dbRow && canWriteHub) {
         const nowIso = new Date().toISOString();
-        const fallbackRecord = {
-          id: `legal_${cat.toLowerCase()}`,
-          category: cat,
-          title: canonical.title,
-          message: localContent,
-          content: localContent,
-          file_path: canonical.file_path,
-          is_active: true,
-          created_at: nowIso,
-          updated_at: nowIso,
-        };
-        if (canWriteHub) {
-          const { data: inserted } = await supabaseAuth
+        const { data: inserted } = await supabaseAuth
+          .from("keeper_system_broadcasts")
+          .insert({
+            title: canonical.title,
+            message: canonical.bundledContent,
+            published_title: canonical.title,
+            published_message: canonical.bundledContent,
+            published_at: nowIso,
+            updated_at: nowIso,
+            updated_by: "Sanctuary Foundry",
+            revision: 1,
+            category: cat,
+            target_audience: "Public",
+            action_required: "No Action Required",
+            is_pinned: "false",
+            is_active: true,
+          })
+          .select()
+          .maybeSingle();
+
+        if (inserted) {
+          dbRow = inserted;
+        } else {
+          const { data: refetched } = await supabaseAuth
             .from("keeper_system_broadcasts")
-            .insert({
-              title: canonical.title,
-              message: localContent,
-              category: cat,
-              target_audience: "Public",
-              action_required: "No Action Required",
-              is_pinned: false,
-              is_active: true,
-            })
-            .select()
+            .select("*")
+            .eq("category", cat)
             .maybeSingle();
-          if (inserted) {
-            const insertedBody = inserted.message || localContent;
-            const insertedDate = inserted.created_at || nowIso;
-            result[cat] = {
-              ...inserted,
-              message: insertedBody,
-              content: insertedBody,
-              created_at: insertedDate,
-              updated_at: insertedDate,
-              file_path: canonical.file_path,
-            };
-            continue;
-          }
+          if (refetched) dbRow = refetched;
         }
-        result[cat] = fallbackRecord;
-        continue;
       }
 
-      const dbContent = dbRow.message || dbRow.content || "";
-      const isSame =
-        normalizeMarkdown(dbContent) === normalizeMarkdown(localContent);
-      const dbEpochMs = dbRow.created_at
-        ? new Date(dbRow.created_at).getTime()
-        : 0;
-      const localEpochMs = localSnap?.modified_epoch_ms || 0;
-      const localDevTagMatch = localContent.match(/v0\.6\.0-Dev\.(\d+)/i);
-      const dbDevTagMatch = dbContent.match(/v0\.6\.0-Dev\.(\d+)/i);
-      const localDevTagNum = localDevTagMatch ? parseInt(localDevTagMatch[1], 10) : 0;
-      const dbDevTagNum = dbDevTagMatch ? parseInt(dbDevTagMatch[1], 10) : 0;
-      const localHasNewerVersionTag = localDevTagNum > dbDevTagNum;
-      const localIsNewer =
-        !isSame &&
-        ((localEpochMs > 0 && localEpochMs > dbEpochMs + 2000) ||
-          localHasNewerVersionTag);
+      if (dbRow) {
+        const workingContent =
+          (dbRow.message || "").trim().length > 0
+            ? dbRow.message
+            : dbRow.published_message || canonical.bundledContent;
+        const publishedContent =
+          (dbRow.published_message || "").trim().length > 0
+            ? dbRow.published_message
+            : workingContent;
+        const publishedTitle =
+          dbRow.published_title || dbRow.title || canonical.title;
+        const resolvedUpdatedAt =
+          dbRow.updated_at || dbRow.created_at || new Date().toISOString();
+        const resolvedPublishedAt =
+          dbRow.published_at || resolvedUpdatedAt;
 
-      if (localIsNewer || forcePushLocal) {
-        const nowIso =
-          localEpochMs > 0
-            ? new Date(localEpochMs).toISOString()
-            : new Date().toISOString();
-        let updated = dbRow;
-        if (canWriteHub) {
-          const { data } = await supabaseAuth
-            .from("keeper_system_broadcasts")
-            .upsert({
-              id: dbRow.id,
-              title: canonical.title,
-              message: localContent,
-              category: cat,
-              target_audience: "Public",
-              action_required: "No Action Required",
-              is_pinned: false,
-              is_active: true,
-              created_at: nowIso,
-            })
-            .select()
-            .maybeSingle();
-          if (data) updated = data;
-        }
-        const resolvedDate = updated?.created_at || nowIso;
+        const localSync = await syncPublishedToLocalFallbackIfSafe({
+          slug: canonical.slug,
+          publishedContent,
+          bundledBaseline: canonical.bundledContent,
+          localSnapshot: localSnap,
+          forceOverwriteLocal: forcePullLocal,
+        });
+
         result[cat] = {
-          ...updated,
-          title: canonical.title,
-          message: localContent,
-          content: localContent,
-          created_at: resolvedDate,
-          updated_at: resolvedDate,
+          id: dbRow.id,
+          category: cat,
+          slug: canonical.slug,
           file_path: canonical.file_path,
-        };
-      } else if (!isSame && dbContent.trim().length > 200) {
-        await writeLocalDirectiveFile(canonical.slug, dbContent);
-        const resolvedDate = dbRow.created_at || new Date().toISOString();
-        result[cat] = {
-          ...dbRow,
-          message: dbContent,
-          content: dbContent,
-          created_at: resolvedDate,
-          updated_at: resolvedDate,
-          file_path: canonical.file_path,
+          title: dbRow.title || canonical.title,
+          content: workingContent,
+          message: workingContent,
+          published_title: publishedTitle,
+          published_content: publishedContent,
+          published_at: resolvedPublishedAt,
+          updated_at: resolvedUpdatedAt,
+          created_at: dbRow.created_at || resolvedUpdatedAt,
+          updated_by: dbRow.updated_by || "Keepers Core",
+          revision: Number(dbRow.revision || 1),
+          is_active: dbRow.is_active !== false,
+          has_unpublished_changes:
+            normalizeMarkdown(workingContent) !==
+            normalizeMarkdown(publishedContent),
+          has_local_md_changes: localSync.localState === "local_ahead",
+          local_md_content: localSync.localContent,
         };
       } else {
-        const resolvedBody =
-          dbContent.trim().length > 200 ? dbContent : localContent;
-        const resolvedDate = dbRow.created_at || new Date().toISOString();
+        const cached = publishedCache[cat];
+        const fallbackBody =
+          cached?.published_message ||
+          localSnap?.content ||
+          canonical.bundledContent;
+        const nowIso = new Date().toISOString();
         result[cat] = {
-          ...dbRow,
-          message: resolvedBody,
-          content: resolvedBody,
-          created_at: resolvedDate,
-          updated_at: resolvedDate,
+          id: cached?.id || `legal_${cat.toLowerCase()}`,
+          category: cat,
+          slug: canonical.slug,
           file_path: canonical.file_path,
+          title: cached?.published_title || canonical.title,
+          content: fallbackBody,
+          message: fallbackBody,
+          published_title: cached?.published_title || canonical.title,
+          published_content: fallbackBody,
+          published_at: cached?.published_at || nowIso,
+          updated_at: cached?.updated_at || nowIso,
+          created_at: cached?.updated_at || nowIso,
+          updated_by: cached?.updated_by || "Sanctuary Foundry",
+          revision: Number(cached?.revision || 1),
+          is_active: cached?.is_active !== false,
+          has_unpublished_changes: false,
+          has_local_md_changes: false,
+          local_md_content: localSnap?.content || canonical.bundledContent,
         };
       }
     }
@@ -822,53 +898,537 @@ export async function syncLegalAndCovenantsBidirectional(options?: {
 }
 
 /**
- * Fetches live Legal & Sovereign Covenant documents (`EULA`, `Privacy`, `Terms`, `PartnersAgreement`, `ComplianceProtocol`)
- * from the Hub database (`keeper_system_broadcasts`) with automatic fallback to the bundled codebase `.md` files.
+ * Fetches LIVE PUBLISHED Legal & Sovereign Covenant documents (`EULA`, `Privacy`, `Terms`, `PartnersAgreement`, `ComplianceProtocol`)
+ * from the Hub database (`keeper_system_broadcasts.published_message`) with automatic fallback to cached snapshots and bundled `.md` baselines.
  */
 export async function fetchSyncedLegalAndCovenants(): Promise<
   Record<LegalDocCategory, { title: string; content: string; updated_at?: string }>
 > {
+  const publishedCache = readJsonStorage<Record<string, any>>(
+    PUBLISHED_LEGAL_CACHE_KEY,
+    {}
+  );
   const baseline = {} as Record<
     LegalDocCategory,
     { title: string; content: string; updated_at?: string }
   >;
   for (const cat of LEGAL_DOC_CATEGORIES) {
     const meta = CANONICAL_LEGAL_DOCS[cat];
+    const cached = publishedCache[cat];
     baseline[cat] = {
-      title: meta.title,
-      content: meta.bundledContent,
+      title: cached?.published_title || meta.title,
+      content:
+        (cached?.published_message || "").trim().length > 100
+          ? cached.published_message
+          : meta.bundledContent,
+      updated_at: cached?.published_at || cached?.updated_at,
     };
   }
 
   try {
-    const { data } = await supabaseAuth
+    const { data, error } = await supabaseAuth
       .from("keeper_system_broadcasts")
-      .select("category, title, message, created_at")
+      .select(
+        "id, category, title, message, published_title, published_message, published_at, updated_at, created_at"
+      )
       .in("category", LEGAL_DOC_CATEGORIES)
-      .order("created_at", { ascending: false });
+      .order("updated_at", { ascending: false });
 
-    if (Array.isArray(data)) {
+    if (!error && Array.isArray(data)) {
       const seen = new Set<string>();
+      const nextCache: Record<string, any> = { ...publishedCache };
       for (const row of data) {
         const cat = row.category as LegalDocCategory;
         if (cat && CANONICAL_LEGAL_DOCS[cat] && !seen.has(cat)) {
           seen.add(cat);
-          const msg = (row.message || "").trim();
-          if (msg.length > 100) {
+          const pubBody = (
+            row.published_message ||
+            row.message ||
+            ""
+          ).trim();
+          const pubTitle =
+            (row.published_title || row.title || "").trim() ||
+            CANONICAL_LEGAL_DOCS[cat].title;
+          const pubDate =
+            row.published_at || row.updated_at || row.created_at;
+          if (pubBody.length > 100) {
             baseline[cat] = {
-              title: row.title || CANONICAL_LEGAL_DOCS[cat].title,
-              content: msg,
-              updated_at: row.created_at,
+              title: pubTitle,
+              content: pubBody,
+              updated_at: pubDate,
+            };
+            nextCache[cat] = {
+              ...(nextCache[cat] || {}),
+              id: row.id,
+              title: pubTitle,
+              published_title: pubTitle,
+              published_message: pubBody,
+              published_at: pubDate,
+              updated_at: row.updated_at || row.created_at,
             };
           }
         }
       }
+      writeJsonStorage(PUBLISHED_LEGAL_CACHE_KEY, nextCache);
     }
   } catch {
-    // Offline fallback uses bundled `.md` baseline
+    // Offline fallback uses cached / bundled `.md` baseline
   }
 
   return baseline;
+}
+
+export async function saveLegalDocWithConcurrency(payload: {
+  id?: string | null;
+  category: LegalDocCategory;
+  title: string;
+  content: string;
+  isActive?: boolean;
+  updated_by?: string;
+  publishLive?: boolean;
+  expectedRevision?: number | null;
+  forceOverwrite?: boolean;
+}): Promise<DocSaveResult> {
+  const canonical = CANONICAL_LEGAL_DOCS[payload.category];
+  const nowIso = new Date().toISOString();
+  const resolvedTitle =
+    payload.title.trim() || canonical?.title || payload.category;
+  const resolvedContent = payload.content.trim();
+  const resolvedUpdater = (payload.updated_by || "Keepers Core").trim();
+  const publishLive = Boolean(payload.publishLive);
+
+  const { data: current, error: fetchError } = await supabaseAuth
+    .from("keeper_system_broadcasts")
+    .select("*")
+    .eq("category", payload.category)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (fetchError) {
+    return { ok: false, error: fetchError };
+  }
+
+  if (current) {
+    const currentRev = Number(current.revision || 1);
+    const currentWorking = (current.message || "").trim();
+    const hasMeaningfulDiff =
+      normalizeMarkdown(currentWorking) !== normalizeMarkdown(resolvedContent) ||
+      (current.title || "").trim() !== resolvedTitle;
+
+    if (
+      !payload.forceOverwrite &&
+      payload.expectedRevision != null &&
+      currentRev !== Number(payload.expectedRevision) &&
+      hasMeaningfulDiff
+    ) {
+      return { ok: false, conflict: true, serverRow: current };
+    }
+
+    const nextRevision = currentRev + 1;
+    const updatePayload: Record<string, any> = {
+      title: resolvedTitle,
+      message: resolvedContent,
+      is_active: payload.isActive !== false,
+      updated_at: nowIso,
+      updated_by: resolvedUpdater,
+      revision: nextRevision,
+    };
+
+    if (publishLive) {
+      updatePayload.published_title = resolvedTitle;
+      updatePayload.published_message = resolvedContent;
+      updatePayload.published_at = nowIso;
+    }
+
+    let updateQuery = supabaseAuth
+      .from("keeper_system_broadcasts")
+      .update(updatePayload)
+      .eq("id", current.id);
+
+    if (!payload.forceOverwrite && payload.expectedRevision != null) {
+      updateQuery = updateQuery.eq("revision", currentRev);
+    }
+
+    const { data: updated, error: updateErr } = await updateQuery
+      .select()
+      .maybeSingle();
+
+    if (updateErr) {
+      return { ok: false, error: updateErr };
+    }
+
+    if (!updated && !payload.forceOverwrite) {
+      const { data: latest } = await supabaseAuth
+        .from("keeper_system_broadcasts")
+        .select("*")
+        .eq("id", current.id)
+        .maybeSingle();
+      return { ok: false, conflict: true, serverRow: latest || current };
+    }
+
+    let wroteLocal = false;
+    if (publishLive && canonical) {
+      wroteLocal = await writeLocalDirectiveFile(canonical.slug, resolvedContent);
+      markLocalDocSyncedHash(canonical.slug, resolvedContent);
+    }
+
+    return { ok: true, row: updated || current, wroteLocal };
+  }
+
+  // Brand-new category row insert
+  const insertPayload: Record<string, any> = {
+    title: resolvedTitle,
+    message: resolvedContent,
+    category: payload.category,
+    target_audience: "Public",
+    action_required: "No Action Required",
+    is_pinned: "false",
+    is_active: payload.isActive !== false,
+    published_title: publishLive
+      ? resolvedTitle
+      : canonical?.title || resolvedTitle,
+    published_message: publishLive
+      ? resolvedContent
+      : canonical?.bundledContent || resolvedContent,
+    published_at: nowIso,
+    updated_at: nowIso,
+    updated_by: resolvedUpdater,
+    revision: 1,
+  };
+
+  const { data: inserted, error: insertErr } = await supabaseAuth
+    .from("keeper_system_broadcasts")
+    .insert(insertPayload)
+    .select()
+    .maybeSingle();
+
+  if (insertErr) {
+    return { ok: false, error: insertErr };
+  }
+
+  let wroteLocal = false;
+  if (publishLive && canonical) {
+    wroteLocal = await writeLocalDirectiveFile(canonical.slug, resolvedContent);
+    markLocalDocSyncedHash(canonical.slug, resolvedContent);
+  }
+
+  return { ok: true, row: inserted, wroteLocal };
+}
+
+export async function publishLegalDocToUsers(
+  category: LegalDocCategory,
+  updatedBy = "Keepers Core",
+  options?: { expectedRevision?: number | null; forceOverwrite?: boolean }
+): Promise<DocSaveResult> {
+  const canonical = CANONICAL_LEGAL_DOCS[category];
+  const nowIso = new Date().toISOString();
+
+  const { data: existing, error: fetchError } = await supabaseAuth
+    .from("keeper_system_broadcasts")
+    .select("*")
+    .eq("category", category)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (fetchError) {
+    return { ok: false, error: fetchError };
+  }
+
+  if (!existing) {
+    return saveLegalDocWithConcurrency({
+      category,
+      title: canonical.title,
+      content: canonical.bundledContent,
+      updated_by: updatedBy,
+      publishLive: true,
+      forceOverwrite: true,
+    });
+  }
+
+  const currentRev = Number(existing.revision || 1);
+  if (
+    !options?.forceOverwrite &&
+    options?.expectedRevision != null &&
+    currentRev !== Number(options.expectedRevision)
+  ) {
+    return { ok: false, conflict: true, serverRow: existing };
+  }
+
+  const workingBody =
+    (existing.message || "").trim() || canonical.bundledContent;
+  const workingTitle = (existing.title || "").trim() || canonical.title;
+  const nextRevision = currentRev + 1;
+
+  let updateQuery = supabaseAuth
+    .from("keeper_system_broadcasts")
+    .update({
+      published_title: workingTitle,
+      published_message: workingBody,
+      published_at: nowIso,
+      updated_at: nowIso,
+      updated_by: updatedBy,
+      revision: nextRevision,
+    })
+    .eq("id", existing.id);
+
+  if (!options?.forceOverwrite && options?.expectedRevision != null) {
+    updateQuery = updateQuery.eq("revision", currentRev);
+  }
+
+  const { data: updated, error: updateErr } = await updateQuery
+    .select()
+    .maybeSingle();
+
+  if (updateErr) {
+    return { ok: false, error: updateErr };
+  }
+
+  if (!updated && !options?.forceOverwrite) {
+    const { data: latest } = await supabaseAuth
+      .from("keeper_system_broadcasts")
+      .select("*")
+      .eq("id", existing.id)
+      .maybeSingle();
+    return { ok: false, conflict: true, serverRow: latest || existing };
+  }
+
+  const wroteLocal = await writeLocalDirectiveFile(canonical.slug, workingBody);
+  markLocalDocSyncedHash(canonical.slug, workingBody);
+
+  return { ok: true, row: updated || existing, wroteLocal };
+}
+
+export async function saveDirectiveWithConcurrency(payload: {
+  slug: DirectiveSlug;
+  title: string;
+  summary: string;
+  category: string;
+  content: string;
+  updated_by?: string;
+  publishLive?: boolean;
+  expectedRevision?: number | null;
+  forceOverwrite?: boolean;
+}): Promise<DocSaveResult> {
+  const canonical = CANONICAL_DIRECTIVES[payload.slug];
+  const nowIso = new Date().toISOString();
+  const resolvedTitle = payload.title.trim() || canonical.title;
+  const resolvedSummary = payload.summary.trim() || canonical.summary;
+  const resolvedUpdater = (payload.updated_by || "Keepers Core").trim();
+  const publishLive = Boolean(payload.publishLive);
+
+  const { data: current, error: fetchError } = await supabaseAuth
+    .from("system_directives")
+    .select("*")
+    .eq("slug", payload.slug)
+    .maybeSingle();
+
+  if (fetchError) {
+    return { ok: false, error: fetchError };
+  }
+
+  if (current) {
+    const currentRev = Number(current.revision || 1);
+    const hasMeaningfulDiff =
+      normalizeMarkdown(current.content || "") !==
+        normalizeMarkdown(payload.content) ||
+      (current.title || "").trim() !== resolvedTitle ||
+      (current.summary || "").trim() !== resolvedSummary;
+
+    if (
+      !payload.forceOverwrite &&
+      payload.expectedRevision != null &&
+      currentRev !== Number(payload.expectedRevision) &&
+      hasMeaningfulDiff
+    ) {
+      return { ok: false, conflict: true, serverRow: current };
+    }
+
+    const nextRevision = currentRev + 1;
+    const updateRow: Record<string, any> = {
+      title: resolvedTitle,
+      summary: resolvedSummary,
+      category: payload.category || canonical.category,
+      file_path: canonical.file_path,
+      content: payload.content,
+      version: "v0.6.0",
+      updated_at: nowIso,
+      updated_by: resolvedUpdater,
+      revision: nextRevision,
+    };
+
+    if (publishLive) {
+      updateRow.published_content = payload.content;
+      updateRow.published_title = resolvedTitle;
+      updateRow.published_summary = resolvedSummary;
+      updateRow.published_at = nowIso;
+    }
+
+    let updateQuery = supabaseAuth
+      .from("system_directives")
+      .update(updateRow)
+      .eq("slug", payload.slug);
+
+    if (!payload.forceOverwrite && payload.expectedRevision != null) {
+      updateQuery = updateQuery.eq("revision", currentRev);
+    }
+
+    const { data: updated, error: updateErr } = await updateQuery
+      .select()
+      .maybeSingle();
+
+    if (updateErr) {
+      return { ok: false, error: updateErr };
+    }
+
+    if (!updated && !payload.forceOverwrite) {
+      const { data: latest } = await supabaseAuth
+        .from("system_directives")
+        .select("*")
+        .eq("slug", payload.slug)
+        .maybeSingle();
+      return { ok: false, conflict: true, serverRow: latest || current };
+    }
+
+    let wroteLocal = false;
+    if (publishLive) {
+      wroteLocal = await writeLocalDirectiveFile(payload.slug, payload.content);
+      markLocalDocSyncedHash(payload.slug, payload.content);
+    }
+
+    return { ok: true, row: updated || current, wroteLocal };
+  }
+
+  // Brand-new directive row insert
+  const insertRow: Record<string, any> = {
+    slug: payload.slug,
+    title: resolvedTitle,
+    summary: resolvedSummary,
+    category: payload.category || canonical.category,
+    file_path: canonical.file_path,
+    content: payload.content,
+    published_content: publishLive ? payload.content : canonical.bundledContent,
+    published_title: publishLive ? resolvedTitle : canonical.title,
+    published_summary: publishLive ? resolvedSummary : canonical.summary,
+    published_at: nowIso,
+    version: "v0.6.0",
+    updated_at: nowIso,
+    updated_by: resolvedUpdater,
+    revision: 1,
+  };
+
+  const { data: inserted, error: insertErr } = await supabaseAuth
+    .from("system_directives")
+    .insert(insertRow)
+    .select()
+    .maybeSingle();
+
+  if (insertErr) {
+    return { ok: false, error: insertErr };
+  }
+
+  let wroteLocal = false;
+  if (publishLive) {
+    wroteLocal = await writeLocalDirectiveFile(payload.slug, payload.content);
+    markLocalDocSyncedHash(payload.slug, payload.content);
+  }
+
+  return { ok: true, row: inserted, wroteLocal };
+}
+
+export async function publishDirectiveToUsers(
+  slug: DirectiveSlug,
+  updatedBy = "Keepers Core",
+  options?: { expectedRevision?: number | null; forceOverwrite?: boolean }
+): Promise<DocSaveResult> {
+  const canonical = CANONICAL_DIRECTIVES[slug];
+  const nowIso = new Date().toISOString();
+
+  const { data: existing, error: fetchError } = await supabaseAuth
+    .from("system_directives")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (fetchError) {
+    return { ok: false, error: fetchError };
+  }
+
+  if (!existing) {
+    return saveDirectiveWithConcurrency({
+      slug,
+      title: canonical.title,
+      summary: canonical.summary,
+      category: canonical.category,
+      content: canonical.bundledContent,
+      updated_by: updatedBy,
+      publishLive: true,
+      forceOverwrite: true,
+    });
+  }
+
+  const currentRev = Number(existing.revision || 1);
+  if (
+    !options?.forceOverwrite &&
+    options?.expectedRevision != null &&
+    currentRev !== Number(options.expectedRevision)
+  ) {
+    return { ok: false, conflict: true, serverRow: existing };
+  }
+
+  const workingContent = existing.content || canonical.bundledContent;
+  const meta = extractDirectiveMetaFromMarkdown(
+    workingContent,
+    existing.title || canonical.title,
+    existing.summary || canonical.summary,
+    slug
+  );
+  const resolvedTitle = (existing.title || "").trim() || meta.title;
+  const resolvedSummary = (existing.summary || "").trim() || meta.summary;
+  const nextRevision = currentRev + 1;
+
+  let updateQuery = supabaseAuth
+    .from("system_directives")
+    .update({
+      title: resolvedTitle,
+      summary: resolvedSummary,
+      published_content: workingContent,
+      published_title: resolvedTitle,
+      published_summary: resolvedSummary,
+      published_at: nowIso,
+      version: "v0.6.0",
+      updated_at: nowIso,
+      updated_by: updatedBy,
+      revision: nextRevision,
+    })
+    .eq("slug", slug);
+
+  if (!options?.forceOverwrite && options?.expectedRevision != null) {
+    updateQuery = updateQuery.eq("revision", currentRev);
+  }
+
+  const { data: updated, error: updateErr } = await updateQuery
+    .select()
+    .maybeSingle();
+
+  if (updateErr) {
+    return { ok: false, error: updateErr };
+  }
+
+  if (!updated && !options?.forceOverwrite) {
+    const { data: latest } = await supabaseAuth
+      .from("system_directives")
+      .select("*")
+      .eq("slug", slug)
+      .maybeSingle();
+    return { ok: false, conflict: true, serverRow: latest || existing };
+  }
+
+  const wroteLocal = await writeLocalDirectiveFile(slug, workingContent);
+  markLocalDocSyncedHash(slug, workingContent);
+
+  return { ok: true, row: updated || existing, wroteLocal };
 }
 
 export async function saveLegalDocBothWays(payload: {
@@ -877,33 +1437,19 @@ export async function saveLegalDocBothWays(payload: {
   title: string;
   content: string;
   isActive?: boolean;
+  updated_by?: string;
+  publishLive?: boolean;
 }): Promise<{ data: any; error: any; wroteLocal: boolean }> {
-  const canonical = CANONICAL_LEGAL_DOCS[payload.category];
-  const wroteLocal = canonical
-    ? await writeLocalDirectiveFile(canonical.slug, payload.content)
-    : false;
-
-  const dbPayload: any = {
-    title: payload.title.trim() || canonical?.title || payload.category,
-    message: payload.content.trim(),
-    category: payload.category,
-    target_audience: "Public",
-    action_required: "No Action Required",
-    is_pinned: false,
-    is_active: payload.isActive !== false,
-    created_at: new Date().toISOString(),
+  const res = await saveLegalDocWithConcurrency({
+    ...payload,
+    forceOverwrite: true,
+    publishLive: payload.publishLive ?? true,
+  });
+  return {
+    data: res.row ? [res.row] : null,
+    error: res.error || null,
+    wroteLocal: Boolean(res.wroteLocal),
   };
-
-  if (payload.id && !String(payload.id).startsWith("legal_")) {
-    dbPayload.id = payload.id;
-  }
-
-  const { data, error } = await supabaseAuth
-    .from("keeper_system_broadcasts")
-    .upsert(dbPayload)
-    .select();
-
-  return { data, error, wroteLocal };
 }
 
 export async function saveDirectiveBothWays(payload: {
@@ -915,132 +1461,14 @@ export async function saveDirectiveBothWays(payload: {
   updated_by?: string;
   publishLive?: boolean;
 }): Promise<{ error: any; wroteLocal: boolean }> {
-  const canonical = CANONICAL_DIRECTIVES[payload.slug];
-  const nowIso = new Date().toISOString();
-
-  // 1. Write to local codebase `.md` file first
-  const wroteLocal = await writeLocalDirectiveFile(payload.slug, payload.content);
-
-  // 2. Upsert to `public.system_directives` in Keepers Core
-  // Only overwrite `published_content` when `publishLive === true` so the User side stays on the published snapshot until published.
-  const resolvedTitle = payload.title.trim() || canonical.title;
-  const resolvedSummary = payload.summary.trim() || canonical.summary;
-  const upsertRow: Record<string, any> = {
-    slug: payload.slug,
-    title: resolvedTitle,
-    summary: resolvedSummary,
-    category: payload.category || canonical.category,
-    file_path: canonical.file_path,
-    content: payload.content,
-    version: "v0.6.0",
-    updated_at: nowIso,
-    updated_by: payload.updated_by || "Keepers Core",
+  const res = await saveDirectiveWithConcurrency({
+    ...payload,
+    forceOverwrite: true,
+  });
+  return {
+    error: res.error || null,
+    wroteLocal: Boolean(res.wroteLocal),
   };
-  if (payload.publishLive) {
-    upsertRow.published_content = payload.content;
-    upsertRow.published_title = resolvedTitle;
-    upsertRow.published_summary = resolvedSummary;
-    upsertRow.published_at = nowIso;
-  }
-
-  const { error } = await supabaseAuth
-    .from("system_directives")
-    .upsert(upsertRow);
-
-  return { error, wroteLocal };
-}
-
-export async function publishDirectiveToUsers(
-  slug: DirectiveSlug,
-  updatedBy = "Keepers Core"
-): Promise<{ error: any }> {
-  const canonical = CANONICAL_DIRECTIVES[slug];
-  const localMap = await readAllLocalDocSnapshots();
-  const localSnap = localMap[slug];
-  const nowIso = new Date().toISOString();
-
-  const { data: existing } = await supabaseAuth
-    .from("system_directives")
-    .select("*")
-    .eq("slug", slug)
-    .maybeSingle();
-
-  const workingContent =
-    localSnap?.content || existing?.content || canonical.bundledContent;
-  await writeLocalDirectiveFile(slug, workingContent);
-
-  const meta = extractDirectiveMetaFromMarkdown(
-    workingContent,
-    existing?.title || canonical.title,
-    existing?.summary || canonical.summary,
-    slug
-  );
-
-  const { error } = await supabaseAuth.from("system_directives").upsert({
-    slug,
-    title: meta.title,
-    summary: meta.summary,
-    category: existing?.category || canonical.category,
-    file_path: canonical.file_path,
-    content: workingContent,
-    published_content: workingContent,
-    published_title: meta.title,
-    published_summary: meta.summary,
-    published_at: nowIso,
-    version: "v0.6.0",
-    updated_at: nowIso,
-    updated_by: updatedBy,
-  });
-
-  return { error };
-}
-
-export async function pushCodebaseDirectivesToKeepersCore(
-  updatedBy = "Keepers Core",
-  publishLive = false
-): Promise<{ count: number; error: any }> {
-  const localMap = await readAllLocalDocSnapshots();
-  const nowIso = new Date().toISOString();
-
-  const rows = DIRECTIVE_ORDER.map((slug) => {
-    const canonical = CANONICAL_DIRECTIVES[slug];
-    const snap = localMap[slug];
-    const content = snap?.content || canonical.bundledContent;
-    const meta = extractDirectiveMetaFromMarkdown(
-      content,
-      canonical.title,
-      canonical.summary,
-      slug
-    );
-    const row: Record<string, any> = {
-      slug,
-      title: meta.title,
-      summary: meta.summary,
-      category: canonical.category,
-      file_path: canonical.file_path,
-      content,
-      version: "v0.6.0",
-      updated_at: nowIso,
-      updated_by: updatedBy,
-    };
-    if (publishLive) {
-      row.published_content = content;
-      row.published_title = meta.title;
-      row.published_summary = meta.summary;
-      row.published_at = nowIso;
-    }
-    return row;
-  });
-
-  const { error } = await supabaseAuth.from("system_directives").upsert(rows);
-
-  // Also push the 5 Legal & Sovereign Covenant `.md` files to `keeper_system_broadcasts`
-  await syncLegalAndCovenantsBidirectional({
-    canWriteHub: true,
-    forcePushLocal: true,
-  });
-
-  return { count: rows.length + LEGAL_DOC_CATEGORIES.length, error };
 }
 
 export async function pullKeepersCoreDirectivesToCodebase(): Promise<{
@@ -1054,9 +1482,13 @@ export async function pullKeepersCoreDirectivesToCodebase(): Promise<{
 
   let count = 0;
   for (const row of data) {
-    if (row.slug && CANONICAL_DIRECTIVES[row.slug as DirectiveSlug] && row.content) {
-      const ok = await writeLocalDirectiveFile(row.slug as DirectiveSlug, row.content);
-      if (ok) count++;
+    const pubBody = row.published_content || row.content;
+    if (row.slug && CANONICAL_DIRECTIVES[row.slug as DirectiveSlug] && pubBody) {
+      const ok = await writeLocalDirectiveFile(row.slug as DirectiveSlug, pubBody);
+      if (ok) {
+        markLocalDocSyncedHash(row.slug as DirectiveSlug, pubBody);
+        count++;
+      }
     }
   }
 
@@ -1066,7 +1498,10 @@ export async function pullKeepersCoreDirectivesToCodebase(): Promise<{
     const doc = legalMap[cat];
     if (doc?.content) {
       const ok = await writeLocalDirectiveFile(meta.slug, doc.content);
-      if (ok) count++;
+      if (ok) {
+        markLocalDocSyncedHash(meta.slug, doc.content);
+        count++;
+      }
     }
   }
 

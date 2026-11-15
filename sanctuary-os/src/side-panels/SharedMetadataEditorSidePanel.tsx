@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { supabase } from "../supabase";
+import { useState, useEffect, useMemo } from "react";
+import { supabase, spokeOversightFrom } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
@@ -15,10 +15,14 @@ import {
   SidePanelTitleInput,
   SidePanelPillToggle,
   UniversalGroup,
+  HoverTooltip,
+  openModDossier,
   toHighlanderSlotSlug,
 } from "../shared";
+import ModStructureBuilder, { StructureNode } from "../ModStructureBuilder";
 import { CustomStatusDropdown, CustomMasonDropdown } from "../ArchitectHub";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
+import { importIssueCauseFromLabReports } from "../components/KnownExceptionRules";
 
 export function SharedMetadataEditorSidePanel({
   isOpen,
@@ -45,6 +49,8 @@ export function SharedMetadataEditorSidePanel({
     ["oversight", "wayfinder", "admin", "keeper"].includes(
       String(userRole || "").toLowerCase()
     );
+  const dbFrom = (table: string) =>
+    isOversight ? spokeOversightFrom(table) : supabase.from(table);
   const [modForm, setModForm] = useState<any>(null);
   const [originalMod, setOriginalMod] = useState<any>(null);
   const [isCommitting, setIsCommitting] = useState(false);
@@ -52,6 +58,8 @@ export function SharedMetadataEditorSidePanel({
     masonsList || []
   );
   const [highlanderSlots, setHighlanderSlots] = useState<any[]>([]);
+  const [parentRel, setParentRel] = useState<any>(null);
+  const [childRels, setChildRels] = useState<any[]>([]);
 
   useEffect(() => {
     if (activeMod) {
@@ -66,8 +74,7 @@ export function SharedMetadataEditorSidePanel({
       const fetchMod = async () => {
         let modId = initialModId;
         if (initialModId.length === 64) {
-          const { data: mvData } = await supabase
-            .from("mod_versions")
+          const { data: mvData } = await dbFrom("mod_versions")
             .select("mod_id")
             .eq("dna_hash", initialModId)
             .single();
@@ -79,8 +86,7 @@ export function SharedMetadataEditorSidePanel({
           }
         }
 
-        const { data } = await supabase
-          .from("mods")
+        const { data } = await dbFrom("mods")
           .select("*")
           .eq("id", modId)
           .single();
@@ -96,8 +102,86 @@ export function SharedMetadataEditorSidePanel({
     } else if (!isOpen) {
       setModForm(null);
       setOriginalMod(null);
+      setParentRel(null);
+      setChildRels([]);
     }
   }, [activeMod, initialModId, isOpen, isOversight]);
+
+  useEffect(() => {
+    if (!isOpen || !modForm?.id || modForm._error) {
+      setParentRel(null);
+      setChildRels([]);
+      return;
+    }
+    let mounted = true;
+    const loadRelations = async () => {
+      try {
+        const { data: relRows } = await dbFrom("mod_relationships")
+          .select("id, parent_id, child_id, relationship_type")
+          .or(`parent_id.eq.${modForm.id},child_id.eq.${modForm.id}`);
+        if (!mounted || !relRows || relRows.length === 0) {
+          if (mounted) {
+            setParentRel(null);
+            setChildRels([]);
+          }
+          return;
+        }
+        const relatedIds = Array.from(
+          new Set(
+            relRows
+              .flatMap((r: any) => [r.parent_id, r.child_id])
+              .filter((id: any) => id && id !== modForm.id)
+          )
+        );
+        const modMap = new Map<string, any>();
+        if (relatedIds.length > 0) {
+          const { data: modsData } = await dbFrom("mods")
+            .select("*")
+            .in("id", relatedIds);
+          for (const m of modsData || []) {
+            if (m?.id) modMap.set(m.id, m);
+          }
+        }
+        if (!mounted) return;
+        const pRow = relRows.find((r: any) => r.child_id === modForm.id && r.parent_id !== modForm.id);
+        setParentRel(
+          pRow ? { ...pRow, mod: modMap.get(pRow.parent_id) || { id: pRow.parent_id } } : null
+        );
+        setChildRels(
+          relRows
+            .filter((r: any) => r.parent_id === modForm.id && r.child_id && r.child_id !== modForm.id)
+            .map((r: any) => ({ ...r, mod: modMap.get(r.child_id) || { id: r.child_id } }))
+        );
+      } catch {
+        // ignore relation fetch error
+      }
+    };
+    loadRelations();
+    return () => {
+      mounted = false;
+    };
+  }, [isOpen, modForm?.id, modForm?._error]);
+
+  const parsedStructureNodes: StructureNode[] = useMemo(() => {
+    let raw = modForm?.folder_structure;
+    if (typeof raw === "string") {
+      try {
+        raw = JSON.parse(raw);
+      } catch {
+        return [];
+      }
+    }
+    if (!Array.isArray(raw)) return [];
+    if (raw.length > 0 && typeof raw[0] === "string") {
+      return raw.map((name: string, idx: number) => ({
+        id: `folder_${idx}`,
+        name,
+        type: "folder" as const,
+        children: [],
+      }));
+    }
+    return raw as StructureNode[];
+  }, [modForm?.folder_structure]);
 
   useEffect(() => {
     if (!masonsList && isOpen) {
@@ -187,6 +271,12 @@ export function SharedMetadataEditorSidePanel({
             ),
             "warning"
           );
+      }
+      if (
+        shouldRoutePending ||
+        Number(originalMod?.compliance_tier ?? activeMod?.compliance_tier ?? 0) !== targetTier
+      ) {
+        window.dispatchEvent(new CustomEvent("sanctuary-compliance-updated"));
       }
       if (onModUpdated) onModUpdated();
     } catch (err) {
@@ -299,7 +389,7 @@ export function SharedMetadataEditorSidePanel({
                     onChange={(e) =>
                       setModForm({ ...modForm, file_extension: e.target.value })
                     }
-                    className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                    className="w-full h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                     placeholder={activeGameSchema?.extensions?.supported?.[0] || t("ph_file_ext", "e.g. .bin, .dll")}
                   />
                 </div>
@@ -313,7 +403,7 @@ export function SharedMetadataEditorSidePanel({
                     onChange={(e) =>
                       setModForm({ ...modForm, sub_type: e.target.value })
                     }
-                    className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                    className="w-full h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                     placeholder={t("auto_e_g_tuning_26", "e.g. Tuning")}
                   />
                 </div>
@@ -381,7 +471,7 @@ export function SharedMetadataEditorSidePanel({
                   onChange={(e) =>
                     setModForm({ ...modForm, image_url: e.target.value })
                   }
-                  className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                  className="w-full h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                   placeholder={t("auto_https", "https://...")}
                 />
               </div>
@@ -397,7 +487,7 @@ export function SharedMetadataEditorSidePanel({
                       setModForm({ ...modForm, latest_version: e.target.value })
                     }
                     placeholder={t("ph_mod_version", "v1.0.0")}
-                    className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                    className="w-full h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                   />
                 </div>
 
@@ -410,7 +500,7 @@ export function SharedMetadataEditorSidePanel({
                     onChange={(e) =>
                       setModForm({ ...modForm, url: e.target.value })
                     }
-                    className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--accent)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                    className="w-full h-11 glass-surface rounded-xl px-4 text-[var(--accent)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                     placeholder={t("auto_https", "https://...")}
                   />
                 </div>
@@ -464,29 +554,64 @@ export function SharedMetadataEditorSidePanel({
                     onChange={(newTier: number) =>
                       setModForm({ ...modForm, compliance_tier: newTier })
                     }
-                    maxTier={4}
+                    maxTier={isOversight ? 5 : 4}
                   />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label
-                  className={`text-[10px] font-black uppercase tracking-widest px-1 flex items-center gap-1.5 ${
-                    modForm.status === "corrupted" || modForm.status === "broken"
-                      ? "text-[var(--danger)]"
-                      : modForm.status === "unstable"
-                        ? "text-[var(--warning)]"
-                        : "text-[var(--subtext)] opacity-75"
-                  }`}
-                >
-                  <span className="material-symbols-outlined !text-[13px]">
-                    {t("icon_report_problem", "report_problem")}
-                  </span>
-                  {t(
-                    "label_status_issue_details",
-                    "Issue & Cause Details (Corrupted / Unstable)"
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label
+                    className={`text-[10px] font-black uppercase tracking-widest px-1 flex items-center gap-1.5 ${
+                      modForm.status === "corrupted" || modForm.status === "broken"
+                        ? "text-[var(--danger)]"
+                        : modForm.status === "unstable"
+                          ? "text-[var(--warning)]"
+                          : "text-[var(--subtext)] opacity-75"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[13px]">
+                      {t("icon_report_problem", "report_problem")}
+                    </span>
+                    {t(
+                      "label_status_issue_details",
+                      "Issue & Cause Details (Corrupted / Unstable)"
+                    )}
+                  </label>
+                  {Boolean(modForm?.id) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void importIssueCauseFromLabReports({
+                          modId: modForm.id,
+                          currentStatus: modForm.status,
+                          onApply: (patch) =>
+                            setModForm((prev: any) =>
+                              prev ? { ...prev, ...patch } : prev
+                            ),
+                          labels: {
+                            fixPrefix: t("fix_prefix", "Fix"),
+                            notePrefix: t("tester_note_label", "Tester Note"),
+                            importedToast: t(
+                              "lab_issue_imported_toast",
+                              "Imported issue & cause details from {Lab} diagnostic reports."
+                            ),
+                            emptyToast: t(
+                              "lab_issue_none_found_toast",
+                              "No {Lab} diagnostic reports with issue details found for this {mod}."
+                            ),
+                          },
+                        })
+                      }
+                      className="px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined !text-[12px]">
+                        {t("icon_science", "science")}
+                      </span>
+                      {t("import_from_lab_reports", "Import from {Lab} Reports")}
+                    </button>
                   )}
-                </label>
+                </div>
                 <textarea
                   value={
                     /^\[ARCHITECT\b/i.test(String(modForm.status_reason || "").trim())
@@ -547,6 +672,58 @@ export function SharedMetadataEditorSidePanel({
                   }
                 />
               </div>
+            </UniversalGroup>
+
+            <UniversalGroup
+              title={t("studio_structure_section_title", "Install Folder Layout ({Mods}/)")}
+              icon={t("icon_folder_open", "folder_open")}
+            >
+              {(parentRel || childRels.length > 0) && (
+                <div className="flex flex-wrap items-center gap-2 pb-1">
+                  {parentRel?.mod && (
+                    <button
+                      type="button"
+                      onClick={() => openModDossier({ ...parentRel.mod, isNexusView: true })}
+                      className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:border-[var(--accent)] text-[11px] font-bold text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer relative group/fam"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-wider text-[var(--accent)]">
+                        {t("studio_parent_mod_title", "Parent / Main {Mod}")}:
+                      </span>
+                      <span className="truncate max-w-[180px]">{parentRel.mod.name || parentRel.parent_id}</span>
+                      <HoverTooltip title={t("open_dossier", "Open {Mod} Dossier")} />
+                    </button>
+                  )}
+                  {childRels.map((rel: any, idx: number) => (
+                    <button
+                      key={rel.id || idx}
+                      type="button"
+                      onClick={() => openModDossier({ ...(rel.mod || { id: rel.child_id }), isNexusView: true })}
+                      className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[11px] font-bold text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer relative group/fam"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-wider text-[var(--subtext)]">
+                        {rel.relationship_type || t("editor_addon", "Add-on")}:
+                      </span>
+                      <span className="truncate max-w-[180px]">{rel.mod?.name || rel.child_id}</span>
+                      <HoverTooltip title={t("open_dossier", "Open {Mod} Dossier")} />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <ModStructureBuilder
+                structure={parsedStructureNodes}
+                onChange={(nextNodes) =>
+                  setModForm((prev: any) =>
+                    prev ? { ...prev, folder_structure: nextNodes } : prev
+                  )
+                }
+                targetMod={modForm}
+                parentRel={parentRel}
+                childRels={childRels}
+                onOpenModDossier={(target) =>
+                  openModDossier({ ...target, isNexusView: true })
+                }
+              />
             </UniversalGroup>
           </>
         )}

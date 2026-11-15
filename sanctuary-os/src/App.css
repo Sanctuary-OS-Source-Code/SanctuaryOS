@@ -699,6 +699,16 @@ body,
     border-bottom-color: var(--glass-surface-border, rgba(255, 255, 255, 0.06));
     background-color: transparent;
   }
+
+  @media (min-width: 768px) {
+    .sa-side-panel-window.sa-panel-right {
+      max-width: calc(100vw - 1.5rem);
+    }
+
+    .sa-side-panel-window.sa-panel-left {
+      max-width: calc(100vw - var(--sidebarWidth, 260px) - 2.25rem);
+    }
+  }
 }
 
 .glass-panel {
@@ -856,12 +866,12 @@ nav.firefox-safe-glass {
 }
 
 /* Nested glass elements inside Sidebar, SidePanels, Mobile Overlays, Modals, or parent cards sit as clean frosted containers on top of the parent's continuous WebGL2 Liquid Glass slab */
-nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix),
-.sa-side-panel-window .glass-panel:not(.portal-glass-fix),
-.sa-mobile-glass-overlay .glass-panel:not(.portal-glass-fix),
-.sanctuary-modal-glass .glass-panel:not(.portal-glass-fix),
-.glass-panel .glass-panel:not(.portal-glass-fix),
-.glass-surface .glass-panel:not(.portal-glass-fix) {
+nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix):not(.sa-dropdown-popover),
+.sa-side-panel-window .glass-panel:not(.portal-glass-fix):not(.sa-dropdown-popover),
+.sa-mobile-glass-overlay .glass-panel:not(.portal-glass-fix):not(.sa-dropdown-popover),
+.sanctuary-modal-glass .glass-panel:not(.portal-glass-fix):not(.sa-dropdown-popover),
+.glass-panel .glass-panel:not(.portal-glass-fix):not(.sa-dropdown-popover),
+.glass-surface .glass-panel:not(.portal-glass-fix):not(.sa-dropdown-popover) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   background-color: var(--glass-nested-panel-bg, rgba(255, 255, 255, 0.05)) !important;
@@ -888,12 +898,12 @@ nav.firefox-safe-glass .glass-panel:not(.portal-glass-fix),
   }
 }
 
-nav.firefox-safe-glass .glass-surface:not(.portal-glass-fix),
-.sa-side-panel-window .glass-surface:not(.portal-glass-fix),
-.sa-mobile-glass-overlay .glass-surface:not(.portal-glass-fix),
-.sanctuary-modal-glass .glass-surface:not(.portal-glass-fix),
-.glass-panel .glass-surface:not(.portal-glass-fix),
-.glass-surface .glass-surface:not(.portal-glass-fix),
+nav.firefox-safe-glass .glass-surface:not(.portal-glass-fix):not(.sa-dropdown-popover),
+.sa-side-panel-window .glass-surface:not(.portal-glass-fix):not(.sa-dropdown-popover),
+.sa-mobile-glass-overlay .glass-surface:not(.portal-glass-fix):not(.sa-dropdown-popover),
+.sanctuary-modal-glass .glass-surface:not(.portal-glass-fix):not(.sa-dropdown-popover),
+.glass-panel .glass-surface:not(.portal-glass-fix):not(.sa-dropdown-popover),
+.glass-surface .glass-surface:not(.portal-glass-fix):not(.sa-dropdown-popover),
 .glass-panel .sa-empty-state-card:not(.portal-glass-fix),
 .glass-surface .sa-empty-state-card:not(.portal-glass-fix) {
   -webkit-backdrop-filter: none !important;
@@ -966,27 +976,26 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
   overflow: hidden;
   border-style: solid !important;
   border-width: 1px !important;
-  border-top-color: var(--glass-border-top) !important;
-  border-left-color: var(--glass-border-left) !important;
-  border-right-color: var(--glass-border-right) !important;
-  border-bottom-color: var(--glass-border-bottom) !important;
+  border-top-color: var(--glass-dropdown-border-top, var(--glass-border-top)) !important;
+  border-left-color: var(--glass-dropdown-border-left, var(--glass-border-left)) !important;
+  border-right-color: var(--glass-dropdown-border-right, var(--glass-border-right)) !important;
+  border-bottom-color: var(--glass-dropdown-border-bottom, var(--glass-border-bottom)) !important;
   border-radius: max(12px, calc(var(--radius, 1.25rem) * 0.72)) !important;
-  background-color: var(--glass-dropdown-bg, transparent) !important;
+  background-color: var(--glass-dropdown-bg, rgba(15, 23, 42, 0.94)) !important;
   background-image: var(--glass-dropdown-gradient, none) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(var(--glassSaturation, 185%)) !important;
-  backdrop-filter: blur(28px) saturate(var(--glassSaturation, 185%)) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(var(--glassSaturation, 190%)) !important;
+  backdrop-filter: blur(40px) saturate(var(--glassSaturation, 190%)) !important;
   box-shadow:
-    var(--glass-outer-shadow, 0 20px 44px -10px rgba(0, 0, 0, 0.52)),
+    var(--glass-dropdown-shadow, var(--glass-outer-shadow, 0 20px 44px -10px rgba(0, 0, 0, 0.52))),
     var(--glass-inset-highlight, inset 0 1px 0 0 rgba(255, 255, 255, 0.44), inset 1px 0 0 0 rgba(255, 255, 255, 0.24), inset 0 -1px 0 0 rgba(255, 255, 255, 0.14)) !important;
   color: var(--text) !important;
   font-family: var(--fontFamily, inherit) !important;
 }
 
-#root .portal-glass-fix.sa-dropdown-popover:has(> canvas.sa-webgl-overlay-canvas),
-#sa-portals .portal-glass-fix.sa-dropdown-popover:has(> canvas.sa-webgl-overlay-canvas),
-.portal-glass-fix.sa-dropdown-popover:has(> canvas.sa-webgl-overlay-canvas),
-.sa-dropdown-popover:has(> canvas.sa-webgl-overlay-canvas),
 .sa-tooltip-glass:has(> canvas.sa-webgl-overlay-canvas),
+#root .sa-dropdown-popover:has(> canvas.sa-webgl-overlay-canvas),
+#sa-portals .sa-dropdown-popover:has(> canvas.sa-webgl-overlay-canvas),
+.sa-dropdown-popover:has(> canvas.sa-webgl-overlay-canvas),
 #root .portal-glass-fix:not(.portal-glass-modal):has(> canvas.sa-webgl-overlay-canvas),
 #sa-portals .portal-glass-fix:not(.portal-glass-modal):has(> canvas.sa-webgl-overlay-canvas),
 .portal-glass-fix:not(.portal-glass-modal):has(> canvas.sa-webgl-overlay-canvas) {
@@ -1012,6 +1021,12 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
   display: none !important;
 }
 
+@media (min-width: 768px) {
+  .sa-inline-md-toolbar > canvas.sa-webgl-overlay-canvas {
+    display: none !important;
+  }
+}
+
 #root .sa-dropdown-popover::before,
 #sa-portals .sa-dropdown-popover::before,
 .sa-dropdown-popover::before,
@@ -1023,13 +1038,12 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
 }
 
 .sa-dropdown-popover .glass-surface,
-.sa-dropdown-popover .sa-dropdown-search,
 .sa-dropdown-popover .sa-dropdown-action-chip {
   position: relative;
   border-style: solid !important;
   border-width: 1px !important;
-  border-top-color: var(--glass-dropdown-input-border, var(--glass-border-top)) !important;
-  border-left-color: var(--glass-dropdown-input-border, var(--glass-border-left)) !important;
+  border-top-color: var(--glass-dropdown-border-top, var(--glass-border-top)) !important;
+  border-left-color: var(--glass-dropdown-border-left, var(--glass-border-left)) !important;
   border-right-color: var(--glass-dropdown-input-border, var(--glass-border-right)) !important;
   border-bottom-color: var(--glass-dropdown-input-border, var(--glass-border-bottom)) !important;
   background-color: var(--glass-dropdown-input-bg, var(--glass-nested-surface-bg)) !important;
@@ -1040,7 +1054,28 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
 }
 
 .sa-dropdown-popover .sa-dropdown-search {
+  position: relative;
+  border-style: solid !important;
+  border-width: 1px !important;
+  border-top-color: var(--glass-dropdown-border-top, var(--glass-border-top)) !important;
+  border-left-color: var(--glass-dropdown-border-left, var(--glass-border-left)) !important;
+  border-right-color: var(--glass-dropdown-input-border, var(--glass-border-right)) !important;
+  border-bottom-color: var(--glass-dropdown-input-border, var(--glass-border-bottom)) !important;
+  background-color: var(--glass-dropdown-input-bg, var(--glass-nested-surface-bg)) !important;
+  background-image: var(--glass-surface-sheen) !important;
+  box-shadow: var(--glass-surface-inset-highlight) !important;
   border-radius: max(8px, calc(var(--radius, 1.25rem) * 0.55)) !important;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease !important;
+}
+
+.sa-dropdown-popover .sa-dropdown-search:focus-within {
+  border-top-color: var(--glass-dropdown-border-top, var(--glass-border-top)) !important;
+  border-left-color: var(--glass-dropdown-border-left, var(--glass-border-left)) !important;
+  border-right-color: var(--glass-dropdown-item-active-border, var(--glass-dropdown-border-right)) !important;
+  border-bottom-color: var(--glass-dropdown-item-active-border, var(--glass-dropdown-border-bottom)) !important;
+  box-shadow:
+    var(--glass-surface-inset-highlight),
+    0 0 0 1px color-mix(in srgb, var(--accent) 22%, rgba(255, 255, 255, 0.12)) !important;
 }
 
 .sa-dropdown-popover .sa-dropdown-action-chip {
@@ -1054,6 +1089,38 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
   color: var(--text) !important;
 }
 
+.sa-dropdown-popover .sa-dropdown-filter-tab {
+  position: relative;
+  border-style: solid;
+  border-width: 1px;
+  border-top-color: var(--glass-dropdown-input-border, var(--glass-border-top));
+  border-left-color: var(--glass-dropdown-input-border, var(--glass-border-left));
+  border-right-color: var(--glass-dropdown-input-border, var(--glass-border-right));
+  border-bottom-color: var(--glass-dropdown-input-border, var(--glass-border-bottom));
+  background-color: var(--glass-dropdown-input-bg, transparent);
+  background-image: none;
+  color: var(--subtext);
+  transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.sa-dropdown-popover .sa-dropdown-filter-tab:hover:not(.is-active) {
+  border-top-color: var(--glass-dropdown-border-top, var(--glass-border-top));
+  border-left-color: var(--glass-dropdown-border-left, var(--glass-border-left));
+  background-color: var(--glass-dropdown-item-hover, var(--glass-nested-surface-bg));
+  color: var(--text);
+}
+
+.sa-dropdown-popover .sa-dropdown-filter-tab.is-active {
+  border-top-color: var(--glass-nav-active-border-top, var(--glass-dropdown-border-top));
+  border-left-color: var(--glass-nav-active-border-left, var(--glass-dropdown-border-left));
+  border-right-color: var(--glass-nav-active-border-right, var(--glass-dropdown-input-border));
+  border-bottom-color: var(--glass-nav-active-border-bottom, var(--glass-dropdown-input-border));
+  background-color: var(--glass-nav-active-bg, var(--glass-dropdown-item-active));
+  background-image: var(--glass-nav-active-sheen, none);
+  box-shadow: var(--glass-nav-active-shadow, var(--glass-surface-inset-highlight));
+  color: var(--text);
+}
+
 .sa-dropdown-popover .sa-dropdown-item {
   position: relative;
   flex-shrink: 0;
@@ -1063,42 +1130,55 @@ nav.firefox-safe-glass [class*="backdrop-blur"]:not(.portal-glass-fix),
   border: 1px solid transparent !important;
   box-shadow: none !important;
   color: var(--text) !important;
-  opacity: 0.84;
+  opacity: 0.94;
   transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease, opacity 0.16s ease !important;
 }
 
 .sa-dropdown-popover .sa-dropdown-item:hover:not(.is-selected) {
   background-color: var(--glass-dropdown-item-hover, var(--glass-nested-surface-bg)) !important;
   background-image: none !important;
-  border-top-color: var(--glass-border-top) !important;
-  border-left-color: var(--glass-border-left) !important;
-  border-right-color: var(--glass-surface-border) !important;
-  border-bottom-color: var(--glass-surface-border) !important;
+  border-top-color: var(--glass-dropdown-border-top, var(--glass-border-top)) !important;
+  border-left-color: var(--glass-dropdown-border-left, var(--glass-border-left)) !important;
+  border-right-color: var(--glass-dropdown-input-border, var(--glass-surface-border)) !important;
+  border-bottom-color: var(--glass-dropdown-input-border, var(--glass-surface-border)) !important;
   box-shadow: none !important;
   color: var(--text) !important;
   opacity: 1;
 }
 
 .sa-dropdown-popover .sa-dropdown-item.is-selected {
-  background-color: var(--glass-nav-active-bg) !important;
+  background-color: var(--glass-dropdown-item-active, var(--glass-nav-active-bg)) !important;
   background-image: var(--glass-nav-active-sheen, none) !important;
-  border-top: 1px solid color-mix(in srgb, var(--accent) 48%, var(--glass-nav-active-border-top, var(--glass-border-top))) !important;
-  border-left: 1px solid color-mix(in srgb, var(--accent) 40%, var(--glass-nav-active-border-left, var(--glass-border-left))) !important;
-  border-right: 1px solid color-mix(in srgb, var(--accent) 28%, var(--glass-nav-active-border-right, var(--glass-border-right))) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 32%, var(--glass-nav-active-border-bottom, var(--glass-border-bottom))) !important;
-  box-shadow: var(--glass-nav-active-shadow) !important;
+  border-top: 1px solid var(--glass-dropdown-item-active-border, var(--glass-nav-active-border-top, var(--glass-dropdown-border-top))) !important;
+  border-left: 1px solid var(--glass-dropdown-item-active-border, var(--glass-nav-active-border-left, var(--glass-dropdown-border-left))) !important;
+  border-right: 1px solid var(--glass-nav-active-border-right, var(--glass-dropdown-border-right)) !important;
+  border-bottom: 1px solid var(--glass-nav-active-border-bottom, var(--glass-dropdown-border-bottom)) !important;
+  box-shadow: var(--glass-nav-active-shadow, var(--glass-surface-inset-highlight)) !important;
   color: var(--text) !important;
   opacity: 1 !important;
+}
+
+@media (min-width: 768px) {
+  .sa-dropdown-popover.sa-inline-md-toolbar {
+    position: static !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    border-width: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
 }
 
 .sa-glass-active {
   background-color: var(--glass-nav-active-bg) !important;
   background-image: var(--glass-nav-active-sheen) !important;
   box-shadow: var(--glass-nav-active-shadow) !important;
-  border-top: 1px solid color-mix(in srgb, var(--accent) 48%, var(--glass-nav-active-border-top, var(--glass-border-top))) !important;
-  border-left: 1px solid color-mix(in srgb, var(--accent) 40%, var(--glass-nav-active-border-left, var(--glass-border-left))) !important;
-  border-right: 1px solid color-mix(in srgb, var(--accent) 28%, var(--glass-nav-active-border-right, var(--glass-border-right))) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 32%, var(--glass-nav-active-border-bottom, var(--glass-border-bottom))) !important;
+  border-top: 1px solid var(--glass-nav-active-border-top, var(--glass-border-top)) !important;
+  border-left: 1px solid var(--glass-nav-active-border-left, var(--glass-border-left)) !important;
+  border-right: 1px solid var(--glass-nav-active-border-right, var(--glass-border-right)) !important;
+  border-bottom: 1px solid var(--glass-nav-active-border-bottom, var(--glass-border-bottom)) !important;
   opacity: 1 !important;
 }
 
@@ -1150,10 +1230,16 @@ nav.firefox-safe-glass,
 @-moz-document url-prefix() {
 
   .firefox-safe-glass,
-  .glass-panel,
-  .glass-surface {
+  .glass-panel:not(.sa-dropdown-popover):not(.portal-glass-fix),
+  .glass-surface:not(.sa-dropdown-popover) {
     backdrop-filter: none !important;
     background-color: rgb(var(--panelTint-rgb-spaces, 255 255 255) / 0.7) !important;
+  }
+
+  .sa-dropdown-popover,
+  .glass-panel.sa-dropdown-popover {
+    backdrop-filter: none !important;
+    background-color: var(--glass-dropdown-bg, rgb(var(--panelTint-rgb-spaces, 24 30 44) / 0.92)) !important;
   }
 }
 
@@ -2088,10 +2174,10 @@ section:has(.monaco-diff-editor),
     var(--glass-nested-surface-bg, transparent)
   );
   background-image: var(--glass-surface-sheen, none);
-  border-top: 1px solid color-mix(in srgb, var(--toggle-accent, var(--accent)) 52%, var(--glass-border-top, rgba(255, 255, 255, 0.38)));
-  border-left: 1px solid color-mix(in srgb, var(--toggle-accent, var(--accent)) 44%, var(--glass-border-left, rgba(255, 255, 255, 0.28)));
-  border-right: 1px solid color-mix(in srgb, var(--toggle-accent, var(--accent)) 32%, var(--glass-border-right, rgba(255, 255, 255, 0.16)));
-  border-bottom: 1px solid color-mix(in srgb, var(--toggle-accent, var(--accent)) 38%, var(--glass-border-bottom, rgba(255, 255, 255, 0.20)));
+  border-top: 1px solid var(--glass-border-top, rgba(255, 255, 255, 0.34));
+  border-left: 1px solid var(--glass-border-left, rgba(255, 255, 255, 0.24));
+  border-right: 1px solid var(--glass-border-right, rgba(255, 255, 255, 0.14));
+  border-bottom: 1px solid var(--glass-border-bottom, rgba(255, 255, 255, 0.18));
   box-shadow: var(--glass-surface-inset-highlight);
 }
 
@@ -2125,7 +2211,7 @@ section:has(.monaco-diff-editor),
     var(--glass-card-icon-bg, rgba(255, 255, 255, 0.24))
   );
   background-image: var(--glass-surface-sheen, none);
-  border: 1px solid color-mix(in srgb, var(--toggle-accent, var(--accent)) 68%, var(--glass-border-top, rgba(255, 255, 255, 0.55)));
+  border: 1px solid rgba(255, 255, 255, 0.48);
   box-shadow:
     var(--glass-surface-outer-shadow, 0 2px 6px rgba(0, 0, 0, 0.24)),
     inset 0 1px 0.5px rgba(255, 255, 255, 0.65);
@@ -2160,10 +2246,10 @@ a.glass-surface:hover:not([class*="--danger"]):not([class*="--warning"]):not([cl
 .glass-panel a.glass-surface:hover:not([class*="--danger"]):not([class*="--warning"]):not([class*="--success"]):not(.portal-glass-fix) {
   background-color: var(--glass-nav-active-bg, color-mix(in srgb, var(--accent) 14%, rgba(255, 255, 255, 0.05))) !important;
   background-image: var(--glass-nav-active-sheen) !important;
-  border-top: 1px solid color-mix(in srgb, var(--accent) 56%, rgba(255, 255, 255, 0.40)) !important;
-  border-left: 1px solid color-mix(in srgb, var(--accent) 48%, rgba(255, 255, 255, 0.32)) !important;
-  border-right: 1px solid color-mix(in srgb, var(--accent) 34%, rgba(255, 255, 255, 0.18)) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, rgba(255, 255, 255, 0.22)) !important;
+  border-top: 1px solid var(--glass-border-top, rgba(255, 255, 255, 0.34)) !important;
+  border-left: 1px solid var(--glass-border-left, rgba(255, 255, 255, 0.24)) !important;
+  border-right: 1px solid var(--glass-border-right, rgba(255, 255, 255, 0.14)) !important;
+  border-bottom: 1px solid var(--glass-border-bottom, rgba(255, 255, 255, 0.18)) !important;
   box-shadow: var(--glass-nav-active-shadow) !important;
   color: var(--text) !important;
 }
@@ -2175,32 +2261,32 @@ a.glass-surface:hover:not([class*="--danger"]):not([class*="--warning"]):not([cl
   color: var(--accent) !important;
 }
 
-/* Command Matrix Selected Card — Subtle Glass Tint & 1px Accent Rim (No Neon) */
+/* Command Matrix Selected Card — Subtle Glass Tint & Neutral Specular Rim */
 .sa-cmd-card-selected,
 .glass-panel.sa-cmd-card-selected,
 .sa-side-panel-window .glass-panel.sa-cmd-card-selected:not(.portal-glass-fix),
 html[data-webgl-glass="ready"] .glass-panel.sa-cmd-card-selected {
   background-color: color-mix(in srgb, var(--accent) 8%, var(--glass-nested-panel-bg, rgba(255, 255, 255, 0.05))) !important;
   background-image: var(--glass-nested-sheen, none) !important;
-  border-top: 1px solid color-mix(in srgb, var(--accent) 52%, transparent) !important;
-  border-left: 1px solid color-mix(in srgb, var(--accent) 46%, transparent) !important;
-  border-right: 1px solid color-mix(in srgb, var(--accent) 38%, transparent) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 42%, transparent) !important;
+  border-top: 1px solid var(--glass-border-top, rgba(255, 255, 255, 0.34)) !important;
+  border-left: 1px solid var(--glass-border-left, rgba(255, 255, 255, 0.24)) !important;
+  border-right: 1px solid var(--glass-border-right, rgba(255, 255, 255, 0.14)) !important;
+  border-bottom: 1px solid var(--glass-border-bottom, rgba(255, 255, 255, 0.18)) !important;
   box-shadow:
     var(--glass-nested-shadow, 0 14px 30px -6px rgba(0, 0, 0, 0.35)),
-    inset 0 1px 0 0 color-mix(in srgb, var(--accent) 28%, rgba(255, 255, 255, 0.22)) !important;
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.22) !important;
 }
 
-/* Semantic StatTile-Style Glass Pill Variants (Success / Warning / Danger) */
+/* Semantic StatTile-Style Glass Pill Variants (Success / Warning / Danger — Neutral Rims) */
 .sa-glass-pill-success,
 .glass-surface.sa-glass-pill-success,
 .sa-side-panel-window .glass-surface.sa-glass-pill-success:not(.portal-glass-fix),
 .glass-panel .glass-surface.sa-glass-pill-success:not(.portal-glass-fix) {
   background-color: color-mix(in srgb, var(--success) 8%, rgba(255, 255, 255, 0.03)) !important;
-  border-top: 1px solid color-mix(in srgb, var(--success) 42%, rgba(255, 255, 255, 0.28)) !important;
-  border-left: 1px solid color-mix(in srgb, var(--success) 36%, rgba(255, 255, 255, 0.22)) !important;
-  border-right: 1px solid color-mix(in srgb, var(--success) 24%, rgba(255, 255, 255, 0.14)) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--success) 28%, rgba(255, 255, 255, 0.16)) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.26) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.20) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
   color: var(--text) !important;
 }
 .sa-glass-pill-success:hover:not(:disabled),
@@ -2208,10 +2294,10 @@ html[data-webgl-glass="ready"] .glass-panel.sa-cmd-card-selected {
 .sa-side-panel-window .glass-surface.sa-glass-pill-success:hover:not(:disabled):not(.portal-glass-fix),
 .glass-panel .glass-surface.sa-glass-pill-success:hover:not(:disabled):not(.portal-glass-fix) {
   background-color: color-mix(in srgb, var(--success) 14%, rgba(255, 255, 255, 0.05)) !important;
-  border-top: 1px solid color-mix(in srgb, var(--success) 58%, rgba(255, 255, 255, 0.38)) !important;
-  border-left: 1px solid color-mix(in srgb, var(--success) 50%, rgba(255, 255, 255, 0.30)) !important;
-  border-right: 1px solid color-mix(in srgb, var(--success) 34%, rgba(255, 255, 255, 0.18)) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--success) 40%, rgba(255, 255, 255, 0.22)) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.36) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.28) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.20) !important;
   box-shadow: var(--glass-nav-active-shadow) !important;
   color: var(--text) !important;
 }
@@ -2221,10 +2307,10 @@ html[data-webgl-glass="ready"] .glass-panel.sa-cmd-card-selected {
 .sa-side-panel-window .glass-surface.sa-glass-pill-warning:not(.portal-glass-fix),
 .glass-panel .glass-surface.sa-glass-pill-warning:not(.portal-glass-fix) {
   background-color: color-mix(in srgb, var(--warning) 8%, rgba(255, 255, 255, 0.03)) !important;
-  border-top: 1px solid color-mix(in srgb, var(--warning) 42%, rgba(255, 255, 255, 0.28)) !important;
-  border-left: 1px solid color-mix(in srgb, var(--warning) 36%, rgba(255, 255, 255, 0.22)) !important;
-  border-right: 1px solid color-mix(in srgb, var(--warning) 24%, rgba(255, 255, 255, 0.14)) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--warning) 28%, rgba(255, 255, 255, 0.16)) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.26) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.20) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
   color: var(--text) !important;
 }
 .sa-glass-pill-warning:hover:not(:disabled),
@@ -2232,10 +2318,10 @@ html[data-webgl-glass="ready"] .glass-panel.sa-cmd-card-selected {
 .sa-side-panel-window .glass-surface.sa-glass-pill-warning:hover:not(:disabled):not(.portal-glass-fix),
 .glass-panel .glass-surface.sa-glass-pill-warning:hover:not(:disabled):not(.portal-glass-fix) {
   background-color: color-mix(in srgb, var(--warning) 14%, rgba(255, 255, 255, 0.05)) !important;
-  border-top: 1px solid color-mix(in srgb, var(--warning) 58%, rgba(255, 255, 255, 0.38)) !important;
-  border-left: 1px solid color-mix(in srgb, var(--warning) 50%, rgba(255, 255, 255, 0.30)) !important;
-  border-right: 1px solid color-mix(in srgb, var(--warning) 34%, rgba(255, 255, 255, 0.18)) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--warning) 40%, rgba(255, 255, 255, 0.22)) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.36) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.28) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.20) !important;
   box-shadow: var(--glass-nav-active-shadow) !important;
   color: var(--text) !important;
 }
@@ -2245,10 +2331,10 @@ html[data-webgl-glass="ready"] .glass-panel.sa-cmd-card-selected {
 .sa-side-panel-window .glass-surface.sa-glass-pill-danger:not(.portal-glass-fix),
 .glass-panel .glass-surface.sa-glass-pill-danger:not(.portal-glass-fix) {
   background-color: color-mix(in srgb, var(--danger) 8%, rgba(255, 255, 255, 0.03)) !important;
-  border-top: 1px solid color-mix(in srgb, var(--danger) 42%, rgba(255, 255, 255, 0.28)) !important;
-  border-left: 1px solid color-mix(in srgb, var(--danger) 36%, rgba(255, 255, 255, 0.22)) !important;
-  border-right: 1px solid color-mix(in srgb, var(--danger) 24%, rgba(255, 255, 255, 0.14)) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--danger) 28%, rgba(255, 255, 255, 0.16)) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.26) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.20) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
   color: var(--text) !important;
 }
 .sa-glass-pill-danger:hover:not(:disabled),
@@ -2256,12 +2342,51 @@ html[data-webgl-glass="ready"] .glass-panel.sa-cmd-card-selected {
 .sa-side-panel-window .glass-surface.sa-glass-pill-danger:hover:not(:disabled):not(.portal-glass-fix),
 .glass-panel .glass-surface.sa-glass-pill-danger:hover:not(:disabled):not(.portal-glass-fix) {
   background-color: color-mix(in srgb, var(--danger) 14%, rgba(255, 255, 255, 0.05)) !important;
-  border-top: 1px solid color-mix(in srgb, var(--danger) 58%, rgba(255, 255, 255, 0.38)) !important;
-  border-left: 1px solid color-mix(in srgb, var(--danger) 50%, rgba(255, 255, 255, 0.30)) !important;
-  border-right: 1px solid color-mix(in srgb, var(--danger) 34%, rgba(255, 255, 255, 0.18)) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--danger) 40%, rgba(255, 255, 255, 0.22)) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.36) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.28) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.20) !important;
   box-shadow: var(--glass-nav-active-shadow) !important;
   color: var(--text) !important;
+}
+
+/* Translucent Liquid Glass Cylindrical Progress Tracks & Capsules */
+.sa-liquid-progress-track {
+  position: relative;
+  background: color-mix(in srgb, var(--text) 10%, rgba(255, 255, 255, 0.04));
+  border: 1px solid color-mix(in srgb, var(--text) 18%, transparent);
+  border-top-color: color-mix(in srgb, var(--text) 26%, rgba(255, 255, 255, 0.22));
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.34),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+}
+.sa-liquid-progress-segment {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--seg-color, var(--success)) 82%, rgba(255, 255, 255, 0.34)) 0%,
+    color-mix(in srgb, var(--seg-color, var(--success)) 92%, transparent) 55%,
+    color-mix(in srgb, var(--seg-color, var(--success)) 76%, rgba(0, 0, 0, 0.18)) 100%
+  );
+  box-shadow:
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.55),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.22),
+    0 0 10px color-mix(in srgb, var(--seg-color, var(--success)) 36%, transparent);
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sa-liquid-progress-segment::after {
+  content: "";
+  position: absolute;
+  inset: 1px 2px auto 2px;
+  height: 44%;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent);
+  pointer-events: none;
 }
 
 /* Chameleon Theme Engine: Global Text Caps Case (ALL CAPS / Title Case / lowercase) */
@@ -2423,9 +2548,12 @@ html[data-sa-platform="linux"] :is(button.glass-surface, a.glass-surface, .sa-gl
   background-image: var(--glass-surface-sheen) !important;
 }
 
-html[data-sa-platform="linux"] .sa-tooltip-glass,
-html[data-sa-platform="linux"] .sa-dropdown-popover {
+html[data-sa-platform="linux"] .sa-tooltip-glass {
   background-color: var(--glass-drawer-bg, rgba(8, 12, 20, 0.94)) !important;
+}
+
+html[data-sa-platform="linux"] .sa-dropdown-popover {
+  background-color: var(--glass-dropdown-bg, var(--glass-drawer-bg, rgba(8, 12, 20, 0.94))) !important;
 }
 
 /* ---- STEAM DECK & CONTROLLER SPATIAL FOCUS RING + VIRTUAL POINTER ---- */

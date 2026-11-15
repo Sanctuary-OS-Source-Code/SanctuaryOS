@@ -375,23 +375,48 @@ function serializeAuthenticationCredential(cred: PublicKeyCredential): any {
   };
 }
 
-async function getAuthHeaders(requireJwt = true): Promise<Record<string, string> | null> {
+let inFlightSessionPromise: Promise<any | null> | null = null;
+
+async function getFastActiveSession(): Promise<any | null> {
+  if (inFlightSessionPromise) return inFlightSessionPromise;
+  inFlightSessionPromise = supabaseAuth.auth
+    .getSession()
+    .then(({ data }) => data?.session || null)
+    .catch(() => useStore.getState().session || null)
+    .finally(() => {
+      inFlightSessionPromise = null;
+    });
+  return inFlightSessionPromise;
+}
+
+async function getAuthHeaders(
+  requireJwt = true,
+  accessTokenOverride?: string | null,
+  attachOptionalJwt = false
+): Promise<Record<string, string> | null> {
   const headers: Record<string, string> = {
     apikey: RESOLVED_SANCTUARY_CONFIG.supabaseAnonKey,
     "Content-Type": "application/json",
   };
-  if (requireJwt) {
-    const { data } = await supabaseAuth.auth.getSession();
-    const token = data?.session?.access_token;
-    if (!token) return null;
-    headers.Authorization = `Bearer ${token}`;
+  if (accessTokenOverride) {
+    headers.Authorization = `Bearer ${accessTokenOverride}`;
+    return headers;
+  }
+  if (requireJwt || attachOptionalJwt) {
+    const activeSession = await getFastActiveSession();
+    const token = activeSession?.access_token;
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    } else if (requireJwt) {
+      return null;
+    }
   }
   return headers;
 }
 
-async function fetchUserPasskeysViaRest(): Promise<any[]> {
+async function fetchUserPasskeysViaRest(accessTokenOverride?: string | null): Promise<any[]> {
   try {
-    const headers = await getAuthHeaders(true);
+    const headers = await getAuthHeaders(true, accessTokenOverride);
     if (!headers) return [];
     const res = await fetch(`${RESOLVED_SANCTUARY_CONFIG.supabaseUrl}/auth/v1/passkeys`, {
       method: "GET",
@@ -409,6 +434,18 @@ async function fetchUserPasskeysViaRest(): Promise<any[]> {
 
 let cachedMfaState: MfaSecurityState | null = null;
 let cachedMfaUserId: string | null = null;
+let inFlightMfaStatePromise: Promise<MfaSecurityState> | null = null;
+
+// Pre-warmed WebAuthn authentication options cache (single-use per challenge, 120s TTL)
+const PASSKEY_AUTH_OPTIONS_TTL_MS = 120_000;
+interface CachedPasskeyAuthOptions {
+  challenge_id: string;
+  options: any;
+  userId: string | null;
+  fetchedAt: number;
+}
+let cachedPasskeyAuthOptions: CachedPasskeyAuthOptions | null = null;
+let inFlightPrewarmPromise: Promise<CachedPasskeyAuthOptions | null> | null = null;
 
 // Zero-Trust Device-Bound Passkey Seal (12-hour TTL, never persisted in localStorage)
 const PASSKEY_SEAL_STORAGE_KEY = "sanctuary_passkey_seal_v2";
@@ -420,7 +457,26 @@ const WEBAUTHN_IDB_KEY_ID = "passkey_seal_key_v2";
 let inMemoryVerifiedUserId: string | null = null;
 let inMemoryVerifiedAt = 0;
 let cachedDesktopHardwareId: string | null = null;
+let inFlightDesktopHardwareIdPromise: Promise<string | null> | null = null;
 let cachedWebCryptoSealKey: CryptoKey | null = null;
+
+export async function getDesktopHardwareId(): Promise<string | null> {
+  if (!isDesktop()) return null;
+  if (cachedDesktopHardwareId) return cachedDesktopHardwareId;
+  if (inFlightDesktopHardwareIdPromise) return inFlightDesktopHardwareIdPromise;
+  inFlightDesktopHardwareIdPromise = invoke<string>("get_hardware_id")
+    .then((raw) => {
+      if (raw && raw !== "unknown") {
+        cachedDesktopHardwareId = raw;
+      }
+      return raw || null;
+    })
+    .catch(() => null)
+    .finally(() => {
+      inFlightDesktopHardwareIdPromise = null;
+    });
+  return inFlightDesktopHardwareIdPromise;
+}
 
 function purgeLegacyPlaintextPasskeyFlags(): void {
   try {
@@ -509,11 +565,9 @@ async function computeDeviceBoundSealSignature(userId: string, issuedAt: number)
     const msgBytes = new TextEncoder().encode(message);
 
     if (isDesktop()) {
-      if (!cachedDesktopHardwareId) {
-        cachedDesktopHardwareId = await invoke<string>("get_hardware_id");
-      }
-      if (!cachedDesktopHardwareId || cachedDesktopHardwareId === "unknown") return null;
-      const combined = new TextEncoder().encode(`${cachedDesktopHardwareId}:${message}`);
+      const hwid = await getDesktopHardwareId();
+      if (!hwid || hwid === "unknown") return null;
+      const combined = new TextEncoder().encode(`${hwid}:${message}`);
       const digest = await crypto.subtle.digest("SHA-256", combined);
       return bufferToBase64Url(digest);
     }
@@ -661,17 +715,22 @@ export function isPasskeySessionVerified(session?: any): boolean {
 }
 
 export async function fetchMfaSecurityState(): Promise<MfaSecurityState> {
-  try {
-    const [sessionRes, rawApiPasskeys, factorsRes, aalRes] = await Promise.all([
-      supabaseAuth.auth.getSession().catch(() => ({ data: { session: null } })),
-      fetchUserPasskeysViaRest(),
-      supabaseAuth.auth.mfa.listFactors().catch(() => ({ data: null, error: null })),
-      supabaseAuth.auth.mfa
-        .getAuthenticatorAssuranceLevel()
-        .catch(() => ({ data: null, error: null })),
-    ]);
+  if (inFlightMfaStatePromise) {
+    return inFlightMfaStatePromise;
+  }
 
-    const activeSession = sessionRes?.data?.session;
+  inFlightMfaStatePromise = (async (): Promise<MfaSecurityState> => {
+    try {
+      const activeSession = await getFastActiveSession();
+      const accessToken = activeSession?.access_token || null;
+
+      const [rawApiPasskeys, factorsRes, aalRes] = await Promise.all([
+        fetchUserPasskeysViaRest(accessToken),
+        supabaseAuth.auth.mfa.listFactors().catch(() => ({ data: null, error: null })),
+        supabaseAuth.auth.mfa
+          .getAuthenticatorAssuranceLevel()
+          .catch(() => ({ data: null, error: null })),
+      ]);
 
     const normalizedApiPasskeys = rawApiPasskeys.map((pk: any) => ({
       ...pk,
@@ -732,24 +791,34 @@ export async function fetchMfaSecurityState(): Promise<MfaSecurityState> {
       nextLevel: rawNextLevel,
     };
 
-    cachedMfaState = result;
-    cachedMfaUserId = activeSession?.user?.id || null;
-    return result;
-  } catch (err) {
-    console.error("Failed to fetch MFA security state:", err);
-    return (
-      cachedMfaState || {
-        passkeys: [],
-        totpFactors: [],
-        allVerifiedFactors: [],
-        hasPasskey: false,
-        hasTotp: false,
-        isPasskeyVerified: false,
-        currentLevel: null,
-        nextLevel: null,
+      cachedMfaState = result;
+      cachedMfaUserId = activeSession?.user?.id || null;
+
+      if (hasPasskey && !passkeyVerified && isNativeLocalPasskeySupported()) {
+        void prewarmPasskeyAuthenticationOptions();
       }
-    );
-  }
+
+      return result;
+    } catch (err) {
+      console.error("Failed to fetch MFA security state:", err);
+      return (
+        cachedMfaState || {
+          passkeys: [],
+          totpFactors: [],
+          allVerifiedFactors: [],
+          hasPasskey: false,
+          hasTotp: false,
+          isPasskeyVerified: false,
+          currentLevel: null,
+          nextLevel: null,
+        }
+      );
+    } finally {
+      inFlightMfaStatePromise = null;
+    }
+  })();
+
+  return inFlightMfaStatePromise;
 }
 
 export function notifyMfaStateChanged(): void {
@@ -1411,10 +1480,38 @@ export async function verifyPasswordWithoutSessionDowngrade(
       }
     );
 
-    const [zkPasswordV2, zkPasswordV1] = await Promise.all([
-      deriveZeroKnowledgePassword(password),
-      deriveLegacyV1StretchedPassword(password),
+    const cleanEmail = (email || "").trim();
+    const zkPasswordV2 = isZeroKnowledgePreHashedPassword(password)
+      ? password
+      : await deriveZeroKnowledgePassword(password);
+
+    // Fast path: when verifying an already-signed-in account, try its exact session email + v2 ZK hash first
+    // so modern accounts complete verification in 1 PBKDF2 derivation + 1 /token request.
+    const { data: v2DirectErr } = await ephemeralClient.auth
+      .signInWithPassword({
+        email: cleanEmail,
+        password: zkPasswordV2,
+      })
+      .then((res) => ({ data: res.error }));
+    if (!v2DirectErr) {
+      return { verified: true };
+    }
+
+    let lastError = v2DirectErr.message || "Invalid password";
+
+    // Lazy fallback for legacy accounts (100k v1 PBKDF2, plaintext password, or blinded email aliases)
+    const [zkPasswordV1, blindedEmailV2, blindedEmailV1] = await Promise.all([
+      isZeroKnowledgePreHashedPassword(password)
+        ? Promise.resolve(password)
+        : deriveLegacyV1StretchedPassword(password),
+      isBlindedEmailAddress(cleanEmail)
+        ? Promise.resolve(cleanEmail)
+        : deriveBlindedEmailAlias(cleanEmail),
+      isBlindedEmailAddress(cleanEmail)
+        ? Promise.resolve(cleanEmail)
+        : deriveLegacyV1BlindedEmailAlias(cleanEmail),
     ]);
+
     const candidatePasswords: string[] = [];
     for (const pw of [zkPasswordV2, zkPasswordV1, password]) {
       if (pw && !candidatePasswords.includes(pw)) {
@@ -1422,11 +1519,6 @@ export async function verifyPasswordWithoutSessionDowngrade(
       }
     }
 
-    const cleanEmail = (email || "").trim();
-    const [blindedEmailV2, blindedEmailV1] = await Promise.all([
-      deriveBlindedEmailAlias(cleanEmail),
-      deriveLegacyV1BlindedEmailAlias(cleanEmail),
-    ]);
     const candidateEmails: string[] = [];
     for (const em of [cleanEmail, blindedEmailV2, blindedEmailV1]) {
       if (em && !candidateEmails.includes(em)) {
@@ -1434,9 +1526,11 @@ export async function verifyPasswordWithoutSessionDowngrade(
       }
     }
 
-    let lastError = "Invalid password";
     for (const emailCandidate of candidateEmails) {
       for (const pwCandidate of candidatePasswords) {
+        if (emailCandidate === cleanEmail && pwCandidate === zkPasswordV2) {
+          continue;
+        }
         const { error } = await ephemeralClient.auth.signInWithPassword({
           email: emailCandidate,
           password: pwCandidate,
@@ -1686,6 +1780,128 @@ export async function registerFidoPasskey(
   }
 }
 
+function enrichAllowCredentialsFromCache(serverOptions: any, preferredFactorId?: string): any {
+  if (!serverOptions || typeof serverOptions !== "object") return serverOptions;
+  if (Array.isArray(serverOptions.allowCredentials) && serverOptions.allowCredentials.length > 0) {
+    return serverOptions;
+  }
+  const cachedPasskeys = cachedMfaState?.passkeys || [];
+  const explicitDescriptors: Array<{ id: string; type: string; transports?: string[] }> = [];
+  for (const pk of cachedPasskeys) {
+    const rawCredId =
+      pk?.credential_id || pk?.credentialId || pk?.webauthn_credential_id || "";
+    if (!rawCredId || typeof rawCredId !== "string") continue;
+    const entry: { id: string; type: string; transports?: string[] } = {
+      id: rawCredId,
+      type: "public-key",
+    };
+    if (Array.isArray(pk?.transports) && pk.transports.length > 0) {
+      entry.transports = pk.transports;
+    }
+    if (preferredFactorId && pk?.id === preferredFactorId) {
+      explicitDescriptors.unshift(entry);
+    } else {
+      explicitDescriptors.push(entry);
+    }
+  }
+  if (explicitDescriptors.length > 0) {
+    serverOptions.allowCredentials = explicitDescriptors;
+  }
+  return serverOptions;
+}
+
+async function fetchPasskeyAuthenticationOptionsPayload(
+  activeSession?: any | null
+): Promise<{ data: CachedPasskeyAuthOptions | null; error?: Error }> {
+  const token = activeSession?.access_token || null;
+  const headers = await getAuthHeaders(false, token, true);
+  if (!headers) {
+    return { data: null, error: new Error("Failed to initialize authentication headers.") };
+  }
+
+  let optRes = await fetch(
+    `${RESOLVED_SANCTUARY_CONFIG.supabaseUrl}/auth/v1/passkeys/authentication/options`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ gotrue_meta_security: {} }),
+    }
+  );
+
+  // If GoTrue rejects an authenticated Bearer token on options, fall back cleanly to anon headers.
+  if (!optRes.ok && headers.Authorization) {
+    const anonHeaders = await getAuthHeaders(false);
+    if (anonHeaders) {
+      optRes = await fetch(
+        `${RESOLVED_SANCTUARY_CONFIG.supabaseUrl}/auth/v1/passkeys/authentication/options`,
+        {
+          method: "POST",
+          headers: anonHeaders,
+          body: JSON.stringify({ gotrue_meta_security: {} }),
+        }
+      );
+    }
+  }
+
+  const optJson = await optRes.json().catch(() => ({}));
+  if (!optRes.ok || !optJson?.challenge_id || !optJson?.options) {
+    return {
+      data: null,
+      error: new Error(
+        optJson?.msg ||
+          optJson?.error_description ||
+          optJson?.message ||
+          "Failed to start Passkey authentication."
+      ),
+    };
+  }
+
+  return {
+    data: {
+      challenge_id: optJson.challenge_id,
+      options: optJson.options,
+      userId: activeSession?.user?.id || null,
+      fetchedAt: Date.now(),
+    },
+  };
+}
+
+export async function prewarmPasskeyAuthenticationOptions(
+  forceRefresh = false
+): Promise<CachedPasskeyAuthOptions | null> {
+  if (!isWebAuthnSupported()) return null;
+  const activeSession = await getFastActiveSession();
+  const activeUserId = activeSession?.user?.id || null;
+
+  if (
+    !forceRefresh &&
+    cachedPasskeyAuthOptions &&
+    cachedPasskeyAuthOptions.userId === activeUserId &&
+    Date.now() - cachedPasskeyAuthOptions.fetchedAt < PASSKEY_AUTH_OPTIONS_TTL_MS
+  ) {
+    return cachedPasskeyAuthOptions;
+  }
+
+  if (inFlightPrewarmPromise) {
+    return inFlightPrewarmPromise;
+  }
+
+  inFlightPrewarmPromise = fetchPasskeyAuthenticationOptionsPayload(activeSession)
+    .then((res) => {
+      if (res.data) {
+        cachedPasskeyAuthOptions = res.data;
+        return res.data;
+      }
+      return null;
+    })
+    .catch(() => null)
+    .finally(() => {
+      inFlightPrewarmPromise = null;
+    });
+
+  return inFlightPrewarmPromise;
+}
+
 /**
  * Authenticates using a FIDO2 / WebAuthn Passkey via Supabase's `/auth/v1/passkeys` REST API.
  * Works natively on both Web (`https://sanctuaryos.net`) and Desktop (`Sanctuary OS` via Windows `webauthn.dll`).
@@ -1705,15 +1921,15 @@ export async function authenticateFidoPasskey(
   }
 
   try {
+    const activeSession = await getFastActiveSession();
+
     if (isLocalhostBrowser() && !options?.forceFreshCeremony) {
-      const { data: preSessionData } = await supabaseAuth.auth.getSession();
-      const preSession = preSessionData?.session;
-      if (preSession?.user?.id) {
-        markPasskeySessionVerified(preSession.user.id);
-        await syncDevSessionToVite(preSession);
+      if (activeSession?.user?.id) {
+        markPasskeySessionVerified(activeSession.user.id);
+        await syncDevSessionToVite(activeSession);
         notifyMfaStateChanged();
         return {
-          data: { verified: true, passkey_verified: true, user: preSession.user },
+          data: { verified: true, passkey_verified: true, user: activeSession.user },
           error: null,
         };
       }
@@ -1732,34 +1948,51 @@ export async function authenticateFidoPasskey(
       }
     }
 
-    const headers = await getAuthHeaders(false);
+    const activeUserId = activeSession?.user?.id || null;
+    let optJson: CachedPasskeyAuthOptions | null = null;
+
+    if (
+      !options?.forceFreshCeremony &&
+      cachedPasskeyAuthOptions &&
+      cachedPasskeyAuthOptions.userId === activeUserId &&
+      Date.now() - cachedPasskeyAuthOptions.fetchedAt < PASSKEY_AUTH_OPTIONS_TTL_MS
+    ) {
+      optJson = cachedPasskeyAuthOptions;
+      cachedPasskeyAuthOptions = null;
+    } else if (!options?.forceFreshCeremony && inFlightPrewarmPromise) {
+      const awaitedPrewarm = await inFlightPrewarmPromise;
+      if (
+        awaitedPrewarm &&
+        awaitedPrewarm.userId === activeUserId &&
+        Date.now() - awaitedPrewarm.fetchedAt < PASSKEY_AUTH_OPTIONS_TTL_MS
+      ) {
+        optJson = awaitedPrewarm;
+        if (cachedPasskeyAuthOptions?.challenge_id === awaitedPrewarm.challenge_id) {
+          cachedPasskeyAuthOptions = null;
+        }
+      }
+    }
+
+    if (!optJson) {
+      cachedPasskeyAuthOptions = null;
+      const freshRes = await fetchPasskeyAuthenticationOptionsPayload(activeSession);
+      if (!freshRes.data) {
+        return {
+          data: null,
+          error: freshRes.error || new Error("Failed to start Passkey authentication."),
+        };
+      }
+      optJson = freshRes.data;
+    }
+
+    const serverOptions = enrichAllowCredentialsFromCache(
+      JSON.parse(JSON.stringify(optJson.options)),
+      _factorId
+    );
+    const headers = await getAuthHeaders(false, activeSession?.access_token || null, false);
     if (!headers) {
       return { data: null, error: new Error("Failed to initialize authentication headers.") };
     }
-
-    // 1. Fetch authentication challenge options from Supabase Auth
-    const optRes = await fetch(
-      `${RESOLVED_SANCTUARY_CONFIG.supabaseUrl}/auth/v1/passkeys/authentication/options`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ gotrue_meta_security: {} }),
-      }
-    );
-    const optJson = await optRes.json().catch(() => ({}));
-    if (!optRes.ok || !optJson?.challenge_id || !optJson?.options) {
-      return {
-        data: null,
-        error: new Error(
-          optJson?.msg ||
-            optJson?.error_description ||
-            optJson?.message ||
-            "Failed to start Passkey authentication."
-        ),
-      };
-    }
-
-    const serverOptions = optJson.options;
 
     // 2. Run WebAuthn assertion (native Windows webauthn.dll on Desktop, Vite Desktop bridge on localhost, or Browser WebAuthn on Web)
     let serializedCredential: any = null;
@@ -1795,8 +2028,7 @@ export async function authenticateFidoPasskey(
     // 3. Verify authentication with Supabase Auth and hydrate session.
     //    On Web in Hub & Spoke mode, route through game-gateway so both https://sanctuaryos.net
     //    and https://www.sanctuaryos.net origins are verified without losing the challenge row.
-    const { data: existingSessionData } = await supabaseAuth.auth.getSession();
-    const existingSession = existingSessionData?.session;
+    const existingSession = activeSession || (await getFastActiveSession());
 
     let verifyRes: Response;
     let verifyJson: any = {};

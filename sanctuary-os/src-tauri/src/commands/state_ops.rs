@@ -98,12 +98,18 @@ fn normalize_solder_config(config: &mut SolderConfig, create_dirs: bool) -> bool
                     ws.master_vault_path = Some(mv_trimmed.clone());
                     healed = true;
                 }
-                let target_schema = if !ws.schema_id.trim().is_empty()
-                    && ws.schema_id != "default_schema"
-                {
-                    ws.schema_id.trim()
-                } else if !ws.id.trim().is_empty() && ws.id != "default_workspace" {
-                    ws.id.trim()
+                let raw_schema = ws.schema_id.trim();
+                let raw_id = ws.id.trim();
+                let is_placeholder_schema = raw_schema.is_empty()
+                    || raw_schema.eq_ignore_ascii_case("default_schema")
+                    || raw_schema.eq_ignore_ascii_case("default_workspace");
+                let is_placeholder_id = raw_id.is_empty()
+                    || raw_id.eq_ignore_ascii_case("default_workspace")
+                    || raw_id.eq_ignore_ascii_case("default_schema");
+                let target_schema = if !is_placeholder_schema {
+                    raw_schema
+                } else if !is_placeholder_id {
+                    raw_id
                 } else {
                     ""
                 };
@@ -115,30 +121,6 @@ fn normalize_solder_config(config: &mut SolderConfig, create_dirs: bool) -> bool
                         ws.vault_path = spoke_vp;
                         healed = true;
                     }
-                }
-            }
-        }
-    }
-
-    // Auto-heal any workspace whose live_path or mods_path was accidentally cloned from the primary workspace
-    if config.workspaces.len() > 1 {
-        let first_schema = config.workspaces[0].schema_id.to_lowercase();
-        let first_live = config.workspaces[0].live_path.clone();
-        let first_mods = config.workspaces[0].mods_path.clone();
-        let first_docs = config.workspaces[0].docs_path.clone();
-        for ws in config.workspaces.iter_mut().skip(1) {
-            if ws.schema_id.to_lowercase() != first_schema {
-                if !first_live.is_empty() && ws.live_path == first_live {
-                    ws.live_path.clear();
-                    healed = true;
-                }
-                if !first_mods.is_empty() && ws.mods_path == first_mods {
-                    ws.mods_path.clear();
-                    healed = true;
-                }
-                if first_docs.is_some() && ws.docs_path == first_docs {
-                    ws.docs_path = None;
-                    healed = true;
                 }
             }
         }
@@ -234,7 +216,10 @@ pub fn get_saved_coordinates() -> WorkspaceConfig {
                     || w.schema_id.eq_ignore_ascii_case(trimmed_id)
             }) {
                 active_workspace = Some(workspace.clone());
-            } else if trimmed_id.eq_ignore_ascii_case("default_workspace") {
+            } else if (trimmed_id.eq_ignore_ascii_case("default_workspace")
+                || trimmed_id.eq_ignore_ascii_case("default_schema"))
+                && global_config.workspaces.len() == 1
+            {
                 if let Some(workspace) = global_config.workspaces.first() {
                     active_workspace = Some(workspace.clone());
                 }
@@ -276,7 +261,12 @@ pub fn get_saved_coordinates() -> WorkspaceConfig {
             );
             workspace.master_vault_path = Some(resolved_master);
         }
-        if workspace.docs_path.as_ref().map_or(true, |d| d.trim().is_empty()) {
+        let allow_global_docs_fallback = global_config.workspaces.len() <= 1
+            || workspace.id.eq_ignore_ascii_case("default_workspace")
+            || workspace.schema_id.eq_ignore_ascii_case("default_schema");
+        if allow_global_docs_fallback
+            && workspace.docs_path.as_ref().map_or(true, |d| d.trim().is_empty())
+        {
             workspace.docs_path = global_config
                 .docs_path
                 .as_ref()
@@ -570,16 +560,7 @@ pub async fn auto_detect_paths(state: tauri::State<'_, AppState>) -> Result<serd
             }
         }
         if vault_path.is_empty() {
-            if let Some(home) = std::env::var("HOME")
-                .ok()
-                .map(std::path::PathBuf::from)
-                .or_else(dirs::home_dir)
-            {
-                let default_master = home.join("SanctuaryVault");
-                let default_spoke = default_master.join(&schema_folder);
-                let _ = std::fs::create_dir_all(&default_spoke);
-                vault_path = default_master.to_string_lossy().to_string();
-            }
+            vault_path = crate::commands::system::recommended_safe_vault_root();
         }
 
         let steam_app_id = steam_resolution

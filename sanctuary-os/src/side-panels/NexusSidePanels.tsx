@@ -38,6 +38,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
+import { resolveComplianceHashTiers, normalizeComplianceHash } from "../utils/complianceHashTiers";
 import { isDesktop } from "../utils/envUtils";
 import { DynamicThemePreviewBanner } from "../chameleon-components/ThemeCard";
 import { importThemeWithAssets, getLuminance } from "../chameleon-components/ChameleonShared";
@@ -1171,6 +1172,8 @@ export function MarketReportPanel({
   reportState,
   setReportState,
   handleReportSubmit,
+  backdropZ = "z-[65000]",
+  panelZ = "z-[65001]",
 }: any) {
   const { t } = useLexicon();
   if (!reportState.isOpen) return null;
@@ -1189,8 +1192,8 @@ export function MarketReportPanel({
           })
         }
         widthClass="w-[90vw] md:w-[680px]"
-        backdropZ="z-[65000]"
-        panelZ="z-[65001]"
+        backdropZ={backdropZ}
+        panelZ={panelZ}
         icon={t("icon_flag", "flag")}
         iconColorClass="text-[var(--danger)]"
         title={
@@ -1214,38 +1217,13 @@ export function MarketReportPanel({
             <PanelHeaderButton
               icon={t("icon_flag", "flag")}
               tooltip={t("report_submit", "Submit Report")}
+              disabled={!String(reportState.reason || "").trim()}
               onClick={() =>
                 handleReportSubmit({ preventDefault: () => {} } as any)
               }
               variant="danger"
             />
           </PanelHeaderGroup>
-        }
-        footer={
-          <div className="flex items-center justify-end gap-3 w-full">
-            <ActionButton
-              variant="glass"
-              label={t("cancel", "Cancel")}
-              onClick={() =>
-                setReportState({
-                  isOpen: false,
-                  assetId: null,
-                  assetType: null,
-                  reason: "",
-                  complianceTier: 1,
-                })
-              }
-            />
-            <ActionButton
-              variant="danger"
-              icon={t("icon_flag", "flag")}
-              label={t("report_submit", "Submit Report")}
-              disabled={!String(reportState.reason || "").trim()}
-              onClick={() =>
-                handleReportSubmit({ preventDefault: () => {} } as any)
-              }
-            />
-          </div>
         }
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
@@ -1319,6 +1297,30 @@ export function MarketReportPanel({
               }
               className="w-full h-44 glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold border border-[color-mix(in_srgb,var(--text)_12%,transparent)] resize-none focus:outline-none focus:border-[var(--accent)] transition-all"
             />
+            <div className="flex flex-wrap items-center justify-end gap-2.5 w-full">
+              <ActionButton
+                variant="glass"
+                label={t("cancel", "Cancel")}
+                onClick={() =>
+                  setReportState({
+                    isOpen: false,
+                    assetId: null,
+                    assetType: null,
+                    reason: "",
+                    complianceTier: 1,
+                  })
+                }
+              />
+              <ActionButton
+                variant="danger"
+                icon={t("icon_flag", "flag")}
+                label={t("report_submit", "Submit Report")}
+                disabled={!String(reportState.reason || "").trim()}
+                onClick={() =>
+                  handleReportSubmit({ preventDefault: () => {} } as any)
+                }
+              />
+            </div>
           </UniversalGroup>
         </div>
       </SidePanel>
@@ -1493,32 +1495,47 @@ export async function auditBlueprintsTier0Compliance(
     string,
     { id: string; name: string; author: string; complianceTier: number; status: string }
   >();
+  const restrictedTierMap = new Map<string, number>();
   const allHashes = Array.from(allHashesSet);
   const chunkSize = 200;
 
   if (allHashes.length > 0) {
-    const promises = [];
+    const versionPromises: any[] = [];
     for (let i = 0; i < allHashes.length; i += chunkSize) {
       const chunk = allHashes.slice(i, i + chunkSize);
-      promises.push(
+      versionPromises.push(
         supabaseClient
           .from("mod_versions")
           .select("dna_hash, mods(id, name, master_author, compliance_tier, status)")
           .in("dna_hash", chunk)
       );
     }
-    const responses = await Promise.all(promises);
+    const [responses, rpcTierMap] = await Promise.all([
+      Promise.all(versionPromises),
+      resolveComplianceHashTiers(supabaseClient, allHashes),
+    ]);
+    rpcTierMap.forEach((tier, normH) => {
+      if (tier >= 1 && tier <= 5) {
+        restrictedTierMap.set(normH, tier);
+      }
+    });
     for (const res of responses) {
       if (!res?.error && Array.isArray(res?.data)) {
         for (const row of res.data) {
           const dbMod = Array.isArray(row.mods) ? row.mods[0] : row.mods;
           if (row.dna_hash && dbMod?.id) {
+            const cTier =
+              typeof dbMod.compliance_tier === "number" ? dbMod.compliance_tier : -1;
+            const normRowHash = normalizeComplianceHash(row.dna_hash);
+            if (cTier >= 1 && cTier <= 4) {
+              if (normRowHash) restrictedTierMap.set(normRowHash, cTier);
+              continue;
+            }
             verifiedHashMap.set(String(row.dna_hash), {
               id: String(dbMod.id),
               name: String(dbMod.name || ""),
               author: String(dbMod.master_author || ""),
-              complianceTier:
-                typeof dbMod.compliance_tier === "number" ? dbMod.compliance_tier : -1,
+              complianceTier: cTier,
               status: String(dbMod.status || ""),
             });
           }
@@ -1549,6 +1566,8 @@ export async function auditBlueprintsTier0Compliance(
         }
         const cleanName = rawName.split(/[\\/]/).pop() || rawName;
         const hash = typeof art === "object" && art?.hash ? String(art.hash).trim() : "";
+        const normHash = normalizeComplianceHash(hash);
+        const restrictedTier = normHash ? restrictedTierMap.get(normHash) : undefined;
         const artAuthor =
           typeof art === "object" && art?.author && String(art.author).toLowerCase() !== "unknown"
             ? String(art.author)
@@ -1558,7 +1577,16 @@ export async function auditBlueprintsTier0Compliance(
         const isVerifiedStable =
           rawStatus === "stable" || rawStatus === "verified" || rawStatus === "approved";
 
-        if (!hash || !verified) {
+        if (hash && typeof restrictedTier === "number" && restrictedTier >= 1) {
+          violations.push({
+            name: rawName,
+            cleanName,
+            hash,
+            reason: `Tier ${restrictedTier}`,
+            tier: restrictedTier,
+            author: artAuthor || undefined,
+          });
+        } else if (!hash || !verified) {
           violations.push({
             name: rawName,
             cleanName,
@@ -1842,12 +1870,22 @@ export function BlueprintInspectorModCard({
   activeGameSchema,
   t,
   showLoadOrderChip = false,
+  onUnequip,
+  unequipTooltip,
+  statusBadge,
 }: {
   mod: any;
   onOpenDossier?: (mod: any) => void;
   activeGameSchema?: any;
   t: (key: string, fallback?: string) => string;
   showLoadOrderChip?: boolean;
+  onUnequip?: (e: React.MouseEvent) => void;
+  unequipTooltip?: string;
+  statusBadge?: {
+    label: string;
+    icon: string;
+    iconColorClass?: string;
+  };
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const showImages = useStore((state: any) => state.showImages);
@@ -1995,7 +2033,18 @@ export function BlueprintInspectorModCard({
             </span>
           )}
 
-          {allOwned ? (
+          {statusBadge ? (
+            <span className={VAULT_CHIP_CLASS}>
+              <span
+                className={`material-symbols-outlined !text-[12px] shrink-0 ${
+                  statusBadge.iconColorClass || "text-[var(--warning)]"
+                }`}
+              >
+                {statusBadge.icon}
+              </span>
+              <span>{statusBadge.label}</span>
+            </span>
+          ) : allOwned ? (
             <span className={VAULT_CHIP_CLASS}>
               <span className="material-symbols-outlined !text-[12px] shrink-0 text-[var(--success)]">
                 {t("icon_check_circle", "check_circle")}
@@ -2060,6 +2109,27 @@ export function BlueprintInspectorModCard({
                 className="z-[100] !right-0 !translate-x-0 !left-auto"
                 title={`${groupedMods.length} ${t("badge_modules_count", "Modules")}`}
                 icon={t("icon_account_tree", "account_tree")}
+              />
+            </button>
+          )}
+
+          {onUnequip && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnequip(e);
+              }}
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined !text-[15px]">
+                {t("icon_remove_circle_outline", "remove_circle_outline")}
+              </span>
+              <HoverTooltip
+                className="z-[100] !right-0 !translate-x-0 !left-auto"
+                title={unequipTooltip || t("remove_from_blueprint", "Remove from {Blueprint}")}
+                icon={t("icon_remove_circle_outline", "remove_circle_outline")}
+                variant="danger"
               />
             </button>
           )}
@@ -2177,6 +2247,7 @@ export function MarketBlueprintPanel({
   onOpenDossier,
   syncBlueprintByCode,
   onDownloadSuccess,
+  onReportBlueprint,
   backdropZ = "z-[15000]",
   panelZ = "z-[15001]",
 }: any) {
@@ -2647,6 +2718,18 @@ export function MarketBlueprintPanel({
         iconColorClass="text-[var(--accent)]"
         title={t("blueprint_inspector", "Blueprint Inspector")}
         subtitle={t("blueprint_desc", "{Mod} metadata and Asset repository")}
+        headerActions={
+          onReportBlueprint && enrichedBlueprint?.id ? (
+            <PanelHeaderGroup>
+              <PanelHeaderButton
+                icon={t("icon_flag", "flag")}
+                tooltip={t("report_title", "Report Content")}
+                variant="danger"
+                onClick={() => onReportBlueprint(enrichedBlueprint.id)}
+              />
+            </PanelHeaderGroup>
+          ) : undefined
+        }
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard

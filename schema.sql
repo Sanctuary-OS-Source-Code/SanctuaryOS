@@ -4,15 +4,17 @@
 -- HOW TO USE:
 -- 1. Create a new Supabase project for your game community (Spoke).
 -- 2. Copy and paste this entire file into the Supabase SQL Editor and click RUN.
--- 3. Generate your SANCTUARY-UPLINK:// bundle (or copy your Project URL, Anon Key,
---    and Service Role Key) and link your Spoke in Keepers Core -> Active Workspaces.
+-- 3. Copy your Project URL, Anon Key, and the one-time Spoke Gateway Token
+--    (`spk_gw_...`) printed in the SQL result (NEVER copy your service_role key!)
+--    and link your Spoke in Keepers Core -> Active Workspaces (or run
+--    SELECT * FROM public.mint_spoke_gateway_token(); at any time to rotate).
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================================================
--- 1. PRIVATE INTERNAL SCHEMA & RUNTIME SECRETS
+-- 1. PRIVATE INTERNAL SCHEMA, VAULT-SEALED SECRETS & GATEWAY TOKENS
 -- ============================================================================
 CREATE SCHEMA IF NOT EXISTS sanctuary_internal;
 REVOKE ALL ON SCHEMA sanctuary_internal FROM PUBLIC;
@@ -20,74 +22,183 @@ GRANT USAGE ON SCHEMA sanctuary_internal TO anon, authenticated, service_role;
 
 CREATE TABLE IF NOT EXISTS sanctuary_internal.runtime_secrets (
     key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
+    value TEXT NOT NULL DEFAULT '[VAULT_SEALED]',
+    vault_secret_id UUID,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE sanctuary_internal.runtime_secrets
+    ADD COLUMN IF NOT EXISTS vault_secret_id UUID;
+
 REVOKE ALL ON TABLE sanctuary_internal.runtime_secrets FROM PUBLIC, anon, authenticated;
 GRANT ALL ON TABLE sanctuary_internal.runtime_secrets TO service_role;
+ALTER TABLE sanctuary_internal.runtime_secrets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_role_runtime_secrets" ON sanctuary_internal.runtime_secrets;
+CREATE POLICY "service_role_runtime_secrets" ON sanctuary_internal.runtime_secrets
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
 
-DROP TABLE IF EXISTS sanctuary_internal.spoke_relink_commitments CASCADE;
+CREATE OR REPLACE FUNCTION sanctuary_internal.read_runtime_secret(p_key TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+DECLARE
+    v_val TEXT;
+    v_vault_id UUID;
+BEGIN
+    SELECT value, vault_secret_id
+    INTO v_val, v_vault_id
+    FROM sanctuary_internal.runtime_secrets
+    WHERE key = p_key;
+
+    IF v_vault_id IS NOT NULL AND to_regnamespace('vault') IS NOT NULL THEN
+        EXECUTE 'SELECT decrypted_secret FROM vault.decrypted_secrets WHERE id = $1'
+        INTO v_val
+        USING v_vault_id;
+        RETURN v_val;
+    END IF;
+
+    IF v_val = '[VAULT_SEALED]' THEN
+        RETURN NULL;
+    END IF;
+    RETURN v_val;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION sanctuary_internal.read_runtime_secret(TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION sanctuary_internal.read_runtime_secret(TEXT) TO service_role;
+
+CREATE OR REPLACE FUNCTION sanctuary_internal.write_runtime_secret(p_key TEXT, p_value TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+DECLARE
+    v_clean TEXT := NULLIF(btrim(COALESCE(p_value, '')), '');
+    v_existing_vault_id UUID;
+    v_secret_name TEXT := 'sanctuary_runtime:' || p_key;
+    v_new_vault_id UUID;
+BEGIN
+    SELECT vault_secret_id INTO v_existing_vault_id
+    FROM sanctuary_internal.runtime_secrets
+    WHERE key = p_key;
+
+    IF v_clean IS NULL THEN
+        IF v_existing_vault_id IS NOT NULL AND to_regnamespace('vault') IS NOT NULL THEN
+            EXECUTE 'DELETE FROM vault.secrets WHERE id = $1' USING v_existing_vault_id;
+        END IF;
+        DELETE FROM sanctuary_internal.runtime_secrets WHERE key = p_key;
+        RETURN;
+    END IF;
+
+    IF to_regnamespace('vault') IS NOT NULL THEN
+        IF v_existing_vault_id IS NULL THEN
+            EXECUTE 'SELECT id FROM vault.secrets WHERE name = $1 LIMIT 1'
+            INTO v_existing_vault_id
+            USING v_secret_name;
+        END IF;
+
+        IF v_existing_vault_id IS NOT NULL THEN
+            EXECUTE 'SELECT vault.update_secret($1, $2, $3, $4)'
+            USING v_existing_vault_id, v_clean, v_secret_name, 'Sanctuary OS Spoke runtime secret';
+            v_new_vault_id := v_existing_vault_id;
+        ELSE
+            EXECUTE 'SELECT vault.create_secret($1, $2, $3)'
+            INTO v_new_vault_id
+            USING v_clean, v_secret_name, 'Sanctuary OS Spoke runtime secret';
+        END IF;
+
+        INSERT INTO sanctuary_internal.runtime_secrets (key, value, vault_secret_id, updated_at)
+        VALUES (p_key, '[VAULT_SEALED]', v_new_vault_id, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET value = '[VAULT_SEALED]',
+            vault_secret_id = EXCLUDED.vault_secret_id,
+            updated_at = NOW();
+    ELSE
+        INSERT INTO sanctuary_internal.runtime_secrets (key, value, vault_secret_id, updated_at)
+        VALUES (p_key, v_clean, NULL, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET value = EXCLUDED.value,
+            vault_secret_id = NULL,
+            updated_at = NOW();
+    END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION sanctuary_internal.write_runtime_secret(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION sanctuary_internal.write_runtime_secret(TEXT, TEXT) TO service_role;
+
+CREATE OR REPLACE FUNCTION sanctuary_internal.cleanup_runtime_secret_vault()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+BEGIN
+    IF OLD.vault_secret_id IS NOT NULL AND to_regnamespace('vault') IS NOT NULL THEN
+        EXECUTE 'DELETE FROM vault.secrets WHERE id = $1' USING OLD.vault_secret_id;
+    END IF;
+    RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_cleanup_runtime_secret_vault ON sanctuary_internal.runtime_secrets;
+CREATE TRIGGER trg_cleanup_runtime_secret_vault
+    AFTER DELETE ON sanctuary_internal.runtime_secrets
+    FOR EACH ROW EXECUTE FUNCTION sanctuary_internal.cleanup_runtime_secret_vault();
+
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    IF to_regnamespace('vault') IS NOT NULL THEN
+        FOR r IN
+            SELECT key, value
+            FROM sanctuary_internal.runtime_secrets
+            WHERE vault_secret_id IS NULL
+              AND COALESCE(value, '') <> ''
+              AND value <> '[VAULT_SEALED]'
+        LOOP
+            PERFORM sanctuary_internal.write_runtime_secret(r.key, r.value);
+        END LOOP;
+    END IF;
+END;
+$$;
+
+-- Scoped Hub Gateway Tokens (Salted HMAC-SHA256 digests only; raw spk_gw_* secret is NEVER stored)
+CREATE TABLE IF NOT EXISTS sanctuary_internal.spoke_gateway_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    label TEXT NOT NULL DEFAULT 'Hub Gateway Uplink',
+    token_salt TEXT NOT NULL,
+    token_hash TEXT NOT NULL,
+    key_fingerprint TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    last_used_at TIMESTAMP WITH TIME ZONE
+);
+
+REVOKE ALL ON TABLE sanctuary_internal.spoke_gateway_tokens FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE sanctuary_internal.spoke_gateway_tokens TO service_role;
+ALTER TABLE sanctuary_internal.spoke_gateway_tokens ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_role_spoke_gateway_tokens" ON sanctuary_internal.spoke_gateway_tokens;
+CREATE POLICY "service_role_spoke_gateway_tokens" ON sanctuary_internal.spoke_gateway_tokens
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- ============================================================================
--- 2. CLEANUP (IDEMPOTENT RESET)
+-- 2. IDEMPOTENT UPGRADE NOTICE (NON-DESTRUCTIVE COPY & PASTE)
 -- ============================================================================
-DROP TABLE IF EXISTS public.pwa_push_subscriptions CASCADE;
-DROP TABLE IF EXISTS public.hardware_bans CASCADE;
-DROP TABLE IF EXISTS public.version_dependencies CASCADE;
-DROP TABLE IF EXISTS public.tracked_template_files CASCADE;
-DROP TABLE IF EXISTS public.taxonomy CASCADE;
-DROP TABLE IF EXISTS public.dispatch_poll_votes CASCADE;
-DROP TABLE IF EXISTS public.system_broadcasts CASCADE;
-DROP TABLE IF EXISTS public.scout_suggestions CASCADE;
-DROP TABLE IF EXISTS public.sanctuary_tickets CASCADE;
-DROP TABLE IF EXISTS public.sanctuary_themes CASCADE;
-DROP TABLE IF EXISTS public.sanctuary_telemetry_sources CASCADE;
-DROP TABLE IF EXISTS public.sanctuary_support_categories CASCADE;
-DROP TABLE IF EXISTS public.sanctuary_schemas CASCADE;
-DROP TABLE IF EXISTS public.sanctuary_lexicons CASCADE;
-DROP TABLE IF EXISTS public.notifications CASCADE;
-DROP TABLE IF EXISTS public.nexus_reports CASCADE;
-DROP TABLE IF EXISTS public.nexus_assets CASCADE;
-DROP TABLE IF EXISTS public.homestead_lab_logs CASCADE;
-DROP TABLE IF EXISTS public.known_exception_rules CASCADE;
-DROP TABLE IF EXISTS public.homestead_workbench_templates CASCADE;
-DROP TABLE IF EXISTS public.heuristic_signatures CASCADE;
-DROP TABLE IF EXISTS public.global_security CASCADE;
-DROP TABLE IF EXISTS public.global_network_status CASCADE;
-DROP TABLE IF EXISTS public.game_versions CASCADE;
-DROP TABLE IF EXISTS public.flavor_group_members CASCADE;
-DROP TABLE IF EXISTS public.flavor_groups CASCADE;
-DROP TABLE IF EXISTS public.dlc_registry CASCADE;
-DROP TABLE IF EXISTS public.content_flags CASCADE;
-DROP TABLE IF EXISTS public.community_group_members CASCADE;
-DROP TABLE IF EXISTS public.community_groups CASCADE;
-DROP TABLE IF EXISTS public.collection_members CASCADE;
-DROP TABLE IF EXISTS public.collections CASCADE;
-DROP TABLE IF EXISTS public.blueprint_reports CASCADE;
-DROP TABLE IF EXISTS public.blueprints CASCADE;
-DROP TABLE IF EXISTS public.logical_conflicts CASCADE;
-DROP TABLE IF EXISTS public.malware_reports CASCADE;
-DROP TABLE IF EXISTS public.mod_relationships CASCADE;
-DROP TABLE IF EXISTS public.mod_dependencies CASCADE;
-DROP TABLE IF EXISTS public.mod_bundles CASCADE;
-DROP TABLE IF EXISTS public.mod_versions CASCADE;
-DROP TABLE IF EXISTS public.mods CASCADE;
-DROP TABLE IF EXISTS public.mason_post_views CASCADE;
-DROP TABLE IF EXISTS public.mason_post_likes CASCADE;
-DROP TABLE IF EXISTS public.mason_post_comments CASCADE;
-DROP TABLE IF EXISTS public.mason_posts CASCADE;
-DROP TABLE IF EXISTS public.mason_followers CASCADE;
-DROP TABLE IF EXISTS public.masons CASCADE;
-DROP TABLE IF EXISTS public.citizen_staging_queue CASCADE;
-DROP TABLE IF EXISTS public.audit_logs CASCADE;
-DROP TABLE IF EXISTS public.profiles CASCADE;
+-- All tables below use CREATE TABLE IF NOT EXISTS and additive ALTER TABLE ...
+-- ADD COLUMN IF NOT EXISTS blocks so this script can be safely pasted and
+-- re-run inside the Supabase SQL Editor on existing databases without data loss.
 
 -- ============================================================================
 -- 3. IDENTITY & CREATOR TABLES (HUB-DECOUPLED SPOKE PROFILES)
 -- ============================================================================
 
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
     role TEXT NOT NULL DEFAULT 'citizen',
@@ -98,7 +209,7 @@ CREATE TABLE public.profiles (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE sanctuary_internal.spoke_relink_commitments (
+CREATE TABLE IF NOT EXISTS sanctuary_internal.spoke_relink_commitments (
     profile_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
     commitment_hash TEXT NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
@@ -106,8 +217,12 @@ CREATE TABLE sanctuary_internal.spoke_relink_commitments (
 
 REVOKE ALL ON TABLE sanctuary_internal.spoke_relink_commitments FROM PUBLIC, anon, authenticated;
 GRANT ALL ON TABLE sanctuary_internal.spoke_relink_commitments TO service_role;
+ALTER TABLE sanctuary_internal.spoke_relink_commitments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_role_spoke_relink_commitments" ON sanctuary_internal.spoke_relink_commitments;
+CREATE POLICY "service_role_spoke_relink_commitments" ON sanctuary_internal.spoke_relink_commitments
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
 
-CREATE TABLE public.masons (
+CREATE TABLE IF NOT EXISTS public.masons (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL UNIQUE,
     profile_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -128,7 +243,7 @@ CREATE TABLE public.masons (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.mason_followers (
+CREATE TABLE IF NOT EXISTS public.mason_followers (
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     mason_id UUID NOT NULL REFERENCES public.masons(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -139,7 +254,7 @@ CREATE TABLE public.mason_followers (
 -- 4. ARTIFACT REGISTRY, VERSIONS & RELATIONAL MATRIX
 -- ============================================================================
 
-CREATE TABLE public.mods (
+CREATE TABLE IF NOT EXISTS public.mods (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     mason_id UUID REFERENCES public.masons(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -159,6 +274,7 @@ CREATE TABLE public.mods (
     sub_type TEXT,
     allow_write BOOLEAN NOT NULL DEFAULT false,
     compliance_tier SMALLINT NOT NULL DEFAULT 0,
+    has_pending_flag BOOLEAN NOT NULL DEFAULT false,
     status_reason TEXT,
     compatible_versions TEXT[],
     updated_at TIMESTAMP WITH TIME ZONE,
@@ -171,7 +287,7 @@ CREATE TABLE public.mods (
     highlander_group_id UUID
 );
 
-CREATE TABLE public.mod_versions (
+CREATE TABLE IF NOT EXISTS public.mod_versions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     mod_id UUID REFERENCES public.mods(id) ON DELETE CASCADE,
     version_label TEXT NOT NULL,
@@ -183,21 +299,21 @@ CREATE TABLE public.mod_versions (
     parent_hash TEXT
 );
 
-CREATE TABLE public.mod_bundles (
+CREATE TABLE IF NOT EXISTS public.mod_bundles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     primary_id UUID REFERENCES public.mods(id) ON DELETE CASCADE,
     twin_id UUID REFERENCES public.mods(id) ON DELETE CASCADE,
     UNIQUE (primary_id, twin_id)
 );
 
-CREATE TABLE public.mod_dependencies (
+CREATE TABLE IF NOT EXISTS public.mod_dependencies (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     parent_id UUID REFERENCES public.mods(id) ON DELETE CASCADE,
     child_id UUID REFERENCES public.mods(id) ON DELETE CASCADE,
     UNIQUE (parent_id, child_id)
 );
 
-CREATE TABLE public.mod_relationships (
+CREATE TABLE IF NOT EXISTS public.mod_relationships (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     parent_id UUID REFERENCES public.mods(id) ON DELETE CASCADE,
     child_id UUID REFERENCES public.mods(id) ON DELETE CASCADE,
@@ -207,7 +323,7 @@ CREATE TABLE public.mod_relationships (
     UNIQUE (parent_id, child_id)
 );
 
-CREATE TABLE public.version_dependencies (
+CREATE TABLE IF NOT EXISTS public.version_dependencies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     parent_hash TEXT NOT NULL,
     child_hash TEXT NOT NULL,
@@ -216,7 +332,7 @@ CREATE TABLE public.version_dependencies (
     UNIQUE (parent_hash, child_hash)
 );
 
-CREATE TABLE public.logical_conflicts (
+CREATE TABLE IF NOT EXISTS public.logical_conflicts (
     id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     severity_rank INTEGER,
@@ -228,20 +344,20 @@ CREATE TABLE public.logical_conflicts (
     status TEXT DEFAULT 'approved'
 );
 
-CREATE TABLE public.community_groups (
+CREATE TABLE IF NOT EXISTS public.community_groups (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL UNIQUE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE public.community_group_members (
+CREATE TABLE IF NOT EXISTS public.community_group_members (
     group_id UUID NOT NULL REFERENCES public.community_groups(id) ON DELETE CASCADE,
     mod_hash TEXT NOT NULL REFERENCES public.mod_versions(dna_hash) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     PRIMARY KEY (group_id, mod_hash)
 );
 
-CREATE TABLE public.flavor_groups (
+CREATE TABLE IF NOT EXISTS public.flavor_groups (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL UNIQUE,
     slug TEXT UNIQUE,
@@ -249,11 +365,18 @@ CREATE TABLE public.flavor_groups (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE public.mods
-    ADD CONSTRAINT mods_highlander_group_id_fkey
-    FOREIGN KEY (highlander_group_id) REFERENCES public.flavor_groups(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'mods_highlander_group_id_fkey'
+    ) THEN
+        ALTER TABLE public.mods
+            ADD CONSTRAINT mods_highlander_group_id_fkey
+            FOREIGN KEY (highlander_group_id) REFERENCES public.flavor_groups(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
-CREATE TABLE public.flavor_group_members (
+CREATE TABLE IF NOT EXISTS public.flavor_group_members (
     group_id UUID NOT NULL REFERENCES public.flavor_groups(id) ON DELETE CASCADE,
     mod_hash TEXT NOT NULL REFERENCES public.mod_versions(dna_hash) ON DELETE CASCADE,
     PRIMARY KEY (group_id, mod_hash)
@@ -263,7 +386,7 @@ CREATE TABLE public.flavor_group_members (
 -- 5. COLLECTIONS, BLUEPRINTS & MARKETPLACE (NEXUS)
 -- ============================================================================
 
-CREATE TABLE public.collections (
+CREATE TABLE IF NOT EXISTS public.collections (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     image_url TEXT,
@@ -273,10 +396,11 @@ CREATE TABLE public.collections (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     mason_id UUID REFERENCES public.masons(id) ON DELETE SET NULL,
     url TEXT,
-    compliance_tier SMALLINT DEFAULT 0
+    compliance_tier SMALLINT DEFAULT 0,
+    has_pending_flag BOOLEAN NOT NULL DEFAULT false
 );
 
-CREATE TABLE public.collection_members (
+CREATE TABLE IF NOT EXISTS public.collection_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     set_id UUID REFERENCES public.collections(id) ON DELETE CASCADE,
     mod_id UUID REFERENCES public.mods(id) ON DELETE CASCADE,
@@ -286,7 +410,7 @@ CREATE TABLE public.collection_members (
 );
 
 -- Note: `mason_id` stores either a Citizen's `profiles.id` or a Creator's `masons.id`
-CREATE TABLE public.blueprints (
+CREATE TABLE IF NOT EXISTS public.blueprints (
     id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     code TEXT NOT NULL UNIQUE,
@@ -294,6 +418,7 @@ CREATE TABLE public.blueprints (
     artifacts JSONB NOT NULL DEFAULT '[]'::jsonb,
     mason_id UUID,
     compliance_tier SMALLINT NOT NULL DEFAULT 0,
+    has_pending_flag BOOLEAN NOT NULL DEFAULT false,
     is_public BOOLEAN DEFAULT true,
     is_locked BOOLEAN DEFAULT false,
     is_market_listed BOOLEAN DEFAULT false,
@@ -303,7 +428,7 @@ CREATE TABLE public.blueprints (
     downloads INTEGER DEFAULT 0
 );
 
-CREATE TABLE public.blueprint_reports (
+CREATE TABLE IF NOT EXISTS public.blueprint_reports (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     blueprint_id BIGINT REFERENCES public.blueprints(id) ON DELETE CASCADE,
     reporter_name TEXT,
@@ -313,7 +438,7 @@ CREATE TABLE public.blueprint_reports (
     reporter_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL
 );
 
-CREATE TABLE public.nexus_assets (
+CREATE TABLE IF NOT EXISTS public.nexus_assets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     asset_type TEXT NOT NULL,
     name TEXT NOT NULL,
@@ -329,12 +454,13 @@ CREATE TABLE public.nexus_assets (
     version TEXT DEFAULT '1.0.0',
     release_notes TEXT,
     is_public BOOLEAN DEFAULT true,
+    has_pending_flag BOOLEAN NOT NULL DEFAULT false,
     is_paid BOOLEAN DEFAULT false,
     is_early_access BOOLEAN DEFAULT false,
     author_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL
 );
 
-CREATE TABLE public.nexus_reports (
+CREATE TABLE IF NOT EXISTS public.nexus_reports (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     asset_id UUID REFERENCES public.nexus_assets(id) ON DELETE CASCADE,
     reporter_name TEXT NOT NULL,
@@ -348,7 +474,7 @@ CREATE TABLE public.nexus_reports (
 -- 6. CREATOR COMM-LINK, SYSTEM DISPATCHES & INTERACTIVE POLLS
 -- ============================================================================
 
-CREATE TABLE public.mason_posts (
+CREATE TABLE IF NOT EXISTS public.mason_posts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     mason_id UUID REFERENCES public.masons(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
@@ -358,21 +484,23 @@ CREATE TABLE public.mason_posts (
     image_url TEXT,
     code_snippet TEXT,
     is_pinned BOOLEAN DEFAULT false,
-    is_active BOOLEAN DEFAULT true
+    is_active BOOLEAN DEFAULT true,
+    has_pending_flag BOOLEAN NOT NULL DEFAULT false
 );
 
-CREATE TABLE public.mason_post_comments (
+CREATE TABLE IF NOT EXISTS public.mason_post_comments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     post_id UUID REFERENCES public.mason_posts(id) ON DELETE CASCADE,
     author_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     is_hidden BOOLEAN DEFAULT false,
+    has_pending_flag BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     parent_comment_id UUID REFERENCES public.mason_post_comments(id) ON DELETE CASCADE,
     code_snippet TEXT
 );
 
-CREATE TABLE public.mason_post_likes (
+CREATE TABLE IF NOT EXISTS public.mason_post_likes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     post_id UUID REFERENCES public.mason_posts(id) ON DELETE CASCADE,
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -380,7 +508,7 @@ CREATE TABLE public.mason_post_likes (
     UNIQUE (post_id, user_id)
 );
 
-CREATE TABLE public.mason_post_views (
+CREATE TABLE IF NOT EXISTS public.mason_post_views (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     post_id UUID REFERENCES public.mason_posts(id) ON DELETE CASCADE,
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -388,7 +516,7 @@ CREATE TABLE public.mason_post_views (
     UNIQUE (post_id, user_id)
 );
 
-CREATE TABLE public.system_broadcasts (
+CREATE TABLE IF NOT EXISTS public.system_broadcasts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT TIMEZONE('utc'::text, NOW()),
     title TEXT NOT NULL,
@@ -401,10 +529,11 @@ CREATE TABLE public.system_broadcasts (
     action_required TEXT DEFAULT 'No Action Required',
     poll_data JSONB,
     code_snippet TEXT,
-    is_pinned TEXT
+    is_pinned TEXT,
+    has_pending_flag BOOLEAN NOT NULL DEFAULT false
 );
 
-CREATE TABLE public.dispatch_poll_votes (
+CREATE TABLE IF NOT EXISTS public.dispatch_poll_votes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     broadcast_id UUID NOT NULL REFERENCES public.system_broadcasts(id) ON DELETE CASCADE,
     poll_id TEXT NOT NULL DEFAULT 'default',
@@ -414,12 +543,13 @@ CREATE TABLE public.dispatch_poll_votes (
     UNIQUE (broadcast_id, poll_id, option_id, user_id)
 );
 
-CREATE TABLE public.notifications (
+CREATE TABLE IF NOT EXISTS public.notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     actor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
     reference_id UUID,
+    title TEXT,
     message TEXT,
     is_read BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
@@ -429,7 +559,7 @@ CREATE TABLE public.notifications (
 -- 7. SECURITY, HEURISTICS, SUPPORT & TELEMETRY
 -- ============================================================================
 
-CREATE TABLE public.audit_logs (
+CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     action TEXT NOT NULL,
     target_table TEXT NOT NULL,
@@ -441,7 +571,7 @@ CREATE TABLE public.audit_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );
 
-CREATE TABLE public.content_flags (
+CREATE TABLE IF NOT EXISTS public.content_flags (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     content_type TEXT NOT NULL,
     content_id UUID NOT NULL,
@@ -453,7 +583,7 @@ CREATE TABLE public.content_flags (
     resolution_note TEXT
 );
 
-CREATE TABLE public.global_network_status (
+CREATE TABLE IF NOT EXISTS public.global_network_status (
     id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
     defcon_level INTEGER NOT NULL DEFAULT 5,
     message TEXT,
@@ -465,7 +595,7 @@ INSERT INTO public.global_network_status (id, defcon_level, status_message)
 VALUES (1, 5, 'Network Secure. All systems nominal.')
 ON CONFLICT (id) DO NOTHING;
 
-CREATE TABLE public.global_security (
+CREATE TABLE IF NOT EXISTS public.global_security (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     hash TEXT NOT NULL UNIQUE,
     type TEXT NOT NULL,
@@ -473,7 +603,7 @@ CREATE TABLE public.global_security (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE public.hardware_bans (
+CREATE TABLE IF NOT EXISTS public.hardware_bans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     hwid_hash TEXT NOT NULL UNIQUE,
     reason TEXT DEFAULT 'Malware / Security Violation',
@@ -481,7 +611,7 @@ CREATE TABLE public.hardware_bans (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.heuristic_signatures (
+CREATE TABLE IF NOT EXISTS public.heuristic_signatures (
     id TEXT PRIMARY KEY,
     signature TEXT NOT NULL,
     match_type TEXT NOT NULL,
@@ -493,7 +623,7 @@ CREATE TABLE public.heuristic_signatures (
     notes TEXT
 );
 
-CREATE TABLE public.malware_reports (
+CREATE TABLE IF NOT EXISTS public.malware_reports (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     artifact_name TEXT,
@@ -507,7 +637,7 @@ CREATE TABLE public.malware_reports (
     quarantined_file_shredded BOOLEAN DEFAULT false
 );
 
-CREATE TABLE public.scout_suggestions (
+CREATE TABLE IF NOT EXISTS public.scout_suggestions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     dna_hash TEXT NOT NULL,
     suggested_name TEXT,
@@ -526,7 +656,7 @@ CREATE TABLE public.scout_suggestions (
     suggested_sub_type TEXT
 );
 
-CREATE TABLE public.sanctuary_support_categories (
+CREATE TABLE IF NOT EXISTS public.sanctuary_support_categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     category_name TEXT NOT NULL,
@@ -545,7 +675,7 @@ CREATE TABLE public.sanctuary_support_categories (
     telemetry_config JSONB DEFAULT '{}'::jsonb
 );
 
-CREATE TABLE public.sanctuary_telemetry_sources (
+CREATE TABLE IF NOT EXISTS public.sanctuary_telemetry_sources (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     label TEXT NOT NULL,
     type TEXT NOT NULL,
@@ -557,7 +687,7 @@ CREATE TABLE public.sanctuary_telemetry_sources (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.sanctuary_tickets (
+CREATE TABLE IF NOT EXISTS public.sanctuary_tickets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -567,6 +697,8 @@ CREATE TABLE public.sanctuary_tickets (
     status TEXT DEFAULT 'OPEN',
     title TEXT NOT NULL,
     description TEXT NOT NULL,
+    target_mod_id UUID,
+    target_blueprint_id UUID,
     metadata JSONB DEFAULT '{}'::jsonb
 );
 
@@ -574,19 +706,19 @@ CREATE TABLE public.sanctuary_tickets (
 -- 8. WORKBENCH, UNIVERSAL TAXONOMY, STAGING & PUSH OVERRIDES
 -- ============================================================================
 
-CREATE TABLE public.dlc_registry (
+CREATE TABLE IF NOT EXISTS public.dlc_registry (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     type TEXT,
     release_date DATE
 );
 
-CREATE TABLE public.game_versions (
+CREATE TABLE IF NOT EXISTS public.game_versions (
     version VARCHAR PRIMARY KEY,
     release_date DATE NOT NULL DEFAULT CURRENT_DATE
 );
 
-CREATE TABLE public.taxonomy (
+CREATE TABLE IF NOT EXISTS public.taxonomy (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     category TEXT NOT NULL,
     type TEXT,
@@ -595,7 +727,7 @@ CREATE TABLE public.taxonomy (
     taxonomy_attributes JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
-CREATE TABLE public.homestead_lab_logs (
+CREATE TABLE IF NOT EXISTS public.homestead_lab_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     mod_id UUID REFERENCES public.mods(id) ON DELETE CASCADE,
     mod_version_id UUID REFERENCES public.mod_versions(id) ON DELETE CASCADE,
@@ -609,7 +741,7 @@ CREATE TABLE public.homestead_lab_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.known_exception_rules (
+CREATE TABLE IF NOT EXISTS public.known_exception_rules (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     pattern TEXT NOT NULL,
@@ -626,7 +758,7 @@ CREATE TABLE public.known_exception_rules (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.homestead_workbench_templates (
+CREATE TABLE IF NOT EXISTS public.homestead_workbench_templates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     template_id TEXT NOT NULL UNIQUE,
     target_file TEXT NOT NULL,
@@ -643,14 +775,14 @@ CREATE TABLE public.homestead_workbench_templates (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.tracked_template_files (
+CREATE TABLE IF NOT EXISTS public.tracked_template_files (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     file_name TEXT NOT NULL UNIQUE,
     added_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
 );
 
-CREATE TABLE public.sanctuary_lexicons (
+CREATE TABLE IF NOT EXISTS public.sanctuary_lexicons (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     badge TEXT NOT NULL,
@@ -660,7 +792,7 @@ CREATE TABLE public.sanctuary_lexicons (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.sanctuary_schemas (
+CREATE TABLE IF NOT EXISTS public.sanctuary_schemas (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     version INTEGER DEFAULT 1,
@@ -669,7 +801,7 @@ CREATE TABLE public.sanctuary_schemas (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.sanctuary_themes (
+CREATE TABLE IF NOT EXISTS public.sanctuary_themes (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     version INTEGER DEFAULT 1,
@@ -678,7 +810,7 @@ CREATE TABLE public.sanctuary_themes (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE public.citizen_staging_queue (
+CREATE TABLE IF NOT EXISTS public.citizen_staging_queue (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_token TEXT NOT NULL,
     payload_type TEXT NOT NULL DEFAULT 'mod_queue',
@@ -690,7 +822,7 @@ CREATE TABLE public.citizen_staging_queue (
     expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '24 hours')
 );
 
-CREATE TABLE public.pwa_push_subscriptions (
+CREATE TABLE IF NOT EXISTS public.pwa_push_subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     endpoint TEXT UNIQUE NOT NULL,
     p256dh TEXT NOT NULL,
@@ -706,6 +838,59 @@ CREATE TABLE public.pwa_push_subscriptions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Standalone-Compatible Directives & Custom Email Dispatch Tables
+CREATE TABLE IF NOT EXISTS public.system_directives (
+    slug TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    summary TEXT,
+    category TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    structured_payload JSONB DEFAULT '{}'::jsonb,
+    version TEXT DEFAULT 'v0.6.0-Dev.13',
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_by TEXT DEFAULT 'Keepers Core',
+    published_content TEXT,
+    published_title TEXT,
+    published_summary TEXT,
+    published_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE IF NOT EXISTS public.keeper_email_dispatches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ticket_id UUID REFERENCES public.sanctuary_tickets(id) ON DELETE SET NULL,
+    sender_user_id UUID,
+    from_name TEXT NOT NULL DEFAULT 'Sanctuary OS Support',
+    from_email TEXT NOT NULL DEFAULT 'support@sanctuaryos.gg',
+    reply_to TEXT,
+    to_email TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    body_text TEXT NOT NULL,
+    body_html TEXT,
+    provider TEXT NOT NULL DEFAULT 'RESEND',
+    provider_message_id TEXT,
+    status TEXT NOT NULL DEFAULT 'SENT',
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================================
+-- 8B. IDEMPOTENT COLUMN UPGRADES FOR EXISTING SPOKE & STANDALONE DATABASES
+-- ============================================================================
+ALTER TABLE IF EXISTS public.mods ADD COLUMN IF NOT EXISTS has_pending_flag BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE IF EXISTS public.collections ADD COLUMN IF NOT EXISTS has_pending_flag BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE IF EXISTS public.blueprints ADD COLUMN IF NOT EXISTS has_pending_flag BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE IF EXISTS public.nexus_assets ADD COLUMN IF NOT EXISTS has_pending_flag BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE IF EXISTS public.mason_posts ADD COLUMN IF NOT EXISTS has_pending_flag BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE IF EXISTS public.mason_post_comments ADD COLUMN IF NOT EXISTS has_pending_flag BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE IF EXISTS public.system_broadcasts ADD COLUMN IF NOT EXISTS has_pending_flag BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE IF EXISTS public.notifications ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE IF EXISTS public.sanctuary_tickets ADD COLUMN IF NOT EXISTS target_mod_id UUID;
+ALTER TABLE IF EXISTS public.sanctuary_tickets ADD COLUMN IF NOT EXISTS target_blueprint_id UUID;
+
+CREATE INDEX IF NOT EXISTS idx_keeper_email_dispatches_ticket_id ON public.keeper_email_dispatches(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_keeper_email_dispatches_created_at ON public.keeper_email_dispatches(created_at DESC);
 
 -- ============================================================================
 -- 9. INDEXES (FULL FK COVERAGE, ZERO DUPLICATE UNIQUE INDEXES)
@@ -828,6 +1013,31 @@ AS $$
     SELECT sanctuary_internal.spoke_user_role() IN ('wayfinder', 'oversight', 'architect', 'senior_architect', 'admin');
 $$;
 
+CREATE OR REPLACE FUNCTION sanctuary_internal.is_spoke_oversight_or_wayfinder()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+    SELECT sanctuary_internal.spoke_user_role() IN ('wayfinder', 'oversight', 'admin');
+$$;
+
+CREATE OR REPLACE FUNCTION sanctuary_internal.is_mod_publicly_syncable(p_mod_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM public.mods m
+        WHERE m.id = p_mod_id
+          AND COALESCE(m.compliance_tier, 0) NOT BETWEEN 1 AND 4
+    );
+$$;
+
 CREATE OR REPLACE FUNCTION sanctuary_internal.is_spoke_creator_or_staff()
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -853,6 +1063,22 @@ AS $$
     );
 $$;
 
+CREATE OR REPLACE FUNCTION sanctuary_internal.owns_verified_mason(p_mason_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT p_mason_id IS NOT NULL AND EXISTS (
+        SELECT 1
+        FROM public.masons m
+        WHERE m.id = p_mason_id
+          AND m.profile_id = (SELECT auth.uid())
+          AND COALESCE(m.is_verified, false) = true
+    );
+$$;
+
 CREATE OR REPLACE FUNCTION sanctuary_internal.is_verified_mason_or_staff()
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -871,16 +1097,122 @@ $$;
 REVOKE ALL ON FUNCTION sanctuary_internal.active_spoke_id() FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION sanctuary_internal.spoke_user_role() FROM PUBLIC;
 REVOKE ALL ON FUNCTION sanctuary_internal.is_spoke_staff() FROM PUBLIC;
+REVOKE ALL ON FUNCTION sanctuary_internal.is_spoke_oversight_or_wayfinder() FROM PUBLIC;
+REVOKE ALL ON FUNCTION sanctuary_internal.is_mod_publicly_syncable(UUID) FROM PUBLIC;
 REVOKE ALL ON FUNCTION sanctuary_internal.is_spoke_creator_or_staff() FROM PUBLIC;
 REVOKE ALL ON FUNCTION sanctuary_internal.owns_mason(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION sanctuary_internal.owns_verified_mason(UUID) FROM PUBLIC;
 REVOKE ALL ON FUNCTION sanctuary_internal.is_verified_mason_or_staff() FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION sanctuary_internal.active_spoke_id() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION sanctuary_internal.spoke_user_role() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION sanctuary_internal.is_spoke_staff() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION sanctuary_internal.is_spoke_oversight_or_wayfinder() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION sanctuary_internal.is_mod_publicly_syncable(UUID) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION sanctuary_internal.is_spoke_creator_or_staff() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION sanctuary_internal.owns_mason(UUID) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION sanctuary_internal.owns_verified_mason(UUID) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION sanctuary_internal.is_verified_mason_or_staff() TO anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION sanctuary_internal.is_verified_hub_gateway()
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, extensions, sanctuary_internal
+AS $$
+DECLARE
+    v_headers_raw TEXT;
+    v_headers JSONB;
+    v_token TEXT;
+    v_rec RECORD;
+    v_computed TEXT;
+BEGIN
+    IF COALESCE(auth.role(), '') = 'service_role'
+       OR session_user IN ('postgres', 'supabase_admin') THEN
+        RETURN true;
+    END IF;
+
+    v_headers_raw := NULLIF(btrim(COALESCE(current_setting('request.headers', true), '')), '');
+    IF v_headers_raw IS NULL THEN
+        RETURN false;
+    END IF;
+
+    v_headers := v_headers_raw::jsonb;
+    v_token := lower(btrim(COALESCE(v_headers ->> 'x-sanctuary-spoke-token', '')));
+    IF v_token = '' OR v_token !~ '^spk_gw_[0-9a-f]{64}$' THEN
+        RETURN false;
+    END IF;
+
+    FOR v_rec IN
+        SELECT token_salt, token_hash
+        FROM sanctuary_internal.spoke_gateway_tokens
+        WHERE is_active = true
+          AND (expires_at IS NULL OR expires_at > NOW())
+    LOOP
+        v_computed := encode(
+            extensions.hmac(convert_to(v_token, 'UTF8'), convert_to(v_rec.token_salt, 'UTF8'), 'sha256'),
+            'hex'
+        );
+        IF lower(v_computed) = lower(v_rec.token_hash) THEN
+            RETURN true;
+        END IF;
+    END LOOP;
+
+    RETURN false;
+EXCEPTION WHEN OTHERS THEN
+    RETURN false;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION sanctuary_internal.is_verified_hub_gateway() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION sanctuary_internal.is_verified_hub_gateway() TO anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION sanctuary_internal.guard_mason_privileged_columns()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+BEGIN
+    IF sanctuary_internal.is_verified_hub_gateway()
+       OR sanctuary_internal.is_spoke_staff() THEN
+        RETURN NEW;
+    END IF;
+
+    IF TG_OP = 'INSERT' THEN
+        IF COALESCE(NEW.is_verified, false) = true THEN
+            RAISE EXCEPTION 'Forbidden: Only Spoke Staff can grant Verified Creator status';
+        END IF;
+        NEW.is_verified := false;
+        NEW.followers_count := 0;
+        IF NEW.profile_id IS NOT NULL AND NEW.profile_id IS DISTINCT FROM (SELECT auth.uid()) THEN
+            RAISE EXCEPTION 'Forbidden: Creator profile_id must match authenticated caller';
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    IF TG_OP = 'UPDATE' THEN
+        IF COALESCE(NEW.is_verified, false) = true AND COALESCE(OLD.is_verified, false) = false THEN
+            RAISE EXCEPTION 'Forbidden: Only Spoke Staff can grant Verified Creator status';
+        END IF;
+        NEW.is_verified := COALESCE(OLD.is_verified, false);
+        NEW.followers_count := COALESCE(OLD.followers_count, 0);
+        IF OLD.profile_id IS NOT NULL AND NEW.profile_id IS DISTINCT FROM OLD.profile_id THEN
+            RAISE EXCEPTION 'Forbidden: Only Spoke Staff can reassign Creator profile_id';
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_guard_mason_privileged_columns ON public.masons;
+CREATE TRIGGER trg_guard_mason_privileged_columns
+    BEFORE INSERT OR UPDATE ON public.masons
+    FOR EACH ROW
+    EXECUTE FUNCTION sanctuary_internal.guard_mason_privileged_columns();
 
 CREATE OR REPLACE FUNCTION sanctuary_internal.cleanup_expired_staging_queue()
 RETURNS TRIGGER
@@ -1014,7 +1346,7 @@ BEGIN
     UPDATE public.scout_suggestions SET submitter_id = p_new_uid WHERE submitter_id = p_legacy_uuid;
     UPDATE public.sanctuary_tickets SET author_id = p_new_uid WHERE author_id = p_legacy_uuid;
     UPDATE public.sanctuary_tickets SET assigned_to = p_new_uid WHERE assigned_to = p_legacy_uuid;
-    UPDATE public.heuristic_signatures SET added_by = p_new_uid WHERE added_by = p_legacy_uuid;
+    UPDATE public.heuristic_signatures SET created_by = p_new_uid::text WHERE created_by = p_legacy_uuid::text;
     UPDATE public.tracked_template_files SET added_by = p_new_uid WHERE added_by = p_legacy_uuid;
     UPDATE public.pwa_push_subscriptions SET user_id = p_new_uid WHERE user_id = p_legacy_uuid;
 
@@ -1135,9 +1467,8 @@ DECLARE
     v_caller_role TEXT;
     v_uid UUID := (SELECT auth.uid());
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') = 'service_role'
-       OR COALESCE(current_setting('sanctuary.allow_profile_relink', true), '') = 'true'
-       OR session_user IN ('postgres', 'supabase_admin') THEN
+    IF sanctuary_internal.is_verified_hub_gateway()
+       OR COALESCE(current_setting('sanctuary.allow_profile_relink', true), '') = 'true' THEN
         RETURN NEW;
     END IF;
 
@@ -1207,8 +1538,8 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    SELECT value INTO v_endpoint FROM sanctuary_internal.runtime_secrets WHERE key = 'pwa_push_endpoint';
-    SELECT value INTO v_secret FROM sanctuary_internal.runtime_secrets WHERE key = 'pwa_push_secret';
+    v_endpoint := sanctuary_internal.read_runtime_secret('pwa_push_endpoint');
+    v_secret := sanctuary_internal.read_runtime_secret('pwa_push_secret');
     IF COALESCE(v_endpoint, '') = '' THEN
         RETURN NEW;
     END IF;
@@ -1247,8 +1578,8 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    SELECT value INTO v_endpoint FROM sanctuary_internal.runtime_secrets WHERE key = 'pwa_push_endpoint';
-    SELECT value INTO v_secret FROM sanctuary_internal.runtime_secrets WHERE key = 'pwa_push_secret';
+    v_endpoint := sanctuary_internal.read_runtime_secret('pwa_push_endpoint');
+    v_secret := sanctuary_internal.read_runtime_secret('pwa_push_secret');
     IF COALESCE(v_endpoint, '') = '' THEN
         RETURN NEW;
     END IF;
@@ -1287,8 +1618,8 @@ DECLARE
 BEGIN
     IF NEW.is_active IS DISTINCT FROM false
        AND EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'net') THEN
-        SELECT value INTO v_endpoint FROM sanctuary_internal.runtime_secrets WHERE key = 'pwa_push_endpoint';
-        SELECT value INTO v_secret FROM sanctuary_internal.runtime_secrets WHERE key = 'pwa_push_secret';
+        v_endpoint := sanctuary_internal.read_runtime_secret('pwa_push_endpoint');
+        v_secret := sanctuary_internal.read_runtime_secret('pwa_push_secret');
         IF COALESCE(v_endpoint, '') <> '' THEN
             v_spoke_id := sanctuary_internal.active_spoke_id();
             EXECUTE 'SELECT net.http_post(url := $1, headers := $2, body := $3)'
@@ -1436,7 +1767,7 @@ BEGIN
         RAISE EXCEPTION 'Retention window must be at least 30 days.';
     END IF;
 
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') IS DISTINCT FROM 'service_role'
+    IF COALESCE(auth.role(), '') IS DISTINCT FROM 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin')
        AND sanctuary_internal.spoke_user_role() NOT IN ('wayfinder', 'admin')
     THEN
@@ -1517,6 +1848,254 @@ CREATE TRIGGER trg_purge_flagged_hash_from_blueprints
     AFTER INSERT OR UPDATE OF compliance_tier, status ON public.mods
     FOR EACH ROW EXECUTE FUNCTION public.purge_flagged_hash_from_blueprints();
 
+-- Recompute has_pending_flag immediately when community reports or flags change
+CREATE OR REPLACE FUNCTION public.sync_nexus_asset_pending_flag()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    target_id UUID;
+BEGIN
+    IF (TG_OP = 'DELETE') OR (TG_OP = 'UPDATE' AND OLD.asset_id IS DISTINCT FROM NEW.asset_id) THEN
+        target_id := OLD.asset_id;
+        IF target_id IS NOT NULL THEN
+            UPDATE public.nexus_assets
+            SET has_pending_flag = (
+                EXISTS (
+                    SELECT 1 FROM public.nexus_reports
+                    WHERE asset_id = target_id
+                      AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+                )
+                OR EXISTS (
+                    SELECT 1 FROM public.content_flags
+                    WHERE LOWER(COALESCE(content_type, '')) IN ('nexus_asset', 'nexus_assets')
+                      AND content_id = target_id
+                      AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+                )
+            )
+            WHERE id = target_id;
+        END IF;
+    END IF;
+
+    IF TG_OP IN ('INSERT', 'UPDATE') AND NEW.asset_id IS NOT NULL THEN
+        target_id := NEW.asset_id;
+        UPDATE public.nexus_assets
+        SET has_pending_flag = (
+            EXISTS (
+                SELECT 1 FROM public.nexus_reports
+                WHERE asset_id = target_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            )
+            OR EXISTS (
+                SELECT 1 FROM public.content_flags
+                WHERE LOWER(COALESCE(content_type, '')) IN ('nexus_asset', 'nexus_assets')
+                  AND content_id = target_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            )
+        )
+        WHERE id = target_id;
+    END IF;
+
+    RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_nexus_asset_pending_flag ON public.nexus_reports;
+CREATE TRIGGER trg_sync_nexus_asset_pending_flag
+    AFTER INSERT OR UPDATE OR DELETE ON public.nexus_reports
+    FOR EACH ROW EXECUTE FUNCTION public.sync_nexus_asset_pending_flag();
+
+CREATE OR REPLACE FUNCTION public.sync_blueprint_pending_flag()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    target_id BIGINT;
+BEGIN
+    IF (TG_OP = 'DELETE') OR (TG_OP = 'UPDATE' AND OLD.blueprint_id IS DISTINCT FROM NEW.blueprint_id) THEN
+        target_id := OLD.blueprint_id;
+        IF target_id IS NOT NULL THEN
+            UPDATE public.blueprints
+            SET has_pending_flag = EXISTS (
+                SELECT 1 FROM public.blueprint_reports
+                WHERE blueprint_id = target_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            )
+            WHERE id = target_id;
+        END IF;
+    END IF;
+
+    IF TG_OP IN ('INSERT', 'UPDATE') AND NEW.blueprint_id IS NOT NULL THEN
+        target_id := NEW.blueprint_id;
+        UPDATE public.blueprints
+        SET has_pending_flag = EXISTS (
+            SELECT 1 FROM public.blueprint_reports
+            WHERE blueprint_id = target_id
+              AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+        )
+        WHERE id = target_id;
+    END IF;
+
+    RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_blueprint_pending_flag ON public.blueprint_reports;
+CREATE TRIGGER trg_sync_blueprint_pending_flag
+    AFTER INSERT OR UPDATE OR DELETE ON public.blueprint_reports
+    FOR EACH ROW EXECUTE FUNCTION public.sync_blueprint_pending_flag();
+
+CREATE OR REPLACE FUNCTION public.sync_content_flag_pending_flag()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    norm_type TEXT;
+    is_flagged BOOLEAN;
+BEGIN
+    IF (TG_OP = 'DELETE') OR (
+        TG_OP = 'UPDATE' AND (
+            LOWER(COALESCE(OLD.content_type, '')) IS DISTINCT FROM LOWER(COALESCE(NEW.content_type, ''))
+            OR OLD.content_id IS DISTINCT FROM NEW.content_id
+        )
+    ) THEN
+        norm_type := LOWER(COALESCE(OLD.content_type, ''));
+        IF norm_type IN ('post', 'mason_post') THEN
+            UPDATE public.mason_posts
+            SET has_pending_flag = EXISTS (
+                SELECT 1 FROM public.content_flags
+                WHERE LOWER(COALESCE(content_type, '')) IN ('post', 'mason_post')
+                  AND content_id = OLD.content_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            )
+            WHERE id = OLD.content_id;
+        ELSIF norm_type IN ('comment', 'mason_post_comment') THEN
+            UPDATE public.mason_post_comments
+            SET has_pending_flag = EXISTS (
+                SELECT 1 FROM public.content_flags
+                WHERE LOWER(COALESCE(content_type, '')) IN ('comment', 'mason_post_comment')
+                  AND content_id = OLD.content_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            )
+            WHERE id = OLD.content_id;
+        ELSIF norm_type IN ('broadcast', 'system_broadcast') THEN
+            UPDATE public.system_broadcasts
+            SET has_pending_flag = EXISTS (
+                SELECT 1 FROM public.content_flags
+                WHERE LOWER(COALESCE(content_type, '')) IN ('broadcast', 'system_broadcast')
+                  AND content_id = OLD.content_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            )
+            WHERE id = OLD.content_id;
+        ELSIF norm_type IN ('mod', 'mods') THEN
+            UPDATE public.mods
+            SET has_pending_flag = EXISTS (
+                SELECT 1 FROM public.content_flags
+                WHERE LOWER(COALESCE(content_type, '')) IN ('mod', 'mods')
+                  AND content_id = OLD.content_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            )
+            WHERE id = OLD.content_id;
+        ELSIF norm_type IN ('collection', 'collections') THEN
+            UPDATE public.collections
+            SET has_pending_flag = EXISTS (
+                SELECT 1 FROM public.content_flags
+                WHERE LOWER(COALESCE(content_type, '')) IN ('collection', 'collections')
+                  AND content_id = OLD.content_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            )
+            WHERE id = OLD.content_id;
+        ELSIF norm_type IN ('nexus_asset', 'nexus_assets') THEN
+            UPDATE public.nexus_assets
+            SET has_pending_flag = (
+                EXISTS (
+                    SELECT 1 FROM public.content_flags
+                    WHERE LOWER(COALESCE(content_type, '')) IN ('nexus_asset', 'nexus_assets')
+                      AND content_id = OLD.content_id
+                      AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+                )
+                OR EXISTS (
+                    SELECT 1 FROM public.nexus_reports
+                    WHERE asset_id = OLD.content_id
+                      AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+                )
+            )
+            WHERE id = OLD.content_id;
+        END IF;
+    END IF;
+
+    IF TG_OP IN ('INSERT', 'UPDATE') AND NEW.content_id IS NOT NULL THEN
+        norm_type := LOWER(COALESCE(NEW.content_type, ''));
+        IF norm_type IN ('post', 'mason_post') THEN
+            is_flagged := EXISTS (
+                SELECT 1 FROM public.content_flags
+                WHERE LOWER(COALESCE(content_type, '')) IN ('post', 'mason_post')
+                  AND content_id = NEW.content_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            );
+            UPDATE public.mason_posts SET has_pending_flag = is_flagged WHERE id = NEW.content_id;
+        ELSIF norm_type IN ('comment', 'mason_post_comment') THEN
+            is_flagged := EXISTS (
+                SELECT 1 FROM public.content_flags
+                WHERE LOWER(COALESCE(content_type, '')) IN ('comment', 'mason_post_comment')
+                  AND content_id = NEW.content_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            );
+            UPDATE public.mason_post_comments SET has_pending_flag = is_flagged WHERE id = NEW.content_id;
+        ELSIF norm_type IN ('broadcast', 'system_broadcast') THEN
+            is_flagged := EXISTS (
+                SELECT 1 FROM public.content_flags
+                WHERE LOWER(COALESCE(content_type, '')) IN ('broadcast', 'system_broadcast')
+                  AND content_id = NEW.content_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            );
+            UPDATE public.system_broadcasts SET has_pending_flag = is_flagged WHERE id = NEW.content_id;
+        ELSIF norm_type IN ('mod', 'mods') THEN
+            is_flagged := EXISTS (
+                SELECT 1 FROM public.content_flags
+                WHERE LOWER(COALESCE(content_type, '')) IN ('mod', 'mods')
+                  AND content_id = NEW.content_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            );
+            UPDATE public.mods SET has_pending_flag = is_flagged WHERE id = NEW.content_id;
+        ELSIF norm_type IN ('collection', 'collections') THEN
+            is_flagged := EXISTS (
+                SELECT 1 FROM public.content_flags
+                WHERE LOWER(COALESCE(content_type, '')) IN ('collection', 'collections')
+                  AND content_id = NEW.content_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            );
+            UPDATE public.collections SET has_pending_flag = is_flagged WHERE id = NEW.content_id;
+        ELSIF norm_type IN ('nexus_asset', 'nexus_assets') THEN
+            is_flagged := EXISTS (
+                SELECT 1 FROM public.content_flags
+                WHERE LOWER(COALESCE(content_type, '')) IN ('nexus_asset', 'nexus_assets')
+                  AND content_id = NEW.content_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            ) OR EXISTS (
+                SELECT 1 FROM public.nexus_reports
+                WHERE asset_id = NEW.content_id
+                  AND LOWER(COALESCE(status, 'pending')) IN ('open', 'pending', 'investigating')
+            );
+            UPDATE public.nexus_assets SET has_pending_flag = is_flagged WHERE id = NEW.content_id;
+        END IF;
+    END IF;
+
+    RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_content_flag_pending_flag ON public.content_flags;
+CREATE TRIGGER trg_sync_content_flag_pending_flag
+    AFTER INSERT OR UPDATE OR DELETE ON public.content_flags
+    FOR EACH ROW EXECUTE FUNCTION public.sync_content_flag_pending_flag();
+
 CREATE OR REPLACE FUNCTION public.get_blueprints_premium_status(b_ids BIGINT[])
 RETURNS TABLE(id BIGINT, is_paid BOOLEAN, is_early_access BOOLEAN)
 LANGUAGE plpgsql
@@ -1576,19 +2155,197 @@ CREATE OR REPLACE FUNCTION public.get_mod_versions_by_hashes(p_hashes TEXT[])
 RETURNS SETOF public.mod_versions
 LANGUAGE sql
 STABLE
-SET search_path = public
+SET search_path = public, sanctuary_internal
 AS $$
-    SELECT * FROM public.mod_versions WHERE dna_hash = ANY(p_hashes);
+    SELECT mv.*
+    FROM public.mod_versions mv
+    WHERE mv.dna_hash = ANY(p_hashes)
+      AND (
+          sanctuary_internal.is_mod_publicly_syncable(mv.mod_id)
+          OR sanctuary_internal.is_spoke_oversight_or_wayfinder()
+      );
 $$;
 
 CREATE OR REPLACE FUNCTION public.get_mods_by_ids(p_ids UUID[])
 RETURNS SETOF public.mods
 LANGUAGE sql
 STABLE
+SET search_path = public, sanctuary_internal
+AS $$
+    SELECT m.*
+    FROM public.mods m
+    WHERE m.id = ANY(p_ids)
+      AND (
+          COALESCE(m.compliance_tier, 0) NOT BETWEEN 1 AND 4
+          OR sanctuary_internal.is_spoke_oversight_or_wayfinder()
+      );
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_compliance_restricted_hashes(p_hashes TEXT[])
+RETURNS TEXT[]
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
 SET search_path = public
 AS $$
-    SELECT * FROM public.mods WHERE id = ANY(p_ids);
+    SELECT COALESCE(array_agg(DISTINCT mv.dna_hash), ARRAY[]::TEXT[])
+    FROM public.mod_versions mv
+    INNER JOIN public.mods m ON m.id = mv.mod_id
+    WHERE mv.dna_hash = ANY(p_hashes)
+      AND COALESCE(m.compliance_tier, 0) BETWEEN 1 AND 4;
 $$;
+
+REVOKE ALL ON FUNCTION public.get_compliance_restricted_hashes(TEXT[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_compliance_restricted_hashes(TEXT[]) TO anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.get_compliance_hash_tiers(p_hashes TEXT[])
+RETURNS TABLE(dna_hash TEXT, compliance_tier SMALLINT)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT LOWER(mv.dna_hash) AS dna_hash,
+           MAX(COALESCE(m.compliance_tier, 0))::SMALLINT AS compliance_tier
+    FROM public.mod_versions mv
+    INNER JOIN public.mods m ON m.id = mv.mod_id
+    WHERE LOWER(mv.dna_hash) = ANY(SELECT LOWER(unnest(COALESCE(p_hashes, ARRAY[]::TEXT[]))))
+      AND COALESCE(m.compliance_tier, 0) BETWEEN 1 AND 5
+      AND LOWER(COALESCE(m.status, '')) <> 'rejected'
+    GROUP BY LOWER(mv.dna_hash);
+$$;
+
+REVOKE ALL ON FUNCTION public.get_compliance_hash_tiers(TEXT[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_compliance_hash_tiers(TEXT[]) TO anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.flag_mod_for_compliance(
+    p_mod_id UUID DEFAULT NULL,
+    p_dna_hash TEXT DEFAULT NULL,
+    p_mod_name TEXT DEFAULT NULL,
+    p_tier INTEGER DEFAULT 1,
+    p_reason TEXT DEFAULT ''
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+DECLARE
+    v_uid UUID := (SELECT auth.uid());
+    v_is_gateway BOOLEAN := sanctuary_internal.is_verified_hub_gateway();
+    v_role TEXT := sanctuary_internal.spoke_user_role();
+    v_is_oversight BOOLEAN := v_is_gateway OR (v_role IN ('wayfinder', 'oversight', 'admin'));
+    v_tier INTEGER := LEAST(4, GREATEST(1, COALESCE(p_tier, 1)));
+    v_reason TEXT := COALESCE(NULLIF(btrim(p_reason), ''), 'Flagged Tier ' || v_tier || ' for Compliance Review');
+    v_tagged_reason TEXT := '[' || CASE WHEN v_role <> '' THEN upper(v_role) WHEN v_is_gateway THEN 'WAYFINDER' ELSE 'CITIZEN' END || ' FLAG - TIER ' || v_tier || '] ' || left(v_reason, 1000);
+    v_hash TEXT := lower(btrim(COALESCE(p_dna_hash, '')));
+    v_mod_id UUID := p_mod_id;
+    v_existing public.mods%ROWTYPE;
+    v_is_pending BOOLEAN;
+    v_is_confirmed BOOLEAN;
+    v_next_tier INTEGER;
+    v_next_status TEXT;
+    v_slug TEXT;
+BEGIN
+    IF v_uid IS NULL AND NOT v_is_gateway THEN
+        RAISE EXCEPTION 'Authentication required to flag artifacts';
+    END IF;
+
+    IF v_mod_id IS NULL AND v_hash ~ '^[0-9a-f]{64}$' THEN
+        SELECT mv.mod_id INTO v_mod_id
+        FROM public.mod_versions mv
+        WHERE lower(mv.dna_hash) = v_hash
+        LIMIT 1;
+    END IF;
+
+    IF v_mod_id IS NULL THEN
+        IF v_hash !~ '^[0-9a-f]{64}$' THEN
+            RAISE EXCEPTION 'Missing mod_id or valid 64-character SHA-256 dna_hash';
+        END IF;
+
+        v_mod_id := gen_random_uuid();
+        v_slug := lower(regexp_replace(COALESCE(NULLIF(btrim(p_mod_name), ''), 'flagged-artifact'), '[^a-zA-Z0-9]+', '-', 'g'));
+        v_slug := trim(both '-' from v_slug);
+        IF v_slug = '' THEN
+            v_slug := 'flagged-artifact';
+        END IF;
+        v_slug := v_slug || '-' || left(v_hash, 8);
+
+        v_next_status := CASE WHEN v_is_oversight THEN 'verified' ELSE 'pending' END;
+
+        INSERT INTO public.mods (
+            id,
+            name,
+            slug,
+            status,
+            compliance_tier,
+            status_reason,
+            updated_at
+        ) VALUES (
+            v_mod_id,
+            COALESCE(NULLIF(btrim(p_mod_name), ''), 'Flagged Artifact (' || left(v_hash, 12) || ')'),
+            v_slug,
+            v_next_status,
+            v_tier,
+            v_tagged_reason,
+            NOW()
+        )
+        RETURNING * INTO v_existing;
+
+        INSERT INTO public.mod_versions (mod_id, dna_hash, version_label, is_core_file)
+        VALUES (v_mod_id, v_hash, 'flagged', true)
+        ON CONFLICT (dna_hash) DO NOTHING;
+    ELSE
+        SELECT * INTO v_existing FROM public.mods WHERE id = v_mod_id FOR UPDATE;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Target artifact not found in Spoke registry';
+        END IF;
+
+        v_is_pending := lower(COALESCE(v_existing.status, '')) IN ('pending', 'under_review', 'unverified');
+        v_is_confirmed := COALESCE(v_existing.compliance_tier, 0) >= 1 AND NOT v_is_pending;
+
+        IF NOT v_is_confirmed OR (v_tier > COALESCE(v_existing.compliance_tier, 0)) THEN
+            v_next_tier := CASE WHEN v_is_pending THEN GREATEST(COALESCE(v_existing.compliance_tier, 0), v_tier) ELSE v_tier END;
+            v_next_status := CASE
+                WHEN v_is_oversight THEN (CASE WHEN v_is_pending THEN 'pending' ELSE 'verified' END)
+                ELSE 'pending'
+            END;
+
+            UPDATE public.mods
+            SET compliance_tier = v_next_tier,
+                status = v_next_status,
+                status_reason = CASE
+                    WHEN COALESCE(btrim(status_reason), '') <> '' AND v_is_confirmed AND v_tier > COALESCE(v_existing.compliance_tier, 0)
+                        THEN status_reason || E'\n' || v_tagged_reason
+                    ELSE v_tagged_reason
+                END,
+                updated_at = NOW()
+            WHERE id = v_mod_id
+            RETURNING * INTO v_existing;
+        END IF;
+    END IF;
+
+    INSERT INTO public.audit_logs (action, target_table, target_name, actor_id, reason)
+    VALUES (
+        'Flagged Artifact for Compliance (Tier ' || v_tier || ')',
+        'mods',
+        COALESCE(v_existing.name, v_mod_id::text),
+        v_uid,
+        v_tagged_reason
+    );
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'queued_pending', COALESCE(v_existing.status, 'pending') = 'pending',
+        'mod_id', v_mod_id,
+        'compliance_tier', COALESCE(v_existing.compliance_tier, v_tier),
+        'status', COALESCE(v_existing.status, 'pending')
+    );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.flag_mod_for_compliance(UUID, TEXT, TEXT, INTEGER, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.flag_mod_for_compliance(UUID, TEXT, TEXT, INTEGER, TEXT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.increment_asset_downloads(asset_id UUID)
 RETURNS VOID
@@ -1625,8 +2382,7 @@ DECLARE
     v_author_id UUID;
     v_post_mason_id UUID;
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
-       AND session_user NOT IN ('postgres', 'supabase_admin') THEN
+    IF NOT sanctuary_internal.is_verified_hub_gateway() THEN
         IF v_uid IS NULL THEN
             RAISE EXCEPTION 'Not authenticated';
         END IF;
@@ -1654,12 +2410,13 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.hide_mason_comment(UUID) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.hide_mason_comment(UUID) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.hide_mason_comment(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.hide_mason_comment(UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.bulk_ingest_vault_mods(p_items JSONB)
 RETURNS JSONB
 LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path = public, sanctuary_internal
 AS $$
 DECLARE
@@ -1674,10 +2431,9 @@ DECLARE
     v_mods_upserted INTEGER := 0;
     v_versions_upserted INTEGER := 0;
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
-       AND session_user NOT IN ('postgres', 'supabase_admin')
-       AND NOT sanctuary_internal.is_spoke_creator_or_staff() THEN
-        RAISE EXCEPTION 'Forbidden: Creator or Staff clearance required for bulk registry ingestion';
+    IF NOT sanctuary_internal.is_verified_hub_gateway()
+       AND NOT sanctuary_internal.is_verified_mason_or_staff() THEN
+        RAISE EXCEPTION 'Forbidden: Verified Creator or Staff clearance required for bulk registry ingestion';
     END IF;
 
     IF jsonb_typeof(p_items) <> 'array' THEN
@@ -1689,6 +2445,17 @@ BEGIN
         v_processed := v_processed + 1;
         v_mod_name := btrim(COALESCE(v_item->>'name', ''));
         IF v_mod_name = '' THEN
+            CONTINUE;
+        END IF;
+
+        v_dna_hash := btrim(COALESCE(v_item->>'dna_hash', v_item->>'hash', ''));
+        IF v_dna_hash <> '' AND EXISTS (
+            SELECT 1
+            FROM public.mod_versions mv
+            INNER JOIN public.mods m ON m.id = mv.mod_id
+            WHERE mv.dna_hash = v_dna_hash
+              AND COALESCE(m.compliance_tier, 0) >= 1
+        ) THEN
             CONTINUE;
         END IF;
 
@@ -1711,6 +2478,7 @@ BEGIN
             v_slug := trim(both '-' from v_slug);
         END IF;
 
+        v_mod_id := NULL;
         INSERT INTO public.mods (
             mason_id,
             name,
@@ -1767,11 +2535,15 @@ BEGIN
             sub_type = COALESCE(EXCLUDED.sub_type, public.mods.sub_type),
             file_extension = COALESCE(EXCLUDED.file_extension, public.mods.file_extension),
             updated_at = NOW()
+        WHERE COALESCE(public.mods.compliance_tier, 0) = 0
         RETURNING id INTO v_mod_id;
+
+        IF v_mod_id IS NULL THEN
+            CONTINUE;
+        END IF;
 
         v_mods_upserted := v_mods_upserted + 1;
 
-        v_dna_hash := btrim(COALESCE(v_item->>'dna_hash', v_item->>'hash', ''));
         IF v_mod_id IS NOT NULL AND v_dna_hash <> '' THEN
             INSERT INTO public.mod_versions (
                 mod_id,
@@ -1794,7 +2566,13 @@ BEGIN
                 mod_id = EXCLUDED.mod_id,
                 version_label = COALESCE(EXCLUDED.version_label, public.mod_versions.version_label),
                 game_version = COALESCE(EXCLUDED.game_version, public.mod_versions.game_version),
-                download_url = COALESCE(EXCLUDED.download_url, public.mod_versions.download_url);
+                download_url = COALESCE(EXCLUDED.download_url, public.mod_versions.download_url)
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM public.mods em
+                WHERE em.id = public.mod_versions.mod_id
+                  AND COALESCE(em.compliance_tier, 0) >= 1
+            );
 
             v_versions_upserted := v_versions_upserted + 1;
         END IF;
@@ -1809,8 +2587,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.bulk_ingest_vault_mods(JSONB) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.bulk_ingest_vault_mods(JSONB) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.bulk_ingest_vault_mods(JSONB) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.bulk_ingest_vault_mods(JSONB) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.dispatch_follower_notifications(
     p_mason_id UUID,
@@ -1832,8 +2610,7 @@ BEGIN
         RETURN jsonb_build_object('ok', true, 'dispatched', 0);
     END IF;
 
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
-       AND session_user NOT IN ('postgres', 'supabase_admin')
+    IF NOT sanctuary_internal.is_verified_hub_gateway()
        AND NOT sanctuary_internal.owns_mason(p_mason_id)
        AND NOT sanctuary_internal.is_spoke_staff() THEN
         RAISE EXCEPTION 'Forbidden: You can only notify followers of your own Creator profile';
@@ -1856,8 +2633,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.dispatch_follower_notifications(UUID, TEXT, UUID, TEXT) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.dispatch_follower_notifications(UUID, TEXT, UUID, TEXT) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.dispatch_follower_notifications(UUID, TEXT, UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.dispatch_follower_notifications(UUID, TEXT, UUID, TEXT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.internal_get_runtime_secret(p_key TEXT)
 RETURNS TEXT
@@ -1865,15 +2642,12 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, sanctuary_internal
 AS $$
-DECLARE
-    v_val TEXT;
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+    IF COALESCE(auth.role(), '') <> 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin') THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
-    SELECT value INTO v_val FROM sanctuary_internal.runtime_secrets WHERE key = p_key;
-    RETURN v_val;
+    RETURN sanctuary_internal.read_runtime_secret(p_key);
 END;
 $$;
 
@@ -1884,17 +2658,11 @@ SECURITY DEFINER
 SET search_path = public, sanctuary_internal
 AS $$
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+    IF COALESCE(auth.role(), '') <> 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin') THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
-    IF p_value IS NULL OR btrim(p_value) = '' THEN
-        DELETE FROM sanctuary_internal.runtime_secrets WHERE key = p_key;
-    ELSE
-        INSERT INTO sanctuary_internal.runtime_secrets (key, value, updated_at)
-        VALUES (p_key, btrim(p_value), NOW())
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
-    END IF;
+    PERFORM sanctuary_internal.write_runtime_secret(p_key, p_value);
 END;
 $$;
 
@@ -1902,6 +2670,182 @@ REVOKE ALL ON FUNCTION public.internal_get_runtime_secret(TEXT) FROM PUBLIC, ano
 REVOKE ALL ON FUNCTION public.internal_set_runtime_secret(TEXT, TEXT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.internal_get_runtime_secret(TEXT) TO service_role;
 GRANT EXECUTE ON FUNCTION public.internal_set_runtime_secret(TEXT, TEXT) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.verify_spoke_gateway_handshake()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions, sanctuary_internal
+AS $$
+DECLARE
+    v_headers_raw TEXT;
+    v_headers JSONB;
+    v_token TEXT;
+    v_rec RECORD;
+    v_computed TEXT;
+BEGIN
+    IF NOT sanctuary_internal.is_verified_hub_gateway() THEN
+        RAISE EXCEPTION 'Forbidden: Invalid or revoked Spoke Gateway Token';
+    END IF;
+
+    v_headers_raw := NULLIF(btrim(COALESCE(current_setting('request.headers', true), '')), '');
+    IF v_headers_raw IS NOT NULL THEN
+        BEGIN
+            v_headers := v_headers_raw::jsonb;
+            v_token := lower(btrim(COALESCE(v_headers ->> 'x-sanctuary-spoke-token', '')));
+        EXCEPTION WHEN OTHERS THEN
+            v_token := '';
+        END;
+
+        IF v_token ~ '^spk_gw_[0-9a-f]{64}$' THEN
+            FOR v_rec IN
+                SELECT id, token_salt, token_hash
+                FROM sanctuary_internal.spoke_gateway_tokens
+                WHERE is_active = true
+                  AND (expires_at IS NULL OR expires_at > NOW())
+            LOOP
+                v_computed := encode(
+                    extensions.hmac(convert_to(v_token, 'UTF8'), convert_to(v_rec.token_salt, 'UTF8'), 'sha256'),
+                    'hex'
+                );
+                IF lower(v_computed) = lower(v_rec.token_hash) THEN
+                    UPDATE sanctuary_internal.spoke_gateway_tokens
+                    SET last_used_at = NOW()
+                    WHERE id = v_rec.id;
+                    EXIT;
+                END IF;
+            END LOOP;
+        END IF;
+    END IF;
+
+    RETURN jsonb_build_object(
+        'ok', true,
+        'verified', true,
+        'spoke_id', sanctuary_internal.active_spoke_id(),
+        'auth_mode', CASE
+            WHEN COALESCE(auth.role(), '') = 'service_role'
+                 OR session_user IN ('postgres', 'supabase_admin') THEN 'service_role'
+            ELSE 'scoped_gateway_token'
+        END
+    );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.mint_spoke_gateway_token(
+    p_label TEXT DEFAULT 'Hub Gateway Uplink',
+    p_grace_seconds INTEGER DEFAULT 60
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions, sanctuary_internal
+AS $$
+DECLARE
+    v_is_allowed BOOLEAN := sanctuary_internal.is_verified_hub_gateway()
+        OR sanctuary_internal.spoke_user_role() IN ('wayfinder', 'admin');
+    v_grace INTEGER := GREATEST(0, LEAST(86400, COALESCE(p_grace_seconds, 60)));
+    v_clean_label TEXT := COALESCE(NULLIF(btrim(p_label), ''), 'Hub Gateway Uplink');
+    v_raw_token TEXT;
+    v_salt TEXT;
+    v_hash TEXT;
+    v_fp TEXT;
+    v_id UUID;
+BEGIN
+    IF NOT v_is_allowed THEN
+        RAISE EXCEPTION 'Forbidden: Only Wayfinder, Admin, or verified Hub Gateway may mint Spoke Gateway Tokens';
+    END IF;
+
+    v_raw_token := 'spk_gw_' || encode(extensions.gen_random_bytes(32), 'hex');
+    v_salt := encode(extensions.gen_random_bytes(16), 'hex');
+    v_hash := encode(extensions.hmac(convert_to(v_raw_token, 'UTF8'), convert_to(v_salt, 'UTF8'), 'sha256'), 'hex');
+    v_fp := 'spk_gw_...' || right(v_raw_token, 4);
+
+    IF v_grace = 0 THEN
+        UPDATE sanctuary_internal.spoke_gateway_tokens
+        SET is_active = false,
+            expires_at = NOW()
+        WHERE is_active = true;
+    ELSE
+        UPDATE sanctuary_internal.spoke_gateway_tokens
+        SET expires_at = LEAST(
+                COALESCE(expires_at, NOW() + make_interval(secs => v_grace)),
+                NOW() + make_interval(secs => v_grace)
+            )
+        WHERE is_active = true;
+    END IF;
+
+    DELETE FROM sanctuary_internal.spoke_gateway_tokens
+    WHERE is_active = false
+       OR (expires_at IS NOT NULL AND expires_at < NOW() - INTERVAL '1 hour');
+
+    INSERT INTO sanctuary_internal.spoke_gateway_tokens (
+        label, token_salt, token_hash, key_fingerprint, is_active, expires_at
+    )
+    VALUES (
+        v_clean_label, v_salt, v_hash, v_fp, true, NULL
+    )
+    RETURNING id INTO v_id;
+
+    INSERT INTO public.audit_logs (action, target_table, target_name, actor_id, reason)
+    VALUES (
+        'Minted Scoped Spoke Gateway Token',
+        'spoke_gateway_tokens',
+        v_clean_label,
+        (SELECT auth.uid()),
+        'Fingerprint: ' || v_fp || ' (grace: ' || v_grace || 's)'
+    );
+
+    RETURN jsonb_build_object(
+        'ok', true,
+        'token', v_raw_token,
+        'key_fingerprint', v_fp,
+        'token_id', v_id,
+        'grace_seconds', v_grace
+    );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.revoke_spoke_gateway_tokens()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions, sanctuary_internal
+AS $$
+DECLARE
+    v_is_allowed BOOLEAN := sanctuary_internal.is_verified_hub_gateway()
+        OR sanctuary_internal.spoke_user_role() IN ('wayfinder', 'admin');
+    v_count INTEGER := 0;
+BEGIN
+    IF NOT v_is_allowed THEN
+        RAISE EXCEPTION 'Forbidden: Only Wayfinder, Admin, or verified Hub Gateway may revoke Spoke Gateway Tokens';
+    END IF;
+
+    UPDATE sanctuary_internal.spoke_gateway_tokens
+    SET is_active = false,
+        expires_at = NOW()
+    WHERE is_active = true;
+
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+
+    INSERT INTO public.audit_logs (action, target_table, target_name, actor_id, reason)
+    VALUES (
+        'Revoked All Spoke Gateway Tokens',
+        'spoke_gateway_tokens',
+        'Hub Gateway Uplink',
+        (SELECT auth.uid()),
+        'Immediately invalidated ' || v_count || ' active gateway token(s)'
+    );
+
+    RETURN jsonb_build_object('ok', true, 'revoked', v_count);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.verify_spoke_gateway_handshake() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.mint_spoke_gateway_token(TEXT, INTEGER) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.revoke_spoke_gateway_tokens() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.verify_spoke_gateway_handshake() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.mint_spoke_gateway_token(TEXT, INTEGER) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.revoke_spoke_gateway_tokens() TO anon, authenticated, service_role;
 
 -- ============================================================================
 -- 12. INTERNAL WEBAUTHN & ZERO-KNOWLEDGE STANDALONE FORK RPCs
@@ -1916,7 +2860,7 @@ AS $$
 DECLARE
     v_result JSONB;
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+    IF COALESCE(auth.role(), '') <> 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin') THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
@@ -1946,7 +2890,7 @@ AS $$
 DECLARE
     v_result JSONB;
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+    IF COALESCE(auth.role(), '') <> 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin') THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
@@ -1989,7 +2933,7 @@ AS $$
 DECLARE
     v_result JSONB;
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+    IF COALESCE(auth.role(), '') <> 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin') THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
@@ -2035,7 +2979,7 @@ AS $$
 DECLARE
     v_result JSONB;
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
+    IF COALESCE(auth.role(), '') <> 'service_role'
        AND session_user NOT IN ('postgres', 'supabase_admin') THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
@@ -2504,8 +3448,7 @@ AS $$
 DECLARE
     v_clean_hash TEXT := lower(btrim(COALESCE(p_commitment_hash, '')));
 BEGIN
-    IF COALESCE(current_setting('request.jwt.claim.role', true), '') <> 'service_role'
-       AND session_user NOT IN ('postgres', 'supabase_admin') THEN
+    IF NOT sanctuary_internal.is_verified_hub_gateway() THEN
         RAISE EXCEPTION 'Forbidden';
     END IF;
     IF p_profile_id IS NULL OR v_clean_hash !~ '^[0-9a-f]{64}$' THEN
@@ -2525,8 +3468,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.internal_upsert_spoke_relink_commitment(UUID, TEXT) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.internal_upsert_spoke_relink_commitment(UUID, TEXT) TO service_role;
+REVOKE ALL ON FUNCTION public.internal_upsert_spoke_relink_commitment(UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.internal_upsert_spoke_relink_commitment(UUID, TEXT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.register_spoke_relink_commitment(
     p_commitment_hash TEXT
@@ -2603,289 +3546,498 @@ BEGIN
     END LOOP;
 END $$;
 
--- Profiles (No email/payment PII stored on Spoke; public username/role resolution, self/staff writes)
+-- Profiles (No email/payment PII stored on Spoke; public username/role resolution, self/staff/gateway writes)
+DROP POLICY IF EXISTS "spoke_profiles_select" ON public.profiles;
 CREATE POLICY "spoke_profiles_select" ON public.profiles
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "spoke_profiles_insert" ON public.profiles;
 CREATE POLICY "spoke_profiles_insert" ON public.profiles
-    FOR INSERT TO authenticated
-    WITH CHECK (id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_profiles_update" ON public.profiles;
 CREATE POLICY "spoke_profiles_update" ON public.profiles
-    FOR UPDATE TO authenticated
-    USING (id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff())
-    WITH CHECK (id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_profiles_delete" ON public.profiles;
 CREATE POLICY "spoke_profiles_delete" ON public.profiles
-    FOR DELETE TO authenticated
-    USING (sanctuary_internal.is_spoke_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
 
--- Append-only Audit Logs
+-- Append-only Audit Logs (strictly SELECT / INSERT; zero UPDATE or DELETE via gateway or users)
+DROP POLICY IF EXISTS "spoke_audit_logs_select" ON public.audit_logs;
 CREATE POLICY "spoke_audit_logs_select" ON public.audit_logs
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "spoke_audit_logs_insert" ON public.audit_logs;
 CREATE POLICY "spoke_audit_logs_insert" ON public.audit_logs
-    FOR INSERT TO authenticated
-    WITH CHECK ((SELECT auth.uid()) IS NOT NULL AND (actor_id IS NULL OR actor_id = (SELECT auth.uid())));
+    FOR INSERT TO anon, authenticated
+    WITH CHECK (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR ((SELECT auth.uid()) IS NOT NULL AND (actor_id IS NULL OR actor_id = (SELECT auth.uid())))
+    );
 
 -- Creators (Masons) & Followers
+DROP POLICY IF EXISTS "spoke_masons_select" ON public.masons;
 CREATE POLICY "spoke_masons_select" ON public.masons
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "spoke_masons_insert" ON public.masons;
 CREATE POLICY "spoke_masons_insert" ON public.masons
-    FOR INSERT TO authenticated
-    WITH CHECK ((profile_id = (SELECT auth.uid()) AND sanctuary_internal.is_spoke_creator_or_staff()) OR sanctuary_internal.is_spoke_staff());
+    FOR INSERT TO anon, authenticated
+    WITH CHECK (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR (profile_id = (SELECT auth.uid()) AND sanctuary_internal.is_spoke_creator_or_staff())
+        OR sanctuary_internal.is_spoke_staff()
+    );
+DROP POLICY IF EXISTS "spoke_masons_update" ON public.masons;
 CREATE POLICY "spoke_masons_update" ON public.masons
-    FOR UPDATE TO authenticated
-    USING (profile_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff())
-    WITH CHECK (profile_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR profile_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR profile_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_masons_delete" ON public.masons;
 CREATE POLICY "spoke_masons_delete" ON public.masons
-    FOR DELETE TO authenticated
-    USING (sanctuary_internal.is_spoke_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
 
+DROP POLICY IF EXISTS "spoke_mason_followers_select" ON public.mason_followers;
 CREATE POLICY "spoke_mason_followers_select" ON public.mason_followers
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "spoke_mason_followers_insert" ON public.mason_followers;
 CREATE POLICY "spoke_mason_followers_insert" ON public.mason_followers
-    FOR INSERT TO authenticated WITH CHECK (user_id = (SELECT auth.uid()));
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "spoke_mason_followers_delete" ON public.mason_followers;
 CREATE POLICY "spoke_mason_followers_delete" ON public.mason_followers
-    FOR DELETE TO authenticated USING (user_id = (SELECT auth.uid()));
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()));
 
 -- Creator Comm-Link (Posts, Comments, Likes, Views)
+DROP POLICY IF EXISTS "spoke_mason_posts_select" ON public.mason_posts;
 CREATE POLICY "spoke_mason_posts_select" ON public.mason_posts
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "spoke_mason_posts_insert" ON public.mason_posts;
 CREATE POLICY "spoke_mason_posts_insert" ON public.mason_posts
-    FOR INSERT TO authenticated
-    WITH CHECK (sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.owns_verified_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_mason_posts_update" ON public.mason_posts;
 CREATE POLICY "spoke_mason_posts_update" ON public.mason_posts
-    FOR UPDATE TO authenticated
-    USING (sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff())
-    WITH CHECK (sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.owns_verified_mason(mason_id) OR sanctuary_internal.is_spoke_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.owns_verified_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_mason_posts_delete" ON public.mason_posts;
 CREATE POLICY "spoke_mason_posts_delete" ON public.mason_posts
-    FOR DELETE TO authenticated
-    USING (sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
 
+DROP POLICY IF EXISTS "spoke_mason_post_comments_select" ON public.mason_post_comments;
 CREATE POLICY "spoke_mason_post_comments_select" ON public.mason_post_comments
     FOR SELECT TO public
-    USING (COALESCE(is_hidden, false) = false OR author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    USING (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR COALESCE(is_hidden, false) = false
+        OR author_id = (SELECT auth.uid())
+        OR sanctuary_internal.is_spoke_staff()
+    );
+DROP POLICY IF EXISTS "spoke_mason_post_comments_insert" ON public.mason_post_comments;
 CREATE POLICY "spoke_mason_post_comments_insert" ON public.mason_post_comments
-    FOR INSERT TO authenticated WITH CHECK (author_id = (SELECT auth.uid()));
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR author_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "spoke_mason_post_comments_update" ON public.mason_post_comments;
 CREATE POLICY "spoke_mason_post_comments_update" ON public.mason_post_comments
-    FOR UPDATE TO authenticated
-    USING (author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff())
-    WITH CHECK (author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_mason_post_comments_delete" ON public.mason_post_comments;
 CREATE POLICY "spoke_mason_post_comments_delete" ON public.mason_post_comments
-    FOR DELETE TO authenticated
-    USING (author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
 
+DROP POLICY IF EXISTS "spoke_mason_post_likes_select" ON public.mason_post_likes;
 CREATE POLICY "spoke_mason_post_likes_select" ON public.mason_post_likes
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "spoke_mason_post_likes_insert" ON public.mason_post_likes;
 CREATE POLICY "spoke_mason_post_likes_insert" ON public.mason_post_likes
-    FOR INSERT TO authenticated WITH CHECK (user_id = (SELECT auth.uid()));
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "spoke_mason_post_likes_delete" ON public.mason_post_likes;
 CREATE POLICY "spoke_mason_post_likes_delete" ON public.mason_post_likes
-    FOR DELETE TO authenticated USING (user_id = (SELECT auth.uid()));
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()));
 
+DROP POLICY IF EXISTS "spoke_mason_post_views_select" ON public.mason_post_views;
 CREATE POLICY "spoke_mason_post_views_select" ON public.mason_post_views
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "spoke_mason_post_views_insert" ON public.mason_post_views;
 CREATE POLICY "spoke_mason_post_views_insert" ON public.mason_post_views
-    FOR INSERT TO authenticated WITH CHECK (user_id = (SELECT auth.uid()));
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()));
 
 -- Collections, Blueprints & Marketplace (Nexus)
+DROP POLICY IF EXISTS "spoke_collections_select" ON public.collections;
 CREATE POLICY "spoke_collections_select" ON public.collections
-    FOR SELECT TO public USING (true);
+    FOR SELECT TO public
+    USING (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR COALESCE(compliance_tier, 0) NOT BETWEEN 1 AND 4
+        OR sanctuary_internal.is_spoke_oversight_or_wayfinder()
+    );
+DROP POLICY IF EXISTS "spoke_collections_insert" ON public.collections;
 CREATE POLICY "spoke_collections_insert" ON public.collections
-    FOR INSERT TO authenticated
-    WITH CHECK (sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.owns_verified_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_collections_update" ON public.collections;
 CREATE POLICY "spoke_collections_update" ON public.collections
-    FOR UPDATE TO authenticated
-    USING (sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff())
-    WITH CHECK (sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.owns_verified_mason(mason_id) OR sanctuary_internal.is_spoke_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.owns_verified_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_collections_delete" ON public.collections;
 CREATE POLICY "spoke_collections_delete" ON public.collections
-    FOR DELETE TO authenticated
-    USING (sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
 
+DROP POLICY IF EXISTS "spoke_collection_members_select" ON public.collection_members;
+CREATE POLICY "spoke_collection_members_select" ON public.collection_members
+    FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "spoke_collection_members_insert" ON public.collection_members;
+CREATE POLICY "spoke_collection_members_insert" ON public.collection_members
+    FOR INSERT TO anon, authenticated
+    WITH CHECK (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR sanctuary_internal.is_spoke_staff()
+        OR EXISTS (
+            SELECT 1 FROM public.collections c
+            WHERE c.id = set_id AND sanctuary_internal.owns_verified_mason(c.mason_id)
+        )
+    );
+DROP POLICY IF EXISTS "spoke_collection_members_update" ON public.collection_members;
+CREATE POLICY "spoke_collection_members_update" ON public.collection_members
+    FOR UPDATE TO anon, authenticated
+    USING (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR sanctuary_internal.is_spoke_staff()
+        OR EXISTS (
+            SELECT 1 FROM public.collections c
+            WHERE c.id = set_id AND sanctuary_internal.owns_verified_mason(c.mason_id)
+        )
+    )
+    WITH CHECK (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR sanctuary_internal.is_spoke_staff()
+        OR EXISTS (
+            SELECT 1 FROM public.collections c
+            WHERE c.id = set_id AND sanctuary_internal.owns_verified_mason(c.mason_id)
+        )
+    );
+DROP POLICY IF EXISTS "spoke_collection_members_delete" ON public.collection_members;
+CREATE POLICY "spoke_collection_members_delete" ON public.collection_members
+    FOR DELETE TO anon, authenticated
+    USING (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR sanctuary_internal.is_spoke_staff()
+        OR EXISTS (
+            SELECT 1 FROM public.collections c
+            WHERE c.id = set_id AND sanctuary_internal.owns_mason(c.mason_id)
+        )
+    );
+
+DROP POLICY IF EXISTS "spoke_blueprints_select" ON public.blueprints;
 CREATE POLICY "spoke_blueprints_select" ON public.blueprints
     FOR SELECT TO public
     USING (
-        COALESCE(is_public, true) = true
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR COALESCE(is_public, true) = true
         OR mason_id = (SELECT auth.uid())
         OR sanctuary_internal.owns_mason(mason_id)
         OR sanctuary_internal.is_spoke_staff()
     );
+DROP POLICY IF EXISTS "spoke_blueprints_insert" ON public.blueprints;
 CREATE POLICY "spoke_blueprints_insert" ON public.blueprints
-    FOR INSERT TO authenticated
+    FOR INSERT TO anon, authenticated
     WITH CHECK (
-        (SELECT auth.uid()) IS NOT NULL
-        AND (mason_id = (SELECT auth.uid()) OR sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff())
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR (
+            (SELECT auth.uid()) IS NOT NULL
+            AND (mason_id = (SELECT auth.uid()) OR sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff())
+        )
     );
+DROP POLICY IF EXISTS "spoke_blueprints_update" ON public.blueprints;
 CREATE POLICY "spoke_blueprints_update" ON public.blueprints
-    FOR UPDATE TO authenticated
-    USING (mason_id = (SELECT auth.uid()) OR sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff())
-    WITH CHECK (mason_id = (SELECT auth.uid()) OR sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR mason_id = (SELECT auth.uid()) OR sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR mason_id = (SELECT auth.uid()) OR sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_blueprints_delete" ON public.blueprints;
 CREATE POLICY "spoke_blueprints_delete" ON public.blueprints
-    FOR DELETE TO authenticated
-    USING (mason_id = (SELECT auth.uid()) OR sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR mason_id = (SELECT auth.uid()) OR sanctuary_internal.owns_mason(mason_id) OR sanctuary_internal.is_spoke_staff());
 
+DROP POLICY IF EXISTS "spoke_nexus_assets_select" ON public.nexus_assets;
 CREATE POLICY "spoke_nexus_assets_select" ON public.nexus_assets
     FOR SELECT TO public
-    USING (COALESCE(is_public, true) = true OR author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
-CREATE POLICY "spoke_nexus_assets_insert" ON public.nexus_assets
-    FOR INSERT TO authenticated
-    WITH CHECK (
-        (author_id = (SELECT auth.uid()) AND sanctuary_internal.is_verified_mason_or_staff())
+    USING (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR COALESCE(is_public, true) = true
+        OR author_id = (SELECT auth.uid())
         OR sanctuary_internal.is_spoke_staff()
     );
+DROP POLICY IF EXISTS "spoke_nexus_assets_insert" ON public.nexus_assets;
+CREATE POLICY "spoke_nexus_assets_insert" ON public.nexus_assets
+    FOR INSERT TO anon, authenticated
+    WITH CHECK (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR (author_id = (SELECT auth.uid()) AND sanctuary_internal.is_verified_mason_or_staff())
+        OR sanctuary_internal.is_spoke_staff()
+    );
+DROP POLICY IF EXISTS "spoke_nexus_assets_update" ON public.nexus_assets;
 CREATE POLICY "spoke_nexus_assets_update" ON public.nexus_assets
-    FOR UPDATE TO authenticated
+    FOR UPDATE TO anon, authenticated
     USING (
-        (author_id = (SELECT auth.uid()) AND sanctuary_internal.is_verified_mason_or_staff())
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR (author_id = (SELECT auth.uid()) AND sanctuary_internal.is_verified_mason_or_staff())
         OR sanctuary_internal.is_spoke_staff()
     )
     WITH CHECK (
-        (author_id = (SELECT auth.uid()) AND sanctuary_internal.is_verified_mason_or_staff())
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR (author_id = (SELECT auth.uid()) AND sanctuary_internal.is_verified_mason_or_staff())
         OR sanctuary_internal.is_spoke_staff()
     );
+DROP POLICY IF EXISTS "spoke_nexus_assets_delete" ON public.nexus_assets;
 CREATE POLICY "spoke_nexus_assets_delete" ON public.nexus_assets
-    FOR DELETE TO authenticated
-    USING (author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR author_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
 
 -- Reports, Content Flags, Malware Telemetry, Scout Suggestions & Tickets
+DROP POLICY IF EXISTS "spoke_blueprint_reports_select" ON public.blueprint_reports;
 CREATE POLICY "spoke_blueprint_reports_select" ON public.blueprint_reports
-    FOR SELECT TO authenticated
-    USING (reporter_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    FOR SELECT TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR reporter_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_blueprint_reports_insert" ON public.blueprint_reports;
 CREATE POLICY "spoke_blueprint_reports_insert" ON public.blueprint_reports
-    FOR INSERT TO authenticated
-    WITH CHECK ((SELECT auth.uid()) IS NOT NULL AND (reporter_id IS NULL OR reporter_id = (SELECT auth.uid())));
+    FOR INSERT TO anon, authenticated
+    WITH CHECK (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR ((SELECT auth.uid()) IS NOT NULL AND (reporter_id IS NULL OR reporter_id = (SELECT auth.uid())))
+    );
+DROP POLICY IF EXISTS "spoke_blueprint_reports_update" ON public.blueprint_reports;
 CREATE POLICY "spoke_blueprint_reports_update" ON public.blueprint_reports
-    FOR UPDATE TO authenticated
-    USING (sanctuary_internal.is_spoke_staff()) WITH CHECK (sanctuary_internal.is_spoke_staff());
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_blueprint_reports_delete" ON public.blueprint_reports;
 CREATE POLICY "spoke_blueprint_reports_delete" ON public.blueprint_reports
-    FOR DELETE TO authenticated USING (sanctuary_internal.is_spoke_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
 
+DROP POLICY IF EXISTS "spoke_nexus_reports_select" ON public.nexus_reports;
 CREATE POLICY "spoke_nexus_reports_select" ON public.nexus_reports
-    FOR SELECT TO authenticated
-    USING (reporter_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    FOR SELECT TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR reporter_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_nexus_reports_insert" ON public.nexus_reports;
 CREATE POLICY "spoke_nexus_reports_insert" ON public.nexus_reports
-    FOR INSERT TO authenticated
-    WITH CHECK ((SELECT auth.uid()) IS NOT NULL AND (reporter_id IS NULL OR reporter_id = (SELECT auth.uid())));
+    FOR INSERT TO anon, authenticated
+    WITH CHECK (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR ((SELECT auth.uid()) IS NOT NULL AND (reporter_id IS NULL OR reporter_id = (SELECT auth.uid())))
+    );
+DROP POLICY IF EXISTS "spoke_nexus_reports_update" ON public.nexus_reports;
 CREATE POLICY "spoke_nexus_reports_update" ON public.nexus_reports
-    FOR UPDATE TO authenticated
-    USING (sanctuary_internal.is_spoke_staff()) WITH CHECK (sanctuary_internal.is_spoke_staff());
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_nexus_reports_delete" ON public.nexus_reports;
 CREATE POLICY "spoke_nexus_reports_delete" ON public.nexus_reports
-    FOR DELETE TO authenticated USING (sanctuary_internal.is_spoke_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
 
+DROP POLICY IF EXISTS "spoke_content_flags_select" ON public.content_flags;
 CREATE POLICY "spoke_content_flags_select" ON public.content_flags
-    FOR SELECT TO authenticated
-    USING (reporter_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    FOR SELECT TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR reporter_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_content_flags_insert" ON public.content_flags;
 CREATE POLICY "spoke_content_flags_insert" ON public.content_flags
-    FOR INSERT TO authenticated WITH CHECK (reporter_id = (SELECT auth.uid()));
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR reporter_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "spoke_content_flags_update" ON public.content_flags;
 CREATE POLICY "spoke_content_flags_update" ON public.content_flags
-    FOR UPDATE TO authenticated
-    USING (sanctuary_internal.is_spoke_staff()) WITH CHECK (sanctuary_internal.is_spoke_staff());
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_content_flags_delete" ON public.content_flags;
 CREATE POLICY "spoke_content_flags_delete" ON public.content_flags
-    FOR DELETE TO authenticated USING (sanctuary_internal.is_spoke_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
 
+DROP POLICY IF EXISTS "spoke_malware_reports_select" ON public.malware_reports;
 CREATE POLICY "spoke_malware_reports_select" ON public.malware_reports
-    FOR SELECT TO authenticated USING (sanctuary_internal.is_spoke_staff());
+    FOR SELECT TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_malware_reports_insert" ON public.malware_reports;
 CREATE POLICY "spoke_malware_reports_insert" ON public.malware_reports
-    FOR INSERT TO authenticated WITH CHECK ((SELECT auth.uid()) IS NOT NULL);
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR (SELECT auth.uid()) IS NOT NULL);
+DROP POLICY IF EXISTS "spoke_malware_reports_update" ON public.malware_reports;
 CREATE POLICY "spoke_malware_reports_update" ON public.malware_reports
-    FOR UPDATE TO authenticated
-    USING (sanctuary_internal.is_spoke_staff()) WITH CHECK (sanctuary_internal.is_spoke_staff());
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_malware_reports_delete" ON public.malware_reports;
 CREATE POLICY "spoke_malware_reports_delete" ON public.malware_reports
-    FOR DELETE TO authenticated USING (sanctuary_internal.is_spoke_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
 
+DROP POLICY IF EXISTS "spoke_homestead_lab_logs_select" ON public.homestead_lab_logs;
 CREATE POLICY "spoke_homestead_lab_logs_select" ON public.homestead_lab_logs
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "spoke_homestead_lab_logs_insert" ON public.homestead_lab_logs;
 CREATE POLICY "spoke_homestead_lab_logs_insert" ON public.homestead_lab_logs
-    FOR INSERT TO authenticated WITH CHECK ((SELECT auth.uid()) IS NOT NULL);
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR (SELECT auth.uid()) IS NOT NULL);
+DROP POLICY IF EXISTS "spoke_homestead_lab_logs_update" ON public.homestead_lab_logs;
 CREATE POLICY "spoke_homestead_lab_logs_update" ON public.homestead_lab_logs
-    FOR UPDATE TO authenticated
-    USING (sanctuary_internal.is_spoke_creator_or_staff())
-    WITH CHECK (sanctuary_internal.is_spoke_creator_or_staff());
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_creator_or_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_creator_or_staff());
+DROP POLICY IF EXISTS "spoke_homestead_lab_logs_delete" ON public.homestead_lab_logs;
 CREATE POLICY "spoke_homestead_lab_logs_delete" ON public.homestead_lab_logs
-    FOR DELETE TO authenticated USING (sanctuary_internal.is_spoke_creator_or_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_creator_or_staff());
 
+DROP POLICY IF EXISTS "spoke_scout_suggestions_select" ON public.scout_suggestions;
 CREATE POLICY "spoke_scout_suggestions_select" ON public.scout_suggestions
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "spoke_scout_suggestions_insert" ON public.scout_suggestions;
 CREATE POLICY "spoke_scout_suggestions_insert" ON public.scout_suggestions
-    FOR INSERT TO authenticated
-    WITH CHECK ((SELECT auth.uid()) IS NOT NULL AND (submitter_id IS NULL OR submitter_id = (SELECT auth.uid())));
+    FOR INSERT TO anon, authenticated
+    WITH CHECK (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR ((SELECT auth.uid()) IS NOT NULL AND (submitter_id IS NULL OR submitter_id = (SELECT auth.uid())))
+    );
+DROP POLICY IF EXISTS "spoke_scout_suggestions_update" ON public.scout_suggestions;
 CREATE POLICY "spoke_scout_suggestions_update" ON public.scout_suggestions
-    FOR UPDATE TO authenticated
-    USING (submitter_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_creator_or_staff())
-    WITH CHECK (submitter_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_creator_or_staff());
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR submitter_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_creator_or_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR submitter_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_creator_or_staff());
+DROP POLICY IF EXISTS "spoke_scout_suggestions_delete" ON public.scout_suggestions;
 CREATE POLICY "spoke_scout_suggestions_delete" ON public.scout_suggestions
-    FOR DELETE TO authenticated
-    USING (submitter_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_creator_or_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR submitter_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_creator_or_staff());
 
+DROP POLICY IF EXISTS "spoke_sanctuary_tickets_select" ON public.sanctuary_tickets;
 CREATE POLICY "spoke_sanctuary_tickets_select" ON public.sanctuary_tickets
-    FOR SELECT TO authenticated
-    USING (author_id = (SELECT auth.uid()) OR assigned_to = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    FOR SELECT TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR author_id = (SELECT auth.uid()) OR assigned_to = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_sanctuary_tickets_insert" ON public.sanctuary_tickets;
 CREATE POLICY "spoke_sanctuary_tickets_insert" ON public.sanctuary_tickets
-    FOR INSERT TO authenticated WITH CHECK (author_id = (SELECT auth.uid()));
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR author_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "spoke_sanctuary_tickets_update" ON public.sanctuary_tickets;
 CREATE POLICY "spoke_sanctuary_tickets_update" ON public.sanctuary_tickets
-    FOR UPDATE TO authenticated
-    USING (author_id = (SELECT auth.uid()) OR assigned_to = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff())
-    WITH CHECK (author_id = (SELECT auth.uid()) OR assigned_to = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR author_id = (SELECT auth.uid()) OR assigned_to = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR author_id = (SELECT auth.uid()) OR assigned_to = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_sanctuary_tickets_delete" ON public.sanctuary_tickets;
 CREATE POLICY "spoke_sanctuary_tickets_delete" ON public.sanctuary_tickets
-    FOR DELETE TO authenticated USING (sanctuary_internal.is_spoke_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
+
+-- Standalone / Spoke Email Dispatches (Staff-only PII protection)
+DROP POLICY IF EXISTS "spoke_keeper_email_dispatches_select" ON public.keeper_email_dispatches;
+CREATE POLICY "spoke_keeper_email_dispatches_select" ON public.keeper_email_dispatches
+    FOR SELECT TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_keeper_email_dispatches_insert" ON public.keeper_email_dispatches;
+CREATE POLICY "spoke_keeper_email_dispatches_insert" ON public.keeper_email_dispatches
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_keeper_email_dispatches_update" ON public.keeper_email_dispatches;
+CREATE POLICY "spoke_keeper_email_dispatches_update" ON public.keeper_email_dispatches
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff())
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_keeper_email_dispatches_delete" ON public.keeper_email_dispatches;
+CREATE POLICY "spoke_keeper_email_dispatches_delete" ON public.keeper_email_dispatches
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());
 
 -- Notifications & Poll Votes
+DROP POLICY IF EXISTS "spoke_notifications_select" ON public.notifications;
 CREATE POLICY "spoke_notifications_select" ON public.notifications
-    FOR SELECT TO authenticated USING (user_id = (SELECT auth.uid()));
+    FOR SELECT TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "spoke_notifications_insert" ON public.notifications;
 CREATE POLICY "spoke_notifications_insert" ON public.notifications
-    FOR INSERT TO authenticated
-    WITH CHECK (actor_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR actor_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+DROP POLICY IF EXISTS "spoke_notifications_update" ON public.notifications;
 CREATE POLICY "spoke_notifications_update" ON public.notifications
-    FOR UPDATE TO authenticated
-    USING (user_id = (SELECT auth.uid())) WITH CHECK (user_id = (SELECT auth.uid()));
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()))
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "spoke_notifications_delete" ON public.notifications;
 CREATE POLICY "spoke_notifications_delete" ON public.notifications
-    FOR DELETE TO authenticated
-    USING (user_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()) OR sanctuary_internal.is_spoke_staff());
 
+DROP POLICY IF EXISTS "spoke_dispatch_poll_votes_select" ON public.dispatch_poll_votes;
 CREATE POLICY "spoke_dispatch_poll_votes_select" ON public.dispatch_poll_votes
     FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "spoke_dispatch_poll_votes_insert" ON public.dispatch_poll_votes;
 CREATE POLICY "spoke_dispatch_poll_votes_insert" ON public.dispatch_poll_votes
-    FOR INSERT TO authenticated WITH CHECK (user_id = (SELECT auth.uid()));
+    FOR INSERT TO anon, authenticated
+    WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "spoke_dispatch_poll_votes_delete" ON public.dispatch_poll_votes;
 CREATE POLICY "spoke_dispatch_poll_votes_delete" ON public.dispatch_poll_votes
-    FOR DELETE TO authenticated USING (user_id = (SELECT auth.uid()));
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()));
 
 -- Ephemeral Encrypted Staging Queue & PWA Push Subscriptions
+DROP POLICY IF EXISTS "spoke_staging_queue_select" ON public.citizen_staging_queue;
 CREATE POLICY "spoke_staging_queue_select" ON public.citizen_staging_queue
     FOR SELECT TO public USING (expires_at IS NULL OR expires_at > NOW());
+DROP POLICY IF EXISTS "spoke_staging_queue_insert" ON public.citizen_staging_queue;
 CREATE POLICY "spoke_staging_queue_insert" ON public.citizen_staging_queue
     FOR INSERT TO public WITH CHECK (length(user_token) >= 16 AND length(encrypted_payload) <= 10485760);
+DROP POLICY IF EXISTS "spoke_staging_queue_update" ON public.citizen_staging_queue;
 CREATE POLICY "spoke_staging_queue_update" ON public.citizen_staging_queue
     FOR UPDATE TO public
     USING (length(user_token) >= 16)
     WITH CHECK (length(user_token) >= 16 AND length(encrypted_payload) <= 10485760);
+DROP POLICY IF EXISTS "spoke_staging_queue_delete" ON public.citizen_staging_queue;
 CREATE POLICY "spoke_staging_queue_delete" ON public.citizen_staging_queue
     FOR DELETE TO public USING (length(user_token) >= 16);
 
+DROP POLICY IF EXISTS "spoke_pwa_push_subscriptions_select" ON public.pwa_push_subscriptions;
 CREATE POLICY "spoke_pwa_push_subscriptions_select" ON public.pwa_push_subscriptions
-    FOR SELECT TO authenticated USING (user_id = (SELECT auth.uid()));
+    FOR SELECT TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "spoke_pwa_push_subscriptions_insert" ON public.pwa_push_subscriptions;
 CREATE POLICY "spoke_pwa_push_subscriptions_insert" ON public.pwa_push_subscriptions
     FOR INSERT TO anon, authenticated
     WITH CHECK (
         endpoint LIKE 'https://%'
         AND length(p256dh) >= 16
         AND length(auth) >= 8
-        AND (user_id IS NULL OR user_id = (SELECT auth.uid()))
+        AND (user_id IS NULL OR user_id = (SELECT auth.uid()) OR (SELECT sanctuary_internal.is_verified_hub_gateway()))
     );
+DROP POLICY IF EXISTS "spoke_pwa_push_subscriptions_update" ON public.pwa_push_subscriptions;
 CREATE POLICY "spoke_pwa_push_subscriptions_update" ON public.pwa_push_subscriptions
-    FOR UPDATE TO authenticated
-    USING (user_id = (SELECT auth.uid()) OR user_id IS NULL)
+    FOR UPDATE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()) OR user_id IS NULL)
     WITH CHECK (
         endpoint LIKE 'https://%'
         AND length(p256dh) >= 16
         AND length(auth) >= 8
-        AND user_id = (SELECT auth.uid())
+        AND (user_id = (SELECT auth.uid()) OR (SELECT sanctuary_internal.is_verified_hub_gateway()))
     );
+DROP POLICY IF EXISTS "spoke_pwa_push_subscriptions_delete" ON public.pwa_push_subscriptions;
 CREATE POLICY "spoke_pwa_push_subscriptions_delete" ON public.pwa_push_subscriptions
-    FOR DELETE TO authenticated USING (user_id = (SELECT auth.uid()));
+    FOR DELETE TO anon, authenticated
+    USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR user_id = (SELECT auth.uid()));
 
--- Creator-or-Staff Registry & Matrix Tables (Public Read, Creator/Staff Write)
+-- Creator-or-Staff Registry & Matrix Tables (Public Read, Creator/Staff/Gateway Write)
 DO $$
 DECLARE
     creator_tbl TEXT;
 BEGIN
     FOREACH creator_tbl IN ARRAY ARRAY[
-        'collection_members',
         'community_group_members',
         'community_groups',
         'homestead_workbench_templates',
@@ -2898,26 +4050,49 @@ BEGIN
         'version_dependencies'
     ]
     LOOP
+        EXECUTE format('DROP POLICY IF EXISTS "spoke_%1$s_select" ON public.%1$I;', creator_tbl);
+        EXECUTE format('DROP POLICY IF EXISTS "spoke_%1$s_insert" ON public.%1$I;', creator_tbl);
+        EXECUTE format('DROP POLICY IF EXISTS "spoke_%1$s_update" ON public.%1$I;', creator_tbl);
+        EXECUTE format('DROP POLICY IF EXISTS "spoke_%1$s_delete" ON public.%1$I;', creator_tbl);
+        IF creator_tbl NOT IN ('mods', 'mod_versions') THEN
+            EXECUTE format(
+                'CREATE POLICY "spoke_%1$s_select" ON public.%1$I FOR SELECT TO public USING (true);',
+                creator_tbl
+            );
+        END IF;
         EXECUTE format(
-            'CREATE POLICY "spoke_%1$s_select" ON public.%1$I FOR SELECT TO public USING (true);',
+            'CREATE POLICY "spoke_%1$s_insert" ON public.%1$I FOR INSERT TO anon, authenticated WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_verified_mason_or_staff());',
             creator_tbl
         );
         EXECUTE format(
-            'CREATE POLICY "spoke_%1$s_insert" ON public.%1$I FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_spoke_creator_or_staff());',
+            'CREATE POLICY "spoke_%1$s_update" ON public.%1$I FOR UPDATE TO anon, authenticated USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_verified_mason_or_staff()) WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_verified_mason_or_staff());',
             creator_tbl
         );
         EXECUTE format(
-            'CREATE POLICY "spoke_%1$s_update" ON public.%1$I FOR UPDATE TO authenticated USING (sanctuary_internal.is_spoke_creator_or_staff()) WITH CHECK (sanctuary_internal.is_spoke_creator_or_staff());',
-            creator_tbl
-        );
-        EXECUTE format(
-            'CREATE POLICY "spoke_%1$s_delete" ON public.%1$I FOR DELETE TO authenticated USING (sanctuary_internal.is_spoke_creator_or_staff());',
+            'CREATE POLICY "spoke_%1$s_delete" ON public.%1$I FOR DELETE TO anon, authenticated USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_verified_mason_or_staff());',
             creator_tbl
         );
     END LOOP;
 END $$;
 
--- Spoke Staff Governance Tables (Public Read, Staff Write)
+-- Strict Zero-Sync Tier 1-4 Protection: hide Tier 1-4 Artifact & Version metadata from anon/Citizens/Masons/Architects
+CREATE POLICY "spoke_mods_select" ON public.mods
+    FOR SELECT TO public
+    USING (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR COALESCE(compliance_tier, 0) NOT BETWEEN 1 AND 4
+        OR sanctuary_internal.is_spoke_oversight_or_wayfinder()
+    );
+
+CREATE POLICY "spoke_mod_versions_select" ON public.mod_versions
+    FOR SELECT TO public
+    USING (
+        (SELECT sanctuary_internal.is_verified_hub_gateway())
+        OR sanctuary_internal.is_mod_publicly_syncable(mod_id)
+        OR sanctuary_internal.is_spoke_oversight_or_wayfinder()
+    );
+
+-- Spoke Staff Governance Tables (Public Read, Staff/Gateway Write)
 DO $$
 DECLARE
     staff_tbl TEXT;
@@ -2938,24 +4113,29 @@ BEGIN
         'sanctuary_telemetry_sources',
         'sanctuary_themes',
         'system_broadcasts',
+        'system_directives',
         'taxonomy',
         'tracked_template_files'
     ]
     LOOP
+        EXECUTE format('DROP POLICY IF EXISTS "spoke_%1$s_select" ON public.%1$I;', staff_tbl);
+        EXECUTE format('DROP POLICY IF EXISTS "spoke_%1$s_insert" ON public.%1$I;', staff_tbl);
+        EXECUTE format('DROP POLICY IF EXISTS "spoke_%1$s_update" ON public.%1$I;', staff_tbl);
+        EXECUTE format('DROP POLICY IF EXISTS "spoke_%1$s_delete" ON public.%1$I;', staff_tbl);
         EXECUTE format(
             'CREATE POLICY "spoke_%1$s_select" ON public.%1$I FOR SELECT TO public USING (true);',
             staff_tbl
         );
         EXECUTE format(
-            'CREATE POLICY "spoke_%1$s_insert" ON public.%1$I FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_spoke_staff());',
+            'CREATE POLICY "spoke_%1$s_insert" ON public.%1$I FOR INSERT TO anon, authenticated WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());',
             staff_tbl
         );
         EXECUTE format(
-            'CREATE POLICY "spoke_%1$s_update" ON public.%1$I FOR UPDATE TO authenticated USING (sanctuary_internal.is_spoke_staff()) WITH CHECK (sanctuary_internal.is_spoke_staff());',
+            'CREATE POLICY "spoke_%1$s_update" ON public.%1$I FOR UPDATE TO anon, authenticated USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff()) WITH CHECK ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());',
             staff_tbl
         );
         EXECUTE format(
-            'CREATE POLICY "spoke_%1$s_delete" ON public.%1$I FOR DELETE TO authenticated USING (sanctuary_internal.is_spoke_staff());',
+            'CREATE POLICY "spoke_%1$s_delete" ON public.%1$I FOR DELETE TO anon, authenticated USING ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_spoke_staff());',
             staff_tbl
         );
     END LOOP;
@@ -2963,7 +4143,7 @@ END $$;
 
 -- ============================================================================
 -- STORAGE BUCKET HARDENING: Theme Wallpapers & Thumbnails ('backgrounds')
--- 512 KB cap, raster formats only, public CDN read, Verified Creator/Staff writes
+-- 512 KB cap, raster formats only, public CDN read, Verified Creator/Staff/Gateway writes
 -- ============================================================================
 DO $$
 BEGIN
@@ -2985,10 +4165,20 @@ BEGIN
         EXECUTE 'DROP POLICY IF EXISTS "spoke_backgrounds_delete" ON storage.objects';
 
         EXECUTE 'CREATE POLICY "spoke_backgrounds_select" ON storage.objects FOR SELECT TO public USING (bucket_id = ''backgrounds'')';
-        EXECUTE 'CREATE POLICY "spoke_backgrounds_insert" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = ''backgrounds'' AND sanctuary_internal.is_verified_mason_or_staff())';
-        EXECUTE 'CREATE POLICY "spoke_backgrounds_update" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = ''backgrounds'' AND sanctuary_internal.is_verified_mason_or_staff()) WITH CHECK (bucket_id = ''backgrounds'' AND sanctuary_internal.is_verified_mason_or_staff())';
-        EXECUTE 'CREATE POLICY "spoke_backgrounds_delete" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = ''backgrounds'' AND sanctuary_internal.is_verified_mason_or_staff())';
+        EXECUTE 'CREATE POLICY "spoke_backgrounds_insert" ON storage.objects FOR INSERT TO anon, authenticated WITH CHECK (bucket_id = ''backgrounds'' AND ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_verified_mason_or_staff()))';
+        EXECUTE 'CREATE POLICY "spoke_backgrounds_update" ON storage.objects FOR UPDATE TO anon, authenticated USING (bucket_id = ''backgrounds'' AND ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_verified_mason_or_staff())) WITH CHECK (bucket_id = ''backgrounds'' AND ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_verified_mason_or_staff()))';
+        EXECUTE 'CREATE POLICY "spoke_backgrounds_delete" ON storage.objects FOR DELETE TO anon, authenticated USING (bucket_id = ''backgrounds'' AND ((SELECT sanctuary_internal.is_verified_hub_gateway()) OR sanctuary_internal.is_verified_mason_or_staff()))';
     END IF;
 END $$;
 
-SELECT 'Sanctuary OS Spoke Schema V0.6.0-Dev.13 Initialized Successfully' AS status;
+SELECT
+    'Sanctuary OS Spoke Schema V0.6.0-Dev.13 Initialized Successfully' AS status,
+    CASE
+        WHEN NOT EXISTS (
+            SELECT 1
+            FROM sanctuary_internal.spoke_gateway_tokens
+            WHERE is_active = true
+              AND (expires_at IS NULL OR expires_at > NOW())
+        ) THEN (public.mint_spoke_gateway_token('Initial Spoke Bootstrap', 0))->>'token'
+        ELSE '[ACTIVE TOKEN ALREADY EXISTS - RUN SELECT public.mint_spoke_gateway_token() IF NEEDED]'
+    END AS initial_spoke_gateway_token;

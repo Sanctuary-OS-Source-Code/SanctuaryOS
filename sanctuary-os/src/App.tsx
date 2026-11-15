@@ -1,6 +1,6 @@
 import { TitleBar } from "./TitleBar";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import React, { useState, useEffect, useRef, Suspense } from "react";
+import React, { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
@@ -21,12 +21,13 @@ import { useModActions } from "./hooks/useModActions";
 import { useVaultIntake } from "./hooks/useVaultIntake";
 import { useCloudService } from "./hooks/useCloudService";
 import { useStore, syncMasterSchemas, syncGameDatabases, getSafeSchema } from "./store";
+import { isPlaceholderWorkspaceKey, findMatchingWorkspaceEntry } from "./utils/workspaceConfigMatch";
 import { useGlobalListeners } from "./hooks/useGlobalListeners";
 import { supabase, supabaseAuth, getActiveGameClient, isStandaloneFork, RESOLVED_SANCTUARY_CONFIG } from "./supabase";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { check } from "@tauri-apps/plugin-updater";
-import { ModData, SidePanel, deriveHumanReadableVersion, loadDLCMap, getExtensionRegex, PixelSnapper } from "./shared";
+import { ModData, SidePanel, deriveHumanReadableVersion, loadDLCMap, getExtensionRegex, PixelSnapper, sanitizeVaultModList } from "./shared";
 import { useLexicon } from "./LexiconContext";
 import { isDesktop, isLinuxDesktop } from "./utils/envUtils";
 import { isRootDomain, getSubdomain } from "./utils/routingUtils";
@@ -42,6 +43,10 @@ import Vault from "./Vault";
 import { scrubLogUserData, buildFormattedLabReportText, extractReportLoadoutFromLogAndContext } from "./utils/logScrubber";
 import { matchExceptionRules } from "./components/KnownErrorDiagnosisBanner";
 import { isUnrelatedGameBugLog, getExceptionRules, loadExceptionRulesFromSpoke } from "./components/KnownExceptionRules";
+import {
+  checkAndPromptSymlinkCloudSyncConsent,
+  invalidateCloudSyncCache,
+} from "./utils/cloudSyncGuard";
 import { GlobalCommandPalette } from './side-panels/GlobalCommandPalette';
 import { createPortal } from "react-dom";
 import { ContextMenu } from "./ContextMenu";
@@ -59,6 +64,7 @@ const BlueprintArchitect = React.lazy(() => import("./BlueprintArchitect"));
 const Nexus = React.lazy(() => import("./Nexus"));
 const ArtifactScout = React.lazy(() => import("./ArtifactScout").then((m) => ({ default: m.ArtifactScout })));
 const WebLandingPage = React.lazy(() => import("./WebLandingPage"));
+const WorkspaceFirstTimeSetup = React.lazy(() => import("./components/WorkspaceFirstTimeSetup"));
 const NotificationSidebar = React.lazy(() => import("./side-panels/NotificationSidebar"));
 const CitizenTicketsSidePanel = React.lazy(() => import("./side-panels/CitizenTicketsSidePanel"));
 const MasonHub = React.lazy(() => import("./MasonHub"));
@@ -402,6 +408,17 @@ function App() {
 
   const isConfigured = useStore((state) => state.isConfigured);
   const setIsConfigured = useStore((state) => state.setIsConfigured);
+  const pendingWorkspaceSetupId = useStore((state) => state.pendingWorkspaceSetupId);
+  const setPendingWorkspaceSetupId = useStore((state) => state.setPendingWorkspaceSetupId);
+  const isWorkspaceSetupOverlayOpen = Boolean(
+    isDesktop() &&
+      !isConfigured &&
+      pendingWorkspaceSetupId &&
+      !isPlaceholderWorkspaceKey(pendingWorkspaceSetupId) &&
+      view !== "landing" &&
+      view !== "settings" &&
+      view !== "KeepersCore"
+  );
   const setLivePath = useStore((state) => state.setLivePath);
   const modsPath = useStore((state) => state.modsPath);
   const setModsPath = useStore((state) => state.setModsPath);
@@ -1100,7 +1117,10 @@ function App() {
             extraOverrides?.status_reason !== undefined
               ? extraOverrides.status_reason
               : metaStatusMsgInput?.trim() || undefined,
-          requiredDLC: fetchedManifest?.atomic_logic?.required_dlc || extraOverrides?.requiredDLC || (activeDossier as any).requiredDLC,
+          requiredDLC:
+            extraOverrides?.requiredDLC !== undefined
+              ? extraOverrides.requiredDLC
+              : fetchedManifest?.atomic_logic?.required_dlc || (activeDossier as any).requiredDLC,
           ...(extraOverrides || {}),
           is_user_dossier: true,
           updated_at_local: Date.now(),
@@ -1429,6 +1449,7 @@ function App() {
   useEffect(() => {
     let unlistenEdge: (() => void) | null = null;
     let unlistenMalware: (() => void) | null = null;
+    let unlistenCloudSessionClean: (() => void) | null = null;
     let cancelled = false;
     if (isDesktop()) {
       listen("edge_override_detected", async (event: any) => {
@@ -1746,12 +1767,28 @@ function App() {
         if (cancelled) unlisten();
         else unlistenMalware = unlisten;
       });
+
+      listen("sanctuary-cloud-session-mods-cleaned", () => {
+        if (cancelled) return;
+        invalidateCloudSyncCache();
+        useStore.getState().pushStatus(
+          t(
+            "cloud_guard_session_cleaned_toast",
+            "Game closed — {Mods} symlinks cleaned so cloud sync stays clear."
+          ),
+          "success"
+        );
+      }).then((unlisten) => {
+        if (cancelled) unlisten();
+        else unlistenCloudSessionClean = unlisten;
+      });
     }
 
     return () => {
       cancelled = true;
       if (unlistenEdge) unlistenEdge();
       if (unlistenMalware) unlistenMalware();
+      if (unlistenCloudSessionClean) unlistenCloudSessionClean();
     };
   }, []);
   useEffect(() => {
@@ -1842,8 +1879,18 @@ function App() {
           invoke("get_saved_coordinates").catch(() => ({})),
           invoke("get_global_config").catch(() => ({})),
         ]);
-        const activeWorkspace = (globalConfig?.workspaces || []).find((w: any) => w.id === globalConfig?.active_workspace_id);
-        const schemaId = activeWorkspace?.schema_id || globalConfig?.active_workspace_id || 'default_schema';
+        const activeWorkspace = findMatchingWorkspaceEntry(
+          globalConfig?.active_workspace_id,
+          globalConfig?.workspaces || []
+        );
+        const schemaId =
+          (!isPlaceholderWorkspaceKey(activeWorkspace?.schema_id)
+            ? activeWorkspace?.schema_id
+            : "") ||
+          (!isPlaceholderWorkspaceKey(globalConfig?.active_workspace_id)
+            ? globalConfig?.active_workspace_id
+            : "") ||
+          "default_schema";
 
         // Load cached schema instantly so UI can render without leaking another spoke's default schema
         const cachedSchema = localStorage.getItem(`sanctuary_master_schema_${schemaId}`);
@@ -1888,10 +1935,25 @@ function App() {
           }
         }
 
-        if (config?.live_path && config?.mods_path && config?.vault_path) {
+        const hasAllConfiguredPaths = Boolean(
+          config?.live_path?.trim() &&
+            config?.mods_path?.trim() &&
+            config?.vault_path?.trim()
+        );
+        if (hasAllConfiguredPaths) {
+          setPendingWorkspaceSetupId(null);
           setIsConfigured(true);
         } else {
           setIsConfigured(false);
+          const pendingSetupId = localStorage.getItem(
+            "sanctuary_pending_workspace_setup"
+          );
+          if (pendingSetupId && !isPlaceholderWorkspaceKey(pendingSetupId)) {
+            setPendingWorkspaceSetupId(pendingSetupId);
+            setView("dashboard");
+          } else {
+            setPendingWorkspaceSetupId(null);
+          }
         }
         setLivePath(config?.live_path || "");
         setModsPath(config?.mods_path || "");
@@ -1899,15 +1961,26 @@ function App() {
         useStore.getState().setDocsPath(config?.docs_path || config?.user_data_path || "");
 
         let resolvedWorkspaceId = globalConfig?.active_workspace_id;
-        if (!resolvedWorkspaceId || resolvedWorkspaceId === 'default_workspace') {
-          resolvedWorkspaceId = localStorage.getItem("sanctuary_last_active_workspace") || localStorage.getItem("sanctuary_active_workspace");
+        if (isPlaceholderWorkspaceKey(resolvedWorkspaceId)) {
+          resolvedWorkspaceId =
+            localStorage.getItem("sanctuary_pending_workspace_setup") ||
+            localStorage.getItem("sanctuary_last_active_workspace") ||
+            localStorage.getItem("sanctuary_active_workspace");
         }
-        if (!resolvedWorkspaceId || resolvedWorkspaceId === 'default_workspace') {
+        if (isPlaceholderWorkspaceKey(resolvedWorkspaceId)) {
           const w = useStore.getState().workspaces;
-          if (w && w.length > 0) {
-            resolvedWorkspaceId = w[0].id;
+          const firstValid = Array.isArray(w)
+            ? w.find(
+                (ws: any) =>
+                  !isPlaceholderWorkspaceKey(ws?.id) ||
+                  !isPlaceholderWorkspaceKey(ws?.schema_id)
+              )
+            : null;
+          if (firstValid) {
+            resolvedWorkspaceId = firstValid.id || firstValid.schema_id;
+          } else {
+            resolvedWorkspaceId = "default_workspace";
           }
-          else resolvedWorkspaceId = 'default_workspace';
         }
 
         if (resolvedWorkspaceId) {
@@ -2644,13 +2717,18 @@ function App() {
               if (localOvrMap[famHash]) {
                 localOvrMap[famHash] = {
                   ...localOvrMap[famHash],
-                  ...(isMultiModule && manifest.artifact?.name
+                  ...(isMultiModule &&
+                  manifest.artifact?.name &&
+                  !localOvrMap[famHash]?.is_user_dossier &&
+                  !localOvrMap[famHash]?.parentName
                     ? { parentName: manifest.artifact.name }
                     : {}),
                   manifest_url: localOvrMap[famHash].manifest_url || manifestUrl,
-                  requiredDLC: localOvrMap[famHash].is_user_dossier
-                    ? localOvrMap[famHash].requiredDLC
-                    : (manifest.atomic_logic?.required_dlc || localOvrMap[famHash].requiredDLC),
+                  requiredDLC:
+                    localOvrMap[famHash].is_user_dossier ||
+                    localOvrMap[famHash].requiredDLC !== undefined
+                      ? localOvrMap[famHash].requiredDLC
+                      : manifest.atomic_logic?.required_dlc || localOvrMap[famHash].requiredDLC,
                 };
                 localOvrDirty = true;
               }
@@ -2793,40 +2871,68 @@ function App() {
 
       setNetworkUpdates({ broken, obsolete, updated });
 
+      let bgLocalOvrMap: Record<string, any> = {};
+      try {
+        bgLocalOvrMap = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}") || {};
+      } catch {}
+
       setModList((prevList: any[]) => {
         let changed = false;
         const applyUpdateToMod = (m: any) => {
           let needsUpdate = false;
           let newMod = { ...m };
 
+          const localOvrEntry = m.hash
+            ? bgLocalOvrMap[m.hash] || bgLocalOvrMap[String(m.hash).toLowerCase()]
+            : undefined;
+          const hasLocalStatusOvr = Boolean(
+            localOvrEntry?.status && String(localOvrEntry.status).trim() !== ""
+          );
           const edgeEntry = m.hash ? edgeLogicMap[m.hash] : undefined;
           const edgeStatus = String(edgeEntry?.status || "").toLowerCase().trim();
 
-          if (broken.some(b => (b.hash && b.hash === m.hash) || b.name === m.name)) {
-            if (newMod.status !== 'broken') {
-              newMod.status = 'broken';
+          if (!hasLocalStatusOvr) {
+            if (broken.some(b => (b.hash && b.hash === m.hash) || b.name === m.name)) {
+              if (newMod.status !== 'broken') {
+                newMod.status = 'broken';
+                needsUpdate = true;
+              }
+            } else if (obsolete.some(b => (b.hash && b.hash === m.hash) || b.name === m.name)) {
+              if (newMod.status !== 'obsolete') {
+                newMod.status = 'obsolete';
+                needsUpdate = true;
+              }
+            } else if (edgeStatus === 'unstable' && newMod.status !== 'unstable') {
+              newMod.status = 'unstable';
               needsUpdate = true;
             }
-          } else if (obsolete.some(b => (b.hash && b.hash === m.hash) || b.name === m.name)) {
-            if (newMod.status !== 'obsolete') {
-              newMod.status = 'obsolete';
-              needsUpdate = true;
-            }
-          } else if (edgeStatus === 'unstable' && newMod.status !== 'unstable') {
-            newMod.status = 'unstable';
-            needsUpdate = true;
           }
 
           if (edgeEntry) {
-            if (edgeEntry.game_version && (!Array.isArray(newMod.compatible_versions) || newMod.compatible_versions.length === 0)) {
+            if (
+              localOvrEntry?.compatible_versions === undefined &&
+              edgeEntry.game_version &&
+              (!Array.isArray(newMod.compatible_versions) || newMod.compatible_versions.length === 0)
+            ) {
               newMod.compatible_versions = [edgeEntry.game_version];
               needsUpdate = true;
             }
-            if (Array.isArray(edgeEntry.required_dlc) && edgeEntry.required_dlc.length > 0 && (!Array.isArray(newMod.requiredDLC) || newMod.requiredDLC.length === 0)) {
+            if (
+              localOvrEntry?.requiredDLC === undefined &&
+              Array.isArray(edgeEntry.required_dlc) &&
+              edgeEntry.required_dlc.length > 0 &&
+              (!Array.isArray(newMod.requiredDLC) || newMod.requiredDLC.length === 0)
+            ) {
               newMod.requiredDLC = edgeEntry.required_dlc;
               needsUpdate = true;
             }
-            if (Array.isArray(edgeEntry.dependencies) && edgeEntry.dependencies.length > 0 && (!Array.isArray(newMod.dependencies) || newMod.dependencies.length === 0)) {
+            if (
+              localOvrEntry?.dependencies === undefined &&
+              localOvrEntry?.requirements === undefined &&
+              Array.isArray(edgeEntry.dependencies) &&
+              edgeEntry.dependencies.length > 0 &&
+              (!Array.isArray(newMod.dependencies) || newMod.dependencies.length === 0)
+            ) {
               newMod.dependencies = edgeEntry.dependencies;
               newMod.requirements = edgeEntry.dependencies;
               needsUpdate = true;
@@ -3192,7 +3298,10 @@ function App() {
     setIsDraftingSet(false);
     setDraftSetName("");
   }
-  const displayModList = modList;
+  const displayModList = useMemo(
+    () => sanitizeVaultModList(modList, activeGameSchema, t),
+    [modList, activeGameSchema, t],
+  );
 
 
 
@@ -3215,75 +3324,100 @@ function App() {
 
   async function executeHotSwap() {
     if (!activeLabMod) return;
-    try {
-      if (!shelterActive) {
-        setStatus(t("status_auto_isolate", "Auto-isolate..."));
-        await invoke("evacuate_to_shelter");
-        setShelterActive(true);
-        fetchVault();
-      }
-      setStatus(t("status_injecting", "Injecting..."));
-      await invoke("move_to_lab", { filename: activeLabMod.physical_path || activeLabMod.name });
-      const config: any = await invoke("get_saved_coordinates");
-      const dPath = resolveUserDataDir(config);
-      setStatus(t("status_purging_logs", "Deleting Logs..."));
-      await invoke("airgap_saves", { docsPath: dPath, enable: true });
-      await invoke("clear_old_logs", { docsPath: dPath });
+    const runHotSwapInternal = async (skipCloudCheck: boolean) => {
       try {
-        const currentRules = getExceptionRules(activeGameSchema);
-        await invoke("update_active_game_schema", {
-          schema: { ...(activeGameSchema || {}), exception_rules: currentRules },
-        });
-      } catch {}
-      try {
-        await invoke("start_lab_verification_session", {
-          dnaHash: activeLabMod?.hash || activeLabMod?.name || "lab_session",
-          modName: activeLabMod.displayName || activeLabMod.name || "Unknown",
-          docsPath: dPath,
-          vaultPath: config.vault_path || "",
-          linkedFiles: [activeLabMod.name].filter(Boolean),
-          notificationLabels: {
-            failed_title: t("lab_stage_failed", "Simulation Failed"),
-            timer_complete_title: t(
-              "lab_overlay_timer_up_title",
-              "TIMED TEST COMPLETE (0:00) — SAVE GAME NOW!"
-            ),
-            timer_complete_body: t(
-              "lab_overlay_timer_up_desc",
-              "Open the in-game menu and click Save to verify save serialization and unlock publishing."
-            ),
-            verified_title: t("lab_overlay_verified_title", "VERIFICATION PASSED & SIGNED!"),
-            verified_body: t(
-              "lab_overlay_verified_desc",
-              "Save checkpoint verified. You may now safely exit the game."
-            ),
-          },
-        });
-      } catch {}
-      setStatus(t("status_igniting", "Starting Engines..."));
-      await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
-      setTestErrorFound(false);
-      setTestLogSnippet("");
-      if (logWatcherRef.current) {
-        clearInterval(logWatcherRef.current);
-      }
-      const interval = setInterval(async () => {
-        const res = await invoke<string>("scan_game_logs", { docsPath: dPath });
-        if (res !== "Clean" && !isUnrelatedGameBugLog(res, useStore.getState().activeGameSchema)) {
-          setTestErrorFound(true);
-          setTestLogSnippet(res);
-          setStatus(`${t("status_fatal_error", "Fatal:")} ${res.substring(0, 50)}...`);
-          clearInterval(interval);
-          logWatcherRef.current = null;
-          setLogWatcher(null);
+        const preConfig: any = await invoke("get_saved_coordinates");
+        if (!skipCloudCheck) {
+          const allowed = await checkAndPromptSymlinkCloudSyncConsent({
+            modsPath: preConfig?.mods_path,
+            vaultPath: preConfig?.vault_path,
+            docsPath: resolveUserDataDir(preConfig),
+            livePath: preConfig?.live_path,
+            actionLabel: t("lab_btn_hot_swap", "Lab Hot-Swap"),
+            onAuthorizedProceed: () => {
+              void runHotSwapInternal(true);
+            },
+          });
+          if (!allowed) {
+            setStatus(
+              t(
+                "cloud_guard_pending_action_canceled",
+                "Cloud-sync folder consent required before projecting symlinks."
+              )
+            );
+            return;
+          }
         }
-      }, 5000);
-      logWatcherRef.current = interval;
-      setLogWatcher(interval);
-    } catch (err) {
-      const errStr = typeof err === "string" ? err : (err as any)?.message || String(err);
-      setStatus(`${t("status_lab_error", "Lab Error:")} ${t(errStr, errStr)}`);
-    }
+        if (!shelterActive) {
+          setStatus(t("status_auto_isolate", "Auto-isolate..."));
+          await invoke("evacuate_to_shelter");
+          setShelterActive(true);
+          fetchVault();
+        }
+        setStatus(t("status_injecting", "Injecting..."));
+        await invoke("move_to_lab", { filename: activeLabMod.physical_path || activeLabMod.name });
+        const config: any = await invoke("get_saved_coordinates");
+        const dPath = resolveUserDataDir(config);
+        setStatus(t("status_purging_logs", "Deleting Logs..."));
+        await invoke("airgap_saves", { docsPath: dPath, enable: true });
+        await invoke("clear_old_logs", { docsPath: dPath });
+        try {
+          const currentRules = getExceptionRules(activeGameSchema);
+          await invoke("update_active_game_schema", {
+            schema: { ...(activeGameSchema || {}), exception_rules: currentRules },
+          });
+        } catch {}
+        try {
+          await invoke("start_lab_verification_session", {
+            dnaHash: activeLabMod?.hash || activeLabMod?.name || "lab_session",
+            modName: activeLabMod.displayName || activeLabMod.name || "Unknown",
+            docsPath: dPath,
+            vaultPath: config.vault_path || "",
+            linkedFiles: [activeLabMod.name].filter(Boolean),
+            notificationLabels: {
+              failed_title: t("lab_stage_failed", "Simulation Failed"),
+              timer_complete_title: t(
+                "lab_overlay_timer_up_title",
+                "TIMED TEST COMPLETE (0:00) — SAVE GAME NOW!"
+              ),
+              timer_complete_body: t(
+                "lab_overlay_timer_up_desc",
+                "Open the in-game menu and click Save to verify save serialization and unlock publishing."
+              ),
+              verified_title: t("lab_overlay_verified_title", "VERIFICATION PASSED & SIGNED!"),
+              verified_body: t(
+                "lab_overlay_verified_desc",
+                "Save checkpoint verified. You may now safely exit the game."
+              ),
+            },
+          });
+        } catch {}
+        setStatus(t("status_igniting", "Starting Engines..."));
+        await invoke("launch_game", { livePath: config.live_path, modsPath: config.mods_path });
+        setTestErrorFound(false);
+        setTestLogSnippet("");
+        if (logWatcherRef.current) {
+          clearInterval(logWatcherRef.current);
+        }
+        const interval = setInterval(async () => {
+          const res = await invoke<string>("scan_game_logs", { docsPath: dPath });
+          if (res !== "Clean" && !isUnrelatedGameBugLog(res, useStore.getState().activeGameSchema)) {
+            setTestErrorFound(true);
+            setTestLogSnippet(res);
+            setStatus(`${t("status_fatal_error", "Fatal:")} ${res.substring(0, 50)}...`);
+            clearInterval(interval);
+            logWatcherRef.current = null;
+            setLogWatcher(null);
+          }
+        }, 5000);
+        logWatcherRef.current = interval;
+        setLogWatcher(interval);
+      } catch (err) {
+        const errStr = typeof err === "string" ? err : (err as any)?.message || String(err);
+        setStatus(`${t("status_lab_error", "Lab Error:")} ${t(errStr, errStr)}`);
+      }
+    };
+    await runHotSwapInternal(false);
   }
   async function openWorkbench(modPath: string) {
     try {
@@ -3906,7 +4040,11 @@ function App() {
     setLabConflicts(data || []);
     setIsLoadingAssociated(false);
   };
-  const runProvingRun = async (extraDeployNames: string[] = [], customToolPath?: string) => {
+  const runProvingRun = async (
+    extraDeployNames: string[] = [],
+    customToolPath?: string,
+    skipCloudCheck = false
+  ) => {
     if (!activeLabMod) return;
     try {
       setStatus(t("status_diagnostic_run", "Initiating proving run: staging simulation..."));
@@ -3952,6 +4090,27 @@ function App() {
       }
 
       const config: any = await invoke("get_saved_coordinates");
+      if (!skipCloudCheck) {
+        const allowed = await checkAndPromptSymlinkCloudSyncConsent({
+          modsPath: config?.mods_path,
+          vaultPath: config?.vault_path,
+          docsPath: config?.docs_path || config?.user_data_path,
+          livePath: config?.live_path,
+          actionLabel: t("lab_btn_start_proving_run", "Start Proving Run"),
+          onAuthorizedProceed: () => {
+            void runProvingRun(extraDeployNames, customToolPath, true);
+          },
+        });
+        if (!allowed) {
+          setStatus(
+            t(
+              "cloud_guard_pending_action_canceled",
+              "Cloud-sync folder consent required before projecting symlinks."
+            )
+          );
+          return;
+        }
+      }
       await invoke("evacuate_to_shelter");
 
       const expandSingleTargetOrTwins = (modTarget: any): string[] => {
@@ -4164,6 +4323,7 @@ function App() {
           subtitleIndex={subtitleIndex}
           unreadNotificationCount={unreadNotificationCount}
           setIsNotificationSidebarOpen={setIsNotificationSidebarOpen}
+          onTriggerShelter={triggerShelter}
         />
 
         <div
@@ -4197,7 +4357,7 @@ function App() {
             <div className="relative z-10 w-full min-h-full pb-[100px] max-md:pb-[40px]">
               {isGlobalConfigLoaded && (
                 <Suspense fallback={null}>
-                  {(view === "landing" || ((!isConfigured || (!isDesktop() && isRootDomain())) && view !== "settings" && view !== "KeepersCore")) ? (
+                  {(view === "landing" || (((!isConfigured && !isWorkspaceSetupOverlayOpen) || (!isDesktop() && isRootDomain())) && view !== "settings" && view !== "KeepersCore")) ? (
                     <WebLandingPage />
                   ) : (
                     <ElevatedPasskeyGate
@@ -4771,6 +4931,9 @@ function App() {
             <SupporterCelebrationSidePanel />
             {isNexusUpdatesPanelOpen && <NexusUpdatesSidePanel />}
             {isSupportPanelOpen && <SupportHub />}
+            {isDesktop() && (
+              <WorkspaceFirstTimeSetup isOpen={isWorkspaceSetupOverlayOpen} />
+            )}
           </Suspense>
           <ContextMenu />
           <GlobalTooltip />

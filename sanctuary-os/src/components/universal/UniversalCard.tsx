@@ -188,11 +188,6 @@ export function UniversalCard({
           <div className={`flex items-center justify-between gap-3 shrink-0 relative z-10 ${padCls} ${innerGhostClasses}`}>
             <div
               className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
-              style={
-                isActive
-                  ? { borderColor: `color-mix(in srgb, ${headerAccentVar} 42%, rgba(255, 255, 255, 0.2))` }
-                  : undefined
-              }
             >
               {customIcon ? (
                 customIcon

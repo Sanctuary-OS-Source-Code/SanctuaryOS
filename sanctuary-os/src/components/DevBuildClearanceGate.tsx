@@ -35,7 +35,11 @@ import {
   setDevBuildChannelPreference,
   syncUpdateChannelNotification,
 } from "../utils/supporterManager";
-import { CommunitySupportSidePanel } from "../side-panels/CommunitySupportSidePanel";
+const CommunitySupportSidePanel = React.lazy(() =>
+  import("../side-panels/CommunitySupportSidePanel").then((m) => ({
+    default: m.CommunitySupportSidePanel || m.default,
+  })),
+);
 
 export function DevBuildClearanceGate() {
   const { t, osLogoUrl } = useLexicon();
@@ -1138,20 +1142,24 @@ export function DevBuildClearanceGate() {
         </div>
       </SidePanel>
 
-      <CommunitySupportSidePanel
-        isOpen={isSupportOpen}
-        onClose={() => setIsSupportOpen(false)}
-        panelClass="sa-malware-lockdown-panel"
-        backdropZ="z-[60002]"
-        panelZ="z-[60003]"
-        onSuccess={(newState) => {
-          const nowSecs = Math.floor(Date.now() / 1000);
-          if ((newState?.dev_build?.dev_build_until || 0) > nowSecs) {
-            setIsSupportOpen(false);
-          }
-          runClearanceCheck(false);
-        }}
-      />
+      {isSupportOpen && (
+        <React.Suspense fallback={null}>
+          <CommunitySupportSidePanel
+            isOpen={isSupportOpen}
+            onClose={() => setIsSupportOpen(false)}
+            panelClass="sa-malware-lockdown-panel"
+            backdropZ="z-[60002]"
+            panelZ="z-[60003]"
+            onSuccess={(newState) => {
+              const nowSecs = Math.floor(Date.now() / 1000);
+              if ((newState?.dev_build?.dev_build_until || 0) > nowSecs) {
+                setIsSupportOpen(false);
+              }
+              runClearanceCheck(false);
+            }}
+          />
+        </React.Suspense>
+      )}
     </>
   );
 }

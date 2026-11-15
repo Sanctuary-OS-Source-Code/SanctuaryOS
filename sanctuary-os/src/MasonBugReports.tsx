@@ -65,18 +65,24 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
             const validModIds = allTargetModIds.filter(isUUID);
 
             let modNamesMap: Record<string, string> = {};
+            const blockedTierModIds = new Set<string>();
             if (validModIds.length > 0) {
-                const { data: modsInfo } = await supabase.from('mods').select('id, name').in('id', validModIds);
+                const { data: modsInfo } = await supabase.from('mods').select('id, name, compliance_tier').in('id', validModIds);
                 if (modsInfo) {
                     modsInfo.forEach(m => {
                         modNamesMap[m.id] = m.name;
+                        if (Number((m as any).compliance_tier || 0) > 0) {
+                            blockedTierModIds.add(String(m.id));
+                        }
                     });
                 }
             }
 
             const localModList = useStore.getState().modList;
 
-            filtered = filtered.map(t => {
+            filtered = filtered
+                .filter(t => !t.metadata?.target_mod_id || !blockedTierModIds.has(String(t.metadata.target_mod_id)))
+                .map(t => {
                 let localName = undefined;
                 if (t.metadata?.target_mod_id) {
                     const m = localModList.find((lm: any) => lm.id === t.metadata.target_mod_id || lm.hash === t.metadata.target_mod_id);
@@ -169,18 +175,24 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
                 const validModIds = allTargetModIds.filter(isUUID);
 
                 let modNamesMap: Record<string, string> = {};
+                const blockedTierModIds = new Set<string>();
                 if (validModIds.length > 0) {
-                    const { data: modsInfo } = await supabase.from('mods').select('id, name').in('id', validModIds);
+                    const { data: modsInfo } = await supabase.from('mods').select('id, name, compliance_tier').in('id', validModIds);
                     if (modsInfo) {
                         modsInfo.forEach(m => {
                             modNamesMap[m.id] = m.name;
+                            if (Number((m as any).compliance_tier || 0) > 0) {
+                                blockedTierModIds.add(String(m.id));
+                            }
                         });
                     }
                 }
 
                 const localModList = useStore.getState().modList;
 
-                filtered = filtered.map(t => {
+                filtered = filtered
+                    .filter(t => !t.metadata?.target_mod_id || !blockedTierModIds.has(String(t.metadata.target_mod_id)))
+                    .map(t => {
                     let localName = undefined;
                     if (t.metadata?.target_mod_id) {
                         const m = localModList.find((lm: any) => lm.id === t.metadata.target_mod_id || lm.hash === t.metadata.target_mod_id);
@@ -389,7 +401,7 @@ export default function MasonBugReports({ masonId, onEditMetadata }: { masonId?:
         });
 
         if (filteredTickets.length === 0) return (
-            <EmptyState icon={searchQuery ? t("icon_search_off", "search_off") : t("icon_celebration", "celebration")} title={searchQuery ? t("no_matches", "No matches found") : (activeTab === 'open' ? t("no_bug_reports", "NO BUG REPORTS DETECTED.\nYOUR CODE IS FLAWLESS.") : t("no_tickets", "No Support Tickets"))} className="col-span-full py-16" />
+            <EmptyState icon={searchQuery ? t("icon_search_off", "search_off") : t("icon_celebration", "celebration")} title={searchQuery ? t("no_matches", "No matches found") : (activeTab === 'open' ? t("no_bug_reports", "No bug reports found.") : t("no_tickets", "No Support Tickets"))} className="col-span-full py-16" />
         );
 
         return (

@@ -44,6 +44,7 @@ import {
   useExceptionRules,
   matchExceptionRules,
   NormalizedRuleSeverity,
+  synthesizeIssueCauseFromLabReports,
 } from "./components/KnownExceptionRules";
 import {
   scrubLogUserData,
@@ -95,6 +96,8 @@ export function HomesteadDiagnostics({
   const [knownErrorSort, setKnownErrorSort] = useState<KnownErrorSortField>("severity");
   const [visibleCount, setVisibleCount] = useState(100);
   const [submittedLog, setSubmittedLog] = useState<string>("");
+  const [diagIssueReason, setDiagIssueReason] = useState<string>("");
+  const [selectedVerdict, setSelectedVerdict] = useState<"verified" | "unstable" | "broken">("verified");
   const [diagLogViewTab, setDiagLogViewTab] = useState<"REPORT" | "REAL_LOG">("REPORT");
   const [copiedLogState, setCopiedLogState] = useState(false);
   const [downloadState, setDownloadState] = useState<"idle" | "done">("idle");
@@ -137,9 +140,9 @@ export function HomesteadDiagnostics({
           if (!mod || Number(mod?.compliance_tier || 0) > 0) return;
 
           const effectiveStatus =
-            log.status === "pending" && mod.status !== "verified" && mod.status !== "broken"
+            log.status === "pending" && !["verified", "unstable", "broken"].includes(mod.status)
               ? "under_review"
-              : ["under_review", "verified", "broken"].includes(mod.status)
+              : ["under_review", "verified", "unstable", "broken"].includes(mod.status)
                 ? mod.status
                 : "under_review";
 
@@ -191,6 +194,17 @@ export function HomesteadDiagnostics({
 
     if (activeReport) {
       setActiveReportDate(activeReport.last_report_at || new Date().toISOString());
+      setSelectedVerdict(
+        activeReport.status === "broken"
+          ? "broken"
+          : activeReport.status === "unstable"
+            ? "unstable"
+            : "verified"
+      );
+      const existingReason = String(activeReport.status_reason || "").trim();
+      setDiagIssueReason(
+        existingReason && !/^\[ARCHITECT\b/i.test(existingReason) ? existingReason : ""
+      );
 
       // Immediately seed from local/cloud twin & test history while async queries run
       const initialLoadout = extractReportLoadoutFromLogAndContext({
@@ -208,10 +222,10 @@ export function HomesteadDiagnostics({
             await Promise.all([
               supabase
                 .from("homestead_lab_logs")
-                .select("tester_note, log_snippet, log_text, created_at")
+                .select("*")
                 .eq("mod_id", activeReport.id)
                 .order("created_at", { ascending: false })
-                .limit(1),
+                .limit(5),
               supabase
                 .from("mod_dependencies")
                 .select("parent_id")
@@ -291,6 +305,30 @@ export function HomesteadDiagnostics({
             setActiveReportDate(logRow.created_at);
           }
           setSubmittedLog(combinedLogText);
+
+          const existingReason = String(activeReport.status_reason || "").trim();
+          const hasCustomReason =
+            Boolean(existingReason) && !/^\[ARCHITECT\b/i.test(existingReason);
+          if (!hasCustomReason && Array.isArray(logRes.data) && logRes.data.length > 0) {
+            const synth = synthesizeIssueCauseFromLabReports(
+              logRes.data,
+              activeGameSchema,
+              {
+                fixPrefix: t("fix_prefix", "Fix"),
+                notePrefix: t("tester_note_label", "Tester Note"),
+              }
+            );
+            if (!cancelled) {
+              if (synth.summary) setDiagIssueReason(synth.summary);
+              if (
+                activeReport.status === "under_review" &&
+                (synth.suggestedStatus === "broken" ||
+                  synth.suggestedStatus === "unstable")
+              ) {
+                setSelectedVerdict(synth.suggestedStatus);
+              }
+            }
+          }
 
           const resolvedLoadout = extractReportLoadoutFromLogAndContext({
             targetMod: activeReport,
@@ -512,7 +550,67 @@ export function HomesteadDiagnostics({
     }
   };
 
-  const concludeTest = async (passed: boolean) => {
+  const persistDiagnosticOutcome = async (
+    modId: string,
+    finalStatus: "verified" | "unstable" | "broken",
+    reasonText?: string | null
+  ) => {
+    const cleanReason = (reasonText ?? diagIssueReason ?? "").trim();
+    const nextReason = finalStatus === "verified" ? null : cleanReason || null;
+    await supabase
+      .from("mods")
+      .update({ status: finalStatus, status_reason: nextReason })
+      .eq("id", modId);
+    const { data: pendingUpdated } = await supabase
+      .from("homestead_lab_logs")
+      .update({ status: finalStatus })
+      .eq("mod_id", modId)
+      .in("status", ["pending", "under_review"])
+      .select("id");
+    if (!pendingUpdated || pendingUpdated.length === 0) {
+      const { data: latestLogs } = await supabase
+        .from("homestead_lab_logs")
+        .select("id")
+        .eq("mod_id", modId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (latestLogs?.[0]?.id) {
+        await supabase
+          .from("homestead_lab_logs")
+          .update({ status: finalStatus })
+          .eq("id", latestLogs[0].id);
+      }
+    }
+    setLabReports((prev) =>
+      prev.map((r) =>
+        r.id === modId ? { ...r, status: finalStatus, status_reason: nextReason } : r
+      )
+    );
+    setActiveReport((prev: any) =>
+      prev && prev.id === modId
+        ? { ...prev, status: finalStatus, status_reason: nextReason }
+        : prev
+    );
+  };
+
+  const saveIssueVerdict = async (verdict: "verified" | "unstable" | "broken") => {
+    if (!activeReport?.id) return;
+    setSelectedVerdict(verdict);
+    await persistDiagnosticOutcome(activeReport.id, verdict, diagIssueReason);
+    useStore
+      .getState()
+      .pushStatus(
+        t(
+          "diag_verdict_saved_toast",
+          "Diagnostic verdict and issue details saved."
+        ),
+        "success"
+      );
+  };
+
+  const concludeTest = async (
+    verdictOrPassed: boolean | "verified" | "unstable" | "broken"
+  ) => {
     if (logWatcher) clearInterval(logWatcher);
     setDiagSessionStatus(null);
     try {
@@ -524,24 +622,21 @@ export function HomesteadDiagnostics({
       await invoke("airgap_saves", { docsPath: dPath, enable: false });
     } catch {}
 
-    setTestPassed(passed);
+    const finalStatus: "verified" | "unstable" | "broken" =
+      typeof verdictOrPassed === "boolean"
+        ? verdictOrPassed
+          ? "verified"
+          : "broken"
+        : verdictOrPassed;
+
+    setTestPassed(finalStatus === "verified");
     setTestRun(true);
     setIsLoading(false);
+    setSelectedVerdict(finalStatus);
 
-    const finalStatus = passed ? "verified" : "broken";
-    await supabase
-      .from("mods")
-      .update({ status: finalStatus })
-      .eq("id", activeReport.id);
-    await supabase
-      .from("homestead_lab_logs")
-      .update({ status: finalStatus })
-      .eq("mod_id", activeReport.id)
-      .eq("status", "pending");
-
-    setLabReports((prev) =>
-      prev.map((r) => (r.id === activeReport.id ? { ...r, status: finalStatus } : r))
-    );
+    if (activeReport?.id) {
+      await persistDiagnosticOutcome(activeReport.id, finalStatus, diagIssueReason);
+    }
     closePanel();
 
     const lastSet = localStorage.getItem(
@@ -779,26 +874,33 @@ export function HomesteadDiagnostics({
 
   const renderDiagnosticCard = (mod: any) => {
     const isVerified = mod.status === "verified";
-    const isBroken = mod.status === "broken";
+    const isBroken = mod.status === "broken" || mod.status === "corrupted";
+    const isUnstable = mod.status === "unstable";
     const modExt = getModExtensionLabel(mod, activeGameSchema, modList);
     const modVer = getModVersionLabel(mod, modList);
     const reportDate = mod.last_report_at || mod.updated_at;
 
     const statusIcon = isBroken
-      ? t("icon_warning", "warning")
-      : isVerified
-        ? t("icon_check_circle", "check_circle")
-        : t("icon_schedule", "schedule");
+      ? t("icon_error", "error")
+      : isUnstable
+        ? t("icon_warning", "warning")
+        : isVerified
+          ? t("icon_check_circle", "check_circle")
+          : t("icon_schedule", "schedule");
     const statusIconColor = isBroken
       ? "text-[var(--danger)]"
-      : isVerified
-        ? "text-[var(--success)]"
-        : "text-[var(--warning)]";
+      : isUnstable
+        ? "text-[var(--warning)]"
+        : isVerified
+          ? "text-[var(--success)]"
+          : "text-[var(--accent)]";
     const statusLabel = isBroken
       ? t("status_corrupted", "Corrupted")
-      : isVerified
-        ? t("verified", "Verified")
-        : t("status_pending_review", "Pending Review");
+      : isUnstable
+        ? t("status_unstable", "Unstable")
+        : isVerified
+          ? t("verified", "Verified")
+          : t("status_pending_review", "Pending Review");
 
     return (
       <UniversalCard
@@ -822,19 +924,23 @@ export function HomesteadDiagnostics({
               variant: "success",
               dividerBefore: true,
               onClick: async () => {
-                await supabase.from("mods").update({ status: "verified" }).eq("id", mod.id);
-                await supabase.from("homestead_lab_logs").update({ status: "verified" }).eq("mod_id", mod.id).eq("status", "pending");
-                setLabReports((prev) => prev.map((r) => (r.id === mod.id ? { ...r, status: "verified" } : r)));
+                await persistDiagnosticOutcome(mod.id, "verified", null);
+              },
+            },
+            {
+              label: t("status_unstable", "Unstable"),
+              icon: t("icon_warning", "warning"),
+              variant: "warning",
+              onClick: async () => {
+                await persistDiagnosticOutcome(mod.id, "unstable", mod.status_reason);
               },
             },
             {
               label: t("status_corrupted", "Corrupted"),
-              icon: t("icon_warning", "warning"),
+              icon: t("icon_error", "error"),
               variant: "danger",
               onClick: async () => {
-                await supabase.from("mods").update({ status: "broken" }).eq("id", mod.id);
-                await supabase.from("homestead_lab_logs").update({ status: "broken" }).eq("mod_id", mod.id).eq("status", "pending");
-                setLabReports((prev) => prev.map((r) => (r.id === mod.id ? { ...r, status: "broken" } : r)));
+                await persistDiagnosticOutcome(mod.id, "broken", mod.status_reason);
               },
             },
             {
@@ -853,9 +959,11 @@ export function HomesteadDiagnostics({
         icon={
           isBroken
             ? t("icon_bug_report", "bug_report")
-            : isVerified
-              ? t("icon_verified", "verified")
-              : t("icon_science", "science")
+            : isUnstable
+              ? t("icon_warning", "warning")
+              : isVerified
+                ? t("icon_verified", "verified")
+                : t("icon_science", "science")
         }
         imageOverlay={
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
@@ -950,7 +1058,7 @@ export function HomesteadDiagnostics({
   );
 
   const activeRawLog = scrubLogUserData(testLog || submittedLog || "");
-  const activeMatchedRules = matchExceptionRules(activeRawLog, activeExceptionRules);
+  const activeMatchedRules = matchExceptionRules(activeRawLog, activeGameSchema);
   const formattedDiagReportText = activeReport
     ? buildFormattedLabReportText({
         reportNumber: 1,
@@ -1172,8 +1280,11 @@ export function HomesteadDiagnostics({
         (() => {
           const isVerified =
             activeReport.status === "verified" || (testRun && testPassed);
+          const isUnstable = activeReport.status === "unstable";
           const isBroken =
-            activeReport.status === "broken" || (testRun && !testPassed);
+            activeReport.status === "broken" ||
+            activeReport.status === "corrupted" ||
+            (testRun && !testPassed);
           const modExt = getModExtensionLabel(
             activeReport,
             activeGameSchema,
@@ -1196,9 +1307,11 @@ export function HomesteadDiagnostics({
               subtitle={`${
                 isBroken
                   ? t("status_corrupted", "Corrupted")
-                  : isVerified
-                    ? t("verified", "Verified")
-                    : t("status_pending_review", "Pending Review")
+                  : isUnstable
+                    ? t("status_unstable", "Unstable")
+                    : isVerified
+                      ? t("verified", "Verified")
+                      : t("status_pending_review", "Pending Review")
               } • UUID: ${String(activeReport.id).slice(0, 8)}`}
               widthClass="w-[90vw] md:w-[820px]"
               headerActions={
@@ -1218,13 +1331,19 @@ export function HomesteadDiagnostics({
                                   "Approval Locked (Lab Test Required)"
                                 )
                           }
-                          onClick={() => concludeTest(true)}
+                          onClick={() => concludeTest("verified")}
+                        />
+                        <PanelHeaderButton
+                          icon={t("icon_warning", "warning")}
+                          variant="warning"
+                          tooltip={t("conclude_unstable", "Conclude & Mark Unstable")}
+                          onClick={() => concludeTest("unstable")}
                         />
                         <PanelHeaderButton
                           icon={t("icon_block", "block")}
                           variant="danger"
                           tooltip={t("auto_conclude_fail", "Conclude & Fail") || "Conclude Fail"}
-                          onClick={() => concludeTest(false)}
+                          onClick={() => concludeTest("broken")}
                         />
                       </>
                     ) : !testRun ? (
@@ -1273,10 +1392,12 @@ export function HomesteadDiagnostics({
                 <SidePanelHeroCard
                   icon={
                     isBroken
-                      ? t("icon_warning", "warning")
-                      : isVerified
-                        ? t("icon_check_circle", "check_circle")
-                        : t("icon_schedule", "schedule")
+                      ? t("icon_error", "error")
+                      : isUnstable
+                        ? t("icon_warning", "warning")
+                        : isVerified
+                          ? t("icon_check_circle", "check_circle")
+                          : t("icon_schedule", "schedule")
                   }
                   overline={t("subject_isolation", "Subject Isolation")}
                   title={getCleanModBaseName(activeReport)}
@@ -1284,9 +1405,11 @@ export function HomesteadDiagnostics({
                   badge={
                     isBroken
                       ? t("status_corrupted", "Corrupted")
-                      : isVerified
-                        ? t("verified", "Verified")
-                        : t("status_pending_review", "Pending Review")
+                      : isUnstable
+                        ? t("status_unstable", "Unstable")
+                        : isVerified
+                          ? t("verified", "Verified")
+                          : t("status_pending_review", "Pending Review")
                   }
                   variant={
                     isBroken
@@ -1359,6 +1482,158 @@ export function HomesteadDiagnostics({
                     hideErrorLog={true}
                     onStatusChange={(st) => setIsDiagVerified(st.verified)}
                   />
+                )}
+
+                {(canRunOrEdit || diagIssueReason || activeMatchedRules.length > 0) && (
+                  <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">
+                          {t("icon_assignment_late", "assignment_late")}
+                        </span>
+                        {t(
+                          "diag_verdict_issue_title",
+                          "Diagnostic Verdict & Issue / Cause"
+                        )}
+                      </span>
+                      {canRunOrEdit && (activeRawLog || activeMatchedRules.length > 0) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const synth = synthesizeIssueCauseFromLabReports(
+                              [
+                                {
+                                  log_text: activeRawLog,
+                                  tester_note: activeReport?.tester_note,
+                                  status: activeReport?.status,
+                                },
+                              ],
+                              activeGameSchema,
+                              {
+                                fixPrefix: t("fix_prefix", "Fix"),
+                                notePrefix: t("tester_note_label", "Tester Note"),
+                              }
+                            );
+                            if (synth.summary) {
+                              setDiagIssueReason(synth.summary);
+                            }
+                            if (
+                              synth.suggestedStatus === "broken" ||
+                              synth.suggestedStatus === "unstable"
+                            ) {
+                              setSelectedVerdict(synth.suggestedStatus);
+                            }
+                            useStore.getState().pushStatus(
+                              synth.summary
+                                ? t(
+                                    "lab_issue_imported_toast",
+                                    "Imported issue & cause details from {Lab} diagnostic reports."
+                                  )
+                                : t(
+                                    "lab_issue_none_found_toast",
+                                    "No {Lab} diagnostic reports with issue details found for this {mod}."
+                                  ),
+                              synth.summary ? "success" : "info"
+                            );
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] text-[9.5px] font-black uppercase tracking-wider transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined !text-[12px]">
+                            {t("icon_science", "science")}
+                          </span>
+                          {t("pull_from_lab_log", "Pull from {Lab} Log")}
+                        </button>
+                      )}
+                    </div>
+
+                    {canRunOrEdit && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {(
+                          [
+                            {
+                              id: "verified",
+                              label: t("verified", "Verified"),
+                              icon: t("icon_check_circle", "check_circle"),
+                              activeCls:
+                                "border-[var(--success)] text-[var(--success)]",
+                            },
+                            {
+                              id: "unstable",
+                              label: t("status_unstable", "Unstable"),
+                              icon: t("icon_warning", "warning"),
+                              activeCls:
+                                "border-[var(--warning)] text-[var(--warning)]",
+                            },
+                            {
+                              id: "broken",
+                              label: t("status_corrupted", "Corrupted"),
+                              icon: t("icon_error", "error"),
+                              activeCls:
+                                "border-[var(--danger)] text-[var(--danger)]",
+                            },
+                          ] as const
+                        ).map((opt) => {
+                          const isSelected = selectedVerdict === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => setSelectedVerdict(opt.id)}
+                              className={`px-3 py-1.5 rounded-xl bg-transparent border text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+                                isSelected
+                                  ? opt.activeCls
+                                  : "border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                              }`}
+                            >
+                              <span className="material-symbols-outlined !text-[13px]">
+                                {opt.icon}
+                              </span>
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <textarea
+                      value={diagIssueReason}
+                      readOnly={!canRunOrEdit}
+                      onChange={(e) => setDiagIssueReason(e.target.value)}
+                      placeholder={t(
+                        "ph_status_issue_details",
+                        "Explain what the issue is and what is causing it (shown on {Citizen} Alerts & {Mod} Dossier)..."
+                      )}
+                      className="w-full glass-surface rounded-xl px-3.5 py-2.5 text-[var(--text)] text-xs font-semibold min-h-[72px] resize-y border border-[color-mix(in_srgb,var(--text)_14%,transparent)] focus:outline-none focus:border-[var(--accent)] custom-scrollbar"
+                    />
+
+                    {canRunOrEdit && (
+                      <div className="flex items-center justify-end">
+                        <button
+                          type="button"
+                          disabled={
+                            isLoading &&
+                            selectedVerdict === "verified" &&
+                            !isDiagVerified &&
+                            activeReport?.status !== "verified"
+                          }
+                          onClick={() =>
+                            isLoading
+                              ? concludeTest(selectedVerdict)
+                              : saveIssueVerdict(selectedVerdict)
+                          }
+                          className="px-3.5 py-2 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed"
+                        >
+                          <span className="material-symbols-outlined !text-[14px]">
+                            {t("icon_save", "save")}
+                          </span>
+                          {t(
+                            "btn_save_verdict_issue",
+                            "Save Verdict & Issue Cause"
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* Side-by-Side Dependencies & Conflict Matrix Cards */}

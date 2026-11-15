@@ -9,7 +9,6 @@ import {
   UniversalGroup,
   StatBox,
   ActionButton,
-  CustomDropdown,
   CustomComplianceDropdown,
   PanelHeaderGroup,
   PanelHeaderButton,
@@ -216,28 +215,6 @@ export function CommandScoutReviewSidePanel({
           </PanelHeaderGroup>
         ) : undefined
       }
-      footer={
-        <div className="flex items-center justify-between gap-3 w-full">
-          <ActionButton
-            variant="danger"
-            icon={t("icon_close", "close")}
-            label={t("reject", "Reject")}
-            disabled={isProcessing}
-            onClick={() => handleDecision("rejected")}
-          />
-          <ActionButton
-            variant={complianceTier >= 1 ? "warning" : "primary"}
-            icon={complianceTier >= 1 ? t("icon_policy", "policy") : t("icon_verified", "verified")}
-            label={
-              complianceTier >= 1
-                ? t("submit_compliance_flag_btn", "Submit to Oversight Compliance")
-                : t("approve", "Approve")
-            }
-            disabled={isProcessing || !name.trim()}
-            onClick={() => handleDecision("approved")}
-          />
-        </div>
-      }
     >
       {scoutItem && (
         <div className="space-y-4 mt-2 pb-6">
@@ -308,6 +285,26 @@ export function CommandScoutReviewSidePanel({
                 rows={3}
                 onChange={(val) => setDescription(val)}
               />
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--border)]/40 w-full">
+                <ActionButton
+                  variant="danger"
+                  icon={t("icon_close", "close")}
+                  label={t("reject", "Reject")}
+                  disabled={isProcessing}
+                  onClick={() => handleDecision("rejected")}
+                />
+                <ActionButton
+                  variant={complianceTier >= 1 ? "warning" : "primary"}
+                  icon={complianceTier >= 1 ? t("icon_policy", "policy") : t("icon_verified", "verified")}
+                  label={
+                    complianceTier >= 1
+                      ? t("submit_compliance_flag_btn", "Submit to Oversight Compliance")
+                      : t("approve", "Approve")
+                  }
+                  disabled={isProcessing || !name.trim()}
+                  onClick={() => handleDecision("approved")}
+                />
+              </div>
             </div>
           </UniversalGroup>
         </div>
@@ -475,28 +472,6 @@ export function CommandMasonSubmissionSidePanel({
           )}
         </PanelHeaderGroup>
       }
-      footer={
-        <div className="flex items-center justify-between gap-3 w-full">
-          <ActionButton
-            variant="danger"
-            icon={t("icon_close", "close")}
-            label={t("reject", "Reject")}
-            disabled={isProcessing}
-            onClick={handleReject}
-          />
-          <ActionButton
-            variant={complianceTier >= 1 ? "warning" : "primary"}
-            icon={complianceTier >= 1 ? t("icon_policy", "policy") : t("icon_verified", "verified")}
-            label={
-              complianceTier >= 1
-                ? t("submit_compliance_flag_btn", "Submit to Oversight Compliance")
-                : t("approve", "Approve")
-            }
-            disabled={isProcessing}
-            onClick={handleApprove}
-          />
-        </div>
-      }
     >
       {submission && (
         <div className="space-y-4 mt-2 pb-6">
@@ -549,6 +524,26 @@ export function CommandMasonSubmissionSidePanel({
               rows={3}
               onChange={(val) => setRejectReason(val)}
             />
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--border)]/40 w-full">
+              <ActionButton
+                variant="danger"
+                icon={t("icon_close", "close")}
+                label={t("reject", "Reject")}
+                disabled={isProcessing}
+                onClick={handleReject}
+              />
+              <ActionButton
+                variant={complianceTier >= 1 ? "warning" : "primary"}
+                icon={complianceTier >= 1 ? t("icon_policy", "policy") : t("icon_verified", "verified")}
+                label={
+                  complianceTier >= 1
+                    ? t("submit_compliance_flag_btn", "Submit to Oversight Compliance")
+                    : t("approve", "Approve")
+                }
+                disabled={isProcessing}
+                onClick={handleApprove}
+              />
+            </div>
           </UniversalGroup>
         </div>
       )}
@@ -640,24 +635,6 @@ export function CommandDiagnosticDossierSidePanel({
           </PanelHeaderGroup>
         ) : undefined
       }
-      footer={
-        <div className="flex items-center justify-between gap-3 w-full">
-          <ActionButton
-            variant="danger"
-            icon={t("icon_broken_image", "broken_image")}
-            label={t("mark_broken", "Mark Broken")}
-            disabled={isProcessing || !diagnostic?.mod_id}
-            onClick={() => handleSetModStatus("broken")}
-          />
-          <ActionButton
-            variant="primary"
-            icon={t("icon_verified", "verified")}
-            label={t("mark_stable", "Mark Stable")}
-            disabled={isProcessing || !diagnostic?.mod_id}
-            onClick={() => handleSetModStatus("stable")}
-          />
-        </div>
-      }
     >
       {diagnostic && (
         <div className="space-y-4 mt-2 pb-6">
@@ -682,6 +659,22 @@ export function CommandDiagnosticDossierSidePanel({
                     : t("recent", "Recent")
                 }
                 icon={t("icon_schedule", "schedule")}
+              />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[var(--border)]/40 w-full">
+              <ActionButton
+                variant="danger"
+                icon={t("icon_broken_image", "broken_image")}
+                label={t("mark_broken", "Mark Broken")}
+                disabled={isProcessing || !diagnostic?.mod_id}
+                onClick={() => handleSetModStatus("broken")}
+              />
+              <ActionButton
+                variant="primary"
+                icon={t("icon_verified", "verified")}
+                label={t("mark_stable", "Mark Stable")}
+                disabled={isProcessing || !diagnostic?.mod_id}
+                onClick={() => handleSetModStatus("stable")}
               />
             </div>
           </SidePanelHeroCard>
@@ -732,12 +725,16 @@ export function CommandReportResolutionSidePanel({
     if (!report) return;
     setIsProcessing(true);
     try {
+      const contentType = report.content_type || report.metadata?.content_type;
       const table =
-        report.source === "blueprint"
-          ? "blueprint_reports"
-          : report.source === "comm-link"
-            ? "content_flags"
-            : "nexus_reports";
+        report.metadata?.report_table ||
+        (contentType === "collection"
+          ? "content_flags"
+          : report.source === "blueprint"
+            ? "blueprint_reports"
+            : report.source === "comm-link"
+              ? "content_flags"
+              : "nexus_reports");
 
       if (action === "dismiss") {
         const { error } = await supabase
@@ -755,7 +752,12 @@ export function CommandReportResolutionSidePanel({
           { status: { from: report.status || "pending", to: "dismissed" } }
         );
       } else {
-        if (report.source === "nexus" && report.target_id) {
+        if (contentType === "collection" && report.target_id) {
+          await supabase
+            .from("collections")
+            .update({ status: "hidden", has_pending_flag: false })
+            .eq("id", report.target_id);
+        } else if (report.source === "nexus" && report.target_id) {
           await supabase
             .from("nexus_assets")
             .update({ is_public: false })
@@ -766,9 +768,9 @@ export function CommandReportResolutionSidePanel({
             .update({ is_public: false })
             .eq("id", report.target_id);
         } else if (report.source === "comm-link" && report.target_id) {
-          if (report.content_type === "post") {
+          if (contentType === "post") {
             await supabase.from("mason_posts").delete().eq("id", report.target_id);
-          } else if (report.content_type === "comment") {
+          } else if (contentType === "comment") {
             await supabase.from("mason_post_comments").delete().eq("id", report.target_id);
           }
         }
@@ -827,24 +829,6 @@ export function CommandReportResolutionSidePanel({
           </PanelHeaderGroup>
         ) : undefined
       }
-      footer={
-        <div className="flex items-center justify-between gap-3 w-full">
-          <ActionButton
-            variant="glass"
-            icon={t("icon_check_circle", "check_circle")}
-            label={t("dismiss", "Dismiss")}
-            disabled={isProcessing}
-            onClick={() => handleResolve("dismiss")}
-          />
-          <ActionButton
-            variant="danger"
-            icon={t("icon_visibility_off", "visibility_off")}
-            label={t("unpublish_and_resolve", "Hide Target & Resolve")}
-            disabled={isProcessing}
-            onClick={() => handleResolve("remove")}
-          />
-        </div>
-      }
     >
       {report && (
         <div className="space-y-4 mt-2 pb-6">
@@ -870,6 +854,22 @@ export function CommandReportResolutionSidePanel({
               placeholder={t("optional_audit_note", "Optional audit log note...")}
               onChange={(val) => setResolutionReason(val)}
             />
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--border)]/40 w-full">
+              <ActionButton
+                variant="glass"
+                icon={t("icon_check_circle", "check_circle")}
+                label={t("dismiss", "Dismiss")}
+                disabled={isProcessing}
+                onClick={() => handleResolve("dismiss")}
+              />
+              <ActionButton
+                variant="danger"
+                icon={t("icon_visibility_off", "visibility_off")}
+                label={t("unpublish_and_resolve", "Hide Target & Resolve")}
+                disabled={isProcessing}
+                onClick={() => handleResolve("remove")}
+              />
+            </div>
           </UniversalGroup>
         </div>
       )}
@@ -972,24 +972,6 @@ export function CommandMalwareManifestSidePanel({
           )}
         </PanelHeaderGroup>
       }
-      footer={
-        <div className="flex items-center justify-between gap-3 w-full">
-          <ActionButton
-            variant="glass"
-            icon={t("icon_check_circle", "check_circle")}
-            label={t("false_positive_dismiss", "False Positive")}
-            disabled={isProcessing}
-            onClick={() => handleStatusUpdate("dismissed")}
-          />
-          <ActionButton
-            variant="danger"
-            icon={t("icon_gpp_bad", "gpp_bad")}
-            label={t("confirm_threat", "Confirm Threat")}
-            disabled={isProcessing}
-            onClick={() => handleStatusUpdate("confirmed")}
-          />
-        </div>
-      }
     >
       {manifest && (
         <div className="space-y-4 mt-2 pb-6">
@@ -1015,6 +997,22 @@ export function CommandMalwareManifestSidePanel({
                     : t("recent", "Recent")
                 }
                 icon={t("icon_schedule", "schedule")}
+              />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[var(--border)]/40 w-full">
+              <ActionButton
+                variant="glass"
+                icon={t("icon_check_circle", "check_circle")}
+                label={t("false_positive_dismiss", "False Positive")}
+                disabled={isProcessing}
+                onClick={() => handleStatusUpdate("dismissed")}
+              />
+              <ActionButton
+                variant="danger"
+                icon={t("icon_gpp_bad", "gpp_bad")}
+                label={t("confirm_threat", "Confirm Threat")}
+                disabled={isProcessing}
+                onClick={() => handleStatusUpdate("confirmed")}
               />
             </div>
           </SidePanelHeroCard>
@@ -1069,15 +1067,6 @@ export function CommandComplianceReviewSidePanel({
     setEditReason("");
   }, [modItem]);
 
-  const tierOptions = [
-    { id: "0", label: t("tier_0_clean", "Tier 0 — Standard / Clean") },
-    { id: "1", label: t("tier_1_label", "Tier 1 — Mature / Advisory") },
-    { id: "2", label: t("tier_2_label", "Tier 2 — Restricted Adult") },
-    { id: "3", label: t("tier_3_label", "Tier 3 — Policy Violation") },
-    { id: "4", label: t("tier_4_label", "Tier 4 — Severe Violation") },
-    { id: "5", label: t("tier_5_label", "Tier 5 — Confirmed Malware") },
-  ];
-
   const handleSave = async () => {
     if (!modItem) return;
     if (!editReason.trim()) {
@@ -1120,6 +1109,7 @@ export function CommandComplianceReviewSidePanel({
       useStore
         .getState()
         .pushStatus(t("identities_updated", "Success"), "success");
+      window.dispatchEvent(new CustomEvent("sanctuary-compliance-updated"));
       onCompleted();
       onClose();
     } catch (err: any) {
@@ -1166,23 +1156,6 @@ export function CommandComplianceReviewSidePanel({
           )}
         </PanelHeaderGroup>
       }
-      footer={
-        <div className="flex items-center justify-end gap-3 w-full">
-          <ActionButton
-            variant="glass"
-            label={t("cancel", "Cancel")}
-            onClick={onClose}
-            disabled={isSubmitting}
-          />
-          <ActionButton
-            variant="primary"
-            icon={t("icon_save", "save")}
-            label={t("save", "Save")}
-            disabled={isSubmitting}
-            onClick={handleSave}
-          />
-        </div>
-      }
     >
       {modItem && (
         <div className="space-y-4 mt-2 pb-6">
@@ -1207,15 +1180,16 @@ export function CommandComplianceReviewSidePanel({
 
           <UniversalGroup title={t("compliance_classification", "Compliance Classification")} icon={t("icon_gavel", "gavel")}>
             <div className="space-y-3">
-              <CustomDropdown
-                label={t("compliance_tier", "Compliance Tier")}
-                value={String(editTier)}
-                options={tierOptions}
-                onChange={(val: any) => {
-                  const chosen = Array.isArray(val) ? val[0] : val;
-                  setEditTier(Number(chosen));
-                }}
-              />
+              <div className="flex flex-col gap-1.5 relative z-50">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                  {t("compliance_tier", "Compliance Tier")}
+                </label>
+                <CustomComplianceDropdown
+                  value={editTier}
+                  onChange={setEditTier}
+                  maxTier={5}
+                />
+              </div>
               <UniversalTextArea
                 label={t("reason", "Reason")}
                 value={editReason}
@@ -1226,6 +1200,21 @@ export function CommandComplianceReviewSidePanel({
                 )}
                 onChange={(val) => setEditReason(val)}
               />
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-2 border-t border-[var(--border)]/40 w-full">
+                <ActionButton
+                  variant="glass"
+                  label={t("cancel", "Cancel")}
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                />
+                <ActionButton
+                  variant="primary"
+                  icon={t("icon_save", "save")}
+                  label={t("save", "Save")}
+                  disabled={isSubmitting || !editReason.trim()}
+                  onClick={handleSave}
+                />
+              </div>
             </div>
           </UniversalGroup>
         </div>
@@ -1335,23 +1324,6 @@ export function CommandSpokeNodeSidePanel({
           </PanelHeaderGroup>
         ) : undefined
       }
-      footer={
-        <div className="flex items-center justify-end gap-3 w-full">
-          <ActionButton
-            variant="glass"
-            label={t("cancel", "Cancel")}
-            onClick={onClose}
-            disabled={isSaving}
-          />
-          <ActionButton
-            variant="primary"
-            icon={t("icon_save", "save")}
-            label={t("save", "Save")}
-            disabled={isSaving}
-            onClick={handleSaveNodeFlags}
-          />
-        </div>
-      }
     >
       {gameNode && (
         <div className="space-y-4 mt-2 pb-6">
@@ -1420,6 +1392,21 @@ export function CommandSpokeNodeSidePanel({
                   className="!w-full !justify-center"
                 />
               )}
+              <div className="flex flex-wrap items-center justify-end gap-3 pt-2 border-t border-[var(--border)]/40 w-full">
+                <ActionButton
+                  variant="glass"
+                  label={t("cancel", "Cancel")}
+                  onClick={onClose}
+                  disabled={isSaving}
+                />
+                <ActionButton
+                  variant="primary"
+                  icon={t("icon_save", "save")}
+                  label={t("save", "Save")}
+                  disabled={isSaving}
+                  onClick={handleSaveNodeFlags}
+                />
+              </div>
             </div>
           </UniversalGroup>
         </div>

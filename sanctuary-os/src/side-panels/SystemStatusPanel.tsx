@@ -7,6 +7,7 @@ import { useLexicon } from "../LexiconContext";
 import packageJson from "../../package.json";
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "../utils/envUtils";
+import { useCloudSyncGuard } from "../utils/cloudSyncGuard";
 
 function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string }) {
   const [displayValue, setDisplayValue] = useState(0);
@@ -48,14 +49,18 @@ export function SystemStatusPanel({
   onClose: () => void;
 }) {
   const { t } = useLexicon();
+  const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const selectedVersion = useStore((state) => state.selectedVersion);
-  const { updatePayload, setIsUpdatePanelOpen, setUpdatePayload } = useModalStore(
+  const { updatePayload, setIsUpdatePanelOpen, setUpdatePayload, openCloudSyncGuard } = useModalStore(
     useShallow((s) => ({
       updatePayload: s.updatePayload,
       setIsUpdatePanelOpen: s.setIsUpdatePanelOpen,
       setUpdatePayload: s.setUpdatePayload,
+      openCloudSyncGuard: s.openCloudSyncGuard,
     }))
   );
+  const cloudSyncGuard = useCloudSyncGuard(activeWorkspaceId);
+  const [hasSymlinkPerms, setHasSymlinkPerms] = useState<boolean | null>(null);
   const [telemetry, setTelemetry] = useState<any>(null);
   const [vaultSize, setVaultSize] = useState<number | null>(null);
   const [artifactsSize, setArtifactsSize] = useState<number | null>(null);
@@ -68,6 +73,12 @@ export function SystemStatusPanel({
 
   useEffect(() => {
     if (isOpen) {
+      if (isDesktop()) {
+        invoke<boolean>("check_symlink_permissions")
+          .then((ok) => setHasSymlinkPerms(Boolean(ok)))
+          .catch(() => setHasSymlinkPerms(null));
+        void cloudSyncGuard.refresh(true);
+      }
       invoke("fetch_system_telemetry")
         .then((res: any) => {
           setTelemetry(res);
@@ -371,6 +382,94 @@ export function SystemStatusPanel({
             />
           </div>
         </UniversalGroup>
+
+        {isDesktop() && (
+          <UniversalGroup
+            title={t("sys_checks_group_title", "System Checks & Airgap Health")}
+            icon={t("icon_verified_user", "verified_user")}
+            delayClass="delay-150"
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <StatBox
+                label={t("sys_check_symlink_label", "Symlink Clearance")}
+                value={
+                  hasSymlinkPerms === null
+                    ? t("scanning", "Scanning...")
+                    : hasSymlinkPerms
+                      ? t("enabled", "Enabled")
+                      : t("perm_restricted", "Permissions Restricted")
+                }
+                icon={
+                  hasSymlinkPerms === false
+                    ? t("icon_warning", "warning")
+                    : t("icon_link", "link")
+                }
+                iconColorClass={
+                  hasSymlinkPerms === false
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--success)]"
+                }
+                tooltipTitle={t("sys_check_symlink_label", "Symlink Clearance")}
+                tooltipSubtitle={
+                  hasSymlinkPerms === false
+                    ? t(
+                        "perm_hover_desc",
+                        "Click to permanently unlock cross-drive Symlink permissions via 1-click Windows UAC (no Admin mode needed on future launches)."
+                      )
+                    : t(
+                        "sys_check_symlink_ok_desc",
+                        "Cross-drive symlink projection is unlocked."
+                      )
+                }
+                tooltipVariant={hasSymlinkPerms === false ? "warning" : "default"}
+                onClick={
+                  hasSymlinkPerms === false
+                    ? async () => {
+                        try {
+                          await invoke("open_developer_settings");
+                        } finally {
+                          const ok = await invoke<boolean>(
+                            "check_symlink_permissions"
+                          ).catch(() => false);
+                          setHasSymlinkPerms(ok);
+                        }
+                      }
+                    : undefined
+                }
+              />
+              <StatBox
+                label={t("sys_check_cloud_label", "Cloud-Sync Check")}
+                value={
+                  cloudSyncGuard.isLoading && !cloudSyncGuard.report
+                    ? t("scanning", "Scanning...")
+                    : cloudSyncGuard.hasUnconsentedInterference
+                      ? t("cloud_guard_status_flagged", "{0} Flagged").replace(
+                          "{0}",
+                          String(cloudSyncGuard.unconsentedFindings.length)
+                        )
+                      : cloudSyncGuard.hasInterference
+                        ? t("cloud_guard_status_consented", "Allowed (Consented)")
+                        : t("cloud_guard_status_clear", "Local Only")
+                }
+                icon={t("icon_cloud_sync", "cloud_sync")}
+                iconColorClass={
+                  cloudSyncGuard.hasUnconsentedInterference
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--success)]"
+                }
+                tooltipTitle={t("cloud_guard_panel_title", "Cloud-Sync Folder Guard")}
+                tooltipSubtitle={t(
+                  "sys_check_cloud_click_desc",
+                  "Click to inspect OneDrive, iCloud, Dropbox, Google Drive & cloud-sync status or manage folder consent."
+                )}
+                tooltipVariant={
+                  cloudSyncGuard.hasUnconsentedInterference ? "warning" : "default"
+                }
+                onClick={() => openCloudSyncGuard()}
+              />
+            </div>
+          </UniversalGroup>
+        )}
 
         <UniversalGroup
           title={t("sys_info_app_footprint", "Sanctuary OS Footprint")}

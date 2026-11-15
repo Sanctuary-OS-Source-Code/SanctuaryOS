@@ -1,8 +1,10 @@
 import React from 'react';
-import { HoverTabDrawer, VerticalTabButton, DashboardStatTile, isVersionMatch } from "../../shared";
+import { HoverTabDrawer, VerticalTabButton, DashboardStatTile, isVersionMatch, isVaultArtifactVisible } from "../../shared";
 import { StatTileCarousel } from "../SharedCommandScreenLayout";
+import { useStore } from "../../store";
 
 export const VaultTabs = React.memo(function VaultTabs({ t, equipFilter, setEquipFilter, vaultTabCounts, equippedDisplayMods, displayModList, selectedVersion }: any) {
+  const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const { totalCount, allCount, equippedCount, unequippedCount, devCount, archiveCount } = React.useMemo(() => {
     if (vaultTabCounts) {
       return {
@@ -30,6 +32,7 @@ export const VaultTabs = React.memo(function VaultTabs({ t, equipFilter, setEqui
     for (let i = 0; i < list.length; i++) {
       const mod = list[i];
       if (!mod) continue;
+      if (!mod.isVirtual && mod.name && !isVaultArtifactVisible(mod.name, activeGameSchema)) continue;
       const modNameUpper = String(mod.displayName || mod.meta_name || mod.name || mod.title || "").toUpperCase().trim();
       const baseModName = modNameUpper.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/, "") || modNameUpper;
       if (baseModName === "FILTERS") continue;
@@ -90,7 +93,7 @@ export const VaultTabs = React.memo(function VaultTabs({ t, equipFilter, setEqui
       devCount: dev,
       archiveCount: archive,
     };
-  }, [vaultTabCounts, displayModList, selectedVersion, equippedDisplayMods]);
+  }, [vaultTabCounts, displayModList, selectedVersion, equippedDisplayMods, activeGameSchema]);
 
   return (
     <>

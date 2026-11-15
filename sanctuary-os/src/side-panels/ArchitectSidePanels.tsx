@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { supabase } from "../supabase";
+import { supabase, spokeOversightFrom } from "../supabase";
 import { useLexicon } from "../LexiconContext";
+import { useStore } from "../store";
 import {
-  SidePanel, ActionButton,
+  SidePanel, ActionButton, CustomComplianceDropdown,
   SidePanelHeroCard, UniversalGroup, HoverTooltip
 } from "../shared";
 import { UniversalTextArea } from "../components/universal/UniversalLayout";
@@ -13,12 +14,16 @@ import { logArchitectAction } from "../lib/audit";
 
 export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, isOversight, initialHash, onManualFlag }: { isOpen: boolean, onClose: () => void, onJumpToArtifact?: (modObj: any) => void, isOversight?: boolean, initialHash?: string, onManualFlag?: (hash: string) => void }) {
   const { t } = useLexicon();
+  const modVerClient = isOversight
+    ? spokeOversightFrom("mod_versions")
+    : supabase.from("mod_versions");
   const [filePath, setFilePath] = useState<string>("");
   const [fileHash, setFileHash] = useState<string>("");
   const [isHashing, setIsHashing] = useState(false);
   const [matchedMod, setMatchedMod] = useState<any>(null);
 
   const [showFlagForm, setShowFlagForm] = useState(false);
+  const [flagTier, setFlagTier] = useState<number>(1);
   const [flagReason, setFlagReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
@@ -35,7 +40,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       setMatchedMod(null);
 
       const fetchMod = async () => {
-        const { data: verData } = await supabase.from('mod_versions').select('*, mods(*)').eq('dna_hash', initialHash).maybeSingle();
+        const { data: verData } = await modVerClient.select('*, mods(*)').eq('dna_hash', initialHash).maybeSingle();
         let fetchedMod = null;
         if (verData && verData.mods) {
           fetchedMod = { ...verData.mods, version_label: verData.version_label, version_number: verData.version_number };
@@ -49,7 +54,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       };
       fetchMod();
     }
-  }, [isOpen, initialHash]);
+  }, [isOpen, initialHash, isOversight]);
 
   const handleImport = async () => {
     try {
@@ -68,7 +73,7 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
         const hash = await invoke<string>("generate_full_dna_hash", { filePath: selected });
         setFileHash(hash);
 
-        const { data: verData } = await supabase.from('mod_versions').select('*, mods(*)').eq('dna_hash', hash).maybeSingle();
+        const { data: verData } = await modVerClient.select('*, mods(*)').eq('dna_hash', hash).maybeSingle();
         let fetchedMod = null;
         if (verData && verData.mods) {
           fetchedMod = { ...verData.mods, version_label: verData.version_label, version_number: verData.version_number };
@@ -112,34 +117,64 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
     setIsSubmitting(true);
 
     const fileName = filePath.split(/[/\\]/).pop() || "Unknown File";
+    try {
+      const targetTier = Math.min(4, Math.max(1, Number(flagTier || 1)));
+      const { error: flagErr } = await supabase.rpc("flag_mod_for_compliance", {
+        p_mod_id: matchedMod?.id || undefined,
+        p_dna_hash: fileHash ? fileHash.trim().toLowerCase() : undefined,
+        p_mod_name: matchedMod?.name || fileName || undefined,
+        p_tier: targetTier,
+        p_reason: flagReason.trim(),
+      });
+      if (flagErr) throw flagErr;
+      window.dispatchEvent(new CustomEvent("sanctuary-compliance-updated"));
 
-    await logArchitectAction(
-      `Flagged Artifact: ${fileName}`,
-      'sanctuary_tickets',
-      fileName,
-      `User provided reason: ${flagReason}`,
-      undefined,
-      false,
-      {
-        file_name: { to: fileName },
-        file_hash: { to: fileHash },
-        flag_reason: { to: flagReason },
-      }
-    );
-    
-    setIsSubmitting(false);
-    setSuccessMsg(t("verify_panel_flag_success", "Artifact flagged for review."));
-    setShowFlagForm(false);
-    setFlagReason("");
+      await logArchitectAction(
+        `Flagged Artifact for Oversight Compliance (T${targetTier}): ${fileName}`,
+        "mods",
+        matchedMod?.name || fileName,
+        `Tier ${targetTier}: ${flagReason.trim()}`,
+        undefined,
+        false,
+        {
+          file_name: { to: fileName },
+          file_hash: { to: fileHash },
+          compliance_tier: { to: targetTier },
+          flag_reason: { to: flagReason.trim() },
+        }
+      );
+
+      setSuccessMsg(
+        t(
+          "nexus_mod_flagged_compliance_toast",
+          "{Mod} flagged for Oversight Compliance review (Pending)."
+        )
+      );
+      setShowFlagForm(false);
+      setConfirmFlag(false);
+      setFlagReason("");
+      setFlagTier(1);
+    } catch (err: any) {
+      console.error(err);
+      useStore
+        .getState()
+        .pushStatus(
+          `${t("err_flag_mod_failed", "Failed to flag {mod}:")} ${err?.message || ""}`.trim(),
+          "error"
+        );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
+  const matchedTierNum = Number(matchedMod?.compliance_tier ?? 0);
   let statusState = "AWAITING";
   if (successMsg || showFlagForm) statusState = "FLAGGED";
   else if (isHashing) statusState = "SCANNING";
   else if (filePath && !fileHash) statusState = "SCANNING";
   else if (fileHash && matchedMod) {
-    if (matchedMod.compliance_tier === 5) statusState = "MALWARE";
-    else if (matchedMod.compliance_tier === 2) statusState = "EXPLICIT";
+    if (matchedTierNum === 5) statusState = "MALWARE";
+    else if (matchedTierNum >= 1 && matchedTierNum <= 4) statusState = "RESTRICTED";
     else statusState = "VERIFIED";
   }
   else if (fileHash && !matchedMod) statusState = "MISMATCH";
@@ -181,12 +216,12 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
       title: t("malware_alert_title", "Malware Detected"),
       desc: t("verify_status_malware_desc", "This {mod} hash matches a known malicious signature. Immediate deletion required.")
     },
-    EXPLICIT: {
+    RESTRICTED: {
       color: "var(--warning)",
       variant: "warning" as const,
-      icon: t("icon_warning", "warning"),
-      title: t("verify_status_explicit", "Explicit Content"),
-      desc: t("verify_status_explicit_desc", "This {mod} hash is flagged for explicit or adult content.")
+      icon: t("icon_policy", "policy"),
+      title: `${t("auto_tier", "Tier")} ${matchedTierNum} — ${t("compliance_restricted", "Restricted")}`,
+      desc: t("verify_status_restricted_desc", "This {mod} hash is classified under an Oversight Compliance tier.")
     },
     FLAGGED: {
       color: "var(--danger)",
@@ -292,8 +327,8 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
         {matchedMod && (
           <UniversalGroup
             title={t("registry_label_name", "Matched Registry Artifact")}
-            icon={statusState === 'MALWARE' ? t("icon_skull", "skull") : statusState === 'EXPLICIT' ? t("icon_warning", "warning") : t("icon_check_circle", "check_circle")}
-            headerColorClass={statusState === 'MALWARE' ? 'text-[var(--danger)]' : statusState === 'EXPLICIT' ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}
+            icon={statusState === 'MALWARE' ? t("icon_skull", "skull") : statusState === 'RESTRICTED' ? t("icon_policy", "policy") : t("icon_check_circle", "check_circle")}
+            headerColorClass={statusState === 'MALWARE' ? 'text-[var(--danger)]' : statusState === 'RESTRICTED' ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}
           >
             <div className="flex flex-col gap-3 w-full">
               <div className="glass-surface rounded-xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-4">
@@ -301,15 +336,15 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                   <div
                     className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0"
                     style={{
-                      color: statusState === 'MALWARE' ? 'var(--danger)' : statusState === 'EXPLICIT' ? 'var(--warning)' : 'var(--success)',
+                      color: statusState === 'MALWARE' ? 'var(--danger)' : statusState === 'RESTRICTED' ? 'var(--warning)' : 'var(--success)',
                     }}
                   >
                     <span className="material-symbols-rounded !text-[20px]">
-                      {statusState === 'MALWARE' ? t("icon_skull", "skull") : statusState === 'EXPLICIT' ? t("icon_warning", "warning") : t("icon_verified_user", "verified_user")}
+                      {statusState === 'MALWARE' ? t("icon_skull", "skull") : statusState === 'RESTRICTED' ? t("icon_policy", "policy") : t("icon_verified_user", "verified_user")}
                     </span>
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">
-                    <span className={`text-sm font-black capitalize tracking-widest truncate ${statusState === 'MALWARE' ? 'text-[var(--danger)]' : statusState === 'EXPLICIT' ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}>
+                    <span className={`text-sm font-black capitalize tracking-widest truncate ${statusState === 'MALWARE' ? 'text-[var(--danger)]' : statusState === 'RESTRICTED' ? 'text-[var(--warning)]' : 'text-[var(--accent)]'}`}>
                       {matchedMod.name}
                     </span>
                     <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 mt-1 capitalize tracking-widest">
@@ -321,12 +356,14 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
                   <span
                     className="material-symbols-rounded !text-[12px] shrink-0"
                     style={{
-                      color: statusState === 'MALWARE' ? 'var(--danger)' : statusState === 'EXPLICIT' ? 'var(--warning)' : 'var(--success)',
+                      color: statusState === 'MALWARE' ? 'var(--danger)' : statusState === 'RESTRICTED' ? 'var(--warning)' : 'var(--success)',
                     }}
                   >
-                    {statusState === 'MALWARE' ? t("icon_skull", "skull") : statusState === 'EXPLICIT' ? t("icon_warning", "warning") : t("icon_verified", "verified")}
+                    {statusState === 'MALWARE' ? t("icon_skull", "skull") : statusState === 'RESTRICTED' ? t("icon_policy", "policy") : t("icon_verified", "verified")}
                   </span>
-                  {statusState}
+                  {statusState === 'RESTRICTED'
+                    ? `${t("auto_tier", "Tier")} ${matchedTierNum}`
+                    : statusState}
                 </span>
               </div>
 
@@ -362,6 +399,17 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
             headerColorClass="text-[var(--danger)]"
           >
             <div className="flex flex-col gap-4 w-full">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                  {t("registry_col_safety", "Compliance Tier")}
+                </label>
+                <CustomComplianceDropdown
+                  value={flagTier}
+                  onChange={setFlagTier}
+                  minTier={1}
+                  maxTier={4}
+                />
+              </div>
               <UniversalTextArea
                 label={t("reason", "Reason")}
                 value={flagReason}
@@ -411,23 +459,26 @@ export function FileVerificationSidePanel({ isOpen, onClose, onJumpToArtifact, i
           >
             <div className="flex flex-col gap-2.5 w-full">
               {sessionHistory.map((item, i) => {
-                const isMalware = item.matchedMod?.compliance_tier === 5;
-                const isExplicit = item.matchedMod?.compliance_tier === 2;
-                const isVerified = Boolean(item.matchedMod && !isMalware && !isExplicit);
+                const histTier = Number(item.matchedMod?.compliance_tier ?? 0);
+                const isMalware = histTier === 5;
+                const isRestricted = histTier >= 1 && histTier <= 4;
+                const isVerified = Boolean(item.matchedMod && !isMalware && !isRestricted);
                 const itemColor = isMalware
                   ? "var(--danger)"
-                  : isExplicit || !item.matchedMod
+                  : isRestricted || !item.matchedMod
                     ? "var(--warning)"
                     : "var(--success)";
                 const itemIcon = isMalware
                   ? t("icon_skull", "skull")
-                  : isVerified
-                    ? t("icon_verified", "verified")
-                    : t("icon_warning", "warning");
+                  : isRestricted
+                    ? t("icon_policy", "policy")
+                    : isVerified
+                      ? t("icon_verified", "verified")
+                      : t("icon_warning", "warning");
                 const itemLabel = isMalware
                   ? t("rating_malware", "Malware")
-                  : isExplicit
-                    ? t("rating_explicit", "Explicit")
+                  : isRestricted
+                    ? `${t("auto_tier", "Tier")} ${histTier}`
                     : isVerified
                       ? t("verified", "Verified")
                       : t("auto_mismatch", "Mismatch");

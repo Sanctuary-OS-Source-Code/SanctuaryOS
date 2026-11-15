@@ -27,6 +27,12 @@ import {
   sortWorkspacesList,
   WORKSPACE_PREFS_EVENT,
 } from "../utils/workspacePrefs";
+import {
+  healAndMatchLocalWorkspaces,
+  findMatchingWorkspaceEntry,
+  isPlaceholderWorkspaceKey,
+  isWorkspaceRecordConfigured,
+} from "../utils/workspaceConfigMatch";
 
 export function WorkspaceSidePanel({
   isOpen,
@@ -101,49 +107,58 @@ export function WorkspaceSidePanel({
 
   const selectWorkspace = async (workspace: any) => {
     recordWorkspaceLoaded(workspace);
-    const isSameWorkspace = workspace.id === activeWorkspaceId;
+    const targetSchemaId =
+      (!isPlaceholderWorkspaceKey(workspace.schema_id) ? workspace.schema_id : "") ||
+      (!isPlaceholderWorkspaceKey(workspace.id) ? workspace.id : "") ||
+      workspace.schema_id ||
+      workspace.id;
+    const isSameWorkspace =
+      String(targetSchemaId || "").toLowerCase() ===
+      String(activeWorkspaceId || "").toLowerCase();
 
     let globalConfig: any = null;
+    let existingTarget: any = null;
     try {
       if (isDesktop()) {
         globalConfig = await invoke("get_global_config");
-        globalConfig.active_workspace_id = workspace.id;
-
         if (!Array.isArray(globalConfig.workspaces)) {
           globalConfig.workspaces = [];
         }
-        const defaultWs = globalConfig.workspaces.find(
-          (w: any) => w.id === "default_workspace"
+        const { healedWorkspaces } = healAndMatchLocalWorkspaces(
+          globalGames,
+          globalConfig.workspaces,
+          useStore.getState().activeGameSchema
         );
-        if (defaultWs && defaultWs.schema_id) {
-          defaultWs.id = defaultWs.schema_id;
-          if (globalConfig.active_workspace_id === "default_workspace") {
-            globalConfig.active_workspace_id = defaultWs.schema_id;
-          }
-        }
-        const targetSchemaId =
-          workspace.schema_id || globalConfig.active_workspace_id;
-        const existingTarget = globalConfig.workspaces.find(
-          (w: any) =>
-            String(w.id || "").toLowerCase() ===
-            String(globalConfig.active_workspace_id || "").toLowerCase() ||
-            String(w.schema_id || "").toLowerCase() ===
-            String(targetSchemaId || "").toLowerCase()
+        globalConfig.workspaces = healedWorkspaces;
+
+        existingTarget = findMatchingWorkspaceEntry(
+          { id: targetSchemaId, schema_id: targetSchemaId },
+          globalConfig.workspaces
         );
+        const effectiveWorkspaceId =
+          existingTarget?.id && !isPlaceholderWorkspaceKey(existingTarget.id)
+            ? existingTarget.id
+            : targetSchemaId;
+        globalConfig.active_workspace_id = effectiveWorkspaceId;
+
         if (!existingTarget) {
           const masterVault = globalConfig.vault_path || "";
           const sep = masterVault.includes("/") ? "/" : "\\";
-          const cleanWorkspace = {
-            id: globalConfig.active_workspace_id,
+          existingTarget = {
+            id: effectiveWorkspaceId,
             name: workspace.name || targetSchemaId,
             schema_id: targetSchemaId,
             live_path: "",
             mods_path: "",
-            vault_path: masterVault ? `${masterVault}${sep}${targetSchemaId}` : "",
+            vault_path:
+              masterVault && !isPlaceholderWorkspaceKey(targetSchemaId)
+                ? `${masterVault}${sep}${targetSchemaId}`
+                : "",
+            master_vault_path: masterVault || "",
             supabase_url: workspace.supabase_url || null,
             supabase_anon_key: workspace.supabase_anon_key || null,
           };
-          globalConfig.workspaces.push(cleanWorkspace);
+          globalConfig.workspaces.push(existingTarget);
         }
         await invoke("save_coordinates", { config: globalConfig });
       }
@@ -151,38 +166,55 @@ export function WorkspaceSidePanel({
       console.error("Desktop config save failed:", err);
     }
 
-    if (isSameWorkspace) {
-      setIsConfigured(true);
-      if (view === "landing") {
-        setView("dashboard");
-      }
-      onClose();
-      return;
-    }
-
     const safeActiveId =
-      globalConfig?.active_workspace_id ||
-      (workspace.id === "default_workspace" && workspace.schema_id
-        ? workspace.schema_id
-        : workspace.id);
+      (globalConfig?.active_workspace_id &&
+      !isPlaceholderWorkspaceKey(globalConfig.active_workspace_id)
+        ? globalConfig.active_workspace_id
+        : null) ||
+      (!isPlaceholderWorkspaceKey(workspace.id) ? workspace.id : null) ||
+      targetSchemaId;
+
+    const targetIsConfigured = isDesktop()
+      ? isWorkspaceRecordConfigured(
+          existingTarget || findMatchingWorkspaceEntry(workspace, workspaces),
+          globalConfig?.vault_path
+        )
+      : true;
 
     recordWorkspaceLoaded(safeActiveId);
     localStorage.setItem("sanctuary_last_active_workspace", safeActiveId);
     useStore.getState().hydrateWorkspaceState(safeActiveId);
-    if (workspace.schema_id) {
-      syncMasterSchemas(workspace.schema_id).catch(console.warn);
+    if (targetSchemaId && !isPlaceholderWorkspaceKey(targetSchemaId)) {
+      syncMasterSchemas(targetSchemaId).catch(console.warn);
     }
     setActiveWorkspaceId(safeActiveId);
-    setIsConfigured(true);
-    if (view === "landing") {
-      setView("dashboard");
+
+    if (targetIsConfigured) {
+      useStore.getState().setPendingWorkspaceSetupId(null);
+      setIsConfigured(true);
+      if (view === "landing" || view === "workspace_setup") {
+        setView("dashboard");
+      }
+      onClose();
+
+      if (!isSameWorkspace) {
+        if (isDesktop()) {
+          setTimeout(() => window.location.reload(), 30);
+        } else {
+          setTimeout(() => (window.location.href = "/" + safeActiveId), 30);
+        }
+      }
+      return;
     }
+
+    // Desktop workspace is unconfigured -> mount Command Center with First-Time Workspace Setup SidePanel
+    useStore.getState().setPendingWorkspaceSetupId(safeActiveId);
+    setIsConfigured(false);
+    setView("dashboard");
     onClose();
 
-    if (isDesktop()) {
+    if (!isSameWorkspace) {
       setTimeout(() => window.location.reload(), 30);
-    } else {
-      setTimeout(() => (window.location.href = "/" + safeActiveId), 30);
     }
   };
 
@@ -192,8 +224,11 @@ export function WorkspaceSidePanel({
 
   const cards: any[] = [];
   activeGames.forEach((game: any) => {
+    const gameKey = String(game.schema_id || game.id || "").toLowerCase();
     const gameWorkspaces = workspaces.filter(
-      (ws: any) => ws.schema_id === game.schema_id
+      (ws: any) =>
+        String(ws.schema_id || "").toLowerCase() === gameKey ||
+        String(ws.id || "").toLowerCase() === gameKey
     );
     if (gameWorkspaces.length > 0) {
       gameWorkspaces.forEach((ws: any) => {

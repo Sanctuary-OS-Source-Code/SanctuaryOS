@@ -548,7 +548,7 @@ mod win_webauthn {
             );
 
             if hr < 0 || p_attestation.is_null() {
-                if hr as u32 == 0x800704C7 || hr as u32 == 0x80090027 {
+                if hr as u32 == 0x800704C7 || hr as u32 == 0x80090027 || hr as u32 == 0x80090036 {
                     return Err("Passkey registration was cancelled.".to_string());
                 }
                 return Err(format!(
@@ -676,7 +676,7 @@ mod win_webauthn {
             );
 
             if hr < 0 || p_assertion.is_null() {
-                if hr as u32 == 0x800704C7 || hr as u32 == 0x80090027 {
+                if hr as u32 == 0x800704C7 || hr as u32 == 0x80090027 || hr as u32 == 0x80090036 {
                     return Err("Passkey verification was cancelled.".to_string());
                 }
                 return Err(format!(

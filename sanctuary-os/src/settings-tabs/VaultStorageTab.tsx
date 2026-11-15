@@ -2,11 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
+import { useModalStore } from '../store/modalStore';
 import { ActionButton, VAULT_CHIP_CLASS } from '../shared';
 import { isDesktop } from '../utils/envUtils';
 import { TabContainer, SettingsGrid, SettingsToggle, CustomSettingsDropdown } from './shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { LiquidGlassAlertCard } from '../components/BlueprintPatchReadiness';
+import { useCloudSyncGuard, isCloudSyncFindingConsented } from '../utils/cloudSyncGuard';
 
 const obfuscatePath = (p: string, unsetLabel: string) =>
   p && p !== 'web'
@@ -28,6 +30,19 @@ export default function VaultStorageTab({
   setAnarchyRules,
 }: any) {
   const { t } = useLexicon();
+  const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const openCloudSyncGuard = useModalStore((s) => s.openCloudSyncGuard);
+  const cloudSyncGuard = useCloudSyncGuard(activeWorkspaceId);
+  const vaultCloudFinding = isDesktop()
+    ? cloudSyncGuard.findings.find(
+        (f) => f.role === 'master_vault' || f.role === 'workspace_vault'
+      )
+    : undefined;
+  const isVaultCloudUnconsented = Boolean(
+    vaultCloudFinding && !isCloudSyncFindingConsented(vaultCloudFinding)
+  );
+  const patchFireDrillEnabled = useStore((state) => state.patchFireDrillEnabled);
+  const setPatchFireDrillEnabled = useStore((state) => state.setPatchFireDrillEnabled);
 
   const [ingestFileMode, setIngestFileMode] = useState<'copy' | 'move'>(() => {
     const saved = localStorage.getItem('sanctuary_ingest_file_mode');
@@ -280,6 +295,41 @@ export default function VaultStorageTab({
             </UniversalCard>
           )}
 
+          {isDesktop() && !isVaultUnset && vaultCloudFinding && (
+            <LiquidGlassAlertCard
+              isAlertCard={isVaultCloudUnconsented}
+              icon={t('icon_cloud_sync', 'cloud_sync')}
+              accentVar={isVaultCloudUnconsented ? 'var(--warning)' : 'var(--accent)'}
+              iconColorClass={
+                isVaultCloudUnconsented ? 'text-[var(--warning)]' : 'text-[var(--accent)]'
+              }
+              badgeIcon={
+                isVaultCloudUnconsented
+                  ? t('icon_warning', 'warning')
+                  : t('icon_verified_user', 'verified_user')
+              }
+              badgeLabel={
+                isVaultCloudUnconsented
+                  ? vaultCloudFinding.provider
+                  : `${vaultCloudFinding.provider} • ${t('cloud_guard_badge_consented', 'Consented')}`
+              }
+              overline={t('cloud_guard_panel_title', 'Cloud-Sync Folder Guard')}
+              title={
+                isVaultCloudUnconsented
+                  ? t('cloud_guard_vault_warn_title', '{Vault} Inside Cloud-Sync Root')
+                  : t('cloud_guard_vault_consented_title', '{Vault} Cloud-Sync Folder (Consented)')
+              }
+              description={t(
+                'cloud_guard_vault_warn_desc',
+                'Your Master {Vault} sits inside {0}. Cloud dehydration or remote moves can break symlinks unless explicitly pinned locally or relocated. Nothing changes without your consent.'
+              ).replace('{0}', vaultCloudFinding.provider)}
+              actionLabel={t('cloud_guard_review_btn', 'Review Cloud-Sync Options')}
+              actionIcon={t('icon_verified_user', 'verified_user')}
+              actionVariant={isVaultCloudUnconsented ? 'warning' : 'glass'}
+              onAction={() => openCloudSyncGuard()}
+            />
+          )}
+
           <UniversalCard
             headerStyle="inline"
             title={t('settings_ingest_file_mode_title', 'Drag & Drop File Behavior')}
@@ -494,6 +544,19 @@ export default function VaultStorageTab({
             statusColor={!rules.intercept ? 'danger' : undefined}
             onClick={() => toggleRule('intercept')}
             actions={<SettingsToggle checked={rules.intercept} danger={!rules.intercept} />}
+          />
+
+          <UniversalCard
+            headerStyle="inline"
+            title={t('patch_sim_title', '{Blueprint} Patch Readiness')}
+            subtitle={t(
+              'settings_patch_fire_drill_desc',
+              'ON: Shows Patch Readiness simulations and readiness bars across {Blueprints} and Command Center.\nOFF: Hides Patch Readiness tools, tabs, and readiness meters.'
+            )}
+            icon={t('icon_published_with_changes', 'published_with_changes')}
+            isActive={patchFireDrillEnabled}
+            onClick={() => setPatchFireDrillEnabled(!patchFireDrillEnabled)}
+            actions={<SettingsToggle checked={patchFireDrillEnabled} />}
           />
         </SettingsGrid>
       </TabContainer>

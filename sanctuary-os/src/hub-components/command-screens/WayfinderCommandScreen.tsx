@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, Suspense } from "react";
-import { supabase, supabaseAuth } from "../../supabase";
+import { supabase, supabaseAuth, spokeOversightFrom } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
 import { SanctuaryAlertsSidePanel } from "../../side-panels/SanctuaryAlertsSidePanel";
@@ -192,9 +192,8 @@ export function WayfinderCommandScreen({
         .from("sanctuary_tickets")
         .select("*")
         .order("created_at", { ascending: false }),
-      supabase.from("support_categories").select("*"),
-      supabase
-        .from("mods")
+      supabase.from("sanctuary_support_categories").select("*"),
+      spokeOversightFrom("mods")
         .select("id, name, master_author, status, status_reason, compliance_tier, updated_at, created_at", {
           count: "exact",
         })
@@ -202,8 +201,7 @@ export function WayfinderCommandScreen({
         .lte("compliance_tier", 4)
         .order("updated_at", { ascending: false })
         .limit(6),
-      supabase
-        .from("mods")
+      spokeOversightFrom("mods")
         .select("id, name, master_author, status, status_reason, compliance_tier, updated_at, created_at", {
           count: "exact",
         })
@@ -212,8 +210,7 @@ export function WayfinderCommandScreen({
         .in("status", ["pending", "under_review", "unverified"])
         .order("updated_at", { ascending: false })
         .limit(6),
-      supabase
-        .from("mods")
+      spokeOversightFrom("mods")
         .select("id", { count: "exact", head: true })
         .eq("compliance_tier", 5),
       supabase
@@ -600,7 +597,7 @@ export function WayfinderCommandScreen({
               icon={t("icon_local_activity", "local_activity")}
               iconColorClass={stats.tickets > 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}
               title={t("support_queue", "Support Queue")}
-              subtitle={t("wayfinder_support_sub", "Wayfinder-targeted & escalated dossiers — click to inspect in-drawer")}
+              subtitle={t("wayfinder_support_sub", "Escalated and Wayfinder-assigned support tickets — click any item to inspect")}
               onJump={() => setTab("sanctuary_tickets")}
               jumpTooltip={`${t("support_queue", "Support Queue")} (${stats.tickets})`}
             />

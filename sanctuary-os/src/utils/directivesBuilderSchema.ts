@@ -115,7 +115,7 @@ export interface DirectiveBuilderSchema {
   tabs: DirectiveBuilderTab[];
 }
 
-export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 84;
+export const CURRENT_DIRECTIVE_SCHEMA_VERSION = 88;
 
 const BUILDER_COMMENT_PREFIX = "<!-- SANCTUARY_DIRECTIVE_BUILDER_JSON:";
 const BUILDER_COMMENT_REGEX =
@@ -674,7 +674,7 @@ export function parseMarkdownToDirectiveSchema(
       const defaultStageCards = nextTabs[0].cards;
       const stageCards: DirectiveBuilderCard[] = stageMatches.map((sm, idx) => {
         const stageNum = parseInt(sm[1], 10);
-        const stageTitle = sm[2].trim();
+        const stageTitle = sm[2].replace(/`([^`]+)`/g, "$1").trim();
         const startPos = (sm.index || 0) + sm[0].length;
         const endPos =
           idx + 1 < stageMatches.length
@@ -730,8 +730,8 @@ export function parseMarkdownToDirectiveSchema(
         const defaultModCards = nextTabs[1].cards;
         const modCards: DirectiveBuilderCard[] = modMatches.map((mm, idx) => {
           const modNum = parseInt(mm[1], 10);
-          const rawModTitle = mm[2].trim();
-          const rawModDesc = mm[3].trim();
+          const rawModTitle = mm[2].replace(/`([^`]+)`/g, "$1").trim();
+          const rawModDesc = mm[3].replace(/`([^`]+)`/g, "$1").trim();
           const fb =
             defaultModCards.find((c) => c.id === `mod_${modNum}`) ||
             defaultModCards[idx];
@@ -770,7 +770,7 @@ export function parseMarkdownToDirectiveSchema(
     if (pillarMatches.length > 0) {
       const updatedTabs: DirectiveBuilderTab[] = pillarMatches.map((pm, idx) => {
         const pillarNum = parseInt(pm[1], 10);
-        const pillarTitle = pm[2].trim();
+        const pillarTitle = pm[2].replace(/`([^`]+)`/g, "$1").trim();
         const startPos = (pm.index || 0) + pm[0].length;
         const endPos =
           idx + 1 < pillarMatches.length
@@ -834,7 +834,7 @@ export function parseMarkdownToDirectiveSchema(
       const domainCards: DirectiveBuilderCard[] = domainMatches.map((dm, idx) => {
         const secNum = parseInt(dm[1], 10);
         const domainNum = secNum - 1;
-        const domainTitle = dm[2].trim();
+        const domainTitle = dm[2].replace(/`([^`]+)`/g, "$1").trim();
         const startPos = (dm.index || 0) + dm[0].length;
         const endPos =
           idx + 1 < domainMatches.length
@@ -869,7 +869,7 @@ export function parseMarkdownToDirectiveSchema(
 
       nextTabs[2] = {
         ...nextTabs[2],
-        label: `${totalProtocols || 33} RULES`,
+        label: `${totalProtocols || 30} RULES`,
         cards: domainCards,
       };
     }
@@ -922,9 +922,9 @@ export function extractDirectiveBuilderSchema(
           if (
             effectiveSlug === "phase_roadmap" &&
             (parsed.tabs.length !== 1 ||
-              (parsed.tabs[0]?.cards?.[0]?.subCards?.length || 0) < 14 ||
+              (parsed.tabs[0]?.cards?.[0]?.subCards?.length || 0) < 19 ||
               !parsed.tabs[0]?.cards?.[0]?.subCards?.some((sc) =>
-                (sc.title || "").includes("External Mod Manager Migration")
+                (sc.title || "").includes("Zero-Copy Exodus")
               ))
           ) {
             return parseMarkdownToDirectiveSchema(content, effectiveSlug, t);
@@ -1060,7 +1060,7 @@ export function getDefaultDirectiveBuilderSchema(
       footerMeta: t("dir_proto_r1_tier", "Tier 1 • Base + Open Workshop"),
       desc: t(
         "dir_proto_r1_scope",
-        "All 9 {Citizen} Modules ({Vault}, Nexus, {Blueprints}, Conflict Radar, Homestead Lab, Workbench, {Backups}) + Inherited Open {Mason} Workshop (Sandbox, {Mason} IDE, 3-Tile {Mod} Studio, Theme Forge, Static Edge Direct Push, Schema & Lexicon Codex) + Scout Queue submissions."
+        "All 9 {Citizen} Modules ({Vault}, Nexus, {Blueprints}, Conflict Radar, Homestead Lab, Workbench, {Backups}) + Inherited Open {Mason} Workshop (Sandbox, {Mason} IDE, 3-Tile {Mod} Studio, Theme Forge, Notepad, Export Release static manifest packaging) + Scout Queue submissions & unrestricted OS Bug Reports."
       ),
       status: "citizen",
       subCards: [
@@ -1070,7 +1070,7 @@ export function getDefaultDirectiveBuilderSchema(
           title: t("dir_role_cit_s1_title", "9 Core {Citizen} Sectors & Symlink Airgap"),
           desc: t(
             "dir_role_cit_s1_desc",
-            "Full offline and online access to Command Center, Your {Vault}, The Nexus, {Blueprints}, Comm-Link, Conflict Radar, Homestead Lab, {Citizen}'s Workbench, and {Backups}."
+            "Full offline and online access to Command Center, Your {Vault}, The Nexus, {Blueprints}, Comm-Link, Conflict Radar, Homestead {Lab}, {Citizen}'s Workbench, and {Backups}."
           ),
         },
         {
@@ -1080,6 +1080,24 @@ export function getDefaultDirectiveBuilderSchema(
           desc: t(
             "dir_role_cit_s2_desc",
             "Build {mods} in Dev Sandbox, package .sanctuary.manifest.json / catalog.json releases, and 1-click Auto-Push to GitHub, Gist, GitLab/Codeberg, Neocities, or WebDAV."
+          ),
+        },
+        {
+          id: "role_cit_s3",
+          icon: t("icon_travel_explore", "travel_explore"),
+          title: t("dir_role_cit_s3_title", "Scout Queue Discovery Submissions"),
+          desc: t(
+            "dir_role_cit_s3_desc",
+            "Scan local Tier-0 {mods}, complete local {Lab} verification proof, and submit verified SHA-256 metadata to the crowd-sourced Scout Queue."
+          ),
+        },
+        {
+          id: "role_cit_s4",
+          icon: t("icon_support_agent", "support_agent"),
+          title: t("dir_role_cit_s4_title", "Tier-0 {Blueprint} Support & OS Bug Reports"),
+          desc: t(
+            "dir_role_cit_s4_desc",
+            "Submit Community {Mod} Support when your active {Blueprint} holds only verified Tier-0 {mods} (no {Vault} file deletion), or file an OS Bug Report directly to Keepers with zero {mod} telemetry."
           ),
         },
       ],
@@ -1103,16 +1121,34 @@ export function getDefaultDirectiveBuilderSchema(
           title: t("dir_role_mas_s1_title", "Verified Fast-Lane & Direct Nexus Publishing"),
           desc: t(
             "dir_role_mas_s1_desc",
-            "Bypasses crowd Scout thresholds to submit verified {mods} directly to Architect review and manage public creator portfolios."
+            "Bypass crowd Scout vote thresholds to submit verified Tier-0 {mods}, Lexicons, Chameleons, and Workbench Templates straight to Architect triage."
           ),
         },
         {
           id: "role_mas_s2",
-          icon: t("icon_volunteer_activism", "volunteer_activism"),
-          title: t("dir_role_mas_s2_title", "0%-Cut Supporter Bridge & Creator Dispatches"),
+          icon: t("icon_storefront", "storefront"),
+          title: t("dir_role_mas_s2_title", "Public {Mason} Profile & Suite Showcases"),
           desc: t(
             "dir_role_mas_s2_desc",
-            "Link Patreon, Ko-fi, or custom supporter URLs with 0% platform cut and broadcast release alerts to followers."
+            "Curate your creator banner, featured {mod} suites, Highlander Exclusive Slots, dependency trees, and multi-range version rules on your public profile."
+          ),
+        },
+        {
+          id: "role_mas_s3",
+          icon: t("icon_campaign", "campaign"),
+          title: t("dir_role_mas_s3_title", "Creator Comm-Link {Dispatches} & Changelogs"),
+          desc: t(
+            "dir_role_mas_s3_desc",
+            "Broadcast Markdown release notes, polling updates, and update alerts directly to subscribed {Citizens} on Comm-Link."
+          ),
+        },
+        {
+          id: "role_mas_s4",
+          icon: t("icon_volunteer_activism", "volunteer_activism"),
+          title: t("dir_role_mas_s4_title", "0%-Cut Supporter Bridge & Static Manifests"),
+          desc: t(
+            "dir_role_mas_s4_desc",
+            "Connect Patreon, Ko-fi, or custom supporter links with 0% Sanctuary cut, and publish Tier 1–4 {mods} responsibly via decentralized Static Edge manifests."
           ),
         },
       ],
@@ -1126,26 +1162,44 @@ export function getDefaultDirectiveBuilderSchema(
       footerMeta: t("dir_proto_r3_tier", "Tier 3 • Spoke Moderator"),
       desc: t(
         "dir_proto_r3_scope",
-        "Unlocks Architect Console: Global Registry curation (3-Tile {Mod} Studio), Verified {Mason} & Scout Queue triage (min_scout_submissions), Global Conflict Matrix directives, Check Hash deep scan, Template Oversight, and claimable {Citizen} Support Desk tickets."
+        "Unlocks Architect Console (strictly isolated to Compliance Tier 0 Stable records): Registry curation, Verified {Mason} & Scout Queue triage, Conflict Matrix, Known Exception Rules, Template Oversight, and Claimable {Citizen} Support Desk tickets."
       ),
       status: "passkey",
       subCards: [
         {
           id: "role_arc_s1",
           icon: t("icon_fact_check", "fact_check"),
-          title: t("dir_role_arc_s1_title", "Global Registry & Conflict Matrix Curation"),
+          title: t("dir_role_arc_s1_title", "Tier-0 Global Registry & 3-Tile Studio Curation"),
           desc: t(
             "dir_role_arc_s1_desc",
-            "Approve Verified {Mason} & Scout submissions, author Severity 1–4 conflict directives, and run deep Check Hash heuristic verification."
+            "Maintain verified Tier-0 Nexus records, configure Parent/Child suite trees, Highlander Exclusive Slots, and multi-range game compatibility."
           ),
         },
         {
           id: "role_arc_s2",
-          icon: t("icon_support_agent", "support_agent"),
-          title: t("dir_role_arc_s2_title", "{Citizen} Support Desk & Diagnostic Dossiers"),
+          icon: t("icon_dynamic_feed", "dynamic_feed"),
+          title: t("dir_role_arc_s2_title", "Verified {Mason} & Scout Queue Triage"),
           desc: t(
             "dir_role_arc_s2_desc",
-            "Claim and resolve encrypted {Citizen} support tickets with PII-scrubbed crash logs and active loadout telemetry."
+            "Review unknown/unverified community submissions in Dedicated Queues, run Check Hash verification, and escalate Tier 1–4 flags cleanly to Oversight."
+          ),
+        },
+        {
+          id: "role_arc_s3",
+          icon: t("icon_warning_amber", "warning_amber"),
+          title: t("dir_role_arc_s3_title", "Conflict Matrix & Known Exception Rules"),
+          desc: t(
+            "dir_role_arc_s3_desc",
+            "Author Severity 1–4 conflict directives, review Workbench Templates, and publish database-driven exception diagnosis rules linked to Homestead {Lab} verdicts."
+          ),
+        },
+        {
+          id: "role_arc_s4",
+          icon: t("icon_support_agent", "support_agent"),
+          title: t("dir_role_arc_s4_title", "Claimable {Citizen} Support Desk & Escalation"),
+          desc: t(
+            "dir_role_arc_s4_desc",
+            "Claim and resolve Tier-0 {Citizen} support tickets with PII-scrubbed crash logs and Active {Blueprint} snapshots, escalating sensitive reports to Oversight."
           ),
         },
       ],
@@ -1159,26 +1213,44 @@ export function getDefaultDirectiveBuilderSchema(
       footerMeta: t("dir_proto_r4_tier", "Tier 4 • Spoke Security Admin"),
       desc: t(
         "dir_proto_r4_scope",
-        "Unlocks Oversight Command: Spoke Heuristic Signatures authoring (17+ Spoke rules), Compliance Tier 5 Malware flagging, Emergency DEFCON 1 Lockdown override, Game/DLC patch registration, Mass Batch Updater, {Mason} Linker, and Spoke Identity Matrix (up to Architect)."
+        "Unlocks Oversight Command: Tier 1–4 & Pending Flag Confirmation, Spoke Heuristic Signatures, Tier 5 Malware blacklisting, DEFCON 1 override, Game/DLC patch registration, Mass Batch Updater, {Mason} Linker, and Spoke Identity Matrix (up to Architect)."
       ),
       status: "passkey",
       subCards: [
         {
           id: "role_ovr_s1",
           icon: t("icon_security", "security"),
-          title: t("dir_role_ovr_s1_title", "Spoke Heuristics, Tier 5 Blacklists & DEFCON 1"),
+          title: t("dir_role_ovr_s1_title", "Tier 1–4 Compliance & Pending Flag Review"),
           desc: t(
             "dir_role_ovr_s1_desc",
-            "Author game-specific heuristic signatures, flag Tier 5 Malware DNA hashes, and trigger DEFCON 1 pre-patch shields."
+            "Exclusive reviewer for escalated Tier 1–4 records and Pending community flags—auto-hidden publicly until confirmed or cleared."
           ),
         },
         {
           id: "role_ovr_s2",
-          icon: t("icon_published_with_changes", "published_with_changes"),
-          title: t("dir_role_ovr_s2_title", "Engine Patch Registration & Mass Batch Triage"),
+          icon: t("icon_gpp_bad", "gpp_bad"),
+          title: t("dir_role_ovr_s2_title", "Spoke Heuristics, Tier 5 Blacklists & DEFCON 1"),
           desc: t(
             "dir_role_ovr_s2_desc",
-            "Register upstream game binary patches and DLC packs, and execute mass compatibility updates across the Spoke registry."
+            "Author game-specific antivirus signatures, blacklist Tier 5 Malware SHA-256 hashes, and engage DEFCON 1 pre-patch shields."
+          ),
+        },
+        {
+          id: "role_ovr_s3",
+          icon: t("icon_published_with_changes", "published_with_changes"),
+          title: t("dir_role_ovr_s3_title", "Game/DLC Patches, Mass Triage & {Mason} Linker"),
+          desc: t(
+            "dir_role_ovr_s3_desc",
+            "Register upstream engine versions and DLC catalogs, run multi-range compatibility mass updates, and claim-link creator registries."
+          ),
+        },
+        {
+          id: "role_ovr_s4",
+          icon: t("icon_admin_panel_settings", "admin_panel_settings"),
+          title: t("dir_role_ovr_s4_title", "Spoke Identity Governance & Audit Logs"),
+          desc: t(
+            "dir_role_ovr_s4_desc",
+            "Promote/demote roles up to Architect, handle escalated security tickets, and inspect read/export-only Spoke audit trails."
           ),
         },
       ],
@@ -1192,7 +1264,7 @@ export function getDefaultDirectiveBuilderSchema(
       footerMeta: t("dir_proto_r5_tier", "Tier 5 • Spoke Sovereign"),
       desc: t(
         "dir_proto_r5_scope",
-        "Unlocks Wayfinder Operations: Full Spoke Identity Matrix (up to Wayfinder), Spoke Setup & Maintenance, Partners Agreement & Compliance Protocol covenants, unilateral Cut the Cord severance, Master Schema & Lexicon Studios, Non-Custodial 0%-Cut Donations, and The Dispatch."
+        "Unlocks Wayfinder Operations: Full Spoke Identity Matrix (up to Wayfinder), secret-free SANCTUARY-UPLINK:// bundle export & 1-click Gateway Token rotation, unilateral Cut the Cord severance, Master Schema & Lexicon Studios, 0%-Cut Donations, and The Dispatch."
       ),
       status: "passkey",
       subCards: [
@@ -1202,16 +1274,43 @@ export function getDefaultDirectiveBuilderSchema(
           title: t("dir_role_way_s1_title", "Spoke Sovereignty, Covenants & Cut the Cord"),
           desc: t(
             "dir_role_way_s1_desc",
-            "Rotate Spoke Supabase keys, inspect the Partners Agreement & Compliance Protocol, configure 0%-cut community donations, or sever from the Hub at any time."
+            "Rotate Spoke Gateway Tokens in 1 click, export secret-free SANCTUARY-UPLINK:// bundles, inspect Partner Covenants, or trigger irreversible high-friction severance from the Core Hub."
           ),
         },
         {
           id: "role_way_s2",
           icon: t("icon_schema", "schema"),
-          title: t("dir_role_way_s2_title", "Master Schema Studio & Spoke Aesthetics"),
+          title: t("dir_role_way_s2_title", "Master Schema Studio & Fork Branding"),
           desc: t(
             "dir_role_way_s2_desc",
-            "Customize your game's Master Schema JSON (paths, install routes, config watcher, mod categories) and publish Spoke Lexicons & Chameleons."
+            "Configure paths, binary headers, install routes, default Chameleon themes, Title Area headers (Standalone mode), and Spoke Lexicon packs."
+          ),
+        },
+        {
+          id: "role_way_s3",
+          icon: t("icon_manage_accounts", "manage_accounts"),
+          title: t("dir_role_way_s3_title", "Full Identity Matrix & Tier 1–4 Authority"),
+          desc: t(
+            "dir_role_way_s3_desc",
+            "Appoint Oversight admins and peer Wayfinders, confirm or dismiss compliance flags, and run in-hub Mass Update compatibility sweeps."
+          ),
+        },
+        {
+          id: "role_way_s4",
+          icon: t("icon_volunteer_activism", "volunteer_activism"),
+          title: t("dir_role_way_s4_title", "0%-Cut Donations, Cost Ledgers & The Dispatch"),
+          desc: t(
+            "dir_role_way_s4_desc",
+            "Publish transparent monthly infrastructure cost ledgers, collect 100% Wayfinder-owned donations, and broadcast top-banner polls."
+          ),
+        },
+        {
+          id: "role_way_s5",
+          icon: t("icon_support", "support"),
+          title: t("dir_role_way_s5_title", "Wayfinder Audit Trails & Keepers Uplink"),
+          desc: t(
+            "dir_role_way_s5_desc",
+            "Audit every Spoke moderation action chronologically and communicate directly with Core Keepers via Wayfinder Support."
           ),
         },
       ],
@@ -1225,26 +1324,44 @@ export function getDefaultDirectiveBuilderSchema(
       footerMeta: t("dir_proto_r6_tier", "Tier 6 • Core OS Hub"),
       desc: t(
         "dir_proto_r6_scope",
-        "Unlocks Keepers Core (accessible on Landing Page & all workspaces): Partner Spoke Applications & Turnkey SANCTUARY-UPLINK:// Onboarding, Core Heuristics (21+ signatures) & Threat Manifests, Master Game Schemas, Global Lexicons/Chameleons, Bilateral Codebase ↔ Cloud Directives Sync, and Global Audit Logs."
+        "Unlocks Keepers Core (accessible on Landing Page & all workspaces): Turnkey Spoke Onboarding, Core Heuristics, Threat Manifests, Master Game Schemas, Global Lexicons/Chameleons, Bilateral Directives Sync, OS Bug Reports, and Global Audit Logs."
       ),
       status: "passkey",
       subCards: [
         {
           id: "role_kpr_s1",
-          icon: t("icon_verified_user", "verified_user"),
-          title: t("dir_role_kpr_s1_title", "Core Heuristics (21+ Rules) & Threat Manifests"),
+          icon: t("icon_dns", "dns"),
+          title: t("dir_role_kpr_s1_title", "Partner Spoke Onboarding & Dev Cloaking"),
           desc: t(
             "dir_role_kpr_s1_desc",
-            "Maintain global antivirus signatures (keeper_heuristic_signatures) and triage Zero-PII Threat Manifest reports submitted from quarantined files."
+            "Review Partner Spoke Applications, validate schema readiness, toggle Keepers-Only dev workspaces, and oversee Federation uptime."
           ),
         },
         {
           id: "role_kpr_s2",
-          icon: t("icon_sync", "sync"),
-          title: t("dir_role_kpr_s2_title", "Bilateral Codebase ↔ Hub Sync & Partner Onboarding"),
+          icon: t("icon_verified_user", "verified_user"),
+          title: t("dir_role_kpr_s2_title", "Core Heuristics & Threat Manifests"),
           desc: t(
             "dir_role_kpr_s2_desc",
-            "Sync Directives, Legal Covenants, Schemas, and Lexicons between the codebase offline baseline and the live Cloud Hub database without app rebuilds."
+            "Maintain global malware regex signatures (keeper_heuristic_signatures) and triage Zero-PII Threat Manifest submissions from quarantined files."
+          ),
+        },
+        {
+          id: "role_kpr_s3",
+          icon: t("icon_sync", "sync"),
+          title: t("dir_role_kpr_s3_title", "Bilateral Directives, Schemas & Lexicons"),
+          desc: t(
+            "dir_role_kpr_s3_desc",
+            "Author and sync System Directives, Legal Covenants, Default Schemas, Core Aesthetics, and Global Lexicon baselines without app rebuilds."
+          ),
+        },
+        {
+          id: "role_kpr_s4",
+          icon: t("icon_bug_report", "bug_report"),
+          title: t("dir_role_kpr_s4_title", "OS Bug Reports (`keeper_tickets`) & Releases"),
+          desc: t(
+            "dir_role_kpr_s4_desc",
+            "Triage cross-platform OS bug reports (100% free of Spoke mod data/locks), publish Foundry News, and inspect immutable Global Audit Logs."
           ),
         },
       ],
@@ -1272,17 +1389,17 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_space_dashboard", "space_dashboard"),
               overline: "STAGE 1 OF 10",
               badge: t("dir_walk_s1_short", "1. Shell & Bars"),
-              title: t("dir_walk_s1_title", "Global Shell: Sidebar, Top Pill & Dock"),
+              title: t("dir_walk_s1_title", "Global Shell: Sidebar, Top Control Capsule & Telemetry Toast"),
               footerMeta: t("dir_walk_s1_sub", "Persistent Glass Frame & Context-Aware Navigation"),
               desc: t(
                 "dir_walk_s1_desc",
-                "Sanctuary OS is framed by three persistent Liquid Glass bars that adapt automatically between the Foundry Landing Page and your mounted Game Workspaces."
+                "Sanctuary OS is framed by persistent Liquid Glass regions that adapt automatically between the Foundry Landing Page and your mounted Game Workspaces."
               ),
               subCards: [
                 {
                   id: "walk_1_c1",
                   icon: t("icon_menu", "menu"),
-                  title: t("dir_walk_s1_c1_name", "Left Sidebar (Context-Aware)"),
+                  title: t("dir_walk_s1_c1_name", "Left Navigation Sidebar"),
                   desc: t(
                     "dir_walk_s1_c1_desc",
                     "On the Landing Page, scrolls to Web sections and shows Keepers Core for Keepers. Inside a game workspace, switches between the 9 {Citizen} modules, unlocked Command Hubs, and the Quick Launch button."
@@ -1291,19 +1408,19 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "walk_1_c2",
                   icon: t("icon_sports_esports", "sports_esports"),
-                  title: t("dir_walk_s1_c2_name", "Top Center Workspace Pill"),
+                  title: t("dir_walk_s1_c2_name", "Top-Right Control Capsule, Jump Gate & Deck Overdrive"),
                   desc: t(
                     "dir_walk_s1_c2_desc",
-                    "Click the game pill in the top TitleBar to switch active games, mount a new workspace, or return to the Sanctuary Foundry Landing Page."
+                    "Houses the Active Workspace Selector, System Queues & Utilities, Notification Center, Jump Gate (Ctrl+K / Cmd+K), and 7-Domain {Settings} inside one unified glass capsule—paired with the Deck Overdrive controller engine."
                   ),
                 },
                 {
                   id: "walk_1_c3",
-                  icon: t("icon_dock_to_bottom", "dock_to_bottom"),
-                  title: t("dir_walk_s1_c3_name", "Bottom Morphing Status Pill"),
+                  icon: t("icon_monitoring", "monitoring"),
+                  title: t("dir_walk_s1_c3_name", "Live Telemetry Toast & System Log History"),
                   desc: t(
                     "dir_walk_s1_c3_desc",
-                    "Houses 1-Click Radar Sweep, {Vault} Lockdown, {Blueprint} Quick-Swap, Side Browser, Notifications, and live alert counters. Auto-tucks when SidePanels open."
+                    "Surfaces a transient bottom-right telemetry toast during active scans or alerts—opening System Log History on click—alongside Command Center quick actions for Radar Sweep and {Vault} Lockdown."
                   ),
                 },
               ],
@@ -1354,20 +1471,20 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_inventory_2", "inventory_2"),
               overline: "STAGE 3 OF 10",
               badge: t("dir_walk_s3_short", "3. {Vault} & Cards"),
-              title: t("dir_walk_s3_title", "Your {Vault}, {Mod} Cards & ActionPill"),
+              title: t("dir_walk_s3_title", "Your {Vault}, {Mod} Cards & Unified Filter Bar"),
               footerMeta: t("dir_walk_s3_sub", "Drag-and-Drop Ingestion, Suite Grouping & Dossiers"),
               desc: t(
                 "dir_walk_s3_desc",
-                "Every {mod} you drop into Sanctuary OS is fingerprinted with SHA-256, scanned by the Universal 21+17 Heuristic Engine, and indexed in Your {Vault}."
+                "Every {mod} you drop into Sanctuary OS is fingerprinted with SHA-256, scanned by the Bytecode Hound Core + Spoke Heuristic Engine, and indexed in Your {Vault}."
               ),
               subCards: [
                 {
                   id: "walk_3_c1",
                   icon: t("icon_tune", "tune"),
-                  title: t("dir_walk_s3_c1_name", "ActionPill & Filters Popover"),
+                  title: t("dir_walk_s3_c1_name", "Unified Search & Filters Bar"),
                   desc: t(
                     "dir_walk_s3_c1_desc",
-                    "Instant search bar, Filters (tune) popover for Game Version / Eligible-Only filtering, sort order, and bulk selection actions."
+                    "Instant search bar, Filters popover for Game Version and Eligible-Only filtering, sort order, and bulk selection actions."
                   ),
                 },
                 {
@@ -1382,7 +1499,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "walk_3_c3",
                   icon: t("icon_menu_book", "menu_book"),
-                  title: t("dir_walk_s3_c3_name", "{Mod} Dossier SidePanel"),
+                  title: t("dir_walk_s3_c3_name", "{Mod} Dossier Drawer"),
                   desc: t(
                     "dir_walk_s3_c3_desc",
                     "Click any card to open its right-hand Dossier: edit custom local names/URLs/tags, bind a static .sanctuary.manifest.json / catalog.json URL, or inspect module files."
@@ -1408,7 +1525,7 @@ export function getDefaultDirectiveBuilderSchema(
                   title: t("dir_walk_s4_c1_name", "{Blueprint} Hot-Swap Dropdown"),
                   desc: t(
                     "dir_walk_s4_c1_desc",
-                    "Switch between playstyles (e.g. Realism Save, Occult Save, Patch Testing) directly from the {Vault} header or Bottom Dock."
+                    "Switch between playstyles (e.g. Realism Run, Overhaul Profile, Patch Testing) directly from the {Vault} header, {Blueprints} view, or Top-Right Control Capsule."
                   ),
                 },
                 {
@@ -1436,17 +1553,17 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_radar", "radar"),
               overline: "STAGE 5 OF 10",
               badge: t("dir_walk_s5_short", "5. Radar & Lab"),
-              title: t("dir_walk_s5_title", "Conflict Radar 2.0 & Homestead Lab"),
-              footerMeta: t("dir_walk_s5_sub", "5-Tier Severity Matrix, Load Order Engine & 100% Nuke Sandbox"),
+              title: t("dir_walk_s5_title", "Conflict Radar 2.0 & Groundhog Sandbox"),
+              footerMeta: t("dir_walk_s5_sub", "5-Tier Severity Matrix, Priority Compiler & Isolated Sandbox"),
               desc: t(
                 "dir_walk_s5_desc",
-                "Resolve mod collisions across a 5-Tier Severity Matrix, set load order winners in one click across game-agnostic Priority Tiers, or isolate suspect {mods} in a crash-monitored sandbox."
+                "Resolve mod collisions across a 5-Tier Severity Matrix, set load order winners in one click via Priority Compiler, or isolate suspect {mods} inside Groundhog Sandbox."
               ),
               subCards: [
                 {
                   id: "walk_5_c1",
                   icon: t("icon_emoji_events", "emoji_events"),
-                  title: t("dir_walk_s5_c1_name", "5-Tier Radar & 1-Click Winner Resolution"),
+                  title: t("dir_walk_s5_c1_name", "5-Tier Severity Radar & 1-Click Winner"),
                   desc: t(
                     "dir_walk_s5_c1_desc",
                     "Classifies collisions across Severity 1–5 and lets you click 'Set Winner' in one click to promote your chosen {mod} into an elevated Priority Tier."
@@ -1455,7 +1572,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "walk_5_c2",
                   icon: t("icon_rule", "rule"),
-                  title: t("dir_walk_s5_c2_name", "Strategy-Aware Priority Tiers & Load Rules"),
+                  title: t("dir_walk_s5_c2_name", "Priority Compiler & Loop Breaker"),
                   desc: t(
                     "dir_walk_s5_c2_desc",
                     "Assign game-agnostic Priority Tiers (Standard Load to Final Override), build Must Load After/Before rules with 1-click Break Loop, and adapt automatically between folder-tier and sequential load order engines."
@@ -1464,7 +1581,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "walk_5_c3",
                   icon: t("icon_science", "science"),
-                  title: t("dir_walk_s5_c3_name", "Homestead 100% Nuke & Save Airgap"),
+                  title: t("dir_walk_s5_c3_name", "Groundhog Sandbox & Save Airgap"),
                   desc: t(
                     "dir_walk_s5_c3_desc",
                     "Snapshots save_airgap_targets (saves & user profiles), boots with only the test {mod} (or 1v1 pair), harvests crash logs, and restores your saves."
@@ -1477,8 +1594,8 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_construction", "construction"),
               overline: "STAGE 6 OF 10",
               badge: t("dir_walk_s6_short", "6. IDE & Backups"),
-              title: t("dir_walk_s6_title", "Workbench, Config Watcher & {Backups}"),
-              footerMeta: t("dir_walk_s6_sub", "2-Column Visual Config Studio & Hardlink Backups"),
+              title: t("dir_walk_s6_title", "Live-Wire Workbench & {Backups}"),
+              footerMeta: t("dir_walk_s6_sub", "Visual Config Sync, Live-Wire Diff & Hardlink Snapshots"),
               desc: t(
                 "dir_walk_s6_desc",
                 "Edit 430+ setting {mod} config files visually at 60 FPS, sync live in-game config writes back to the {Vault}, and safeguard saves with hardlink snapshots."
@@ -1487,7 +1604,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "walk_6_c1",
                   icon: t("icon_tune", "tune"),
-                  title: t("dir_walk_s6_c1_name", "2-Column Visual Config Editor & Watcher"),
+                  title: t("dir_walk_s6_c1_name", "Live-Wire Config Watcher"),
                   desc: t(
                     "dir_walk_s6_c1_desc",
                     "Category Pill Bar, dual Min/Max range steppers, Undo/Reset, plus the Dynamic Config Watcher that syncs in-game .cfg/.ini/.json edits back to your {Vault}."
@@ -1496,7 +1613,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "walk_6_c2",
                   icon: t("icon_compare_arrows", "compare_arrows"),
-                  title: t("dir_walk_s6_c2_name", "2-Column Timeline & Diff Panel"),
+                  title: t("dir_walk_s6_c2_name", "Timeline & Live-Wire Diff"),
                   desc: t(
                     "dir_walk_s6_c2_desc",
                     "Compare live unsaved edits or historical snapshots side-by-side in Visual Diff cards or Raw Monaco Code Diff."
@@ -1505,7 +1622,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "walk_6_c3",
                   icon: t("icon_history", "history"),
-                  title: t("dir_walk_s6_c3_name", "{Backups} (World & Engine)"),
+                  title: t("dir_walk_s6_c3_name", "{Backups} (World State & Engine Core)"),
                   desc: t(
                     "dir_walk_s6_c3_desc",
                     "Uses OS hardlinks so unchanged files consume 0 extra bytes, paired with differential rollback restoration."
@@ -1518,17 +1635,17 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_shield", "shield"),
               overline: "STAGE 7 OF 10",
               badge: t("dir_walk_s7_short", "7. Hubs & Security"),
-              title: t("dir_walk_s7_title", "Open Workshop, Passkeys & Universal AV Lockdown"),
-              footerMeta: t("dir_walk_s7_sub", "21+17 Heuristic Rules, FIDO2 Passkeys & Quarantine Shred"),
+              title: t("dir_walk_s7_title", "Zero-Knowledge Seal & Bytecode Hound"),
+              footerMeta: t("dir_walk_s7_sub", "Bytecode Hound, FIDO2 Passkeys & Zero-Choice Lockdown"),
               desc: t(
                 "dir_walk_s7_desc",
-                "Every {Citizen} inherits the local {Mason} Workshop, while hardware FIDO2 Passkeys and the Universal Multi-Format Heuristic Scanner protect the OS."
+                "Every {Citizen} inherits the local Creator Airlock, while hardware FIDO2 Passkeys and the Bytecode Hound Heuristic Scanner protect the OS."
               ),
               subCards: [
                 {
                   id: "walk_7_c1",
                   icon: t("icon_handyman", "handyman"),
-                  title: t("dir_walk_s7_c1_name", "Open {Mason} Workshop ({Citizen} Tier)"),
+                  title: t("dir_walk_s7_c1_name", "Creator Airlock ({Citizen} Tier)"),
                   desc: t(
                     "dir_walk_s7_c1_desc",
                     "All {Citizens} can use Dev Sandbox, {Mason} IDE, 3-Tile {Mod} Studio, Theme Forge (6 Liquid Glass sliders), and Static Edge Release Packaging."
@@ -1537,19 +1654,19 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "walk_7_c2",
                   icon: t("icon_passkey", "passkey"),
-                  title: t("dir_walk_s7_c2_name", "FIDO2 Passkey & TOTP {Vault}"),
+                  title: t("dir_walk_s7_c2_name", "Gatekeeper Clearance & FIDO2 {Vault}"),
                   desc: t(
                     "dir_walk_s7_c2_desc",
-                    "Elevated clearances (Verified {Mason} through Keeper) bind Windows Hello, Touch ID, or YubiKey tokens inside the right-hand Security {Vault} SidePanel."
+                    "Elevated clearances (Verified {Mason} through Keeper) bind Windows Hello, Touch ID, or YubiKey tokens inside the right-hand Security {Vault} drawer."
                   ),
                 },
                 {
                   id: "walk_7_c3",
                   icon: t("icon_gpp_bad", "gpp_bad"),
-                  title: t("dir_walk_s7_c3_name", "Universal AV Quarantine & Threat Manifest"),
+                  title: t("dir_walk_s7_c3_name", "Bytecode Hound & Zero-Choice Lockdown"),
                   desc: t(
                     "dir_walk_s7_c3_desc",
-                    "Decompresses Zlib/Zstd binary module streams and Base64/Hex strings against 21 Core + 17 Spoke rules, locking the OS with Move-mode source disposition and Secure Shred."
+                    "Decompresses Zlib/Zstd binary module streams and Base64/Hex strings against Core + Spoke rules, locking the OS with Move-mode source disposition and Secure Shred."
                   ),
                 },
               ],
@@ -1559,17 +1676,17 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_cloud_upload", "cloud_upload"),
               overline: "STAGE 8 OF 10",
               badge: t("dir_walk_s8_short", "8. Static Edge"),
-              title: t("dir_walk_s8_title", "Decentralized Static Edge Polling & 1-Click Auto-Push"),
+              title: t("dir_walk_s8_title", "Edge Pulse & Static Manifest Engine"),
               footerMeta: t("dir_walk_s8_sub", ".sanctuary.manifest.json • catalog.json • Lineage Hash Rollover"),
               desc: t(
                 "dir_walk_s8_desc",
-                "Publish {mod} updates without a central server using static .sanctuary.manifest.json or multi-{mod} catalog.json endpoints with 1-click OS Auto-Push and automatic SHA-256 lineage rollover."
+                "Publish {mod} updates without a central server using static .sanctuary.manifest.json or multi-{mod} catalog.json endpoints with 1-click Edge Direct Push and automatic SHA-256 lineage rollover."
               ),
               subCards: [
                 {
                   id: "walk_8_c1",
                   icon: t("icon_rocket_launch", "rocket_launch"),
-                  title: t("dir_walk_s8_c1_name", "6-Provider 1-Click OS Auto-Push"),
+                  title: t("dir_walk_s8_c1_name", "Edge Direct Push (6 Providers)"),
                   desc: t(
                     "dir_walk_s8_c1_desc",
                     "Push .sanctuary.manifest.json or catalog.json directly from your PC to GitHub Repo/Cloudflare Pages, GitHub Gist, GitLab/Codeberg, Neocities, WebDAV, or a Local Synced Folder."
@@ -1600,17 +1717,17 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_schema", "schema"),
               overline: "STAGE 9 OF 10",
               badge: t("dir_walk_s9_short", "9. Schema & Lexicon"),
-              title: t("dir_walk_s9_title", "Master Schema Studio & Lexicon Terminology Studio"),
+              title: t("dir_walk_s9_title", "Universal Master Schema & Code-Switch"),
               footerMeta: t("dir_walk_s9_sub", "7 Engine Presets • 21 {Glossary} Tokens • Guided Icon Builder"),
               desc: t(
                 "dir_walk_s9_desc",
-                "Configure any game engine across Windows and macOS with the 4-Tab Master Schema Visual Studio, and hot-swap all 1,700+ OS strings and icons with the Lexicon Studio."
+                "Configure any game engine across Windows, macOS, and Linux / SteamOS with Schema Forge, and hot-swap all 1,700+ OS strings and icons with Code-Switch."
               ),
               subCards: [
                 {
                   id: "walk_9_c1",
                   icon: t("icon_schema", "schema"),
-                  title: t("dir_walk_s9_c1_name", "7 Engine Architecture Presets & Routes"),
+                  title: t("dir_walk_s9_c1_name", "7 Engine Presets & Schema Forge"),
                   desc: t(
                     "dir_walk_s9_c1_desc",
                     "Load built-in engine architecture presets—complete with declarative install_routes, load-order strategies, and mod_categories—or author a custom Universal schema."
@@ -1622,13 +1739,13 @@ export function getDefaultDirectiveBuilderSchema(
                   title: t("dir_walk_s9_c2_name", "21 Dynamic {Glossary} Tokens & Parity Alert"),
                   desc: t(
                     "dir_walk_s9_c2_desc",
-                    "Editing {Mod}, {Vault}, or {Blueprint} updates 1,700+ strings with automatic Title/lower/UPPER casing, a/an grammar, and livecloud updates without rebuilding the app."
+                    "Editing {Mod}, {Vault}, or {Blueprint} updates 1,700+ strings with automatic Title/lower/UPPER casing, a/an grammar, and live cloud updates without rebuilding the app."
                   ),
                 },
                 {
                   id: "walk_9_c3",
                   icon: t("icon_Apps", "apps"),
-                  title: t("dir_walk_s9_c3_name", "Guided Icon Override Builder & Codex Guides"),
+                  title: t("dir_walk_s9_c3_name", "Lexicon Codex & Icon Override Studio"),
                   desc: t(
                     "dir_walk_s9_c3_desc",
                     "Search and remap any OS Material Symbol icon visually with side-by-side Default → New glyph previews, or open the interactive Schema & Lexicon Codex."
@@ -1641,7 +1758,7 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_handshake", "handshake"),
               overline: "STAGE 10 OF 10",
               badge: t("dir_walk_s10_short", "10. Support & Partners"),
-              title: t("dir_walk_s10_title", "Supporter Pipeline, Core Feedback & Partner Spoke Onboarding"),
+              title: t("dir_walk_s10_title", "Sovereign Covenants & Partner Spokes"),
               footerMeta: t("dir_walk_s10_sub", "$5 = +30 Days Dev Builds • 0% Partner Cut • Sovereign Covenants"),
               desc: t(
                 "dir_walk_s10_desc",
@@ -1744,7 +1861,7 @@ export function getDefaultDirectiveBuilderSchema(
                 "Your high-level glassmorphic mission control. Monitors the health of your active {Blueprint}, surfaces {mason} updates and system dispatches, and provides 1-click access to Radar Sweeps and {Vault} Lockdown."
               ),
               tip: g(
-                "Use the global SystemStatusBar at the bottom of the window to trigger a Radar Sweep or instant {Vault} Lockdown from any screen in the OS."
+                "Use Command Center quick actions or the Top-Right Control Capsule to trigger a Radar Sweep, inspect System Queues, or engage instant {Vault} Lockdown."
               ),
               subCards: [
                 {
@@ -1786,10 +1903,10 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_inventory_2", "inventory_2"),
               overline: "MODULE 3 OF 12",
               badge: g("3. Your {Vault}"),
-              title: g("Your {Vault} & Symlink Airgap 2.5"),
+              title: g("Symlink Airgap & Your {Vault}"),
               footerMeta: g("ISOLATED STORAGE • SHA-256 DNA"),
               desc: g(
-                "Your local {vault} and secured asset bunker. The game engine never touches your {Vault} directly—files are ingested, hashed via SHA-256, scanned by 21+17 heuristics, and projected via symlinks."
+                "Your local {vault} and secured asset bunker. The game engine never touches your {Vault} directly—files are ingested, hashed via SHA-256, scanned by Bytecode Hound, and projected via symlinks."
               ),
               tip: g(
                 "Your Local {Mod} Dossier is decoupled from the cloud—you can freely customize {mod} titles, creator URLs, cover images, and tags locally."
@@ -1806,7 +1923,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "mod_3_c2",
                   icon: t("icon_cloud_done", "cloud_done"),
-                  title: g("Decentralized Static Edge (.sanctuary.override.json)"),
+                  title: g("Edge Pulse (.sanctuary.override.json)"),
                   desc: g(
                     "When a {mod} archive includes a {mason}'s .sanctuary.override.json, Sanctuary binds its SHA-256 lineage to the {mason}'s static .sanctuary.manifest.json or catalog.json URL for serverless update alerts."
                   ),
@@ -1814,9 +1931,9 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "mod_3_c3",
                   icon: t("icon_delete_sweep", "delete_sweep"),
-                  title: g("Delete Cascade (Deep Yeet 2.0)"),
+                  title: g("Deep Yeet"),
                   desc: g(
-                    "Removing a core master library (such as XML Injector) automatically alerts you and queues all dependent add-ons so your loadout never breaks."
+                    "Removing a core master library (such as a shared framework) automatically alerts you and queues all dependent add-ons so your loadout never breaks."
                   ),
                 },
                 {
@@ -1977,14 +2094,14 @@ export function getDefaultDirectiveBuilderSchema(
               id: "mod_7",
               icon: t("icon_science", "science"),
               overline: "MODULE 7 OF 12",
-              badge: g("7. Homestead Lab"),
-              title: g("Homestead Lab & 100% Nuke Isolation"),
-              footerMeta: g("AIRGAPPED SANDBOX • LIVE CRASH CAPTURE"),
+              badge: g("7. Sandbox"),
+              title: g("Groundhog Sandbox"),
+              footerMeta: g("AIRGAPPED SANDBOX • LIVE CRASH AUTOPSY"),
               desc: g(
-                "Test unverified {mods} or pit two conflicting {mods} against each other in an airgapped sandbox without risking your real save files or main loadout."
+                "Test unverified {mods} or pit two conflicting {mods} against each other inside an airgapped sandbox without risking your real save files or main loadout."
               ),
               tip: g(
-                "Passing a timed Homestead Lab playtest and saving in-game automatically verifies your Sandbox {mod} for publishing!"
+                "Passing a timed Groundhog Sandbox playtest and saving in-game automatically verifies your Sandbox {mod} for publishing!"
               ),
               subCards: [
                 {
@@ -1998,7 +2115,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "mod_7_c2",
                   icon: t("icon_shield", "shield"),
-                  title: g("Hardware-Airgapped Lab Test Save"),
+                  title: g("Homestead Save Airgap"),
                   desc: g(
                     "Swaps your live user saves directories with a dedicated Lab Test Save slot during testing so your primary save slots can never be corrupted."
                   ),
@@ -2006,7 +2123,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "mod_7_c3",
                   icon: t("icon_bug_report", "bug_report"),
-                  title: g("Real-Time Exception & Crash Monitor"),
+                  title: g("Crash Autopsy Monitor"),
                   desc: g(
                     "Purges stale logs before launch and watches for engine exception and crash output in real time, matching against community diagnostic signatures."
                   ),
@@ -2026,8 +2143,8 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_history", "history"),
               overline: "MODULE 8 OF 12",
               badge: g("8. {Backups} & IDE"),
-              title: g("{Backups} & {Citizen}'s Workbench"),
-              footerMeta: g("HARDLINK SNAPSHOTS • VISUAL CONFIG IDE"),
+              title: g("{Backups} & Live-Wire Workbench"),
+              footerMeta: g("HARDLINK SNAPSHOTS • LIVE-WIRE DIFF"),
               desc: g(
                 "Protect your saves and game binaries with zero-duplication hardlink backups, and fine-tune {mod} configuration files using visual sliders or the built-in Monaco IDE."
               ),
@@ -2056,13 +2173,13 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_settings_backup_restore", "settings_backup_restore"),
                   title: g("Differential Rollback & Surgical Extraction"),
                   desc: g(
-                    "Restore an entire snapshot via fast differential sync, or browse inside any {Backups} to surgically extract a single household save slot."
+                    "Restore an entire snapshot via fast differential sync, or browse inside any {Backups} to surgically extract an individual save slot."
                   ),
                 },
                 {
                   id: "mod_8_c4",
                   icon: t("icon_construction", "construction"),
-                  title: g("{Citizen}'s Workbench & Open {Mason} Workshop"),
+                  title: g("Live-Wire Workbench & Creator Airlock"),
                   desc: g(
                     "Edit {mod} .json/.ini/.cfg files with safe visual toggles and sliders synced live with a Monaco Raw Code Diff editor—plus full local Sandbox & Export Release tools for all {Citizens}."
                   ),
@@ -2075,7 +2192,7 @@ export function getDefaultDirectiveBuilderSchema(
               overline: "MODULE 9 OF 12",
               badge: g("9. Themes & Security"),
               title: g("Chameleons, Lexicons & Malware Defense"),
-              footerMeta: g("LIQUID GLASS V3 • UNIVERSAL 21+17 HEURISTICS"),
+              footerMeta: g("LIQUID GLASS V3 • CORE + SPOKE HEURISTICS"),
               desc: g(
                 "Personalize every pixel and word of Sanctuary OS while staying protected by cryptographic SHA-256 DNA blacklists and the multi-format Rust Heuristic Scanner."
               ),
@@ -2086,7 +2203,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "mod_9_c1",
                   icon: t("icon_palette", "palette"),
-                  title: g("Chameleon Theme Forge & Liquid Glass"),
+                  title: g("Liquid Glass Optics"),
                   desc: g(
                     "Switch between Dark and Light presets, download community Chameleons, or build your own in Theme Forge with live refractive saturation, rim light, and specular glare sliders."
                   ),
@@ -2094,23 +2211,23 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "mod_9_c2",
                   icon: t("icon_translate", "translate"),
-                  title: g("Lexicon Protocol (Word-as-a-Service)"),
+                  title: g("Code-Switch"),
                   desc: g(
-                    "Hot-swap the entire OS vocabulary between Standard Technical English, Sanctuary Sci-Fi Cyberpunk, Sims-Friendly Casual, or Simlish."
+                    "Hot-swap the entire OS vocabulary between Standard Technical English, Sanctuary Sci-Fi Cyberpunk, Community Casual, or Spoke Dialect Packs."
                   ),
                 },
                 {
                   id: "mod_9_c3",
                   icon: t("icon_security", "security"),
-                  title: g("Universal 21+17 Multi-Format Heuristic Scanner"),
+                  title: g("Bytecode Hound"),
                   desc: g(
-                    "Combines 21 Sanctuary Foundry Core Heuristics and 17 Spoke Heuristics with Zlib/Zstd binary stream decompression to inspect .zip, .mod, .bin, .dll, .exe, .lua, and .pyc files."
+                    "Combines Core Heuristics and Spoke Heuristics with Zlib/Zstd binary stream decompression to inspect .zip, .mod, .bin, .dll, .exe, and compiled script bytecode."
                   ),
                 },
                 {
                   id: "mod_9_c4",
                   icon: t("icon_gpp_bad", "gpp_bad"),
-                  title: g("Full-OS Malware Lockdown & Secure Shred"),
+                  title: g("Zero-Choice Lockdown"),
                   desc: g(
                     "If Tier 5 Malware is detected, Sanctuary isolates the file in Quarantine, locks the workspace shell, displays the exact trigger & source in the side panel, and overwrites the file with zeros upon your Secure Shred signature."
                   ),
@@ -2121,11 +2238,11 @@ export function getDefaultDirectiveBuilderSchema(
               id: "mod_10",
               icon: t("icon_cloud_upload", "cloud_upload"),
               overline: "MODULE 10 OF 12",
-              badge: g("10. Static Edge"),
-              title: g("Decentralized Static Edge Release & Catalog Engine"),
-              footerMeta: g(".SANCTUARY.MANIFEST.JSON • CATALOG.JSON • 6-PROVIDER AUTO-PUSH"),
+              badge: g("10. Edge Pulse"),
+              title: g("Edge Pulse & Catalog Distribution"),
+              footerMeta: g(".SANCTUARY.MANIFEST.JSON • CATALOG.JSON • EDGE DIRECT PUSH"),
               desc: g(
-                "Zero-server update distribution for independent {Masons} and Tier 1–4 creators—supporting 1-click direct push, automatic SHA-256 lineage rollover, and in-place {Vault} upgrades."
+                "Zero-server update distribution for independent {Masons} and Tier 1–4 creators—supporting 1-click Edge Direct Push, automatic SHA-256 lineage rollover, and in-place {Vault} upgrades."
               ),
               tip: g(
                 "Use a single catalog.json URL across your entire {mod} portfolio so {Citizens} receive update pings for every {mod} from one static file."
@@ -2134,7 +2251,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "mod_10_c1",
                   icon: t("icon_cloud_upload", "cloud_upload"),
-                  title: g("6-Provider 1-Click Direct Push"),
+                  title: g("Edge Direct Push (6 Providers)"),
                   desc: g(
                     "Push .sanctuary.manifest.json or catalog.json directly from the Rust backend to GitHub, GitHub Gist, GitLab/Codeberg, Neocities, WebDAV, or a Local Synced Folder."
                   ),
@@ -2170,10 +2287,10 @@ export function getDefaultDirectiveBuilderSchema(
               icon: t("icon_schema", "schema"),
               overline: "MODULE 11 OF 12",
               badge: g("11. Schema & Lexicon"),
-              title: g("Master Schema Studio & Lexicon Terminology Studio"),
+              title: g("Universal Master Schema & Code-Switch"),
               footerMeta: g("7 ENGINE PRESETS • 21 {GLOSSARY} TOKENS • ICON OVERRIDES"),
               desc: g(
-                "Visual IDEs for engineering cross-platform game schemas (Windows, macOS & Linux / SteamOS) and hot-swapping all 1,700+ OS localization strings, dynamic glossary tokens, and Material icons."
+                "Schema Forge & Lexicon Studio for engineering cross-platform game schemas (Windows, macOS & Linux / SteamOS) and hot-swapping all 1,700+ OS localization strings, dynamic glossary tokens, and Material icons."
               ),
               tip: g(
                 "Click the book icon (Schema Codex / Lexicon Codex) in the studio header at any time for an interactive field-by-field reference."
@@ -2182,7 +2299,7 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "mod_11_c1",
                   icon: t("icon_terminal", "terminal"),
-                  title: g("Cross-Platform Binaries, Routes & Config Watcher"),
+                  title: g("Schema Forge (Routes & Config Watcher)"),
                   desc: g(
                     "Map Windows (.exe), macOS (.app), and Linux / SteamOS (Proton compatdata) paths, custom secondary install_routes (.dll, .asi, .lua), and config_extensions for live in-game config syncing."
                   ),
@@ -2240,7 +2357,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_link_off", "link_off"),
                   title: g("Unilateral 'Cut the Cord' Severance"),
                   desc: g(
-                    "Double-click Cut the Cord in Wayfinder Hub to scrub your service key from the Hub while keeping 100% of your community's 38-table Supabase database."
+                    "Complete the phrase-locked Cut the Cord safeguard in Wayfinder Operations to revoke all Spoke Gateway Tokens and purge your sealed Vault credential from the Hub while keeping 100% of your community's 52-table Supabase database."
                   ),
                 },
                 {
@@ -2282,20 +2399,20 @@ export function getDefaultDirectiveBuilderSchema(
         overline: g("PHASE 14 (V0.6.0) • NOVEMBER 2026 — ACTIVE ERA"),
         badge: g("ACTIVE PHASE"),
         title: g(
-          "Multi-Engine Live Adapters, Save-Airgapped External Tool Bridge, Manager & Collection Migration, Guided Diagnostics & Cross-Platform {Vault} Companion"
+          "Universal Multi-Engine Expansion, Patch Fire Drill & Deck Overdrive"
         ),
         footerMeta: g(
-          "External Tool Bridge, Multi-Engine Manifest Compilers, FOMOD/Flavor Installer, External Mod Manager Importer, Cross-Platform Modlist/Collection Translator, Save Doctor, Crash Decoder, SteamOS/Proton, Patch Radar, Guided Queue, Ctrl+K & Conflict Radar 2.0"
+          "Creator Airlock • Zero-Copy Exodus • The Rosetta Protocol • Patch Fire Drill • Groundhog Sandbox • Deck Overdrive • Jump Gate"
         ),
         desc: g(
-          "First-class External Modding & World-Building Tool Bridge with Hardware Save Airgapping inside {Lab}, live Multi-Engine Manifest Compilers & Copy-on-Write archive isolation, Guided FOMOD & Flavor Package Installer, External Mod Manager Migration without reinstalling, Cross-Platform Curated Modlist & Collection Translator into native {Blueprints}, Save-Game {Blueprint} Lock (Save Doctor), {Lab} Crash & Exception Decoder, SteamOS/Proton Prefix Auto-Resolver, Mobile/Web {Vault} Patch Radar, Guided Side Browser Batch Queue, Global Ctrl+K Command Palette, Conflict Radar 2.0 Resource Diffing, In-Game Config Diff Timeline, and an automated Vitest + Cargo Test regression suite."
+          "Full multi-engine expansion featuring Creator Airlock external tool save isolation, The Quartermaster guided package wizard, Zero-Copy Exodus out-of-tree setup migration, The Rosetta Protocol modlist translation, Save Doctor lockouts, Patch Fire Drill simulations, Groundhog Sandbox verification, Deck Overdrive Steam Deck controls, Code-Switch auto-translation, Echo Suppressor alert sync, Crash Autopsy, Pocket Radar, Browser Autoloader, Jump Gate palette, Live-Wire Diff, and the Ironclad Gauntlet test suite."
         ),
         status: "active",
         subCards: [
           {
             id: "phase_14_m1",
             icon: t("icon_handyman", "handyman"),
-            title: g("External Creator & World-Building Tool Bridge + {Lab} Save Airgap"),
+            title: g("Creator Airlock"),
             desc: g(
               "Launch external authoring, asset-editing, and world-building tools inside a Save-Airgapped {Lab} session—physically isolating primary saves while developing assets or testing {mods} and restoring saves automatically on exit."
             ),
@@ -2303,102 +2420,154 @@ export function getDefaultDirectiveBuilderSchema(
           },
           {
             id: "phase_14_m2",
-            icon: t("icon_extension", "extension"),
-            title: g("Multi-Engine Manifest Compilers & Copy-on-Write Archive Isolation"),
+            icon: t("icon_inventory_2", "inventory_2"),
+            title: g("The Quartermaster"),
             desc: g(
-              "Declarative manifest compilers for ordered XML/JSON/text load lists (loadorder.txt, modsettings.lsx, manifest.json), plus Copy-on-Write hardlink staging and virtual filesystem isolation."
+              "Intercepts multi-variant archives on drop or download with a Guided Package Installer drawer that parses multi-option installer manifests and {Mason} Dossier Flavors with auto-checked compatibility patches."
             ),
             pending: true,
           },
           {
             id: "phase_14_m3",
-            icon: t("icon_inventory_2", "inventory_2"),
-            title: g("Guided Multi-Option Package Installer (FOMOD & {Mason} Flavor Wizard)"),
+            icon: t("icon_drive_file_move", "drive_file_move"),
+            title: g("Zero-Copy Exodus"),
             desc: g(
-              "Intercepts multi-variant archives on drop/download with a Guided Package Installer SidePanel that parses fomod/ModuleConfig.xml and {Mason} Dossier Flavors with auto-checked compatibility patches."
+              "Zero-reinstall out-of-tree migration via Cartographer & {Vault}: ingests external staging directories, safely unlinks legacy deployment links, translates XML/JSON/text profile manifests and load orders into ready {Blueprints}, preserves source URLs and notes as Local Dossiers, and supports hardlink, move, or copy Vault absorption."
             ),
             pending: true,
           },
           {
             id: "phase_14_m4",
-            icon: t("icon_drive_file_move", "drive_file_move"),
-            title: g("External Mod Manager Migration & Out-of-Tree Setup Importer"),
+            icon: t("icon_swap_horiz", "swap_horiz"),
+            title: g("The Rosetta Protocol"),
             desc: g(
-              "Zero-Reinstall Out-of-Tree Migration (Cartographer & {Vault}): Solves one of the top community complaints from other mod-manager transitions by allowing {Citizens} whose {mods} live in external staging directories outside the game's live {Mods} folder to migrate their entire setup without dragging-and-dropping or reinstalling a single file. Automatic Profile, Load Order & Metadata Translation: Reads external staging instances (mods/<ModName>/meta.ini, profiles/<Profile>/modlist.txt, loadorder.txt), virtual staging folders (safely unlinking legacy deployment hardlinks/symlinks from the game folder), and XML/JSON profile manifests—preserving existing {mod} versions, source URLs, and notes as Local Dossiers, converting every external profile into a ready-to-use Sanctuary {Blueprint}, and supporting Zero-Duplication Hardlink, Move, or Copy ingestion into the {Vault}."
+              "Cross-platform curated modlist and collection translator: compiles third-party collection manifests, profile archives, and XML/JSON load lists into native Sanctuary {Blueprints}, binds local {Vault} matches via SHA-256 / MD5 DNA, and routes missing items into Browser Autoloader (with two-way standard load list export)."
             ),
             pending: true,
           },
           {
             id: "phase_14_m5",
-            icon: t("icon_swap_horiz", "swap_horiz"),
-            title: g("Cross-Platform Curated Modlist & Collection Translator (External Modlists → Native {Blueprints})"),
-            desc: g(
-              "Universal Modlist Format Parser (Blueprints.tsx / Dropzone): Alongside native Sanctuary SNC-XXXXXX cloud codes and .json {Blueprints}, {Citizens} can import curated modlist manifests authored for other platforms—including Nexus Collections (collection.json), Wabbajack manifests, MO2 profile/modlist exports, CurseForge / Modrinth manifest.json packs, and BG3 modsettings.lsx lists—and automatically compile them into a native Sanctuary {Blueprint} with preserved load-order rules and FOMOD selections. DNA Cross-Matching & Guided Side Browser Acquisition: Automatically binds any {mods} already present in the {Citizen}'s local {Vault} via SHA-256 / MD5 DNA matching, and routes missing items directly into the Signature Queue & Guided Side Browser Batch Updater—stepping through each {Mason}'s official page for 1-click sovereign acquisition with zero lock-in (plus two-way export back to standard modlist.txt / loadorder.txt formats)."
-            ),
-            pending: true,
-          },
-          {
-            id: "phase_14_m6",
             icon: t("icon_health_and_safety", "health_and_safety"),
-            title: g("Save-Game {Blueprint} Lock & Pre-Launch Save Doctor"),
+            title: g("Save Doctor"),
             desc: g(
               "Pairs save states with the deployed {Blueprint} DNA manifest (.sanctuary-save-manifest.json) and warns before launch if switching {Blueprints} removed {mods} required by the latest save."
             ),
             pending: true,
           },
           {
-            id: "phase_14_m7",
-            icon: t("icon_troubleshoot", "troubleshoot"),
-            title: g("{Citizen}-Facing {Lab} Crash & Exception Decoder (Desktop + Web)"),
+            id: "phase_14_m6",
+            icon: t("icon_science", "science"),
+            title: g("Patch Fire Drill"),
             desc: g(
-              "Watches schema exception_logs (crash_*.log, engine_error.txt, script diagnostics) and cross-references stack traces against installed {Vault} {mods} and KnownExceptionRules to surface plain-English Crash Diagnosis Cards."
+              "Simulates any upstream game patch across all {Blueprints} with 1:1 deduplicated {mod} counts, transitive Atomic Logic dependency cascades, local Echo Archive Auto-Swap detection, 1-click dependency acquisition, and 1-click Clone Ready {Blueprint} generation."
             ),
-            pending: true,
+            pending: false,
+            roadmapStatus: "in_testing",
+          },
+          {
+            id: "phase_14_m7",
+            icon: t("icon_science", "science"),
+            title: g("Groundhog Sandbox"),
+            desc: g(
+              "Immortal save-verify-and-rewind {Lab} airgap featuring an externalized save mirror, read-only Golden Baseline test saves with disposable working copies, Stage 4 magic-byte save corruption auditing, 100% passive anti-cheat-safe 4-stage timers, pause-menu suspension, and native fullscreen PCM audio chimes."
+            ),
+            pending: false,
+            roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m8",
-            icon: t("icon_science", "science"),
-            title: g("SteamOS / Linux Proton Prefix Auto-Resolver (Steam Deck Parity)"),
+            icon: t("icon_extension", "extension"),
+            title: g("Universal Master Schema"),
             desc: g(
-              "Parses Steam libraryfolders.vdf & appmanifest_*.acf across native, Flatpak, Snap, and Steam Deck SD card libraries, mapping ~/Documents and %APPDATA% Master Schema tokens into each game's Proton compatdata/<AppID>/pfx/ prefix alongside native Linux .AppImage/.deb builds and Proton WINEPREFIX tool execution."
+              "100% engine-agnostic Master Schema v2 powering ordered XML/JSON/text manifest compilers, multi-folder asset tree preservation, Copy-on-Write staging, and declarative virtual_fs_path, archive_member, binary_chunk_index, and json_xml_key conflict analyzers."
             ),
             pending: false,
             roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m9",
-            icon: t("icon_science", "science"),
-            title: g("Mobile PWA / Web 'My {Vault} Patch Radar' (Zero-PII Cloud Companion)"),
+            icon: t("icon_sports_esports", "sports_esports"),
+            title: g("Deck Overdrive"),
             desc: g(
-              "Optional encrypted sync of active {Blueprint} DNA hashes so {Citizens} on Mobile PWA or Web immediately see which of their installed {mods} broke in a game patch and can queue updates remotely."
+              "Full-OS Steam Deck controller engine and Proton prefix auto-resolver: unifies Gamescope XWayland surface binding, decodes 64-byte hidraw packets into a 60 FPS {Chameleon} Virtual Pointer + 2D Spatial Focus engine, and translates Steam libraryfolders.vdf / compatdata prefixes across internal drives and SD cards."
             ),
             pending: false,
             roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m10",
-            icon: t("icon_science", "science"),
-            title: g("Realtime Queue Handshake & Side Browser Guided Batch Updater"),
+            icon: t("icon_translate", "translate"),
+            title: g("Code-Switch"),
             desc: g(
-              "Adds a Guided Update Queue (1 of N) stepper bar to SidePanelBrowser.tsx that opens each {Mason}'s download page sequentially and auto-advances the instant the Rust download interceptor verifies the archive."
+              "Lexicon Engine V2 with an automated Standard English source scanner, lightweight Sparse Delta Override packs, a Source-First 4-tab Visual Studio, Guided Icon Overrides, and 1-click neural auto-translation across 28+ languages with {Glossary} placeholder masking."
             ),
             pending: false,
             roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m11",
-            icon: t("icon_science", "science"),
-            title: g("Global Ctrl+K / Cmd+K Liquid Glass Command Palette (All Platforms)"),
+            icon: t("icon_filter_1", "filter_1"),
+            title: g("The Highlander Rule"),
             desc: g(
-              "Instant fuzzy-search Command Palette across Desktop, Web, and Mobile PWA for jumping to installed {Vault} {mods}, toggling {mods} in the active {Blueprint}, activating {Blueprints}, navigating all 18 OS views, switching Chameleon themes & {Lexicon} packs, and triggering quick actions."
+              "Enforces single-winner exclusive slots (highlander_group_id) with explicit Swap, Keep Both, or Cancel alerts on {Vault} cards and Dossiers so rival {mods} never vanish silently."
             ),
             pending: false,
             roadmapStatus: "in_testing",
           },
           {
             id: "phase_14_m12",
-            icon: t("icon_science", "science"),
-            title: g("Conflict Radar 2.0 & Game-Agnostic Load Order Engine"),
+            icon: t("icon_notifications_off", "notifications_off"),
+            title: g("Echo Suppressor"),
+            desc: g(
+              "Zero-PII AES-256-GCM cross-device notification deduplication and per-Spoke alert muting across Windows, Steam Deck, and Mobile PWA, paired with 7-Domain {Settings} and the Per-Space {Chameleons} & {Lexicons} Matrix."
+            ),
+            pending: false,
+            roadmapStatus: "in_testing",
+          },
+          {
+            id: "phase_14_m13",
+            icon: t("icon_troubleshoot", "troubleshoot"),
+            title: g("Crash Autopsy"),
+            desc: g(
+              "Citizen-facing {Lab} Known Error showcase (Corrupted / Unstable / Unrelated) with Architect-pinned diagnostic rules, schema-driven log matchers, and instant crash-log paste decoding across Desktop and Web."
+            ),
+            pending: false,
+            roadmapStatus: "in_testing",
+          },
+          {
+            id: "phase_14_m14",
+            icon: t("icon_install_mobile", "install_mobile"),
+            title: g("Pocket Radar"),
+            desc: g(
+              "Mobile PWA and Web Vault Companion with optional encrypted sync of active {Blueprint} DNA hashes so {Citizens} spot broken {mods} remotely, pair with Beam to Rig transfers, and browse with responsive mobile filter pills."
+            ),
+            pending: false,
+            roadmapStatus: "in_testing",
+          },
+          {
+            id: "phase_14_m15",
+            icon: t("icon_cloud_download", "cloud_download"),
+            title: g("Browser Autoloader"),
+            desc: g(
+              "Adds a Guided Update Queue (1 of N) stepper bar to the Side Panel Browser that opens each {Mason}'s official download page sequentially and auto-advances the instant the Rust download interceptor verifies the archive."
+            ),
+            pending: false,
+            roadmapStatus: "in_testing",
+          },
+          {
+            id: "phase_14_m16",
+            icon: t("icon_bolt", "bolt"),
+            title: g("Jump Gate"),
+            desc: g(
+              "Global Ctrl+K / Cmd+K Liquid Glass command palette across Desktop, Web, and Mobile PWA for jumping to installed {Vault} {mods}, toggling {Blueprint} items, navigating all 18 OS views, switching {Chameleons} & {Lexicons}, and firing quick actions."
+            ),
+            pending: false,
+            roadmapStatus: "in_testing",
+          },
+          {
+            id: "phase_14_m17",
+            icon: t("icon_radar", "radar"),
+            title: g("Conflict Radar 2.0"),
             desc: g(
               "5-Tier Severity Matrix (S1–S5), strategy-aware Load Order & Priority Tier inspector with searchable {Blueprint} Scan Scope, 1-click 'Set Winner' resolution, and directional Must Load After/Before rules."
             ),
@@ -2406,9 +2575,9 @@ export function getDefaultDirectiveBuilderSchema(
             roadmapStatus: "in_testing",
           },
           {
-            id: "phase_14_m13",
+            id: "phase_14_m18",
             icon: t("icon_difference", "difference"),
-            title: g("In-Game Config Watcher → Workbench Interactive Diff Timeline"),
+            title: g("Live-Wire Diff"),
             desc: g(
               "Automatically captures live in-game .cfg/.ini/.json/.toml modifications intercepted by the Rust Config Watcher as timestamped [In-Game Engine Edit] snapshots inside the {Citizen}'s Workbench Diff Timeline."
             ),
@@ -2416,11 +2585,11 @@ export function getDefaultDirectiveBuilderSchema(
             roadmapStatus: "in_testing",
           },
           {
-            id: "phase_14_m14",
+            id: "phase_14_m19",
             icon: t("icon_verified", "verified"),
-            title: g("Automated Protocol Regression & Stability Suite (Vitest + Cargo Test)"),
+            title: g("Ironclad Gauntlet"),
             desc: g(
-              "Automated test coverage for compileLoadOrder, check_heuristic_malware_detailed (21+17 rules & Zlib/Zstd binary streams), interpolateGlossaryTokens, and parseMarkdownToDirectiveSchema."
+              "Automated Vitest + Cargo Test regression suite covering the Topological Load Order Engine, Bytecode Hound heuristic scanner (including Zlib/Zstd streams), Dynamic {Glossary} Token interpolation, and System Directive parsing."
             ),
             pending: true,
           },
@@ -2432,20 +2601,20 @@ export function getDefaultDirectiveBuilderSchema(
         overline: g("PHASE 13 (V5.8) • OCTOBER 2026"),
         badge: g("COMPLETED"),
         title: g(
-          "Sovereign Multi-Engine Studios, Universal 21+17 Heuristics & Bilateral Cloud Sync"
+          "Schema Forge, Bytecode Hound & Sovereign Covenants"
         ),
         footerMeta: g(
-          "Master Schema & Lexicon Studios, Guided Icon Builder, Universal AV, Static Edge Auto-Push & Partner Covenants"
+          "Schema Forge • Lexicon Codex • Bytecode Hound • Edge Direct Push • Sovereign Covenants"
         ),
         desc: g(
-          "Delivered the 4-Tab Master Schema Studio & Lexicon Terminology Studio with Guided Icon Overrides and Interactive Codex Guides, upgraded the Universal Heuristic Scanner (21 Core + 17 Spoke rules with Zlib/Zstd binary stream & Base64/Hex deobfuscation), added 6-provider Static Edge Direct Push, Readiness-Gated Partner Applications with mandatory Covenants, and Bilateral Codebase ↔ Cloud Sync."
+          "Delivered the 4-Tab Master Schema Studio & Lexicon Terminology Studio with Guided Icon Overrides and Interactive Codex Guides, upgraded the Bytecode Hound heuristic scanner, added 6-provider Edge Direct Push, Readiness-Gated Partner Applications with mandatory Covenants, and Bilateral Codebase ↔ Cloud Sync."
         ),
         status: "completed",
         subCards: [
           {
             id: "phase_13_m1",
             icon: t("icon_check_circle", "check_circle"),
-            title: g("Master Schema Studio, macOS Pathing & Dynamic Config Watcher"),
+            title: g("Schema Forge"),
             desc: g(
               "7 multi-game architecture presets, Windows (.exe) & macOS (.app) coordinate mapping, secondary install_routes, game-agnostic mod_categories, and live config_extensions syncing."
             ),
@@ -2454,7 +2623,7 @@ export function getDefaultDirectiveBuilderSchema(
           {
             id: "phase_13_m2",
             icon: t("icon_check_circle", "check_circle"),
-            title: g("Lexicon Visual Studio, Guided Icon Override Builder & Codex Guides"),
+            title: g("Lexicon Codex"),
             desc: g(
               "Searchable Material Symbol override builder with Default → New glyph previews, themed checkboxes, parity validation bar, and interactive Schema & Lexicon Codex drawers."
             ),
@@ -2463,27 +2632,27 @@ export function getDefaultDirectiveBuilderSchema(
           {
             id: "phase_13_m3",
             icon: t("icon_check_circle", "check_circle"),
-            title: g("Universal Multi-Format Heuristic Scanner (21 Core + 17 Spoke Rules)"),
+            title: g("Bytecode Hound"),
             desc: g(
-              "In-memory Zlib/Zstd binary stream decompression, Base64/Hex deobfuscation, Move-mode source disposition tracking, and Zero-PII Threat Manifest reporting."
+              "In-memory Zlib/Zstd binary stream decompression, Base64/Hex deobfuscation, Move-mode source disposition tracking, and Zero-PII Threat Manifest reporting across Core and Spoke rules."
             ),
             pending: false,
           },
           {
             id: "phase_13_m4",
             icon: t("icon_check_circle", "check_circle"),
-            title: g("Decentralized Static Edge Direct Push & Multi-Mod catalog.json"),
+            title: g("Edge Direct Push"),
             desc: g(
-              "1-click OS Auto-Push to GitHub, Gist, GitLab/Codeberg, Neocities, WebDAV, and Local Folders with automatic previous_hashes lineage rollover."
+              "1-click OS Auto-Push for .sanctuary.manifest.json and multi-mod catalog.json files to GitHub, Gist, GitLab/Codeberg, Neocities, WebDAV, and Local Folders with automatic previous_hashes lineage rollover."
             ),
             pending: false,
           },
           {
             id: "phase_13_m5",
             icon: t("icon_check_circle", "check_circle"),
-            title: g("Readiness-Gated Partner Onboarding, Covenants & Supporter Pipeline"),
+            title: g("Sovereign Covenants"),
             desc: g(
-              "Mandatory Partners Agreement & Compliance Protocol review before Partner Spoke application, 0%-cut community donations, $5 = +30 Days Dev Builds, and Bilateral Codebase ↔ Cloud Sync."
+              "Mandatory Partners Agreement & Compliance Protocol review before Partner Spoke application, 0%-cut community donations, $5 = +30 Days Dev Builds, and Mirror Uplink bilateral sync."
             ),
             pending: false,
           },
@@ -2566,7 +2735,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("FIDO2 Passkey {Vault} & Quarantine Lockdown"),
             desc: g(
-              "Hardware WebAuthn Passkey gates for Elevated Hubs, Full-OS Malware Quarantine SidePanel Lockdown, Silent Updater, and Bilateral Directives Sync."
+              "Hardware WebAuthn Passkey gates for Elevated Hubs, Full-OS Malware Quarantine Lockdown, Silent Updater, and Bilateral Directives Sync."
             ),
           },
         ],
@@ -2862,10 +3031,10 @@ export function getDefaultDirectiveBuilderSchema(
           "Codebase Modularization, Comm-Link Ledger & Homestead Proving Grounds"
         ),
         footerMeta: g(
-          "Creator Following Feed, App.tsx Modularization & Nuke Sandbox"
+          "Creator Following Feed, Domain View Modularization & Nuke Sandbox"
         ),
         desc: g(
-          "Launched the Creator Following system and real-time Comm-Link discovery ledger, modularized App.tsx into dedicated domain views, extracted Yeet Cascade casualty tracking, and built the 100% Nuke Isolation Proving Grounds."
+          "Launched the Creator Following system and real-time Comm-Link discovery ledger, modularized the core shell into dedicated domain views, extracted Yeet Cascade casualty tracking, and built the 100% Nuke Isolation Proving Grounds."
         ),
         status: "completed",
         subCards: [
@@ -2874,7 +3043,7 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Creator Following & Domain Modularization"),
             desc: g(
-              "Added the Creator Following feed to Comm-Link, modularized App.tsx into dedicated domain views, and extracted Yeet Cascade casualty tracking."
+              "Added the Creator Following feed to Comm-Link, modularized the core shell into dedicated domain views, and extracted Yeet Cascade casualty tracking."
             ),
           },
           {
@@ -3199,17 +3368,17 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "fork_spoke_s1",
                   icon: t("icon_database", "database"),
-                  title: g("Step 1: Initialize Your Supabase Spoke (schema.sql)"),
+                  title: g("Step 1: Initialize Your Supabase Spoke (schema.sql) & Mint Token"),
                   desc: g(
-                    "Create a free Supabase project, open the SQL Editor, and run schema.sql. This single script provisions all 38 community tables, RLS policies, immutable audit triggers, and role functions."
+                    "Create a free Supabase project, open the SQL Editor, run schema.sql (52 tables, RLS, and gateway auth), then run SELECT public.mint_spoke_gateway_token(); to mint your one-time spk_gw_... token."
                   ),
                 },
                 {
                   id: "fork_spoke_s2",
                   icon: t("icon_key", "key"),
-                  title: g("Step 2: Generate Your SANCTUARY-UPLINK:// Bundle"),
+                  title: g("Step 2: Configure Uplink Bundle & Scoped Gateway Token"),
                   desc: g(
-                    "In Keepers Core -> Active Workspaces (or Wayfinder Hub), paste your Supabase URL, Anon Key, and Service Role Key to generate an encrypted SANCTUARY-UPLINK:// handshake bundle."
+                    "In Keepers Core -> Partner Spokes (or Wayfinder Operations -> Spoke Control), paste your secret-free SANCTUARY-UPLINK:// bundle (Supabase URL + Anon Key) and your spk_gw_... token to seal it inside the Split-Custody Hub Vault. Rotate anytime later in 1 click."
                   ),
                 },
                 {
@@ -3246,7 +3415,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_link_off", "link_off"),
                   title: g("Community-Initiated Severance ('Cut the Cord')"),
                   desc: g(
-                    "A Wayfinder can double-click 'Cut the Cord' in Wayfinder Hub at any time—writing an immutable audit log, setting is_active = false, and scrubbing the Spoke's service key from the Hub."
+                    "A Wayfinder can execute the phrase-locked 'Cut the Cord' safeguard in Wayfinder Operations at any time—writing an immutable audit log, setting is_active = false, revoking all Spoke Gateway Tokens, and purging the Spoke's sealed Vault credential from the Hub."
                   ),
                 },
                 {
@@ -3326,9 +3495,9 @@ export function getDefaultDirectiveBuilderSchema(
                 {
                   id: "fork_m2_s2",
                   icon: t("icon_cloud_done", "cloud_done"),
-                  title: g("2. Deploy game-gateway Edge Function"),
+                  title: g("2. Set SPOKE_VAULT_MASTER_KEY & Deploy game-gateway"),
                   desc: g(
-                    "Deploy supabase/functions/game-gateway to your Hub project (supabase functions deploy game-gateway). It validates Hub JWTs, checks roles, and executes cross-database mutations against each Spoke."
+                    "Generate a 256-bit Split-Custody key (supabase secrets set SPOKE_VAULT_MASTER_KEY=<64-hex-chars>) and deploy supabase/functions/game-gateway to your Hub project to proxy verified cross-database Spoke RPCs."
                   ),
                 },
                 {
@@ -3344,7 +3513,7 @@ export function getDefaultDirectiveBuilderSchema(
                   icon: t("icon_storage", "storage"),
                   title: g("4. Provision & Link Child Spoke Databases (schema.sql)"),
                   desc: g(
-                    "For each game community, create a separate Supabase project, run schema.sql, and register its URL, Anon Key, and Service Role Key (or SANCTUARY-UPLINK:// bundle) in Keepers Core -> Active Workspaces."
+                    "For each game community, create a separate Supabase project, run schema.sql, execute SELECT public.mint_spoke_gateway_token(); in the SQL Editor, and register its URL, Anon Key, and spk_gw_... token in Keepers Core -> Partner Spokes."
                   ),
                 },
               ],
@@ -3381,27 +3550,122 @@ export function getDefaultDirectiveBuilderSchema(
           ],
         },
         {
+          id: "deploy",
+          icon: t("icon_language", "language"),
+          label: g("STEP 3"),
+          value: g("Deploy & Domains"),
+          cards: [
+            {
+              id: "fork_deploy_branding",
+              icon: t("icon_palette", "palette"),
+              overline: g("WHITE-LABEL BRANDING • ZERO SCATTERED EDITS"),
+              badge: g("Title Area Studio"),
+              title: g("Centralized Brand Identity (SANCTUARY_CONFIG.branding & Database Title Area)"),
+              footerMeta: "src/supabase.ts • VITE_APP_TITLE • sanctuary_themes",
+              desc: g(
+                "Customize every app title, organization name, logo, support email, WebAuthn Relying Party ID, and rotating subtitle from SANCTUARY_CONFIG.branding / VITE_* env vars—or edit them live from the database in Wayfinder / Keepers -> Chameleons -> Title Area Studio."
+              ),
+              subCards: [
+                {
+                  id: "fork_deploy_b1",
+                  icon: t("icon_tune", "tune"),
+                  title: g("Compile-Time Env Vars & Uplink Bundles"),
+                  desc: g(
+                    "Set VITE_APP_TITLE, VITE_ORG_NAME, VITE_LOGO_URL, VITE_SUPPORT_EMAIL, and VITE_WEBAUTHN_RP_ID in .env (or embed branding in SANCTUARY-UPLINK://), and LexiconContext automatically updates copy and document.title."
+                  ),
+                },
+                {
+                  id: "fork_deploy_b2",
+                  icon: t("icon_auto_awesome", "auto_awesome"),
+                  title: g("Database-Driven Title Area Studio"),
+                  desc: g(
+                    "Both Core Hubs and Standalone Forks unlock Title Area Studio inside Chameleons to push live logos, app names, and subtitles via sanctuary_themes without rebuilding binaries."
+                  ),
+                },
+              ],
+            },
+            {
+              id: "fork_deploy_targets",
+              icon: t("icon_devices", "devices"),
+              overline: g("SHARED CODEBASE • DESKTOP, PWA & WEB"),
+              badge: g("Single Repo"),
+              title: g("Build Desktop App, Installable PWA & Web Portal From One Codebase"),
+              footerMeta: "package.json • dist/ • src-tauri/target/",
+              desc: g(
+                "One React + Vite + Tauri codebase deploys everywhere: static web portal, offline-capable PWA, and native desktop builds sharing identical SANCTUARY_CONFIG and environment variables."
+              ),
+              subCards: [
+                {
+                  id: "fork_deploy_t1",
+                  icon: t("icon_public", "public"),
+                  title: g("Web Portal & PWA (npm run build:web:public)"),
+                  desc: g(
+                    "Run npm run build:web:public (or build:web:beta) inside sanctuary-os/ to output dist/ with public/sw.js and public/manifest.webmanifest ready for Cloudflare Pages, Vercel, or Netlify."
+                  ),
+                },
+                {
+                  id: "fork_deploy_t2",
+                  icon: t("icon_desktop_windows", "desktop_windows"),
+                  title: g("Native Desktop Binaries & Brand Icons"),
+                  desc: g(
+                    "Replace public/icon.png, run npx tauri icon path/to/icon.png to regenerate Windows/macOS/Linux assets, and compile installers with npm run tauri build."
+                  ),
+                },
+              ],
+            },
+            {
+              id: "fork_deploy_domains",
+              icon: t("icon_dns", "dns"),
+              overline: g("CUSTOM DOMAINS • AUTH & PASSKEYS"),
+              badge: g("HTTPS + WebAuthn"),
+              title: g("Domain DNS, Supabase Auth Redirects & Cross-Platform Passkeys"),
+              footerMeta: "CNAME / ALIAS • Auth Redirects • rp_id",
+              desc: g(
+                "Link your custom domain cleanly across web, mobile PWA, and native desktop deep links without breaking OAuth callbacks or FIDO2 passkeys."
+              ),
+              subCards: [
+                {
+                  id: "fork_deploy_d1",
+                  icon: t("icon_link", "link"),
+                  title: g("DNS Records & Supabase Redirect Allowlist"),
+                  desc: g(
+                    "Point CNAME/ALIAS records to your static host with SPA fallback to /index.html, then set Site URL and add https://your-domain.com/**, http://localhost:1420/**, and sanctuary://** in Supabase Auth URL Configuration."
+                  ),
+                },
+                {
+                  id: "fork_deploy_d2",
+                  icon: t("icon_fingerprint", "fingerprint"),
+                  title: g("Matching WebAuthn rp_id Across Web & Desktop"),
+                  desc: g(
+                    "Set VITE_WEBAUTHN_RP_ID to your apex/host domain (such as example-mods.org) so passkeys enrolled in the browser validate inside desktop builds too."
+                  ),
+                },
+              ],
+            },
+          ],
+        },
+        {
           id: "sql",
           icon: t("icon_database", "database"),
-          label: g("STEP 3"),
+          label: g("STEP 4"),
           value: g("SQL Schemas"),
           cards: [
             {
               id: "fork_sql_spoke",
               icon: t("icon_storage", "storage"),
-              overline: g("Spoke & Standalone DB • 38 Tables"),
+              overline: g("Spoke & Standalone DB • 52 Tables"),
               badge: "schema.sql",
-              title: g("schema.sql (38 Tables)"),
+              title: g("schema.sql (52 Tables)"),
               footerMeta: "Community Spoke & Standalone Fork SQL",
               desc: g(
-                "Complete community registry schema (mods, blueprints, citizen_staging_queue, masons, conflicts, tickets, heuristics, RLS policies, and Founding Wayfinder trigger)."
+                "Idempotent copy-paste community registry schema (mods, blueprints, citizen_staging_queue, masons, conflicts, tickets, heuristics, pending-flag triggers, RLS policies, and Founding Wayfinder trigger)."
               ),
               subCards: [],
             },
             {
               id: "fork_sql_hub",
               icon: t("icon_dns", "dns"),
-              overline: g("Core Hub Federation DB • SSO & Security"),
+              overline: g("Core Hub Federation DB • 22 Tables"),
               badge: "schema_os.sql",
               title: g("schema_os.sql (Core Hub DB)"),
               footerMeta: "Central Multi-Game Federation SQL",
@@ -3422,7 +3686,7 @@ export function getDefaultDirectiveBuilderSchema(
       _schemaVersion: CURRENT_DIRECTIVE_SCHEMA_VERSION,
       title: g("Master Architecture & Feature Blueprint"),
       summary: g(
-        "Deep-dive interactive explorer into the Tauri v2 Rust core, Master Schema & Lexicon Visual Studios, Hub-and-Spoke Cloud Federation with Bilateral Codebase Sync, Symlink Airgap 2.5, and the Universal 21+17 Heuristic Scanner."
+        "Deep-dive interactive explorer into the Tauri v2 Rust core, Universal Master Schema, Code-Switch, Mirror Uplink, Symlink Airgap, Edge Pulse, Groundhog Sandbox, and Bytecode Hound."
       ),
       tabs: [
         {
@@ -3437,43 +3701,43 @@ export function getDefaultDirectiveBuilderSchema(
               overline: g("ARCHITECTURE PILLAR 1 • CORE ENGINE, OPTICS & STUDIOS"),
               badge: t("active", "Active"),
               title: g(
-                "Tauri v2 Rust Kernel, Liquid Glass V3, Schema Studio & Lexicon Engine"
+                "Tauri v2 Kernel, Liquid Glass Optics, Schema Forge & Code-Switch"
               ),
-              footerMeta: "Tauri v2 • React 18 • Liquid Glass V3 • Win, Mac & Linux / SteamOS",
+              footerMeta: "Tauri v2 • React 18 • Liquid Glass Optics • Win, Mac & Linux / SteamOS",
               desc: g(
-                "Sanctuary OS combines a zero-overhead native Rust backend across Windows, macOS, and Linux / SteamOS with a GPU-pinned 3D refractive Liquid Glass interface, a 4-Tab Master Schema Studio, and a 21-token Lexicon Engine."
+                "Sanctuary OS combines a zero-overhead native Rust backend across Windows, macOS, and Linux / SteamOS (Deck Overdrive) with GPU-pinned Liquid Glass Optics, Universal Master Schema tooling, and the Code-Switch."
               ),
               subCards: [
                 {
                   id: "arch_p1_c1",
                   icon: t("icon_auto_awesome", "auto_awesome"),
-                  title: g("Frontend & Liquid Glass V3 UI"),
+                  title: g("Liquid Glass Optics"),
                   desc: g(
-                    "Zero-Tearing Liquid Glass Engine (.glass-panel / .glass-surface) with 6 live Theme Forge optical sliders (Opacity, Blur, Saturation, Rim Light, Glare, Depth)."
+                    "Zero-Tearing WebGL2 Liquid Glass Engine (.glass-panel / .glass-surface) with 6 live Theme Forge optical sliders (Opacity, Blur, Saturation, Rim Light, Glare, Depth), Per-Space Aesthetics, and responsive mobile selector pills."
                   ),
                 },
                 {
                   id: "arch_p1_c2",
                   icon: t("icon_memory", "memory"),
-                  title: g("Tauri v2 Native Rust Core (Win, Mac & Linux / SteamOS)"),
+                  title: g("Deck Overdrive & Native Kernel"),
                   desc: g(
-                    "Native Tauri v2 Rust core: pelite PE & macOS Info.plist version ripper, Linux / SteamOS Proton compatdata prefix resolver, SQLite .sanctuary_cache.db mtime delta scanner, WebAuthn FIDO2 bridge, and .msi/.dmg/.AppImage/.deb auto-updater."
+                    "Native Tauri v2 Rust core: Binary Version Ripper (PE & Info.plist), Deck Overdrive Steam Deck controller + Proton compatdata resolver, SQLite .sanctuary_cache.db delta scanner, WebAuthn FIDO2 bridge, and cross-platform auto-updater."
                   ),
                 },
                 {
                   id: "arch_p1_c3",
                   icon: t("icon_schema", "schema"),
-                  title: g("Master Schema Visual Studio & 7 Engine Presets"),
+                  title: g("Universal Master Schema"),
                   desc: g(
-                    "Declarative Master Schema JSON editor governing binaries, secondary install_routes, config_extensions watcher, load order strategies, mod_categories, and exception matchers."
+                    "Declarative Schema Forge JSON editor governing binaries, secondary install_routes, config_extensions watcher, topological load order strategies, mod_categories, and exception matchers."
                   ),
                 },
                 {
                   id: "arch_p1_c4",
                   icon: t("icon_translate", "translate"),
-                  title: g("Lexicon Studio & Guided Icon Overrides"),
+                  title: g("Code-Switch"),
                   desc: g(
-                    "21 Dynamic {Glossary} Tokens interpolated across 1,700+ keys with smart article grammar, plus the Guided Searchable Material Icon Override Builder."
+                    "21 Dynamic {Glossary} Tokens interpolated across 6,166+ keys with smart article grammar, Sparse Delta Override packs, Guided Icon Overrides, and 1-click auto-translation across 28+ languages."
                   ),
                 },
               ],
@@ -3492,43 +3756,43 @@ export function getDefaultDirectiveBuilderSchema(
               overline: g("ARCHITECTURE PILLAR 2 • FEDERATION, SYNC & STATIC EDGE"),
               badge: t("active", "Active"),
               title: g(
-                "Decoupled Hub-and-Spoke Cloud, Bilateral Sync & Static Edge Polling"
+                "Hub Federation, Mirror Uplink & Edge Pulse"
               ),
-              footerMeta: "schema_os.sql • schema.sql • Static Edge • Cloud Sync",
+              footerMeta: "schema_os.sql • schema.sql • Edge Pulse • Mirror Uplink",
               desc: g(
-                "Uses bundled codebase files as the offline baseline while syncing Directives, Legal Covenants, Schemas, and Lexicons live from the Hub database—paired with community-owned Spoke DBs and 6-provider Static Edge polling."
+                "Uses bundled codebase files as an offline baseline paired with Mirror Uplink cloud synchronization, community-owned Spoke DBs (Cut the Cord & SRK1 Relink), Echo Suppressor sync, and 6-provider Edge Pulse polling."
               ),
               subCards: [
                 {
                   id: "arch_p2_c1",
                   icon: t("icon_hub", "hub"),
-                  title: g("Core OS Hub vs. Sovereign Community Spoke DBs"),
+                  title: g("Core Hub & Spoke Sovereignty"),
                   desc: g(
-                    "Core OS Hub (schema_os.sql) governs global SSO, FIDO2 passkeys, sanctuary_schemas, keeper_heuristic_signatures & system_directives; Spokes (schema.sql) own 100% of their 38 community tables."
+                    "Core OS Hub (schema_os.sql) governs global SSO, FIDO2 passkeys, sanctuary_schemas, keeper_heuristic_signatures & system_directives; Spokes (schema.sql) own 100% of their 52 community tables."
                   ),
                 },
                 {
                   id: "arch_p2_c2",
                   icon: t("icon_sync", "sync"),
-                  title: g("Offline Codebase Baseline + Live Cloud Sync"),
+                  title: g("Mirror Uplink"),
                   desc: g(
-                    "First-time launch and offline sessions boot from bundled .md, schema, and lexicon files; connected clients pull live updates from the Hub DB without requiring an app update."
+                    "First-time launch and offline sessions boot from bundled .md, schema, and lexicon files; connected clients pull live updates via Mirror Uplink without requiring an app update."
                   ),
                 },
                 {
                   id: "arch_p2_c3",
                   icon: t("icon_cloud_done", "cloud_done"),
-                  title: g("Decentralized Static Edge Direct Push (.sanctuary.manifest.json & catalog.json)"),
+                  title: g("Edge Pulse & Direct Push"),
                   desc: g(
-                    "6-provider 1-click OS Auto-Push and HTTP GET polling with automatic previous_hashes lineage rollover and in-place file upgrades."
+                    "6-provider 1-click OS Auto-Push (.sanctuary.manifest.json & catalog.json) and concurrent Rust HTTP GET polling with ETag/304 caching and automatic previous_hashes lineage rollover."
                   ),
                 },
                 {
                   id: "arch_p2_c4",
                   icon: t("icon_favorite", "favorite"),
-                  title: g("0%-Cut Partner Covenants & $5 = +30 Days Supporter Pipeline"),
+                  title: g("Sovereign Covenants & Cut the Cord"),
                   desc: g(
-                    "Readiness-gated Partner Spoke onboarding with mandatory Partners Agreement & Compliance Protocol review, 0%-cut community donations, and Stripe-verified Dev Builds."
+                    "Readiness-gated Partner Spoke onboarding with mandatory Covenants, 0%-cut community donations, Stripe-verified Dev Builds, phrase-locked Cut the Cord severance, and SRK1 relink commitments."
                   ),
                 },
               ],
@@ -3547,43 +3811,43 @@ export function getDefaultDirectiveBuilderSchema(
               overline: g("ARCHITECTURE PILLAR 3 • {VAULT}, COMPILER & WORKBENCH"),
               badge: t("active", "Active"),
               title: g(
-                "Symlink Airgap 2.5, Config Watcher, Topological Compiler & Workbench"
+                "Symlink Airgap, Priority Compiler & Groundhog Sandbox"
               ),
-              footerMeta: "Symlink Airgap • Config Watcher • Load Order Compiler",
+              footerMeta: "Symlink Airgap • Priority Compiler • Groundhog Sandbox",
               desc: g(
-                "Protects your game installation via zero-copy symlink projection, automatic root config deduplication, schema-driven topological load order compilation, and 60 FPS visual config editing."
+                "Protects your game installation via Symlink Airgap, Priority Compiler & Conflict Radar 2.0, Live-Wire Workbench config editing, Groundhog Sandbox save-verified testing, and Time Capsule snapshots."
               ),
               subCards: [
                 {
                   id: "arch_p3_c1",
                   icon: t("icon_inventory_2", "inventory_2"),
-                  title: g("Symlink Airgap 2.5, Custom Routes & Dynamic Config Watcher"),
+                  title: g("Symlink Airgap & Config Watcher"),
                   desc: g(
-                    "Projects {mods} from {Vault}/{Mods}/ into live game folders and secondary install_routes while syncing in-game config_extensions writes back to the {Vault}."
+                    "Projects {mods} from {Vault}/{Mods}/ into live game folders and secondary install_routes while deduplicating stray root configs and syncing in-game config_extensions writes back to the {Vault}."
                   ),
                 },
                 {
                   id: "arch_p3_c2",
                   icon: t("icon_layers", "layers"),
-                  title: g("Conflict Radar 2.0 & Topological Load Order Compiler"),
+                  title: g("Priority Compiler & Conflict Radar 2.0"),
                   desc: g(
-                    "5-Tier Severity Matrix, 1-click 'Set Winner' priority tier assignment, and Schema-Driven Load Order compilation (folder_priority, manifest_list, numeric_prefix, timestamp) with topological cycle breaking."
+                    "5-Tier Severity Matrix, 1-click 'Set Winner' priority tier assignment, The Highlander Rule swap prompts, and Schema-Driven Load Order compilation with topological cycle breaking."
                   ),
                 },
                 {
                   id: "arch_p3_c3",
                   icon: t("icon_tune", "tune"),
-                  title: g("{Citizen}'s Workbench & 2-Column Timeline Diff"),
+                  title: g("Live-Wire Workbench & Live-Wire Diff"),
                   desc: g(
-                    "60 FPS 2-column Visual Config Editor with Category Pill Bar, Min/Max range steppers, No-Code Template Builder, and side-by-side Visual/Raw Diff."
+                    "60 FPS 2-column Visual Config Editor with Category Pill Bar, Min/Max range steppers, No-Code Template Builder, and side-by-side [In-Game Engine Edit] Visual/Raw Diff."
                   ),
                 },
                 {
                   id: "arch_p3_c4",
                   icon: t("icon_science", "science"),
-                  title: g("Homestead {Lab} & Hardlink {Backups}"),
+                  title: g("Groundhog Sandbox & Time Capsule"),
                   desc: g(
-                    "100% Nuke sandbox isolation, 1v1 Conflict Stability testing, schema-driven exception log diagnosis, and zero-bloat hardlink snapshots."
+                    "Immortal Save-Verify-and-Rewind {Lab} isolation, Crash Autopsy log decoding, fullscreen PCM audio chimes, and zero-bloat Copy-on-Write OS hardlink snapshots with additive save restores."
                   ),
                 },
               ],
@@ -3602,43 +3866,43 @@ export function getDefaultDirectiveBuilderSchema(
               overline: g("ARCHITECTURE PILLAR 4 • GOVERNANCE, PASSKEYS & MALWARE LOCKDOWN"),
               badge: t("active", "Active"),
               title: g(
-                "6-Tier Clearance Matrix, 2-Column Hub Overviews, FIDO2 Passkeys & Malware Lockdown"
+                "Zero-Knowledge Seal, Echo Suppressor & Zero-Choice Lockdown"
               ),
-              footerMeta: "6 Role Tiers • FIDO2 Passkey {Vault} • 21+17 Rust AV",
+              footerMeta: "6 Role Tiers • Zero-Knowledge Seal • Bytecode Hound",
               desc: g(
-                "Enforces strict separation between Spoke and Core Hub clearances, hardware-backed WebAuthn Passkey gates, and full-OS Tier 5 Malware quarantine."
+                "Enforces strict separation between Spoke and Core Hub clearances, hardware-backed Zero-Knowledge Seal passkey gates, Echo Suppressor alert sync, and Zero-Choice Lockdown quarantine."
               ),
               subCards: [
                 {
                   id: "arch_p4_c1",
                   icon: t("icon_admin_panel_settings", "admin_panel_settings"),
-                  title: g("6-Tier Clearance Hierarchy ({Citizen} to Keeper)"),
+                  title: g("6-Tier Clearance Hierarchy"),
                   desc: g(
-                    "Decouples Game Spoke roles ({Citizen}, Verified {Mason}, Architect, Oversight, Wayfinder) from Global Core OS Hub roles (Keeper)."
+                    "Decouples Game Spoke roles ({Citizen}, Verified {Mason}, Architect, Oversight, Wayfinder) from Global Core OS Hub roles (Keeper) with Pending Tier 1–4 compliance gating."
                   ),
                 },
                 {
                   id: "arch_p4_c2",
                   icon: t("icon_space_dashboard", "space_dashboard"),
-                  title: g("Standardized 2-Column Recent & Anomalies Hub Overviews"),
+                  title: g("Sub-Second Command Hubs & Echo Suppressor"),
                   desc: g(
-                    "Every Elevated Hub opens to a 2-column Recent and Anomalies overview surfacing live schema/lexicon edits and actionable configuration alerts."
+                    "Every Elevated Hub loads sub-second into a 2-column Recent and Anomalies overview, while Echo Suppressor deduplicates dismissed alerts across all devices via Zero-PII AES-256-GCM sync."
                   ),
                 },
                 {
                   id: "arch_p4_c3",
                   icon: t("icon_passkey", "passkey"),
-                  title: g("FIDO2 Passkey & TOTP Security {Vault}"),
+                  title: g("Zero-Knowledge Seal & Companion Handshake"),
                   desc: g(
-                    "Hardware-bound WebAuthn Passkeys (Windows Hello, Touch ID, YubiKey) and TOTP gates protect Elevated Hubs inside a right-hand SidePanel."
+                    "Hardware-bound WebAuthn Passkeys (Windows Hello, Touch ID, YubiKey), OWASP 600k auth, and live Web Push Companion Handshakes guard Elevated Hubs inside a right-hand Security {Vault}."
                   ),
                 },
                 {
                   id: "arch_p4_c4",
                   icon: t("icon_gpp_bad", "gpp_bad"),
-                  title: g("Dual-Tier Heuristic Scanner & Quarantine Lockdown"),
+                  title: g("Zero-Choice Lockdown & Bytecode Hound"),
                   desc: g(
-                    "Merges 21 Core + 17 Spoke rules with Zlib/Zstd decompression to lock the OS shell on Tier 5 Malware and enforce a {Citizen}-signed Secure Shred."
+                    "Merges Core + Spoke heuristics with Zlib/Zstd decompression to halt launches on Tier 5 Malware and lock the OS shell until a {Citizen}-signed Secure Shred."
                   ),
                 },
               ],
@@ -3655,7 +3919,7 @@ export function getDefaultDirectiveBuilderSchema(
     _schemaVersion: CURRENT_DIRECTIVE_SCHEMA_VERSION,
     title: g("Master Protocol List & 6-Tier Clearance Matrix"),
     summary: g(
-      "Interactive directory of all 33 Sanctuary OS operational protocols across 4 Domains, Florida Compliance Tiers 0–5, Universal 21+17 Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy."
+      "Interactive directory of all 30 Sanctuary OS operational protocols across 4 Domains, Florida Compliance Tiers 0–5, Bytecode Hound heuristics, and the 6-Tier Role Clearance Hierarchy."
     ),
     tabs: [
       {
@@ -3676,10 +3940,10 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_check_circle", "check_circle"),
             overline: g("TIER 0 • PUBLIC SAFE"),
             badge: "TIER 0",
-            title: g("Standard Verified & General Audience"),
+            title: g("Public Verified"),
             footerMeta: g("TIER 0 • PUBLIC SAFE"),
             desc: g(
-              "Eligible for full public indexing across The Nexus, shared Cloud {Blueprints} (SNCXXX), and public {Mason} Profiles. Full {Citizen} Support Desk access."
+              "Only Tier 0 verified content is permitted across The Nexus, Comm-Link, Architect Console, public {Mason} Profiles, Shared {Blueprints} (SNCXXX), and Community {Mod} Support tickets."
             ),
             subCards: [],
           },
@@ -3688,12 +3952,10 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_visibility_off", "visibility_off"),
             overline: g("TIERS 1–2 • EXPLICIT / ILLICIT"),
             badge: "TIERS 1–2",
-            title: g(
-              "Adult (NSFW) & Illicit Themes — Local & Static Edge Allowed, Public Scrubbed"
-            ),
+            title: g("Public Scrubbed"),
             footerMeta: g("TIERS 1–2 • EXPLICIT / ILLICIT"),
             desc: g(
-              "Permitted in local Vaults and decentralized Static Edge manifests (.sanctuary.manifest.json / catalog.json). Automatically scrubbed from public Nexus feeds and stripped from public Cloud {Blueprints}. Eligible for Support Desk with automated 'Dirty Log' sanitization."
+              "Adult (NSFW) and illicit themes permitted in isolated local {Vaults} and Static Edge manifests (.sanctuary.manifest.json / catalog.json), hidden from public Nexus/Comm-Link/Architect views, visible solely to Oversight & Wayfinder hubs, and triggering the Active {Blueprint} Support Lock if equipped."
             ),
             subCards: [],
           },
@@ -3702,10 +3964,10 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_lock", "lock"),
             overline: g("TIERS 3–4 • SEVERE / RESTRICTED"),
             badge: "TIERS 3–4",
-            title: g("Extreme Violence & Taboo Content — Triggers {Vault} Lock"),
-            footerMeta: g("TIERS 3–4 • SEVERE / RESTRICTED"),
+            title: g("Active {Blueprint} Support Lock"),
+            footerMeta: g("TIERS 3–4 • OVERSIGHT / WAYFINDER ONLY"),
             desc: g(
-              "Permitted strictly within isolated local Vaults and Static Edge manifests. Scrubbed from all public feeds and Cloud {Blueprints}. Equipping or storing Tier 3–4 {mods} engages a {Vault} Lock that restricts {Citizen} Support Desk ticket submissions until removed."
+              "Restricted content isolated strictly to local {Vaults}, Static Edge manifests, and Oversight/Wayfinder hubs (hidden publicly). Equipping Tier 1–4 or Unknown {mods} locks Community {Mod} Support via non-destructive 1-click active {Blueprint} unequip without deleting files; Keeper OS Bug Reports stay open."
             ),
             subCards: [],
           },
@@ -3714,42 +3976,34 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_gpp_bad", "gpp_bad"),
             overline: g("TIER 5 • CONFIRMED MALWARE"),
             badge: "TIER 5",
-            title: g(
-              "Zero-Choice OS Lockdown, Move-Mode Isolation & Secure Shred"
-            ),
+            title: g("Zero-Choice Lockdown"),
             footerMeta: g("TIER 5 • CONFIRMED MALWARE"),
             desc: g(
-              "Malicious payloads, webhook exfiltrators, credential stealers, or unauthorized executables detected via SHA-256 DNA or Universal 21+17 Rust Heuristics. Immediately halts game launch, moves/isolates the file in Quarantine, locks the OS shell, and requires a Secure Shred signature."
+              "Malicious payloads, webhook exfiltrators, credential stealers, or unauthorized executables caught by SHA-256 DNA or Bytecode Hound—halting launch, isolating in Quarantine via Move-mode, locking the OS shell, and demanding a {Citizen}-signed Secure Shred."
             ),
             subCards: [],
           },
           {
             id: "comp_av",
             icon: t("icon_security", "security"),
-            overline: g(
-              "UNIVERSAL 21+17 RUST AV • BINARY STREAM & BYTECODE DECOMPRESSION"
-            ),
-            badge: "21+17 RULES",
-            title: g(
-              "Universal Multi-Format Heuristic & Decompression Scanner"
-            ),
-            footerMeta: "21 Core + 17 Spoke Signatures • Zlib/Zstd/Base64",
+            overline: g("CORE + SPOKE RUST AV • STREAM & BYTECODE INSPECTOR"),
+            badge: "CORE + SPOKE",
+            title: g("Bytecode Hound"),
+            footerMeta: "Core + Spoke Signatures • Zlib/Zstd/Base64",
             desc: g(
-              "Combines 21 Core Heuristics (keeper_heuristic_signatures) and 17+ Spoke Heuristics (heuristic_signatures) with in-memory Zlib/Zstd binary stream decompression and Base64/Hex deobfuscation to inspect .zip, .mod, .bin, .asi, .dll, .exe, .lua, and .pyc bytecode."
+              "Combines Core Heuristics (keeper_heuristic_signatures) and Spoke Heuristics (heuristic_signatures) with in-memory Zlib/Zstd binary stream decompression and Base64/Hex deobfuscation to inspect archives, raw binaries, scripts, and compiled bytecode."
             ),
             subCards: [],
           },
           {
             id: "comp_nuclear",
             icon: t("icon_policy", "policy"),
-            overline: g("NUCLEAR OVERRIDE & ZERO-PII THREAT MANIFEST"),
-            badge: "PRIVACY-FIRST",
-            title: g(
-              "Decoupled Hardware Ban Ledger & Anonymous Threat Telemetry"
-            ),
+            overline: g("PRIVACY-FIRST • THREAT MANIFEST"),
+            badge: "NUCLEAR OVERRIDE",
+            title: g("Nuclear Override"),
             footerMeta: "hardware_bans • Zero-PII Threat Manifest",
             desc: g(
-              "Sanctuary OS never tracks Hardware IDs on normal users. Quarantined files offer an optional Zero-PII Threat Manifest report (SHA-256 + matched rule IDs only), while the 5-click Nuclear Override records a one-way hash in hardware_bans and severs cloud access."
+              "Sanctuary OS never tracks Hardware IDs on normal users. Quarantined payloads offer an optional Zero-PII Threat Manifest report (SHA-256 + matched rule IDs only), while invoking the 5-click Nuclear Override records a one-way salted hash in hardware_bans and permanently severs cloud access."
             ),
             subCards: [],
           },
@@ -3758,20 +4012,18 @@ export function getDefaultDirectiveBuilderSchema(
       {
         id: "list",
         icon: t("icon_policy", "policy"),
-        label: g("33 RULES"),
+        label: g("30 RULES"),
         value: g("OS Protocols"),
         cards: [
           {
             id: "proto_d1",
             icon: t("icon_hub", "hub"),
-            overline: g("DOMAIN 1 • 10 PROTOCOLS"),
+            overline: g("DOMAIN 1 • 9 PROTOCOLS"),
             badge: "DOMAIN 1",
-            title: g(
-              "System Foundation, Cross-Platform (Windows + macOS + Linux / SteamOS) & Bilateral Sync Protocols"
-            ),
-            footerMeta: g("DOMAIN 1 • 10 PROTOCOLS"),
+            title: g("Foundation & Sovereignty Protocols"),
+            footerMeta: g("DOMAIN 1 • 9 PROTOCOLS"),
             desc: g(
-              "Cross-platform binary reconnaissance, macOS TCC/Gatekeeper & Linux/SteamOS Proton handling, Master Schema & Lexicon Studios, Turnkey Spoke Uplinks, Bilateral Severance, and Codebase-to-Hub Sync."
+              "Cross-platform binary reconnaissance, Steam Deck controller & Proton resolution, macOS security clearance, Liquid Glass Optics, Universal Master Schema, Code-Switch, Cut the Cord, and Mirror Uplink."
             ),
             subCards: [
               {
@@ -3779,79 +4031,71 @@ export function getDefaultDirectiveBuilderSchema(
                 icon: t("icon_explore", "explore"),
                 title: g("The Cartographer"),
                 desc: g(
-                  "Automated first-boot reconnaissance system that locates the Game Bin (executable_subdir), live {Mods} directory, and external {Vault} archive path across Windows, macOS, and Linux / SteamOS."
+                  "Automated cross-platform reconnaissance locating Game Bin (executable_subdir), Active {Mods} (mods_path), and auto-resolved Saves/Logs/Cache (docs_path) across Windows, macOS, and Linux / SteamOS—strictly decoupled from the OS-wide Master {Vault} path."
                 ),
               },
               {
                 id: "proto_d1_r2",
                 icon: t("icon_memory", "memory"),
-                title: g("Cross-Platform Version Ripper (pelite + macOS Info.plist + Proton)"),
+                title: g("Binary Version Ripper"),
                 desc: g(
-                  "In-process Rust binary inspector that extracts genuine patch versions directly from Windows .exe PE headers, macOS .app/Contents/Info.plist, and Linux/SteamOS Proton prefixes without spawning external processes."
+                  "In-process Rust inspector extracting genuine patch versions directly from Windows/Proton executable PE headers, macOS Info.plist bundles, Steam .acf manifests, and declarative json_key probes with zero external process spawns."
                 ),
               },
               {
                 id: "proto_d1_r3",
-                icon: t("icon_laptop_mac", "laptop_mac"),
-                title: g("macOS Full Disk Access & Gatekeeper Quarantine Protocol"),
+                icon: t("icon_sports_esports", "sports_esports"),
+                title: g("Deck Overdrive"),
                 desc: g(
-                  "Detects macOS TCC permission blocks on ~/Documents and ~/Library/Application Support, deep-links to macOS System Settings, and strips com.apple.quarantine attributes."
+                  "Unifies Gamescope XWayland surface binding, decodes 64-byte hidraw + evdev controller telemetry into a 60 FPS {Chameleon} Virtual Pointer, 2D Spatial Focus, and auto-summoned Steam OSK, and auto-resolves Proton compatdata prefixes across internal drives and SD cards."
                 ),
               },
               {
                 id: "proto_d1_r4",
-                icon: t("icon_schema", "schema"),
-                title: g("100% Agnostic Master Schema & Secondary Install Route Protocol"),
+                icon: t("icon_laptop_mac", "laptop_mac"),
+                title: g("Gatekeeper Clearance"),
                 desc: g(
-                  "Supports 7 pre-calibrated Engine Architecture Presets, secondary install_routes, dlc_subdirs, launch_args_dlc_mask_template, save_airgap_targets, and lab_verification.save_extensions."
+                  "Delivers native Apple Touch ID WebAuthn Passkeys, macOS TCC Full Disk Access diagnostics, System Settings deep-linking, and automatic com.apple.quarantine attribute stripping on verified {Vault} projections."
                 ),
               },
               {
                 id: "proto_d1_r5",
-                icon: t("icon_menu_book", "menu_book"),
-                title: g("Master Schema & Lexicon Architecture Codex"),
+                icon: t("icon_auto_awesome", "auto_awesome"),
+                title: g("Liquid Glass Optics"),
                 desc: g(
-                  "Interactive in-app SidePanel manual with mode-switchable documentation and 2-column field reference grids explaining every schema and lexicon directive."
+                  "1:1 physical-pixel WebGL2 refraction with dedicated layer2 floating glass, SHA-256 deduplicated <= 250 KB WebP {Chameleon} wallpapers, Per-Space {Chameleons} & {Lexicons}, and responsive mobile Liquid Glass filter pills."
                 ),
               },
               {
                 id: "proto_d1_r6",
-                icon: t("icon_translate", "translate"),
-                title: g("Dynamic Glossary Token & Guided Icon Override Protocol"),
+                icon: t("icon_schema", "schema"),
+                title: g("Universal Master Schema"),
                 desc: g(
-                  "Interpolates 21 core domain tokens ({Mod}, {Vault}, {Blueprint}, {Mason}, {Citizen}, {Backups}, {Lab}, {Settings}) with automatic casing and article grammar, paired with a searchable Guided OS Icon Override Builder."
+                  "100% engine-agnostic sanctuary_schemas (v12) with 7 Engine Architecture Presets, multi-folder tree preservation, archive_containers, secondary install_routes, ordered load_order templates, and declarative conflict_analyzers."
                 ),
               },
               {
                 id: "proto_d1_r7",
-                icon: t("icon_key", "key"),
-                title: g("Turnkey Spoke Uplink Handshake (SANCTUARY-UPLINK://)"),
+                icon: t("icon_translate", "translate"),
+                title: g("Code-Switch"),
                 desc: g(
-                  "1-click onboarding protocol (verify_and_bootstrap_spoke) that validates all 38 tables in schema.sql, seeds global_network_status, and auto-provisions the Founding Wayfinder."
+                  "Auto-synced 6,166-key Standard English baseline, lightweight Sparse Delta Override packs with 21 Dynamic {Glossary} Tokens and smart article grammar, Guided Icon Overrides, and 1-click auto-translation across 28+ languages."
                 ),
               },
               {
                 id: "proto_d1_r8",
                 icon: t("icon_link_off", "link_off"),
-                title: g("Bilateral Severance Protocol ('Cut the Cord')"),
+                title: g("Cut the Cord"),
                 desc: g(
-                  "Self-service sovereignty protocol executable by either a Keeper or a Spoke's Wayfinder that writes immutable audit logs and scrubs the Spoke's service key from the Hub."
+                  "Seals Spoke Gateway Tokens (spk_gw_*) via Split-Custody HKDF-SHA256 + AES-256-GCM AAD double-envelope encryption in sanctuary_internal.spoke_credentials + Supabase Vault, revokes tokens and purges credentials on 'CUT THE CORD' severance, supports 1-file Standalone Forking (src/supabase.ts), and binds returning users via cryptographic SRK1 relink tokens."
                 ),
               },
               {
                 id: "proto_d1_r9",
-                icon: t("icon_call_split", "call_split"),
-                title: g("Single-File Standalone Fork Protocol (src/supabase.ts)"),
-                desc: g(
-                  "Allows any community to fork Sanctuary OS against a single schema.sql Supabase project by editing only SANCTUARY_CONFIG in src/supabase.ts."
-                ),
-              },
-              {
-                id: "proto_d1_r10",
                 icon: t("icon_sync", "sync"),
-                title: g("Bilateral Codebase-to-Keepers-Core Directive & Legal Sync"),
+                title: g("Mirror Uplink"),
                 desc: g(
-                  "Automatically synchronizes core documentation directives and canonical legal/covenant documents between local repository .md files and Keepers Core."
+                  "Bidirectionally synchronizes Core Schemas, {Lexicons}, {Chameleons}, system_directives, and canonical legal covenants between local repository files and Keepers Core without requiring app rebuilds."
                 ),
               },
             ],
@@ -3861,68 +4105,66 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_inventory_2", "inventory_2"),
             overline: g("DOMAIN 2 • 7 PROTOCOLS"),
             badge: "DOMAIN 2",
-            title: g(
-              "{Vault} Airgap, Config Deduplication, Static Edge & {Mod} Management Protocols"
-            ),
+            title: g("{Vault} Airgap & {Mason} Pipeline Protocols"),
             footerMeta: g("DOMAIN 2 • 7 PROTOCOLS"),
             desc: g(
-              "Zero-copy symlink projection, root config deduplication, decentralized Static Edge polling, parent suite grouping, 3-tile studio, Workbench diffing, and live key validation."
+              "Zero-copy symlink projection, pre-launch patch simulations, zero-byte version history, cross-rig transfers, Static Edge polling, guided batch downloading, and visual config tuning."
             ),
             subCards: [
               {
                 id: "proto_d2_r1",
                 icon: t("icon_inventory_2", "inventory_2"),
-                title: g("Symlink Airgap 2.5"),
+                title: g("Symlink Airgap"),
                 desc: g(
-                  "Projects {mods} from the isolated {Vault}/{Mods}/ archive into the live game directory via zero-copy OS symlinks and secondary install_routes."
+                  "Projects active {mods} from {Vault}/{Mods}/ via zero-copy OS symlinks and secondary install_routes, rescues untracked rogue files dropped into live game folders, and deduplicates stray root configs back into {mod} subfolders."
                 ),
               },
               {
                 id: "proto_d2_r2",
-                icon: t("icon_sync_saved_locally", "sync_saved_locally"),
-                title: g("Automatic Root Config Deduplication Protocol"),
+                icon: t("icon_science", "science"),
+                title: g("Patch Fire Drill"),
                 desc: g(
-                  "Syncs newer timestamped config data into the {mod}'s subfolder copy, removes duplicate root config strays, and suppresses watcher feedback loops."
+                  "Evaluates every {Blueprint} against any upstream game patch with 1:1 deduplicated {mod} parity, transitive dependency cascades, local Echo Archive Auto-Swap detection, 1-click dependency links, and 1-click Clone Ready {Blueprints}."
                 ),
               },
               {
                 id: "proto_d2_r3",
-                icon: t("icon_cloud_done", "cloud_done"),
-                title: g("Decentralized Static Edge Polling (.sanctuary.manifest.json & .sanctuary.override.json)"),
+                icon: t("icon_history", "history"),
+                title: g("Echo Archive"),
                 desc: g(
-                  "Binds a {mod}'s SHA-256 hash lineage in .sanctuary_cache.db and polls creator HTTP endpoints directly during Radar Sweeps for serverless updates."
+                  "Archives every installed {mod} binary from Version #1 using zero-extra-byte OS hardlinks (Backups/Mods/), supporting multi-revision Suite Revision Matrix rollbacks, Auto-Swap recovery, and parent suite card grouping."
                 ),
               },
               {
                 id: "proto_d2_r4",
-                icon: t("icon_folder_copy", "folder_copy"),
-                title: g("{Mod} Suite Parent Grouping"),
+                icon: t("icon_devices", "devices"),
+                title: g("Beam to Rig"),
                 desc: g(
-                  "Automatically groups multi-file {mod} suites and their modular add-ons into a single clean Parent Card with an expandable Linked Modules drawer."
+                  "Unifies Public/Unlisted/Private Cloud {Blueprint} modes, settled post-scan SHA-256 self-healing, concurrent GZIP + AES-256-GCM Personal Rig transfers between Desktop and Steam Deck, and the Mobile Pocket Radar companion."
                 ),
               },
               {
                 id: "proto_d2_r5",
-                icon: t("icon_handyman", "handyman"),
-                title: g("Unified 3-Tile {Mod} Studio"),
+                icon: t("icon_cloud_done", "cloud_done"),
+                title: g("Edge Pulse"),
                 desc: g(
-                  "Standardized 3-step workflow (Details & Versions, Files & Folders, Rules & Upload) across both the {Mason} Workshop and Architect Console."
+                  "Concurrently polls .sanctuary.manifest.json, .sanctuary.override.json, and catalog.json endpoints in Rust with ETag/304 caching and SSRF guards, paired with 6-provider 1-click Direct Push and automatic previous_hashes rollover."
                 ),
               },
               {
                 id: "proto_d2_r6",
-                icon: t("icon_tune", "tune"),
-                title: g("Reimagined {Citizen}'s Workbench & Visual Timeline Diff"),
+                icon: t("icon_cloud_download", "cloud_download"),
+                title: g("Browser Autoloader"),
                 desc: g(
-                  "2-column 60 FPS Visual Config Editor with category pills, Min/Max range controls, No-Code Visual Template Builder, and 2-Column Interactive Timeline & Diff."
+                  "Orchestrates Guided Update Queues (1 of N) inside the embedded Side Browser, stepping through each {Mason}'s official download page and auto-advancing the instant the Rust download interceptor verifies the archive."
                 ),
               },
               {
                 id: "proto_d2_r7",
-                icon: t("icon_verified", "verified"),
-                title: g("Floating Liquid Glass Key Validator Alert"),
+                icon: t("icon_tune", "tune"),
+                title: g("Live-Wire Workbench"),
                 desc: g(
-                  "Real-time floating alert card in the Master Schema and Lexicon IDEs validating active files against the Keepers Core Default Schema or en-default.json Baseline."
+                  "60 FPS 2-column Visual Config Studio (.sanctuary.template.json + INI/TOML/YAML/XML/JSON) with Live-Wire Diff capturing real-time [In-Game Engine Edit] snapshots alongside Monaco diffs and the 3-Tile {Mod} Studio."
                 ),
               },
             ],
@@ -3932,26 +4174,26 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_radar", "radar"),
             overline: g("DOMAIN 3 • 7 PROTOCOLS"),
             badge: "DOMAIN 3",
-            title: g("Stability, Load Order & Atomic Logic Protocols"),
+            title: g("Load Order, Atomic Logic & Sandbox Protocols"),
             footerMeta: g("DOMAIN 3 • 7 PROTOCOLS"),
             desc: g(
-              "Topological load order compilation, Casual vs. Advanced Conflict Radar, Highlander Flavor eviction, Nuclear Family twins, Deep Yeet cascades, Homestead {Lab}, and hardlink {Backups}."
+              "Topological priority compilation, pluggable conflict analysis, exclusive slot alerts, twin cohesion, dependency cascades, save-airgapped testing, and hardlink snapshots."
             ),
             subCards: [
               {
                 id: "proto_d3_r1",
                 icon: t("icon_layers", "layers"),
-                title: g("Schema-Driven Load Order Engine (compileLoadOrder)"),
+                title: g("Priority Compiler"),
                 desc: g(
-                  "Compiles deployment priority using folder_priority (Standard Load to Final Override + dynamic manifest), manifest_list, numeric_prefix, or timestamp, with strategy-aware priority tier and queue controls, searchable {Blueprint} Scan Scope, and DFS circular-loop breaking."
+                  "Compiles topological deployment priority across folder_priority, manifest_list (XML/JSON/text templates), numeric_prefix, and timestamp with strategy-aware tiers, searchable {Blueprint} Scan Scopes, and 1-click DFS loop breaking."
                 ),
               },
               {
                 id: "proto_d3_r2",
                 icon: t("icon_radar", "radar"),
-                title: g("Conflict Radar 2.0 & 5-Tier Severity Matrix"),
+                title: g("Conflict Radar 2.0"),
                 desc: g(
-                  "Classifies collisions across a 100% game-agnostic 5-Tier Severity Matrix (Severity 1–5), pairing 1-click 'Set Winner' resolution and Priority Override Tiers with directional Must Load After/Before rules."
+                  "Executes declarative virtual_fs_path, archive_member, binary_chunk_index, and json_xml_key collision analyzers across a unified 5-Tier Severity Matrix (S1–S5) with 1-click Set Winner overrides and directional load rules."
                 ),
               },
               {
@@ -3959,39 +4201,39 @@ export function getDefaultDirectiveBuilderSchema(
                 icon: t("icon_filter_1", "filter_1"),
                 title: g("The Highlander Rule"),
                 desc: g(
-                  "Automatically evicts rival Flavor files when equipping a chosen Flavor."
+                  "Guards single-winner exclusive slots (highlander_group_id) with explicit Swap, Keep Both, or Cancel prompts directly on {Vault} cards and Dossiers—never silently removing an equipped {mod}."
                 ),
               },
               {
                 id: "proto_d3_r4",
                 icon: t("icon_join_inner", "join_inner"),
-                title: g("Nuclear Family Cohesion (Twins)"),
+                title: g("Nuclear Family Cohesion"),
                 desc: g(
-                  "Bidirectionally links companion binary module and script plugin files so they equip and unequip together."
+                  "Bidirectionally links companion binary modules and script plugins so related twins equip, unequip, stage, and patch-check together as one atomic unit."
                 ),
               },
               {
                 id: "proto_d3_r5",
                 icon: t("icon_delete_sweep", "delete_sweep"),
-                title: g("Recursive Dependencies (Chain-Link) & Deep Yeet 2.0"),
+                title: g("Deep Yeet"),
                 desc: g(
-                  "Automatically equips required master {mods} when enabling an add-on, and intercepts master {mod} deletion to queue all dependent child {mods}."
+                  "Auto-equips mandatory prerequisite frameworks via Chain-Link Dependencies on enable, and intercepts master {mod} removal to sweep all orphaned dependent add-ons only after explicit {Citizen} confirmation."
                 ),
               },
               {
                 id: "proto_d3_r6",
                 icon: t("icon_science", "science"),
-                title: g("100% Nuke Injection & 1v1 Stability Arena (Homestead {Lab})"),
+                title: g("Groundhog Sandbox"),
                 desc: g(
-                  "Isolates vanilla saves via save_airgap_targets, strips active symlinks to test suspect {mods} in total isolation, and diagnoses crash logs using database-driven Known Error rules."
+                  "Immortal Save-Verify-and-Rewind {Lab} airgap featuring an untouched Vault save mirror, disposable Golden Baseline test saves, Stage 4 magic-byte save auditing, 100% anti-cheat-safe 4-stage timers, Crash Autopsy decoding, and fullscreen PCM audio chimes."
                 ),
               },
               {
                 id: "proto_d3_r7",
                 icon: t("icon_history", "history"),
-                title: g("Incremental Hardlink {Backups} & Differential Rollback"),
+                title: g("Time Capsule"),
                 desc: g(
-                  "Snapshots World State and Engine Core using OS hardlinks so unchanged files consume 0 extra bytes, restoring via differential byte comparison."
+                  "Multi-threaded rayon Copy-on-Write OS hardlink snapshots for World State and Engine Core so unchanged files consume zero extra bytes, pairing storage-cap pruning with strictly additive save restoration."
                 ),
               },
             ],
@@ -4001,68 +4243,66 @@ export function getDefaultDirectiveBuilderSchema(
             icon: t("icon_shield", "shield"),
             overline: g("DOMAIN 4 • 7 PROTOCOLS"),
             badge: "DOMAIN 4",
-            title: g(
-              "Security, FIDO2 Passkeys, Non-Custodial Supporter Bridge & Quarantine Protocols"
-            ),
+            title: g("Zero-Knowledge Security & Shield Protocols"),
             footerMeta: g("DOMAIN 4 • 7 PROTOCOLS"),
             desc: g(
-              "FIDO2 Passkey gates, 0%-cut Partner & {Mason} Supporter Bridge, 21+17 Multi-Format Heuristic Scanner, Full-OS Quarantine Lockdown, Florida Compliance Tiers 1–4, DEFCON 1, and Nuclear Override."
+              "Zero-knowledge cryptography, cross-device alert deduplication, PII scrubbing, multi-format malware lockdown, compliance confirmation gates, patch shields, and Sovereign override ledgering."
             ),
             subCards: [
               {
                 id: "proto_d4_r1",
                 icon: t("icon_passkey", "passkey"),
-                title: g("FIDO2 Passkey & TOTP Security {Vault} (SecurityVaultSidePanel)"),
+                title: g("Zero-Knowledge Seal"),
                 desc: g(
-                  "Requires hardware-bound WebAuthn/FIDO2 Passkeys or TOTP verification for all Elevated Clearances, locking Elevated Hubs inside a right-hand SidePanel until verified."
+                  "Combines OWASP 600k PBKDF2-SHA256 password/email blinding with a 12-hour hardware-bound FIDO2 Passkey & TOTP device seal, macOS Touch ID, 1-click Passkey recovery, and Web Push Companion Handshakes."
                 ),
               },
               {
                 id: "proto_d4_r2",
-                icon: t("icon_volunteer_activism", "volunteer_activism"),
-                title: g("Non-Custodial Supporter Bridge & Community Donations"),
+                icon: t("icon_notifications_off", "notifications_off"),
+                title: g("Echo Suppressor"),
                 desc: g(
-                  "Connects Partner Spoke communities and Verified {Masons} directly to their own payment processors with a 0% Sanctuary cut, crediting +30 days of Dev Builds per $5 donated."
+                  "Synchronizes encrypted alert dismissal tokens via notification_state_sync so OS warnings, DEFCON notices, and Command Center alerts fire once per account across all rigs, with per-category Spoke muting."
                 ),
               },
               {
                 id: "proto_d4_r3",
-                icon: t("icon_security", "security"),
-                title: g("Dual-Tier Multi-Format Heuristic Scanner"),
+                icon: t("icon_cleaning_services", "cleaning_services"),
+                title: g("Ghost Scrubber"),
                 desc: g(
-                  "Merges global Core Heuristics and community Spoke Heuristics using pre-compiled OnceLock Rust regex sets to scan ZIP containers, raw binaries, and .pyc/.pyo bytecode."
+                  "Proactively scrubs OS paths, local usernames ([USER_REDACTED]), IPs, MACs, SIDs, and HWIDs before diagnostics leave the rig while gating Architect telemetry strictly to verified Tier 0 hashes."
                 ),
               },
               {
                 id: "proto_d4_r4",
                 icon: t("icon_gpp_bad", "gpp_bad"),
-                title: g("Full-OS Quarantine SidePanel Lockdown & External Secure Shred"),
+                title: g("Zero-Choice Lockdown"),
                 desc: g(
-                  "Confirmed Tier 5 Malware locks the entire OS shell, displays the exact Triggered By rule and Detection Source, and requires a {Citizen}'s Signature for multi-pass Secure Shred."
+                  "Executes Bytecode Hound heuristics (decompressing Zlib/Zstd streams, archives, and bytecode) to halt game launches on Tier 5 Malware, isolate payloads in Quarantine, and require {Citizen}-signed Secure Shred."
                 ),
               },
               {
                 id: "proto_d4_r5",
                 icon: t("icon_visibility_off", "visibility_off"),
-                title: g("Florida Compliance Tiers 1–4 & {Blueprint} Auto-Purge"),
+                title: g("Tiered Surface Isolation & {Blueprint} Support Lock"),
                 desc: g(
-                  "Permits Tiers 1–4 in local Vaults while scrubbing them from public Nexus feeds and automatically stripping flagged hashes from Cloud {Blueprints}."
+                  "Restricts The Nexus, Comm-Link, Architect Console, and Community {Mod} Support to Tier 0 (Unknown in Scout/Mason queues only, Tiers 1–4 & Pending flags hidden in Oversight/Wayfinder hubs only). Equipping Tier 1–4 or Unknown {mods} engages a non-destructive Active {Blueprint} Support Lock while Keeper OS Bug Reports stay open."
                 ),
               },
               {
                 id: "proto_d4_r6",
                 icon: t("icon_warning", "warning"),
-                title: g("DEFCON 1 Network Shield"),
+                title: g("DEFCON 1 Shield"),
                 desc: g(
-                  "Real-time Supabase listener on global_network_status that intercepts game launches during breaking game patches and forces a Pre-Patch {Backups} snapshot."
+                  "Monitors live global_network_status events plus Next-Desktop-Open and offline game updates on startup (Auto Backup, Alert, or Lone Wolf) to seal saves before breaking patches launch."
                 ),
               },
               {
                 id: "proto_d4_r7",
                 icon: t("icon_policy", "policy"),
-                title: g("The Nuclear Override & Decoupled hardware_bans"),
+                title: g("Nuclear Override"),
                 desc: g(
-                  "Revealed by clicking the {Settings} subtitle 5 times; bypasses local quarantine at the cost of recording the machine's hardware hash in hardware_bans and revoking cloud access."
+                  "Hidden 5-click {Settings} subtitle override permitting local quarantine bypass only by recording a privacy-first domain-salted one-way SHA-256 hardware hash in hardware_bans and severing cloud access."
                 ),
               },
             ],

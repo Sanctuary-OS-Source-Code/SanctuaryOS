@@ -62,6 +62,9 @@ const CommandIncompatiblePanel = React.lazy(() => import("./side-panels/CommandI
 const ScreenshotTourSidePanel = React.lazy(() =>
   import("./side-panels/ScreenshotTourSidePanel").then((m) => ({ default: m.ScreenshotTourSidePanel }))
 );
+const CloudSyncGuardSidePanel = React.lazy(() =>
+  import("./side-panels/CloudSyncGuardSidePanel").then((m) => ({ default: m.CloudSyncGuardSidePanel }))
+);
 
 export const AppModals = React.memo(function AppModals(props: any) {
   const { t } = useLexicon();
@@ -117,6 +120,8 @@ export const AppModals = React.memo(function AppModals(props: any) {
     isSystemStatusOpen,
     setIsSystemStatusOpen,
     isScoutPanelOpen,
+    isCloudSyncGuardOpen,
+    closeCloudSyncGuard,
   } = useModalStore(
     useShallow((s) => ({
       backupType: s.backupType,
@@ -141,6 +146,8 @@ export const AppModals = React.memo(function AppModals(props: any) {
       isSystemStatusOpen: s.isSystemStatusOpen,
       setIsSystemStatusOpen: s.setIsSystemStatusOpen,
       isScoutPanelOpen: s.isScoutPanelOpen,
+      isCloudSyncGuardOpen: s.isCloudSyncGuardOpen,
+      closeCloudSyncGuard: s.closeCloudSyncGuard,
     }))
   );
 
@@ -290,6 +297,9 @@ export const AppModals = React.memo(function AppModals(props: any) {
       <Suspense fallback={null}>
         {isSystemStatusOpen && (
           <SystemStatusPanel isOpen={isSystemStatusOpen} onClose={() => setIsSystemStatusOpen(false)} />
+        )}
+        {isDesktop() && isCloudSyncGuardOpen && (
+          <CloudSyncGuardSidePanel isOpen={isCloudSyncGuardOpen} onClose={closeCloudSyncGuard} />
         )}
       </Suspense>
 

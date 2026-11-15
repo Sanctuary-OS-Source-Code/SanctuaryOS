@@ -1,6 +1,13 @@
 import { useState, useRef, useMemo, useEffect, useLayoutEffect } from "react";
 import { EditorContent, Editor } from "@tiptap/react";
+import MonacoEditor from "@monaco-editor/react";
 import { useLexicon } from "../../LexiconContext";
+import { useTheme } from "../../ThemeContext";
+import {
+  defineSanctuaryMonacoThemes,
+  useSanctuaryMonacoTheme,
+  isThemeLight,
+} from "../../utils/monacoTheme";
 import { ActionButton } from "../../shared-components/buttons";
 import {
   DashboardStatTile,
@@ -16,7 +23,7 @@ import {
 } from "../ReleaseNotesShowcase";
 import { DispatchPollBuilder, DispatchPollData } from "./DispatchPollAndMeta";
 
-function AutoResizeTextarea({
+export function AutoResizeTextarea({
   value,
   onChange,
   placeholder,
@@ -310,6 +317,10 @@ export function UnifiedPostBodyEditor({
   hideModeTiles?: boolean;
 }) {
   const { t } = useLexicon();
+  const { currentTheme } = useTheme();
+  const isLightMode = isThemeLight(currentTheme);
+  useSanctuaryMonacoTheme(currentTheme, isLightMode);
+  const [rawWordWrap, setRawWordWrap] = useState(true);
   const [showImagePrompt, setShowImagePrompt] = useState(false);
   const [inlineImgUrl, setInlineImgUrl] = useState("");
   const [showEmotePicker, setShowEmotePicker] = useState(false);
@@ -806,11 +817,30 @@ export function UnifiedPostBodyEditor({
     });
   };
 
+  const handleModeSwitch = (nextMode: PostEditorMode) => {
+    if (
+      mode === "wysiwyg" &&
+      nextMode !== "wysiwyg" &&
+      editor &&
+      !editor.isDestroyed
+    ) {
+      const liveMd = (editor.storage as any)?.markdown?.getMarkdown?.();
+      if (typeof liveMd === "string" && liveMd !== content) {
+        onContentChange(liveMd);
+      }
+    }
+    onModeChange(nextMode);
+  };
+
   return (
-    <div className="flex flex-col gap-4 w-full">
+    <div
+      className={`flex flex-col gap-4 w-full ${
+        mode === "markdown" ? "flex-1 min-h-0" : ""
+      }`}
+    >
       {/* 1x3 DashboardStatTile Mode Switcher (No PillTabs) */}
       {!hideModeTiles && (
-        <PostEditorModeTiles mode={mode} onModeChange={onModeChange} />
+        <PostEditorModeTiles mode={mode} onModeChange={handleModeSwitch} />
       )}
 
       {/* =====================================================================
@@ -942,7 +972,7 @@ export function UnifiedPostBodyEditor({
 
                     <div
                       className={`${openActionMenuKey === "intro"
-                        ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover p-1.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl"
+                        ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover sa-inline-md-toolbar p-1.5 rounded-2xl"
                         : "hidden"
                         } md:flex md:static md:p-0 md:bg-transparent md:border-0 md:shadow-none items-center gap-1.5`}
                     >
@@ -1181,7 +1211,7 @@ export function UnifiedPostBodyEditor({
 
                       <div
                         className={`${openActionMenuKey === `sec-${sIdx}`
-                          ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover p-1.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl"
+                          ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover sa-inline-md-toolbar p-1.5 rounded-2xl"
                           : "hidden"
                           } md:flex md:static md:p-0 md:bg-transparent md:border-0 md:shadow-none items-center gap-1.5`}
                       >
@@ -1393,7 +1423,7 @@ export function UnifiedPostBodyEditor({
 
                               <div
                                 className={`${openActionMenuKey === cardKey
-                                  ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover p-1.5 rounded-2xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-2xl"
+                                  ? "flex absolute right-0 top-[calc(100%+6px)] z-[220] glass-panel portal-glass-fix sa-dropdown-popover sa-inline-md-toolbar p-1.5 rounded-2xl"
                                   : "hidden"
                                   } md:flex md:static md:p-0 md:bg-transparent md:border-0 md:shadow-none items-center gap-1`}
                               >
@@ -1975,22 +2005,90 @@ export function UnifiedPostBodyEditor({
       )}
 
       {/* =====================================================================
-          MODE 3: RAW MARKDOWN SOURCE
+          MODE 3: RAW MARKDOWN SOURCE (IDE MONACO EDITOR)
          ===================================================================== */}
       {mode === "markdown" && (
-        <div className="glass-panel rounded-2xl p-4 flex flex-col gap-3">
-          <textarea
-            value={content}
-            onChange={(e) => syncMarkdown(e.target.value)}
-            placeholder={
-              placeholder ||
-              t(
-                "keepers_web_directives_body_ph",
-                "Write or paste Markdown content..."
-              )
-            }
-            className="w-full min-h-[320px] p-4 rounded-xl glass-surface font-mono text-xs text-[var(--text)] leading-relaxed outline-none focus:border-[var(--accent)] resize-y custom-scrollbar"
-          />
+        <div className="glass-panel rounded-2xl overflow-hidden flex-1 min-h-[calc(100dvh-230px)] flex flex-col border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+          <div className="px-4 py-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-[color-mix(in_srgb,var(--bg)_25%,transparent)] flex items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                {t("icon_code", "code")}
+              </span>
+              <span className="text-[11px] font-black uppercase tracking-wider text-[var(--text)] truncate">
+                {t("post_editor_markdown_source", "Markdown Source")}
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-mono font-bold text-[var(--subtext)] tabular-nums shrink-0">
+                {content ? content.split("\n").length : 0}{" "}
+                {t("editor_lines_label", "lines")}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRawWordWrap((prev) => !prev)}
+              className={`h-7 px-2.5 rounded-lg border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                rawWordWrap
+                  ? "glass-surface sa-glass-pill-active text-[var(--text)]"
+                  : "bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                {t("icon_wrap_text", "wrap_text")}
+              </span>
+              <span>{t("editor_btn_wrap", "Wrap")}</span>
+            </button>
+          </div>
+          <div className="monaco-wrapper flex-1 min-h-[480px] h-[max(480px,calc(100dvh-290px))] relative w-full">
+            <div className="absolute inset-0">
+              <MonacoEditor
+                height="100%"
+                width="100%"
+                language="markdown"
+                value={content}
+                onChange={(val) => syncMarkdown(val ?? "")}
+                theme={isLightMode ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
+                beforeMount={(monacoInstance) =>
+                  defineSanctuaryMonacoThemes(monacoInstance, currentTheme)
+                }
+                onMount={(editorInstance) => {
+                  editorInstance.layout();
+                  editorInstance.onMouseDown((e) => {
+                  if (e.event.rightButton) {
+                    e.event.preventDefault();
+                    e.event.stopPropagation();
+                    window.dispatchEvent(
+                      new CustomEvent("sanctuary-monaco-contextmenu", {
+                        detail: {
+                          editor: editorInstance,
+                          x: e.event.posx,
+                          y: e.event.posy,
+                        },
+                      })
+                    );
+                  }
+                });
+              }}
+              options={{
+                contextmenu: false,
+                minimap: { enabled: false },
+                fontSize: 13,
+                fontFamily: "var(--font-mono), Consolas, monospace",
+                lineHeight: 22,
+                padding: { top: 14, bottom: 16 },
+                scrollBeyondLastLine: false,
+                wordWrap: rawWordWrap ? "on" : "off",
+                automaticLayout: true,
+                lineNumbersMinChars: 4,
+                folding: true,
+                glyphMargin: false,
+                tabSize: 2,
+                scrollbar: {
+                  verticalScrollbarSize: 6,
+                  horizontalScrollbarSize: 6,
+                },
+              }}
+            />
+            </div>
+          </div>
         </div>
       )}
     </div>

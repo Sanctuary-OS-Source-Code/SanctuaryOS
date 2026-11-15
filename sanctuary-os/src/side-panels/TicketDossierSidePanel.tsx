@@ -1,11 +1,10 @@
 import { useStore } from "../store";
 import { useState, useEffect } from "react";
 import { useLexicon } from "../LexiconContext";
-import { supabase, supabaseAuth } from "../supabase";
+import { supabase, supabaseAuth, getBrandConfig } from "../supabase";
 import {
   SidePanel,
   SidePanelHeroCard,
-  SidePanelTitleInput,
   UniversalGroup,
   StatBox,
   ActionButton,
@@ -16,7 +15,18 @@ import {
   VAULT_CHIP_CLASS,
 } from "../shared";
 import { UniversalInput, UniversalTextArea, SidePanelPillToggle } from "../components/universal/UniversalLayout";
-import { dispatchKeeperCustomEmail, getKeepersPipelineConfig, getSupporterState, isFoundryPatron } from "../utils/supporterManager";
+import {
+  dispatchKeeperCustomEmail,
+  getKeepersPipelineConfig,
+  getSupporterState,
+  findAnyActiveMasonSupporterPasses,
+  isSpokeSupporter,
+  isFoundryPatron,
+} from "../utils/supporterManager";
+import {
+  getTicketSupporterFlags,
+  TicketSupporterFallback,
+} from "../components/universal/SupportTicketCard";
 import TicketLogViewer from "./TicketLogViewer";
 
 interface TicketDossierProps {
@@ -56,15 +66,23 @@ export default function TicketDossierSidePanel({
   const { t } = useLexicon();
   const [reason, setReason] = useState("");
   const [replyText, setReplyText] = useState("");
-  const [authorName, setAuthorName] = useState("LOADING...");
+  const [authorName, setAuthorName] = useState(t("loading", "Loading..."));
   const [isAuthorPatron, setIsAuthorPatron] = useState(false);
+  const [localAuthorFallback, setLocalAuthorFallback] = useState<
+    TicketSupporterFallback | undefined
+  >(undefined);
   const [replies, setReplies] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fetchedTargetModName, setFetchedTargetModName] = useState<string | null>(null);
   const [selectedAction, setSelectedAction] = useState<string>("");
   const [sendEmailCopy, setSendEmailCopy] = useState(false);
   const [emailRecipient, setEmailRecipient] = useState("");
-  const [senderIdentityLabel, setSenderIdentityLabel] = useState("Sanctuary OS Keepers Core <support@sanctuaryos.gg>");
+  const brand = getBrandConfig();
+  const defaultSenderName = `${brand.appTitle || "Sanctuary OS"} Keepers Core`;
+  const defaultSupportEmail = brand.supportEmail || "support@sanctuaryos.gg";
+  const [senderIdentityLabel, setSenderIdentityLabel] = useState(
+    `${defaultSenderName} <${defaultSupportEmail}>`
+  );
 
   useEffect(() => {
     const isKeepersTicket = (ticket?.table_name || tableName) === "keeper_tickets";
@@ -75,8 +93,9 @@ export default function TicketDossierSidePanel({
     }
 
     getKeepersPipelineConfig().then((cfg) => {
+      const b = getBrandConfig();
       setSenderIdentityLabel(
-        `${cfg.support_sender_name || "Sanctuary OS Keepers Core"} <${cfg.support_contact_email || "support@sanctuaryos.gg"}>`
+        `${cfg.support_sender_name || `${b.appTitle} Keepers Core`} <${cfg.support_contact_email || b.supportEmail}>`
       );
     });
 
@@ -141,6 +160,7 @@ export default function TicketDossierSidePanel({
       ticket?.metadata?.is_foundry_patron || ticket?.metadata?.expedited_support
     );
     setIsAuthorPatron(initialPatron);
+    setLocalAuthorFallback(undefined);
 
     const resolveAuthorAndSupporter = async () => {
       if (!ticket) return;
@@ -154,8 +174,21 @@ export default function TicketDossierSidePanel({
       if (isCurrentUserAuthor) {
         try {
           const st = await getSupporterState();
-          if (isMounted && isFoundryPatron(st)) {
-            setIsAuthorPatron(true);
+          if (isMounted) {
+            const patron = isFoundryPatron(st);
+            if (patron) {
+              setIsAuthorPatron(true);
+            }
+            const activeWorkspaceId = useStore.getState().activeWorkspaceId;
+            const masonPasses = findAnyActiveMasonSupporterPasses(st);
+            const spokePass = isSpokeSupporter(st, activeWorkspaceId);
+            setLocalAuthorFallback({
+              isMasonSupporter: masonPasses.length > 0,
+              masonSupporterName: masonPasses[0]?.mason_name || null,
+              isSpokeSupporter: Boolean(spokePass),
+              spokeSupporterName: spokePass?.spoke_name || null,
+              isFoundryPatron: patron,
+            });
           }
         } catch (_) {}
       }
@@ -255,13 +288,13 @@ export default function TicketDossierSidePanel({
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    let replyAuthor = "Support Team";
+    let replyAuthor = t("support_team", "Support Team");
     if (user) {
       replyAuthor =
         user.user_metadata?.mason_name ||
         user.user_metadata?.username ||
         user.email?.split("@")[0] ||
-        "Support Team";
+        t("support_team", "Support Team");
     }
 
     const newReply = {
@@ -294,7 +327,7 @@ export default function TicketDossierSidePanel({
       ) {
         const emailResult = await dispatchKeeperCustomEmail({
           to_email: emailRecipient.trim(),
-          subject: `Re: ${ticket.title || "Sanctuary OS Support Inquiry"}`,
+          subject: `Re: ${ticket.title || `${brand.appTitle} Support Inquiry`}`,
           body_text: replyText.trim(),
           ticket_id: ticket.id,
         });
@@ -331,8 +364,14 @@ export default function TicketDossierSidePanel({
       if (ticket.author_id && user && ticket.author_id !== user.id) {
         await supabase.from("notifications").insert({
           user_id: ticket.author_id,
-          title: "New Ticket Reply",
-          message: `${replyAuthor} replied to your ticket: ${ticket.title}`,
+          actor_id: user.id,
+          title: t("notification_ticket_reply_title", "New Ticket Reply"),
+          message: (
+            t("notification_ticket_reply_body", "{0} replied to your ticket: {1}") ||
+            "{0} replied to your ticket: {1}"
+          )
+            .replace("{0}", replyAuthor)
+            .replace("{1}", String(ticket.title || "")),
           type: "support_reply",
           reference_id: ticket.id,
         });
@@ -374,11 +413,11 @@ export default function TicketDossierSidePanel({
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
-      title={t("dossier_subtitle", "Ticket Dossier")}
-      subtitle={`${t("oversight_report_id", "ID")}: ${ticket.id.substring(0, 8)}`}
+      title={t("ticket_details_title", "Support Ticket")}
+      subtitle={`${t("ticket_id_label", "Ticket ID")}: ${ticket.id.substring(0, 8)}`}
       icon={t("icon_support_agent", "support_agent")}
       iconColorClass="text-[var(--accent)]"
-      widthClass="w-[90vw] md:w-[760px]"
+      widthClass="w-[92vw] md:w-[820px]"
       headerActions={
         <PanelHeaderGroup>
           {onClaim && !ticket.metadata?.claimed_by && (
@@ -412,88 +451,97 @@ export default function TicketDossierSidePanel({
       }
     >
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
-        <SidePanelHeroCard
-          icon={t("icon_receipt_long", "receipt_long")}
-          overline={`${t("oversight_report_id", "ID")}: ${ticket.id.substring(0, 8)}`}
-          title={ticket.title || t("dossier_subtitle", "Ticket Dossier")}
-          description={t(
-            "dossier_ticket_details",
-            "Ticket details, diagnostic telemetry, and agent correspondence."
-          )}
-          badge={statusLabel}
-          badgeIcon={t("icon_confirmation_number", "confirmation_number")}
-          badges={
-            isAuthorPatron
-              ? [
-                  {
-                    label: t(
-                      "supporter_patron_badge_label",
-                      "Foundry Supporter"
-                    ),
-                    icon: t("icon_workspace_premium", "workspace_premium"),
-                    colorClass: "text-[var(--accent)]",
-                  },
-                ]
-              : undefined
+        {(() => {
+          const supporterFlags = getTicketSupporterFlags(ticket, localAuthorFallback);
+          const showPatron = isAuthorPatron || supporterFlags.isFoundryPatron;
+          const heroBadges: { label: string; icon?: string; colorClass?: string }[] = [];
+          if (supporterFlags.isMasonSupporter) {
+            heroBadges.push({
+              label: supporterFlags.masonSupporterName
+                ? `${t("ticket_badge_mason_priority", "Priority • {Mason} Supporter")} (${supporterFlags.masonSupporterName})`
+                : t("ticket_badge_mason_priority", "Priority • {Mason} Supporter"),
+              icon: t("icon_bolt", "bolt"),
+              colorClass: "text-[var(--warning)]",
+            });
+          } else if (supporterFlags.isSpokeSupporter) {
+            heroBadges.push({
+              label: t("ticket_badge_spoke_supporter", "Spoke Supporter"),
+              icon: t("icon_favorite", "favorite"),
+              colorClass: "text-[var(--accent)]",
+            });
+          } else if (showPatron) {
+            heroBadges.push({
+              label: t("supporter_patron_badge_label", "Foundry Supporter"),
+              icon: t("icon_workspace_premium", "workspace_premium"),
+              colorClass: "text-[var(--accent)]",
+            });
           }
-          variant={heroVariant}
-        >
-          <div className="grid grid-cols-2 gap-3 pt-1">
-            <StatBox
-              label={t("author", "Author")
-                .replace(/^[^\w]*/, "")
-                .trim()}
-              value={ticket.author_username || authorName}
-              icon={
-                isAuthorPatron
-                  ? t("icon_workspace_premium", "workspace_premium")
-                  : t("icon_person", "person")
-              }
-              iconColorClass="text-[var(--accent)]"
-            />
-            <StatBox
-              label={t("ticket_status", "Ticket Status")
-                .replace(/^[^\w]*/, "")
-                .trim()}
-              value={statusLabel}
-              icon={t("icon_confirmation_number", "confirmation_number")}
-              iconColorClass="text-[var(--accent)]"
-            />
-            <StatBox
-              label={t("category", "Category")
-                .replace(/^[^\w]*/, "")
-                .trim()}
-              value={(ticket.category || ticket.ticket_type || "general").replace(
-                "_",
-                " "
-              )}
-              icon={t("icon_label", "label")}
-              iconColorClass="text-[var(--accent)]"
-            />
-            <StatBox
-              label={t("dossier_created_at", "Created At")
-                .replace(/^[^\w]*/, "")
-                .trim()}
-              value={new Date(ticket.created_at).toLocaleDateString()}
-              icon={t("icon_calendar_today", "calendar_today")}
-              iconColorClass="text-[var(--accent)]"
-            />
-          </div>
-        </SidePanelHeroCard>
 
-        <SidePanelTitleInput
-          value={ticket.title || ""}
-          readOnly
-          label={t("dossier_subtitle", "Ticket Subject")}
-          subtitle={`${t("oversight_report_id", "ID")}: ${ticket.id.substring(0, 8)}`}
-        />
+          return (
+            <SidePanelHeroCard
+              icon={t("icon_receipt_long", "receipt_long")}
+              overline={`${t("ticket_id_label", "Ticket ID")}: ${ticket.id.substring(0, 8)}`}
+              title={ticket.title || t("ticket_details_title", "Support Ticket")}
+              description={t(
+                "ticket_details_desc",
+                "Ticket details, attached logs, and support replies."
+              )}
+              badge={statusLabel}
+              badgeIcon={t("icon_confirmation_number", "confirmation_number")}
+              badges={heroBadges.length > 0 ? heroBadges : undefined}
+              variant={heroVariant}
+            >
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <StatBox
+                  label={t("author", "Author")
+                    .replace(/^[^\w]*/, "")
+                    .trim()}
+                  value={ticket.author_username || authorName}
+                  icon={
+                    showPatron
+                      ? t("icon_workspace_premium", "workspace_premium")
+                      : t("icon_person", "person")
+                  }
+                  iconColorClass="text-[var(--accent)]"
+                />
+                <StatBox
+                  label={t("ticket_status", "Ticket Status")
+                    .replace(/^[^\w]*/, "")
+                    .trim()}
+                  value={statusLabel}
+                  icon={t("icon_confirmation_number", "confirmation_number")}
+                  iconColorClass="text-[var(--accent)]"
+                />
+                <StatBox
+                  label={t("category", "Category")
+                    .replace(/^[^\w]*/, "")
+                    .trim()}
+                  value={(ticket.category || ticket.ticket_type || "general").replace(
+                    "_",
+                    " "
+                  )}
+                  icon={t("icon_label", "label")}
+                  iconColorClass="text-[var(--accent)]"
+                />
+                <StatBox
+                  label={t("dossier_created_at", "Created At")
+                    .replace(/^[^\w]*/, "")
+                    .trim()}
+                  value={new Date(ticket.created_at).toLocaleDateString()}
+                  icon={t("icon_calendar_today", "calendar_today")}
+                  iconColorClass="text-[var(--accent)]"
+                />
+              </div>
+            </SidePanelHeroCard>
+          );
+        })()}
 
         {ticket.metadata?.restricted_violations &&
           ticket.metadata.restricted_violations.length > 0 && (
             <SidePanelHeroCard
               icon={t("icon_warning", "warning")}
-              overline={t("dossier_restricted_detected", "Restricted {mods} detected in {blueprint}")}
-              title={t("dossier_restricted_detected", "Restricted {mods} detected in {blueprint}")}
+              overline={t("ticket_restricted_detected", "Restricted {mods} detected in {blueprint}")}
+              title={t("ticket_restricted_detected", "Restricted {mods} detected in {blueprint}")}
               variant="danger"
             >
               <div className="flex flex-wrap gap-2">
@@ -518,7 +566,7 @@ export default function TicketDossierSidePanel({
           ticket.target_mod_id ||
           ticket.metadata?.target_mod_id) && (
           <UniversalGroup
-            title={t("dossier_ticket_details", "Assignment & Target")}
+            title={t("ticket_assignment_title", "Assignment & Target")}
             icon={t("icon_extension", "extension")}
           >
             {ticket.metadata?.claimed_by && (
@@ -540,7 +588,7 @@ export default function TicketDossierSidePanel({
                   <span>
                     {ticket.metadata.claimed_by === currentUserId
                       ? t("you", "You")
-                      : t("another_agent", "Another Agent")}
+                      : t("another_support_member", "Another Team Member")}
                   </span>
                 </span>
               </div>
@@ -692,7 +740,7 @@ export default function TicketDossierSidePanel({
           ticket.metadata.logs !== "null" &&
           ticket.metadata.logs.trim() !== "" && (
             <UniversalGroup
-              title={t("dossier_attached_logs", "Attached Logs")}
+              title={t("ticket_attached_logs", "Attached Logs")}
               icon={t("icon_terminal", "terminal")}
             >
               <TicketLogViewer logs={ticket.metadata.logs} />
@@ -701,7 +749,7 @@ export default function TicketDossierSidePanel({
 
         {replies.length > 0 && (
           <UniversalGroup
-            title={t("tab_posts", "{Dispatches}")}
+            title={t("ticket_replies", "Replies")}
             icon={t("icon_forum", "forum")}
           >
             <div className="flex flex-col gap-3">
@@ -846,7 +894,7 @@ export default function TicketDossierSidePanel({
                           "keeper_email_btn_send_reply_and_email",
                           "Send Reply & Dispatch Custom Email"
                         )
-                      : t("dossier_btn_send_transmission", "Send {Dispatch}")
+                      : t("btn_send_reply", "Send Reply")
                 }
               />
             </UniversalGroup>

@@ -35,7 +35,7 @@ export default function MasonProfileHeader({
   return (
     <header className="flex flex-col lg:flex-row w-full justify-between items-stretch lg:items-center shrink-0 gap-3 md:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Left: Standard Sanctuary OS ViewHeader Glass Pill */}
-      <div className="glass-panel rounded-2xl p-2.5 pr-4 md:p-3 md:pr-5 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 w-fit max-w-full relative group/header">
+      <div className="glass-panel rounded-2xl p-2.5 pr-4 md:p-3 md:pr-5 flex items-center gap-3 md:gap-3.5 min-w-0 w-fit max-w-full overflow-hidden relative group/header">
         <div
           onClick={() => isSubView && setActiveView && setActiveView('OVERVIEW')}
           className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] overflow-hidden relative group/avatar transition-all duration-300 ${
@@ -55,11 +55,11 @@ export default function MasonProfileHeader({
           )}
         </div>
 
-        <div className="flex flex-col gap-0.5 items-start justify-center text-left flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 w-full min-w-0">
+        <div className="flex flex-col gap-1 items-start justify-center text-left min-w-0 max-w-full">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 w-full min-w-0 max-w-full">
             <h1
               onClick={() => isSubView && setActiveView && setActiveView('OVERVIEW')}
-              className={`text-base md:text-xl font-black capitalize tracking-tight leading-tight m-0 text-left text-[var(--text)] shrink-0 transition-colors ${
+              className={`text-base md:text-xl font-black capitalize tracking-tight leading-tight m-0 text-left text-[var(--text)] min-w-0 max-w-full whitespace-normal break-words transition-colors ${
                 isSubView ? 'hover:theme-text-accent cursor-pointer' : ''
               }`}
             >
@@ -90,16 +90,16 @@ export default function MasonProfileHeader({
             )}
 
             {activeBreadcrumbLabel && (
-              <div className="flex items-center gap-1.5 min-w-0 shrink-0">
-                <span className="px-2.5 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] leading-tight">
-                  {activeBreadcrumbLabel}
+              <div className="flex items-center min-w-0 max-w-full">
+                <span className="inline-flex items-center justify-center px-2.5 py-0.5 min-h-[22px] max-w-full rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] md:text-[11px] font-black uppercase tracking-wider text-[var(--text)]">
+                  <span className="truncate leading-snug">{activeBreadcrumbLabel}</span>
                 </span>
               </div>
             )}
           </div>
 
           {mason.bio && (
-            <h2 className="text-[10px] md:text-[11px] font-medium tracking-wide text-[var(--subtext)] m-0 text-left opacity-80 leading-snug line-clamp-1 max-w-2xl">
+            <h2 className={`text-[10px] md:text-[11px] font-medium tracking-wide text-[var(--subtext)] m-0 text-left opacity-80 leading-snug line-clamp-1 max-w-2xl ${activeBreadcrumbLabel ? 'mt-1' : ''}`}>
               {mason.bio}
             </h2>
           )}

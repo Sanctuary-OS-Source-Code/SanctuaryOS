@@ -473,14 +473,14 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                   </UniversalGroup>
                ) : (
                   <UniversalGroup
-                     title={t("flag_reason", "Reason")}
+                     title={t("reason", "Reason")}
                      icon={t("icon_edit_note", "edit_note")}
                   >
                      <textarea
                         value={flagReason}
                         onChange={(e) => setFlagReason(e.target.value)}
                         className="w-full h-32 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-4 text-xs font-bold text-[var(--text)] focus:outline-none focus:border-[var(--danger)] resize-y custom-scrollbar"
-                        placeholder={t("flag_reason", "Describe the issue...")}
+                        placeholder={t("flag_reason_placeholder", "Describe the issue or violation...")}
                      />
                   </UniversalGroup>
                )}

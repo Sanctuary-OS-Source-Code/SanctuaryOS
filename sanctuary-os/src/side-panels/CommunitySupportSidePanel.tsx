@@ -26,6 +26,7 @@ import {
   getSpokeServerGoalStatus,
   TransparentGoalStatus,
   isFoundryPatron,
+  recordLocalSpokeSupporterPass,
 } from "../utils/supporterManager";
 
 function formatUsdFromCents(cents: number): string {
@@ -188,7 +189,7 @@ export function TransparentCostReportBlock({
               "Figures reflect active monthly cycle invoices and usage rather than fixed permanent pricing."
             )}
           </p>
-          <span className="px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[10px] font-black font-mono uppercase tracking-wider text-[var(--subtext)] inline-flex items-center gap-1.5 shrink-0">
+          <span className="px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black font-mono uppercase tracking-wider text-[var(--subtext)] inline-flex items-center gap-1.5 shrink-0">
             <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
               {t("icon_calendar_month", "calendar_month")}
             </span>
@@ -215,13 +216,13 @@ export function TransparentCostReportBlock({
                   key={item.id}
                   onClick={() => toggleExpand(item.id)}
                   className={`p-3.5 rounded-2xl glass-surface border transition-all flex flex-col gap-3 sm:col-span-2 cursor-pointer ${isExpanded
-                      ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
-                      : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+                      ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
+                      : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                     }`}
                 >
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                      <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                         <span className="material-symbols-outlined !text-[17px]">
                           {meta.icon}
                         </span>
@@ -240,7 +241,7 @@ export function TransparentCostReportBlock({
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-xs font-black font-mono text-[var(--accent)]">
+                      <span className="px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-xs font-black font-mono text-[var(--accent)]">
                         {`${formatUsdFromCents(item.monthlyCents)} ${t("report_monthly_usd_suffix", "/mo")}`}
                       </span>
                       <button
@@ -249,7 +250,7 @@ export function TransparentCostReportBlock({
                           e.stopPropagation();
                           toggleExpand(item.id);
                         }}
-                        className="px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_18%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] inline-flex items-center gap-1 cursor-pointer transition-colors"
+                        className="px-2.5 py-1 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_18%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] hover:text-[var(--text)] inline-flex items-center gap-1 cursor-pointer transition-colors"
                       >
                         <span>
                           {t("report_view_services", "4 Services")}
@@ -273,7 +274,7 @@ export function TransparentCostReportBlock({
                             className="p-2.5 rounded-xl glass-panel border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2.5"
                           >
                             <div className="flex items-center gap-2 min-w-0">
-                              <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                              <div className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                                 <span className="material-symbols-outlined !text-[14px]">
                                   {subMeta.icon}
                                 </span>
@@ -282,7 +283,7 @@ export function TransparentCostReportBlock({
                                 {subMeta.label}
                               </span>
                             </div>
-                            <span className="px-2 py-0.5 rounded-md border bg-transparent border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[11px] font-black font-mono text-[var(--accent)] shrink-0">
+                            <span className="px-2 py-0.5 rounded-md border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[11px] font-black font-mono text-[var(--accent)] shrink-0">
                               {`${formatUsdFromCents(sub.monthlyCents)} ${t("report_monthly_usd_suffix", "/mo")}`}
                             </span>
                           </div>
@@ -301,7 +302,7 @@ export function TransparentCostReportBlock({
                   }`}
               >
                 <div className="flex items-start justify-between gap-2.5">
-                  <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                  <div className="w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                     <span className="material-symbols-outlined !text-[16px]">
                       {meta.icon}
                     </span>
@@ -343,7 +344,7 @@ export function TransparentCostReportBlock({
                       "Monthly Equivalent"
                     )}
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-xs font-black font-mono text-[var(--accent)]">
+                  <span className="px-2.5 py-0.5 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-xs font-black font-mono text-[var(--accent)]">
                     {`${formatUsdFromCents(item.monthlyCents)} ${t("report_monthly_usd_suffix", "/mo")}`}
                   </span>
                 </div>
@@ -364,7 +365,7 @@ export function TransparentCostReportBlock({
           {/* CARD 1: GROSS CONTRIBUTIONS */}
           <div className="p-3.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+              <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                 <span className="material-symbols-outlined !text-[18px]">
                   {t("icon_payments", "payments")}
                 </span>
@@ -383,7 +384,7 @@ export function TransparentCostReportBlock({
           {/* CARD 2: PROCESSOR / STRIPE FEES */}
           <div className="p-3.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--warning)]">
+              <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0 text-[var(--warning)]">
                 <span className="material-symbols-outlined !text-[18px]">
                   {t("icon_percent", "percent")}
                 </span>
@@ -402,7 +403,7 @@ export function TransparentCostReportBlock({
           {/* CARD 3: NET RECEIVED */}
           <div className="p-3.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+              <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                 <span className="material-symbols-outlined !text-[18px]">
                   {t("icon_account_balance_wallet", "account_balance_wallet")}
                 </span>
@@ -421,7 +422,7 @@ export function TransparentCostReportBlock({
           {/* CARD 4: PRIOR CYCLE CARRYOVER */}
           <div className="p-3.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+              <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                 <span className="material-symbols-outlined !text-[18px]">
                   {t("icon_history", "history")}
                 </span>
@@ -447,7 +448,7 @@ export function TransparentCostReportBlock({
           {/* CARD 5: TOTAL OPERATING COST */}
           <div className="p-3.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+              <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0 text-[var(--accent)]">
                 <span className="material-symbols-outlined !text-[18px]">
                   {t("icon_memory", "memory")}
                 </span>
@@ -467,9 +468,9 @@ export function TransparentCostReportBlock({
           <div className="p-3.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
               <div
-                className={`w-9 h-9 rounded-xl glass-surface border flex items-center justify-center shrink-0 ${isSurplus
-                    ? "border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[var(--success)]"
-                    : "border-[color-mix(in_srgb,var(--warning)_35%,transparent)] text-[var(--warning)]"
+                className={`w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0 ${isSurplus
+                    ? "text-[var(--success)]"
+                    : "text-[var(--warning)]"
                   }`}
               >
                 <span className="material-symbols-outlined !text-[18px]">
@@ -764,15 +765,24 @@ export function CommunitySupportSidePanel({
         return;
       }
       try {
-        const latest = await getSupporterState(vaultPath, session?.user?.id);
+        let latest = await getSupporterState(vaultPath, session?.user?.id);
         if ((latest.dev_build.dev_build_until || 0) > baselineUntil) {
-          setSupporterState(latest);
-          if (onSuccess) onSuccess(latest);
-          clearInterval(pollTimer);
           const addedMonths = Math.max(
             1,
             (latest.dev_build.total_months_unlocked || 0) - baselineMonths
           );
+          if (selectedPartnerId && selectedPartnerId !== "keepers_core") {
+            latest = await recordLocalSpokeSupporterPass({
+              spokeId: selectedPartnerId,
+              spokeName: selectedPartner?.name || selectedPartnerId,
+              provider: selectedPartner?.payment_processor || "partner_webhook",
+              monthsAdded: addedMonths,
+              expiresAt: latest.dev_build.dev_build_until,
+            });
+          }
+          setSupporterState(latest);
+          if (onSuccess) onSuccess(latest);
+          clearInterval(pollTimer);
           presentSupporterCelebrationModal({
             devBuildUntil: latest.dev_build.dev_build_until,
             monthsAdded: addedMonths,
@@ -896,9 +906,9 @@ export function CommunitySupportSidePanel({
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span
-                    className={`px-2 py-0.5 rounded-lg border bg-transparent ${isSurplus
-                        ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
-                        : "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
+                    className={`px-2 py-0.5 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] ${isSurplus
+                        ? "text-[var(--success)]"
+                        : "text-[var(--warning)]"
                       } text-[9px] font-black font-mono uppercase tracking-wider inline-flex items-center gap-1`}
                   >
                     <span>
@@ -907,7 +917,7 @@ export function CommunitySupportSidePanel({
                         : `${t("report_remaining_short", "Remaining")}: ${formatUsdFromCents(Math.abs(activeGoal.carryoverAfterCycleCents))}`}
                     </span>
                   </span>
-                  <span className="px-2 py-0.5 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] inline-flex items-center gap-1 shrink-0">
+                  <span className="px-2 py-0.5 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] inline-flex items-center gap-1 shrink-0">
                     <span className="material-symbols-outlined !text-[11px]">
                       {t("icon_trending_up", "trending_up")}
                     </span>
@@ -963,7 +973,7 @@ export function CommunitySupportSidePanel({
               />
             </div>
           ) : (
-            <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] flex flex-col gap-1.5">
+            <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-col gap-1.5">
               <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 w-fit">
                 <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
                   {t("icon_warning", "warning")}
@@ -1047,9 +1057,9 @@ export function CommunitySupportSidePanel({
                       : t("supporter_no_active_time", "No Active Time")}
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded-lg border bg-transparent ${isPatron
-                        ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]"
-                        : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
+                    className={`px-2 py-0.5 rounded-lg border bg-transparent border-[color-mix(in_srgb,var(--text)_14%,transparent)] ${isPatron
+                        ? "text-[var(--success)]"
+                        : "text-[var(--accent)]"
                       } text-[8px] font-black uppercase tracking-wider inline-flex items-center gap-1 shrink-0`}
                   >
                     <span className="material-symbols-outlined !text-[10px]">
@@ -1137,3 +1147,5 @@ export function CommunitySupportSidePanel({
     </SidePanel>
   );
 }
+
+export default CommunitySupportSidePanel;

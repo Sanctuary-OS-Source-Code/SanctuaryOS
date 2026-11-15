@@ -286,7 +286,9 @@ function devLexiconSyncPlugin() {
         } else {
           fs.mkdirSync(path.dirname(filePath), { recursive: true });
         }
-        fs.writeFileSync(filePath, serialized, 'utf-8');
+        const tempPath = `${filePath}.${process.pid}.tmp`;
+        fs.writeFileSync(tempPath, serialized, 'utf-8');
+        fs.renameSync(tempPath, filePath);
         return true;
       };
 
@@ -498,6 +500,10 @@ export default defineConfig(async () => ({
       : undefined,
     watch: {
       ignored: ["**/src-tauri/**"],
+      awaitWriteFinish: {
+        stabilityThreshold: 60,
+        pollInterval: 15,
+      },
     },
     fs: {
       allow: [

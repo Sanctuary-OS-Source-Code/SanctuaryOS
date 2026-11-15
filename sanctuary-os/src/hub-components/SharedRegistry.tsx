@@ -24,6 +24,7 @@ import {
 } from "../components/layouts/ElevatedHubLayout";
 import { ArtifactWorkspace, StudioTabId } from "../components/ArtifactStudioTabs";
 import { fetchAllTableRows, buildFamilyHierarchy } from "../components/artifact-studio/artifactStudioUtils";
+import { importIssueCauseFromLabReports } from "../components/KnownExceptionRules";
 
 const REGISTRY_CACHE_TTL = 1000 * 60 * 10;
 let registryCache: {
@@ -417,7 +418,7 @@ export function ArchitectRegistry({
       const rawReason = String(activeMod.status_reason || "").trim();
       const cleanedReason =
         (activeMod.status === "stable" || activeMod.status === "verified") &&
-        /^\[ARCHITECT\b/i.test(rawReason)
+          /^\[ARCHITECT\b/i.test(rawReason)
           ? null
           : rawReason || null;
       const updatedPayload = {
@@ -473,9 +474,9 @@ export function ArchitectRegistry({
           .pushStatus(
             isComplianceFlagged
               ? t(
-                  "nexus_mod_flagged_compliance_toast",
-                  "{Mod} flagged for Oversight Compliance review (Pending)."
-                )
+                "nexus_mod_flagged_compliance_toast",
+                "{Mod} flagged for Oversight Compliance review (Pending)."
+              )
               : t("saved_success", "{Mod} Updated Successfully."),
             isComplianceFlagged ? "warning" : "success"
           );
@@ -658,107 +659,107 @@ export function ArchitectRegistry({
         primaryPopover={
           activeTab !== "overview"
             ? {
-                icon: t("icon_tune", "tune"),
-                label: t("filters", "Filters"),
-                content: (
-                  <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
-                    <div className="flex flex-col gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                        {t("category", "Category")}
-                      </span>
-                      <CustomDropdown
-                        flat={true}
-                        variant="pill"
-                        disableTint={true}
-                        value={activeCategory}
-                        onChange={(val: string[]) => {
-                          setActiveCategory(val[0]);
-                          setActiveSubType("ALL");
-                        }}
-                        options={[
-                          { id: "ALL", label: t("filter_all", "All") },
-                          ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({
-                            id: c.id,
-                            label: t(c.lexicon_key, c.id),
-                          })),
-                        ]}
-                      />
-                    </div>
-
-                    {(() => {
-                      const activeSchemaCategory = useStore
-                        .getState()
-                        .activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
-                      const subcats = activeSchemaCategory?.subcategories || [];
-                      if (subcats.length === 0) return null;
-
-                      return (
-                        <>
-                          <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
-                          <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                              {t("registry_col_subcat", "Sub-category")}
-                            </span>
-                            <CustomDropdown
-                              flat={true}
-                              variant="pill"
-                              disableTint={true}
-                              value={activeSubType}
-                              onChange={(val: string[]) => setActiveSubType(val[0])}
-                              options={[
-                                { id: "ALL", label: t("filter_all", "All") },
-                                ...subcats.map((sub: any) => ({
-                                  id: sub.id,
-                                  label: t(sub.lexicon_key, sub.id),
-                                })),
-                              ]}
-                            />
-                          </div>
-                        </>
-                      );
-                    })()}
-
-                    <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
-                    <div className="flex flex-col gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                        {t("registry_label_status", "Global Status")}
-                      </span>
-                      <CustomDropdown
-                        flat={true}
-                        variant="pill"
-                        disableTint={true}
-                        value={statusFilter}
-                        onChange={(v: string[]) => setStatusFilter(v[0])}
-                        options={[
-                          { id: "ALL", label: t("status_dd_all", "All Statuses") },
-                          { id: "stable", label: t("status_stable", "STABLE") },
-                          { id: "unstable", label: t("label_unstable", "Unstable") },
-                          { id: "corrupted", label: t("status_corrupted", "Corrupted") },
-                          { id: "under_review", label: t("status_dd_review", "Under Review") },
-                          { id: "pending", label: t("pending", "Pending") },
-                          { id: "unverified", label: t("unverified", "Unverified") },
-                          { id: "paid", label: t("label_is_paid", "Paid {Mod}") },
-                          { id: "early_access", label: t("badge_early_access", "Early Access") },
-                        ]}
-                      />
-                    </div>
-
-                    {(activeCategory !== "ALL" || activeSubType !== "ALL" || statusFilter !== "ALL") && (
-                      <ActionButton
-                        icon={t("icon_close", "close")}
-                        label={t("btn_clear", "Clear Filters")}
-                        onClick={() => {
-                          setActiveCategory("ALL");
-                          setActiveSubType("ALL");
-                          setStatusFilter("ALL");
-                        }}
-                        className="w-full mt-2"
-                        variant="danger"
-                      />
-                    )}
+              icon: t("icon_tune", "tune"),
+              label: t("filters", "Filters"),
+              content: (
+                <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                      {t("category", "Category")}
+                    </span>
+                    <CustomDropdown
+                      flat={true}
+                      variant="pill"
+                      disableTint={true}
+                      value={activeCategory}
+                      onChange={(val: string[]) => {
+                        setActiveCategory(val[0]);
+                        setActiveSubType("ALL");
+                      }}
+                      options={[
+                        { id: "ALL", label: t("filter_all", "All") },
+                        ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({
+                          id: c.id,
+                          label: t(c.lexicon_key, c.id),
+                        })),
+                      ]}
+                    />
                   </div>
-                ),
-              }
+
+                  {(() => {
+                    const activeSchemaCategory = useStore
+                      .getState()
+                      .activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
+                    const subcats = activeSchemaCategory?.subcategories || [];
+                    if (subcats.length === 0) return null;
+
+                    return (
+                      <>
+                        <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
+                        <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                            {t("registry_col_subcat", "Sub-category")}
+                          </span>
+                          <CustomDropdown
+                            flat={true}
+                            variant="pill"
+                            disableTint={true}
+                            value={activeSubType}
+                            onChange={(val: string[]) => setActiveSubType(val[0])}
+                            options={[
+                              { id: "ALL", label: t("filter_all", "All") },
+                              ...subcats.map((sub: any) => ({
+                                id: sub.id,
+                                label: t(sub.lexicon_key, sub.id),
+                              })),
+                            ]}
+                          />
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                      {t("registry_label_status", "Global Status")}
+                    </span>
+                    <CustomDropdown
+                      flat={true}
+                      variant="pill"
+                      disableTint={true}
+                      value={statusFilter}
+                      onChange={(v: string[]) => setStatusFilter(v[0])}
+                      options={[
+                        { id: "ALL", label: t("status_dd_all", "All Statuses") },
+                        { id: "stable", label: t("status_stable", "STABLE") },
+                        { id: "unstable", label: t("label_unstable", "Unstable") },
+                        { id: "corrupted", label: t("status_corrupted", "Corrupted") },
+                        { id: "under_review", label: t("status_dd_review", "Under Review") },
+                        { id: "pending", label: t("pending", "Pending") },
+                        { id: "unverified", label: t("unverified", "Unverified") },
+                        { id: "paid", label: t("label_is_paid", "Paid {Mod}") },
+                        { id: "early_access", label: t("badge_early_access", "Early Access") },
+                      ]}
+                    />
+                  </div>
+
+                  {(activeCategory !== "ALL" || activeSubType !== "ALL" || statusFilter !== "ALL") && (
+                    <ActionButton
+                      icon={t("icon_close", "close")}
+                      label={t("btn_clear", "Clear Filters")}
+                      onClick={() => {
+                        setActiveCategory("ALL");
+                        setActiveSubType("ALL");
+                        setStatusFilter("ALL");
+                      }}
+                      className="w-full mt-2"
+                      variant="danger"
+                    />
+                  )}
+                </div>
+              ),
+            }
             : undefined
         }
         className={isActiveTab ? "" : "hidden"}
@@ -772,7 +773,7 @@ export function ArchitectRegistry({
           setActiveMod(null);
           setOriginalMod(null);
         }}
-        widthClass="w-[94vw] max-w-[1280px]"
+        widthClass="w-[92vw] md:w-[min(1120px,calc(100vw-var(--sidebarWidth,260px)-2.5rem))]"
         backdropZ="z-[50000]"
         panelZ="z-[50001]"
         noScroll
@@ -840,7 +841,7 @@ export function ArchitectRegistry({
                     <button
                       type="button"
                       onClick={() => setIsMasonPanelOpen(true)}
-                      className="h-12 px-4 rounded-[var(--radius)] glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--text)] font-black transition-all shrink-0 cursor-pointer"
+                      className="h-11 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--text)] font-black transition-all shrink-0 cursor-pointer"
                     >
                       +
                     </button>
@@ -866,7 +867,7 @@ export function ArchitectRegistry({
                   <input
                     value={activeMod.file_extension || ""}
                     onChange={(e) => setActiveMod({ ...activeMod, file_extension: e.target.value })}
-                    className="h-12 glass-surface rounded-[var(--radius)] px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                    className="h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                     placeholder={activeGameSchema?.extensions?.supported?.slice(0, 2).join(", ") || t("ph_file_ext", "e.g. .bin, .dll")}
                   />
                 </div>
@@ -878,7 +879,7 @@ export function ArchitectRegistry({
                   <input
                     value={activeMod.sub_type || ""}
                     onChange={(e) => setActiveMod({ ...activeMod, sub_type: e.target.value })}
-                    className="h-12 glass-surface rounded-[var(--radius)] px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                    className="h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                     placeholder={t("auto_e_g_tuning_26", "e.g. Tuning, 2D, etc.")}
                   />
                 </div>
@@ -891,7 +892,7 @@ export function ArchitectRegistry({
                     value={activeMod.latest_version || ""}
                     onChange={(e) => setActiveMod({ ...activeMod, latest_version: e.target.value })}
                     placeholder={t("ph_mod_version", "e.g. 1.0, 1.1, 1.2")}
-                    className="h-12 glass-surface rounded-[var(--radius)] px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                    className="h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                   />
                 </div>
               </div>
@@ -915,7 +916,7 @@ export function ArchitectRegistry({
                   <input
                     value={activeMod.image_url || ""}
                     onChange={(e) => setActiveMod({ ...activeMod, image_url: e.target.value })}
-                    className="h-12 glass-surface rounded-[var(--radius)] px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                    className="h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                     placeholder={t("auto_https", "https://...")}
                   />
                 </div>
@@ -927,7 +928,7 @@ export function ArchitectRegistry({
                   <input
                     value={activeMod.url || ""}
                     onChange={(e) => setActiveMod({ ...activeMod, url: e.target.value })}
-                    className="h-12 glass-surface rounded-[var(--radius)] px-4 text-[var(--accent)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                    className="h-11 glass-surface rounded-xl px-4 text-[var(--accent)] text-xs font-bold border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
                     placeholder={t("auto_https", "https://...")}
                   />
                 </div>
@@ -974,23 +975,57 @@ export function ArchitectRegistry({
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label
-                  className={`text-[9px] font-black uppercase tracking-widest ml-1 flex items-center gap-1.5 ${
-                    activeMod.status === "corrupted" || activeMod.status === "broken"
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label
+                    className={`text-[9px] font-black uppercase tracking-widest ml-1 flex items-center gap-1.5 ${activeMod.status === "corrupted" || activeMod.status === "broken"
                       ? "text-[var(--danger)]"
                       : activeMod.status === "unstable"
                         ? "text-[var(--warning)]"
                         : "text-[var(--subtext)] opacity-60"
-                  }`}
-                >
-                  <span className="material-symbols-outlined !text-[13px]">
-                    {t("icon_report_problem", "report_problem")}
-                  </span>
-                  {t(
-                    "label_status_issue_details",
-                    "Issue & Cause Details (Corrupted / Unstable)"
+                      }`}
+                  >
+                    <span className="material-symbols-outlined !text-[13px]">
+                      {t("icon_report_problem", "report_problem")}
+                    </span>
+                    {t(
+                      "label_status_issue_details",
+                      "Issue & Cause Details (Corrupted / Unstable)"
+                    )}
+                  </label>
+                  {Boolean(activeMod?.id) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void importIssueCauseFromLabReports({
+                          modId: activeMod.id,
+                          currentStatus: activeMod.status,
+                          onApply: (patch) =>
+                            setActiveMod((prev: any) =>
+                              prev ? { ...prev, ...patch } : prev
+                            ),
+                          labels: {
+                            fixPrefix: t("fix_prefix", "Fix"),
+                            notePrefix: t("tester_note_label", "Tester Note"),
+                            importedToast: t(
+                              "lab_issue_imported_toast",
+                              "Imported issue & cause details from {Lab} diagnostic reports."
+                            ),
+                            emptyToast: t(
+                              "lab_issue_none_found_toast",
+                              "No {Lab} diagnostic reports with issue details found for this {mod}."
+                            ),
+                          },
+                        })
+                      }
+                      className="px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined !text-[12px]">
+                        {t("icon_science", "science")}
+                      </span>
+                      {t("import_from_lab_reports", "Import from {Lab} Reports")}
+                    </button>
                   )}
-                </label>
+                </div>
                 <textarea
                   value={
                     /^\[ARCHITECT\b/i.test(String(activeMod.status_reason || "").trim())
@@ -1004,13 +1039,12 @@ export function ArchitectRegistry({
                     "ph_status_issue_details",
                     "Explain what the issue is and what is causing it (shown on {Citizen} Alerts & {Mod} Dossier)..."
                   )}
-                  className={`glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-xs font-semibold min-h-[76px] resize-y border focus:outline-none custom-scrollbar ${
-                    activeMod.status === "corrupted" || activeMod.status === "broken"
-                      ? "border-[color-mix(in_srgb,var(--danger)_35%,transparent)] focus:border-[var(--danger)]"
-                      : activeMod.status === "unstable"
-                        ? "border-[color-mix(in_srgb,var(--warning)_35%,transparent)] focus:border-[var(--warning)]"
-                        : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]"
-                  }`}
+                  className={`glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-xs font-semibold min-h-[76px] resize-y border focus:outline-none custom-scrollbar ${activeMod.status === "corrupted" || activeMod.status === "broken"
+                    ? "border-[color-mix(in_srgb,var(--danger)_35%,transparent)] focus:border-[var(--danger)]"
+                    : activeMod.status === "unstable"
+                      ? "border-[color-mix(in_srgb,var(--warning)_35%,transparent)] focus:border-[var(--warning)]"
+                      : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:border-[var(--accent)]"
+                    }`}
                 />
               </div>
 

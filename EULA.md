@@ -1,6 +1,6 @@
 # Sanctuary OS — End-User License Agreement (EULA)
 
-**Document Version:** V6.1 (v0.6.0-Dev.13)  
+**Document Version:** V6.2 (v0.6.0-Dev.14)  
 **Effective Date:** November 14, 2026  
 
 ---
@@ -13,11 +13,12 @@ This End-User License Agreement ("EULA") is a legal agreement between you ("Citi
 
 ---
 
-## 2. Local-First Middleware, Symlink Airgap & No Asset Hosting
-Sanctuary OS operates strictly as a **local-first, metadata-only middleware layer**:
-1. **No Proprietary Game or Mod Hosting:** Sanctuary OS does **not** host, redistribute, or bundle proprietary game binaries or third-party mod files. All mod archives are acquired by the Citizen directly from the creator's own distribution channels or Static Edge endpoints (`.sanctuary.manifest.json` / `catalog.json` / `.sanctuary.override.json`).
+## 2. Local-First Technical Middleware, Developer Tools & Platform Classification
+Sanctuary OS operates strictly as **local-first technical software, developer tooling, heuristic security middleware, and a creator-to-subscriber release dispatch client**:
+1. **No Proprietary Game or Mod Hosting (Not a Storefront or File Host):** Sanctuary OS does **not** host, redistribute, or bundle proprietary game binaries or third-party mod files, and does not sell digital products (**0% platform cut**). All mod archives are acquired by the Citizen directly from the creator's own distribution channels or Static Edge endpoints (`.sanctuary.manifest.json` / `catalog.json` / `.sanctuary.override.json`).
 2. **Symlink Airgap 2.5 & File System Operations:** Sanctuary OS organizes your local files inside an isolated Vault directory and projects active mods into your game's live directory using operating-system symbolic links (`symlink_file` / `symlink_dir`), NTFS junction-safe Vault Lockdowns, secondary `install_routes`, automatic untracked mod rescue, single-active binary deduplication, and root config deduplication (`deduplicate_vault_root_configs`).
 3. **Parallel CoW Time Capsule, Homestead Save Airgap & Version History Backups:** While Sanctuary OS provides parallel Copy-on-Write (`CoW`) snapshots (`World State`, `Engine Core`, and `Backups/Mods/` Version History archives), additive save restoration, and externalized Homestead Lab Save-Verify-and-Rewind mirrors (`SanctuarySaveVault` & `Backups/.lab_save_vault`), you remain solely responsible for maintaining independent backups of your save files and system data.
+4. **Platform Classification, Minor Safety & Non-Overridable Verified Mason Hardgates:** Sanctuary OS is **not** a social media network, storefront, or open media host. **Comm-Link** operates strictly as a **Verified Creator Changelog & Release Dispatch Channel** (with zero general Citizen user profiles, zero peer-to-peer DMs, and zero open Citizen social posting), and all cloud **Nexus Asset uploads (minus non-media JSON hash Blueprints)** are strictly locked to `18+` FIDO2-authenticated **Verified Masons** and Spoke Staff—Core OS hardgates that **Partner Spokes cannot override**. Citizens (`13+` or jurisdictional digital-consent minimum) interact strictly within public **Compliance Tier 0** feeds and local-first Vault tooling.
 
 ---
 

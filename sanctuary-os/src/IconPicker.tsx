@@ -1582,11 +1582,21 @@ import { createPortal } from 'react-dom';
 import { HoverTooltip } from './shared';
 import { useTooltipStore } from './store/tooltipStore';
 
-export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: string) => void, onClose: () => void }) {
+export default function IconPicker({
+  onSelect,
+  onClose,
+  anchorElement,
+  preferSidePlacement = false,
+}: {
+  onSelect: (icon: string) => void;
+  onClose: () => void;
+  anchorElement?: HTMLElement | null;
+  preferSidePlacement?: boolean;
+}) {
   const [search, setSearch] = useState('');
   const { t } = useLexicon();
   const anchorRef = React.useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState<{ top: number; left: number; isDropUp: boolean } | null>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; maxHeight: number; isDropUp: boolean } | null>(null);
 
   React.useEffect(() => {
     return () => {
@@ -1596,16 +1606,38 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
 
   React.useLayoutEffect(() => {
     const updatePosition = () => {
-      const targetEl = anchorRef.current?.parentElement || anchorRef.current;
+      const targetEl = anchorElement || anchorRef.current?.parentElement || anchorRef.current;
       if (targetEl) {
         const rect = targetEl.getBoundingClientRect();
         const pickerWidth = Math.min(368, window.innerWidth - 24);
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const shouldDropUp = spaceBelow < 360 && rect.top > 360;
+        if (preferSidePlacement) {
+          const rightLeft = rect.right + 8;
+          const leftSide = rect.left - pickerWidth - 8;
+          const sideLeft =
+            rightLeft + pickerWidth <= window.innerWidth - 12
+              ? rightLeft
+              : leftSide >= 12
+                ? leftSide
+                : Math.max(12, Math.min(rect.left, window.innerWidth - pickerWidth - 12));
+          const maxHeight = Math.max(200, Math.min(420, window.innerHeight - 24));
+          const clampedTop = Math.max(12, Math.min(rect.top, window.innerHeight - maxHeight - 12));
+          setCoords({
+            top: clampedTop,
+            left: sideLeft,
+            maxHeight,
+            isDropUp: false,
+          });
+          return;
+        }
+        const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - 20);
+        const spaceAbove = Math.max(0, rect.top - 20);
+        const shouldDropUp = spaceBelow < 380 && spaceAbove > spaceBelow;
+        const maxHeight = Math.max(180, Math.min(420, shouldDropUp ? spaceAbove : spaceBelow));
         const clampedLeft = Math.max(12, Math.min(rect.left, window.innerWidth - pickerWidth - 12));
         setCoords({
-          top: shouldDropUp ? rect.top : rect.bottom + 8,
+          top: shouldDropUp ? rect.top - 8 : rect.bottom + 8,
           left: clampedLeft,
+          maxHeight,
           isDropUp: shouldDropUp,
         });
       }
@@ -1617,7 +1649,7 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, []);
+  }, [anchorElement, preferSidePlacement]);
 
   const filteredCategories = useMemo(() => {
     if (!search.trim()) return ICON_CATEGORIES;
@@ -1637,6 +1669,7 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
       {coords && portalRoot && createPortal(
         <>
           <div
+            data-sa-icon-picker="true"
             className="!fixed inset-0 pointer-events-auto bg-transparent"
             style={{ zIndex: 100000000 }}
             onClick={(e) => {
@@ -1646,14 +1679,16 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
             }}
           />
           <div
+            data-sa-icon-picker="true"
             onClick={(e) => e.stopPropagation()}
             style={{
               zIndex: 100000001,
               top: coords.isDropUp ? "auto" : coords.top,
-              bottom: coords.isDropUp ? window.innerHeight - coords.top + 8 : "auto",
+              bottom: coords.isDropUp ? window.innerHeight - coords.top : "auto",
               left: coords.left,
+              maxHeight: coords.maxHeight,
             }}
-            className="!fixed !rounded-2xl sa-dropdown-popover pointer-events-auto w-[368px] max-w-[calc(100vw-24px)] flex flex-col text-[var(--text)]"
+            className="!fixed !rounded-2xl glass-panel portal-glass-fix sa-dropdown-popover pointer-events-auto w-[368px] max-w-[calc(100vw-24px)] flex flex-col text-[var(--text)]"
           >
             <div className="p-3 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)] bg-transparent shrink-0">
               <div className="sa-dropdown-search flex items-center gap-2.5 px-3 h-9 !rounded-xl">
@@ -1682,7 +1717,7 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
               </div>
             </div>
 
-            <div className="p-3.5 max-h-[310px] overflow-y-auto custom-scrollbar">
+            <div className="p-3.5 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
               {filteredCategories.length === 0 ? (
                 <div className="text-center text-[var(--subtext)] text-xs py-8 opacity-60">
                   {t("no_icons", "No matching icons found")}
@@ -1705,7 +1740,7 @@ export default function IconPicker({ onSelect, onClose }: { onSelect: (icon: str
                                 useTooltipStore.getState().clearTooltip();
                                 onSelect(icon);
                               }}
-                              className="relative w-full aspect-square flex items-center justify-center !rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.35))] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+                              className="relative w-full aspect-square flex items-center justify-center !rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
                             >
                               <span className="material-symbols-outlined !text-[18px]">
                                 {t(`icon_${icon}`, icon)}

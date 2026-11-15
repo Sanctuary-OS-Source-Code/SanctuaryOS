@@ -564,8 +564,9 @@ export function ChameleonControlDashboard({
       {/* Tab Content Body */}
       <div
         ref={bodyScrollRef}
-        className="flex-1 overflow-y-auto custom-scrollbar p-3.5 sm:p-6 flex flex-col gap-5 sm:gap-6 pb-28"
+        className="flex-1 min-h-0 overflow-y-auto custom-scrollbar"
       >
+        <div className="p-3.5 sm:p-6 pb-12 sm:pb-16 flex flex-col gap-5 sm:gap-6">
         {/* TAB 1: QUICK PRESETS (1-CLICK GLASS MATERIALS & CURATED COLOR PALETTES) */}
         {activeTab === 'presets' && (
           <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -2139,6 +2140,7 @@ export function ChameleonControlDashboard({
             </UniversalGroup>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

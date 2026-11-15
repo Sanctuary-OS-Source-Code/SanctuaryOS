@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { supabaseAuth } from './supabase';
+import { supabaseAuth, getBrandConfig } from './supabase';
 import { useLexicon } from './LexiconContext';
-import { useStore } from './store';
+import { useStore, syncMasterSchemas } from './store';
 import {
   scrollToLandingSection,
   getActiveLandingTab,
@@ -30,6 +30,12 @@ import {
   sortWorkspacesList,
   WORKSPACE_PREFS_EVENT,
 } from './utils/workspacePrefs';
+import {
+  healAndMatchLocalWorkspaces,
+  findMatchingWorkspaceEntry,
+  isPlaceholderWorkspaceKey,
+  isWorkspaceRecordConfigured,
+} from './utils/workspaceConfigMatch';
 import { invoke } from '@tauri-apps/api/core';
 import { isDesktop } from './utils/envUtils';
 import packageJson from '../package.json';
@@ -288,12 +294,6 @@ export default function WebLandingPage() {
     setFeedbackBugChannel(detectedChannel);
 
     const storeState = useStore.getState();
-    const activeSet = storeState.playSets?.[storeState.activePlaySetIndex];
-    const netUpdates = storeState.networkUpdates;
-    const totalUpdates =
-      (netUpdates?.broken?.length || 0) +
-      (netUpdates?.obsolete?.length || 0) +
-      (netUpdates?.updated?.length || 0);
 
     let sysInfoBlock = '';
     if (isDesktop()) {
@@ -304,6 +304,8 @@ export default function WebLandingPage() {
         // fallback below
       }
     }
+    const brand = getBrandConfig();
+    const appTitle = brand.appTitle || 'Sanctuary OS';
     if (!sysInfoBlock) {
       const ua =
         typeof navigator !== 'undefined'
@@ -311,7 +313,7 @@ export default function WebLandingPage() {
           : 'Browser';
       sysInfoBlock = [
         `OS: ${detectedPlatform}`,
-        `Sanctuary OS Version: ${verLabel}`,
+        `${appTitle} Version: ${verLabel}`,
         `User Agent: ${ua}`,
       ].join('\n');
     }
@@ -325,22 +327,11 @@ export default function WebLandingPage() {
       sysInfoBlock,
       `Platform Stream: ${detectedPlatform} (${detectedChannel})`,
       `Display Resolution: ${viewport}`,
-      `Mods Path: ${scrubLogUserData(storeState.modsPath || 'N/A')}`,
-      `Active Blueprint: ${activeSet?.name || 'None'}`,
-      `Active Mods: ${activeSet?.mods?.length || 0}`,
-      `Pending Network Updates: ${totalUpdates}`,
       `Captured At: ${new Date().toLocaleString()}`,
       `Diagnostic Bundle Version: 1.0.0`,
     ].join('\n');
 
-    let fullLogPayload = `--- TELEMETRY: Sanctuary OS Logs (OS) ---\n${osTelemetryLines}\n`;
-
-    if (activeSet) {
-      const bpPayload = scrubLogUserData(
-        JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2)
-      );
-      fullLogPayload += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
-    }
+    let fullLogPayload = `--- TELEMETRY: ${appTitle} Logs (OS) ---\n${osTelemetryLines}\n`;
 
     const logEntries = storeState.statusLog || [];
     const formattedLogs = logEntries
@@ -355,7 +346,7 @@ export default function WebLandingPage() {
     }\n`;
 
     setFeedbackDiagnostics(
-      `Sanctuary OS v${verLabel} (${detectedChannel}) • ${detectedPlatform}`
+      `${appTitle} v${verLabel} (${detectedChannel}) • ${detectedPlatform}`
     );
     setFeedbackAutoLogs(scrubLogUserData(fullLogPayload));
   }, [
@@ -496,11 +487,13 @@ export default function WebLandingPage() {
           ? `[Core Bug • ${feedbackPlatform} • ${feedbackBugChannel}]`
           : `[${feedbackPlatform} • ${feedbackStream}]`;
 
+      const brand = getBrandConfig();
+      const appTitle = brand.appTitle || 'Sanctuary OS';
       const combinedLogs =
         feedbackStream === 'Core Bug Report'
           ? feedbackAutoLogs.trim() || feedbackDiagnostics.trim()
           : feedbackDiagnostics.trim()
-            ? `--- TELEMETRY: Sanctuary OS Logs (OS) ---\nPlatform Summary: ${feedbackDiagnostics.trim()}\nPlatform Stream: ${feedbackPlatform} (${feedbackStream})\nCaptured At: ${new Date().toLocaleString()}`
+            ? `--- TELEMETRY: ${appTitle} Logs (OS) ---\nPlatform Summary: ${feedbackDiagnostics.trim()}\nPlatform Stream: ${feedbackPlatform} (${feedbackStream})\nCaptured At: ${new Date().toLocaleString()}`
             : '';
 
       const { error } = await supabaseAuth.from('keeper_tickets').insert({
@@ -776,8 +769,9 @@ export default function WebLandingPage() {
         session?.user?.id && session.user.id !== 'local_citizen'
           ? session.user.id
           : null;
+      const orgTitle = getBrandConfig().orgName || 'Sanctuary Foundry';
       const formattedDossier = [
-        `Organization: Sanctuary Foundry`,
+        `Organization: ${orgTitle}`,
         `Position Applied For: ${keeperFocus}`,
         `Applicant Name / Handle: ${finalHandle}`,
         `Direct Contact: ${finalContact}`,
@@ -790,19 +784,19 @@ export default function WebLandingPage() {
         `Shipped Projects & Technical Background:`,
         keeperExperience.trim(),
         ...(keeperMotivation.trim()
-          ? [``, `Role Approach / Why Sanctuary Foundry:`, keeperMotivation.trim()]
+          ? [``, `Role Approach / Why ${orgTitle}:`, keeperMotivation.trim()]
           : []),
       ].join('\n');
 
       const { error } = await supabaseAuth.from('keeper_tickets').insert({
         author_id: uid,
         ticket_type: 'Keeper Application',
-        title: `[Sanctuary Foundry Application] ${finalHandle} — ${keeperFocus}`,
+        title: `[${orgTitle} Application] ${finalHandle} — ${keeperFocus}`,
         description: formattedDossier,
         status: 'NEW',
         metadata: {
           keeper_application: {
-            organization: 'Sanctuary Foundry',
+            organization: orgTitle,
             applicant_handle: finalHandle,
             applicant_contact: finalContact,
             user_id: uid,
@@ -1228,52 +1222,93 @@ export default function WebLandingPage() {
   const navigateToGame = async (gameId: string) => {
     setRecentTimestamps(recordWorkspaceLoaded(gameId));
     if (isDesktop()) {
-      const isSameWorkspace = gameId === activeWorkspaceId;
+      const isSameWorkspace =
+        String(gameId || '').toLowerCase() ===
+        String(activeWorkspaceId || '').toLowerCase();
       try {
         const globalConfig: any = await invoke('get_global_config');
-        globalConfig.active_workspace_id = gameId;
-        if (!Array.isArray(globalConfig.workspaces)) {
-          globalConfig.workspaces = [];
-        }
-        const existsInConfig = globalConfig.workspaces.some(
-          (w: any) =>
-            String(w.id || '').toLowerCase() ===
+        const { healedWorkspaces } = healAndMatchLocalWorkspaces(
+          games,
+          Array.isArray(globalConfig.workspaces) ? globalConfig.workspaces : [],
+          useStore.getState().activeGameSchema
+        );
+        globalConfig.workspaces = healedWorkspaces;
+
+        const matchedGame = games.find(
+          (g: any) =>
+            String(g.schema_id || '').toLowerCase() ===
               String(gameId || '').toLowerCase() ||
-            String(w.schema_id || '').toLowerCase() ===
+            String(g.id || '').toLowerCase() ===
               String(gameId || '').toLowerCase()
         );
-        if (!existsInConfig) {
-          const matchedGame = games.find(
-            (g: any) =>
-              String(g.schema_id || '').toLowerCase() ===
-                String(gameId || '').toLowerCase() ||
-              String(g.id || '').toLowerCase() ===
-                String(gameId || '').toLowerCase()
-          );
-          const targetSchema = matchedGame?.schema_id || gameId;
+        const targetSchema = matchedGame?.schema_id || gameId;
+        let targetWs = findMatchingWorkspaceEntry(
+          { id: gameId, schema_id: targetSchema },
+          globalConfig.workspaces
+        );
+        const effectiveId =
+          targetWs?.id && !isPlaceholderWorkspaceKey(targetWs.id)
+            ? targetWs.id
+            : targetSchema || gameId;
+        globalConfig.active_workspace_id = effectiveId;
+
+        if (!targetWs) {
           const masterVault = globalConfig.vault_path || '';
           const sep = masterVault.includes('/') ? '/' : '\\';
-          globalConfig.workspaces.push({
-            id: gameId,
-            name: matchedGame?.name || gameId,
+          targetWs = {
+            id: effectiveId,
+            name: matchedGame?.name || effectiveId,
             schema_id: targetSchema,
             live_path: '',
             mods_path: '',
-            vault_path: masterVault ? `${masterVault}${sep}${targetSchema}` : '',
+            vault_path:
+              masterVault && !isPlaceholderWorkspaceKey(targetSchema)
+                ? `${masterVault}${sep}${targetSchema}`
+                : '',
+            master_vault_path: masterVault || '',
             supabase_url: matchedGame?.supabase_url || null,
             supabase_anon_key: matchedGame?.supabase_anon_key || null,
-          });
+          };
+          globalConfig.workspaces.push(targetWs);
         }
+
         await invoke('save_coordinates', { config: globalConfig });
-        localStorage.setItem('sanctuary_last_active_workspace', gameId);
-        setIsConfigured(true);
-        setView('dashboard');
-        if (!isSameWorkspace) {
-          setTimeout(() => window.location.reload(), 10);
+        localStorage.setItem('sanctuary_last_active_workspace', effectiveId);
+
+        const configured = isWorkspaceRecordConfigured(
+          targetWs,
+          globalConfig.vault_path
+        );
+        if (configured) {
+          useStore.getState().setPendingWorkspaceSetupId(null);
+          setIsConfigured(true);
+          setView('dashboard');
+          if (!isSameWorkspace) {
+            setTimeout(() => window.location.reload(), 10);
+          }
+        } else {
+          useStore.getState().setPendingWorkspaceSetupId(effectiveId);
+          useStore.getState().hydrateWorkspaceState(effectiveId);
+          useStore.getState().setActiveWorkspaceId(effectiveId);
+          if (targetSchema && !isPlaceholderWorkspaceKey(targetSchema)) {
+            syncMasterSchemas(targetSchema).catch(console.warn);
+          }
+          setIsConfigured(false);
+          setView('dashboard');
+          if (!isSameWorkspace) {
+            setTimeout(() => window.location.reload(), 10);
+          }
         }
       } catch (err) {
         console.error('Failed to swap workspace on desktop:', err);
-        if (isSameWorkspace) {
+        if (
+          isSameWorkspace &&
+          isWorkspaceSetupConfigured(
+            { id: gameId, schema_id: gameId },
+            workspaces || [],
+            activeWorkspaceId
+          )
+        ) {
           setIsConfigured(true);
           setView('dashboard');
         }
@@ -1553,6 +1588,10 @@ export default function WebLandingPage() {
         { id: 'eula', label: t('landing_eula', 'System EULA') },
         { id: 'terms', label: t('landing_terms', 'Terms of Service') },
         { id: 'privacy', label: t('landing_privacy', 'Privacy Protocol') },
+        {
+          id: 'compliance',
+          label: t('compliance_protocol_title', 'Compliance Protocol'),
+        },
       ];
       return (
         <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)] text-left">
@@ -2290,6 +2329,22 @@ export default function WebLandingPage() {
                 {t('icon_shield', 'shield')}
               </span>
               <span>{t('landing_privacy', 'Privacy Protocol')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent('open_legal_doc', { detail: 'compliance' })
+                )
+              }
+              className="px-3.5 py-2 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--text)] transition-all duration-300 flex items-center gap-1.5 cursor-pointer"
+            >
+              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                {t('icon_verified_user', 'verified_user')}
+              </span>
+              <span>
+                {t('compliance_protocol_title', 'Compliance Protocol')}
+              </span>
             </button>
           </div>
         </div>

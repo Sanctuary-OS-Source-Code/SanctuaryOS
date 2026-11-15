@@ -6,7 +6,6 @@ import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "tiptap-markdown";
 import Image from "@tiptap/extension-image";
-import Link from "@tiptap/extension-link";
 import { IconPlugin } from "../IconPlugin";
 import {
   SidePanel,
@@ -44,6 +43,7 @@ import {
   UnifiedPostBodyEditor,
   PostAttachmentsManager,
   PostEditorModeTiles,
+  AutoResizeTextarea,
 } from "../components/universal/UnifiedPostEditor";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 import {
@@ -58,13 +58,20 @@ import {
   DirectiveSlug,
   syncDirectivesBidirectional,
   syncLegalAndCovenantsBidirectional,
-  saveDirectiveBothWays,
+  saveDirectiveWithConcurrency,
   publishDirectiveToUsers,
-  saveLegalDocBothWays,
-  pushCodebaseDirectivesToKeepersCore,
+  saveLegalDocWithConcurrency,
+  publishLegalDocToUsers,
   pullKeepersCoreDirectivesToCodebase,
-  readLocalDirectiveSnapshots,
+  readAllLocalDocSnapshots,
+  hashNormalizedDoc,
 } from "../utils/directivesSync";
+import { isDesktop } from "../utils/envUtils";
+import {
+  useKeeperDocPresence,
+  KeeperDocSavedBroadcast,
+} from "../utils/useKeeperDocPresence";
+import { KeeperDocConflictBar } from "../components/universal/KeeperDocConflictBar";
 import {
   CURRENT_DIRECTIVE_SCHEMA_VERSION,
   DirectiveBuilderSchema,
@@ -150,7 +157,18 @@ export default function KeepersWebDirectivesEditor({
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [, setShowImageInput] = useState(false);
   const [, setShowIconPicker] = useState(false);
-  const [, setWayfinderName] = useState<string>("");
+  const [wayfinderName, setWayfinderName] = useState<string>(
+    () =>
+      (session?.user?.user_metadata as any)?.username ||
+      session?.user?.email?.split("@")[0] ||
+      "Keeper"
+  );
+  const [baseRevision, setBaseRevision] = useState<number>(1);
+  const [baseUpdatedAt, setBaseUpdatedAt] = useState<string>("");
+  const [baseContentHash, setBaseContentHash] = useState<string>("");
+  const [conflictServerRow, setConflictServerRow] = useState<any | null>(null);
+  const [isConflictSaveBlocked, setIsConflictSaveBlocked] = useState<boolean>(false);
+  const pendingPublishIntentRef = useRef<boolean>(false);
   const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
   const [activeAsset, setActiveAsset] = useState<{
     type: string;
@@ -196,8 +214,33 @@ export default function KeepersWebDirectivesEditor({
   const wayfinderDrafts = useStore((state) => state.wayfinderDrafts);
   const setWayfinderDrafts = useStore((state) => state.setWayfinderDrafts);
 
+  const getDocKey = (
+    kind: EditorRecordKind,
+    slugOrCat?: string | null,
+    postId?: string | null
+  ): string => {
+    if (kind === "directive") {
+      return `directive:${slugOrCat || "citizen_guide"}`;
+    }
+    if (kind === "legal") {
+      return `legal:${slugOrCat || "EULA"}`;
+    }
+    return `news:${postId || "new"}`;
+  };
+
+  const getScopedDraftKey = (docKey: string): string =>
+    `${currentUserId || "anon"}::${docKey}`;
+
   const isStaleCanonicalDraft = (key: string, draftObj: any): boolean => {
-    if (!CANONICAL_DIRECTIVES[key as DirectiveSlug]) {
+    if (key.includes("::release:")) return false;
+    const rawKey = key.includes("::directive:")
+      ? key.split("::directive:")[1]
+      : key.includes("::")
+      ? key.split("::")[1]
+      : key;
+
+    if (!CANONICAL_DIRECTIVES[rawKey as DirectiveSlug]) {
+      if (!draftObj?.isDirty) return true;
       if (!String(draftObj?.content || "").trim() && !draftObj?.builderSchema) {
         return true;
       }
@@ -207,7 +250,7 @@ export default function KeepersWebDirectivesEditor({
     const schemaVer = Number(draftObj?.builderSchema?._schemaVersion || 0);
     if (schemaVer < CURRENT_DIRECTIVE_SCHEMA_VERSION) return true;
     if (
-      key === "phase_roadmap" &&
+      rawKey === "phase_roadmap" &&
       ((draftObj?.builderSchema?.tabs?.length || 0) !== 1 ||
         (draftObj?.builderSchema?.tabs?.[0]?.cards?.[0]?.subCards?.length || 0) < 14)
     ) {
@@ -217,7 +260,7 @@ export default function KeepersWebDirectivesEditor({
     if (
       serialized.includes("[sd_") ||
       serialized.includes("Phase 12 → Phase 1") ||
-      (key === "phase_roadmap" &&
+      (rawKey === "phase_roadmap" &&
         !serialized.includes("External Mod Manager Migration"))
     ) {
       return true;
@@ -256,16 +299,133 @@ export default function KeepersWebDirectivesEditor({
     return CANONICAL_DIRECTIVES[activeCanonicalSlug] || null;
   }, [activeCanonicalSlug]);
 
+  const activeDocKey = useMemo(() => {
+    if (editingRecordKind === "directive") {
+      return getDocKey(
+        "directive",
+        activeCanonicalSlug || editingPost?.slug || CATEGORY_TO_SLUG[category]
+      );
+    }
+    if (editingRecordKind === "legal") {
+      return getDocKey("legal", category || editingPost?.category || "EULA");
+    }
+    return getDocKey("news", undefined, editingPostId);
+  }, [editingRecordKind, activeCanonicalSlug, editingPost, category, editingPostId]);
+
+  const isEditorOpenRef = useRef(isEditorOpen);
+  const activeDocKeyRef = useRef(activeDocKey);
+  const isDirtyRef = useRef(isDirty);
+  const baseRevisionRef = useRef(baseRevision);
+  isEditorOpenRef.current = isEditorOpen;
+  activeDocKeyRef.current = activeDocKey;
+  isDirtyRef.current = isDirty;
+  baseRevisionRef.current = baseRevision;
+
+  const fetchPostsRef = useRef<((refreshOpen?: boolean) => Promise<void>) | null>(
+    null
+  );
+  const applyServerSnapshotRef = useRef<((serverRow: any, kind: EditorRecordKind) => void) | null>(
+    null
+  );
+
+  const presence = useKeeperDocPresence({
+    enabled: true,
+    userId: currentUserId,
+    username: wayfinderName,
+    onRemoteDocSaved: async (event: KeeperDocSavedBroadcast) => {
+      if (event.docKey.startsWith("release:")) {
+        window.dispatchEvent(
+          new CustomEvent("keepers_remote_doc_saved", { detail: event })
+        );
+        return;
+      }
+
+      if (!isEditorOpenRef.current || activeDocKeyRef.current !== event.docKey) {
+        void fetchPostsRef.current?.(false);
+        return;
+      }
+
+      void fetchPostsRef.current?.(false);
+
+      if (event.docKey.startsWith("directive:")) {
+        const slug = event.docKey.replace("directive:", "") as DirectiveSlug;
+        const { data: latestRow } = await supabaseAuth
+          .from("system_directives")
+          .select("*")
+          .eq("slug", slug)
+          .maybeSingle();
+        if (!latestRow) return;
+        if (!isDirtyRef.current) {
+          applyServerSnapshotRef.current?.(latestRow, "directive");
+          useStore
+            .getState()
+            .pushStatus(
+              t(
+                "keeper_toast_reloaded_upstream",
+                "Reloaded latest update from @{0} (v{1})."
+              )
+                .replace("{0}", event.updatedBy || "Keeper")
+                .replace("{1}", String(latestRow.revision || event.revision)),
+              "info"
+            );
+        } else {
+          setConflictServerRow(latestRow);
+          setIsConflictSaveBlocked(false);
+        }
+      } else if (event.docKey.startsWith("legal:")) {
+        const legalCat = event.docKey.replace("legal:", "") as LegalDocCategory;
+        const { data: latestRow } = await supabaseAuth
+          .from("keeper_system_broadcasts")
+          .select("*")
+          .eq("category", legalCat)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!latestRow) return;
+        if (!isDirtyRef.current) {
+          applyServerSnapshotRef.current?.(latestRow, "legal");
+          useStore
+            .getState()
+            .pushStatus(
+              t(
+                "keeper_toast_reloaded_upstream",
+                "Reloaded latest update from @{0} (v{1})."
+              )
+                .replace("{0}", event.updatedBy || "Keeper")
+                .replace("{1}", String(latestRow.revision || event.revision)),
+              "info"
+            );
+        } else {
+          setConflictServerRow(latestRow);
+          setIsConflictSaveBlocked(false);
+        }
+      }
+    },
+  });
+
+  const wasEditorOpenRef = useRef(false);
+  useEffect(() => {
+    if (isEditorOpen) {
+      wasEditorOpenRef.current = true;
+      presence.trackEditingDoc(activeDocKey, title, isDirty);
+    } else if (wasEditorOpenRef.current) {
+      wasEditorOpenRef.current = false;
+      presence.trackEditingDoc(null);
+    }
+  }, [isEditorOpen, activeDocKey, title, isDirty, presence.trackEditingDoc]);
+
   useEffect(() => {
     if (!isEditorOpen) return;
-    const draftId = editingPostId || "new";
+    const draftId = getScopedDraftKey(activeDocKey);
 
     const timer = setTimeout(() => {
       if (!isDirty) {
         setWayfinderDrafts((prev) => {
-          if (!prev[draftId]) return prev;
+          const legacyId = editingPostId || "new";
+          if (!prev[draftId] && !prev[legacyId]) return prev;
           const next = { ...prev };
           delete next[draftId];
+          delete next[legacyId];
           return next;
         });
         return;
@@ -274,7 +434,10 @@ export default function KeepersWebDirectivesEditor({
       setWayfinderDrafts((prev) => ({
         ...prev,
         [draftId]: {
-          _draftVersion: 4,
+          _draftVersion: 5,
+          baseRevision,
+          baseUpdatedAt,
+          baseContentHash,
           title,
           description,
           content,
@@ -296,7 +459,12 @@ export default function KeepersWebDirectivesEditor({
   }, [
     isEditorOpen,
     isDirty,
+    activeDocKey,
+    currentUserId,
     editingPostId,
+    baseRevision,
+    baseUpdatedAt,
+    baseContentHash,
     title,
     description,
     content,
@@ -314,7 +482,7 @@ export default function KeepersWebDirectivesEditor({
   const suppressEditorUpdateRef = useRef<boolean>(false);
 
   const editor = useEditor({
-    extensions: [StarterKit, Markdown, IconPlugin, Image, Link],
+    extensions: [StarterKit, Markdown, IconPlugin, Image],
     content: content,
     onUpdate: ({ editor: ed }) => {
       if (!ed || ed.isDestroyed || suppressEditorUpdateRef.current) return;
@@ -401,20 +569,75 @@ export default function KeepersWebDirectivesEditor({
     setEditorMode(nextMode);
   };
 
-  const clearCanonicalDirectiveDrafts = () => {
-    setWayfinderDrafts((prev) => {
-      const next = { ...prev };
-      Object.keys(CANONICAL_DIRECTIVES).forEach((slug) => {
-        delete next[slug];
+  const applyServerSnapshotToEditor = (serverRow: any, kind: EditorRecordKind) => {
+    if (!serverRow) return;
+    if (kind === "directive") {
+      const slug = (serverRow.slug || activeCanonicalSlug || "citizen_guide") as DirectiveSlug;
+      const rawBody = serverRow.content || CANONICAL_DIRECTIVES[slug]?.bundledContent || "";
+      const freshSchema =
+        extractDirectiveBuilderSchema(rawBody, slug, t) ||
+        getDefaultDirectiveBuilderSchema(slug, t);
+      const cleanMd = stripDirectiveBuilderComment(rawBody);
+      const nextRev = Number(serverRow.revision || 1);
+      setEditingPost((prev: any) => ({
+        ...(prev || {}),
+        ...serverRow,
+        content: rawBody,
+        message: rawBody,
+        revision: nextRev,
+      }));
+      setBaseRevision(nextRev);
+      setBaseUpdatedAt(serverRow.updated_at || "");
+      setBaseContentHash(hashNormalizedDoc(rawBody));
+      setTitle(serverRow.title || freshSchema.title);
+      setDescription(serverRow.summary || serverRow.description || freshSchema.summary);
+      setIsActive(freshSchema.isActive !== false);
+      setContent(cleanMd);
+      setEditorContentSilently(cleanMd);
+      setBuilderSchema({
+        ...freshSchema,
+        title: serverRow.title || freshSchema.title,
+        summary: serverRow.summary || serverRow.description || freshSchema.summary,
+        isActive: freshSchema.isActive !== false,
       });
-      return next;
-    });
+      setIsVisualBuilderModified(false);
+      setIsDirty(false);
+      setConflictServerRow(null);
+      setIsConflictSaveBlocked(false);
+    } else if (kind === "legal") {
+      const legalCat = (serverRow.category || category || "EULA") as LegalDocCategory;
+      const canonicalLegal = CANONICAL_LEGAL_DOCS[legalCat];
+      const rawBody =
+        serverRow.message ||
+        serverRow.content ||
+        canonicalLegal?.bundledContent ||
+        "";
+      const cleanMd = stripDirectiveBuilderComment(rawBody);
+      const nextRev = Number(serverRow.revision || 1);
+      setEditingPost((prev: any) => ({
+        ...(prev || {}),
+        ...serverRow,
+        message: rawBody,
+        content: rawBody,
+        revision: nextRev,
+      }));
+      setBaseRevision(nextRev);
+      setBaseUpdatedAt(serverRow.updated_at || serverRow.created_at || "");
+      setBaseContentHash(hashNormalizedDoc(rawBody));
+      setTitle(serverRow.title || canonicalLegal?.title || legalCat);
+      setContent(cleanMd);
+      setEditorContentSilently(cleanMd);
+      setIsDirty(false);
+      setConflictServerRow(null);
+      setIsConflictSaveBlocked(false);
+    }
   };
+  applyServerSnapshotRef.current = applyServerSnapshotToEditor;
 
-  const fetchPostsAndAssets = async (refreshOpenDirective = false) => {
+  const fetchPostsAndAssets = async (refreshOpenDoc = false) => {
     setIsSyncing(true);
     try {
-      // 1. Canonical Directives + Directive Broadcasts
+      // 1. Canonical Directives (Hub-Authoritative + Published-Only Safe Local Fallback)
       const syncedList = await syncDirectivesBidirectional({
         canWriteHub: true,
       });
@@ -437,8 +660,14 @@ export default function KeepersWebDirectivesEditor({
           content: rec.content,
           message: rec.content,
           published_content: rec.published_content || rec.content,
+          published_title: rec.published_title || rec.title,
+          published_summary: rec.published_summary || rec.summary,
           published_at: rec.published_at || rec.updated_at,
           has_unpublished_changes: Boolean(rec.has_unpublished_changes),
+          has_local_md_changes: Boolean(rec.has_local_md_changes),
+          local_md_content: rec.local_md_content,
+          revision: Number(rec.revision || 1),
+          updated_by: rec.updated_by || "Keepers Core",
           category: rec.category,
           target_audience: "Public",
           action_required: "No Action Required",
@@ -448,39 +677,12 @@ export default function KeepersWebDirectivesEditor({
           updated_at: rec.updated_at || new Date().toISOString(),
           mason_id: "system",
           masons: {
-            name: "Sanctuary Foundry",
+            name: rec.updated_by || "Sanctuary Foundry",
           },
         };
       });
 
       setDirectivePosts(canonicalCards);
-
-      if (refreshOpenDirective && isEditorOpen && activeCanonicalSlug) {
-        const updatedCard = canonicalCards.find(
-          (c) => c.slug === activeCanonicalSlug
-        );
-        if (updatedCard) {
-          const freshSchema =
-            extractDirectiveBuilderSchema(
-              updatedCard.content,
-              activeCanonicalSlug,
-              t
-            ) || getDefaultDirectiveBuilderSchema(activeCanonicalSlug, t);
-          const cleanMd = stripDirectiveBuilderComment(updatedCard.content);
-          setIsDirty(false);
-          setEditingPost(updatedCard);
-          setTitle(updatedCard.title || freshSchema.title);
-          setDescription(updatedCard.description || freshSchema.summary);
-          setContent(cleanMd);
-          setEditorContentSilently(cleanMd);
-          setBuilderSchema({
-            ...freshSchema,
-            title: updatedCard.title || freshSchema.title,
-            summary: updatedCard.description || freshSchema.summary,
-            isActive: updatedCard.is_active !== false,
-          });
-        }
-      }
 
       // 2. Website News Posts (Announcement, Blog, Press, Update, Maintenance)
       const { data: newsData } = await supabaseAuth
@@ -533,16 +735,57 @@ export default function KeepersWebDirectivesEditor({
             title: rec?.title || canonicalLegal?.title || legalCat,
             message: resolvedBody,
             content: resolvedBody,
+            published_title: rec?.published_title || rec?.title || canonicalLegal?.title,
+            published_content: rec?.published_content || resolvedBody,
+            published_at: rec?.published_at || resolvedDate,
+            has_unpublished_changes: Boolean(rec?.has_unpublished_changes),
+            has_local_md_changes: Boolean(rec?.has_local_md_changes),
+            local_md_content: rec?.local_md_content,
+            revision: Number(rec?.revision || 1),
+            updated_by: rec?.updated_by || "Keepers Core",
             category: legalCat,
             file_name: rec?.file_path || canonicalLegal?.file_path,
             created_at: resolvedDate,
             updated_at: resolvedDate,
-            is_active: true,
+            is_active: rec?.is_active !== false,
             record_kind: "legal" as EditorRecordKind,
           };
         }
       }
       setLegalDocsMap(latestLegal);
+
+      // Update currently open editor cleanly if not dirty, or surface upstream conflict if dirty
+      if (isEditorOpenRef.current) {
+        if (editingRecordKind === "directive" && activeCanonicalSlug) {
+          const updatedCard = canonicalCards.find(
+            (c) => c.slug === activeCanonicalSlug
+          );
+          if (updatedCard) {
+            if (refreshOpenDoc && !isDirtyRef.current) {
+              applyServerSnapshotToEditor(updatedCard, "directive");
+            } else if (
+              isDirtyRef.current &&
+              Number(updatedCard.revision || 1) > baseRevisionRef.current
+            ) {
+              setConflictServerRow(updatedCard);
+              setIsConflictSaveBlocked(false);
+            }
+          }
+        } else if (editingRecordKind === "legal" && category) {
+          const updatedLegal = latestLegal[category];
+          if (updatedLegal) {
+            if (refreshOpenDoc && !isDirtyRef.current) {
+              applyServerSnapshotToEditor(updatedLegal, "legal");
+            } else if (
+              isDirtyRef.current &&
+              Number(updatedLegal.revision || 1) > baseRevisionRef.current
+            ) {
+              setConflictServerRow(updatedLegal);
+              setIsConflictSaveBlocked(false);
+            }
+          }
+        }
+      }
 
       if (currentUserId) {
         if (currentUserId === "system") {
@@ -560,13 +803,12 @@ export default function KeepersWebDirectivesEditor({
       setIsSyncing(false);
     }
   };
+  fetchPostsRef.current = fetchPostsAndAssets;
 
   useEffect(() => {
-    fetchPostsAndAssets(!isDirty);
+    fetchPostsAndAssets(!isDirtyRef.current);
     const onRefresh = () => {
-      if (!isDirty) {
-        fetchPostsAndAssets(true);
-      }
+      void fetchPostsRef.current?.(!isDirtyRef.current);
     };
     window.addEventListener("sanctuary_directives_updated", onRefresh);
     window.addEventListener("focus", onRefresh);
@@ -590,23 +832,22 @@ export default function KeepersWebDirectivesEditor({
     }
   }, [isEditorOpen, activeCanonicalSlug, builderSchema, CURRENT_DIRECTIVE_SCHEMA_VERSION]);
 
-  const handleTwoWaySync = async () => {
+  const handleRefreshFromHub = async () => {
     setIsSyncing(true);
     try {
-      clearCanonicalDirectiveDrafts();
-      await fetchPostsAndAssets(true);
+      await fetchPostsAndAssets(!isDirtyRef.current);
       window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
       window.dispatchEvent(
         new CustomEvent("keepers_release_posts_updated", {
-          detail: { syncDirection: "auto" },
+          detail: { syncDirection: "hub_only" },
         })
       );
       useStore
         .getState()
         .pushStatus(
           t(
-            "dir_sync_toast_synced",
-            "Directives & Covenants synchronized between Keepers Core & Codebase (.md)!"
+            "dir_sync_toast_refreshed_hub",
+            "Refreshed working & published state from Keepers Core!"
           ),
           "success"
         );
@@ -615,40 +856,11 @@ export default function KeepersWebDirectivesEditor({
     }
   };
 
-  const handlePushCodebaseToHub = async () => {
+  const handlePullPublishedToCodebase = async () => {
     setIsSyncing(true);
     try {
-      clearCanonicalDirectiveDrafts();
-      await pushCodebaseDirectivesToKeepersCore(
-        currentUserId || "Keepers Core"
-      );
-      await fetchPostsAndAssets(true);
-      window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
-      window.dispatchEvent(
-        new CustomEvent("keepers_release_posts_updated", {
-          detail: { syncDirection: "local_to_hub" },
-        })
-      );
-      useStore
-        .getState()
-        .pushStatus(
-          t(
-            "dir_sync_toast_pushed",
-            "Pushed all 10 local .md files to Keepers Core!"
-          ),
-          "success"
-        );
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handlePullHubToCodebase = async () => {
-    setIsSyncing(true);
-    try {
-      clearCanonicalDirectiveDrafts();
       await pullKeepersCoreDirectivesToCodebase();
-      await fetchPostsAndAssets(true);
+      await fetchPostsAndAssets(!isDirtyRef.current);
       window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
       window.dispatchEvent(
         new CustomEvent("keepers_release_posts_updated", {
@@ -660,7 +872,7 @@ export default function KeepersWebDirectivesEditor({
         .pushStatus(
           t(
             "dir_sync_toast_pulled",
-            "Pulled all 10 directives & covenants from Keepers Core to local .md files!"
+            "Synced all published directives, covenants, and release notes to local .md fallback files!"
           ),
           "success"
         );
@@ -744,11 +956,11 @@ export default function KeepersWebDirectivesEditor({
       {
         id: "ComplianceProtocol",
         label: t("spoke_card_compliance_title", "Safety & Compliance Protocol"),
-        shortBadge: t("spoke_badge_zero_malware", "21+17 AV"),
+        shortBadge: t("spoke_badge_zero_malware", "Core + Spoke AV"),
         icon: t("icon_verified_user", "verified_user"),
         desc: t(
           "spoke_card_compliance_desc",
-          "Universal 21+17 heuristic malware matrix, Zero-PII telemetry guarantees, and age-gating rules."
+          "Bytecode Hound Core + Spoke heuristic malware matrix, Zero-PII telemetry guarantees, and age-gating rules."
         ),
       },
     ],
@@ -764,6 +976,8 @@ export default function KeepersWebDirectivesEditor({
     setConfirmDelete(null);
     setIconPickerTarget(null);
     setEditingSubCardIdx(null);
+    setConflictServerRow(null);
+    setIsConflictSaveBlocked(false);
 
     const recordKind: EditorRecordKind =
       forcedKind ||
@@ -776,13 +990,31 @@ export default function KeepersWebDirectivesEditor({
 
     setEditingRecordKind(recordKind);
 
-    const draftId = post ? post.id : `new_${recordKind}`;
-    const rawDraft = useStore.getState().wayfinderDrafts[draftId] as any;
-    const isStale = isStaleCanonicalDraft(draftId, rawDraft);
+    const resolvedDirectiveSlug: DirectiveSlug | null =
+      recordKind === "directive"
+        ? (post?.slug && CANONICAL_DIRECTIVES[post.slug as DirectiveSlug]
+            ? (post.slug as DirectiveSlug)
+            : CATEGORY_TO_SLUG[post?.category]) || "citizen_guide"
+        : null;
+
+    const docKey =
+      recordKind === "legal"
+        ? getDocKey("legal", post?.category || "EULA")
+        : recordKind === "directive"
+        ? getDocKey("directive", resolvedDirectiveSlug)
+        : getDocKey("news", undefined, post?.id || "new");
+
+    const scopedDraftId = getScopedDraftKey(docKey);
+    const legacyDraftId = post ? post.id : `new_${recordKind}`;
+    const draftsState = useStore.getState().wayfinderDrafts;
+    const rawDraft = (draftsState[scopedDraftId] ??
+      draftsState[legacyDraftId]) as any;
+    const isStale = isStaleCanonicalDraft(scopedDraftId, rawDraft);
     if (isStale && rawDraft) {
       setWayfinderDrafts((prev) => {
         const next = { ...prev };
-        delete next[draftId];
+        delete next[scopedDraftId];
+        delete next[legacyDraftId];
         return next;
       });
     }
@@ -797,6 +1029,29 @@ export default function KeepersWebDirectivesEditor({
       const defaultDef =
         legalDefinitions.find((d) => d.id === legalCategory) ||
         legalDefinitions[0];
+      const serverRev = Number(existingDoc?.revision || 1);
+      const serverUpdated =
+        existingDoc?.updated_at || existingDoc?.created_at || "";
+      const rawServerBody =
+        existingDoc?.message ||
+        existingDoc?.content ||
+        canonicalLegal?.bundledContent ||
+        "";
+
+      setBaseRevision(Number(draft?.baseRevision || serverRev));
+      setBaseUpdatedAt(String(draft?.baseUpdatedAt || serverUpdated));
+      setBaseContentHash(
+        String(draft?.baseContentHash || hashNormalizedDoc(rawServerBody))
+      );
+      if (
+        draft?.isDirty &&
+        draft?.baseRevision &&
+        serverRev > Number(draft.baseRevision) &&
+        existingDoc
+      ) {
+        setConflictServerRow(existingDoc);
+      }
+
       const nextTitle =
         (draft?.title && draft.title.trim()) ||
         existingDoc?.title ||
@@ -831,6 +1086,23 @@ export default function KeepersWebDirectivesEditor({
     }
 
     if (post) {
+      const serverRev = Number(post.revision || 1);
+      const serverUpdated = post.updated_at || post.created_at || "";
+      const rawServerBody = post.content || post.message || "";
+
+      setBaseRevision(Number(draft?.baseRevision || serverRev));
+      setBaseUpdatedAt(String(draft?.baseUpdatedAt || serverUpdated));
+      setBaseContentHash(
+        String(draft?.baseContentHash || hashNormalizedDoc(rawServerBody))
+      );
+      if (
+        draft?.isDirty &&
+        draft?.baseRevision &&
+        serverRev > Number(draft.baseRevision)
+      ) {
+        setConflictServerRow(post);
+      }
+
       setEditingPostId(post.id);
       setEditingPost(post);
       let rawContent = post.message || post.content || "";
@@ -951,6 +1223,9 @@ export default function KeepersWebDirectivesEditor({
       setEditingRecordKind("news");
       setEditingPostId(null);
       setEditingPost(null);
+      setBaseRevision(1);
+      setBaseUpdatedAt("");
+      setBaseContentHash("");
       setTitle(draft?.title ?? "");
       setDescription(draft?.description ?? "");
       setTargetAudience(draft?.targetAudience ?? ["Public"]);
@@ -975,6 +1250,9 @@ export default function KeepersWebDirectivesEditor({
     setConfirmDelete(null);
     setIconPickerTarget(null);
     setEditingSubCardIdx(null);
+    setConflictServerRow(null);
+    setIsConflictSaveBlocked(false);
+    pendingPublishIntentRef.current = false;
     setTimeout(() => {
       setEditingPostId(null);
       setEditingPost(null);
@@ -997,13 +1275,19 @@ export default function KeepersWebDirectivesEditor({
       setTimeout(() => setConfirmDiscard(false), 3000);
       return;
     }
-    const draftId = editingPostId || `new_${editingRecordKind}`;
+    const scopedDraftId = getScopedDraftKey(activeDocKey);
+    const legacyDraftId = editingPostId || `new_${editingRecordKind}`;
     setIsDirty(false);
+    setConflictServerRow(null);
+    setIsConflictSaveBlocked(false);
     setWayfinderDrafts((prev) => {
       const next = { ...prev };
-      delete next[draftId];
+      delete next[scopedDraftId];
+      delete next[activeDocKey];
+      delete next[legacyDraftId];
       if (editingPostId) delete next[editingPostId];
       delete next["new"];
+      delete next[`new_${editingRecordKind}`];
       return next;
     });
     setConfirmDiscard(false);
@@ -1014,14 +1298,79 @@ export default function KeepersWebDirectivesEditor({
     }
   };
 
-  const handleResetBuilderToDefault = async () => {
-    if (!activeCanonicalSlug) return;
+  const handleImportLocalMdToDraft = () => {
+    const localRaw = editingPost?.local_md_content;
+    if (!localRaw || !String(localRaw).trim()) return;
+    const cleanMd = stripDirectiveBuilderComment(String(localRaw));
+    setContent(cleanMd);
+    setEditorContentSilently(cleanMd);
+
+    if (editingRecordKind === "directive" && activeCanonicalSlug) {
+      const parsedSchema =
+        extractDirectiveBuilderSchema(
+          String(localRaw),
+          activeCanonicalSlug,
+          t
+        ) || parseMarkdownToDirectiveSchema(cleanMd, activeCanonicalSlug, t);
+      if (parsedSchema) {
+        setBuilderSchema({
+          ...parsedSchema,
+          isActive: parsedSchema.isActive !== false,
+        });
+        if (parsedSchema.title) setTitle(parsedSchema.title);
+        if (parsedSchema.summary) setDescription(parsedSchema.summary);
+        setIsVisualBuilderModified(false);
+      }
+    }
+
+    setIsDirty(true);
+    useStore
+      .getState()
+      .pushStatus(
+        t(
+          "keeper_toast_imported_md",
+          "Imported local .md into your draft — review and Save or Publish when ready."
+        ),
+        "info"
+      );
+  };
+
+  const handleLoadLatestFromHub = () => {
+    if (!conflictServerRow) return;
+    const scopedDraftId = getScopedDraftKey(activeDocKey);
     setWayfinderDrafts((prev) => {
       const next = { ...prev };
+      delete next[scopedDraftId];
+      if (editingPostId) delete next[editingPostId];
+      return next;
+    });
+    applyServerSnapshotToEditor(conflictServerRow, editingRecordKind);
+    useStore
+      .getState()
+      .pushStatus(
+        t(
+          "keeper_toast_loaded_latest_hub",
+          "Loaded latest version from Keepers Core."
+        ),
+        "info"
+      );
+  };
+
+  const handleOverwriteHubWithMine = async () => {
+    await handleSubmit(undefined, pendingPublishIntentRef.current, true);
+  };
+
+  const handleResetBuilderToDefault = async () => {
+    if (!activeCanonicalSlug) return;
+    const docKey = getDocKey("directive", activeCanonicalSlug);
+    const scopedDraftId = getScopedDraftKey(docKey);
+    setWayfinderDrafts((prev) => {
+      const next = { ...prev };
+      delete next[scopedDraftId];
       delete next[activeCanonicalSlug];
       return next;
     });
-    const localSnaps = await readLocalDirectiveSnapshots();
+    const localSnaps = await readAllLocalDocSnapshots();
     const rawSource =
       localSnaps[activeCanonicalSlug]?.content ||
       CANONICAL_DIRECTIVES[activeCanonicalSlug]?.bundledContent ||
@@ -1043,16 +1392,33 @@ export default function KeepersWebDirectivesEditor({
     setSelectedBuilderCardIdx(0);
     setEditingSubCardIdx(null);
     setIsDirty(false);
+    setConflictServerRow(null);
+    setIsConflictSaveBlocked(false);
 
     const meta = CANONICAL_DIRECTIVES[activeCanonicalSlug];
-    await saveDirectiveBothWays({
+    const saveRes = await saveDirectiveWithConcurrency({
       slug: activeCanonicalSlug,
       title: freshSchema.title,
       summary: freshSchema.summary || meta?.summary || "",
       category: meta?.category || category,
-      content: cleanMd,
-      updated_by: currentUserId || "Keepers Core",
+      content: embedDirectiveBuilderSchema(cleanMd, freshSchema),
+      updated_by: wayfinderName,
+      publishLive: false,
+      forceOverwrite: true,
     });
+    if (saveRes.ok) {
+      const nextRev = Number(saveRes.row?.revision || baseRevision + 1);
+      setBaseRevision(nextRev);
+      setBaseUpdatedAt(saveRes.row?.updated_at || new Date().toISOString());
+      setBaseContentHash(hashNormalizedDoc(saveRes.row?.content || cleanMd));
+      presence.broadcastDocSaved({
+        docKey,
+        revision: nextRev,
+        updatedBy: wayfinderName,
+        updatedAt: saveRes.row?.updated_at || new Date().toISOString(),
+        published: false,
+      });
+    }
     await fetchPostsAndAssets(true);
     window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
 
@@ -1297,12 +1663,26 @@ export default function KeepersWebDirectivesEditor({
       "phase_roadmap") as DirectiveSlug;
     setIsSubmitting(true);
     try {
-      const pubRes = await publishDirectiveToUsers(
-        slug,
-        currentUserId || "Keepers Core"
-      );
-      if (!pubRes.error) {
+      const pubRes = await publishDirectiveToUsers(slug, wayfinderName, {
+        expectedRevision: post.revision ? Number(post.revision) : undefined,
+      });
+      if (pubRes.conflict) {
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "keeper_toast_conflict_open_editor",
+              "Another Keeper saved a newer revision — open the editor to review before publishing."
+            ),
+            "warning"
+          );
+        await fetchPostsAndAssets(false);
+        openEditor(pubRes.serverRow || post, 0, "directive");
+        return;
+      }
+      if (pubRes.ok && !pubRes.error) {
         const meta = CANONICAL_DIRECTIVES[slug];
+        const nextRev = Number(pubRes.row?.revision || post.revision || 1);
         await logArchitectAction(
           "Published System Directive Live (User Side)",
           "system_directives",
@@ -1316,6 +1696,13 @@ export default function KeepersWebDirectivesEditor({
             published_live: { to: true },
           }
         );
+        presence.broadcastDocSaved({
+          docKey: getDocKey("directive", slug),
+          revision: nextRev,
+          updatedBy: wayfinderName,
+          updatedAt: pubRes.row?.updated_at || new Date().toISOString(),
+          published: true,
+        });
         window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
         await fetchPostsAndAssets(true);
         useStore
@@ -1340,8 +1727,85 @@ export default function KeepersWebDirectivesEditor({
     }
   };
 
-  const handleSubmit = async (e?: React.FormEvent, publishLive = false) => {
+  const handlePublishLegalCard = async (
+    legalCat: LegalDocCategory,
+    doc: any,
+    e?: React.MouseEvent
+  ) => {
+    if (e) e.stopPropagation();
+    setIsSubmitting(true);
+    try {
+      const pubRes = await publishLegalDocToUsers(legalCat, wayfinderName, {
+        expectedRevision: doc?.revision ? Number(doc.revision) : undefined,
+      });
+      if (pubRes.conflict) {
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "keeper_toast_conflict_open_editor",
+              "Another Keeper saved a newer revision — open the editor to review before publishing."
+            ),
+            "warning"
+          );
+        await fetchPostsAndAssets(false);
+        openEditor(pubRes.serverRow || doc || { category: legalCat }, 0, "legal");
+        return;
+      }
+      if (pubRes.ok && !pubRes.error) {
+        const meta = CANONICAL_LEGAL_DOCS[legalCat];
+        const nextRev = Number(pubRes.row?.revision || doc?.revision || 1);
+        await logArchitectAction(
+          "Published Legal & Covenant Doc Live (User Side)",
+          "keeper_system_broadcasts",
+          `${doc?.title || meta?.title || legalCat} (${meta?.file_path || legalCat})`,
+          undefined,
+          "Keepers Core",
+          true,
+          {
+            category: { to: legalCat },
+            title: { to: doc?.title || meta?.title },
+            published_live: { to: true },
+          }
+        );
+        presence.broadcastDocSaved({
+          docKey: getDocKey("legal", legalCat),
+          revision: nextRev,
+          updatedBy: wayfinderName,
+          updatedAt: pubRes.row?.updated_at || new Date().toISOString(),
+          published: true,
+        });
+        window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
+        await fetchPostsAndAssets(true);
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "dir_toast_published_live",
+              "Published live to {Citizens} and synced with local .md file!"
+            ),
+            "success"
+          );
+      } else {
+        useStore
+          .getState()
+          .pushStatus(
+            `Failed to publish: ${pubRes.error?.message || "Unknown error"}`,
+            "error"
+          );
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (
+    e?: React.FormEvent,
+    publishLive = false,
+    forceOverwrite = false
+  ) => {
     if (e) e.preventDefault();
+    pendingPublishIntentRef.current = publishLive;
 
     let finalMarkdownBody = stripDirectiveBuilderComment(content);
     if (editor && !editor.isDestroyed && editorMode === "wysiwyg") {
@@ -1351,7 +1815,7 @@ export default function KeepersWebDirectivesEditor({
       setContent(finalMarkdownBody);
     }
 
-    // 1. Saving a Legal or Sovereign Covenant Document (Both Ways: Hub DB + Local .md)
+    // 1. Saving a Legal or Sovereign Covenant Document (Shared Hub Draft or Live Publish)
     if (editingRecordKind === "legal") {
       if (!finalMarkdownBody.trim()) return;
       setIsSubmitting(true);
@@ -1362,20 +1826,54 @@ export default function KeepersWebDirectivesEditor({
         : "EULA") as LegalDocCategory;
       const legalTitle = title.trim() || CANONICAL_LEGAL_DOCS[legalCat].title;
       const existingDoc = legalDocsMap[legalCat];
+      const docKey = getDocKey("legal", legalCat);
+      const scopedDraftId = getScopedDraftKey(docKey);
 
-      const saveRes = await saveLegalDocBothWays({
-        category: legalCat,
-        title: legalTitle,
-        content: finalMarkdownBody.trim(),
+      const saveRes = await saveLegalDocWithConcurrency({
         id:
           existingDoc?.id && !String(existingDoc.id).startsWith("legal_")
             ? existingDoc.id
             : undefined,
+        category: legalCat,
+        title: legalTitle,
+        content: finalMarkdownBody.trim(),
+        updated_by: wayfinderName,
+        publishLive,
+        expectedRevision: baseRevision,
+        forceOverwrite,
       });
 
-      if (!saveRes.error) {
+      if (saveRes.conflict && saveRes.serverRow) {
+        setConflictServerRow(saveRes.serverRow);
+        setIsConflictSaveBlocked(true);
+        setIsSubmitting(false);
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "keeper_conflict_blocked_title",
+              "Save paused — newer revision detected on Keepers Core"
+            ),
+            "warning"
+          );
+        return;
+      }
+
+      if (saveRes.ok && !saveRes.error) {
+        const nextRev = Number(saveRes.row?.revision || baseRevision + 1);
+        setConflictServerRow(null);
+        setIsConflictSaveBlocked(false);
+        useStore.getState().setWayfinderDrafts((prev) => {
+          const next = { ...prev };
+          delete next[scopedDraftId];
+          if (editingPostId) delete next[editingPostId];
+          return next;
+        });
+
         await logArchitectAction(
-          "Synced Legal & Covenant Doc (Hub + .md)",
+          publishLive
+            ? "Published Legal & Covenant Doc Live (Hub + .md)"
+            : "Saved Shared Legal Draft (Hub DB)",
           "keeper_system_broadcasts",
           `${legalTitle} (${CANONICAL_LEGAL_DOCS[legalCat].file_path})`,
           undefined,
@@ -1384,25 +1882,41 @@ export default function KeepersWebDirectivesEditor({
           {
             title: { to: legalTitle },
             category: { to: legalCat },
+            published_live: { to: publishLive },
             is_active: { to: true },
           }
         );
+        presence.broadcastDocSaved({
+          docKey,
+          revision: nextRev,
+          updatedBy: wayfinderName,
+          updatedAt: saveRes.row?.updated_at || new Date().toISOString(),
+          published: publishLive,
+        });
         window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
         closeEditor();
         await fetchPostsAndAssets();
         useStore
           .getState()
           .pushStatus(
-            t(
-              "dir_sync_toast_saved",
-              "Saved to Keepers Core & local .md file!"
-            ),
+            publishLive
+              ? t(
+                  "dir_toast_published_live",
+                  "Published live to {Citizens} and synced with local .md file!"
+                )
+              : t(
+                  "dir_toast_staged_hub",
+                  "Saved shared draft to Keepers Core! Click Publish when ready to push live & sync .md."
+                ),
             "success"
           );
       } else {
         useStore
           .getState()
-          .pushStatus(`Failed to save: ${saveRes.error.message}`, "error");
+          .pushStatus(
+            `Failed to save: ${saveRes.error?.message || "Unknown error"}`,
+            "error"
+          );
       }
       setIsSubmitting(false);
       return;
@@ -1444,59 +1958,99 @@ export default function KeepersWebDirectivesEditor({
 
       setIsSubmitting(true);
       const meta = CANONICAL_DIRECTIVES[canonicalSlug];
-      const saveRes = await saveDirectiveBothWays({
+      const docKey = getDocKey("directive", canonicalSlug);
+      const scopedDraftId = getScopedDraftKey(docKey);
+      const saveRes = await saveDirectiveWithConcurrency({
         slug: canonicalSlug,
         title: syncedSchema.title,
         summary: syncedSchema.summary || meta?.summary || "",
         category: category,
         content: payloadContent,
-        updated_by: currentUserId || "Keepers Core",
+        updated_by: wayfinderName,
         publishLive,
+        expectedRevision: baseRevision,
+        forceOverwrite,
       });
 
-      await logArchitectAction(
-        publishLive
-          ? "Published System Directive Live (User Side + .md + DB)"
-          : "Synced System Directive (Visual Builder + .md)",
-        "system_directives",
-        `${syncedSchema.title} (${meta?.file_path || canonicalSlug})`,
-        undefined,
-        "Keepers Core",
-        true,
-        {
-          slug: { to: canonicalSlug },
-          title: { to: syncedSchema.title },
-          tabs_count: { to: syncedSchema.tabs?.length || 0 },
-          is_live: { to: isActive },
-          published_live: { to: publishLive },
-        }
-      );
+      if (saveRes.conflict && saveRes.serverRow) {
+        setConflictServerRow(saveRes.serverRow);
+        setIsConflictSaveBlocked(true);
+        setIsSubmitting(false);
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "keeper_conflict_blocked_title",
+              "Save paused — newer revision detected on Keepers Core"
+            ),
+            "warning"
+          );
+        return;
+      }
 
-      useStore.getState().setWayfinderDrafts((prev) => {
-        const next = { ...prev };
-        delete next[editingPostId || "new"];
-        return next;
-      });
+      if (saveRes.ok && !saveRes.error) {
+        const nextRev = Number(saveRes.row?.revision || baseRevision + 1);
+        setConflictServerRow(null);
+        setIsConflictSaveBlocked(false);
 
-      window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
-      closeEditor();
-      await fetchPostsAndAssets();
-      useStore
-        .getState()
-        .pushStatus(
-          !saveRes.error
-            ? publishLive
+        await logArchitectAction(
+          publishLive
+            ? "Published System Directive Live (User Side + .md + DB)"
+            : "Saved Shared Directive Draft (Hub DB)",
+          "system_directives",
+          `${syncedSchema.title} (${meta?.file_path || canonicalSlug})`,
+          undefined,
+          "Keepers Core",
+          true,
+          {
+            slug: { to: canonicalSlug },
+            title: { to: syncedSchema.title },
+            tabs_count: { to: syncedSchema.tabs?.length || 0 },
+            is_live: { to: isActive },
+            published_live: { to: publishLive },
+          }
+        );
+
+        useStore.getState().setWayfinderDrafts((prev) => {
+          const next = { ...prev };
+          delete next[scopedDraftId];
+          delete next[canonicalSlug];
+          delete next[editingPostId || "new"];
+          return next;
+        });
+
+        presence.broadcastDocSaved({
+          docKey,
+          revision: nextRev,
+          updatedBy: wayfinderName,
+          updatedAt: saveRes.row?.updated_at || new Date().toISOString(),
+          published: publishLive,
+        });
+        window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
+        closeEditor();
+        await fetchPostsAndAssets();
+        useStore
+          .getState()
+          .pushStatus(
+            publishLive
               ? t(
                   "dir_toast_published_live",
                   "Published live to {Citizens} and synced with local .md file!"
                 )
               : t(
-                  "dir_sync_toast_saved",
-                  "Saved to Keepers Core & local .md file!"
-                )
-            : t("update_transmission", "Update {Dispatch}"),
-          "success"
-        );
+                  "dir_toast_staged_hub",
+                  "Saved shared draft to Keepers Core! Click Publish when ready to push live & sync .md."
+                ),
+            "success"
+          );
+      } else {
+        useStore
+          .getState()
+          .pushStatus(
+            `Failed to save: ${saveRes.error?.message || "Unknown error"}`,
+            "error"
+          );
+      }
       setIsSubmitting(false);
       return;
     }
@@ -1569,8 +2123,21 @@ export default function KeepersWebDirectivesEditor({
       );
       useStore.getState().setWayfinderDrafts((prev) => {
         const next = { ...prev };
+        delete next[getScopedDraftKey(activeDocKey)];
         delete next[editingPostId || "new"];
+        delete next["new_news"];
         return next;
+      });
+      presence.broadcastDocSaved({
+        docKey: getDocKey(
+          "news",
+          undefined,
+          editingPostId || res.data?.[0]?.id || "new"
+        ),
+        revision: 1,
+        updatedBy: wayfinderName,
+        updatedAt: new Date().toISOString(),
+        published: isActive,
       });
       window.dispatchEvent(new CustomEvent("sanctuary_directives_updated"));
       closeEditor();
@@ -1672,10 +2239,21 @@ export default function KeepersWebDirectivesEditor({
       0
     );
 
+    const docKey = getDocKey("directive", slug);
+    const scopedKey = getScopedDraftKey(docKey);
+    const draftEntry = (wayfinderDrafts[scopedKey] ||
+      wayfinderDrafts[post.id]) as any;
     const hasUnsavedEdits = Boolean(
-      (wayfinderDrafts[post.id] as any)?.isDirty
+      draftEntry &&
+        !isStaleCanonicalDraft(scopedKey, draftEntry) &&
+        draftEntry.isDirty &&
+        draftEntry.userModified
     );
     const hasUnpublishedSync = Boolean(post.has_unpublished_changes);
+    const hasLocalMdChanges = Boolean(
+      (isDesktop() || import.meta.env.DEV) && post.has_local_md_changes
+    );
+    const peerList = presence.peersByDocKey[docKey] || [];
     const isLive =
       effectiveSchema.isActive !== undefined
         ? effectiveSchema.isActive !== false
@@ -1789,6 +2367,32 @@ export default function KeepersWebDirectivesEditor({
                 </span>
               </span>
             )}
+            {hasLocalMdChanges && (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                  {t("icon_description", "description")}
+                </span>
+                <span>
+                  {t("keeper_badge_local_md_ahead", "Local .md Modified")}
+                </span>
+              </span>
+            )}
+            {peerList.map((peer) => (
+              <span key={peer.sessionId} className={VAULT_CHIP_CLASS}>
+                <span
+                  className={`material-symbols-outlined !text-[12px] ${
+                    peer.hasUnsavedChanges
+                      ? "text-[var(--warning)]"
+                      : "text-[var(--accent)]"
+                  }`}
+                >
+                  {peer.hasUnsavedChanges
+                    ? t("icon_edit_note", "edit_note")
+                    : t("icon_visibility", "visibility")}
+                </span>
+                <span>@{peer.username}</span>
+              </span>
+            ))}
           </>
         }
         footer={
@@ -1838,6 +2442,13 @@ export default function KeepersWebDirectivesEditor({
     const showCommLinkImages = useStore.getState().showCommLinkImages;
     const extractedImage = showCommLinkImages !== false ? extractPostImage(post) : undefined;
     const isLive = post.is_active !== false;
+    const docKey = getDocKey("news", undefined, post.id);
+    const scopedKey = getScopedDraftKey(docKey);
+    const hasUnsavedEdits = Boolean(
+      (wayfinderDrafts[scopedKey] as any)?.isDirty ||
+        (wayfinderDrafts[post.id] as any)?.isDirty
+    );
+    const peerList = presence.peersByDocKey[docKey] || [];
 
     return (
       <UniversalCard
@@ -1900,6 +2511,30 @@ export default function KeepersWebDirectivesEditor({
               </span>
               <span>{t("audience_global", "Global")}</span>
             </span>
+            {hasUnsavedEdits && (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                  {t("icon_edit", "edit")}
+                </span>
+                <span>{t("action_unsaved_draft", "Draft")}</span>
+              </span>
+            )}
+            {peerList.map((peer) => (
+              <span key={peer.sessionId} className={VAULT_CHIP_CLASS}>
+                <span
+                  className={`material-symbols-outlined !text-[12px] ${
+                    peer.hasUnsavedChanges
+                      ? "text-[var(--warning)]"
+                      : "text-[var(--accent)]"
+                  }`}
+                >
+                  {peer.hasUnsavedChanges
+                    ? t("icon_edit_note", "edit_note")
+                    : t("icon_visibility", "visibility")}
+                </span>
+                <span>@{peer.username}</span>
+              </span>
+            ))}
           </>
         }
         footer={
@@ -1925,10 +2560,20 @@ export default function KeepersWebDirectivesEditor({
 
   // Unified Vault-Standard Legal Document Card
   const renderLegalCard = (def: (typeof legalDefinitions)[0]) => {
-    const doc = legalDocsMap[def.id];
-    const lastUpdated = doc?.created_at
-      ? new Date(doc.created_at).toLocaleDateString()
-      : t("never", "Default");
+    const legalCat = def.id as LegalDocCategory;
+    const doc = legalDocsMap[legalCat];
+    const lastUpdated =
+      doc?.updated_at || doc?.created_at
+        ? new Date(doc.updated_at || doc.created_at).toLocaleDateString()
+        : t("never", "Default");
+    const docKey = getDocKey("legal", legalCat);
+    const scopedKey = getScopedDraftKey(docKey);
+    const hasUnsavedEdits = Boolean((wayfinderDrafts[scopedKey] as any)?.isDirty);
+    const hasUnpublishedSync = Boolean(doc?.has_unpublished_changes);
+    const hasLocalMdChanges = Boolean(
+      (isDesktop() || import.meta.env.DEV) && doc?.has_local_md_changes
+    );
+    const peerList = presence.peersByDocKey[docKey] || [];
 
     return (
       <UniversalCard
@@ -1964,6 +2609,15 @@ export default function KeepersWebDirectivesEditor({
                   "legal"
                 ),
             },
+            ...(hasUnpublishedSync
+              ? [
+                  {
+                    label: t("btn_publish", "Publish"),
+                    icon: t("icon_publish", "publish"),
+                    onClick: () => handlePublishLegalCard(legalCat, doc, e),
+                  },
+                ]
+              : []),
             {
               divider: true,
               label: t("copy_title", "Copy Title"),
@@ -1975,41 +2629,110 @@ export default function KeepersWebDirectivesEditor({
         icon={def.icon}
         imageOverlay={
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-            <span className={VAULT_CHIP_CLASS}>
-              <span
-                className={`material-symbols-outlined !text-[12px] ${
-                  doc ? "text-[var(--success)]" : "text-[var(--subtext)]"
-                }`}
-              >
-                {doc
-                  ? t("icon_check_circle", "check_circle")
-                  : t("icon_gavel", "gavel")}
+            {hasUnsavedEdits ? (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                  {t("icon_edit", "edit")}
+                </span>
+                <span>{t("action_unsaved_draft", "Draft")}</span>
               </span>
-              <span>{doc ? t("status_active", "Published") : def.shortBadge}</span>
-            </span>
+            ) : hasUnpublishedSync ? (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                  {t("icon_pending_actions", "pending_actions")}
+                </span>
+                <span>
+                  {t("dir_status_staged_sync", "Synced • Unpushed")}
+                </span>
+              </span>
+            ) : (
+              <span className={VAULT_CHIP_CLASS}>
+                <span
+                  className={`material-symbols-outlined !text-[12px] ${
+                    doc ? "text-[var(--success)]" : "text-[var(--subtext)]"
+                  }`}
+                >
+                  {doc
+                    ? t("icon_check_circle", "check_circle")
+                    : t("icon_gavel", "gavel")}
+                </span>
+                <span>{doc ? t("status_active", "Published") : def.shortBadge}</span>
+              </span>
+            )}
           </div>
         }
         title={doc?.title || def.label}
         subtitle={`${t("by_author", "BY")} ${t("author_sanctuary_team", "Sanctuary Foundry")}`}
         badges={
-          <span className={VAULT_CHIP_CLASS}>
-            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-              {def.icon}
+          <>
+            <span className={VAULT_CHIP_CLASS}>
+              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                {def.icon}
+              </span>
+              <span>{def.shortBadge}</span>
             </span>
-            <span>{def.shortBadge}</span>
-          </span>
+            {hasUnpublishedSync && (
+              <span className={`${VAULT_CHIP_CLASS} !border-[var(--warning)]/40 !text-[var(--warning)]`}>
+                <span className="material-symbols-outlined !text-[12px]">
+                  {t("icon_pending_actions", "pending_actions")}
+                </span>
+                <span>
+                  {t("dir_status_staged_sync", "Synced • Unpushed")}
+                </span>
+              </span>
+            )}
+            {hasLocalMdChanges && (
+              <span className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                  {t("icon_description", "description")}
+                </span>
+                <span>
+                  {t("keeper_badge_local_md_ahead", "Local .md Modified")}
+                </span>
+              </span>
+            )}
+            {peerList.map((peer) => (
+              <span key={peer.sessionId} className={VAULT_CHIP_CLASS}>
+                <span
+                  className={`material-symbols-outlined !text-[12px] ${
+                    peer.hasUnsavedChanges
+                      ? "text-[var(--warning)]"
+                      : "text-[var(--accent)]"
+                  }`}
+                >
+                  {peer.hasUnsavedChanges
+                    ? t("icon_edit_note", "edit_note")
+                    : t("icon_visibility", "visibility")}
+                </span>
+                <span>@{peer.username}</span>
+              </span>
+            ))}
+          </>
         }
         footer={
           <div className="flex items-center justify-between gap-2 w-full">
             <span className="text-[10px] font-bold text-[var(--subtext)] opacity-60 uppercase tracking-wider truncate">
               {`${t("updated_date", "Updated")}: ${lastUpdated}`}
             </span>
-            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1 shrink-0">
-              {t("edit", "Edit")}
-              <span className="material-symbols-outlined !text-[12px]">
-                {t("icon_arrow_forward", "arrow_forward")}
+            <div className="flex items-center gap-2 shrink-0">
+              {hasUnpublishedSync && (
+                <ActionButton
+                  variant="warning"
+                  className="!px-2 !py-0.5 !text-[9px]"
+                  icon={t("icon_rocket_launch", "rocket_launch")}
+                  onClick={(e) => handlePublishLegalCard(legalCat, doc, e)}
+                  disabled={isSubmitting || isSyncing}
+                >
+                  {t("btn_publish", "Publish")}
+                </ActionButton>
+              )}
+              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1 shrink-0">
+                {t("edit", "Edit")}
+                <span className="material-symbols-outlined !text-[12px]">
+                  {t("icon_arrow_forward", "arrow_forward")}
+                </span>
               </span>
-            </span>
+            </div>
           </div>
         }
       >
@@ -2167,22 +2890,16 @@ export default function KeepersWebDirectivesEditor({
           onClick: () => openEditor(undefined, 0, "news"),
         },
         {
-          id: "sync_both",
+          id: "refresh_hub",
           icon: t("icon_sync", "sync"),
-          label: t("dir_sync_btn_both", "Two-Way Sync"),
-          onClick: handleTwoWaySync,
+          label: t("dir_sync_btn_refresh_hub", "Refresh from Hub"),
+          onClick: handleRefreshFromHub,
         },
         {
-          id: "push_md",
-          icon: t("icon_cloud_done", "cloud_done"),
-          label: t("dir_sync_btn_push", "Push .md → Hub"),
-          onClick: handlePushCodebaseToHub,
-        },
-        {
-          id: "pull_hub",
+          id: "pull_published_md",
           icon: t("icon_system_update_alt", "system_update_alt"),
-          label: t("dir_sync_btn_pull", "Pull Hub → .md"),
-          onClick: handlePullHubToCodebase,
+          label: t("dir_sync_btn_pull_published", "Pull Published → .md"),
+          onClick: handlePullPublishedToCodebase,
         },
       ]}
     >
@@ -2199,7 +2916,11 @@ export default function KeepersWebDirectivesEditor({
             )}
             gridClassName="flex flex-col w-full"
           >
-            <ReleaseNotesShowcase isKeepers={true} />
+            <ReleaseNotesShowcase
+              isKeepers={true}
+              presence={presence}
+              keeperName={wayfinderName}
+            />
           </HubOverviewSection>
 
           {/* Column 1 (2x2): Recent Edits */}
@@ -2264,7 +2985,11 @@ export default function KeepersWebDirectivesEditor({
             )}
             gridClassName="flex flex-col w-full"
           >
-            <ReleaseNotesShowcase isKeepers={true} />
+            <ReleaseNotesShowcase
+              isKeepers={true}
+              presence={presence}
+              keeperName={wayfinderName}
+            />
           </HubOverviewSection>
 
           <HubOverviewSection
@@ -2415,7 +3140,22 @@ export default function KeepersWebDirectivesEditor({
                   setIsDirty(true);
                 }}
               />
-              {activeCanonicalMeta ? (
+              {(isDesktop() || import.meta.env.DEV) &&
+                Boolean(editingPost?.local_md_content) && (
+                  <PanelHeaderButton
+                    onClick={handleImportLocalMdToDraft}
+                    disabled={isSubmitting || isSyncing}
+                    tooltip={t(
+                      "keeper_local_md_import_btn",
+                      "Import .md to Draft"
+                    )}
+                    icon={t("icon_upload_file", "upload_file")}
+                    variant={
+                      editingPost?.has_local_md_changes ? "warning" : "default"
+                    }
+                  />
+                )}
+              {activeCanonicalMeta || editingRecordKind === "legal" ? (
                 <>
                   <PanelHeaderButton
                     onClick={() => handleSubmit(undefined, false)}
@@ -2423,10 +3163,7 @@ export default function KeepersWebDirectivesEditor({
                     tooltip={
                       isSubmitting
                         ? t("btn_saving", "Saving...")
-                        : t(
-                            "dir_btn_save_sync_staged",
-                            "Save & Sync (.md + DB)"
-                          )
+                        : t("dir_btn_save_sync_staged", "Save Shared Draft")
                     }
                     icon={
                       isSubmitting
@@ -2444,7 +3181,7 @@ export default function KeepersWebDirectivesEditor({
                         ? t("btn_saving", "Saving...")
                         : t(
                             "dir_btn_publish_live",
-                            "Update / Publish to {Citizens}"
+                            "Publish Live to {Citizens}"
                           )
                     }
                     icon={
@@ -2481,7 +3218,52 @@ export default function KeepersWebDirectivesEditor({
             </PanelHeaderGroup>
           }
         >
-          <div className="flex flex-col gap-5 pb-8">
+          <div
+            className={`flex flex-col gap-5 ${
+              editorMode === "markdown" ? "flex-1 min-h-0 pb-0" : "shrink-0 pb-8"
+            }`}
+          >
+            <KeeperDocConflictBar
+              peerEditors={presence.peersByDocKey[activeDocKey] || []}
+              hasLocalMdChanges={Boolean(
+                (isDesktop() || import.meta.env.DEV) &&
+                  editingPost?.has_local_md_changes
+              )}
+              localFileName={
+                activeCanonicalMeta?.file_path ||
+                (editingRecordKind === "legal"
+                  ? CANONICAL_LEGAL_DOCS[category as LegalDocCategory]?.file_path
+                  : undefined)
+              }
+              onImportLocalMd={handleImportLocalMdToDraft}
+              conflictInfo={
+                conflictServerRow
+                  ? {
+                      baseRevision,
+                      serverRevision: Number(conflictServerRow.revision || 1),
+                      updatedBy: conflictServerRow.updated_by || "Keepers Core",
+                      updatedAt:
+                        conflictServerRow.updated_at ||
+                        conflictServerRow.created_at,
+                      serverTitle: conflictServerRow.title,
+                      serverMarkdown: stripDirectiveBuilderComment(
+                        conflictServerRow.content ||
+                          conflictServerRow.message ||
+                          ""
+                      ),
+                      localMarkdown: stripDirectiveBuilderComment(content || ""),
+                      isSaveBlocked: isConflictSaveBlocked,
+                    }
+                  : null
+              }
+              onLoadLatestFromHub={handleLoadLatestFromHub}
+              onOverwriteWithMine={handleOverwriteHubWithMine}
+              onDismissConflict={() => {
+                setConflictServerRow(null);
+                setIsConflictSaveBlocked(false);
+              }}
+            />
+
             {activeCanonicalMeta && (
               <PostEditorModeTiles
                 mode={editorMode}
@@ -2497,9 +3279,15 @@ export default function KeepersWebDirectivesEditor({
               activeBuilderTab &&
               activeBuilderCard && (
                 <div className="flex flex-col gap-4 animate-in fade-in duration-200 w-full">
-                  {/* 1. 1x3 Directive Tab Selector */}
+                  {/* 1. 1x3 or 2x2 Directive Tab Selector */}
                   {builderSchema.tabs.length > 1 && (
-                    <SidePanelFilterBar className="md:grid-cols-3 gap-3.5">
+                    <SidePanelFilterBar
+                      className={
+                        builderSchema.tabs.length % 2 === 0
+                          ? "md:grid-cols-2 gap-3.5"
+                          : "md:grid-cols-3 gap-3.5"
+                      }
+                    >
                       {builderSchema.tabs.map((tab, tIdx) => (
                         <DashboardStatTile
                           key={tab.id}
@@ -2798,7 +3586,7 @@ export default function KeepersWebDirectivesEditor({
                                     { title: e.target.value }
                                   )
                                 }
-                                className="w-full glass-surface rounded-xl px-3.5 py-2.5 text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent"
+                                className="h-11 w-full glass-surface rounded-xl px-4 text-xs font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent"
                               />
                             </div>
                           </div>
@@ -2821,7 +3609,7 @@ export default function KeepersWebDirectivesEditor({
                                     { overline: e.target.value }
                                   )
                                 }
-                                className="w-full glass-surface rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent"
+                                className="h-11 w-full glass-surface rounded-xl px-3.5 text-xs font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent"
                               />
                             </div>
 
@@ -2835,7 +3623,6 @@ export default function KeepersWebDirectivesEditor({
                               {activeCanonicalSlug === "phase_roadmap" ? (
                                 <CustomDropdown
                                   disableTint={true}
-                                  className="h-9"
                                   value={
                                     card.status === "completed"
                                       ? "completed"
@@ -2891,7 +3678,7 @@ export default function KeepersWebDirectivesEditor({
                                       { badge: e.target.value }
                                     )
                                   }
-                                  className="w-full glass-surface rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent"
+                                  className="h-11 w-full glass-surface rounded-xl px-3.5 text-xs font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent"
                                 />
                               )}
                             </div>
@@ -2905,8 +3692,8 @@ export default function KeepersWebDirectivesEditor({
                                 "Full Description (Shows in Drawer)"
                               )}
                             </label>
-                            <textarea
-                              rows={3}
+                            <AutoResizeTextarea
+                              minRows={3}
                               value={card.desc}
                               onChange={(e) =>
                                 updateBuilderCard(
@@ -2915,7 +3702,7 @@ export default function KeepersWebDirectivesEditor({
                                   { desc: e.target.value }
                                 )
                               }
-                              className="w-full glass-surface rounded-xl px-3.5 py-2.5 text-xs font-normal text-[var(--text)] leading-relaxed focus:outline-none focus:theme-border-accent resize-y custom-scrollbar"
+                              className="w-full glass-surface rounded-xl px-3.5 py-2.5 text-xs font-normal text-[var(--text)] leading-relaxed focus:outline-none focus:theme-border-accent"
                             />
                           </div>
 
@@ -3369,8 +4156,8 @@ export default function KeepersWebDirectivesEditor({
                                             "Description"
                                           )}
                                         </label>
-                                        <textarea
-                                          rows={3}
+                                        <AutoResizeTextarea
+                                          minRows={3}
                                           value={sub.desc}
                                           onChange={(e) =>
                                             updateSubCard(
@@ -3384,7 +4171,7 @@ export default function KeepersWebDirectivesEditor({
                                             "dir_builder_subcard_desc_ph",
                                             "Concise description..."
                                           )}
-                                          className="w-full glass-surface rounded-xl px-3.5 py-2.5 text-xs font-normal text-[var(--text)] leading-relaxed focus:outline-none focus:theme-border-accent resize-y custom-scrollbar"
+                                          className="w-full glass-surface rounded-xl px-3.5 py-2.5 text-xs font-normal text-[var(--text)] leading-relaxed focus:outline-none focus:theme-border-accent"
                                         />
                                       </div>
                                     </div>
@@ -3444,7 +4231,7 @@ export default function KeepersWebDirectivesEditor({
                           setIsDirty(true);
                         }}
                         placeholder={t("post_title_placeholder", "Enter title...")}
-                        className="w-full glass-surface rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent"
+                        className="h-11 w-full glass-surface rounded-xl px-4 text-xs font-bold text-[var(--text)] focus:outline-none focus:theme-border-accent"
                       />
                     </div>
 
@@ -3463,67 +4250,63 @@ export default function KeepersWebDirectivesEditor({
                           <label className="text-[9px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest">
                             {t("category", "Category")}
                           </label>
-                          <div className="h-12">
-                            <CustomDropdown
-                              disableTint={true}
-                              searchable={false}
-                              value={category}
-                              onChange={(v: string[]) => {
-                                setCategory(v[0]);
-                                setIsDirty(true);
-                              }}
-                              options={NEWS_CATEGORIES.map((c) => ({
-                                id: c,
-                                label: c,
-                              }))}
-                            />
-                          </div>
+                          <CustomDropdown
+                            disableTint={true}
+                            searchable={false}
+                            value={category}
+                            onChange={(v: string[]) => {
+                              setCategory(v[0]);
+                              setIsDirty(true);
+                            }}
+                            options={NEWS_CATEGORIES.map((c) => ({
+                              id: c,
+                              label: c,
+                            }))}
+                          />
                         </div>
                         <div className="flex flex-col gap-1.5 flex-1">
                           <label className="text-[9px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest">
                             {t("dispatch_meta_action", "Action Required")}
                           </label>
-                          <div className="h-12">
-                            <CustomDropdown
-                              disableTint={true}
-                              searchable={false}
-                              value={actionRequired}
-                              onChange={(v: string[]) => {
-                                setActionRequired(v[0] || "No Action Required");
-                                setIsDirty(true);
-                              }}
-                              options={[
-                                {
-                                  id: "No Action Required",
-                                  label: t(
-                                    "dispatch_action_none",
-                                    "No Action Required"
-                                  ),
-                                },
-                                {
-                                  id: "Review Before Updating",
-                                  label: t(
-                                    "dispatch_action_review",
-                                    "Review Before Updating"
-                                  ),
-                                },
-                                {
-                                  id: "Update Recommended",
-                                  label: t(
-                                    "dispatch_action_update_rec",
-                                    "Update Recommended"
-                                  ),
-                                },
-                                {
-                                  id: "Immediate Action Required",
-                                  label: t(
-                                    "dispatch_action_immediate",
-                                    "Immediate Action Required"
-                                  ),
-                                },
-                              ]}
-                            />
-                          </div>
+                          <CustomDropdown
+                            disableTint={true}
+                            searchable={false}
+                            value={actionRequired}
+                            onChange={(v: string[]) => {
+                              setActionRequired(v[0] || "No Action Required");
+                              setIsDirty(true);
+                            }}
+                            options={[
+                              {
+                                id: "No Action Required",
+                                label: t(
+                                  "dispatch_action_none",
+                                  "No Action Required"
+                                ),
+                              },
+                              {
+                                id: "Review Before Updating",
+                                label: t(
+                                  "dispatch_action_review",
+                                  "Review Before Updating"
+                                ),
+                              },
+                              {
+                                id: "Update Recommended",
+                                label: t(
+                                  "dispatch_action_update_rec",
+                                  "Update Recommended"
+                                ),
+                              },
+                              {
+                                id: "Immediate Action Required",
+                                label: t(
+                                  "dispatch_action_immediate",
+                                  "Immediate Action Required"
+                                ),
+                              },
+                            ]}
+                          />
                         </div>
                       </div>
                     )}
@@ -3600,6 +4383,7 @@ export default function KeepersWebDirectivesEditor({
         isOpen={isAssetPanelOpen}
         onClose={() => setIsAssetPanelOpen(false)}
         onAssetSelect={handleLinkAsset}
+        widthClass="w-[92vw] md:w-[920px]"
         backdropZ="z-[50000]"
         panelZ="z-[50001]"
       />

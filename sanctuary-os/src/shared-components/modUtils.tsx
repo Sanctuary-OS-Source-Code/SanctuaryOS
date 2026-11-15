@@ -209,6 +209,284 @@ export const isModBinaryExtension = (filename: string, schema?: any): boolean =>
   }
   return false;
 };
+
+interface CompiledConfigRuleSet {
+  ignoreExts: string[];
+  configExts: string[];
+  primaryExt: string;
+  routedExts: Set<string>;
+  nonConfigLabeledExts: Set<string>;
+}
+
+const compiledConfigRuleCache = new WeakMap<object, CompiledConfigRuleSet>();
+
+const normalizeSchemaExt = (ext: any): string => {
+  const s = String(ext || "").trim().toLowerCase();
+  if (!s) return "";
+  return s.startsWith(".") ? s : `.${s}`;
+};
+
+function getCompiledConfigRuleSet(schema: any): CompiledConfigRuleSet {
+  if (schema && typeof schema === "object") {
+    const hit = compiledConfigRuleCache.get(schema);
+    if (hit) return hit;
+  }
+
+  const ignoreSet = new Set<string>();
+  const ignoreRaw = Array.isArray(schema?.extensions?.ignore_unidentified)
+    ? schema.extensions.ignore_unidentified
+    : [];
+  for (let i = 0; i < ignoreRaw.length; i++) {
+    const ext = normalizeSchemaExt(ignoreRaw[i]);
+    if (ext) ignoreSet.add(ext);
+  }
+
+  const configSet = new Set<string>();
+  const configRaw = Array.isArray(schema?.extensions?.config_extensions)
+    ? schema.extensions.config_extensions
+    : [];
+  const editableRaw = Array.isArray(schema?.extensions?.editable_config_formats)
+    ? schema.extensions.editable_config_formats
+    : [];
+  for (let i = 0; i < configRaw.length; i++) {
+    const ext = normalizeSchemaExt(configRaw[i]);
+    if (ext) configSet.add(ext);
+  }
+  for (let i = 0; i < editableRaw.length; i++) {
+    const ext = normalizeSchemaExt(editableRaw[i]);
+    if (ext) configSet.add(ext);
+  }
+
+  const primaryExt = normalizeSchemaExt(schema?.extensions?.primary_module);
+
+  const routedExts = new Set<string>();
+  const installRoutes = Array.isArray(schema?.install_routes)
+    ? schema.install_routes
+    : [];
+  for (let i = 0; i < installRoutes.length; i++) {
+    const routeExts = Array.isArray(installRoutes[i]?.extensions)
+      ? installRoutes[i].extensions
+      : [];
+    for (let j = 0; j < routeExts.length; j++) {
+      const ext = normalizeSchemaExt(routeExts[j]);
+      if (ext) routedExts.add(ext);
+    }
+  }
+
+  const nonConfigLabeledExts = new Set<string>();
+  const labels = schema?.extensions?.labels;
+  if (labels && typeof labels === "object") {
+    for (const [rawKey, rawVal] of Object.entries(labels)) {
+      const normKey = normalizeSchemaExt(rawKey);
+      const upperVal = String(rawVal || "").trim().toUpperCase();
+      if (
+        normKey &&
+        upperVal &&
+        !upperVal.includes("CONFIG") &&
+        !upperVal.includes("SETTING")
+      ) {
+        nonConfigLabeledExts.add(normKey);
+      }
+    }
+  }
+
+  const compiled: CompiledConfigRuleSet = {
+    ignoreExts: Array.from(ignoreSet),
+    configExts: Array.from(configSet),
+    primaryExt,
+    routedExts,
+    nonConfigLabeledExts,
+  };
+
+  if (schema && typeof schema === "object") {
+    compiledConfigRuleCache.set(schema, compiled);
+  }
+  return compiled;
+}
+
+/**
+ * Returns true when a filename matches a schema-declared companion, metadata,
+ * or editable config format (and is not declared as a script, primary module,
+ * install-routed artifact, or non-config labeled artifact format).
+ */
+export const isConfigOrCompanionExtension = (
+  filename: string,
+  schema?: any,
+): boolean => {
+  const clean = String(filename || "")
+    .split(/[\\/]/)
+    .pop()
+    ?.toLowerCase()
+    .trim();
+  if (!clean) return false;
+
+  const effectiveSchema = schema ?? useStore.getState().activeGameSchema;
+  if (!effectiveSchema) return false;
+  if (isScriptExtension(clean, effectiveSchema)) return false;
+
+  const rules = getCompiledConfigRuleSet(effectiveSchema);
+  if (rules.ignoreExts.some((ext) => clean.endsWith(ext))) {
+    return true;
+  }
+
+  const matchedConfigExt = rules.configExts.find((ext) => clean.endsWith(ext));
+  if (!matchedConfigExt) return false;
+
+  if (
+    rules.primaryExt === matchedConfigExt ||
+    rules.routedExts.has(matchedConfigExt) ||
+    rules.nonConfigLabeledExts.has(matchedConfigExt)
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
+/**
+ * Schema-driven gate determining whether a physical file should appear as a
+ * Vault artifact card or virtual child module. Excludes companion config files,
+ * internal manifests, cache files, and non-visible archive containers.
+ */
+export const isVaultArtifactVisible = (
+  filename: string,
+  schema?: any,
+): boolean => {
+  const clean = String(filename || "")
+    .split(/[\\/]/)
+    .pop()
+    ?.toLowerCase()
+    .trim();
+  if (!clean) return false;
+  if (clean.startsWith(".sanctuary.") || clean === "override.json") return false;
+
+  const effectiveSchema = schema ?? useStore.getState().activeGameSchema;
+  if (!effectiveSchema) return true;
+
+  const bpRules = getCompiledBlueprintSchemaRules(effectiveSchema);
+  if (bpRules.pathManifest && clean === bpRules.pathManifest) return false;
+  if (bpRules.loManifest && clean === bpRules.loManifest) return false;
+  if (bpRules.cacheFileSet.has(clean)) return false;
+
+  if (!isSupportedExtension(clean, effectiveSchema)) return false;
+  if (isConfigOrCompanionExtension(clean, effectiveSchema)) return false;
+
+  if (
+    bpRules.nonVisibleArchiveExts.length > 0 &&
+    bpRules.nonVisibleArchiveExts.some((ext) => clean.endsWith(ext))
+  ) {
+    return false;
+  }
+
+  if (
+    bpRules.vaultVisibleExts.length > 0 &&
+    !isScriptExtension(clean, effectiveSchema) &&
+    !bpRules.vaultVisibleExts.some((ext) => clean.endsWith(ext))
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
+function computeVirtualStatusFromMembers(
+  members: any[],
+  t?: (key: string, fallback: string) => string,
+): string {
+  const brokenCount = members.filter((m) => {
+    const s = typeof m?.status === "string" ? m.status.toLowerCase() : "";
+    return s.includes("broken") || s.includes("corrupted") || s.includes("obsolete");
+  }).length;
+  if (brokenCount > 0) {
+    return t ? t("status_corrupted", "Corrupted") : "Corrupted";
+  }
+
+  const unstableCount = members.filter(
+    (m) => typeof m?.status === "string" && m.status.toLowerCase().includes("unstable"),
+  ).length;
+  if (unstableCount > 0) {
+    return t ? t("label_unstable", "Unstable") : "Unstable";
+  }
+
+  const stableLabel = t ? t("status_stable", "STABLE") : "STABLE";
+  const stableCount = members.filter(
+    (m) =>
+      m?.status === stableLabel ||
+      String(m?.status || "").trim().toLowerCase() === "stable",
+  ).length;
+  if (stableCount === members.length) {
+    return stableLabel;
+  }
+  if (stableCount === 0) {
+    return t ? t("unverified", "Unverified") : "Unverified";
+  }
+  return t ? t("status_mixed", "Mixed Status") : "Mixed Status";
+}
+
+/**
+ * Strips companion config / non-vault-visible entries from cached or live
+ * Vault mod lists, recomputes affected virtual suite statuses, and drops
+ * empty or redundant single-item synthetic directory wrappers.
+ */
+export function sanitizeVaultModList(
+  rawList: any[],
+  schema?: any,
+  t?: (key: string, fallback: string) => string,
+): any[] {
+  if (!Array.isArray(rawList) || rawList.length === 0) {
+    return rawList || [];
+  }
+  const effectiveSchema = schema ?? useStore.getState().activeGameSchema;
+
+  const result: any[] = [];
+  for (let i = 0; i < rawList.length; i++) {
+    const item = rawList[i];
+    if (!item) continue;
+
+    if (!item.isVirtual) {
+      if (!item.name || isVaultArtifactVisible(item.name, effectiveSchema)) {
+        result.push(item);
+      }
+      continue;
+    }
+
+    if (Array.isArray(item.flavors)) {
+      const visibleFlavors = item.flavors.filter(
+        (f: any) => !f?.name || isVaultArtifactVisible(f.name, effectiveSchema),
+      );
+      if (visibleFlavors.length === 0) {
+        if (item.isLocalOverride && item.flavors.length === 0) {
+          result.push(item);
+        }
+        continue;
+      }
+
+      if (
+        visibleFlavors.length === 1 &&
+        !item.isCollection &&
+        !item.isLocalOverride &&
+        String(item.dbId || "").startsWith("local_dir_")
+      ) {
+        continue;
+      }
+
+      if (visibleFlavors.length !== item.flavors.length) {
+        const nextStatus = computeVirtualStatusFromMembers(visibleFlavors, t);
+        result.push({
+          ...item,
+          flavors: visibleFlavors,
+          isGhosted: visibleFlavors.some((m: any) => m?.isGhosted),
+          status: nextStatus,
+        });
+        continue;
+      }
+    }
+
+    result.push(item);
+  }
+
+  return result;
+}
 export const DLC_MAP: Record<string, string> = {};
 export const loadDLCMap = async () => {
   try {

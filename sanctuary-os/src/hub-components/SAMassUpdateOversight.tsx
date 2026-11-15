@@ -4,7 +4,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import {
   SidePanel, CustomDropdown, GameVersionMultiSelect, ModSearchDropdown, EmptyState,
-  fetchAllPaginated, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS,
+  fetchAllPaginated, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS, isVersionMatch,
 } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard, StatBox } from "../components/universal/UniversalLayout";
@@ -147,7 +147,9 @@ export function MassUpdateOversight() {
     if (filterCategory && m.category_override !== filterCategory) return false;
     if (filterGameVersions.length > 0) {
       if (!m.compatible_versions || m.compatible_versions.length === 0) return false;
-      const hasMatch = filterGameVersions.some(v => m.compatible_versions.includes(v));
+      const hasMatch = filterGameVersions.some(
+        (v) => m.compatible_versions.includes(v) || isVersionMatch(m.compatible_versions, v)
+      );
       if (!hasMatch) return false;
     }
     if (searchQuery && !m.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;

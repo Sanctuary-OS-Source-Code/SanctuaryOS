@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { CustomDropdown, ModSearchDropdown, SidePanel, SidePanelHeroCard, SidePanelPillToggle, getExtensionRegex, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS } from "../shared";
+import { CustomDropdown, SidePanel, SidePanelHeroCard, SidePanelPillToggle, PanelHeaderGroup, PanelHeaderButton } from "../shared";
 import { useStore } from "../store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -10,14 +10,10 @@ import { scrubLogUserData } from "../utils/logScrubber";
 
 export default function WayfinderSupportSidePanel({
  isOpen, onClose, preselectedType }: { isOpen: boolean; onClose: () => void; preselectedType?: string }) {
-  const activeGameSchema = useStore(state => state.activeGameSchema);
   const { t } = useLexicon();
-  const modList = useStore((state) => state.modList);
-  const activeSet = useStore(state => state.playSets[state.activePlaySetIndex]);
   const [type, setType] = useState(preselectedType || "BUG_MOD");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [targetModId, setTargetModId] = useState("");
   const [targetUserId, setTargetUserId] = useState("");
   const [logs, setLogs] = useState("");
   const [customFieldsData, setCustomFieldsData] = useState<Record<string, string>>({});
@@ -26,60 +22,10 @@ export default function WayfinderSupportSidePanel({
   const [, setLoadingCats] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [policyViolations, setPolicyViolations] = useState<string[]>([]);
   const [optedOutSources, setOptedOutSources] = useState<string[]>([]);
   const session = useStore((state) => state.session);
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState("");
-
-  const vaultExtremeMods = React.useMemo(() => {
-    if (!isOpen) return [];
-    return modList.filter((ml: any) => ml.compliance_tier >= 3 && ml.compliance_tier <= 5).map((ml: any) => ({ name: ml.displayName || ml.name, tier: ml.compliance_tier }));
-  }, [modList, isOpen]);
-
-  const isRestrictedOrUnknownTicketMod = (ml: any) =>
-    !ml?.isVirtual &&
-    ((Number(ml?.compliance_tier || 0) >= 1 && Number(ml?.compliance_tier || 0) <= 4) ||
-      !ml?.isSynced ||
-      !ml?.dbId ||
-      String(ml?.status || "").toLowerCase() === "unverified");
-
-  const activeAdultMods = React.useMemo(() => {
-    if (!activeSet?.mods || !isOpen) return [];
-    
-    const restrictedModsInVault = modList.filter(isRestrictedOrUnknownTicketMod);
-    if (restrictedModsInVault.length === 0) return [];
-    
-    const activeModsSet = new Set<string>(
-      activeSet.mods.map((rm: any) => (typeof rm === "string" ? rm : String(rm?.name || rm?.path || "")))
-    );
-    const extRegex = getExtensionRegex(activeGameSchema);
-    
-    const activeBaseNames = new Set<string>();
-    for (const rawMod of activeSet.mods) {
-       const modName = typeof rawMod === "string" ? rawMod : String(rawMod?.name || rawMod?.path || "");
-       const base = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
-       if (base) activeBaseNames.add(base);
-    }
-    
-    const matchedAdultMods: any[] = [];
-    
-    for (const am of restrictedModsInVault) {
-        if (activeModsSet.has(am.name) || (am.displayName && activeModsSet.has(am.displayName))) {
-             matchedAdultMods.push({ name: am.displayName || am.name, tier: am.compliance_tier || 0 });
-             continue;
-        }
-        
-        const mBase = am.name?.split(/[\\/]/).pop()?.replace(extRegex, '');
-        if (mBase && activeBaseNames.has(mBase)) {
-             matchedAdultMods.push({ name: am.displayName || am.name, tier: am.compliance_tier || 0 });
-        }
-    }
-    
-    // remove duplicates by name
-    const uniqueMods = matchedAdultMods.filter((mod, index, self) => index === self.findIndex((m) => m.name === mod.name));
-    return uniqueMods;
-  }, [activeSet?.mods, modList, activeGameSchema, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -93,7 +39,7 @@ export default function WayfinderSupportSidePanel({
            const { data: profile } = await supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', session.user.id).single();
            if (profile?.is_comm_banned) {
               setIsBanned(true);
-              setBanReason(profile.comm_blacklist_reason || "You have been banned from submitting support tickets.");
+              setBanReason(profile.comm_blacklist_reason || t("support_banned_default", "You have been banned from submitting support tickets."));
            }
         }
         if (cats && cats.length > 0) {
@@ -127,57 +73,8 @@ export default function WayfinderSupportSidePanel({
     }
     setIsSubmitting(true);
     setError("");
-    setPolicyViolations([]);
 
     try {
-      const storeState = useStore.getState();
-      const activeSet = storeState.playSets[storeState.activePlaySetIndex];
-
-      let hasViolations = false;
-      let violations: string[] = [];
-      if (activeCategory?.requires_target_mod && targetModId) {
-          const m = storeState.modList.find((ml: any) => ml.id === targetModId || ml.dbId === targetModId || ml.hash === targetModId);
-          if (m && isRestrictedOrUnknownTicketMod(m)) {
-              hasViolations = true;
-              violations.push(m.displayName || m.name);
-          }
-      }
-      if (activeCategory?.requires_target_mod && activeSet && activeSet.mods) {
-          activeSet.mods.forEach((rawMod: any) => {
-              const modName = typeof rawMod === "string" ? rawMod : String(rawMod?.name || rawMod?.path || "");
-              const exactMatch = storeState.modList.find((ml: any) => ml.name === modName || ml.displayName === modName);
-              if (exactMatch && isRestrictedOrUnknownTicketMod(exactMatch)) {
-                  hasViolations = true;
-                  violations.push(exactMatch.displayName || exactMatch.name);
-                  return;
-              }
-              
-              const fallbackMatch = storeState.modList.find((ml: any) => {
-                 const mBase = ml.name?.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
-                 const targetBase = modName.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '');
-                 return mBase && targetBase && mBase === targetBase;
-              });
-              if (fallbackMatch && isRestrictedOrUnknownTicketMod(fallbackMatch)) {
-                  hasViolations = true;
-                  violations.push(fallbackMatch.displayName || fallbackMatch.name);
-              }
-          });
-      }
-
-      if (hasViolations && activeCategory?.requires_target_mod) {
-          const uniqueViolations = [...new Set(violations)];
-          invoke("write_os_log", { message: "Support ticket blocked due to restricted/unverified artifacts: " + uniqueViolations.join(", "), level: "WARNING" }).catch(console.error);
-          throw new Error(
-            (t(
-              "support_err_restricted_active",
-              "Artifact Bug tickets cannot be submitted while Tier 1–4 or unverified {mods} are active in your {Blueprint}: {0}"
-            ) || "Artifact Bug tickets cannot be submitted while Tier 1–4 or unverified artifacts are active: {0}").replace(
-              "{0}",
-              uniqueViolations.slice(0, 4).join(", ")
-            )
-          );
-      }
-
       let finalLogs = scrubLogUserData(logs);
 
       if (activeCategory?.telemetry_config?.sources) {
@@ -190,24 +87,14 @@ export default function WayfinderSupportSidePanel({
             if (source.type === 'OS') {
                 const sysInfo = scrubLogUserData(await invoke<string>("get_system_info"));
                 const storeState = useStore.getState();
-                const activeSet = storeState.playSets[storeState.activePlaySetIndex];
-
-                const netUpdates = storeState.networkUpdates;
-                const totalUpdates = (netUpdates?.broken?.length || 0) + (netUpdates?.obsolete?.length || 0) + (netUpdates?.updated?.length || 0);
-                
-                const diagnostics = scrubLogUserData(`\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nMods Path: ${storeState.modsPath}\nActive Blueprint: ${activeSet?.name || "None"}\nActive Mods: ${activeSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toLocaleString()}\nDiagnostic Bundle Version: 1.0.0\n`);
+                const diagnostics = scrubLogUserData(`\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nCaptured At: ${new Date().toLocaleString()}\nDiagnostic Bundle Version: 1.0.0\n`);
                 finalLogs += `\n--- TELEMETRY: ${source.label} (OS) ---\n` + sysInfo + diagnostics + "\n";
-
-                if (activeSet) {
-                    const bpPayload = scrubLogUserData(JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2));
-                    finalLogs += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
-                }
 
                 const systemLogHistory = storeState.statusLog.map(entry => {
                     return `[${new Date(entry.timestamp).toISOString()}] [${entry.type.toUpperCase()}] ${scrubLogUserData(entry.message)}`;
                 }).join('\n');
                 finalLogs += `\n--- TELEMETRY: System Log History ---\n${systemLogHistory || "No system logs available."}\n`;
-            } else {
+            } else if (modsPath && source.search_path && source.file_pattern) {
                 const docDirMatch = modsPath.match(/(.*)[\\/]+(?:mods|data|_mods)[\\/]*$/i);
                 const docDir = docDirMatch
                   ? docDirMatch[1]
@@ -219,33 +106,10 @@ export default function WayfinderSupportSidePanel({
 
                 const text = await readTextFile(fullPath);
                 if (text) {
-                   if (activeCategory?.requires_target_mod) {
-                       const store = useStore.getState();
-                       const restrictedModsInDB = store.modList.filter(isRestrictedOrUnknownTicketMod);
-                       const extRegex = getExtensionRegex(store.activeGameSchema);
-                       const dirtyTraces: string[] = [];
-                       const lowerText = text.toLowerCase();
-                       for (const am of restrictedModsInDB) {
-                           const baseName = am.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
-                           if (baseName && baseName.length >= 4 && lowerText.includes(baseName)) {
-                               dirtyTraces.push(am.displayName || am.name);
-                           }
-                       }
-                       if (dirtyTraces.length > 0) {
-                           const uniqueTraces = [...new Set(dirtyTraces)];
-                           const traceStr = `${uniqueTraces.slice(0, 3).join(', ')}${uniqueTraces.length > 3 ? '...' : ''}`;
-                           const errStr = (t("support_err_dirty_logs", "Dirty game logs detected. Found traces of explicit {mods}: {0}. Please clear your logs or relaunch the game without these {mods} before submitting.") || `Dirty log detected in ${source.label}. Found traces of explicit artifacts: {0}. Please clear your logs or relaunch the game without these mods before submitting.`).replace("{0}", traceStr);
-                           throw new Error(errStr);
-                       }
-                   }
                    finalLogs += `\n--- TELEMETRY: ${source.label} ---\n` + scrubLogUserData(text.substring(0, 10000)) + "\n";
                 }
             }
-          } catch (e: any) {
-            if (e?.message && activeCategory?.requires_target_mod && String(e.message).includes("Dirty")) {
-              throw e;
-            }
-          }
+          } catch {}
         }
       }
 
@@ -256,12 +120,7 @@ export default function WayfinderSupportSidePanel({
 
       const { data: profile } = await supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', user.id).single();
       if (profile?.is_comm_banned) {
-        throw new Error(`Communications Ban: ${profile.comm_blacklist_reason || "You have been banned from submitting support tickets."}`);
-      }
-
-      if (activeSet && (activeCategory?.attach_blueprints) && !finalLogs.includes('--- TELEMETRY: Attached Blueprint ---')) {
-          const bpPayload = scrubLogUserData(JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2));
-          finalLogs += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
+        throw new Error(`Communications Ban: ${profile.comm_blacklist_reason || t("support_banned_default", "You have been banned from submitting support tickets.")}`);
       }
 
       const scrubbedCustomFields: Record<string, string> = {};
@@ -276,11 +135,9 @@ export default function WayfinderSupportSidePanel({
         description: scrubLogUserData(description) || "No description provided.",
         status: "open",
         metadata: {
-          target_mod_id: activeCategory?.requires_target_mod ? (targetModId || null) : null,
           target_user_id: activeCategory?.requires_target_user ? (targetUserId || null) : null,
           logs: scrubLogUserData(finalLogs) || null,
           custom_fields: scrubbedCustomFields,
-          ...(hasViolations && activeCategory?.requires_target_mod ? { restricted_violations: [...new Set(violations)] } : {})
         }
       }]);
 
@@ -302,27 +159,6 @@ export default function WayfinderSupportSidePanel({
       const path = await open({ multiple: false, filters: [{ name: 'Log', extensions: ['txt', 'log'] }] });
       if (path && typeof path === 'string') {
         const text = await readTextFile(path);
-        
-        if (activeCategory?.requires_target_mod) {
-            const store = useStore.getState();
-            const restrictedModsInDB = store.modList.filter(isRestrictedOrUnknownTicketMod);
-            const extRegex = getExtensionRegex(store.activeGameSchema);
-            const dirtyTraces: string[] = [];
-            const lowerText = text.toLowerCase();
-            for (const am of restrictedModsInDB) {
-                const baseName = am.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
-                if (baseName && baseName.length >= 4 && lowerText.includes(baseName)) {
-                    dirtyTraces.push(am.displayName || am.name);
-                }
-            }
-            if (dirtyTraces.length > 0) {
-                const uniqueTraces = [...new Set(dirtyTraces)];
-                const traceStr = `${uniqueTraces.slice(0, 3).join(', ')}${uniqueTraces.length > 3 ? '...' : ''}`;
-                const errStr = (t("support_err_dirty_logs", "Dirty game logs detected. Found traces of explicit {mods}: {0}. Please clear your logs or relaunch the game without these {mods} before submitting.") || `Dirty log detected. Found traces of explicit artifacts: {0}. Please clear your logs or relaunch the game without these mods before attaching.`).replace("{0}", traceStr);
-                throw new Error(errStr);
-            }
-        }
-
         const scrubbedText = scrubLogUserData(text.substring(0, 10000));
         setLogs(prev => prev + "\n--- Log Attachment ---\n" + scrubbedText);
       }
@@ -373,19 +209,9 @@ export default function WayfinderSupportSidePanel({
         <PanelHeaderGroup>
           <PanelHeaderButton
             icon={t("icon_send", "send")}
-            tooltip={
-              vaultExtremeMods.length > 0
-                ? (t("support_err_vault_lock", "Total {Vault} Lock: Severe {Mods} Detected"))
-                : activeCategory?.requires_target_mod && activeAdultMods.length > 0
-                ? t("support_adult_mods_title", "{Blueprint} Lock: Explicit {Mods} Detected")
-                : (isSubmitting ? t("scanning", "Submitting...") : t("support_submit", "Submit Ticket"))
-            }
-            variant={
-              vaultExtremeMods.length > 0 || (activeCategory?.requires_target_mod && activeAdultMods.length > 0)
-                ? "error"
-                : "accent"
-            }
-            disabled={isSubmitting || vaultExtremeMods.length > 0 || !!(activeCategory?.requires_target_mod && activeAdultMods.length > 0)}
+            tooltip={isSubmitting ? t("scanning", "Submitting...") : t("support_submit", "Submit Ticket")}
+            variant="accent"
+            disabled={isSubmitting}
             onClick={submitTicket}
           />
         </PanelHeaderGroup>
@@ -395,7 +221,7 @@ export default function WayfinderSupportSidePanel({
         <SidePanelHeroCard
           icon={t("icon_admin_panel_settings", "admin_panel_settings")}
           overline={t("wf_keeper_support_title", "Wayfinder → Keeper Escalation")}
-          title={activeCategory?.category_name || t("wf_keeper_support_title", "Keeper Support Dossier")}
+          title={activeCategory?.category_name || t("wf_keeper_support_title", "Keeper Support Ticket")}
           description={activeCategory?.description || t("wf_keeper_support_subtitle", "Submit a direct escalation ticket to Sanctuary Foundry Keepers.")}
           badge={type}
           variant="accent"
@@ -411,97 +237,13 @@ export default function WayfinderSupportSidePanel({
                         <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed pr-4">{error}</span>
                     </div>
                     <button 
-                      onClick={() => { setError(""); setPolicyViolations([]); }} 
+                      onClick={() => setError("")} 
                       className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-[color-mix(in_srgb,var(--danger)_50%,transparent)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)] transition-all shrink-0"
                     >
                       <span className="material-symbols-outlined !text-[18px]">{t("icon_close", "close")}</span>
                     </button>
                 </div>
-                {policyViolations.length > 0 && (
-                    <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
-                        <span className="text-[9px] font-black tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize">{t("auto_restricted_artifacts_detected_34", "Restricted {mods}")}</span>
-                        <div className="flex flex-wrap gap-2">
-                            {policyViolations.map((mod, i) => (
-                                <span
-                                  key={i}
-                                  className={VAULT_CHIP_CLASS}
-                                >
-                                    <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">{t("icon_extension", "extension")}</span>
-                                    <span className="truncate">{mod.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/[-_]/g, ' ') || mod.replace(/[-_]/g, ' ')}</span>
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </div>
-        )}
-
-        {(vaultExtremeMods.length > 0 || (activeCategory?.requires_target_mod && activeAdultMods.length > 0)) && (
-          <div
-            className={`grid grid-cols-1 ${
-              vaultExtremeMods.length > 0 && activeCategory?.requires_target_mod && activeAdultMods.length > 0
-                ? "md:grid-cols-2"
-                : ""
-            } gap-3.5 items-stretch mt-2`}
-          >
-            {vaultExtremeMods.length > 0 && (
-              <div className="glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col justify-between overflow-hidden relative shadow-md group h-full">
-                <div className="flex items-start gap-4 p-5 relative z-10">
-                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--danger)]">
-                    <span className="material-symbols-outlined !text-[20px]">{t("icon_block", "block")}</span>
-                  </div>
-                  <div className="flex flex-col gap-1.5 pt-0.5 w-full">
-                    <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_vault_lock_title", "{Vault} Lock Engaged") || "Vault Lock Engaged"}</span>
-                    <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed">
-                      {t("support_vault_lock_desc", "Your vault contains severe {mods} (Tier 3-5). Support submissions are completely disabled until these {mods} are removed from Your {Vault}.")}
-                    </span>
-                  </div>
-                </div>
-                <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10 mt-auto">
-                  <div className="flex flex-wrap gap-2">
-                    {vaultExtremeMods.map((mod: any, i: number) => (
-                      <span
-                        key={i}
-                        className={VAULT_CHIP_CLASS}
-                      >
-                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--danger)]">{t("icon_extension", "extension")}</span>
-                        <span>T{mod.tier} • {mod.name}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
-              <div className="glass-panel border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] rounded-2xl flex flex-col justify-between overflow-hidden relative shadow-md group h-full">
-                <div className="flex items-start gap-4 p-5 relative z-10">
-                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--warning)]">
-                    <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
-                  </div>
-                  <div className="flex flex-col gap-1.5 pt-0.5 w-full">
-                    <span className="text-sm font-black text-[var(--warning)] tracking-wide">{t("support_adult_mods_title", "{Blueprint} Lock: Explicit {Mods} Detected")}</span>
-                    <span className="text-xs font-bold text-[color-mix(in_srgb,var(--warning)_80%,transparent)] leading-relaxed">
-                      {t("support_adult_mods_desc", "Your active {blueprint} contains adult/NSFW {mod}(s). If your ticket is related to one of these {mods}, please bypass Sanctuary OS and contact the original {Mason} directly. Otherwise, remove the {mods} and retest. You may submit a ticket once your logs are clean.")}
-                    </span>
-                  </div>
-                </div>
-                <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--warning)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10 mt-auto">
-                  <div className="flex flex-wrap gap-2">
-                    {activeAdultMods.map((mod: any, i: number) => (
-                      <span
-                        key={i}
-                        className={VAULT_CHIP_CLASS}
-                      >
-                        <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--warning)]">{t("icon_extension", "extension")}</span>
-                        <span>T{mod.tier} • {mod.name}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
         )}
 
           <div className="flex flex-col gap-2 relative z-[70]">
@@ -515,32 +257,13 @@ export default function WayfinderSupportSidePanel({
 
           {String(activeCategory?.show_title_box) !== "false" && (
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("ql_support", "Support Queue")}</label>
+              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("ticket_subject_label", "Ticket Subject")}</label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
                 placeholder={t("support_placeholder_title", "Enter a concise title...")}
-              />
-            </div>
-          )}
-
-          {activeCategory?.requires_target_mod && (
-            <div className="flex flex-col gap-2 relative z-[60]">
-              <label className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest">{t("target_artifact", "Target {Mod}")}</label>
-              <ModSearchDropdown
-                modList={modList.filter(
-                  (m: any) =>
-                    !m.isVirtual &&
-                    Boolean(m.isSynced && m.dbId) &&
-                    Number(m.compliance_tier || 0) === 0 &&
-                    String(m.status || "").toLowerCase() !== "unverified"
-                )}
-                placeholder={t("support_placeholder_mod_uuid", "{Mod} UUID...")}
-                selectedItem={modList.find((m: any) => m.id === targetModId || m.dbId === targetModId || m.hash === targetModId) || (targetModId ? { displayName: targetModId } : null)}
-                onSelect={(m: any) => setTargetModId(m.dbId || m.id || m.hash)}
-                onClear={() => setTargetModId("")}
               />
             </div>
           )}

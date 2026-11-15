@@ -120,7 +120,9 @@ export function MasonSandbox({
       .eq("mason_id", masonId)
       .order("name");
     if (data) {
-      setExistingMods(data);
+      setExistingMods(
+        data.filter((m: any) => Number(m?.compliance_tier || 0) === 0)
+      );
       const hashes = new Set<string>();
       const hMap = new Map<string, any>();
       const myModIds: string[] = [];
@@ -386,8 +388,8 @@ export function MasonSandbox({
         ...parseCsvList(activeMod.previous_hashes_str),
         ...(Array.isArray(activeMod.local_versions)
           ? activeMod.local_versions
-              .map((v: any) => v.dna_hash)
-              .filter((h: string) => h && h !== activeMod.hash)
+            .map((v: any) => v.dna_hash)
+            .filter((h: string) => h && h !== activeMod.hash)
           : []),
         ...(Array.isArray(activeMod._olderVersions)
           ? activeMod._olderVersions.map((ov: any) => ov.hash).filter(Boolean)
@@ -405,7 +407,7 @@ export function MasonSandbox({
             const dbHashes = verData.map((v: any) => v.dna_hash).filter(Boolean);
             previousHashes = Array.from(new Set([...previousHashes, ...dbHashes]));
           }
-        } catch {}
+        } catch { }
       }
 
       const safeNameSlug = ((activeMod.name || "mod").split(/[\\/]/).pop() || "mod")
@@ -421,17 +423,17 @@ export function MasonSandbox({
         (activeMod.download_url || activeMod.url || "").trim() ||
         (customManifestUrl
           ? customManifestUrl.replace(
-              /\/manifest\.json$/i,
-              `/${safeNameSlug}_v${versionStr.replace(/^v/i, "")}.zip`
-            )
+            /\/manifest\.json$/i,
+            `/${safeNameSlug}_v${versionStr.replace(/^v/i, "")}.zip`
+          )
           : `https://example.com/${safeNameSlug}_v${versionStr.replace(/^v/i, "")}.zip`);
 
       const changelogLines =
         typeof activeMod.changelog_cache === "string" && activeMod.changelog_cache.trim()
           ? activeMod.changelog_cache
-              .split(/\r?\n/)
-              .map((l: string) => l.trim())
-              .filter(Boolean)
+            .split(/\r?\n/)
+            .map((l: string) => l.trim())
+            .filter(Boolean)
           : [t("edge_initial_release", "Initial Release")];
 
       const injectedFolders = parseCsvList(activeMod.injected_folders_str || activeMod.folder_structure);
@@ -444,14 +446,14 @@ export function MasonSandbox({
       const structuredConflicts =
         Array.isArray(activeMod.local_conflicts) && activeMod.local_conflicts.length > 0
           ? activeMod.local_conflicts
-              .map((c: any) => ({
-                hash: c.enemyMod?.hash || c.enemyMod?.name || "",
-                id: c.enemyMod?.id || undefined,
-                name: c.enemyMod?.name || undefined,
-                severity: Number(c.severity_rank) || 4,
-                description: c.resolution_note || undefined,
-              }))
-              .filter((c: any) => c.hash || c.name)
+            .map((c: any) => ({
+              hash: c.enemyMod?.hash || c.enemyMod?.name || "",
+              id: c.enemyMod?.id || undefined,
+              name: c.enemyMod?.name || undefined,
+              severity: Number(c.severity_rank) || 4,
+              description: c.resolution_note || undefined,
+            }))
+            .filter((c: any) => c.hash || c.name)
           : parseCsvList(activeMod.conflicts_str);
 
       const manifest = {
@@ -490,11 +492,11 @@ export function MasonSandbox({
           collections: localCollections,
           ...(resolveModHighlanderSlot(activeMod)
             ? {
-                highlander_group: {
-                  slug: resolveModHighlanderSlot(activeMod)!.key,
-                  name: resolveModHighlanderSlot(activeMod)!.name,
-                },
-              }
+              highlander_group: {
+                slug: resolveModHighlanderSlot(activeMod)!.key,
+                name: resolveModHighlanderSlot(activeMod)!.name,
+              },
+            }
             : {}),
         },
         virtual_filesystem: {
@@ -524,7 +526,7 @@ export function MasonSandbox({
             local_folder_path: mergedPush.local_folder_path || "",
           };
         }
-      } catch {}
+      } catch { }
 
       const releaseDir = await invoke<string>("export_edge_release", {
         vaultPath,
@@ -904,8 +906,8 @@ export function MasonSandbox({
       let vDir = vaultPath || "";
       let devLane =
         vDir.toLowerCase().endsWith("mods") ||
-        vDir.toLowerCase().endsWith("mods/") ||
-        vDir.toLowerCase().endsWith("mods\\")
+          vDir.toLowerCase().endsWith("mods/") ||
+          vDir.toLowerCase().endsWith("mods\\")
           ? vDir.replace(/[\\/]Mods[\\/]?$/, "") + "/Dev/Sandbox"
           : vDir + "/Dev/Sandbox";
 
@@ -974,7 +976,7 @@ export function MasonSandbox({
     let savedLocalOverrides: Record<string, any> = {};
     try {
       savedLocalOverrides = JSON.parse(localStorage.getItem("sanctuary_sandbox_configs") || "{}");
-    } catch {}
+    } catch { }
 
     const getFamilyStem = (rawName: string) => {
       const fileName = (rawName || "").split(/[\\/]/).pop() || "";
@@ -1195,19 +1197,19 @@ export function MasonSandbox({
     },
     ...(isVerifiedMason
       ? [
-          {
-            id: "nexus",
-            label: t("mason_mods_tab_nexus", "Nexus Uploads"),
-            icon: t("icon_cloud_done", "cloud_done"),
-            number: String(filteredNexusMods.length),
-          },
-          {
-            id: "flagged",
-            label: t("mason_mods_tab_flagged", "Flagged & Issues"),
-            icon: t("icon_warning", "warning"),
-            number: String(flaggedMods.length),
-          },
-        ]
+        {
+          id: "nexus",
+          label: t("mason_mods_tab_nexus", "Nexus Uploads"),
+          icon: t("icon_cloud_done", "cloud_done"),
+          number: String(filteredNexusMods.length),
+        },
+        {
+          id: "flagged",
+          label: t("mason_mods_tab_flagged", "Flagged & Issues"),
+          icon: t("icon_warning", "warning"),
+          number: String(flaggedMods.length),
+        },
+      ]
       : []),
   ];
 
@@ -1362,77 +1364,77 @@ export function MasonSandbox({
         },
         ...(vaultPath
           ? [
-              {
-                id: "import",
-                icon: (
-                  <span
-                    className={`material-symbols-outlined !text-[20px] ${isImporting ? "animate-spin" : ""}`}
-                  >
-                    {isImporting ? t("icon_refresh", "refresh") : t("icon_download", "download")}
-                  </span>
-                ),
-                label: (isImporting
-                  ? t("btn_importing", "Importing")
-                  : t("btn_import", "Import")) as string,
-                onClick: () => {
-                  if (!isImporting) handleImportToSandbox();
-                },
+            {
+              id: "import",
+              icon: (
+                <span
+                  className={`material-symbols-outlined !text-[20px] ${isImporting ? "animate-spin" : ""}`}
+                >
+                  {isImporting ? t("icon_refresh", "refresh") : t("icon_download", "download")}
+                </span>
+              ),
+              label: (isImporting
+                ? t("btn_importing", "Importing")
+                : t("btn_import", "Import")) as string,
+              onClick: () => {
+                if (!isImporting) handleImportToSandbox();
               },
-            ]
+            },
+          ]
           : []),
       ]}
       primaryPopover={
         hubTab === "nexus" || hubTab === "flagged"
           ? {
-              icon: t("icon_tune", "tune"),
-              label: t("filters", "Filters"),
-              content: (
-                <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                      {t("category", "Category")}
-                    </span>
-                    <CustomDropdown
-                      flat={true}
-                      variant="pill"
-                      disableTint={true}
-                      value={activeCategory}
-                      onChange={(val: string[]) => {
-                        setActiveCategory(val[0]);
-                        setActiveSubType("ALL");
-                      }}
-                      options={[
-                        { id: "ALL", label: t("filter_all", "All") },
-                        ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({
-                          id: c.id,
-                          label: t(c.lexicon_key, c.id),
-                        })),
-                      ]}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                      {t("status", "Status")}
-                    </span>
-                    <CustomDropdown
-                      flat={true}
-                      variant="pill"
-                      disableTint={true}
-                      value={statusFilter}
-                      onChange={(val: string[]) => setStatusFilter(val[0])}
-                      options={[
-                        { id: "ALL", label: t("filter_all", "All") },
-                        { id: "stable", label: t("status_stable", "Stable") },
-                        { id: "under_review", label: t("status_dd_review", "Under Review") },
-                        { id: "pending", label: t("pending", "Pending") },
-                        { id: "unstable", label: t("label_unstable", "Unstable") },
-                        { id: "corrupted", label: t("status_corrupted", "Corrupted") },
-                      ]}
-                    />
-                  </div>
+            icon: t("icon_tune", "tune"),
+            label: t("filters", "Filters"),
+            content: (
+              <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("category", "Category")}
+                  </span>
+                  <CustomDropdown
+                    flat={true}
+                    variant="pill"
+                    disableTint={true}
+                    value={activeCategory}
+                    onChange={(val: string[]) => {
+                      setActiveCategory(val[0]);
+                      setActiveSubType("ALL");
+                    }}
+                    options={[
+                      { id: "ALL", label: t("filter_all", "All") },
+                      ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({
+                        id: c.id,
+                        label: t(c.lexicon_key, c.id),
+                      })),
+                    ]}
+                  />
                 </div>
-              ),
-            }
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("status", "Status")}
+                  </span>
+                  <CustomDropdown
+                    flat={true}
+                    variant="pill"
+                    disableTint={true}
+                    value={statusFilter}
+                    onChange={(val: string[]) => setStatusFilter(val[0])}
+                    options={[
+                      { id: "ALL", label: t("filter_all", "All") },
+                      { id: "stable", label: t("status_stable", "Stable") },
+                      { id: "under_review", label: t("status_dd_review", "Under Review") },
+                      { id: "pending", label: t("pending", "Pending") },
+                      { id: "unstable", label: t("label_unstable", "Unstable") },
+                      { id: "corrupted", label: t("status_corrupted", "Corrupted") },
+                    ]}
+                  />
+                </div>
+              </div>
+            ),
+          }
           : undefined
       }
     >
@@ -1478,7 +1480,7 @@ export function MasonSandbox({
               : `${t("hash_prefix", "HASH:")} ${formatDisplayHash(activeMod?.hash)}`
           }
           icon={editorMode === "registry" ? t("icon_inventory_2", "inventory_2") : t("icon_settings", "settings")}
-          widthClass="w-[94vw] max-w-[1280px]"
+          widthClass="w-[92vw] md:w-[min(1120px,calc(100vw-var(--sidebarWidth,260px)-2.5rem))]"
           backdropZ="z-[50000]"
           panelZ="z-[50001]"
           noScroll
@@ -1511,7 +1513,7 @@ export function MasonSandbox({
                         ((Number(activeMod?.compliance_tier || 0) === 0 &&
                           Boolean(activeMod?.hash && !existingHashes.has(activeMod.hash))) ||
                           requireMasonLabTest) &&
-                        !isActiveModLabVerified
+                          !isActiveModLabVerified
                           ? t("icon_lock", "lock")
                           : t("icon_sync", "sync")
                       }
@@ -1527,7 +1529,7 @@ export function MasonSandbox({
                         ((Number(activeMod?.compliance_tier || 0) === 0 &&
                           Boolean(activeMod?.hash && !existingHashes.has(activeMod.hash))) ||
                           requireMasonLabTest) &&
-                        !isActiveModLabVerified
+                          !isActiveModLabVerified
                           ? t("lab_tooltip_publish_locked", "Publish Locked (Lab Test Required)")
                           : isCommitting
                             ? t("btn_syncing", "Syncing...")
@@ -1625,7 +1627,7 @@ export function MasonSandbox({
                     value={activeMod.sub_type || ""}
                     onChange={(e) => setActiveMod({ ...activeMod, sub_type: e.target.value })}
                     placeholder={t("placeholder_subclass", "Subcategory")}
-                    className="glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent"
+                    className="h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent"
                   />
                 </div>
 
@@ -1637,7 +1639,7 @@ export function MasonSandbox({
                     value={activeMod.latest_version || ""}
                     onChange={(e) => setActiveMod({ ...activeMod, latest_version: e.target.value })}
                     placeholder={t("ph_mod_version", "1.0.0")}
-                    className="glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent"
+                    className="h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent"
                   />
                 </div>
 
@@ -1660,7 +1662,7 @@ export function MasonSandbox({
                     <input
                       value={activeMod.image_url || ""}
                       onChange={(e) => setActiveMod({ ...activeMod, image_url: e.target.value })}
-                      className="glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent"
+                      className="h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent"
                     />
                   </div>
 
@@ -1671,7 +1673,7 @@ export function MasonSandbox({
                     <input
                       value={activeMod.url || ""}
                       onChange={(e) => setActiveMod({ ...activeMod, url: e.target.value })}
-                      className="glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent"
+                      className="h-11 glass-surface rounded-xl px-4 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent"
                     />
                   </div>
                 </div>
@@ -1703,13 +1705,12 @@ export function MasonSandbox({
 
                 <div className="flex flex-col gap-2 col-span-full">
                   <label
-                    className={`text-[9px] font-black uppercase tracking-widest ml-2 flex items-center gap-1.5 ${
-                      activeMod.status === "corrupted" || activeMod.status === "broken"
-                        ? "text-[var(--danger)]"
-                        : activeMod.status === "unstable"
-                          ? "text-[var(--warning)]"
-                          : "text-[var(--subtext)] opacity-60"
-                    }`}
+                    className={`text-[9px] font-black uppercase tracking-widest ml-2 flex items-center gap-1.5 ${activeMod.status === "corrupted" || activeMod.status === "broken"
+                      ? "text-[var(--danger)]"
+                      : activeMod.status === "unstable"
+                        ? "text-[var(--warning)]"
+                        : "text-[var(--subtext)] opacity-60"
+                      }`}
                   >
                     <span className="material-symbols-outlined !text-[13px]">
                       {t("icon_report_problem", "report_problem")}

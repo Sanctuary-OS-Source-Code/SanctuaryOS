@@ -105,9 +105,10 @@ export default function MasonFeed({
         }
 
         if (!cancelled) {
-          setPosts(combined);
+          const cleanCombined = combined.filter((p: any) => p?.has_pending_flag !== true);
+          setPosts(cleanCombined);
           if ((window as any).__sanctuaryCache?.globalFeed) {
-            (window as any).__sanctuaryCache.globalFeed.ccTailoredPosts = combined;
+            (window as any).__sanctuaryCache.globalFeed.ccTailoredPosts = cleanCombined;
           }
         }
       } catch (err) {
@@ -117,10 +118,24 @@ export default function MasonFeed({
       }
     };
     fetchPosts();
+    const onFlagged = (e: any) => {
+      const targetType = String(e?.detail?.targetType || "").toLowerCase();
+      const targetId = e?.detail?.targetId;
+      if (!targetId || (targetType !== "post" && targetType !== "broadcast")) return;
+      setPosts((prev) => prev.filter((p: any) => String(p?.id) !== String(targetId)));
+      if ((window as any).__sanctuaryCache?.globalFeed?.ccTailoredPosts) {
+        (window as any).__sanctuaryCache.globalFeed.ccTailoredPosts =
+          (window as any).__sanctuaryCache.globalFeed.ccTailoredPosts.filter(
+            (p: any) => String(p?.id) !== String(targetId)
+          );
+      }
+    };
     window.addEventListener('sanctuary-games-updated', fetchPosts);
+    window.addEventListener('sanctuary-content-flagged', onFlagged);
     return () => {
       cancelled = true;
       window.removeEventListener('sanctuary-games-updated', fetchPosts);
+      window.removeEventListener('sanctuary-content-flagged', onFlagged);
     };
   }, [activeWorkspaceId, workspaces, sessionUserId, maxItems]);
 

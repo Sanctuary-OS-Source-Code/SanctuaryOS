@@ -3,6 +3,8 @@ import { useLexicon } from '../LexiconContext';
 import {
   SidePanel,
   ActionButton,
+  ActionPill,
+  InlineFilterGroup,
   PanelHeaderGroup,
   PanelHeaderButton,
   SidePanelHeroCard,
@@ -185,6 +187,10 @@ export function LandingSupportDrawers({
     'core'
   );
   const [spokeTicketsCount, setSpokeTicketsCount] = React.useState<number>(0);
+  const [myTicketsSearch, setMyTicketsSearch] = React.useState<string>('');
+  const [myTicketsFilter, setMyTicketsFilter] = React.useState<
+    'all' | 'open' | 'pending' | 'closed'
+  >('all');
 
   React.useEffect(() => {
     if (!hasLoadedSpoke && myTicketsScope === 'spoke') {
@@ -955,7 +961,7 @@ export function LandingSupportDrawers({
                         />
 
                         <UniversalTextArea
-                          label={t('dossier_attached_logs', 'Attached Logs')}
+                          label={t('ticket_attached_logs', 'Attached Logs')}
                           value={feedbackAutoLogs}
                           onChange={setFeedbackAutoLogs}
                           placeholder={t(
@@ -1360,7 +1366,7 @@ export function LandingSupportDrawers({
         subtitle={t('keepers_title', 'Keepers Core')}
         icon={t('icon_support_agent', 'support_agent')}
         iconColorClass="text-[var(--accent)]"
-        widthClass="w-[90vw] md:w-[760px]"
+        widthClass="w-[92vw] md:w-[840px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
@@ -1403,11 +1409,15 @@ export function LandingSupportDrawers({
               'My Platform Tickets & Feedback'
             )}
             description={t(
-              'support_title',
+              'support_desk_desc',
               'Review active support threads, inspect attached telemetry logs, or open a new support request.'
             )}
-            badge={t('status_active', 'Online')}
-            badgeIcon={t('icon_verified', 'verified')}
+            badge={`${
+              resolvedMyTicketsScope === 'spoke' && hasLoadedSpoke
+                ? spokeTicketsCount
+                : (myPlatformTickets?.length ?? 0)
+            } ${t('support_tickets', 'Support Tickets')}`}
+            badgeIcon={t('icon_confirmation_number', 'confirmation_number')}
             variant="accent"
           >
             <div className="flex flex-wrap items-center justify-end gap-2 w-full">
@@ -1426,7 +1436,7 @@ export function LandingSupportDrawers({
               {hasLoadedSpoke && (
                 <ActionButton
                   variant="glass"
-                  icon={t('icon_local_activity', 'local_activity')}
+                  icon={t('icon_confirmation_number', 'confirmation_number')}
                   label={`${activeSpokeName} • ${t('ticket_new', 'New Ticket')}`}
                   onClick={() => {
                     setIsMyTicketsDrawerOpen(false);
@@ -1451,7 +1461,7 @@ export function LandingSupportDrawers({
               />
               <DashboardStatTile
                 variant="filter"
-                icon={t('icon_local_activity', 'local_activity')}
+                icon={t('icon_confirmation_number', 'confirmation_number')}
                 label={activeSpokeName}
                 value={spokeTicketsCount}
                 isActive={resolvedMyTicketsScope === 'spoke'}
@@ -1460,10 +1470,48 @@ export function LandingSupportDrawers({
             </SidePanelFilterBar>
           )}
 
+          <ActionPill
+            className="w-full !max-w-none shrink-0"
+            searchQuery={myTicketsSearch}
+            setSearchQuery={setMyTicketsSearch}
+            searchPlaceholder={t('ph_search_tickets', 'Search Tickets...')}
+            primaryPopover={{
+              icon: t('icon_tune', 'tune'),
+              label: t('filters', 'Filters'),
+              content: (
+                <div className="flex flex-col gap-4 w-[280px] p-2">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">
+                      {t('ticket_status', 'Ticket Status')}
+                    </span>
+                    <InlineFilterGroup
+                      value={myTicketsFilter}
+                      onChange={(v) =>
+                        setMyTicketsFilter(
+                          v as 'all' | 'open' | 'pending' | 'closed'
+                        )
+                      }
+                      options={[
+                        { id: 'all', label: t('filter_all', 'All') },
+                        { id: 'open', label: t('ticket_status_open', 'Open') },
+                        {
+                          id: 'pending',
+                          label: t('ticket_status_in_progress', 'In Progress'),
+                        },
+                        { id: 'closed', label: t('filter_closed', 'Closed') },
+                      ]}
+                    />
+                  </div>
+                </div>
+              ),
+            }}
+          />
+
           {resolvedMyTicketsScope === 'spoke' && hasLoadedSpoke ? (
             <UniversalGroup
-              title={`${activeSpokeName} • ${t('support_tickets', 'Support Tickets')}`}
-              icon={t('icon_local_activity', 'local_activity')}
+              title={activeSpokeName}
+              count={spokeTicketsCount}
+              icon={t('icon_confirmation_number', 'confirmation_number')}
             >
               <CitizenTickets
                 key={`landing-spoke-${activeWorkspaceId}`}
@@ -1480,7 +1528,11 @@ export function LandingSupportDrawers({
                   setIsMyTicketsDrawerOpen(false);
                   document.dispatchEvent(new CustomEvent('open-support-modal'));
                 }}
+                embedded={true}
                 isSidePanel={true}
+                hideActionPill={true}
+                externalSearch={myTicketsSearch}
+                externalFilter={myTicketsFilter}
               />
             </UniversalGroup>
           ) : (
@@ -1489,6 +1541,7 @@ export function LandingSupportDrawers({
                 'landing_feedback_my_tickets_btn',
                 'My Platform Tickets & Feedback'
               )}
+              count={myPlatformTickets?.length ?? 0}
               icon={t('icon_receipt_long', 'receipt_long')}
             >
               <CitizenTickets
@@ -1503,7 +1556,11 @@ export function LandingSupportDrawers({
                   setIsMyTicketsDrawerOpen(false);
                   setIsFeedbackDrawerOpen(true);
                 }}
+                embedded={true}
                 isSidePanel={true}
+                hideActionPill={true}
+                externalSearch={myTicketsSearch}
+                externalFilter={myTicketsFilter}
               />
             </UniversalGroup>
           )}

@@ -21,27 +21,62 @@ export const SANCTUARY_CONFIG = {
     mode: ((import.meta as any).env?.VITE_SANCTUARY_MODE || "hub_and_spoke") as "hub_and_spoke" | "standalone",
 
     // Primary Database Credentials (Core Hub DB in "hub_and_spoke" mode, or your Spoke DB in "standalone" mode)
-    supabaseUrl: (import.meta as any).env?.VITE_SUPABASE_URL || "https://tpsbtaqxlczrysqqmanp.supabase.co",
-    supabaseAnonKey: (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || "sb_publishable_UfZsGP0-5CvUlFOXpLJXaw_eCqQoKaC",
+    supabaseUrl:
+        (import.meta as any).env?.VITE_SUPABASE_URL ||
+        (import.meta as any).env?.VITE_SPOKE_SUPABASE_URL ||
+        "https://tpsbtaqxlczrysqqmanp.supabase.co",
+    supabaseAnonKey:
+        (import.meta as any).env?.VITE_SUPABASE_ANON_KEY ||
+        (import.meta as any).env?.VITE_SPOKE_SUPABASE_ANON_KEY ||
+        "sb_publishable_UfZsGP0-5CvUlFOXpLJXaw_eCqQoKaC",
 
     // Standalone Workspace Definition (Used automatically when mode === "standalone")
     standaloneWorkspace: {
-        id: (import.meta as any).env?.VITE_STANDALONE_WORKSPACE_ID || "standalone",
+        id:
+            (import.meta as any).env?.VITE_STANDALONE_WORKSPACE_ID ||
+            (import.meta as any).env?.VITE_SPOKE_ID ||
+            "standalone",
         name: (import.meta as any).env?.VITE_STANDALONE_WORKSPACE_NAME || "Community Workspace",
         schema_id: (import.meta as any).env?.VITE_STANDALONE_SCHEMA_ID || "universal",
         icon: (import.meta as any).env?.VITE_STANDALONE_ICON || "sports_esports",
+    },
+
+    // White-Label Brand Identity (Overridable via VITE_* env vars or live via Title Area Studio)
+    branding: {
+        appTitle: (import.meta as any).env?.VITE_APP_TITLE || "Sanctuary OS",
+        orgName: (import.meta as any).env?.VITE_ORG_NAME || "Sanctuary Foundry",
+        logoUrl: (import.meta as any).env?.VITE_LOGO_URL || "/icon.png",
+        supportEmail: (import.meta as any).env?.VITE_SUPPORT_EMAIL || "support@sanctuaryos.gg",
+        webauthnRpId: (import.meta as any).env?.VITE_WEBAUTHN_RP_ID || "sanctuaryos.net",
+        subtitles: [
+            "Advice Never Dictate",
+            "Verify Everything",
+            "Control Your Code",
+            "Own Your Mod List",
+            "Respect Creators",
+            "Community Driven",
+            "Cloud Not Required",
+            "Your Personal Co-Pilot",
+            "Update Not Required",
+            "Yeeting Conflicts Since '26",
+            "King Notepad++ Dethroned",
+            "No Black Boxes",
+            "Private By Design",
+        ] as string[],
     },
 };
 // ============================================================================
 
 function resolveSanctuaryConfig() {
     const bundle = (SANCTUARY_CONFIG.uplinkBundle || "").trim();
+    const defaultBranding = SANCTUARY_CONFIG.branding;
     if (bundle.startsWith("SANCTUARY-UPLINK://")) {
         try {
             const b64 = bundle.replace("SANCTUARY-UPLINK://", "").trim();
             const parsed = JSON.parse(atob(b64));
             if (parsed.supabase_url && parsed.supabase_anon_key) {
                 const schemaId = (parsed.schema_id || SANCTUARY_CONFIG.standaloneWorkspace.schema_id || "universal").trim();
+                const parsedBranding = parsed.branding && typeof parsed.branding === "object" ? parsed.branding : {};
                 return {
                     mode: "standalone" as const,
                     supabaseUrl: parsed.supabase_url.trim(),
@@ -51,6 +86,16 @@ function resolveSanctuaryConfig() {
                         name: (parsed.name || SANCTUARY_CONFIG.standaloneWorkspace.name || schemaId).trim(),
                         schema_id: schemaId,
                         icon: (parsed.icon || SANCTUARY_CONFIG.standaloneWorkspace.icon || "sports_esports").trim(),
+                    },
+                    branding: {
+                        appTitle: String(parsedBranding.appTitle || defaultBranding.appTitle).trim() || "Sanctuary OS",
+                        orgName: String(parsedBranding.orgName || defaultBranding.orgName).trim() || "Sanctuary Foundry",
+                        logoUrl: String(parsedBranding.logoUrl || defaultBranding.logoUrl).trim() || "/icon.png",
+                        supportEmail: String(parsedBranding.supportEmail || defaultBranding.supportEmail).trim() || "support@sanctuaryos.gg",
+                        webauthnRpId: String(parsedBranding.webauthnRpId || defaultBranding.webauthnRpId).trim() || "sanctuaryos.net",
+                        subtitles: Array.isArray(parsedBranding.subtitles) && parsedBranding.subtitles.length > 0
+                            ? parsedBranding.subtitles.map((s: any) => String(s || "").trim()).filter(Boolean)
+                            : [...defaultBranding.subtitles],
                     },
                 };
             }
@@ -63,11 +108,16 @@ function resolveSanctuaryConfig() {
         supabaseUrl: SANCTUARY_CONFIG.supabaseUrl.trim(),
         supabaseAnonKey: SANCTUARY_CONFIG.supabaseAnonKey.trim(),
         standaloneWorkspace: SANCTUARY_CONFIG.standaloneWorkspace,
+        branding: defaultBranding,
     };
 }
 
 export const RESOLVED_SANCTUARY_CONFIG = resolveSanctuaryConfig();
 export const isStandaloneFork = RESOLVED_SANCTUARY_CONFIG.mode === "standalone";
+
+export function getBrandConfig() {
+    return RESOLVED_SANCTUARY_CONFIG.branding;
+}
 
 // Main Core OS Database Credentials (or Standalone Spoke Credentials when isStandaloneFork === true)
 const authUrl = RESOLVED_SANCTUARY_CONFIG.supabaseUrl;
@@ -342,6 +392,38 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
             return { data: { success: true, mode: 'standalone' }, error: null };
         }
 
+        if (fnName === 'secure_rotate_spoke_gateway_token') {
+            const { data, error } = await rawAuthClient.rpc('mint_spoke_gateway_token', {
+                p_label: args?.p_payload?.label || 'Standalone Rotation',
+                p_grace_seconds: typeof args?.p_payload?.grace_seconds === 'number' ? args.p_payload.grace_seconds : 60,
+            });
+            return {
+                data: data
+                    ? {
+                          success: true,
+                          credential_kind: 'spoke_gateway',
+                          key_version: 'standalone',
+                          key_fingerprint: (data as any).key_fingerprint || 'spk_gw_...local',
+                          rotated_at: new Date().toISOString(),
+                      }
+                    : null,
+                error,
+            };
+        }
+
+        if (fnName === 'secure_get_spoke_credential_status') {
+            return {
+                data: {
+                    has_credential: true,
+                    credential_kind: 'standalone_direct',
+                    key_version: 'standalone',
+                    key_fingerprint: 'standalone',
+                    rotated_at: null,
+                },
+                error: null,
+            };
+        }
+
         if (fnName === 'secure_verify_and_bootstrap_spoke') {
             const requiredTables = ['mods', 'mod_versions', 'masons', 'blueprints', 'logical_conflicts', 'profiles', 'system_broadcasts', 'dispatch_poll_votes', 'heuristic_signatures', 'known_exception_rules', 'dlc_registry', 'global_network_status', 'audit_logs'];
             const verifiedTables: string[] = [];
@@ -525,22 +607,64 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
         }
 
         if (fnName === 'flag_mod_for_compliance') {
-            const modId = String(args?.p_mod_id || args?.mod_id || '').trim();
+            let modId = String(args?.p_mod_id || args?.mod_id || '').trim();
+            const dnaHash = String(args?.p_dna_hash || args?.dna_hash || '').trim().toLowerCase();
+            const modName = String(args?.p_mod_name || args?.mod_name || '').trim() || 'Unindexed Flagged Artifact';
             const requestedTier = Math.min(4, Math.max(1, Math.round(Number(args?.p_tier || args?.tier || 1))));
             const cleanReason = String(args?.p_reason || args?.reason || '').trim() || `Flagged Tier ${requestedTier} for Compliance Review`;
-            if (!modId) return { data: null, error: new Error('Missing mod_id') };
+
+            if (!modId && dnaHash) {
+                const { data: mv } = await rawAuthClient
+                    .from('mod_versions')
+                    .select('mod_id')
+                    .eq('dna_hash', dnaHash)
+                    .limit(1)
+                    .maybeSingle();
+                if (mv?.mod_id) modId = String(mv.mod_id);
+            }
+
+            if (!modId && dnaHash) {
+                const { data: created, error: insErr } = await rawAuthClient
+                    .from('mods')
+                    .insert({
+                        name: modName,
+                        compliance_tier: requestedTier,
+                        status: 'pending',
+                        status_reason: cleanReason,
+                    })
+                    .select()
+                    .maybeSingle();
+                if (insErr || !created?.id) return { data: null, error: insErr || new Error('Failed to create pending artifact') };
+                await rawAuthClient
+                    .from('mod_versions')
+                    .upsert({ mod_id: created.id, dna_hash: dnaHash, version_label: '1.0' }, { onConflict: 'mod_id,dna_hash' });
+                return { data: { success: true, queued_pending: true, created_unindexed: true, mod_id: created.id, mod: created }, error: null };
+            }
+
+            if (!modId) return { data: null, error: new Error('Missing mod_id or dna_hash') };
+            const { data: existing } = await rawAuthClient
+                .from('mods')
+                .select('id, status, compliance_tier')
+                .eq('id', modId)
+                .maybeSingle();
+            const nextStatus = Number(existing?.compliance_tier ?? 0) === 5 && String(existing?.status || '').toLowerCase() === 'blacklisted'
+                ? 'blacklisted'
+                : Number(existing?.compliance_tier ?? 0) >= 1 && Number(existing?.compliance_tier ?? 0) <= 4 && String(existing?.status || '').toLowerCase() === 'verified'
+                    ? 'verified'
+                    : 'pending';
+            const nextTier = Number(existing?.compliance_tier ?? 0) === 5 ? 5 : requestedTier;
             const { data: updated, error: updErr } = await rawAuthClient
                 .from('mods')
                 .update({
-                    compliance_tier: requestedTier,
-                    status: 'pending',
+                    compliance_tier: nextTier,
+                    status: nextStatus,
                     status_reason: cleanReason,
                 })
                 .eq('id', modId)
                 .select()
                 .maybeSingle();
             if (updErr) return { data: null, error: updErr };
-            return { data: { success: true, queued_pending: true, mod: updated }, error: null };
+            return { data: { success: true, queued_pending: nextStatus === 'pending', mod_id: modId, mod: updated }, error: null };
         }
 
         return await rawAuthClient.rpc(fnName, args);
@@ -938,14 +1062,14 @@ function createSpokeGatewayQuery(
     return builder;
 }
 
-function createSpokeTableRouter(table: string, client: SupabaseClient) {
+function createSpokeTableRouter(table: string, client: SupabaseClient, forceGatewaySelect = false) {
     if (table === 'citizen_staging_queue' || client === rawAuthClient) {
         return client.from(table);
     }
 
     return {
         select: (columns = '*', options?: any) => {
-            if (RESTRICTED_SPOKE_SELECT_TABLES.has(table)) {
+            if (forceGatewaySelect || RESTRICTED_SPOKE_SELECT_TABLES.has(table)) {
                 return createSpokeGatewayQuery(table, 'select', {
                     selectColumns: columns || '*',
                     selectOpts: options,
@@ -962,6 +1086,23 @@ function createSpokeTableRouter(table: string, client: SupabaseClient) {
         delete: (_options?: any) =>
             createSpokeGatewayQuery(table, 'delete', {}),
     } as any;
+}
+
+/**
+ * Authenticated Spoke table access for Oversight / Wayfinder / Architect compliance workflows.
+ * Routes SELECT through Keepers Core `game-gateway` (with live JWT role verification) so
+ * Tier 1-4 Compliance records remain hidden from public/anon Spoke RLS while remaining readable
+ * to authorized Oversight and Wayfinder operators.
+ */
+export function spokeOversightFrom(table: string) {
+    if (isStandaloneFork) {
+        return supabaseAuth.from(table);
+    }
+    const client = getActiveGameClient();
+    if (!client) {
+        return createMockPostgrestBuilder();
+    }
+    return createSpokeTableRouter(table, client, true);
 }
 
 // 2. Create the Magic Proxy Client
@@ -982,6 +1123,7 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     'sanctuary_themes',
                     'sanctuary_games', 'system_directives',
                     'keeper_tickets',
+                    'keeper_email_dispatches',
                     'keeper_system_broadcasts',
                     'keeper_dispatch_poll_votes',
                     'keeper_support_categories',
@@ -1017,6 +1159,8 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     'secure_verify_and_bootstrap_spoke',
                     'secure_sever_spoke_cord',
                     'secure_update_spoke_uplink',
+                    'secure_rotate_spoke_gateway_token',
+                    'secure_get_spoke_credential_status',
                     'secure_upsert_cloud_file',
                     'secure_delete_cloud_file',
                     'secure_update_mason_profile',
@@ -1080,6 +1224,8 @@ export const supabase = new Proxy({} as SupabaseClient, {
                         'secure_update_spoke_profile': 'update_spoke_profile',
                         'secure_sever_spoke_cord': 'sever_spoke_cord',
                         'secure_update_spoke_uplink': 'update_spoke_uplink',
+                        'secure_rotate_spoke_gateway_token': 'rotate_spoke_gateway_token',
+                        'secure_get_spoke_credential_status': 'get_spoke_credential_status',
                         'secure_upsert_cloud_file': 'upsert_cloud_file',
                         'secure_delete_cloud_file': 'delete_cloud_file',
                         'secure_update_mason_profile': 'update_mason_profile',
@@ -1105,10 +1251,17 @@ export const supabase = new Proxy({} as SupabaseClient, {
                     } else if (fnName === 'flag_mod_for_compliance') {
                         payload = {
                             mod_id: args?.p_mod_id || args?.mod_id,
-                            tier: args?.p_tier || args?.tier || 1,
+                            dna_hash: args?.p_dna_hash || args?.dna_hash,
+                            mod_name: args?.p_mod_name || args?.mod_name,
+                            tier: args?.p_tier ?? args?.tier ?? 1,
                             reason: args?.p_reason || args?.reason || '',
                         };
-                    } else if (fnName === 'secure_sever_spoke_cord' || fnName === 'secure_update_spoke_uplink') {
+                    } else if (
+                        fnName === 'secure_sever_spoke_cord' ||
+                        fnName === 'secure_update_spoke_uplink' ||
+                        fnName === 'secure_rotate_spoke_gateway_token' ||
+                        fnName === 'secure_get_spoke_credential_status'
+                    ) {
                         payload = args.p_payload || {};
                     } else if (fnName === 'secure_upsert_cloud_file') {
                         payload = { target_table: args.p_target, payload_data: args.p_payload };
@@ -1425,7 +1578,7 @@ export async function submitThreatManifestToSpoke(
         let insertedData: any = null;
         let lastError: any = null;
 
-        // 1. Prefer authenticated gateway upsert (uses Spoke Service Role Key and works even before workspace hydration)
+        // 1. Prefer authenticated gateway upsert (uses scoped Spoke Gateway Token and works even before workspace hydration)
         if (state.session?.access_token && !isStandaloneFork) {
             const targetGameId =
                 state.workspaces?.find((w: any) => w.id === wsId)?.game_id ||

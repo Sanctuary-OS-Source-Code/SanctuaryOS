@@ -4,6 +4,10 @@ import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { isDesktop } from "../utils/envUtils";
+import {
+  getCloudSessionCleanMods,
+  checkAndPromptSymlinkCloudSyncConsent,
+} from "../utils/cloudSyncGuard";
 
 export function useLaunchLogic(
   askCustom: (
@@ -15,7 +19,12 @@ export function useLaunchLogic(
     headerText: string
   ) => Promise<any>,
   triggerPrePatchSnapshot: (keepPreviousCompleted?: boolean) => Promise<void>,
-  equipPlaySet?: (setName: string) => Promise<void>,
+  equipPlaySet?: (
+    setName: string,
+    overrideSet?: any,
+    skipCloudCheck?: boolean,
+    onAfterAuthorizedDeploy?: () => void
+  ) => Promise<boolean | void>,
   triggerFullEngineBackup?: (keepPreviousCompleted?: boolean) => Promise<void>
 ) {
   const setStatus = useStore((s) => s.setStatus);
@@ -49,9 +58,33 @@ export function useLaunchLogic(
     }
   };
 
-  const handleQuickLaunch = async () => {
+  const runQuickLaunchFlow = async (skipCloudCheck: boolean) => {
     const config: any = await invoke("get_saved_coordinates");
     const storeState = useStore.getState();
+
+    if (!skipCloudCheck) {
+      const allowed = await checkAndPromptSymlinkCloudSyncConsent({
+        modsPath: config?.mods_path || storeState.modsPath,
+        vaultPath: config?.vault_path || storeState.vaultPath,
+        docsPath:
+          config?.docs_path || config?.user_data_path || storeState.docsPath,
+        livePath: config?.live_path || storeState.livePath,
+        actionLabel: t("btn_quick_launch", "Quick Launch"),
+        onAuthorizedProceed: () => {
+          void runQuickLaunchFlow(true);
+        },
+      });
+      if (!allowed) {
+        setStatus(
+          t(
+            "cloud_guard_pending_action_canceled",
+            "Cloud-sync folder consent required before projecting symlinks."
+          )
+        );
+        return;
+      }
+    }
+
     const dPath = String(
       storeState.docsPath || config?.docs_path || config?.user_data_path || config?.mods_path || ""
     ).trim();
@@ -145,17 +178,10 @@ export function useLaunchLogic(
       }
     }
 
-    try {
-      if (equipPlaySet) {
-        const activeWorkspaceId =
-          useStore.getState().activeWorkspaceId || "default";
-        const activeSetName = localStorage.getItem(
-          `sanctuary_${activeWorkspaceId}_active_set`
-        );
-        if (activeSetName) {
-          await equipPlaySet(activeSetName);
-        }
-      }
+    const executeGameIgnition = async () => {
+      const activeWorkspaceId =
+        useStore.getState().activeWorkspaceId || "default";
+      const cleanupSymlinksOnExit = getCloudSessionCleanMods(activeWorkspaceId);
       const latestConfig: any = await invoke("get_saved_coordinates");
       const autoPurgeCaches =
         typeof localStorage !== "undefined"
@@ -166,6 +192,7 @@ export function useLaunchLogic(
         modsPath: latestConfig.mods_path,
         disabledDlc: useStore.getState().maskedDLC,
         autoPurgeCaches,
+        cleanupSymlinksOnExit,
         gameSchema: useStore.getState().activeGameSchema,
       });
       setStatus(t(msg as string, msg as string));
@@ -175,16 +202,42 @@ export function useLaunchLogic(
           typeof localStorage !== "undefined"
             ? localStorage.getItem("sanctuary_post_launch_action") || "keep_open"
             : "keep_open";
-        if (postLaunchAction === "minimize") {
+        // Keep Sanctuary OS alive (minimized) if post-exit symlink cleanup watcher needs to run when the game closes
+        const effectiveAction =
+          cleanupSymlinksOnExit && postLaunchAction === "close"
+            ? "minimize"
+            : postLaunchAction;
+        if (effectiveAction === "minimize") {
           setTimeout(() => {
             getCurrentWebviewWindow().minimize().catch(() => {});
           }, 600);
-        } else if (postLaunchAction === "close") {
+        } else if (effectiveAction === "close") {
           setTimeout(() => {
             getCurrentWebviewWindow().close().catch(() => {});
           }, 800);
         }
       }
+    };
+
+    try {
+      if (equipPlaySet) {
+        const latestState = useStore.getState();
+        const activeWorkspaceId = latestState.activeWorkspaceId || "default";
+        const activeSetName =
+          latestState.activeSetName ||
+          localStorage.getItem(`sanctuary_${activeWorkspaceId}_active_set`);
+        const allSets = latestState.playSets;
+        const hasMatchingSet =
+          Array.isArray(allSets) &&
+          allSets.some((s: any) => s?.name === activeSetName);
+        if (activeSetName && hasMatchingSet) {
+          const equipped = await equipPlaySet(activeSetName, undefined, true);
+          if (equipped === false) {
+            return;
+          }
+        }
+      }
+      await executeGameIgnition();
     } catch (err) {
       setStatus(
         `${t("status_launch_failed", "error LAUNCH FAILED")}: ${t(
@@ -193,6 +246,10 @@ export function useLaunchLogic(
         )}`
       );
     }
+  };
+
+  const handleQuickLaunch = async () => {
+    await runQuickLaunchFlow(false);
   };
 
   return { handleQuickLaunch };

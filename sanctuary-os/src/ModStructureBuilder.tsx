@@ -1,7 +1,13 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useLexicon } from "./LexiconContext";
 import { useStore } from "./store";
-import { CustomDropdown, HoverTooltip, getExtensionRegex, isScriptExtension } from "./shared";
+import {
+  CustomDropdown,
+  HoverTooltip,
+  getExtensionRegex,
+  isScriptExtension,
+  openModDossier,
+} from "./shared";
 
 export interface StructureNode {
   id: string;
@@ -16,11 +22,12 @@ export interface StructureNode {
 interface ModFileItem {
   id: string;
   name: string;
-  role: "core" | "twin" | "addon" | "flavor" | "beta" | "config";
+  role: "core" | "twin" | "addon" | "flavor" | "beta" | "config" | "orphan";
   ext: string;
   modId?: string;
   rawModName?: string;
   rawRef?: any;
+  isOrphanNode?: boolean;
 }
 
 export interface ModStructureBuilderProps {
@@ -36,13 +43,38 @@ export interface ModStructureBuilderProps {
   onDeleteConfigFile?: (cfg: { name: string; path?: string }) => void;
   onChangeFamilyRole?: (rel: any, role: "twin" | "addon" | "flavor" | "beta") => void;
   onUnlinkFamilyMod?: (rel: any) => void;
+  onOpenModDossier?: (modObj: any) => void;
   childRels?: any[];
 }
 
 const ROOT_MODS_ID = "__root_mods__";
+const FALLBACK_TEXT_CONFIG_EXTS = new Set([
+  ".cfg",
+  ".ini",
+  ".json",
+  ".toml",
+  ".yaml",
+  ".yml",
+  ".xml",
+  ".txt",
+]);
 
 const isFolderNode = (n: any): boolean =>
   n?.type === "folder" || n?.node_type === "folder" || Array.isArray(n?.children);
+
+function isTextConfigExtension(ext: string, activeGameSchema?: any): boolean {
+  const norm = (ext || "").toLowerCase();
+  if (!norm) return false;
+  if (FALLBACK_TEXT_CONFIG_EXTS.has(norm)) return true;
+  const editableExts = activeGameSchema?.workbench?.editable_extensions;
+  if (Array.isArray(editableExts)) {
+    return editableExts.some((e: string) => {
+      const s = String(e || "").trim().toLowerCase();
+      return (s.startsWith(".") ? s : `.${s}`) === norm;
+    });
+  }
+  return false;
+}
 
 function resolveModFileName(
   m: any,
@@ -91,6 +123,7 @@ export default function ModStructureBuilder({
   onDeleteConfigFile,
   onChangeFamilyRole,
   onUnlinkFamilyMod,
+  onOpenModDossier,
   childRels = [],
 }: ModStructureBuilderProps) {
   const { t } = useLexicon();
@@ -100,14 +133,22 @@ export default function ModStructureBuilder({
   const [addingChildToFolderId, setAddingChildToFolderId] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
+  const [draggedFileName, setDraggedFileName] = useState<string | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+
+  const maxFolderDepth =
+    typeof activeGameSchema?.constraints?.max_folder_depth === "number" &&
+    activeGameSchema.constraints.max_folder_depth > 0
+      ? activeGameSchema.constraints.max_folder_depth
+      : undefined;
 
   const defaultModFolderName = useMemo(() => {
-    const raw = (targetMod?.name || "Mod").split(/[\\/]/).pop() || "Mod";
+    const raw = (targetMod?.name || "").split(/[\\/]/).pop() || "";
     return (
       raw
         .replace(/\.[^/.]+$/, "")
         .replace(/[_\-\s]+v?\d+(\.\d+)+[a-z]?$/i, "")
-        .trim() || "Mod"
+        .trim() || "Folder"
     );
   }, [targetMod?.name]);
 
@@ -119,7 +160,8 @@ export default function ModStructureBuilder({
     const pushModItem = (
       modObj: any,
       role: ModFileItem["role"],
-      rawRef?: any
+      rawRef?: any,
+      isOrphanNode = false
     ) => {
       if (!modObj) return;
       const { fileName, ext, rawModName } = resolveModFileName(modObj, activeGameSchema);
@@ -146,6 +188,7 @@ export default function ModStructureBuilder({
         modId,
         rawModName,
         rawRef: rawRef || modObj,
+        isOrphanNode,
       });
     };
 
@@ -178,7 +221,7 @@ export default function ModStructureBuilder({
       pushModItem(cfg, "config", cfg);
     }
 
-    // Preserve any existing file nodes already present in structure so they are never stripped
+    // Track saved structure file nodes that are no longer backed by active links/configs as removable orphans
     const walkExistingFiles = (nodes: any[]) => {
       for (const n of nodes || []) {
         if (!n) continue;
@@ -198,14 +241,18 @@ export default function ModStructureBuilder({
               activeGameSchema?.extensions?.packages?.[0] ||
               activeGameSchema?.extensions?.supported?.[0] ||
               undefined;
+            const dotIdx = rawNodeName.lastIndexOf(".");
+            const nodeExt = dotIdx !== -1 ? rawNodeName.slice(dotIdx).toLowerCase() : "";
+            const isConfigOrphan = isTextConfigExtension(nodeExt, activeGameSchema);
             pushModItem(
               {
                 id: n.assignedModId,
                 name: rawNodeName,
                 file_extension: /\.[a-z0-9]+$/i.test(rawNodeName) ? undefined : fallbackExt,
               },
-              "addon",
-              n
+              isConfigOrphan ? "config" : "orphan",
+              n,
+              true
             );
           }
         }
@@ -214,7 +261,7 @@ export default function ModStructureBuilder({
     walkExistingFiles(Array.isArray(structure) ? structure : []);
 
     return list;
-  }, [targetMod, parentRel, childRels, familyMods, configFiles, structure]);
+  }, [targetMod, parentRel, childRels, familyMods, configFiles, structure, activeGameSchema]);
 
   // Synchronize modFiles with structure tree while preserving folder assignments
   useEffect(() => {
@@ -349,8 +396,8 @@ export default function ModStructureBuilder({
   const rootModsLabel = useMemo(() => {
     const rawSubdir = String(
       activeGameSchema?.paths?.mods_subdir ||
-        activeGameSchema?.paths?.default_relative_mods ||
-        ""
+      activeGameSchema?.paths?.default_relative_mods ||
+      ""
     )
       .replace(/\\/g, "/")
       .replace(/^\/+|\/+$/g, "");
@@ -366,16 +413,16 @@ export default function ModStructureBuilder({
         path: rootModsLabel,
       },
     ];
-    const walk = (nodes: StructureNode[], prefix: string) => {
+    const walk = (nodes: StructureNode[], relPrefix: string) => {
       for (const n of nodes) {
         if (n.type === "folder") {
-          const currentPath = `${prefix}${n.name}/`;
-          list.push({ id: n.id, name: currentPath, path: currentPath });
-          if (n.children) walk(n.children, currentPath);
+          const currentRelPath = `${relPrefix}${n.name}/`;
+          list.push({ id: n.id, name: currentRelPath, path: currentRelPath });
+          if (n.children) walk(n.children, currentRelPath);
         }
       }
     };
-    walk(structure || [], rootModsLabel);
+    walk(structure || [], "/");
     return list;
   }, [structure, rootModsLabel]);
 
@@ -386,7 +433,8 @@ export default function ModStructureBuilder({
         if (n.type === "file") {
           map.set(n.name.toLowerCase(), { folderId, folderPath });
         } else if (n.type === "folder" && n.children) {
-          walk(n.children, n.id, `${folderPath}${n.name}/`);
+          const nextPath = folderId === ROOT_MODS_ID ? `/${n.name}/` : `${folderPath}${n.name}/`;
+          walk(n.children, n.id, nextPath);
         }
       }
     };
@@ -396,14 +444,23 @@ export default function ModStructureBuilder({
 
   const moveFileToFolder = (fileName: string, targetFolderId: string) => {
     const lower = fileName.toLowerCase();
+    let preserved: StructureNode | undefined;
     const stripFile = (nodes: StructureNode[]): StructureNode[] =>
       nodes
-        .filter((n) => !(n.type === "file" && n.name.toLowerCase() === lower))
+        .filter((n) => {
+          if (n.type === "file" && n.name.toLowerCase() === lower) {
+            if (!preserved) preserved = n;
+            return false;
+          }
+          return true;
+        })
         .map((n) => (n.type === "folder" ? { ...n, children: stripFile(n.children || []) } : n));
 
     const cleaned = stripFile(structure || []);
+    const prev = preserved as StructureNode | undefined;
     const fileNode: StructureNode = {
-      id: `file_${lower}`,
+      ...(prev || {}),
+      id: prev?.id || `file_${lower}`,
       name: fileName,
       type: "file",
     };
@@ -522,6 +579,27 @@ export default function ModStructureBuilder({
     });
   };
 
+  const removeFileFromStructure = (file: ModFileItem) => {
+    const lowerName = file.name.toLowerCase();
+    const targetModId = file.modId ? String(file.modId) : undefined;
+    const stripTarget = (nodes: StructureNode[]): StructureNode[] =>
+      (nodes || [])
+        .filter((n) => {
+          if (isFolderNode(n)) return true;
+          const nBase = String(n.name || "").split(/[\\/]/).pop()?.toLowerCase() || "";
+          const matchById = Boolean(targetModId && n.assignedModId && String(n.assignedModId) === targetModId);
+          const matchByName = Boolean(nBase && nBase === lowerName) || String(n.name || "").toLowerCase() === lowerName;
+          return !(matchById || matchByName);
+        })
+        .map((n) => (isFolderNode(n) && n.children ? { ...n, children: stripTarget(n.children) } : n));
+
+    if (file.role === "config" && onDetachConfig) {
+      onDetachConfig(file.name);
+      return;
+    }
+    onChange(stripTarget(structure || []));
+  };
+
   const renderFileRow = (file: ModFileItem) => {
     const loc = fileFolderLocationMap.get(file.name.toLowerCase()) || {
       folderId: ROOT_MODS_ID,
@@ -529,6 +607,8 @@ export default function ModStructureBuilder({
     };
     const isCore = file.role === "core";
     const isConfig = file.role === "config";
+    const isOrphan = Boolean(file.isOrphanNode);
+    const canOpenDossier = !isOrphan && !isCore && !isConfig && Boolean(file.rawRef?.id || file.rawRef?.hash || file.rawRef?.name);
 
     const iconName = isCore
       ? t("icon_deployed_code", "deployed_code")
@@ -549,40 +629,97 @@ export default function ModStructureBuilder({
               ? t("badge_beta", "Beta")
               : file.role === "config"
                 ? t("studio_file_role_config", "Config")
-                : t("editor_addon", "Add-on");
+                : file.role === "orphan"
+                  ? t("status_unlinked", "Unlinked")
+                  : t("editor_addon", "Add-on");
 
     return (
       <div
         key={file.id}
-        className="min-h-[46px] p-3 sm:px-3.5 sm:py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 transition-colors"
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData("text/plain", file.name);
+          e.dataTransfer.effectAllowed = "move";
+          setDraggedFileName(file.name);
+        }}
+        onDragEnd={() => {
+          setDraggedFileName(null);
+          setDragOverFolderId(null);
+        }}
+        className={`min-h-[48px] p-3 sm:px-3.5 sm:py-2.5 rounded-xl glass-surface border flex flex-wrap items-center justify-between gap-2.5 transition-colors cursor-grab active:cursor-grabbing ${
+          draggedFileName === file.name
+            ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] opacity-75"
+            : isOrphan
+              ? "border-[color-mix(in_srgb,var(--warning)_28%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)]"
+              : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
+        }`}
       >
-        {/* Left: Icon + Filename + Full Install Path */}
-        <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0 flex-1 w-full">
+        {/* Left: Drag Handle + Icon + Filename + Compact Install Folder */}
+        <div className="flex items-start sm:items-center gap-2 sm:gap-2.5 min-w-[160px] flex-1">
+          <span className="material-symbols-outlined !text-[15px] text-[var(--subtext)] opacity-40 shrink-0 hidden sm:inline mt-0.5 sm:mt-0">
+            {t("icon_drag_indicator", "drag_indicator")}
+          </span>
           <span
             className={`material-symbols-outlined !text-[18px] shrink-0 mt-0.5 sm:mt-0 ${
-              isCore ? "text-[var(--accent)]" : "text-[var(--subtext)]"
+              isCore
+                ? "text-[var(--accent)]"
+                : isOrphan
+                  ? "text-[var(--warning)]"
+                  : "text-[var(--subtext)]"
             }`}
           >
             {iconName}
           </span>
           <div className="flex flex-col min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
-              <span className="text-xs font-bold text-[var(--text)] break-all sm:truncate">{file.name}</span>
-              <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[9px] font-bold uppercase tracking-wider text-[var(--subtext)] shrink-0">
+              {canOpenDossier ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onOpenModDossier) {
+                      onOpenModDossier(file.rawRef);
+                    } else {
+                      openModDossier({ ...file.rawRef, isNexusView: true });
+                    }
+                  }}
+                  className="text-xs font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors break-words sm:truncate text-left cursor-pointer relative group/dossier"
+                >
+                  {file.name}
+                  <HoverTooltip title={t("open_dossier", "Open {Mod} Dossier")} />
+                </button>
+              ) : (
+                <span className="text-xs font-bold text-[var(--text)] break-words sm:truncate">
+                  {file.name}
+                </span>
+              )}
+              <span
+                className={`px-2 py-0.5 rounded-md bg-transparent border text-[9px] font-bold uppercase tracking-wider shrink-0 ${
+                  isCore
+                    ? "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]"
+                    : isOrphan
+                      ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)]"
+                      : "border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--subtext)]"
+                }`}
+              >
                 {roleLabel}
               </span>
+              {isOrphan && isConfig && (
+                <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] text-[9px] font-bold uppercase tracking-wider text-[var(--warning)] shrink-0">
+                  {t("status_unlinked", "Unlinked")}
+                </span>
+              )}
             </div>
             <span className="text-[10px] font-mono text-[var(--subtext)] opacity-70 truncate mt-0.5">
               {loc.folderPath}
-              {file.name}
             </span>
           </div>
         </div>
 
-        {/* Right: Folder Placement + Config Actions (Family Logic is never mixed into Folder Structure) */}
-        <div className="flex items-center justify-end gap-2 shrink-0 w-full sm:w-auto">
+        {/* Right: Folder Placement + Config / Orphan Cleanup Actions */}
+        <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 w-full md:w-auto">
           {allFolders.length > 1 && (
-            <div className="flex-1 sm:flex-none sm:w-48 min-w-0">
+            <div className="w-full sm:w-44 min-w-0">
               <CustomDropdown
                 disableTint={true}
                 className="h-8"
@@ -599,7 +736,7 @@ export default function ModStructureBuilder({
             </div>
           )}
 
-          {isConfig && onOpenConfigInIde && (
+          {isConfig && !isOrphan && onOpenConfigInIde && (
             <button
               type="button"
               onClick={() =>
@@ -617,20 +754,27 @@ export default function ModStructureBuilder({
             </button>
           )}
 
-          {isConfig && onDetachConfig && (
+          {(isConfig && (onDetachConfig || isOrphan)) || isOrphan ? (
             <button
               type="button"
-              onClick={() => onDetachConfig(file.name)}
-              className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer relative group/btn shrink-0"
+              onClick={() => removeFileFromStructure(file)}
+              className={`w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center transition-all cursor-pointer relative group/btn shrink-0 ${
+                isOrphan
+                  ? "hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)]"
+                  : "hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+              }`}
             >
               <span className="material-symbols-outlined !text-[15px]">
-                {t("icon_link_off", "link_off")}
+                {isOrphan ? t("icon_close", "close") : t("icon_link_off", "link_off")}
               </span>
-              <HoverTooltip title={t("nav_unlink", "Unlink")} />
+              <HoverTooltip
+                title={isOrphan ? t("remove", "Remove") : t("nav_unlink", "Unlink")}
+                variant={isOrphan ? "danger" : undefined}
+              />
             </button>
-          )}
+          ) : null}
 
-          {isConfig && onDeleteConfigFile && (
+          {isConfig && !isOrphan && onDeleteConfigFile && file.rawRef?.path && (
             <button
               type="button"
               onClick={() =>
@@ -644,7 +788,7 @@ export default function ModStructureBuilder({
               <span className="material-symbols-outlined !text-[15px]">
                 {t("icon_delete", "delete")}
               </span>
-              <HoverTooltip title={t("lineage_btn_delete", "Delete")} variant="danger" />
+              <HoverTooltip title={t("delete_file", "Delete")} variant="danger" />
             </button>
           )}
         </div>
@@ -652,7 +796,7 @@ export default function ModStructureBuilder({
     );
   };
 
-  const renderFolderTree = (nodes: StructureNode[], parentPath: string): React.ReactNode => {
+  const renderFolderTree = (nodes: StructureNode[], parentPath: string, depth = 1): React.ReactNode => {
     const folders = nodes.filter((n) => isFolderNode(n));
     const filesInThisNode = nodes
       .filter((n) => !isFolderNode(n))
@@ -664,6 +808,7 @@ export default function ModStructureBuilder({
         )
       )
       .filter(Boolean) as ModFileItem[];
+    const canAddSubfolder = maxFolderDepth === undefined || depth < maxFolderDepth;
 
     return (
       <div className="flex flex-col gap-2">
@@ -671,13 +816,41 @@ export default function ModStructureBuilder({
           const isCollapsed = collapsedFolders.has(folder.id);
           const isEditing = editingFolderId === folder.id;
           const isAddingSub = addingChildToFolderId === folder.id;
+          const isDragTarget = dragOverFolderId === folder.id;
+          const relParent = parentPath.startsWith(rootModsLabel)
+            ? parentPath.slice(rootModsLabel.length).replace(/^\/+|\/+$/g, "")
+            : parentPath.replace(/^\/+|\/+$/g, "");
           const currentPath = `${parentPath}${folder.name}/`;
+          const childCount = Array.isArray(folder.children) ? folder.children.length : 0;
 
           return (
             <div key={folder.id} className="flex flex-col gap-1.5">
-              {/* Folder Row */}
-              <div className="min-h-[44px] py-2 px-3 sm:px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-2 sm:gap-3">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
+              {/* Folder Row (Drag Drop Target) */}
+              <div
+                onDragOver={(e) => {
+                  if (!draggedFileName) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (dragOverFolderId !== folder.id) setDragOverFolderId(folder.id);
+                }}
+                onDragLeave={() => {
+                  if (dragOverFolderId === folder.id) setDragOverFolderId(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const fileName = draggedFileName || e.dataTransfer.getData("text/plain");
+                  if (fileName) moveFileToFolder(fileName, folder.id);
+                  setDraggedFileName(null);
+                  setDragOverFolderId(null);
+                }}
+                className={`min-h-[44px] py-2 px-3 sm:px-3.5 rounded-xl border flex flex-wrap items-center justify-between gap-2 sm:gap-3 transition-colors ${
+                  isDragTarget
+                    ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                    : "bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-[160px] flex-1">
                   <button
                     type="button"
                     onClick={() => toggleCollapse(folder.id)}
@@ -692,7 +865,7 @@ export default function ModStructureBuilder({
                   </span>
 
                   {isEditing ? (
-                    <div className="flex items-center gap-1.5 sm:gap-2 flex-1 max-w-sm min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 flex-1 max-w-sm min-w-[160px]">
                       <input
                         autoFocus
                         value={editingFolderName}
@@ -701,31 +874,36 @@ export default function ModStructureBuilder({
                           if (e.key === "Enter") handleRenameFolder(folder.id);
                           if (e.key === "Escape") setEditingFolderId(null);
                         }}
-                        className="h-7 px-2.5 rounded-lg glass-surface border border-[var(--accent)] text-xs font-bold text-[var(--text)] flex-1 min-w-0 outline-none"
+                        className="h-8 px-2.5 rounded-lg glass-surface border border-[var(--accent)] text-xs font-bold text-[var(--text)] flex-1 min-w-[110px] outline-none"
                       />
                       <button
                         type="button"
                         onClick={() => handleRenameFolder(folder.id)}
-                        className="h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[10px] font-bold text-[var(--text)] hover:border-[var(--accent)] cursor-pointer shrink-0"
+                        className="h-8 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] text-[10px] font-bold text-[var(--text)] hover:border-[var(--accent)] cursor-pointer shrink-0"
                       >
                         {t("hub_save", "Save")}
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingFolderId(null)}
-                        className="h-7 px-2 rounded-lg text-[10px] font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer shrink-0"
+                        className="h-8 px-2 rounded-lg text-[10px] font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer shrink-0"
                       >
                         {t("btn_cancel", "Cancel")}
                       </button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="text-xs font-bold text-[var(--text)] break-all sm:truncate">
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 min-w-0 flex-1">
+                      <span className="text-xs font-bold text-[var(--text)] break-words sm:truncate">
                         {folder.name}/
                       </span>
-                      <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 truncate hidden sm:inline">
-                        ({currentPath})
+                      <span className="text-[10px] font-mono text-[var(--subtext)] opacity-60 shrink-0">
+                        ({childCount})
                       </span>
+                      {relParent && (
+                        <span className="text-[10px] font-mono text-[var(--subtext)] opacity-55 truncate hidden sm:inline">
+                          /{relParent}/
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -746,19 +924,21 @@ export default function ModStructureBuilder({
                     <HoverTooltip title={t("lineage_btn_edit", "Rename Folder")} />
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAddingChildToFolderId(isAddingSub ? null : folder.id);
-                      setNewFolderName("");
-                    }}
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
-                  >
-                    <span className="material-symbols-outlined !text-[15px]">
-                      {t("icon_create_new_folder", "create_new_folder")}
-                    </span>
-                    <HoverTooltip title={t("studio_structure_btn_add_subfolder", "Add Subfolder")} />
-                  </button>
+                  {canAddSubfolder && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddingChildToFolderId(isAddingSub ? null : folder.id);
+                        setNewFolderName("");
+                      }}
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_25%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
+                    >
+                      <span className="material-symbols-outlined !text-[15px]">
+                        {t("icon_create_new_folder", "create_new_folder")}
+                      </span>
+                      <HoverTooltip title={t("studio_structure_btn_add_subfolder", "Add Subfolder")} />
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -808,10 +988,10 @@ export default function ModStructureBuilder({
               {!isCollapsed && (
                 <div className="pl-2.5 ml-1.5 sm:pl-6 sm:ml-3 border-l border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5">
                   {folder.children && folder.children.length > 0 ? (
-                    renderFolderTree(folder.children, currentPath)
+                    renderFolderTree(folder.children, currentPath, depth + 1)
                   ) : (
-                    <div className="py-2 px-3 text-[11px] font-semibold text-[var(--subtext)] opacity-50">
-                      {t("empty", "Empty folder")}
+                    <div className="py-2 px-3 text-[11px] font-semibold text-[var(--subtext)] opacity-55">
+                      {t("studio_folder_empty", "Empty folder")}
                     </div>
                   )}
                 </div>
@@ -828,9 +1008,30 @@ export default function ModStructureBuilder({
 
   return (
     <div className="w-full rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] overflow-hidden flex flex-col">
-      {/* Root Directory Bar */}
-      <div className="px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
+      {/* Root Directory Bar (Also Root Drag Drop Target) */}
+      <div
+        onDragOver={(e) => {
+          if (!draggedFileName) return;
+          e.preventDefault();
+          if (dragOverFolderId !== ROOT_MODS_ID) setDragOverFolderId(ROOT_MODS_ID);
+        }}
+        onDragLeave={() => {
+          if (dragOverFolderId === ROOT_MODS_ID) setDragOverFolderId(null);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          const fileName = draggedFileName || e.dataTransfer.getData("text/plain");
+          if (fileName) moveFileToFolder(fileName, ROOT_MODS_ID);
+          setDraggedFileName(null);
+          setDragOverFolderId(null);
+        }}
+        className={`px-4 py-3 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-wrap items-center justify-between gap-3 transition-colors ${
+          dragOverFolderId === ROOT_MODS_ID
+            ? "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
+            : "bg-[color-mix(in_srgb,var(--text)_3%,transparent)]"
+        }`}
+      >
+        <div className="flex flex-wrap items-center gap-2">
           <span className="material-symbols-outlined !text-[20px] text-[var(--accent)]">
             {t("icon_folder_open", "folder_open")}
           </span>
@@ -841,6 +1042,11 @@ export default function ModStructureBuilder({
             ({modFiles.length} {t("modal_files", "Files")} • {allFolders.length - 1}{" "}
             {t("studio_folders_label", "Folders")})
           </span>
+          {maxFolderDepth !== undefined && (
+            <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9.5px] font-bold uppercase tracking-wider text-[var(--subtext)]">
+              {t("schema_max_depth", "Max Depth")}: {maxFolderDepth}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -855,19 +1061,19 @@ export default function ModStructureBuilder({
                   if (e.key === "Escape") setAddingChildToFolderId(null);
                 }}
                 placeholder={defaultModFolderName}
-                className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] focus:border-[var(--accent)] text-xs font-bold text-[var(--text)] flex-1 sm:w-44 min-w-0 outline-none"
+                className="h-9 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] focus:border-[var(--accent)] text-xs font-bold text-[var(--text)] flex-1 sm:w-48 min-w-0 outline-none"
               />
               <button
                 type="button"
                 onClick={() => handleAddFolder(ROOT_MODS_ID)}
-                className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-xs font-bold text-[var(--text)] cursor-pointer shrink-0"
+                className="h-9 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-xs font-bold text-[var(--text)] cursor-pointer shrink-0"
               >
                 {t("ql_add", "Add")}
               </button>
               <button
                 type="button"
                 onClick={() => setAddingChildToFolderId(null)}
-                className="h-8 px-2 text-xs font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer shrink-0"
+                className="h-9 px-2.5 text-xs font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer shrink-0"
               >
                 {t("btn_cancel", "Cancel")}
               </button>
@@ -893,8 +1099,14 @@ export default function ModStructureBuilder({
       </div>
 
       {/* Directory Tree Contents */}
-      <div className="p-4 flex flex-col gap-2 max-h-[320px] overflow-y-auto custom-scrollbar">
-        {renderFolderTree(structure || [], rootModsLabel)}
+      <div className="p-4 flex flex-col gap-2 min-h-[120px]">
+        {modFiles.length === 0 && (structure || []).length === 0 ? (
+          <div className="py-4 px-3 text-center text-xs font-semibold text-[var(--subtext)] opacity-60">
+            {t("studio_folder_empty", "Empty folder")}
+          </div>
+        ) : (
+          renderFolderTree(structure || [], rootModsLabel, 1)
+        )}
       </div>
     </div>
   );

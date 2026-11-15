@@ -102,6 +102,217 @@ function bytesToB64Url(bytes: Uint8Array): string {
   return bytesToB64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+const SPOKE_GATEWAY_TOKEN_REGEX = /^spk_gw_[0-9a-f]{64}$/i;
+
+function normalizeSpokeUrl(rawUrl: string): string {
+  return String(rawUrl || '').trim().replace(/\/+$/, '').toLowerCase();
+}
+
+function detectCredentialKind(secret: string): 'spoke_gateway' | 'legacy_service_role' {
+  return SPOKE_GATEWAY_TOKEN_REGEX.test(String(secret || '').trim())
+    ? 'spoke_gateway'
+    : 'legacy_service_role';
+}
+
+function maskCredentialFingerprint(secret: string): string {
+  const clean = String(secret || '').trim();
+  if (!clean) return '';
+  if (SPOKE_GATEWAY_TOKEN_REGEX.test(clean)) {
+    return `spk_gw_...${clean.slice(-4).toLowerCase()}`;
+  }
+  return clean.length >= 6 ? `legacy_...${clean.slice(-6)}` : 'configured';
+}
+
+function parseMasterKeyMaterial(raw: string): Uint8Array {
+  const clean = String(raw || '').trim();
+  if (!clean) {
+    throw new Error('Missing SPOKE_VAULT_MASTER_KEY in Edge Function secrets');
+  }
+  if (/^[0-9a-f]{64}$/i.test(clean)) {
+    const out = new Uint8Array(32);
+    for (let i = 0; i < 32; i++) {
+      out[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+    }
+    return out;
+  }
+  const decoded = b64UrlToBytes(clean);
+  if (decoded.byteLength !== 32) {
+    throw new Error('Invalid SPOKE_VAULT_MASTER_KEY length: expected 32 bytes (64 hex or 44 base64 chars)');
+  }
+  return decoded;
+}
+
+function getMasterKeyRing(): Array<{ kid: string; key: Uint8Array }> {
+  const ring: Array<{ kid: string; key: Uint8Array }> = [];
+  const primaryRaw = String(Deno.env.get('SPOKE_VAULT_MASTER_KEY') || '').trim();
+  if (primaryRaw) {
+    ring.push({ kid: 'master', key: parseMasterKeyMaterial(primaryRaw) });
+  }
+  const prevRaw = String(Deno.env.get('SPOKE_VAULT_PREVIOUS_KEYS') || '').trim();
+  if (prevRaw) {
+    const items = prevRaw.split(',').map((s) => s.trim()).filter(Boolean);
+    items.forEach((entry, idx) => {
+      const sep = entry.indexOf(':');
+      const kid = sep > 0 ? entry.slice(0, sep).trim() : `prev_${idx + 1}`;
+      const mat = sep > 0 ? entry.slice(sep + 1).trim() : entry;
+      if (mat) {
+        ring.push({ kid, key: parseMasterKeyMaterial(mat) });
+      }
+    });
+  }
+  if (ring.length === 0) {
+    throw new Error('SPOKE_VAULT_MASTER_KEY is not configured in Supabase Edge Function secrets');
+  }
+  return ring;
+}
+
+function buildSpokeAad(meta: { gameId: string; schemaId: string; supabaseUrl: string }): Uint8Array {
+  const aadStr = [
+    'sanctuary-spoke-aad:v1',
+    String(meta.gameId || '').trim().toLowerCase(),
+    String(meta.schemaId || '').trim().toUpperCase(),
+    normalizeSpokeUrl(meta.supabaseUrl),
+  ].join('|');
+  return new TextEncoder().encode(aadStr);
+}
+
+async function deriveRowAesKey(
+  masterBytes: Uint8Array,
+  salt: Uint8Array,
+  gameId: string,
+  usages: KeyUsage[]
+): Promise<CryptoKey> {
+  const ikm = await crypto.subtle.importKey('raw', masterBytes, 'HKDF', false, ['deriveKey']);
+  const info = new TextEncoder().encode(
+    `sanctuary-spoke-vault:v1:${String(gameId || '').trim().toLowerCase()}`
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'HKDF', hash: 'SHA-256', salt, info },
+    ikm,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    usages
+  );
+}
+
+async function sealSpokeEnvelope(
+  plaintextSecret: string,
+  meta: { gameId: string; schemaId: string; supabaseUrl: string }
+): Promise<{ envelope: string; keyVersion: string }> {
+  const cleanSecret = String(plaintextSecret || '').trim();
+  if (!cleanSecret) throw new Error('Cannot seal an empty Spoke credential');
+  const ring = getMasterKeyRing();
+  const primary = ring[0];
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const aesKey = await deriveRowAesKey(primary.key, salt, meta.gameId, ['encrypt']);
+  const aad = buildSpokeAad(meta);
+  const ctBuf = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: aad },
+    aesKey,
+    new TextEncoder().encode(cleanSecret)
+  );
+  const envelope = [
+    'enc',
+    'v1',
+    primary.kid,
+    bytesToB64Url(salt),
+    bytesToB64Url(iv),
+    bytesToB64Url(new Uint8Array(ctBuf)),
+  ].join(':');
+  return { envelope, keyVersion: `v1:${primary.kid}` };
+}
+
+async function openSpokeEnvelope(
+  envelope: string,
+  meta: { gameId: string; schemaId: string; supabaseUrl: string }
+): Promise<string> {
+  const clean = String(envelope || '').trim();
+  if (!clean.startsWith('enc:v1:')) {
+    throw new Error('Unsupported or unsealed Spoke credential format');
+  }
+  const parts = clean.split(':');
+  if (parts.length !== 6) {
+    throw new Error('Malformed Spoke credential envelope');
+  }
+  const [, , kid, saltB64, ivB64, ctB64] = parts;
+  const ring = getMasterKeyRing();
+  const ordered = [...ring.filter((r) => r.kid === kid), ...ring.filter((r) => r.kid !== kid)];
+  const salt = b64UrlToBytes(saltB64);
+  const iv = b64UrlToBytes(ivB64);
+  const ct = b64UrlToBytes(ctB64);
+  const aad = buildSpokeAad(meta);
+
+  for (const entry of ordered) {
+    try {
+      const aesKey = await deriveRowAesKey(entry.key, salt, meta.gameId, ['decrypt']);
+      const ptBuf = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv, additionalData: aad },
+        aesKey,
+        ct
+      );
+      return new TextDecoder().decode(ptBuf);
+    } catch {
+      // Try next key in rotation ring
+    }
+  }
+  throw new Error('Spoke credential envelope decryption failed (key or bound metadata mismatch)');
+}
+
+function createSpokeClient(supabaseUrl: string, anonKey: string, credential: string) {
+  const cleanUrl = String(supabaseUrl || '').trim().replace(/\/+$/, '');
+  const cleanAnon = String(anonKey || '').trim();
+  const cleanCred = String(credential || '').trim();
+  if (SPOKE_GATEWAY_TOKEN_REGEX.test(cleanCred)) {
+    if (!cleanAnon) {
+      throw new Error('Spoke supabase_anon_key is required when using a scoped Spoke Gateway Token');
+    }
+    return createClient(cleanUrl, cleanAnon, {
+      ...SERVER_AUTH_OPTS,
+      global: {
+        headers: {
+          'x-sanctuary-spoke-token': cleanCred.toLowerCase(),
+        },
+      },
+    });
+  }
+  return createClient(cleanUrl, cleanCred, SERVER_AUTH_OPTS);
+}
+
+async function verifySpokeCredentialHandshake(
+  spokeClient: any,
+  credentialKind: 'spoke_gateway' | 'legacy_service_role'
+): Promise<{ ok: boolean; authMode: string }> {
+  const { data, error } = await spokeClient.rpc('verify_spoke_gateway_handshake');
+  if (!error) {
+    return { ok: true, authMode: String(data?.auth_mode || credentialKind) };
+  }
+  const errMsg = String(error?.message || '').toLowerCase();
+  const errCode = String(error?.code || '');
+  const isMissingFn =
+    errCode === '42883' ||
+    errCode === 'PGRST202' ||
+    errMsg.includes('could not find the function') ||
+    (errMsg.includes('verify_spoke_gateway_handshake') && errMsg.includes('does not exist'));
+
+  if (credentialKind === 'spoke_gateway') {
+    throw new Error(
+      `Spoke Gateway Token rejected by target Spoke: ${error.message || 'apply latest schema.sql and verify active token'}`
+    );
+  }
+  if (!isMissingFn) {
+    throw new Error(`Spoke handshake rejected: ${error.message}`);
+  }
+  const { error: fallbackErr } = await spokeClient
+    .from('profiles')
+    .select('id', { head: true, count: 'exact' })
+    .limit(1);
+  if (fallbackErr) {
+    throw new Error(`Spoke handshake failed: ${fallbackErr.message}`);
+  }
+  return { ok: true, authMode: 'legacy_service_role' };
+}
+
 function decodeCborItem(bytes: Uint8Array, offset = 0): { value: any; offset: number } {
   if (offset >= bytes.length) throw new Error('CBOR unexpected EOF');
   const initial = bytes[offset++];
@@ -367,7 +578,17 @@ const CITIZEN_TABLES = new Set([
   'citizen_staging_queue',
 ]);
 
-const spokeGameConfigCache = new Map<string, { game: any; serviceKey: string | null; expiresAt: number }>();
+type CachedSpokeEntry = {
+  game: any;
+  serviceKey: string | null;
+  credentialKind: 'spoke_gateway' | 'legacy_service_role' | null;
+  keyVersion: string | null;
+  keyFingerprint: string;
+  rotatedAt: string | null;
+  expiresAt: number;
+};
+
+const spokeGameConfigCache = new Map<string, CachedSpokeEntry>();
 const SPOKE_GAME_CACHE_TTL_MS = 45_000;
 
 function invalidateSpokeGameConfigCache() {
@@ -378,7 +599,15 @@ async function resolveGameWithServiceKey(supabaseAdmin: any, gameIdOrSchema: str
   const cacheKey = String(gameIdOrSchema || '').trim().toLowerCase();
   const cached = spokeGameConfigCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
-    return { game: cached.game, serviceKey: cached.serviceKey, error: null };
+    return {
+      game: cached.game,
+      serviceKey: cached.serviceKey,
+      credentialKind: cached.credentialKind,
+      keyVersion: cached.keyVersion,
+      keyFingerprint: cached.keyFingerprint,
+      rotatedAt: cached.rotatedAt,
+      error: null,
+    };
   }
 
   let gameQuery = supabaseAdmin
@@ -393,21 +622,67 @@ async function resolveGameWithServiceKey(supabaseAdmin: any, gameIdOrSchema: str
 
   const { data: game, error: gameError } = await gameQuery.maybeSingle();
   if (gameError || !game) {
-    return { game: null, serviceKey: null, error: gameError };
+    return {
+      game: null,
+      serviceKey: null,
+      credentialKind: null,
+      keyVersion: null,
+      keyFingerprint: '',
+      rotatedAt: null,
+      error: gameError,
+    };
   }
 
-  const { data: secretRow } = await supabaseAdmin
-    .from('sanctuary_game_secrets')
-    .select('supabase_service_key')
-    .eq('game_id', game.id)
-    .maybeSingle();
+  const { data: credRows, error: credErr } = await supabaseAdmin.rpc('internal_get_spoke_credential', {
+    p_game_id: game.id,
+  });
+  if (credErr) {
+    throw new Error(`Failed to resolve Spoke credential from Vault: ${credErr.message}`);
+  }
+  const secretRow = Array.isArray(credRows) ? credRows[0] : credRows;
 
-  const serviceKey = (secretRow?.supabase_service_key || '').trim() || null;
-  const entry = { game, serviceKey, expiresAt: Date.now() + SPOKE_GAME_CACHE_TTL_MS };
+  let serviceKey: string | null = null;
+  let credentialKind: 'spoke_gateway' | 'legacy_service_role' | null = null;
+  let keyVersion: string | null = null;
+  let keyFingerprint = '';
+  let rotatedAt: string | null = null;
+
+  if (secretRow?.envelope_ciphertext) {
+    serviceKey = await openSpokeEnvelope(secretRow.envelope_ciphertext, {
+      gameId: String(game.id),
+      schemaId: String(game.schema_id || ''),
+      supabaseUrl: String(game.supabase_url || ''),
+    });
+    credentialKind =
+      secretRow.credential_kind === 'spoke_gateway' || secretRow.credential_kind === 'legacy_service_role'
+        ? secretRow.credential_kind
+        : detectCredentialKind(serviceKey);
+    keyVersion = String(secretRow.key_version || 'v1:master');
+    keyFingerprint = String(secretRow.key_fingerprint || maskCredentialFingerprint(serviceKey));
+    rotatedAt = secretRow.rotated_at || null;
+  }
+
+  const entry: CachedSpokeEntry = {
+    game,
+    serviceKey,
+    credentialKind,
+    keyVersion,
+    keyFingerprint,
+    rotatedAt,
+    expiresAt: Date.now() + SPOKE_GAME_CACHE_TTL_MS,
+  };
   spokeGameConfigCache.set(cacheKey, entry);
   if (game.id) spokeGameConfigCache.set(String(game.id).toLowerCase(), entry);
   if (game.schema_id) spokeGameConfigCache.set(String(game.schema_id).toLowerCase(), entry);
-  return { game, serviceKey, error: null };
+  return {
+    game,
+    serviceKey,
+    credentialKind,
+    keyVersion,
+    keyFingerprint,
+    rotatedAt,
+    error: null,
+  };
 }
 
 const MAX_INLINE_THEME_DATA_URI_CHARS = 32_768;
@@ -1124,7 +1399,7 @@ serve(async (req) => {
     const hubIsBanned = hubProfile?.is_banned ?? false
     const hubBlacklistReason = hubProfile?.blacklist_reason ?? null
 
-    // Keeper-only action: create or update a Spoke Game entry while storing supabase_service_key exclusively in sanctuary_game_secrets
+    // Keeper-only action: create or update a Spoke Game entry while envelope-encrypting and Vault-sealing credentials in sanctuary_internal.spoke_credentials
     if (action === 'keeper_upsert_game') {
       if (hubRole !== 'keeper' || hubIsBanned) {
         throw new Error('Forbidden: Only Keepers can register or update Spoke Game configurations')
@@ -1135,6 +1410,7 @@ serve(async (req) => {
         schema_id,
         supabase_url,
         supabase_anon_key,
+        spoke_gateway_token,
         supabase_service_key,
         icon,
         is_active,
@@ -1146,13 +1422,40 @@ serve(async (req) => {
       const cleanSchemaId = String(schema_id || '').trim().toUpperCase()
       const cleanUrl = String(supabase_url || '').trim().replace(/\/+$/, '')
       const cleanAnon = String(supabase_anon_key || '').trim()
-      const cleanService = String(supabase_service_key || '').trim()
+      const cleanCredential = String(spoke_gateway_token || supabase_service_key || '').trim()
 
       if (!cleanName || !cleanSchemaId || !cleanUrl || !cleanAnon) {
         throw new Error('Missing required Spoke Game fields (name, schema_id, supabase_url, supabase_anon_key)')
       }
       if (!SUPABASE_URL_REGEX.test(cleanUrl)) {
         throw new Error('Invalid Spoke Supabase URL: must be a valid https://<project>.supabase.co endpoint')
+      }
+
+      let existingGameRow: any = null
+      let existingCredRow: any = null
+      if (targetGameUuid && UUID_REGEX.test(String(targetGameUuid))) {
+        const { data: exGame, error: exErr } = await supabaseAdmin
+          .from('sanctuary_games')
+          .select('id, schema_id, supabase_url')
+          .eq('id', targetGameUuid)
+          .maybeSingle()
+        if (exErr) throw exErr
+        existingGameRow = exGame
+
+        const { data: exCredRows } = await supabaseAdmin.rpc('internal_get_spoke_credential', {
+          p_game_id: targetGameUuid,
+        })
+        existingCredRow = Array.isArray(exCredRows) ? exCredRows[0] : exCredRows
+
+        if (
+          existingGameRow &&
+          existingCredRow?.envelope_ciphertext &&
+          clear_service_key !== true &&
+          !cleanCredential &&
+          normalizeSpokeUrl(existingGameRow.supabase_url) !== normalizeSpokeUrl(cleanUrl)
+        ) {
+          throw new Error('Changing Spoke URL requires re-entering or rotating the Spoke credential')
+        }
       }
 
       const publicRow: Record<string, any> = {
@@ -1187,42 +1490,99 @@ serve(async (req) => {
 
       if (savedGame?.id) {
         if (clear_service_key === true) {
-          await supabaseAdmin
-            .from('sanctuary_game_secrets')
-            .delete()
-            .eq('game_id', savedGame.id)
-        } else if (cleanService) {
-          const { error: secErr } = await supabaseAdmin
-            .from('sanctuary_game_secrets')
-            .upsert(
-              {
-                game_id: savedGame.id,
-                supabase_service_key: cleanService,
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: 'game_id' }
-            )
-          if (secErr) throw secErr
+          const { error: delErr } = await supabaseAdmin.rpc('internal_delete_spoke_credential', {
+            p_game_id: savedGame.id,
+          })
+          if (delErr) throw delErr
+        } else if (cleanCredential) {
+          const credKind = detectCredentialKind(cleanCredential)
+          const { envelope, keyVersion } = await sealSpokeEnvelope(cleanCredential, {
+            gameId: savedGame.id,
+            schemaId: savedGame.schema_id,
+            supabaseUrl: savedGame.supabase_url,
+          })
+          const { error: upsErr } = await supabaseAdmin.rpc('internal_upsert_spoke_credential', {
+            p_game_id: savedGame.id,
+            p_envelope_ciphertext: envelope,
+            p_key_version: keyVersion,
+            p_credential_kind: credKind,
+            p_key_fingerprint: maskCredentialFingerprint(cleanCredential),
+          })
+          if (upsErr) throw upsErr
+        } else if (
+          existingGameRow &&
+          existingCredRow?.envelope_ciphertext &&
+          String(existingGameRow.schema_id || '').trim().toUpperCase() !== savedGame.schema_id
+        ) {
+          const plainCred = await openSpokeEnvelope(existingCredRow.envelope_ciphertext, {
+            gameId: savedGame.id,
+            schemaId: String(existingGameRow.schema_id || ''),
+            supabaseUrl: String(existingGameRow.supabase_url || ''),
+          })
+          const { envelope, keyVersion } = await sealSpokeEnvelope(plainCred, {
+            gameId: savedGame.id,
+            schemaId: savedGame.schema_id,
+            supabaseUrl: savedGame.supabase_url,
+          })
+          const { error: rewrapErr } = await supabaseAdmin.rpc('internal_upsert_spoke_credential', {
+            p_game_id: savedGame.id,
+            p_envelope_ciphertext: envelope,
+            p_key_version: keyVersion,
+            p_credential_kind: detectCredentialKind(plainCred),
+            p_key_fingerprint: maskCredentialFingerprint(plainCred),
+          })
+          if (rewrapErr) throw rewrapErr
         }
       }
 
-      const { data: hasSec } = await supabaseAdmin
-        .from('sanctuary_game_secrets')
-        .select('game_id')
-        .eq('game_id', savedGame.id)
-        .maybeSingle()
+      const { data: metaRows } = await supabaseAdmin.rpc('internal_get_spoke_credential', {
+        p_game_id: savedGame.id,
+      })
+      const metaRow = Array.isArray(metaRows) ? metaRows[0] : metaRows
 
       invalidateSpokeGameConfigCache();
       return new Response(
         JSON.stringify({
           success: true,
-          game: { ...savedGame, has_service_key: Boolean(hasSec?.game_id) },
+          game: {
+            ...savedGame,
+            has_service_key: Boolean(metaRow?.envelope_ciphertext),
+            credential_kind: metaRow?.credential_kind || null,
+            key_version: metaRow?.key_version || null,
+            key_fingerprint: metaRow?.key_fingerprint || '',
+            rotated_at: metaRow?.rotated_at || null,
+          },
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
         }
       )
+    }
+
+    // Keeper-only action: list non-secret encryption metadata for all Spoke credentials
+    if (action === 'keeper_list_spoke_credentials_meta') {
+      if (hubRole !== 'keeper' || hubIsBanned) {
+        throw new Error('Forbidden: Only Keepers can inspect Spoke credential status metadata')
+      }
+      const { data: credRows, error: listErr } = await supabaseAdmin.rpc('internal_list_spoke_credentials')
+      if (listErr) throw listErr
+      const credentials: Record<string, any> = {}
+      for (const row of (credRows || [])) {
+        if (!row?.game_id) continue
+        credentials[row.game_id] = {
+          has_credential: Boolean(row.envelope_ciphertext),
+          credential_kind: row.credential_kind || null,
+          key_version: row.key_version || null,
+          key_fingerprint: row.key_fingerprint || '',
+          rotated_at: row.rotated_at || null,
+          updated_at: row.updated_at || null,
+        }
+      }
+      return new Response(JSON.stringify({ success: true, credentials }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
     }
 
     // Special Hub-wide action: propagate a user's Hub username / global ban to all active Spokes
@@ -1240,25 +1600,28 @@ serve(async (req) => {
       if (targetHubProfile) {
         const { data: allGames } = await supabaseAdmin
           .from('sanctuary_games')
-          .select('id, supabase_url')
+          .select('id, schema_id, supabase_url, supabase_anon_key')
           .eq('is_active', true)
 
-        const { data: allSecrets } = await supabaseAdmin
-          .from('sanctuary_game_secrets')
-          .select('game_id, supabase_service_key')
+        const { data: allSecrets } = await supabaseAdmin.rpc('internal_list_spoke_credentials')
 
         const secretMap = new Map<string, string>()
         for (const s of (allSecrets || [])) {
-          if (s?.game_id && s?.supabase_service_key) {
-            secretMap.set(s.game_id, s.supabase_service_key)
+          if (s?.game_id && s?.envelope_ciphertext) {
+            secretMap.set(s.game_id, s.envelope_ciphertext)
           }
         }
 
         for (const g of (allGames || [])) {
-          const svcKey = secretMap.get(g.id)
-          if (!g.supabase_url || !svcKey) continue
+          const envCipher = secretMap.get(g.id)
+          if (!g.supabase_url || !envCipher) continue
           try {
-            const spokeClient = createClient(g.supabase_url, svcKey, SERVER_AUTH_OPTS)
+            const plainCred = await openSpokeEnvelope(envCipher, {
+              gameId: String(g.id),
+              schemaId: String(g.schema_id || ''),
+              supabaseUrl: String(g.supabase_url || ''),
+            })
+            const spokeClient = createSpokeClient(g.supabase_url, g.supabase_anon_key || '', plainCred)
             await spokeClient
               .from('profiles')
               .update({
@@ -1287,25 +1650,31 @@ serve(async (req) => {
         game_id: existingGameId,
         supabase_url,
         supabase_anon_key,
+        spoke_gateway_token,
         supabase_service_key,
         founder_identifier,
       } = payload || {}
 
-      let resolvedServiceKey = String(supabase_service_key || '').trim()
+      let resolvedServiceKey = String(spoke_gateway_token || supabase_service_key || '').trim()
       let resolvedUrl = String(supabase_url || '').trim().replace(/\/+$/, '')
       let resolvedAnonKey = String(supabase_anon_key || '').trim()
 
-      if ((!resolvedServiceKey || !resolvedUrl) && (existingGameId || game_id)) {
+      if ((!resolvedServiceKey || !resolvedUrl || !resolvedAnonKey) && (existingGameId || game_id)) {
         const lookup = await resolveGameWithServiceKey(supabaseAdmin, String(existingGameId || game_id))
         if (lookup.game) {
           if (!resolvedUrl) resolvedUrl = String(lookup.game.supabase_url || '').trim().replace(/\/+$/, '')
           if (!resolvedAnonKey) resolvedAnonKey = String(lookup.game.supabase_anon_key || '').trim()
-          if (!resolvedServiceKey && lookup.serviceKey) resolvedServiceKey = lookup.serviceKey
+          if (
+            !resolvedServiceKey &&
+            lookup.serviceKey &&
+            normalizeSpokeUrl(resolvedUrl) === normalizeSpokeUrl(lookup.game.supabase_url)
+          ) {
+            resolvedServiceKey = lookup.serviceKey
+          }
         }
       }
 
-      const targetKey = resolvedServiceKey || resolvedAnonKey
-      if (!resolvedUrl || !targetKey) {
+      if (!resolvedUrl || (!resolvedServiceKey && !resolvedAnonKey)) {
         throw new Error('Missing Spoke Supabase URL or Key')
       }
       if (!SUPABASE_URL_REGEX.test(resolvedUrl)) {
@@ -1313,7 +1682,14 @@ serve(async (req) => {
       }
 
       const startPing = Date.now()
-      const testDb = createClient(resolvedUrl, targetKey, SERVER_AUTH_OPTS)
+      const testDb = resolvedServiceKey
+        ? createSpokeClient(resolvedUrl, resolvedAnonKey, resolvedServiceKey)
+        : createClient(resolvedUrl, resolvedAnonKey, SERVER_AUTH_OPTS)
+      let handshakeAuthMode = resolvedServiceKey ? detectCredentialKind(resolvedServiceKey) : 'anon_read_only'
+      if (resolvedServiceKey) {
+        const hs = await verifySpokeCredentialHandshake(testDb, detectCredentialKind(resolvedServiceKey))
+        handshakeAuthMode = hs.authMode
+      }
       const requiredTables = ['mods', 'profiles', 'system_broadcasts', 'dispatch_poll_votes', 'known_exception_rules', 'dlc_registry', 'global_network_status', 'audit_logs']
       const missingTables: string[] = []
 
@@ -1381,6 +1757,7 @@ serve(async (req) => {
         schema_ready: missingTables.length === 0,
         missing_tables: missingTables,
         wayfinder_provisioned: wayfinderProvisioned,
+        auth_mode: handshakeAuthMode,
         latency_ms: latencyMs
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -1392,8 +1769,16 @@ serve(async (req) => {
       throw new Error('Missing game_id')
     }
 
-    // 4. Resolve Target Spoke DB Configuration & Isolated Service Key
-    const { game, serviceKey: gameServiceKey, error: gameError } = await resolveGameWithServiceKey(
+    // 4. Resolve Target Spoke DB Configuration & Split-Custody Envelope Credential
+    const {
+      game,
+      serviceKey: gameServiceKey,
+      credentialKind: resolvedCredentialKind,
+      keyVersion: resolvedKeyVersion,
+      keyFingerprint: resolvedKeyFingerprint,
+      rotatedAt: resolvedRotatedAt,
+      error: gameError,
+    } = await resolveGameWithServiceKey(
       supabaseAdmin,
       String(game_id)
     )
@@ -1406,11 +1791,35 @@ serve(async (req) => {
       throw new Error('Forbidden: This Spoke is restricted to Keepers Core')
     }
 
+    if (action === 'get_spoke_credential_status' && !gameServiceKey) {
+      let isSpokeWayfinder = false
+      if (hubRole !== 'keeper' && game.supabase_url && game.supabase_anon_key) {
+        try {
+          const anonSpoke = createClient(game.supabase_url, game.supabase_anon_key, SERVER_AUTH_OPTS)
+          const { data: spProf } = await anonSpoke.from('profiles').select('role, is_banned').eq('id', v_user_id).maybeSingle()
+          isSpokeWayfinder = !spProf?.is_banned && String(spProf?.role || '').toLowerCase() === 'wayfinder'
+        } catch {}
+      }
+      if (hubRole !== 'keeper' && !isSpokeWayfinder) {
+        throw new Error('Forbidden: Only the Spoke Wayfinder or a Keeper can inspect credential status')
+      }
+      return new Response(JSON.stringify({
+        has_credential: false,
+        credential_kind: null,
+        key_version: null,
+        key_fingerprint: '',
+        rotated_at: null,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
     if (action === 'sever_spoke_cord' && hubRole === 'keeper') {
       const severReason = payload?.reason?.trim() || 'Keeper Severance Protocol (Cut the Cord)'
       if (gameServiceKey && SUPABASE_URL_REGEX.test(String(game.supabase_url || '').trim())) {
         try {
-          const bestEffortSpokeDb = createClient(game.supabase_url, gameServiceKey, SERVER_AUTH_OPTS)
+          const bestEffortSpokeDb = createSpokeClient(game.supabase_url, game.supabase_anon_key || '', gameServiceKey)
           await bestEffortSpokeDb.from('audit_logs').insert({
             action: 'Keeper Severed Spoke Uplink (Cut the Cord)',
             target_table: 'sanctuary_games',
@@ -1418,18 +1827,16 @@ serve(async (req) => {
             actor_id: v_user_id,
             reason: severReason,
           })
+          await bestEffortSpokeDb.rpc('revoke_spoke_gateway_tokens')
         } catch (e) {
-          console.warn('Best-effort Spoke audit log warning on Keeper sever:', e)
+          console.warn('Best-effort Spoke audit/revoke warning on Keeper sever:', e)
         }
       }
       await supabaseAdmin
         .from('sanctuary_games')
         .update({ is_active: false })
         .eq('id', game.id)
-      await supabaseAdmin
-        .from('sanctuary_game_secrets')
-        .delete()
-        .eq('game_id', game.id)
+      await supabaseAdmin.rpc('internal_delete_spoke_credential', { p_game_id: game.id })
       await supabaseAdmin.from('audit_logs').insert({
         action: 'Keeper Severed Spoke Uplink (Cut the Cord)',
         target_table: 'sanctuary_games',
@@ -1446,11 +1853,11 @@ serve(async (req) => {
     }
 
     if (!gameServiceKey) {
-      throw new Error('Game DB service key not configured - connection rejected')
+      throw new Error('Game DB gateway credential not configured - connection rejected')
     }
 
-    // 5. Initialize Spoke DB Client with Isolated Service Role Key
-    const gameDb = createClient(game.supabase_url, gameServiceKey, SERVER_AUTH_OPTS)
+    // 5. Initialize Spoke DB Client with Split-Custody Gateway Token (or legacy key)
+    const gameDb = createSpokeClient(game.supabase_url, game.supabase_anon_key || '', gameServiceKey)
 
     // 6. Sync Caller's Hub Identity (id, username, is_banned, blacklist_reason) -> Spoke profiles
     const { data: existingSpokeProfile } = await gameDb
@@ -1540,6 +1947,25 @@ serve(async (req) => {
         })();
       }
       return cachedVerifiedMasonPromise;
+    }
+
+    async function assertOwnedCollectionSetId(
+      setId: unknown,
+      errorMessage = 'Forbidden: Collection set_id must belong to your Creator profile'
+    ): Promise<void> {
+      const cleanSetId = String(setId || '').trim()
+      if (!cleanSetId) {
+        throw new Error(errorMessage)
+      }
+      const ownedMasons = await getCallerOwnedMasonIds()
+      const { data: colEx } = await gameDb
+        .from('collections')
+        .select('mason_id')
+        .eq('id', cleanSetId)
+        .maybeSingle()
+      if (!colEx || !ownedMasons.has(String(colEx.mason_id))) {
+        throw new Error(errorMessage)
+      }
     }
 
     let resultData = null;
@@ -1755,6 +2181,10 @@ serve(async (req) => {
         let recipientIds: string[] = []
         if (mason_id) {
           if (!isCallerStaff) {
+            const isVerifiedMason = await getIsCallerVerifiedMason()
+            if (!isVerifiedMason) {
+              throw new Error('Forbidden: Verified Creator status is required to dispatch Comm-Link follower notifications')
+            }
             const ownedMasons = await getCallerOwnedMasonIds()
             if (!ownedMasons.has(String(mason_id))) {
               throw new Error('Forbidden: You can only notify followers of your own Creator profile')
@@ -1807,8 +2237,9 @@ serve(async (req) => {
       }
       case 'bulk_ingest_vault_mods': {
         if (isCallerBanned) throw new Error('Forbidden: Account is suspended')
-        if (!isCallerCreatorOrStaff) {
-          throw new Error('Forbidden: Creator or Staff role required for bulk registry ingestion')
+        const canBulkIngest = isCallerStaff || (await getIsCallerVerifiedMason())
+        if (!canBulkIngest) {
+          throw new Error('Forbidden: Verified Creator or Staff clearance required for bulk registry ingestion')
         }
         const items = Array.isArray(payload?.items) ? payload.items : []
         if (items.length === 0) {
@@ -1841,8 +2272,12 @@ serve(async (req) => {
             throw new Error(`Forbidden: Insufficient permissions to modify ${cleanTable}`)
           }
         } else if (CREATOR_OR_STAFF_TABLES.has(cleanTable)) {
-          if (!isCallerCreatorOrStaff) {
-            throw new Error(`Forbidden: Creator or Staff role required to modify ${cleanTable}`)
+          if (cleanTable === 'masons') {
+            if (!isCallerCreatorOrStaff) {
+              throw new Error(`Forbidden: Creator or Staff role required to modify ${cleanTable}`)
+            }
+          } else if (!isCallerStaff && !(await getIsCallerVerifiedMason())) {
+            throw new Error(`Forbidden: Verified Creator or Staff clearance required to modify ${cleanTable}`)
           }
         } else if (!CITIZEN_TABLES.has(cleanTable)) {
           throw new Error(`Forbidden: Table ${cleanTable} is not in the allowed gateway registry`)
@@ -1903,6 +2338,7 @@ serve(async (req) => {
             cleanTable === 'masons' ||
             cleanTable === 'mason_posts' ||
             cleanTable === 'collections' ||
+            cleanTable === 'collection_members' ||
             cleanTable === 'blueprints' ||
             cleanTable === 'mods'
               ? await getCallerOwnedMasonIds()
@@ -2071,6 +2507,14 @@ serve(async (req) => {
               }
               row.profile_id = v_user_id
             } else if (cleanTable === 'mason_posts' || cleanTable === 'collections') {
+              const isVerifiedMason = await getIsCallerVerifiedMason()
+              if (!isVerifiedMason) {
+                throw new Error(
+                  cleanTable === 'mason_posts'
+                    ? 'Forbidden: Verified Creator status is required to publish or update Comm-Link dispatches'
+                    : 'Forbidden: Verified Creator status is required to publish or update Nexus collections'
+                )
+              }
               if (!row.mason_id || !ownedMasons.has(String(row.mason_id))) {
                 throw new Error(`Forbidden: ${cleanTable} mason_id must belong to your Creator profile`)
               }
@@ -2085,6 +2529,18 @@ serve(async (req) => {
                   .maybeSingle()
                 if (ex && !ownedMasons.has(String(ex.mason_id))) {
                   throw new Error(`Forbidden: Cannot overwrite another Creator record in ${cleanTable}`)
+                }
+              }
+            } else if (cleanTable === 'collection_members') {
+              await assertOwnedCollectionSetId(row.set_id)
+              if (row.id) {
+                const { data: exMember } = await gameDb
+                  .from('collection_members')
+                  .select('set_id')
+                  .eq('id', row.id)
+                  .maybeSingle()
+                if (exMember?.set_id && String(exMember.set_id) !== String(row.set_id)) {
+                  await assertOwnedCollectionSetId(exMember.set_id)
                 }
               }
             } else if (cleanTable === 'mods') {
@@ -2183,25 +2639,50 @@ serve(async (req) => {
             throw new Error(`Forbidden: Staff role required to delete from ${cleanTable}`)
           }
         } else if (CREATOR_OR_STAFF_TABLES.has(cleanTable)) {
-          if (!isCallerCreatorOrStaff) {
-            throw new Error(`Forbidden: Creator or Staff role required to delete from ${cleanTable}`)
-          }
-          if (!isCallerStaff && (cleanTable === 'mason_posts' || cleanTable === 'collections' || cleanTable === 'masons')) {
-            const ownedMasons = await getCallerOwnedMasonIds()
-            if (cleanTable === 'masons') {
-              if (!ownedMasons.has(String(id_value))) {
-                throw new Error('Forbidden: You can only delete your own Creator profile')
-              }
-            } else {
-              const { data: ex } = await gameDb
-                .from(cleanTable)
-                .select('mason_id')
-                .eq('id', id_value)
-                .maybeSingle()
-              if (!ex || !ownedMasons.has(String(ex.mason_id))) {
-                throw new Error(`Forbidden: You can only delete your own records in ${cleanTable}`)
+          if (
+            cleanTable === 'masons' ||
+            cleanTable === 'mason_posts' ||
+            cleanTable === 'collections' ||
+            cleanTable === 'collection_members'
+          ) {
+            if (!isCallerCreatorOrStaff) {
+              throw new Error(`Forbidden: Creator or Staff role required to delete from ${cleanTable}`)
+            }
+            if (!isCallerStaff) {
+              const ownedMasons = await getCallerOwnedMasonIds()
+              if (cleanTable === 'masons') {
+                if (!ownedMasons.has(String(id_value))) {
+                  throw new Error('Forbidden: You can only delete your own Creator profile')
+                }
+              } else if (cleanTable === 'collection_members') {
+                const { data: exMember } = await gameDb
+                  .from('collection_members')
+                  .select('set_id')
+                  .eq('id', id_value)
+                  .maybeSingle()
+                const { data: exCol } = exMember?.set_id
+                  ? await gameDb
+                      .from('collections')
+                      .select('mason_id')
+                      .eq('id', exMember.set_id)
+                      .maybeSingle()
+                  : { data: null }
+                if (!exMember?.set_id || !exCol || !ownedMasons.has(String(exCol.mason_id))) {
+                  throw new Error('Forbidden: You can only delete members of your own collections')
+                }
+              } else {
+                const { data: ex } = await gameDb
+                  .from(cleanTable)
+                  .select('mason_id')
+                  .eq('id', id_value)
+                  .maybeSingle()
+                if (!ex || !ownedMasons.has(String(ex.mason_id))) {
+                  throw new Error(`Forbidden: You can only delete your own records in ${cleanTable}`)
+                }
               }
             }
+          } else if (!isCallerStaff && !(await getIsCallerVerifiedMason())) {
+            throw new Error(`Forbidden: Verified Creator or Staff clearance required to delete from ${cleanTable}`)
           }
         } else if (CITIZEN_TABLES.has(cleanTable)) {
           if (!isCallerStaff) {
@@ -2382,6 +2863,74 @@ serve(async (req) => {
         }
         break;
       }
+      case 'get_spoke_credential_status': {
+        if (hubRole !== 'keeper' && !isFoundryTestNodeKeeper && callerSpokeRole !== 'wayfinder') {
+          throw new Error('Forbidden: Only the Spoke Wayfinder or a Keeper can inspect credential status')
+        }
+        resultData = {
+          has_credential: true,
+          credential_kind: resolvedCredentialKind,
+          key_version: resolvedKeyVersion,
+          key_fingerprint: resolvedKeyFingerprint,
+          rotated_at: resolvedRotatedAt,
+        }
+        break;
+      }
+      case 'rotate_spoke_gateway_token': {
+        if (hubRole !== 'keeper' && !isFoundryTestNodeKeeper && callerSpokeRole !== 'wayfinder') {
+          throw new Error('Forbidden: Only the Spoke Wayfinder or a Keeper can rotate the Spoke Gateway Token')
+        }
+        if (!game.supabase_anon_key) {
+          throw new Error('Spoke supabase_anon_key must be configured before minting a scoped Gateway Token')
+        }
+        const { data: mintData, error: mintErr } = await gameDb.rpc('mint_spoke_gateway_token', {
+          p_label: 'Hub Gateway Uplink',
+          p_grace_seconds: 60,
+        })
+        if (mintErr || !mintData?.token) {
+          throw new Error('Failed to mint new Spoke Gateway Token: ' + (mintErr?.message || 'Empty response — apply latest schema.sql on Spoke first'))
+        }
+        const newToken = String(mintData.token).trim()
+        const verifyClient = createSpokeClient(game.supabase_url, game.supabase_anon_key, newToken)
+        await verifySpokeCredentialHandshake(verifyClient, 'spoke_gateway')
+
+        const { envelope, keyVersion } = await sealSpokeEnvelope(newToken, {
+          gameId: String(game.id),
+          schemaId: String(game.schema_id || ''),
+          supabaseUrl: String(game.supabase_url || ''),
+        })
+        const newFp = maskCredentialFingerprint(newToken)
+        const { error: upsErr } = await supabaseAdmin.rpc('internal_upsert_spoke_credential', {
+          p_game_id: game.id,
+          p_envelope_ciphertext: envelope,
+          p_key_version: keyVersion,
+          p_credential_kind: 'spoke_gateway',
+          p_key_fingerprint: newFp,
+        })
+        if (upsErr) throw upsErr
+
+        try {
+          await supabaseAdmin.from('audit_logs').insert({
+            action: 'Rotated Scoped Spoke Gateway Token',
+            target_table: 'sanctuary_games',
+            target_name: game.name || game.schema_id,
+            actor_id: v_user_id,
+            reason: `New Fingerprint: ${newFp} (${keyVersion})`,
+            game_name: game.name || game.schema_id,
+          })
+        } catch {}
+
+        invalidateSpokeGameConfigCache()
+        resultData = {
+          success: true,
+          schema_id: game.schema_id,
+          credential_kind: 'spoke_gateway',
+          key_version: keyVersion,
+          key_fingerprint: newFp,
+          rotated_at: new Date().toISOString(),
+        }
+        break;
+      }
       case 'sever_spoke_cord': {
         if (hubRole !== 'keeper' && callerSpokeRole !== 'wayfinder') {
           throw new Error('Forbidden: Only the Spoke Wayfinder or a Core OS Keeper can sever the uplink cord.')
@@ -2397,8 +2946,9 @@ serve(async (req) => {
             actor_id: v_user_id,
             reason: severReason
           })
+          await gameDb.rpc('revoke_spoke_gateway_tokens')
         } catch (e) {
-          console.warn('Spoke audit log insert warning on sever:', e)
+          console.warn('Spoke audit log / token revocation warning on sever:', e)
         }
 
         try {
@@ -2423,10 +2973,7 @@ serve(async (req) => {
 
         if (severErr) throw severErr
 
-        await supabaseAdmin
-          .from('sanctuary_game_secrets')
-          .delete()
-          .eq('game_id', game.id)
+        await supabaseAdmin.rpc('internal_delete_spoke_credential', { p_game_id: game.id })
 
         invalidateSpokeGameConfigCache()
         resultData = {
@@ -2438,71 +2985,137 @@ serve(async (req) => {
       }
       case 'flag_mod_for_compliance': {
         if (isCallerBanned) throw new Error('Forbidden: Account is suspended')
-        const modId = String(payload?.mod_id || '').trim()
+        const rawModId = String(payload?.mod_id || '').trim()
+        const rawHash = String(payload?.dna_hash || payload?.hash || '').trim().toLowerCase()
+        const rawModName = String(payload?.mod_name || payload?.name || '').trim().slice(0, 200)
+        const rawAuthor = String(payload?.author || payload?.master_author || '').trim().slice(0, 120)
         const rawTier = Math.round(Number(payload?.tier || 1))
         const requestedTier = Math.min(4, Math.max(1, Number.isFinite(rawTier) ? rawTier : 1))
         const cleanReason = String(payload?.reason || '').trim().slice(0, 1000) || `Flagged Tier ${requestedTier} for Compliance Review`
+        const canApproveCompliance = callerSpokeRole === 'oversight' || callerSpokeRole === 'wayfinder' || callerSpokeRole === 'admin' || isFoundryTestNodeKeeper
 
-        if (!modId) {
-          throw new Error('Missing mod_id')
+        let modId = rawModId
+        if (!modId && /^[0-9a-f]{64}$/.test(rawHash)) {
+          const { data: verMatch } = await gameDb
+            .from('mod_versions')
+            .select('mod_id')
+            .eq('dna_hash', rawHash)
+            .maybeSingle()
+          if (verMatch?.mod_id) {
+            modId = String(verMatch.mod_id)
+          }
         }
-
-        const { data: existingMod, error: fetchModErr } = await gameDb
-          .from('mods')
-          .select('id, name, compliance_tier, status, status_reason')
-          .eq('id', modId)
-          .maybeSingle()
-
-        if (fetchModErr) throw fetchModErr
-        if (!existingMod) throw new Error('Target artifact not found in Spoke registry')
-
-        const currentTier = Number(existingMod.compliance_tier || 0)
-        const currentStatusLower = String(existingMod.status || '').toLowerCase()
-        const isCurrentlyPending = ['pending', 'under_review', 'unverified'].includes(currentStatusLower)
-        const isConfirmedActiveOrBlocked = currentTier >= 1 && !isCurrentlyPending
 
         const roleTag = isCallerStaff ? callerSpokeRole.toUpperCase() : (callerSpokeRole === 'mason' ? 'MASON' : 'CITIZEN')
         const taggedReason = `[${roleTag} FLAG - TIER ${requestedTier}] ${cleanReason}`
 
-        let updatedMod = existingMod
-        if (!isConfirmedActiveOrBlocked || (isCallerStaff && requestedTier > currentTier)) {
-          const nextTier = isCurrentlyPending ? Math.max(currentTier, requestedTier) : requestedTier
-          const nextStatus =
-            callerSpokeRole === 'oversight' || callerSpokeRole === 'wayfinder' || isFoundryTestNodeKeeper
-              ? (isCurrentlyPending ? 'pending' : 'verified')
-              : 'pending'
+        let updatedMod: any = null
 
-          let updRes = await gameDb
+        if (!modId) {
+          if (!/^[0-9a-f]{64}$/.test(rawHash)) {
+            throw new Error('Missing mod_id or valid 64-character SHA-256 hash')
+          }
+          const newModId = crypto.randomUUID()
+          const slugBase = (rawModName || 'flagged-artifact')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '') || 'flagged-artifact'
+          const newSlug = `${slugBase}-${rawHash.slice(0, 8)}`
+          const initialStatus = canApproveCompliance ? 'verified' : 'pending'
+
+          const insertPayload: Record<string, any> = {
+            id: newModId,
+            name: rawModName || `Flagged Artifact (${rawHash.slice(0, 12)})`,
+            slug: newSlug,
+            master_author: rawAuthor || null,
+            compliance_tier: requestedTier,
+            status: initialStatus,
+            status_reason: taggedReason,
+          }
+          let insRes = await gameDb
             .from('mods')
-            .update({
-              compliance_tier: nextTier,
-              status: nextStatus,
-              status_reason: taggedReason,
-            })
-            .eq('id', modId)
+            .insert(insertPayload)
             .select()
             .maybeSingle()
+          if (insRes.error && String(insRes.error.message || '').includes('status_reason')) {
+            delete insertPayload.status_reason
+            insRes = await gameDb
+              .from('mods')
+              .insert(insertPayload)
+              .select()
+              .maybeSingle()
+          }
+          if (insRes.error) throw insRes.error
+          updatedMod = insRes.data || insertPayload
+          modId = newModId
 
-          if (updRes.error && String(updRes.error.message || '').includes('status_reason')) {
-            updRes = await gameDb
+          const { error: verInsErr } = await gameDb
+            .from('mod_versions')
+            .insert({
+              mod_id: newModId,
+              dna_hash: rawHash,
+              version_label: 'flagged',
+              is_core_file: true,
+            })
+          if (verInsErr && verInsErr.code !== '23505') throw verInsErr
+        } else {
+          const { data: existingMod, error: fetchModErr } = await gameDb
+            .from('mods')
+            .select('id, name, compliance_tier, status, status_reason')
+            .eq('id', modId)
+            .maybeSingle()
+
+          if (fetchModErr) throw fetchModErr
+          if (!existingMod) throw new Error('Target artifact not found in Spoke registry')
+
+          const currentTier = Number(existingMod.compliance_tier || 0)
+          const currentStatusLower = String(existingMod.status || '').toLowerCase()
+          const isCurrentlyPending = ['pending', 'under_review', 'unverified'].includes(currentStatusLower)
+          const isConfirmedActiveOrBlocked = currentTier >= 1 && !isCurrentlyPending
+
+          updatedMod = existingMod
+          if (!isConfirmedActiveOrBlocked || requestedTier > currentTier) {
+            const nextTier = isCurrentlyPending ? Math.max(currentTier, requestedTier) : requestedTier
+            const nextStatus = canApproveCompliance
+              ? (isCurrentlyPending ? 'pending' : 'verified')
+              : 'pending'
+            const nextReason =
+              isConfirmedActiveOrBlocked && existingMod.status_reason
+                ? `${existingMod.status_reason}\n${taggedReason}`
+                : taggedReason
+
+            let updRes = await gameDb
               .from('mods')
               .update({
                 compliance_tier: nextTier,
                 status: nextStatus,
+                status_reason: nextReason,
               })
               .eq('id', modId)
               .select()
               .maybeSingle()
+
+            if (updRes.error && String(updRes.error.message || '').includes('status_reason')) {
+              updRes = await gameDb
+                .from('mods')
+                .update({
+                  compliance_tier: nextTier,
+                  status: nextStatus,
+                })
+                .eq('id', modId)
+                .select()
+                .maybeSingle()
+            }
+            if (updRes.error) throw updRes.error
+            if (updRes.data) updatedMod = updRes.data
           }
-          if (updRes.error) throw updRes.error
-          if (updRes.data) updatedMod = updRes.data
         }
 
         try {
           await gameDb.from('audit_logs').insert({
             action: `Flagged Artifact for Compliance (Tier ${requestedTier})`,
             target_table: 'mods',
-            target_name: existingMod.name || modId,
+            target_name: updatedMod?.name || rawModName || modId,
             actor_id: v_user_id,
             reason: taggedReason,
           })
@@ -2512,7 +3125,7 @@ serve(async (req) => {
 
         resultData = {
           success: true,
-          queued_pending: true,
+          queued_pending: String(updatedMod?.status || 'pending').toLowerCase() === 'pending',
           mod: updatedMod,
         }
         break;
@@ -2523,20 +3136,24 @@ serve(async (req) => {
         }
         const newUrl = (payload?.supabase_url?.trim() || game.supabase_url || '').replace(/\/+$/, '')
         const newAnonKey = payload?.supabase_anon_key?.trim() || game.supabase_anon_key
-        const newServiceKey = payload?.supabase_service_key?.trim() || gameServiceKey
+        const submittedSecret = String(payload?.spoke_gateway_token || payload?.supabase_service_key || '').trim()
+
+        if (!submittedSecret && normalizeSpokeUrl(newUrl) !== normalizeSpokeUrl(game.supabase_url)) {
+          throw new Error('Changing Spoke URL requires supplying a valid Spoke Gateway Token for the target project.')
+        }
+
+        const newServiceKey = submittedSecret || gameServiceKey
 
         if (!newUrl || !newAnonKey || !newServiceKey) {
-          throw new Error('Missing required Spoke URL, Anon Key, or Service Key.')
+          throw new Error('Missing required Spoke URL, Anon Key, or Gateway Token.')
         }
         if (!SUPABASE_URL_REGEX.test(newUrl)) {
           throw new Error('Invalid Spoke Supabase URL: must be a valid https://<project>.supabase.co endpoint')
         }
 
-        const verifyClient = createClient(newUrl, newServiceKey, SERVER_AUTH_OPTS)
-        const { error: pingErr } = await verifyClient.from('profiles').select('id', { head: true, count: 'exact' }).limit(1)
-        if (pingErr) {
-          throw new Error('Spoke handshake failed with new credentials: ' + pingErr.message)
-        }
+        const newKind = detectCredentialKind(newServiceKey)
+        const verifyClient = createSpokeClient(newUrl, newAnonKey, newServiceKey)
+        await verifySpokeCredentialHandshake(verifyClient, newKind)
 
         const { error: updErr } = await supabaseAdmin
           .from('sanctuary_games')
@@ -2549,30 +3166,40 @@ serve(async (req) => {
 
         if (updErr) throw updErr
 
-        const { error: secErr } = await supabaseAdmin
-          .from('sanctuary_game_secrets')
-          .upsert(
-            {
-              game_id: game.id,
-              supabase_service_key: newServiceKey,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'game_id' }
-          )
+        const { envelope, keyVersion } = await sealSpokeEnvelope(newServiceKey, {
+          gameId: String(game.id),
+          schemaId: String(game.schema_id || ''),
+          supabaseUrl: newUrl,
+        })
+        const newFp = maskCredentialFingerprint(newServiceKey)
+        const { error: secErr } = await supabaseAdmin.rpc('internal_upsert_spoke_credential', {
+          p_game_id: game.id,
+          p_envelope_ciphertext: envelope,
+          p_key_version: keyVersion,
+          p_credential_kind: newKind,
+          p_key_fingerprint: newFp,
+        })
         if (secErr) throw secErr
 
         try {
-          await gameDb.from('audit_logs').insert({
+          await verifyClient.from('audit_logs').insert({
             action: 'Rotated Spoke Uplink Credentials',
             target_table: 'sanctuary_games',
             target_name: game.name || game.schema_id,
             actor_id: v_user_id,
-            reason: 'Wayfinder / Keeper Uplink Key Rotation'
+            reason: `Wayfinder / Keeper Uplink Key Rotation (${newFp})`
           })
         } catch (e) {}
 
         invalidateSpokeGameConfigCache()
-        resultData = { success: true, schema_id: game.schema_id }
+        resultData = {
+          success: true,
+          schema_id: game.schema_id,
+          credential_kind: newKind,
+          key_version: keyVersion,
+          key_fingerprint: newFp,
+          rotated_at: new Date().toISOString(),
+        }
         break;
       }
       case 'spoke_query':
@@ -2699,11 +3326,147 @@ serve(async (req) => {
               return { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
             }
 
-            let q = gameDb.from(cleanTable).select(selectColumns, selectOpts)
+            const canReadComplianceTiers =
+              callerSpokeRole === 'oversight' ||
+              callerSpokeRole === 'wayfinder' ||
+              callerSpokeRole === 'admin' ||
+              isFoundryTestNodeKeeper
+
+            let effectiveSelectColumns = selectColumns
+            let effectiveSelectOpts = selectOpts
+            const injectedModId =
+              !canReadComplianceTiers &&
+              cleanTable === 'mod_versions' &&
+              selectColumns !== '*' &&
+              !/\bmod_id\b/.test(selectColumns)
+            if (injectedModId) {
+              effectiveSelectColumns = `${selectColumns},mod_id`
+            }
+            const needsPostCountFilter =
+              !canReadComplianceTiers &&
+              Boolean(selectOpts?.head) &&
+              ['mods', 'collections', 'mod_versions'].includes(cleanTable)
+            if (needsPostCountFilter) {
+              effectiveSelectColumns = cleanTable === 'mod_versions' ? 'mod_id' : 'id, compliance_tier'
+              effectiveSelectOpts = undefined
+            }
+
+            let q = gameDb.from(cleanTable).select(effectiveSelectColumns, effectiveSelectOpts)
             q = applySpokeQueryModifiers(q, payload)
             const res = await q
             if (res.error) throw res.error
-            return { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
+
+            let responseData = res.data
+            let responseCount = res.count ?? null
+
+            if (!canReadComplianceTiers && ['mods', 'collections'].includes(cleanTable) && responseData !== null) {
+              const isPublicComplianceRow = (r: any) => {
+                if (!r || typeof r !== 'object') return false
+                const tier = Number(r.compliance_tier ?? 0)
+                return !(tier >= 1 && tier <= 4)
+              }
+              if (Array.isArray(responseData)) {
+                const filtered = responseData.filter(isPublicComplianceRow)
+                responseData = needsPostCountFilter ? null : filtered
+                responseCount = filtered.length
+              } else if (!isPublicComplianceRow(responseData)) {
+                responseData = null
+                responseCount = 0
+              }
+            }
+
+            if (!canReadComplianceTiers && cleanTable === 'mod_versions' && responseData !== null) {
+              const rowsArr = Array.isArray(responseData) ? responseData : [responseData]
+              const modIdsToCheck = Array.from(
+                new Set(
+                  rowsArr
+                    .map((r: any) => {
+                      const joinedMod = Array.isArray(r?.mods) ? r.mods[0] : r?.mods
+                      if (joinedMod && typeof joinedMod.compliance_tier === 'number') return null
+                      return r?.mod_id ? String(r.mod_id) : null
+                    })
+                    .filter(Boolean)
+                )
+              ) as string[]
+
+              const restrictedModIds = new Set<string>()
+              if (modIdsToCheck.length > 0) {
+                for (let i = 0; i < modIdsToCheck.length; i += 200) {
+                  const chunk = modIdsToCheck.slice(i, i + 200)
+                  const { data: modTiers } = await gameDb
+                    .from('mods')
+                    .select('id, compliance_tier')
+                    .in('id', chunk)
+                  for (const m of modTiers || []) {
+                    const tier = Number((m as any)?.compliance_tier ?? 0)
+                    if (tier >= 1 && tier <= 4) {
+                      restrictedModIds.add(String((m as any).id))
+                    }
+                  }
+                }
+              }
+
+              const isPublicVersionRow = (r: any) => {
+                if (!r || typeof r !== 'object') return false
+                const joinedMod = Array.isArray(r?.mods) ? r.mods[0] : r?.mods
+                if (joinedMod && typeof joinedMod.compliance_tier === 'number') {
+                  const t = Number(joinedMod.compliance_tier)
+                  if (t >= 1 && t <= 4) return false
+                }
+                if (r.mod_id && restrictedModIds.has(String(r.mod_id))) return false
+                return true
+              }
+
+              if (Array.isArray(responseData)) {
+                let filtered = responseData.filter(isPublicVersionRow)
+                if (injectedModId) {
+                  filtered = filtered.map((r: any) => {
+                    if (!r || typeof r !== 'object') return r
+                    const { mod_id: _omitted, ...rest } = r
+                    return rest
+                  })
+                }
+                responseData = needsPostCountFilter ? null : filtered
+                responseCount = filtered.length
+              } else if (!isPublicVersionRow(responseData)) {
+                responseData = null
+                responseCount = 0
+              } else if (injectedModId && typeof responseData === 'object') {
+                const { mod_id: _omitted, ...rest } = responseData as any
+                responseData = rest
+              }
+            }
+
+            if (
+              !isCallerStaff &&
+              responseData !== null &&
+              ['mason_posts', 'mason_post_comments', 'nexus_assets', 'blueprints', 'collections'].includes(cleanTable)
+            ) {
+              const hasFlaggedRow = Array.isArray(responseData)
+                ? responseData.some((r: any) => r?.has_pending_flag === true)
+                : (responseData as any)?.has_pending_flag === true
+              if (hasFlaggedRow) {
+                const ownedMasons =
+                  cleanTable === 'mason_posts' || cleanTable === 'blueprints' || cleanTable === 'collections'
+                    ? await getCallerOwnedMasonIds()
+                    : new Set<string>()
+                const isOwnFlaggedRow = (r: any) => {
+                  if (!r || typeof r !== 'object') return false
+                  if (r.has_pending_flag !== true) return true
+                  if (r.author_id && r.author_id === v_user_id) return true
+                  if (r.mason_id && (r.mason_id === v_user_id || ownedMasons.has(String(r.mason_id)))) return true
+                  return false
+                }
+                if (Array.isArray(responseData)) {
+                  const filtered = responseData.filter(isOwnFlaggedRow)
+                  return { __spoke_query_v1: true, data: filtered, count: filtered.length }
+                }
+                if (!isOwnFlaggedRow(responseData)) {
+                  return { __spoke_query_v1: true, data: null, count: 0 }
+                }
+              }
+            }
+            return { __spoke_query_v1: true, data: responseData, count: responseCount }
           }
 
           // Mutations: insert | upsert | update | delete
@@ -2744,8 +3507,17 @@ serve(async (req) => {
           if (STAFF_ONLY_TABLES.has(cleanTable) && !isCallerStaff) {
             throw new Error(`Forbidden: Staff clearance required to modify ${cleanTable}`)
           }
-          if (CREATOR_OR_STAFF_TABLES.has(cleanTable) && !isCallerCreatorOrStaff) {
-            throw new Error(`Forbidden: Creator or Staff role required to modify ${cleanTable}`)
+          if (CREATOR_OR_STAFF_TABLES.has(cleanTable)) {
+            const isDeleteOwnLegacyContent =
+              op === 'delete' &&
+              ['mason_posts', 'collections', 'collection_members'].includes(cleanTable)
+            const canModifyCreatorTable =
+              cleanTable === 'masons' || isDeleteOwnLegacyContent
+                ? isCallerCreatorOrStaff || (await getIsCallerVerifiedMason())
+                : isCallerStaff || (await getIsCallerVerifiedMason())
+            if (!canModifyCreatorTable) {
+              throw new Error(`Forbidden: Verified Creator or Staff clearance required to modify ${cleanTable}`)
+            }
           }
           if (
             !STAFF_ONLY_TABLES.has(cleanTable) &&
@@ -2766,6 +3538,7 @@ serve(async (req) => {
                 cleanTable === 'masons' ||
                 cleanTable === 'mason_posts' ||
                 cleanTable === 'collections' ||
+                cleanTable === 'collection_members' ||
                 cleanTable === 'blueprints'
                   ? await getCallerOwnedMasonIds()
                   : new Set<string>()
@@ -2819,10 +3592,20 @@ serve(async (req) => {
                   delete row.followers_count
                   row.profile_id = v_user_id
                 } else if (cleanTable === 'mason_posts' || cleanTable === 'collections') {
+                  const isVerifiedMason = await getIsCallerVerifiedMason()
+                  if (!isVerifiedMason) {
+                    throw new Error(
+                      cleanTable === 'mason_posts'
+                        ? 'Forbidden: Verified Creator status is required to publish or update Comm-Link dispatches'
+                        : 'Forbidden: Verified Creator status is required to publish or update Nexus collections'
+                    )
+                  }
                   if (!row.mason_id || !ownedMasons.has(String(row.mason_id))) {
                     throw new Error(`Forbidden: ${cleanTable} mason_id must belong to your Creator profile`)
                   }
                   if (cleanTable === 'collections') delete row.is_official
+                } else if (cleanTable === 'collection_members') {
+                  await assertOwnedCollectionSetId(row.set_id)
                 } else if (cleanTable === 'mods') {
                   if (row.highlander_group_id !== undefined && !(await getIsCallerVerifiedMason())) {
                     delete row.highlander_group_id
@@ -2902,6 +3685,29 @@ serve(async (req) => {
               }
               throw resErr
             }
+            if (cleanTable === 'nexus_reports' || cleanTable === 'blueprint_reports' || cleanTable === 'content_flags') {
+              for (const insertedRow of rows) {
+                if (!insertedRow || typeof insertedRow !== 'object') continue
+                try {
+                  if (cleanTable === 'nexus_reports' && insertedRow.asset_id) {
+                    await gameDb.from('nexus_assets').update({ has_pending_flag: true }).eq('id', insertedRow.asset_id)
+                  } else if (cleanTable === 'blueprint_reports' && insertedRow.blueprint_id) {
+                    await gameDb.from('blueprints').update({ has_pending_flag: true }).eq('id', insertedRow.blueprint_id)
+                  } else if (cleanTable === 'content_flags' && insertedRow.content_id) {
+                    const normCt = String(insertedRow.content_type || '').toLowerCase()
+                    const cTable =
+                      normCt === 'collection' || normCt === 'collections'
+                        ? 'collections'
+                        : normCt === 'comment' || normCt === 'mason_post_comment'
+                          ? 'mason_post_comments'
+                          : 'mason_posts'
+                    await gameDb.from(cTable).update({ has_pending_flag: true }).eq('id', insertedRow.content_id)
+                  }
+                } catch {
+                  // Gracefully ignore if older Spoke schema does not yet have has_pending_flag
+                }
+              }
+            }
             return { __spoke_query_v1: true, data: resData, count: null }
           }
 
@@ -2952,7 +3758,20 @@ serve(async (req) => {
                 }
                 delete updateVals.is_community_default
                 delete updateVals.author_id
+              } else if (cleanTable === 'mason_posts') {
+                if (op === 'update') {
+                  const isVerifiedMason = await getIsCallerVerifiedMason()
+                  if (!isVerifiedMason) {
+                    throw new Error('Forbidden: Verified Creator status is required to publish or update Comm-Link dispatches')
+                  }
+                }
               } else if (cleanTable === 'collections') {
+                if (op === 'update') {
+                  const isVerifiedMason = await getIsCallerVerifiedMason()
+                  if (!isVerifiedMason) {
+                    throw new Error('Forbidden: Verified Creator status is required to publish or update Nexus collections')
+                  }
+                }
                 delete updateVals.is_official
                 if (Number(updateVals.compliance_tier || 0) >= 1) {
                   updateVals.compliance_tier = Math.min(4, Math.max(1, Math.round(Number(updateVals.compliance_tier))))
@@ -2969,6 +3788,17 @@ serve(async (req) => {
               } else if (cleanTable === 'mason_post_comments') {
                 delete updateVals.is_hidden
                 delete updateVals.author_id
+              }
+
+              if (
+                op === 'update' &&
+                updateVals.mason_id !== undefined &&
+                (cleanTable === 'mason_posts' || cleanTable === 'collections' || cleanTable === 'mods')
+              ) {
+                const ownedMasonsCheck = await getCallerOwnedMasonIds()
+                if (!ownedMasonsCheck.has(String(updateVals.mason_id))) {
+                  throw new Error(`Forbidden: ${cleanTable} mason_id must belong to your Creator profile`)
+                }
               }
             }
 
@@ -2997,6 +3827,19 @@ serve(async (req) => {
                 const mIds = Array.from(ownedMasons)
                 if (mIds.length === 0) throw new Error('Forbidden: No owned Creator profile')
                 q = q.in('mason_id', mIds)
+              } else if (cleanTable === 'collection_members') {
+                const mIds = Array.from(ownedMasons)
+                if (mIds.length === 0) throw new Error('Forbidden: No owned Creator profile')
+                const { data: myCols } = await gameDb
+                  .from('collections')
+                  .select('id')
+                  .in('mason_id', mIds)
+                const ownedSetIds = (myCols || []).map((c: any) => String(c.id))
+                if (ownedSetIds.length === 0) throw new Error('Forbidden: No owned collections')
+                if (op === 'update' && updateVals.set_id !== undefined && !ownedSetIds.includes(String(updateVals.set_id))) {
+                  throw new Error('Forbidden: Collection set_id must belong to your Creator profile')
+                }
+                q = q.in('set_id', ownedSetIds)
               } else if (cleanTable === 'mods') {
                 if (op === 'delete') throw new Error('Forbidden: Creators cannot delete cloud registry artifacts directly')
                 const mIds = Array.from(ownedMasons)
@@ -3146,7 +3989,7 @@ serve(async (req) => {
 
         // Ensure bucket exists with 512 KB cap on newly onboarded Spokes
         const { error: getBucketErr } = await gameDb.storage.getBucket(bucket)
-        if (getBucketErr) {
+        if (getBucketErr && resolvedCredentialKind !== 'spoke_gateway') {
           await gameDb.storage
             .createBucket(bucket, {
               public: true,
@@ -3156,6 +3999,8 @@ serve(async (req) => {
             .catch(() => {})
         }
 
+        let finalPublicUrl: string | null = null
+        let finalStoragePath = storagePath
         const { error: uploadErr } = await gameDb.storage
           .from(bucket)
           .upload(storagePath, bytes, {
@@ -3164,14 +4009,42 @@ serve(async (req) => {
             upsert: true,
           })
 
-        if (uploadErr) {
+        if (!uploadErr) {
+          const { data: pubData } = gameDb.storage.from(bucket).getPublicUrl(storagePath)
+          finalPublicUrl = pubData?.publicUrl || null
+        } else if (resolvedCredentialKind === 'spoke_gateway') {
+          // Storage API only evaluates JWT roles on some projects; fall back safely to Hub's hardened backgrounds CDN
+          const spokeSlug = String(game.schema_id || 'spoke').toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'spoke'
+          finalStoragePath = `spoke-themes/${spokeSlug}/${safeKind}_${shaHex}.${actualExt}`
+          const { error: hubBucketErr } = await supabaseAdmin.storage.getBucket(bucket)
+          if (hubBucketErr) {
+            await supabaseAdmin.storage
+              .createBucket(bucket, {
+                public: true,
+                fileSizeLimit: 524288,
+                allowedMimeTypes: ['image/webp', 'image/png', 'image/jpeg'],
+              })
+              .catch(() => {})
+          }
+          const { error: hubUpErr } = await supabaseAdmin.storage
+            .from(bucket)
+            .upload(finalStoragePath, bytes, {
+              contentType: actualMime,
+              cacheControl: '31536000',
+              upsert: true,
+            })
+          if (hubUpErr) {
+            throw new Error(`Theme wallpaper upload failed: ${hubUpErr.message}`)
+          }
+          const { data: hubPub } = supabaseAdmin.storage.from(bucket).getPublicUrl(finalStoragePath)
+          finalPublicUrl = hubPub?.publicUrl || null
+        } else {
           throw new Error(`Theme wallpaper upload failed: ${uploadErr.message}`)
         }
 
-        const { data: pubData } = gameDb.storage.from(bucket).getPublicUrl(storagePath)
         resultData = {
-          publicUrl: pubData?.publicUrl || null,
-          storagePath,
+          publicUrl: finalPublicUrl,
+          storagePath: finalStoragePath,
           sha256: shaHex,
           byteLength: bytes.byteLength,
         }

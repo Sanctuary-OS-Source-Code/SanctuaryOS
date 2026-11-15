@@ -20,14 +20,18 @@ import {
   StructuredReleaseNotesView,
   renderCleanInlineText,
 } from "./components/ReleaseNotesShowcase";
+import {
+  InteractiveForkingGuideView,
+  BalancedCardColumns,
+  renderDirectiveHeading,
+  type ForkTabId,
+} from "./components/InteractiveForkingGuideView";
 import bundledCitizenGuide from "../../Citizen Guide.md?raw";
 import bundledRoadmapDoc from "../../Phase Roadmap.md?raw";
 import bundledForkingGuide from "../../Sanctuary OS Forking & Architecture Guide.md?raw";
 import bundledArchitectureDoc from "../../Master Architecture & Feature Document.md?raw";
 import bundledProtocolList from "../../Master Protocol List.md?raw";
 import {
-  SPOKE_SCHEMA_SQL,
-  HUB_SCHEMA_SQL,
   syncDirectivesBidirectional,
   SystemDirectiveRecord,
   DirectiveSlug,
@@ -47,30 +51,6 @@ type DirectiveModuleId =
   | "forking"
   | "architecture"
   | "protocols";
-const STANDALONE_MANUAL_SNIPPET = `export const SANCTUARY_CONFIG = {
-  uplinkBundle: "",
-  mode: "standalone",
-  supabaseUrl: "https://YOUR_PROJECT_ID.supabase.co",
-  supabaseAnonKey: "YOUR_SUPABASE_ANON_PUBLIC_KEY",
-  standaloneWorkspace: {
-    id: "my_community",
-    name: "My Community Workspace",
-    schema_id: "universal",
-    icon: "sports_esports",
-  },
-};`;
-
-const HUB_AND_SPOKE_FORK_SNIPPET = `// 1. Deploy the Gateway Edge Function to your Central Hub Supabase Project:
-//    supabase link --project-ref YOUR_HUB_PROJECT_ID
-//    supabase functions deploy game-gateway
-
-// 2. Point SANCTUARY_CONFIG in sanctuary-os/src/supabase.ts to your Central Hub:
-export const SANCTUARY_CONFIG = {
-  uplinkBundle: "",
-  mode: "hub_and_spoke",
-  supabaseUrl: "https://YOUR_HUB_PROJECT_ID.supabase.co",
-  supabaseAnonKey: "YOUR_HUB_SUPABASE_ANON_KEY",
-};`;
 
 export default function WebDocumentFeed({
   searchQuery = "",
@@ -81,9 +61,6 @@ export default function WebDocumentFeed({
 } = {}) {
   const { t, td } = useLexicon();
   const session = useStore((state: any) => state.session);
-  const osRole = useStore((state: any) => state.osRole);
-  const isKeeper =
-    osRole === "core_dev" || osRole === "admin" || osRole === "keeper";
   const [posts, setPosts] = useState<any[]>([]);
   const [directivesMap, setDirectivesMap] = useState<
      Partial<Record<DirectiveSlug, SystemDirectiveRecord>>
@@ -104,14 +81,13 @@ export default function WebDocumentFeed({
   const [roadmapFilter, setRoadmapFilter] = useState<"all" | "active" | "completed">("all");
   const [selectedPhaseNum, setSelectedPhaseNum] = useState<number>(14);
 
-  // 3. Forking & Spoke Provisioning Guide State (3 Static Top Tiles)
-  const [forkTab, setForkTab] = useState<"spoke" | "standalone" | "sql">("spoke");
+  // 3. Forking & Spoke Provisioning Guide State (4 Static Top Tiles)
+  const [forkTab, setForkTab] = useState<ForkTabId>("spoke");
   const [forkModeIdx, setForkModeIdx] = useState<number>(0);
   const [sqlSchemaTab, setSqlSchemaTab] = useState<"spoke" | "hub">("spoke");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // 4. Master Architecture Explorer State (3 Static Top Tiles)
-  const [archTab, setArchTab] = useState<"p1" | "p2" | "p3">("p1");
+  // 4. Master Architecture Explorer State (4 Static Top Tiles)
+  const [archTab, setArchTab] = useState<"p1" | "p2" | "p3" | "p4">("p1");
 
   // 5. Master Protocol & Clearance Matrix State (3 Static Top Tiles)
   const [protoTab, setProtoTab] = useState<"roles" | "compliance" | "list">("roles");
@@ -135,7 +111,7 @@ export default function WebDocumentFeed({
     const loadDirectivesAndBroadcasts = async () => {
       try {
         const synced = await syncDirectivesBidirectional({
-          canWriteHub: isKeeper,
+          canWriteHub: false,
         });
         const nextMap: Partial<Record<DirectiveSlug, SystemDirectiveRecord>> = {};
         for (const rec of synced) {
@@ -181,15 +157,7 @@ export default function WebDocumentFeed({
       window.removeEventListener("sanctuary_directives_updated", handleRefresh);
       window.removeEventListener("focus", handleRefresh);
     };
-  }, [isKeeper]);
-
-  const handleCopyCode = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => {
-      setCopiedId((prev) => (prev === id ? null : prev));
-    }, 2200);
-  };
+  }, []);
 
   const openDirectiveModule = (modId: DirectiveModuleId) => {
     setShowRawDoc(false);
@@ -247,7 +215,10 @@ export default function WebDocumentFeed({
         badge: t("sd_guide_s2_badge", "SYSTEM DASHBOARD • 4 HEALTH STATES"),
         icon: t("icon_space_dashboard", "space_dashboard"),
         desc: t("sd_guide_s2_desc", "Your high-level glassmorphic mission control. Monitors the health of your active {Blueprint}, surfaces {mason} updates and system dispatches, and provides 1-click access to Radar Sweeps and {Vault} Lockdown."),
-        tip: t("sd_guide_s2_tip", "Use the global SystemStatusBar at the bottom of the window to trigger a Radar Sweep or instant {Vault} Lockdown from any screen in the OS."),
+        tip: t(
+          "sd_guide_s2_tip",
+          "Use Command Center quick actions or the Top-Right Control Capsule to trigger a Radar Sweep, inspect System Queues, or engage instant {Vault} Lockdown."
+        ),
         cards: [
           {
             icon: t("icon_check_circle", "check_circle"),
@@ -304,7 +275,7 @@ export default function WebDocumentFeed({
             title: t("sd_guide_s3_c3_title", "Delete Cascade (Deep Yeet 2.0)"),
             desc: t(
               "sd_guide_s3_c3_desc",
-              "Removing a core master library (such as XML Injector) automatically alerts you and queues all dependent add-ons so your loadout never breaks."
+              "Removing a core master library (such as a shared framework) automatically alerts you and queues all dependent add-ons so your loadout never breaks."
             ),
           },
           {
@@ -539,7 +510,7 @@ export default function WebDocumentFeed({
             title: t("sd_guide_s9_c2_title", "Lexicon Protocol (Word-as-a-Service)"),
             desc: t(
               "sd_guide_s9_c2_desc",
-              "Hot-swap the entire OS vocabulary between Standard Technical English, Sanctuary Sci-Fi Cyberpunk, Sims-Friendly Casual, or Simlish."
+              "Hot-swap the entire OS vocabulary between Standard Technical English, Sanctuary Sci-Fi Cyberpunk, or custom community {Lexicon} override packs."
             ),
           },
           {
@@ -574,30 +545,36 @@ export default function WebDocumentFeed({
         num: 1,
         short: t("dir_walk_s1_short", "1. Shell & Bars"),
         icon: t("icon_space_dashboard", "space_dashboard"),
-        title: t("dir_walk_s1_title", "Global Shell: Sidebar, Top Pill & Dock"),
+        title: t(
+          "dir_walk_s1_title",
+          "Global Shell: Sidebar, Top Control Capsule & Telemetry Toast"
+        ),
         sub: t("dir_walk_s1_sub", "Persistent Glass Frame & Context-Aware Navigation"),
         desc: t(
           "dir_walk_s1_desc",
-          "Sanctuary OS is framed by three persistent Liquid Glass bars that adapt automatically between the Foundry Landing Page and your mounted Game Workspaces."
+          "Sanctuary OS is framed by persistent Liquid Glass regions that adapt automatically between the Foundry Landing Page and your mounted Game Workspaces."
         ),
         controls: [
           {
             icon: t("icon_menu", "menu"),
-            name: t("dir_walk_s1_c1_name", "Left Sidebar (Context-Aware)"),
+            name: t("dir_walk_s1_c1_name", "Left Navigation Sidebar"),
             desc: t("dir_walk_s1_c1_desc", "On the Landing Page, scrolls to Web sections and shows Keepers Core for Keepers. Inside a game workspace, switches between the 9 {Citizen} modules, unlocked Command Hubs, and the Quick Launch button."),
           },
           {
             icon: t("icon_sports_esports", "sports_esports"),
-            name: t("dir_walk_s1_c2_name", "Top Center Workspace Pill"),
+            name: t("dir_walk_s1_c2_name", "Top-Right Control Capsule & Command Matrix"),
             desc: t(
               "dir_walk_s1_c2_desc",
-              "Click the game pill in the top TitleBar to switch active games, mount a new workspace, or return to the Sanctuary Foundry Landing Page."
+              "Houses the Active Workspace Selector, System Queues & Utilities, Notification Center, Ctrl+K / Cmd+K Command Matrix, and 7-Domain {Settings} inside one unified glass capsule."
             ),
           },
           {
-            icon: t("icon_dock_to_bottom", "dock_to_bottom"),
-            name: t("dir_walk_s1_c3_name", "Bottom Morphing Status Pill"),
-            desc: t("dir_walk_s1_c3_desc", "Houses 1-Click Radar Sweep, {Vault} Lockdown, {Blueprint} Quick-Swap, Side Browser, Notifications, and live alert counters. Auto-tucks when SidePanels open."),
+            icon: t("icon_monitoring", "monitoring"),
+            name: t("dir_walk_s1_c3_name", "Live Telemetry Toast & System Log History"),
+            desc: t(
+              "dir_walk_s1_c3_desc",
+              "Surfaces a transient bottom-right telemetry toast during active scans or alerts—opening System Log History on click—alongside Command Center quick actions for Radar Sweep and {Vault} Lockdown."
+            ),
           },
         ],
       },
@@ -606,7 +583,7 @@ export default function WebDocumentFeed({
         short: t("dir_walk_s2_short", "2. Cartographer"),
         icon: t("icon_explore", "explore"),
         title: t("dir_walk_s2_title", "Mounting a Workspace & Cartographer"),
-        sub: t("dir_walk_s2_sub", "First-Boot Coordinate Mapping & Native PE Ripper"),
+        sub: t("dir_walk_s2_sub", "First-Boot Coordinate Mapping & Native PE/Plist/Proton Ripper"),
         desc: t("dir_walk_s2_desc", "Selecting a workspace on the Landing Page launches The Cartographer to link your game binary, live {Mods} directory, and airgapped {Vault} storage."),
         controls: [
           {
@@ -614,7 +591,7 @@ export default function WebDocumentFeed({
             name: t("dir_walk_s2_c1_name", "Bin Folder (Executable Path)"),
             desc: t(
               "dir_walk_s2_c1_desc",
-              "Points to your game binary (e.g. TS4_x64.exe). Sanctuary extracts the genuine patch version in-process via Rust pelite without spawning background processes."
+              "Points to your game binary (.exe or .app). Sanctuary extracts the genuine patch version in-process via Rust pelite or macOS Info.plist across native and Proton prefixes."
             ),
           },
           {
@@ -633,16 +610,16 @@ export default function WebDocumentFeed({
         num: 3,
         short: t("dir_walk_s3_short", "3. {Vault} & Cards"),
         icon: t("icon_inventory_2", "inventory_2"),
-        title: t("dir_walk_s3_title", "Your {Vault}, {Mod} Cards & ActionPill"),
+        title: t("dir_walk_s3_title", "Your {Vault}, {Mod} Cards & Unified Filter Bar"),
         sub: t("dir_walk_s3_sub", "Drag-and-Drop Ingestion, Suite Grouping & Dossiers"),
         desc: t("dir_walk_s3_desc", "Every {mod} you drop into Sanctuary OS is fingerprinted with SHA-256, scanned by the Dual-Tier Heuristic Engine, and indexed in Your {Vault}."),
         controls: [
           {
             icon: t("icon_tune", "tune"),
-            name: t("dir_walk_s3_c1_name", "ActionPill & Filters Popover"),
+            name: t("dir_walk_s3_c1_name", "Unified Search & Filters Bar"),
             desc: t(
               "dir_walk_s3_c1_desc",
-              "Instant search bar, Filters (tune) popover for Game Version / Eligible-Only filtering, sort order, and bulk selection actions."
+              "Instant search bar, Filters popover for Game Version and Eligible-Only filtering, sort order, and bulk selection actions."
             ),
           },
           {
@@ -652,7 +629,7 @@ export default function WebDocumentFeed({
           },
           {
             icon: t("icon_menu_book", "menu_book"),
-            name: t("dir_walk_s3_c3_name", "{Mod} Dossier SidePanel"),
+            name: t("dir_walk_s3_c3_name", "{Mod} Dossier Drawer"),
             desc: t(
               "dir_walk_s3_c3_desc",
               "Click any card to open its right-hand Dossier: edit custom local names/URLs/tags, bind a static .sanctuary.manifest.json URL, or inspect {mod} modules."
@@ -674,7 +651,10 @@ export default function WebDocumentFeed({
           {
             icon: t("icon_swap_horiz", "swap_horiz"),
             name: t("dir_walk_s4_c1_name", "{Blueprint} Hot-Swap Dropdown"),
-            desc: t("dir_walk_s4_c1_desc", "Switch between playstyles (e.g. Realism Save, Occult Save, Patch Testing) directly from the {Vault} header or Bottom Dock."),
+            desc: t(
+              "dir_walk_s4_c1_desc",
+              "Switch between playstyles (e.g. Realism Run, Overhaul Profile, Patch Testing) directly from the {Vault} header, {Blueprints} view, or Top-Right Control Capsule."
+            ),
           },
           {
             icon: t("icon_data_object", "data_object"),
@@ -769,14 +749,14 @@ export default function WebDocumentFeed({
           {
             icon: t("icon_passkey", "passkey"),
             name: t("dir_walk_s7_c2_name", "FIDO2 Passkey & TOTP {Vault}"),
-            desc: t("dir_walk_s7_c2_desc", "Elevated clearances (Verified {Mason} through Keeper) bind Windows Hello, Touch ID, or YubiKey tokens inside the right-hand Security {Vault} SidePanel."),
+            desc: t("dir_walk_s7_c2_desc", "Elevated clearances (Verified {Mason} through Keeper) bind Windows Hello, Touch ID, or YubiKey tokens inside the right-hand Security {Vault} drawer."),
           },
           {
             icon: t("icon_gpp_bad", "gpp_bad"),
-            name: t("dir_walk_s7_c3_name", "Quarantine SidePanel OS Lockdown"),
+            name: t("dir_walk_s7_c3_name", "Universal AV Quarantine & Threat Manifest"),
             desc: t(
               "dir_walk_s7_c3_desc",
-              "Tier 5 Malware locks the entire OS shell and opens the Quarantine SidePanel with Triggered By diagnostics, Detection Source, and Secure Shred."
+              "Tier 5 Malware locks the entire OS shell and opens the Quarantine Lockdown drawer with Triggered By diagnostics, Detection Source, and Secure Shred."
             ),
           },
         ],
@@ -793,32 +773,196 @@ export default function WebDocumentFeed({
         icon: t("icon_person", "person"),
         title: t("role_citizen", "{Citizen}"),
         badge: t("dir_proto_r1_tier", "Tier 1 • Base + Open Workshop"),
-        desc: t("dir_proto_r1_scope", "All 9 {Citizen} Modules ({Vault}, Nexus, {Blueprints}, Conflict Radar, Homestead Lab, Workbench, {Backups}) + Inherited Open {Mason} Workshop (Sandbox, {Mason} IDE, 3-Tile {Mod} Studio, Theme Forge, Notepad, Export Release static manifest packaging) + Scout Queue submissions."),
+        desc: t(
+          "dir_proto_r1_scope",
+          "All 9 {Citizen} Modules ({Vault}, Nexus, {Blueprints}, Conflict Radar, Homestead Lab, Workbench, {Backups}) + Inherited Open {Mason} Workshop (Sandbox, {Mason} IDE, 3-Tile {Mod} Studio, Theme Forge, Notepad, Export Release static manifest packaging) + Scout Queue submissions & unrestricted OS Bug Reports."
+        ),
         requiresPasskey: false,
+        subCards: [
+          {
+            id: "role_cit_s1",
+            icon: t("icon_inventory_2", "inventory_2"),
+            title: t("dir_role_cit_s1_title", "9 Core {Citizen} Sectors & Symlink Airgap"),
+            desc: t(
+              "dir_role_cit_s1_desc",
+              "Full offline and online access to Command Center, Your {Vault}, The Nexus, {Blueprints}, Comm-Link, Conflict Radar, Homestead {Lab}, {Citizen}'s Workbench, and {Backups}."
+            ),
+          },
+          {
+            id: "role_cit_s2",
+            icon: t("icon_handyman", "handyman"),
+            title: t("dir_role_cit_s2_title", "Inherited Open {Mason} Workshop & Static Edge Push"),
+            desc: t(
+              "dir_role_cit_s2_desc",
+              "Build {mods} in Dev Sandbox, package .sanctuary.manifest.json / catalog.json releases, and 1-click Auto-Push to GitHub, Gist, GitLab/Codeberg, Neocities, or WebDAV."
+            ),
+          },
+          {
+            id: "role_cit_s3",
+            icon: t("icon_travel_explore", "travel_explore"),
+            title: t("dir_role_cit_s3_title", "Scout Queue Discovery Submissions"),
+            desc: t(
+              "dir_role_cit_s3_desc",
+              "Scan local Tier-0 {mods}, complete local {Lab} verification proof, and submit verified SHA-256 metadata to the crowd-sourced Scout Queue."
+            ),
+          },
+          {
+            id: "role_cit_s4",
+            icon: t("icon_support_agent", "support_agent"),
+            title: t("dir_role_cit_s4_title", "Tier-0 {Blueprint} Support & OS Bug Reports"),
+            desc: t(
+              "dir_role_cit_s4_desc",
+              "Submit Community {Mod} Support when your active {Blueprint} holds only verified Tier-0 {mods} (no {Vault} file deletion), or file an OS Bug Report directly to Keepers with zero {mod} telemetry."
+            ),
+          },
+        ],
       },
       {
         short: t("dir_proto_r2_role", "Verified {Mason}"),
         icon: t("icon_construction", "construction"),
         title: t("dir_proto_r2_role", "Verified {Mason}"),
         badge: t("dir_proto_r2_tier", "Tier 2 • Verified Creator"),
-        desc: t("dir_proto_r2_scope", "Inherits all {Citizen} & Open Workshop tools + FIDO2 Passkey {Vault} gate, Direct Nexus {Mod} Publishing, Verified {Mason} Queue Fast-Lane (bypasses Scout threshold), Public {Mason} Profile Showcase, {Mason} Comm-Link Broadcasts, and 0%-Cut Supporter Bridge."),
+        desc: t(
+          "dir_proto_r2_scope",
+          "Inherits all {Citizen} & Open Workshop tools + FIDO2 Passkey {Vault} gate, Direct Nexus {Mod} Publishing, Verified {Mason} Queue Fast-Lane (bypasses Scout threshold), Public {Mason} Profile Showcase, {Mason} Comm-Link Broadcasts, and 0%-Cut Supporter Bridge."
+        ),
         requiresPasskey: true,
+        subCards: [
+          {
+            id: "role_mas_s1",
+            icon: t("icon_rocket_launch", "rocket_launch"),
+            title: t("dir_role_mas_s1_title", "Verified Fast-Lane & Direct Nexus Publishing"),
+            desc: t(
+              "dir_role_mas_s1_desc",
+              "Bypass crowd Scout vote thresholds to submit verified Tier-0 {mods}, Lexicons, Chameleons, and Workbench Templates straight to Architect triage."
+            ),
+          },
+          {
+            id: "role_mas_s2",
+            icon: t("icon_storefront", "storefront"),
+            title: t("dir_role_mas_s2_title", "Public {Mason} Profile & Suite Showcases"),
+            desc: t(
+              "dir_role_mas_s2_desc",
+              "Curate your creator banner, featured {mod} suites, Highlander Exclusive Slots, dependency trees, and multi-range version rules on your public profile."
+            ),
+          },
+          {
+            id: "role_mas_s3",
+            icon: t("icon_campaign", "campaign"),
+            title: t("dir_role_mas_s3_title", "Creator Comm-Link {Dispatches} & Changelogs"),
+            desc: t(
+              "dir_role_mas_s3_desc",
+              "Broadcast Markdown release notes, polling updates, and update alerts directly to subscribed {Citizens} on Comm-Link."
+            ),
+          },
+          {
+            id: "role_mas_s4",
+            icon: t("icon_volunteer_activism", "volunteer_activism"),
+            title: t("dir_role_mas_s4_title", "0%-Cut Supporter Bridge & Static Manifests"),
+            desc: t(
+              "dir_role_mas_s4_desc",
+              "Connect Patreon, Ko-fi, or custom supporter links with 0% Sanctuary cut, and publish Tier 1–4 {mods} responsibly via decentralized Static Edge manifests."
+            ),
+          },
+        ],
       },
       {
         short: t("architect", "Architect"),
         icon: t("icon_architecture", "architecture"),
         title: t("architect", "Architect"),
         badge: t("dir_proto_r3_tier", "Tier 3 • Spoke Moderator"),
-        desc: t("dir_proto_r3_scope", "Unlocks Architect Console: Global Registry curation (3-Tile {Mod} Studio), Verified {Mason} & Scout Queue triage (min_scout_submissions), Global Conflict Matrix directives, Check Hash deep scan, Template Oversight, and claimable {Citizen} Support Desk tickets."),
+        desc: t(
+          "dir_proto_r3_scope",
+          "Unlocks Architect Console (strictly isolated to Compliance Tier 0 Stable records): Registry curation, Verified {Mason} & Scout Queue triage, Conflict Matrix, Known Exception Rules, Template Oversight, and Claimable {Citizen} Support Desk tickets."
+        ),
         requiresPasskey: true,
+        subCards: [
+          {
+            id: "role_arc_s1",
+            icon: t("icon_fact_check", "fact_check"),
+            title: t("dir_role_arc_s1_title", "Tier-0 Global Registry & 3-Tile Studio Curation"),
+            desc: t(
+              "dir_role_arc_s1_desc",
+              "Maintain verified Tier-0 Nexus records, configure Parent/Child suite trees, Highlander Exclusive Slots, and multi-range game compatibility."
+            ),
+          },
+          {
+            id: "role_arc_s2",
+            icon: t("icon_dynamic_feed", "dynamic_feed"),
+            title: t("dir_role_arc_s2_title", "Verified {Mason} & Scout Queue Triage"),
+            desc: t(
+              "dir_role_arc_s2_desc",
+              "Review unknown/unverified community submissions in Dedicated Queues, run Check Hash verification, and escalate Tier 1–4 flags cleanly to Oversight."
+            ),
+          },
+          {
+            id: "role_arc_s3",
+            icon: t("icon_warning_amber", "warning_amber"),
+            title: t("dir_role_arc_s3_title", "Conflict Matrix & Known Exception Rules"),
+            desc: t(
+              "dir_role_arc_s3_desc",
+              "Author Severity 1–4 conflict directives, review Workbench Templates, and publish database-driven exception diagnosis rules linked to Homestead {Lab} verdicts."
+            ),
+          },
+          {
+            id: "role_arc_s4",
+            icon: t("icon_support_agent", "support_agent"),
+            title: t("dir_role_arc_s4_title", "Claimable {Citizen} Support Desk & Escalation"),
+            desc: t(
+              "dir_role_arc_s4_desc",
+              "Claim and resolve Tier-0 {Citizen} support tickets with PII-scrubbed crash logs and Active {Blueprint} snapshots, escalating sensitive reports to Oversight."
+            ),
+          },
+        ],
       },
       {
         short: t("role_oversight", "Oversight"),
         icon: t("icon_admin_panel_settings", "admin_panel_settings"),
         title: t("role_oversight", "Oversight"),
         badge: t("dir_proto_r4_tier", "Tier 4 • Spoke Security Admin"),
-        desc: t("dir_proto_r4_scope", "Unlocks Oversight Command: Spoke Heuristic Signatures authoring, Compliance Tier 5 Malware flagging, Emergency DEFCON 1 Lockdown override, Game/DLC patch registration, Mass Batch Updater, {Mason} Linker, and Spoke Identity Matrix (up to Architect)."),
+        desc: t(
+          "dir_proto_r4_scope",
+          "Unlocks Oversight Command: Tier 1–4 & Pending Flag Confirmation, Spoke Heuristic Signatures, Tier 5 Malware blacklisting, DEFCON 1 override, Game/DLC patch registration, Mass Batch Updater, {Mason} Linker, and Spoke Identity Matrix (up to Architect)."
+        ),
         requiresPasskey: true,
+        subCards: [
+          {
+            id: "role_ovr_s1",
+            icon: t("icon_security", "security"),
+            title: t("dir_role_ovr_s1_title", "Tier 1–4 Compliance & Pending Flag Review"),
+            desc: t(
+              "dir_role_ovr_s1_desc",
+              "Exclusive reviewer for escalated Tier 1–4 records and Pending community flags—auto-hidden publicly until confirmed or cleared."
+            ),
+          },
+          {
+            id: "role_ovr_s2",
+            icon: t("icon_gpp_bad", "gpp_bad"),
+            title: t("dir_role_ovr_s2_title", "Spoke Heuristics, Tier 5 Blacklists & DEFCON 1"),
+            desc: t(
+              "dir_role_ovr_s2_desc",
+              "Author game-specific antivirus signatures, blacklist Tier 5 Malware SHA-256 hashes, and engage DEFCON 1 pre-patch shields."
+            ),
+          },
+          {
+            id: "role_ovr_s3",
+            icon: t("icon_published_with_changes", "published_with_changes"),
+            title: t("dir_role_ovr_s3_title", "Game/DLC Patches, Mass Triage & {Mason} Linker"),
+            desc: t(
+              "dir_role_ovr_s3_desc",
+              "Register upstream engine versions and DLC catalogs, run multi-range compatibility mass updates, and claim-link creator registries."
+            ),
+          },
+          {
+            id: "role_ovr_s4",
+            icon: t("icon_admin_panel_settings", "admin_panel_settings"),
+            title: t("dir_role_ovr_s4_title", "Spoke Identity Governance & Audit Logs"),
+            desc: t(
+              "dir_role_ovr_s4_desc",
+              "Promote/demote roles up to Architect, handle escalated security tickets, and inspect read/export-only Spoke audit trails."
+            ),
+          },
+        ],
       },
       {
         short: t("role_wayfinder", "Wayfinder"),
@@ -827,9 +971,56 @@ export default function WebDocumentFeed({
         badge: t("dir_proto_r5_tier", "Tier 5 • Spoke Sovereign"),
         desc: t(
           "dir_proto_r5_scope",
-          "Unlocks Wayfinder Operations: Full Spoke Identity Matrix (up to Wayfinder), SANCTUARY-UPLINK:// bundle export & live key rotation, unilateral Cut the Cord severance (secure_sever_spoke_cord), The Dispatch (2x2 telemetry headers + polls), and Game Audit Logs."
+          "Unlocks Wayfinder Operations: Full Spoke Identity Matrix (up to Wayfinder), secret-free SANCTUARY-UPLINK:// bundle export & 1-click Gateway Token rotation, unilateral Cut the Cord severance, Master Schema & Lexicon Studios, 0%-Cut Donations, and The Dispatch."
         ),
         requiresPasskey: true,
+        subCards: [
+          {
+            id: "role_way_s1",
+            icon: t("icon_hub", "hub"),
+            title: t("dir_role_way_s1_title", "Spoke Sovereignty, Covenants & Cut the Cord"),
+            desc: t(
+              "dir_role_way_s1_desc",
+              "Rotate Spoke Gateway Tokens in 1 click, export secret-free SANCTUARY-UPLINK:// bundles, inspect Partner Covenants, or trigger irreversible high-friction severance from the Core Hub."
+            ),
+          },
+          {
+            id: "role_way_s2",
+            icon: t("icon_schema", "schema"),
+            title: t("dir_role_way_s2_title", "Master Schema Studio & Fork Branding"),
+            desc: t(
+              "dir_role_way_s2_desc",
+              "Configure paths, binary headers, install routes, default Chameleon themes, Title Area headers (Standalone mode), and Spoke Lexicon packs."
+            ),
+          },
+          {
+            id: "role_way_s3",
+            icon: t("icon_manage_accounts", "manage_accounts"),
+            title: t("dir_role_way_s3_title", "Full Identity Matrix & Tier 1–4 Authority"),
+            desc: t(
+              "dir_role_way_s3_desc",
+              "Appoint Oversight admins and peer Wayfinders, confirm or dismiss compliance flags, and run in-hub Mass Update compatibility sweeps."
+            ),
+          },
+          {
+            id: "role_way_s4",
+            icon: t("icon_volunteer_activism", "volunteer_activism"),
+            title: t("dir_role_way_s4_title", "0%-Cut Donations, Cost Ledgers & The Dispatch"),
+            desc: t(
+              "dir_role_way_s4_desc",
+              "Publish transparent monthly infrastructure cost ledgers, collect 100% Wayfinder-owned donations, and broadcast top-banner polls."
+            ),
+          },
+          {
+            id: "role_way_s5",
+            icon: t("icon_support", "support"),
+            title: t("dir_role_way_s5_title", "Wayfinder Audit Trails & Keepers Uplink"),
+            desc: t(
+              "dir_role_way_s5_desc",
+              "Audit every Spoke moderation action chronologically and communicate directly with Core Keepers via Wayfinder Support."
+            ),
+          },
+        ],
       },
       {
         short: t("dir_proto_r6_role", "Keeper"),
@@ -838,9 +1029,47 @@ export default function WebDocumentFeed({
         badge: t("dir_proto_r6_tier", "Tier 6 • Core OS Hub"),
         desc: t(
           "dir_proto_r6_scope",
-          "Unlocks Keepers Core (accessible on Landing Page & all workspaces): Turnkey Spoke Onboarding, Core Heuristics (keeper_heuristic_signatures), Master Game Schemas, Global Lexicons/Chameleons, Bilateral Codebase-to-Keepers-Core Directives Sync, and Global Audit Logs."
+          "Unlocks Keepers Core (accessible on Landing Page & all workspaces): Turnkey Spoke Onboarding, Core Heuristics, Threat Manifests, Master Game Schemas, Global Lexicons/Chameleons, Bilateral Directives Sync, OS Bug Reports, and Global Audit Logs."
         ),
         requiresPasskey: true,
+        subCards: [
+          {
+            id: "role_kpr_s1",
+            icon: t("icon_dns", "dns"),
+            title: t("dir_role_kpr_s1_title", "Partner Spoke Onboarding & Dev Cloaking"),
+            desc: t(
+              "dir_role_kpr_s1_desc",
+              "Review Partner Spoke Applications, validate schema readiness, toggle Keepers-Only dev workspaces, and oversee Federation uptime."
+            ),
+          },
+          {
+            id: "role_kpr_s2",
+            icon: t("icon_verified_user", "verified_user"),
+            title: t("dir_role_kpr_s2_title", "Core Heuristics & Threat Manifests"),
+            desc: t(
+              "dir_role_kpr_s2_desc",
+              "Maintain global malware regex signatures (keeper_heuristic_signatures) and triage Zero-PII Threat Manifest submissions from quarantined files."
+            ),
+          },
+          {
+            id: "role_kpr_s3",
+            icon: t("icon_sync", "sync"),
+            title: t("dir_role_kpr_s3_title", "Bilateral Directives, Schemas & Lexicons"),
+            desc: t(
+              "dir_role_kpr_s3_desc",
+              "Author and sync System Directives, Legal Covenants, Default Schemas, Core Aesthetics, and Global Lexicon baselines without app rebuilds."
+            ),
+          },
+          {
+            id: "role_kpr_s4",
+            icon: t("icon_bug_report", "bug_report"),
+            title: t("dir_role_kpr_s4_title", "OS Bug Reports (`keeper_tickets`) & Releases"),
+            desc: t(
+              "dir_role_kpr_s4_desc",
+              "Triage cross-platform OS bug reports (100% free of Spoke mod data/locks), publish Foundry News, and inspect immutable Global Audit Logs."
+            ),
+          },
+        ],
       },
     ],
     [t]
@@ -898,7 +1127,7 @@ export default function WebDocumentFeed({
           },
           {
             title: t("sd_roadmap_p12_m12_title", "FIDO2 Passkey {Vault} & Quarantine Lockdown"),
-            desc: t("sd_roadmap_p12_m12_desc", "Hardware WebAuthn Passkey gates for Elevated Hubs, Full-OS Malware Quarantine SidePanel Lockdown, Silent Updater, and Bilateral Directives Sync."),
+            desc: t("sd_roadmap_p12_m12_desc", "Hardware WebAuthn Passkey gates for Elevated Hubs, Full-OS Malware Quarantine Lockdown, Silent Updater, and Bilateral Directives Sync."),
             pending: false,
           },
         ],
@@ -1075,15 +1304,15 @@ export default function WebDocumentFeed({
           "sd_roadmap_p6_title",
           "Codebase Modularization, Comm-Link Ledger & Homestead Proving Grounds"
         ),
-        sub: t("sd_roadmap_p6_focus", "Creator Following Feed, App.tsx Modularization & Nuke Sandbox"),
+        sub: t("sd_roadmap_p6_focus", "{Mason} Following Feed, Domain View Modularization & Nuke Sandbox"),
         desc: t(
           "sd_roadmap_p6_summary",
-          "Launched the Creator Following system and real-time Comm-Link discovery ledger, modularized App.tsx into dedicated domain views, extracted Yeet Cascade casualty tracking, and built the 100% Nuke Isolation Proving Grounds."
+          "Launched the {Mason} Following system and real-time Comm-Link discovery ledger, modularized the core shell into dedicated domain views, extracted Yeet Cascade casualty tracking, and built the 100% Nuke Isolation Proving Grounds."
         ),
         milestones: [
           {
-            title: t("sd_roadmap_p6_m5_title", "Creator Following & Domain Modularization"),
-            desc: t("sd_roadmap_p6_m5_desc", "Added the Creator Following feed to Comm-Link, modularized App.tsx into dedicated domain views, and extracted Yeet Cascade casualty tracking."),
+            title: t("sd_roadmap_p6_m5_title", "{Mason} Following & Domain Modularization"),
+            desc: t("sd_roadmap_p6_m5_desc", "Added the {Mason} Following feed to Comm-Link, modularized the core shell into dedicated domain views, and extracted Yeet Cascade casualty tracking."),
           },
           {
             title: t("sd_roadmap_p6_m6_title", "100% Nuke Injection Sandbox"),
@@ -1409,51 +1638,104 @@ export default function WebDocumentFeed({
     switch (activeModule) {
       case "guide":
         return {
-          title:
+          title: td(
             customGuideSchema?.title ||
-            t("sd_card_guide_title", "Interactive {Citizen} Guide & OS Walkthrough"),
+              t(
+                "sd_card_guide_title",
+                "Interactive {Citizen} Guide & OS Walkthrough"
+              )
+          ),
           subtitle: t(
             "sd_card_guide_sub",
-            "Guided OS Tour • Citizen & Elevated Clearances"
+            "Guided OS Tour • {Citizen} & Elevated Clearances"
+          ),
+          description: td(
+            customGuideSchema?.summary ||
+              directivesMap.citizen_guide?.published_summary ||
+              directivesMap.citizen_guide?.summary ||
+              t(
+                "sd_card_guide_desc",
+                "10-stage interactive walkthrough of Sanctuary OS, 12 operational & creator modules (including Static Edge Direct Push, Master Schema & Lexicon Studios, and Spoke Covenants), and the 6-Tier Clearance Hierarchy."
+              )
           ),
           icon: t("icon_school", "school"),
         };
       case "roadmap":
         return {
-          title:
+          title: td(
             customRoadmapSchema?.title ||
-            t("sd_card_roadmap_title", "Sanctuary OS Phase Roadmap"),
+              t("sd_card_roadmap_title", "Sanctuary OS Phase Roadmap")
+          ),
           subtitle: `${t("dir_roadmap_tab_value", "Evolution Timeline")} • ${t("dir_phase_word", "Phase")} ${topRoadmapPhaseNum} ${t("active", "Active")}`,
+          description: td(
+            customRoadmapSchema?.summary ||
+              directivesMap.phase_roadmap?.published_summary ||
+              directivesMap.phase_roadmap?.summary ||
+              t(
+                "sd_card_roadmap_desc",
+                "Reverse-chronological engineering timeline tracking Sanctuary OS from Phase 14 (V0.6.0 Agnostic Multi-Engine Expansion) down to Phase 1."
+              )
+          ),
           icon: t("icon_timeline", "timeline"),
         };
       case "forking":
         return {
-          title:
+          title: td(
             customForkSchema?.title ||
-            t("sd_card_fork_title", "Forking & Spoke Provisioning Guide"),
+              t("sd_card_fork_title", "Forking & Spoke Provisioning Guide")
+          ),
           subtitle: t(
             "sd_card_fork_sub",
             "Standalone Codebase Fork & Partner Uplink"
+          ),
+          description: td(
+            customForkSchema?.summary ||
+              directivesMap.forking_guide?.published_summary ||
+              directivesMap.forking_guide?.summary ||
+              t(
+                "sd_card_fork_desc",
+                "Interactive {blueprint} for deploying a Sovereign Community Spoke (SANCTUARY-UPLINK://), reviewing Partner Covenants, launching a 1-file Standalone Codebase Fork (src/supabase.ts), or building cross-platform Master Schemas."
+              )
           ),
           icon: t("icon_call_split", "call_split"),
         };
       case "architecture":
         return {
-          title:
+          title: td(
             customArchSchema?.title ||
-            t("sd_card_arch_title", "Master Architecture & Engine Systems"),
+              t("sd_card_arch_title", "Master Architecture & Engine Systems")
+          ),
           subtitle: t("sd_card_arch_sub", "Hub-and-Spoke Federation & Rust Core"),
+          description: td(
+            customArchSchema?.summary ||
+              directivesMap.master_architecture?.published_summary ||
+              directivesMap.master_architecture?.summary ||
+              t(
+                "sd_card_arch_desc",
+                "Deep-dive interactive explorer into the Tauri v2 Rust core, Hub-and-Spoke database federation, Offline Codebase Baseline + Live Cloud Sync, Symlink Airgap 2.5, Static Edge Auto-Push, and Bytecode Hound Core + Spoke Heuristics."
+              )
+          ),
           icon: t("icon_architecture", "architecture"),
         };
       case "protocols":
       default:
         return {
-          title:
+          title: td(
             customProtoSchema?.title ||
-            t("sd_card_proto_title", "Master Protocol & Clearance Matrix"),
+              t("sd_card_proto_title", "Master Protocol & Clearance Matrix")
+          ),
           subtitle: t(
             "sd_card_proto_sub",
             "Governance, Security & Compliance Tiers"
+          ),
+          description: td(
+            customProtoSchema?.summary ||
+              directivesMap.master_protocols?.published_summary ||
+              directivesMap.master_protocols?.summary ||
+              t(
+                "sd_card_proto_desc",
+                "Interactive directory of all 30 Sanctuary OS operational protocols across 4 domains, Florida Compliance Tiers 0–5, Bytecode Hound Core + Spoke Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy."
+              )
           ),
           icon: t("icon_policy", "policy"),
         };
@@ -1461,11 +1743,19 @@ export default function WebDocumentFeed({
   }, [
     activeModule,
     customGuideSchema?.title,
+    customGuideSchema?.summary,
     customRoadmapSchema?.title,
+    customRoadmapSchema?.summary,
     customForkSchema?.title,
+    customForkSchema?.summary,
     customArchSchema?.title,
+    customArchSchema?.summary,
     customProtoSchema?.title,
+    customProtoSchema?.summary,
+    directivesMap,
+    topRoadmapPhaseNum,
     t,
+    td,
   ]);
 
   // Render Interactive OS Walkthrough (3 Static Top Tiles + 2-Column Cards where Selected Card Expands Alone on Its Row)
@@ -1539,10 +1829,10 @@ export default function WebDocumentFeed({
             className="!w-full"
             icon={t("icon_play_circle", "play_circle")}
             label={`${effectiveWalkStages.length} ${t("dir_guide_stages_unit", "STAGES")}`}
-            number={
+            number={td(
               customWalkTab?.value ||
-              t("dir_guide_mode_walk_val", "OS Walkthrough")
-            }
+                t("dir_guide_mode_walk_val", "OS Walkthrough")
+            )}
             colorClass="text-[var(--accent)]"
             isActive={guideMode === "walkthrough"}
             onClick={() => setGuideMode("walkthrough")}
@@ -1552,10 +1842,10 @@ export default function WebDocumentFeed({
             className="!w-full"
             icon={t("icon_explore", "explore")}
             label={`${effectiveCitizenSteps.length} ${t("dir_guide_modules_unit", "MODULES")}`}
-            number={
+            number={td(
               customModTab?.value ||
-              t("dir_guide_mode_mod_val", "Citizen Tools")
-            }
+                t("dir_guide_mode_mod_val", "{Citizen} Tools")
+            )}
             colorClass="text-[var(--accent)]"
             isActive={guideMode === "modules"}
             onClick={() => setGuideMode("modules")}
@@ -1565,7 +1855,9 @@ export default function WebDocumentFeed({
             className="!w-full"
             icon={t("icon_admin_panel_settings", "admin_panel_settings")}
             label={`${effectiveRoles.length} ${t("dir_guide_tiers_unit", "TIERS")}`}
-            number={customRoleTab?.value || t("dir_wt_t8_val", "Role Tiers")}
+            number={td(
+              customRoleTab?.value || t("dir_wt_t8_val", "Role Tiers")
+            )}
             colorClass="text-[var(--accent)]"
             isActive={guideMode === "roles"}
             onClick={() => setGuideMode("roles")}
@@ -1608,7 +1900,7 @@ export default function WebDocumentFeed({
                         }
                       : undefined
                   }
-                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                  className={`relative glass-panel rounded-2xl flex flex-col min-w-0 overflow-hidden border text-left transition-all duration-300 ${
                     isActive
                       ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
                       : "px-4 py-3.5 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
@@ -1616,22 +1908,22 @@ export default function WebDocumentFeed({
                 >
                   {!isActive ? (
                     /* Compact Unselected Row */
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-2.5 sm:gap-3">
-                        <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+                    <div className="flex flex-col gap-2 min-w-0">
+                      <div className="flex flex-wrap items-center md:items-start justify-between gap-2.5 min-w-0">
+                        <div className="flex items-center md:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
                           <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
                             <span className="material-symbols-outlined !text-[20px]">
                               {stg.icon}
                             </span>
                           </div>
-                          <div className="flex flex-col gap-0.5 min-w-0">
-                            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 leading-snug">
+                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 leading-snug truncate">
                               {stageOverline}
                             </span>
-                            <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug truncate m-0">
-                              {stg.title}
+                            <h3 className="hidden md:block text-base font-black text-[var(--text)] tracking-tight leading-snug break-words m-0">
+                              {renderDirectiveHeading(stg.title)}
                             </h3>
-                            <span className="hidden sm:block text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
+                            <span className="hidden md:block text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
                               {stg.sub}
                             </span>
                           </div>
@@ -1649,11 +1941,11 @@ export default function WebDocumentFeed({
                         </div>
                       </div>
 
-                      <div className="flex sm:hidden flex-col gap-0.5 min-w-0">
-                        <h3 className="text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                          {stg.title}
+                      <div className="flex md:hidden flex-col gap-0.5 min-w-0">
+                        <h3 className="text-sm font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                          {renderDirectiveHeading(stg.title)}
                         </h3>
-                        <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
+                        <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 break-words">
                           {stg.sub}
                         </span>
                       </div>
@@ -1671,21 +1963,21 @@ export default function WebDocumentFeed({
                             setWalkIdx(-1);
                           }
                         }}
-                        className="flex flex-col gap-3 cursor-pointer"
+                        className="flex flex-col gap-3 min-w-0 cursor-pointer"
                       >
-                        <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
-                          <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0">
+                        <div className="flex flex-wrap items-center md:items-start justify-between gap-2.5 min-w-0">
+                          <div className="flex items-center md:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
                             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[20px] sm:!text-[22px]">
                                 {stg.icon}
                               </span>
                             </div>
-                            <div className="flex flex-col gap-0.5 min-w-0">
-                              <span className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug text-[var(--accent)]">
+                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                              <span className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug text-[var(--accent)] break-words">
                                 {stageOverline}
                               </span>
-                              <h3 className="hidden sm:block text-lg font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                                {stg.title}
+                              <h3 className="hidden md:block text-lg font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                                {renderDirectiveHeading(stg.title)}
                               </h3>
                             </div>
                           </div>
@@ -1705,40 +1997,43 @@ export default function WebDocumentFeed({
                           </div>
                         </div>
 
-                        <h3 className="sm:hidden text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                          {stg.title}
+                        <h3 className="md:hidden text-base font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                          {renderDirectiveHeading(stg.title)}
                         </h3>
 
-                        <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
-                          {stg.desc}
+                        <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
+                          {renderCleanInlineText(stg.desc)}
                         </p>
                       </div>
 
-                      <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                          {stg.controls.map((ctrl, cIdx) => (
+                      <div className="flex flex-col gap-4 pt-3.5 min-w-0 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        <BalancedCardColumns
+                          items={stg.controls}
+                          columns={3}
+                          renderItem={(ctrl, cIdx) => (
                             <div
                               key={`${ctrl.name}-${cIdx}`}
-                              className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                              className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 min-w-0 overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                             >
-                              <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                              <div className="flex items-start gap-2 min-w-0">
+                                <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0 mt-0.5">
                                   {ctrl.icon}
                                 </span>
-                                <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                                  {ctrl.name}
+                                <h4 className="text-sm font-bold text-[var(--text)] leading-snug min-w-0 flex-1 break-words [overflow-wrap:anywhere] m-0">
+                                  {renderDirectiveHeading(ctrl.name)}
                                 </h4>
                               </div>
-                              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                                {ctrl.desc}
+                              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
+                                {renderCleanInlineText(ctrl.desc)}
                               </p>
                             </div>
-                          ))}
-                        </div>
+                          )}
+                        />
 
-                        <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 min-w-0 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                           <ActionButton
                             variant="glass"
+                            className="shrink-0"
                             icon={t("icon_navigate_before", "navigate_before")}
                             disabled={walkIdx <= 0}
                             onClick={() => {
@@ -1748,11 +2043,12 @@ export default function WebDocumentFeed({
                           >
                             {t("dir_walk_prev", "Previous Stage")}
                           </ActionButton>
-                          <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                          <span className="hidden sm:block min-w-0 flex-1 text-center text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
                             {stg.sub}
                           </span>
                           <ActionButton
                             variant="accent"
+                            className="shrink-0"
                             icon={t("icon_navigate_next", "navigate_next")}
                             disabled={
                               walkIdx >= effectiveWalkStages.length - 1
@@ -1815,27 +2111,27 @@ export default function WebDocumentFeed({
                         }
                       : undefined
                   }
-                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                  className={`relative glass-panel rounded-2xl flex flex-col min-w-0 overflow-hidden border text-left transition-all duration-300 ${
                     isActive
                       ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
                       : "px-4 py-3.5 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
                   }`}
                 >
                   {!isActive ? (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-2.5 sm:gap-3">
-                        <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+                    <div className="flex flex-col gap-2 min-w-0">
+                      <div className="flex items-center justify-between gap-2.5 sm:gap-3 min-w-0">
+                        <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
                           <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
                             <span className="material-symbols-outlined !text-[20px]">
                               {step.icon}
                             </span>
                           </div>
-                          <div className="flex flex-col gap-0.5 min-w-0">
-                            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 leading-snug">
+                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 leading-snug truncate">
                               {modOverline}
                             </span>
                             <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug truncate m-0">
-                              {step.title}
+                              {renderDirectiveHeading(step.title)}
                             </h3>
                             <span className="hidden sm:block text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
                               {step.badge}
@@ -1855,11 +2151,11 @@ export default function WebDocumentFeed({
                         </div>
                       </div>
 
-                      <div className="flex sm:hidden flex-col gap-0.5 min-w-0">
-                        <h3 className="text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                          {step.title}
+                      <div className="flex md:hidden flex-col gap-0.5 min-w-0">
+                        <h3 className="text-sm font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                          {renderDirectiveHeading(step.title)}
                         </h3>
-                        <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
+                        <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 break-words">
                           {step.badge}
                         </span>
                       </div>
@@ -1876,21 +2172,21 @@ export default function WebDocumentFeed({
                             setGuideStepIdx(-1);
                           }
                         }}
-                        className="flex flex-col gap-3 cursor-pointer"
+                        className="flex flex-col gap-3 min-w-0 cursor-pointer"
                       >
-                        <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
-                          <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0">
+                        <div className="flex flex-wrap items-center md:items-start justify-between gap-2.5 min-w-0">
+                          <div className="flex items-center md:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
                             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[20px] sm:!text-[22px]">
                                 {step.icon}
                               </span>
                             </div>
-                            <div className="flex flex-col gap-0.5 min-w-0">
-                              <span className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug text-[var(--accent)]">
+                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                              <span className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug text-[var(--accent)] break-words">
                                 {modOverline}
                               </span>
-                              <h3 className="hidden sm:block text-lg font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                                {step.title}
+                              <h3 className="hidden md:block text-lg font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                                {renderDirectiveHeading(step.title)}
                               </h3>
                             </div>
                           </div>
@@ -1910,61 +2206,64 @@ export default function WebDocumentFeed({
                           </div>
                         </div>
 
-                        <h3 className="sm:hidden text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                          {step.title}
+                        <h3 className="md:hidden text-base font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                          {renderDirectiveHeading(step.title)}
                         </h3>
 
-                        <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
-                          {step.desc}
+                        <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
+                          {renderCleanInlineText(step.desc)}
                         </p>
                       </div>
 
-                      <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                          {step.cards.map((card, cIdx) => (
+                      <div className="flex flex-col gap-4 pt-3.5 min-w-0 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        <BalancedCardColumns
+                          items={step.cards}
+                          columns={2}
+                          renderItem={(card, cIdx) => (
                             <div
                               key={`${card.title}-${cIdx}`}
-                              className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                              className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 min-w-0 overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                             >
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-start gap-2 min-w-0">
                                 <span
-                                  className={`material-symbols-outlined !text-[16px] shrink-0 ${
+                                  className={`material-symbols-outlined !text-[16px] shrink-0 mt-0.5 ${
                                     (card as any).colorClass ||
                                     "text-[var(--accent)]"
                                   }`}
                                 >
                                   {card.icon}
                                 </span>
-                                <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                                  {renderCleanInlineText(card.title)}
+                                <h4 className="text-sm font-bold text-[var(--text)] leading-snug min-w-0 flex-1 break-words [overflow-wrap:anywhere] m-0">
+                                  {renderDirectiveHeading(card.title)}
                                 </h4>
                               </div>
-                              <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed m-0">
+                              <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
                                 {renderCleanInlineText(card.desc)}
                               </p>
                             </div>
-                          ))}
-                        </div>
+                          )}
+                        />
 
                         {step.tip && (
-                          <div className="glass-surface rounded-2xl p-4 flex items-start gap-2.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
+                          <div className="glass-surface rounded-2xl p-4 flex items-start gap-2.5 min-w-0 overflow-hidden border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
                             <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0 mt-0.5">
                               {t("icon_lightbulb", "lightbulb")}
                             </span>
-                            <div className="flex flex-col gap-1 min-w-0">
+                            <div className="flex flex-col gap-1 min-w-0 flex-1">
                               <span className="text-sm font-bold text-[var(--text)] leading-snug">
                                 {t("sd_guide_pro_tip_label", "{Citizen} Pro Tip")}
                               </span>
-                              <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed m-0">
+                              <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
                                 {renderCleanInlineText(step.tip)}
                               </p>
                             </div>
                           </div>
                         )}
 
-                        <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        <div className="flex items-center justify-between gap-3 pt-3 min-w-0 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                           <ActionButton
                             variant="glass"
+                            className="shrink-0"
                             icon={t("icon_navigate_before", "navigate_before")}
                             disabled={guideStepIdx <= 0}
                             onClick={() => {
@@ -1974,11 +2273,12 @@ export default function WebDocumentFeed({
                           >
                             {t("sd_btn_prev_step", "Previous Module")}
                           </ActionButton>
-                          <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                          <span className="hidden sm:block min-w-0 flex-1 text-center text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
                             {step.badge}
                           </span>
                           <ActionButton
                             variant="accent"
+                            className="shrink-0"
                             icon={t("icon_navigate_next", "navigate_next")}
                             disabled={
                               guideStepIdx >= effectiveCitizenSteps.length - 1
@@ -2036,27 +2336,27 @@ export default function WebDocumentFeed({
                         }
                       : undefined
                   }
-                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                  className={`relative glass-panel rounded-2xl flex flex-col min-w-0 overflow-hidden border text-left transition-all duration-300 ${
                     isActive
                       ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
                       : "px-4 py-3.5 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
                   }`}
                 >
                   {!isActive ? (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-2.5 sm:gap-3">
-                        <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+                    <div className="flex flex-col gap-2 min-w-0">
+                      <div className="flex items-center justify-between gap-2.5 sm:gap-3 min-w-0">
+                        <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
                           <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
                             <span className="material-symbols-outlined !text-[20px]">
                               {role.icon}
                             </span>
                           </div>
-                          <div className="flex flex-col gap-0.5 min-w-0">
-                            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 leading-snug">
+                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 leading-snug truncate">
                               {role.badge}
                             </span>
                             <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug truncate m-0">
-                              {role.title}
+                              {renderDirectiveHeading(role.title)}
                             </h3>
                           </div>
                         </div>
@@ -2088,8 +2388,8 @@ export default function WebDocumentFeed({
                         </div>
                       </div>
 
-                      <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                        {role.title}
+                      <h3 className="md:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                        {renderDirectiveHeading(role.title)}
                       </h3>
                     </div>
                   ) : (
@@ -2104,21 +2404,21 @@ export default function WebDocumentFeed({
                             setRoleTierIdx(-1);
                           }
                         }}
-                        className="flex flex-col gap-3 cursor-pointer"
+                        className="flex flex-col gap-3 min-w-0 cursor-pointer"
                       >
-                        <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
-                          <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0">
+                        <div className="flex flex-wrap items-center md:items-start justify-between gap-2.5 min-w-0">
+                          <div className="flex items-center md:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
                             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[20px] sm:!text-[22px]">
                                 {role.icon}
                               </span>
                             </div>
-                            <div className="flex flex-col gap-0.5 min-w-0">
-                              <span className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug text-[var(--accent)]">
+                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                              <span className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug text-[var(--accent)] break-words">
                                 {role.badge}
                               </span>
-                              <h3 className="hidden sm:block text-lg font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                                {role.title}
+                              <h3 className="hidden md:block text-lg font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                                {renderDirectiveHeading(role.title)}
                               </h3>
                             </div>
                           </div>
@@ -2150,44 +2450,46 @@ export default function WebDocumentFeed({
                           </div>
                         </div>
 
-                        <h3 className="sm:hidden text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                          {role.title}
+                        <h3 className="md:hidden text-base font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                          {renderDirectiveHeading(role.title)}
                         </h3>
 
-                        <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_82%,transparent)] leading-relaxed m-0">
+                        <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_82%,transparent)] leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
                           {renderCleanInlineText(role.desc)}
                         </p>
                       </div>
 
                       {(role as any).subCards?.length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                          {(role as any).subCards.map(
-                            (sc: any, scIdx: number) => (
-                              <div
-                                key={`${sc.id || scIdx}`}
-                                className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                                    {sc.icon ||
-                                      t("icon_check_circle", "check_circle")}
-                                  </span>
-                                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                                    {renderCleanInlineText(sc.title)}
-                                  </h4>
-                                </div>
-                                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                                  {renderCleanInlineText(sc.desc)}
-                                </p>
+                        <BalancedCardColumns
+                          items={(role as any).subCards as any[]}
+                          columns={2}
+                          className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                          renderItem={(sc: any, scIdx: number) => (
+                            <div
+                              key={`${sc.id || scIdx}`}
+                              className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 min-w-0 overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                            >
+                              <div className="flex items-start gap-2 min-w-0">
+                                <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0 mt-0.5">
+                                  {sc.icon ||
+                                    t("icon_check_circle", "check_circle")}
+                                </span>
+                                <h4 className="text-sm font-bold text-[var(--text)] leading-snug min-w-0 flex-1 break-words [overflow-wrap:anywhere] m-0">
+                                  {renderDirectiveHeading(sc.title)}
+                                </h4>
                               </div>
-                            )
+                              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
+                                {renderCleanInlineText(sc.desc)}
+                              </p>
+                            </div>
                           )}
-                        </div>
+                        />
                       )}
 
-                      <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 min-w-0 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                         <ActionButton
                           variant="glass"
+                          className="shrink-0"
                           icon={t("icon_navigate_before", "navigate_before")}
                           disabled={roleTierIdx <= 0}
                           onClick={() => {
@@ -2197,11 +2499,12 @@ export default function WebDocumentFeed({
                         >
                           {t("sd_proto_prev_tier", "Previous Tier")}
                         </ActionButton>
-                        <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                        <span className="hidden sm:block min-w-0 flex-1 text-center text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
                           {role.badge}
                         </span>
                         <ActionButton
                           variant="accent"
+                          className="shrink-0"
                           icon={t("icon_navigate_next", "navigate_next")}
                           disabled={roleTierIdx >= effectiveRoles.length - 1}
                           onClick={() => {
@@ -2391,27 +2694,27 @@ export default function WebDocumentFeed({
                       }
                     : undefined
                 }
-                className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                className={`relative glass-panel rounded-2xl flex flex-col min-w-0 overflow-hidden border text-left transition-all duration-300 ${
                   isExpanded
                     ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
                     : "px-4 py-3.5 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
                 }`}
               >
                 {!isExpanded ? (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between gap-2.5 sm:gap-3">
-                      <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+                  <div className="flex flex-col gap-2 min-w-0">
+                    <div className="flex items-center justify-between gap-2.5 sm:gap-3 min-w-0">
+                      <div className="flex items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
                         <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--subtext)] group-hover:text-[var(--text)] flex items-center justify-center shrink-0 transition-colors">
                           <span className="material-symbols-outlined !text-[20px]">
                             {phase.icon}
                           </span>
                         </div>
-                        <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 leading-snug">
+                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                          <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtext)] opacity-80 leading-snug truncate">
                             {phase.code}
                           </span>
                           <h3 className="hidden sm:block text-base font-black tracking-tight text-[var(--text)] leading-snug truncate m-0">
-                            {phase.title}
+                            {renderDirectiveHeading(phase.title)}
                           </h3>
                           <span className="hidden sm:block text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
                             {phase.sub}
@@ -2436,11 +2739,11 @@ export default function WebDocumentFeed({
                       </div>
                     </div>
 
-                    <div className="flex sm:hidden flex-col gap-0.5 min-w-0">
-                      <h3 className="text-sm font-black tracking-tight text-[var(--text)] leading-snug m-0">
-                        {phase.title}
+                    <div className="flex md:hidden flex-col gap-0.5 min-w-0">
+                      <h3 className="text-sm font-black tracking-tight text-[var(--text)] leading-snug break-words [overflow-wrap:anywhere] m-0">
+                        {renderDirectiveHeading(phase.title)}
                       </h3>
-                      <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 truncate">
+                      <span className="text-[11px] font-normal text-[var(--subtext)] opacity-75 break-words">
                         {phase.sub}
                       </span>
                     </div>
@@ -2457,10 +2760,10 @@ export default function WebDocumentFeed({
                           setSelectedPhaseNum(0);
                         }
                       }}
-                      className="flex flex-col gap-3 cursor-pointer"
+                      className="flex flex-col gap-3 min-w-0 cursor-pointer"
                     >
-                      <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
-                        <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0">
+                      <div className="flex flex-wrap items-center md:items-start justify-between gap-2.5 min-w-0">
+                        <div className="flex items-center md:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
                           <div
                             className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${phaseMeta.colorClass}`}
                           >
@@ -2468,14 +2771,14 @@ export default function WebDocumentFeed({
                               {phase.icon}
                             </span>
                           </div>
-                          <div className="flex flex-col gap-0.5 min-w-0">
+                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                             <span
-                              className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug ${phaseMeta.colorClass}`}
+                              className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug break-words ${phaseMeta.colorClass}`}
                             >
                               {phase.code}
                             </span>
-                            <h3 className="hidden sm:block text-lg font-black tracking-tight text-[var(--text)] leading-snug m-0">
-                              {phase.title}
+                            <h3 className="hidden md:block text-lg font-black tracking-tight text-[var(--text)] leading-snug break-words [overflow-wrap:anywhere] m-0">
+                              {renderDirectiveHeading(phase.title)}
                             </h3>
                           </div>
                         </div>
@@ -2497,38 +2800,33 @@ export default function WebDocumentFeed({
                         </div>
                       </div>
 
-                      <h3 className="sm:hidden text-base font-black tracking-tight text-[var(--text)] leading-snug m-0">
-                        {phase.title}
+                      <h3 className="md:hidden text-base font-black tracking-tight text-[var(--text)] leading-snug break-words [overflow-wrap:anywhere] m-0">
+                        {renderDirectiveHeading(phase.title)}
                       </h3>
 
-                      <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_82%,transparent)] leading-relaxed m-0">
+                      <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_82%,transparent)] leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
                         {renderCleanInlineText(phase.desc)}
                       </p>
                     </div>
 
-                    <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                        {phase.milestones.map((m, mIdx) => {
+                    <div className="flex flex-col gap-4 pt-3.5 min-w-0 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <BalancedCardColumns
+                        items={phase.milestones}
+                        columns={2}
+                        renderItem={(m, mIdx) => {
                           const mStatus = resolveRoadmapSubCardStatus(m);
                           const mMeta = getRoadmapStatusMeta(mStatus, t);
                           return (
                             <div
                               key={mIdx}
-                              className="glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                              className="glass-surface rounded-2xl p-4 flex flex-col gap-2 min-w-0 overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                             >
-                              <div className="flex items-center sm:items-start justify-between gap-2.5">
-                                <div className="flex items-start gap-2 min-w-0 flex-1">
-                                  <span
-                                    className={`material-symbols-outlined !text-[16px] shrink-0 sm:mt-0.5 ${mMeta.colorClass}`}
-                                  >
-                                    {mMeta.icon}
-                                  </span>
-                                  <h4 className="hidden sm:block text-sm font-bold text-[var(--text)] leading-snug m-0">
-                                    {renderCleanInlineText(
-                                      m.title.replace(/^(\u2705|\u23F3|\u{1F9EA})\s*/u, "")
-                                    )}
-                                  </h4>
-                                </div>
+                              <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+                                <span
+                                  className={`material-symbols-outlined !text-[16px] shrink-0 ${mMeta.colorClass}`}
+                                >
+                                  {mMeta.icon}
+                                </span>
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[8px] font-black uppercase tracking-wider shrink-0 whitespace-nowrap">
                                   <span
                                     className={`material-symbols-outlined !text-[11px] ${mMeta.colorClass}`}
@@ -2538,21 +2836,21 @@ export default function WebDocumentFeed({
                                   <span>{mMeta.label}</span>
                                 </span>
                               </div>
-                              <h4 className="sm:hidden text-sm font-bold text-[var(--text)] leading-snug m-0">
-                                {renderCleanInlineText(
+                              <h4 className="text-sm font-bold text-[var(--text)] leading-snug min-w-0 break-words [overflow-wrap:anywhere] m-0">
+                                {renderDirectiveHeading(
                                   m.title.replace(/^(\u2705|\u23F3|\u{1F9EA})\s*/u, "")
                                 )}
                               </h4>
-                              <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed m-0">
+                              <p className="text-xs font-normal text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
                                 {renderCleanInlineText(m.desc)}
                               </p>
                             </div>
                           );
-                        })}
-                      </div>
+                        }}
+                      />
 
                       {filteredPhases.length > 1 && (
-                        <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                           <ActionButton
                             variant="glass"
                             icon={t("icon_navigate_before", "navigate_before")}
@@ -2606,994 +2904,18 @@ export default function WebDocumentFeed({
     );
   };
 
-  // Render Interactive Forking & Spoke Provisioning Guide (3 Static Top Tiles + 2-Column Cards & Full-Width Terminals)
-  const renderInteractiveForking = () => {
-    const spokeSqlLineCount = SPOKE_SCHEMA_SQL.split(/\r?\n/).length;
-    const hubSqlLineCount = HUB_SCHEMA_SQL.split(/\r?\n/).length;
-    const isSpokeSqlActive = sqlSchemaTab === "spoke";
-    const activeSqlCode = isSpokeSqlActive ? SPOKE_SCHEMA_SQL : HUB_SCHEMA_SQL;
-    const activeSqlCopyId = isSpokeSqlActive ? "sql_spoke" : "sql_hub";
-
-    return (
-      <div className="flex flex-col gap-6">
-        {/* 1x3 Top Tiles (Responsive SidePanel Filter Grid) */}
-        <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
-          <DashboardStatTile
-            variant="filter"
-            className="!w-full"
-            icon={t("icon_hub", "hub")}
-            label={t("dir_fk_t1_lbl", "STEP 1")}
-            number={t("dir_fk_t1_val", "Spoke Setup")}
-            colorClass="text-[var(--accent)]"
-            isActive={forkTab === "spoke"}
-            onClick={() => setForkTab("spoke")}
-          />
-          <DashboardStatTile
-            variant="filter"
-            className="!w-full"
-            icon={t("icon_call_split", "call_split")}
-            label={t("dir_fk_t2_lbl", "FORK MODES")}
-            number={t("dir_fk_t2_val", "Standalone & Hub")}
-            colorClass="text-[var(--accent)]"
-            isActive={forkTab === "standalone"}
-            onClick={() => setForkTab("standalone")}
-          />
-          <DashboardStatTile
-            variant="filter"
-            className="!w-full"
-            icon={t("icon_database", "database")}
-            label={t("dir_fk_t3_lbl", "STEP 3")}
-            number={t("dir_fk_t3_val", "SQL Schemas")}
-            colorClass="text-[var(--accent)]"
-            isActive={forkTab === "sql"}
-            onClick={() => setForkTab("sql")}
-          />
-        </SidePanelFilterBar>
-
-        {/* Tab 1: Official Partner Spoke Setup & Cut the Cord */}
-        {forkTab === "spoke" && (
-          <div className="glass-panel rounded-2xl p-5 flex flex-col gap-4 border border-[color-mix(in_srgb,var(--accent)_45%,transparent)]">
-            <div className="flex items-start justify-between gap-3">
-              <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                <span className="material-symbols-outlined !text-[22px]">
-                  {t("icon_hub", "hub")}
-                </span>
-              </div>
-
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                  {t("icon_verified", "verified")}
-                </span>
-                <span>{t("active", "Active")}</span>
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-1 mt-0.5">
-              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                {t(
-                  "sd_fork_spoke_hero_badge",
-                  "OFFICIAL PARTNER NETWORK • ZERO CODE EDITS"
-                )}
-              </span>
-              <h3 className="text-base sm:text-lg font-black tracking-tight text-[var(--text)] leading-snug m-0">
-                {t(
-                  "sd_fork_spoke_hero_title",
-                  "Connect a Sovereign Community Spoke in 3 Steps"
-                )}
-              </h3>
-              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                {t(
-                  "sd_fork_spoke_hero_desc",
-                  "Join the official Sanctuary OS multi-game network while retaining 100% ownership of your community's Supabase PostgreSQL database. No client forking or code edits required."
-                )}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                    {t("icon_database", "database")}
-                  </span>
-                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                    {t(
-                      "sd_fork_spoke_step1_title",
-                      "Step 1: Initialize Your Supabase Spoke (schema.sql)"
-                    )}
-                  </h4>
-                </div>
-                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {t(
-                    "sd_fork_spoke_step1_desc",
-                    "Create a free Supabase project, open the SQL Editor, and run schema.sql. This single script provisions all 36 community tables, RLS policies, immutable audit triggers, and role functions."
-                  )}
-                </p>
-              </div>
-
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                    {t("icon_key", "key")}
-                  </span>
-                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                    {t(
-                      "sd_fork_spoke_step2_title",
-                      "Step 2: Generate Your SANCTUARY-UPLINK:// Bundle"
-                    )}
-                  </h4>
-                </div>
-                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {t(
-                    "sd_fork_spoke_step2_desc",
-                    "In Keepers Core -> Active Workspaces (or Wayfinder Hub), paste your Supabase URL, Anon Key, and Service Role Key to generate an encrypted SANCTUARY-UPLINK:// handshake bundle."
-                  )}
-                </p>
-              </div>
-
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                    {t("icon_rocket_launch", "rocket_launch")}
-                  </span>
-                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                    {t(
-                      "sd_fork_spoke_step3_title",
-                      "Step 3: Verify Handshake & Provision Founding Wayfinder"
-                    )}
-                  </h4>
-                </div>
-                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {t(
-                    "sd_fork_spoke_step3_desc",
-                    "Click 'Test Handshake & Verify Schema'. The game-gateway Edge Function verifies table readiness, seeds global_network_status, and automatically promotes your founder account to Wayfinder."
-                  )}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--warning)_35%,transparent)]">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--warning)] shrink-0">
-                    {t("icon_link_off", "link_off")}
-                  </span>
-                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                    {t(
-                      "sd_fork_cord_community_title",
-                      "Community-Initiated Severance (Wayfinder Hub)"
-                    )}
-                  </h4>
-                </div>
-                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {t(
-                    "sd_fork_cord_community_desc",
-                    "A Wayfinder can double-click 'Cut the Cord' in Wayfinder Hub -> Spoke Uplink & Sovereignty at any time. This writes an immutable audit log, sets is_active = false on the Hub, and permanently scrubs (NULLs) the Spoke's supabase_service_key from the Hub while leaving 100% of the community's database intact."
-                  )}
-                </p>
-              </div>
-
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--success)_35%,transparent)]">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--success)] shrink-0">
-                    {t("icon_verified", "verified")}
-                  </span>
-                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                    {t(
-                      "sd_fork_cord_keeper_title",
-                      "Zero Platform Tax & 100% Data Ownership"
-                    )}
-                  </h4>
-                </div>
-                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {t("sd_fork_cord_keeper_desc", "Sanctuary OS takes 0% of {mason} Patreon/Ko-fi revenue and 0% of community donations. Export your SANCTUARY-UPLINK:// bundle before severing to paste directly into a standalone fork.")}
-                </p>
-              </div>
-            </div>
-
-            {/* Additional Synced Cards from Spoke Setup Tab (e.g. Partner Spoke Agreement & Readiness Covenants) */}
-            {(customForkSchema?.tabs
-              .find((tb) => tb.id === "spoke")
-              ?.cards.slice(1) || []
-            ).map((extraCard, eIdx) => (
-              <div
-                key={`fork-spoke-extra-${extraCard.id || eIdx}`}
-                className="glass-surface rounded-2xl p-4 flex flex-col gap-3.5 border border-[color-mix(in_srgb,var(--text)_14%,transparent)]"
-              >
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
-                    <div className="flex items-center sm:items-start gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined !text-[20px]">
-                          {extraCard.icon || t("icon_handshake", "handshake")}
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-0.5 min-w-0">
-                        <span className="text-[10px] font-black uppercase tracking-[0.18em] leading-snug text-[var(--accent)]">
-                          {td(extraCard.overline || "")}
-                        </span>
-                        <h4 className="hidden sm:block text-base font-black text-[var(--text)] leading-snug m-0">
-                          {td(extraCard.title || "")}
-                        </h4>
-                      </div>
-                    </div>
-                    {extraCard.badge && (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
-                        <span>{td(extraCard.badge)}</span>
-                      </span>
-                    )}
-                  </div>
-                  <h4 className="sm:hidden text-sm font-black text-[var(--text)] leading-snug m-0">
-                    {td(extraCard.title || "")}
-                  </h4>
-                </div>
-                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {td(extraCard.desc || "")}
-                </p>
-                {(extraCard.subCards || []).length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                    {(extraCard.subCards || []).map((sc, sIdx) => (
-                      <div
-                        key={`sc-${sc.id || sIdx}`}
-                        className="glass-surface rounded-xl p-3.5 flex flex-col gap-1 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
-                            {sc.icon || t("icon_check_circle", "check_circle")}
-                          </span>
-                          <h5 className="text-xs font-bold text-[var(--text)] leading-snug m-0">
-                            {td(sc.title || "")}
-                          </h5>
-                        </div>
-                        <p className="text-[11px] font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                          {td(sc.desc || "")}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Tab 2: Forking Modes (Single-Column Stacked Cards: Unselected Compact & Dimmed, Selected Expands In-Place) */}
-        {forkTab === "standalone" && (
-          <div className="flex flex-col gap-3.5 w-full">
-            {/* Mode Card 1: 1-File Standalone Fork */}
-            <div
-              role={forkModeIdx !== 0 ? "button" : undefined}
-              tabIndex={forkModeIdx !== 0 ? 0 : undefined}
-              onClick={
-                forkModeIdx !== 0 ? () => setForkModeIdx(0) : undefined
-              }
-              onKeyDown={
-                forkModeIdx !== 0
-                  ? (e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setForkModeIdx(0);
-                      }
-                    }
-                  : undefined
-              }
-              className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
-                forkModeIdx === 0
-                  ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
-                  : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
-              }`}
-            >
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
-                  <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
-                    <div
-                      className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
-                        forkModeIdx === 0
-                          ? "text-[var(--accent)]"
-                          : "text-[var(--subtext)] group-hover:text-[var(--text)]"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined !text-[20px]">
-                        {t("icon_call_split", "call_split")}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                      <span
-                        className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug transition-colors ${
-                          forkModeIdx === 0
-                            ? "text-[var(--accent)]"
-                            : "text-[var(--subtext)]"
-                        }`}
-                      >
-                        {t(
-                          "sd_fork_mode_standalone_badge",
-                          "Mode 1 • 1-Database Standalone"
-                        )}
-                      </span>
-                      <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                        {t(
-                          "sd_fork_mode_standalone_title",
-                          "1-File Standalone Fork (Single Database)"
-                        )}
-                      </h3>
-                    </div>
-                  </div>
-
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
-                    <span
-                      className={`material-symbols-outlined !text-[12px] ${
-                        forkModeIdx === 0
-                          ? "text-[var(--accent)]"
-                          : "text-[var(--subtext)]"
-                      }`}
-                    >
-                      {forkModeIdx === 0
-                        ? t("icon_check_circle", "check_circle")
-                        : t("icon_storage", "storage")}
-                    </span>
-                    <span>
-                      {forkModeIdx === 0
-                        ? t("active", "Active")
-                        : t("dir_fk_t2_val", "1-File Fork")}
-                    </span>
-                  </span>
-                </div>
-
-                <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                  {t(
-                    "sd_fork_mode_standalone_title",
-                    "1-File Standalone Fork (Single Database)"
-                  )}
-                </h3>
-              </div>
-
-              {forkModeIdx === 0 && (
-                <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
-                    {t(
-                      "sd_fork_mode_standalone_desc",
-                      "Run your own independent Sanctuary OS build backed by a single Supabase project (schema.sql) and a 1-file edit in src/supabase.ts with zero Edge Functions."
-                    )}
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                        {t(
-                          "sd_fork_standalone_s1_title",
-                          "1. Unified Auth & Direct RPC Engine"
-                        )}
-                      </h4>
-                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                        {t(
-                          "sd_fork_standalone_s1_desc",
-                          "When mode is set to 'standalone', Sanctuary OS automatically routes all 15 secure_* RPCs directly against your single Supabase database with zero Edge Function dependency."
-                        )}
-                      </p>
-                    </div>
-                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                        {t(
-                          "sd_fork_standalone_s2_title",
-                          "2. Automatic Founding Wayfinder Promotion"
-                        )}
-                      </h4>
-                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                        {t(
-                          "sd_fork_standalone_s2_desc",
-                          "The on_auth_user_created_spoke trigger in schema.sql detects when your standalone database has 0 Wayfinders and automatically promotes the very first registered user to Founding Wayfinder."
-                        )}
-                      </p>
-                    </div>
-                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                        {t(
-                          "sd_fork_standalone_s3_title",
-                          "3. Transparent OS-to-Spoke Table Mapping"
-                        )}
-                      </h4>
-                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                        {t(
-                          "sd_fork_standalone_s3_desc",
-                          "All internal queries to global broadcasts, polls, and support categories automatically map to your single database's system_broadcasts, dispatch_poll_votes, and support_tickets tables."
-                        )}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="glass-surface rounded-2xl p-4 flex flex-col gap-3 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
-                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <span className="text-xs font-bold text-[var(--accent)]">
-                        {t(
-                          "sd_fork_standalone_opt_b",
-                          "Option B: Manual Standalone Config"
-                        )}{" "}
-                        • sanctuary-os/src/supabase.ts
-                      </span>
-                      <ActionButton
-                        variant="accent"
-                        icon={
-                          copiedId === "supabase_cfg_manual"
-                            ? t("icon_check_circle", "check_circle")
-                            : t("icon_content_copy", "content_copy")
-                        }
-                        onClick={() =>
-                          handleCopyCode(
-                            "supabase_cfg_manual",
-                            STANDALONE_MANUAL_SNIPPET
-                          )
-                        }
-                      >
-                        {copiedId === "supabase_cfg_manual"
-                          ? t("alert_copied", "Copied to Clipboard!")
-                          : t("sd_btn_copy_snippet", "Copy Code Snippet")}
-                      </ActionButton>
-                    </div>
-                    <pre className="text-xs font-mono text-[var(--text)] opacity-90 overflow-x-auto custom-scrollbar leading-relaxed p-2 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)]">
-                      <code>{STANDALONE_MANUAL_SNIPPET}</code>
-                    </pre>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Mode Card 2: Full Hub & Spoke Multi-Game Federation Fork */}
-            <div
-              role={forkModeIdx !== 1 ? "button" : undefined}
-              tabIndex={forkModeIdx !== 1 ? 0 : undefined}
-              onClick={
-                forkModeIdx !== 1 ? () => setForkModeIdx(1) : undefined
-              }
-              onKeyDown={
-                forkModeIdx !== 1
-                  ? (e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setForkModeIdx(1);
-                      }
-                    }
-                  : undefined
-              }
-              className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
-                forkModeIdx === 1
-                  ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
-                  : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
-              }`}
-            >
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
-                  <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
-                    <div
-                      className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
-                        forkModeIdx === 1
-                          ? "text-[var(--accent)]"
-                          : "text-[var(--subtext)] group-hover:text-[var(--text)]"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined !text-[20px]">
-                        {t("icon_hub", "hub")}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                      <span
-                        className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug transition-colors ${
-                          forkModeIdx === 1
-                            ? "text-[var(--accent)]"
-                            : "text-[var(--subtext)]"
-                        }`}
-                      >
-                        {t(
-                          "sd_fork_mode_hub_badge",
-                          "Mode 2 • Full Hub & Spoke Federation"
-                        )}
-                      </span>
-                      <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                        {t(
-                          "sd_fork_mode_hub_title",
-                          "Full Hub & Spoke Multi-Game Fork (Hub + Child Spokes)"
-                        )}
-                      </h3>
-                    </div>
-                  </div>
-
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
-                    <span
-                      className={`material-symbols-outlined !text-[12px] ${
-                        forkModeIdx === 1
-                          ? "text-[var(--accent)]"
-                          : "text-[var(--subtext)]"
-                      }`}
-                    >
-                      {forkModeIdx === 1
-                        ? t("icon_check_circle", "check_circle")
-                        : t("icon_hub", "hub")}
-                    </span>
-                    <span>
-                      {forkModeIdx === 1
-                        ? t("active", "Active")
-                        : t("dir_ar_t2_val", "Hub & Spokes")}
-                    </span>
-                  </span>
-                </div>
-
-                <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                  {t(
-                    "sd_fork_mode_hub_title",
-                    "Full Hub & Spoke Multi-Game Fork (Hub + Child Spokes)"
-                  )}
-                </h3>
-              </div>
-
-              {forkModeIdx === 1 && (
-                <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
-                    {t(
-                      "sd_fork_mode_hub_desc",
-                      "Self-host your own central Sanctuary OS Hub (schema_os.sql + game-gateway Edge Function) that authenticates users once and routes across multiple independent community Spoke databases (schema.sql)."
-                    )}
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                          {t("icon_memory", "memory")}
-                        </span>
-                        <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                          {t(
-                            "sd_fork_hub_s1_title",
-                            "1. Provision Core Hub Database (schema_os.sql)"
-                          )}
-                        </h4>
-                      </div>
-                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                        {t(
-                          "sd_fork_hub_s1_desc",
-                          "Create your central Hub Supabase project and run schema_os.sql in the SQL Editor. This provisions global SSO profiles, FIDO2 user_passkeys, sanctuary_games, sanctuary_schemas, system_directives, and keeper_heuristic_signatures."
-                        )}
-                      </p>
-                    </div>
-
-                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                          {t("icon_cloud_done", "cloud_done")}
-                        </span>
-                        <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                          {t(
-                            "sd_fork_hub_s2_title",
-                            "2. Deploy game-gateway Edge Function"
-                          )}
-                        </h4>
-                      </div>
-                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                        {t(
-                          "sd_fork_hub_s2_desc",
-                          "Deploy supabase/functions/game-gateway to your Hub project (supabase functions deploy game-gateway). It validates Hub JWTs, checks roles, and executes cross-database mutations against each Spoke."
-                        )}
-                      </p>
-                    </div>
-
-                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                          {t("icon_code", "code")}
-                        </span>
-                        <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                          {t(
-                            "sd_fork_hub_s3_title",
-                            "3. Point src/supabase.ts at Your Core Hub"
-                          )}
-                        </h4>
-                      </div>
-                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                        {t(
-                          "sd_fork_hub_s3_desc",
-                          "Keep mode set to 'hub_and_spoke' in src/supabase.ts (or set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env) pointing to your central Hub project's URL and Anon Key."
-                        )}
-                      </p>
-                    </div>
-
-                    <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                          {t("icon_storage", "storage")}
-                        </span>
-                        <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                          {t(
-                            "sd_fork_hub_s4_title",
-                            "4. Provision & Link Child Spoke Databases (schema.sql)"
-                          )}
-                        </h4>
-                      </div>
-                      <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                        {t(
-                          "sd_fork_hub_s4_desc",
-                          "For each game community, create a separate Supabase project, run schema.sql, and register its URL, Anon Key, and Service Role Key (or SANCTUARY-UPLINK:// bundle) in Keepers Core -> Active Workspaces."
-                        )}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="glass-surface rounded-2xl p-4 flex flex-col gap-3 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
-                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <span className="text-xs font-bold text-[var(--accent)]">
-                        {t(
-                          "sd_fork_hub_snippet_label",
-                          "Hub & Spoke Federation Config • sanctuary-os/src/supabase.ts"
-                        )}
-                      </span>
-                      <ActionButton
-                        variant="accent"
-                        icon={
-                          copiedId === "supabase_cfg_hub"
-                            ? t("icon_check_circle", "check_circle")
-                            : t("icon_content_copy", "content_copy")
-                        }
-                        onClick={() =>
-                          handleCopyCode(
-                            "supabase_cfg_hub",
-                            HUB_AND_SPOKE_FORK_SNIPPET
-                          )
-                        }
-                      >
-                        {copiedId === "supabase_cfg_hub"
-                          ? t("alert_copied", "Copied to Clipboard!")
-                          : t("sd_btn_copy_snippet", "Copy Code Snippet")}
-                      </ActionButton>
-                    </div>
-                    <pre className="text-xs font-mono text-[var(--text)] opacity-90 overflow-x-auto custom-scrollbar leading-relaxed p-2 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)]">
-                      <code>{HUB_AND_SPOKE_FORK_SNIPPET}</code>
-                    </pre>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Additional Synced Mode Cards from Fork Modes Tab (e.g. Master Schema Studio & Lexicon Visual Studio) */}
-            {(customForkSchema?.tabs
-              .find((tb) => tb.id === "standalone")
-              ?.cards.slice(2) || []
-            ).map((extraCard, eIdx) => {
-              const modeIndex = eIdx + 2;
-              const isSelectedMode = forkModeIdx === modeIndex;
-              return (
-                <div
-                  key={`fork-mode-extra-${extraCard.id || modeIndex}`}
-                  role={!isSelectedMode ? "button" : undefined}
-                  tabIndex={!isSelectedMode ? 0 : undefined}
-                  onClick={
-                    !isSelectedMode
-                      ? () => setForkModeIdx(modeIndex)
-                      : undefined
-                  }
-                  onKeyDown={
-                    !isSelectedMode
-                      ? (e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            setForkModeIdx(modeIndex);
-                          }
-                        }
-                      : undefined
-                  }
-                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
-                    isSelectedMode
-                      ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
-                      : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
-                  }`}
-                >
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
-                      <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
-                        <div
-                          className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
-                            isSelectedMode
-                              ? "text-[var(--accent)]"
-                              : "text-[var(--subtext)] group-hover:text-[var(--text)]"
-                          }`}
-                        >
-                          <span className="material-symbols-outlined !text-[20px]">
-                            {extraCard.icon || t("icon_data_object", "data_object")}
-                          </span>
-                        </div>
-                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                          <span
-                            className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug transition-colors ${
-                              isSelectedMode
-                                ? "text-[var(--accent)]"
-                                : "text-[var(--subtext)]"
-                            }`}
-                          >
-                            {td(extraCard.overline || "")}
-                          </span>
-                          <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                            {td(extraCard.title || "")}
-                          </h3>
-                        </div>
-                      </div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap shrink-0">
-                        <span>
-                          {isSelectedMode
-                            ? t("active", "Active")
-                            : td(extraCard.badge || "")}
-                        </span>
-                      </span>
-                    </div>
-                    <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                      {td(extraCard.title || "")}
-                    </h3>
-                  </div>
-                  {isSelectedMode && (
-                    <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
-                        {td(extraCard.desc || "")}
-                      </p>
-                      {(extraCard.subCards || []).length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                          {(extraCard.subCards || []).map((sc, sIdx) => (
-                            <div
-                              key={`mode-sc-${sc.id || sIdx}`}
-                              className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                                  {sc.icon ||
-                                    t("icon_check_circle", "check_circle")}
-                                </span>
-                                <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                                  {td(sc.title || "")}
-                                </h4>
-                              </div>
-                              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                                {td(sc.desc || "")}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Tab 3: SQL Schema Cards (Single-Column Stacked Cards: Unselected Compact & Dimmed, Selected Expands In-Place) */}
-        {forkTab === "sql" && (
-          <div className="flex flex-col gap-3.5 w-full">
-            {/* SQL Card 1: schema.sql (Spoke & Standalone DB) */}
-            <div
-              role={!isSpokeSqlActive ? "button" : undefined}
-              tabIndex={!isSpokeSqlActive ? 0 : undefined}
-              onClick={
-                !isSpokeSqlActive ? () => setSqlSchemaTab("spoke") : undefined
-              }
-              onKeyDown={
-                !isSpokeSqlActive
-                  ? (e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setSqlSchemaTab("spoke");
-                      }
-                    }
-                  : undefined
-              }
-              className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
-                isSpokeSqlActive
-                  ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
-                  : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
-              }`}
-            >
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
-                  <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
-                    <div
-                      className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
-                        isSpokeSqlActive
-                          ? "text-[var(--success)]"
-                          : "text-[var(--subtext)] group-hover:text-[var(--text)]"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined !text-[20px]">
-                        {t("icon_storage", "storage")}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                      <span
-                        className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug transition-colors ${
-                          isSpokeSqlActive
-                            ? "text-[var(--success)]"
-                            : "text-[var(--subtext)]"
-                        }`}
-                      >
-                        {t(
-                          "dir_fork_sql_spoke_sub",
-                          "Spoke & Standalone DB • 36 Tables"
-                        )}
-                      </span>
-                      <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                        {t("dir_fork_sql_spoke_val", "schema.sql (36 Tables)")}
-                      </h3>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {isSpokeSqlActive && (
-                      <ActionButton
-                        variant="accent"
-                        icon={
-                          copiedId === activeSqlCopyId
-                            ? t("icon_check_circle", "check_circle")
-                            : t("icon_content_copy", "content_copy")
-                        }
-                        onClick={() =>
-                          handleCopyCode(activeSqlCopyId, activeSqlCode)
-                        }
-                      >
-                        {copiedId === activeSqlCopyId
-                          ? t("dir_fork_sql_copied", "SQL Copied")
-                          : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
-                      </ActionButton>
-                    )}
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                      <span
-                        className={`material-symbols-outlined !text-[12px] ${
-                          isSpokeSqlActive
-                            ? "text-[var(--success)]"
-                            : "text-[var(--subtext)]"
-                        }`}
-                      >
-                        {isSpokeSqlActive
-                          ? t("icon_check_circle", "check_circle")
-                          : t("icon_database", "database")}
-                      </span>
-                      <span>
-                        {spokeSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
-                      </span>
-                    </span>
-                  </div>
-                </div>
-
-                <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                  {t("dir_fork_sql_spoke_val", "schema.sql (36 Tables)")}
-                </h3>
-              </div>
-
-              {isSpokeSqlActive && (
-                <div className="flex flex-col gap-3.5 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
-                    {t(
-                      "dir_fork_sql_spoke_desc",
-                      "Complete community registry schema (mods, blueprints, masons, conflicts, tickets, heuristics, RLS policies, and Founding Wayfinder trigger)."
-                    )}
-                  </p>
-                  <pre className="text-[11px] font-mono text-[var(--text)] opacity-90 overflow-x-auto max-h-[380px] overflow-y-auto custom-scrollbar leading-relaxed p-3 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)] m-0">
-                    <code>{SPOKE_SCHEMA_SQL}</code>
-                  </pre>
-                </div>
-              )}
-            </div>
-
-            {/* SQL Card 2: schema_os.sql (Core Hub DB) */}
-            <div
-              role={isSpokeSqlActive ? "button" : undefined}
-              tabIndex={isSpokeSqlActive ? 0 : undefined}
-              onClick={
-                isSpokeSqlActive ? () => setSqlSchemaTab("hub") : undefined
-              }
-              onKeyDown={
-                isSpokeSqlActive
-                  ? (e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setSqlSchemaTab("hub");
-                      }
-                    }
-                  : undefined
-              }
-              className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
-                !isSpokeSqlActive
-                  ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
-                  : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
-              }`}
-            >
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
-                  <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
-                    <div
-                      className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
-                        !isSpokeSqlActive
-                          ? "text-[var(--accent)]"
-                          : "text-[var(--subtext)] group-hover:text-[var(--text)]"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined !text-[20px]">
-                        {t("icon_memory", "memory")}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                      <span
-                        className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug transition-colors ${
-                          !isSpokeSqlActive
-                            ? "text-[var(--accent)]"
-                            : "text-[var(--subtext)]"
-                        }`}
-                      >
-                        {t(
-                          "dir_fork_sql_hub_sub",
-                          "Central Core Hub DB • 16 Tables"
-                        )}
-                      </span>
-                      <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                        {t("dir_fork_sql_hub_val", "schema_os.sql (Hub DB)")}
-                      </h3>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {!isSpokeSqlActive && (
-                      <ActionButton
-                        variant="accent"
-                        icon={
-                          copiedId === activeSqlCopyId
-                            ? t("icon_check_circle", "check_circle")
-                            : t("icon_content_copy", "content_copy")
-                        }
-                        onClick={() =>
-                          handleCopyCode(activeSqlCopyId, activeSqlCode)
-                        }
-                      >
-                        {copiedId === activeSqlCopyId
-                          ? t("dir_fork_sql_copied", "SQL Copied")
-                          : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
-                      </ActionButton>
-                    )}
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
-                      <span
-                        className={`material-symbols-outlined !text-[12px] ${
-                          !isSpokeSqlActive
-                            ? "text-[var(--accent)]"
-                            : "text-[var(--subtext)]"
-                        }`}
-                      >
-                        {!isSpokeSqlActive
-                          ? t("icon_check_circle", "check_circle")
-                          : t("icon_database", "database")}
-                      </span>
-                      <span>
-                        {hubSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
-                      </span>
-                    </span>
-                  </div>
-                </div>
-
-                <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                  {t("dir_fork_sql_hub_val", "schema_os.sql (Hub DB)")}
-                </h3>
-              </div>
-
-              {!isSpokeSqlActive && (
-                <div className="flex flex-col gap-3.5 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
-                    {t(
-                      "dir_fork_sql_hub_desc",
-                      "Central multi-game federation schema (global SSO profiles, FIDO2 passkeys, sanctuary_games directory, master schemas, global lexicons/themes, and core heuristics)."
-                    )}
-                  </p>
-                  <pre className="text-[11px] font-mono text-[var(--text)] opacity-90 overflow-x-auto max-h-[380px] overflow-y-auto custom-scrollbar leading-relaxed p-3 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)] m-0">
-                    <code>{HUB_SCHEMA_SQL}</code>
-                  </pre>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
+  // Render Interactive Forking & Spoke Provisioning Guide (100% Schema-Driven via customForkSchema)
+  const renderInteractiveForking = () => (
+    <InteractiveForkingGuideView
+      schema={customForkSchema}
+      forkTab={forkTab}
+      setForkTab={setForkTab}
+      forkModeIdx={forkModeIdx}
+      setForkModeIdx={setForkModeIdx}
+      sqlSchemaTab={sqlSchemaTab}
+      setSqlSchemaTab={setSqlSchemaTab}
+    />
+  );
 
   // Render Expanded Interactive Master Architecture Explorer (3 Top Tiles + Clean 3-Tier Pillar Card)
   const renderInteractiveArchitecture = () => {
@@ -3628,10 +2950,13 @@ export default function WebDocumentFeed({
           },
           {
             icon: t("icon_view_sidebar", "view_sidebar"),
-            title: t("dir_walk_s1_title", "Global Shell: Sidebar, Top Pill & Dock"),
+            title: t(
+              "dir_walk_s1_title",
+              "Global Shell: Sidebar, Top Control Capsule & Telemetry Toast"
+            ),
             desc: t(
               "dir_arch_p1_b3",
-              "Single Morphing Status Pill & context-aware Sidebar that switches cleanly between Foundry Landing Page quick links and Game Workspace tools"
+              "Unified Top-Right Control Capsule, context-aware Sidebar & transient bottom-right System Telemetry Toast opening System Log History"
             ),
           },
           {
@@ -3639,7 +2964,7 @@ export default function WebDocumentFeed({
             title: t("sd_roadmap_p6_title", "Chameleon & Lexicon Protocols"),
             desc: t(
               "dir_arch_p1_b4",
-              "Quota-protected Zustand state engine + strict 4-dictionary Lexicon Protocol (en-default, en-sanctuary, en-sims, Simlish)"
+              "Quota-protected Zustand state engine + Sparse Delta Lexicon Engine V2 (en-default, en-sanctuary & community override packs)"
             ),
           },
         ],
@@ -3678,7 +3003,7 @@ export default function WebDocumentFeed({
             ),
             desc: t(
               "dir_arch_p2_b2",
-              "Community Game Spokes (schema.sql — 36 tables) are 100% owned by each game's Wayfinder with zero email/credential bleed and unilateral Cut the Cord severance"
+              "Community Game Spokes (schema.sql — 52 tables) are 100% owned by each game's Wayfinder with zero email/credential bleed and unilateral Cut the Cord severance"
             ),
           },
           {
@@ -3729,7 +3054,7 @@ export default function WebDocumentFeed({
             icon: t("icon_layers", "layers"),
             title: t(
               "sd_arch_vault_c4_title",
-              "Topological Load Order Compiler (compileLoadOrder)"
+              "Topological Load Order Compiler"
             ),
             desc: t(
               "dir_arch_p3_b2",
@@ -3752,15 +3077,76 @@ export default function WebDocumentFeed({
           {
             icon: t("icon_passkey", "passkey"),
             title: t("dir_walk_s7_c2_name", "FIDO2 Passkey & TOTP {Vault}"),
-            desc: t("dir_arch_p4_b2", "FIDO2 Passkey & TOTP Security {Vault} SidePanel locks Elevated Hubs until verified via Windows Hello, Touch ID, YubiKey, or Authenticator"),
+            desc: t("dir_arch_p4_b2", "FIDO2 Passkey & TOTP Security {Vault} drawer locks Elevated Hubs until verified via Windows Hello, Touch ID, YubiKey, or Authenticator"),
           },
           {
             icon: t("icon_gpp_bad", "gpp_bad"),
             title: t(
               "dir_walk_s7_c3_name",
-              "Quarantine SidePanel OS Lockdown"
+              "Universal AV Quarantine & Threat Manifest"
             ),
-            desc: t("dir_arch_p4_b4", "Full-OS Quarantine SidePanel Lockdown queues multi-file drops without freezing, shows Triggered By & Detection Source diagnostics, and enforces {Citizen}-signed Secure Shred"),
+            desc: t("dir_arch_p4_b4", "Full-OS Quarantine Lockdown drawer queues multi-file drops without freezing, shows Triggered By & Detection Source diagnostics, and enforces {Citizen}-signed Secure Shred"),
+          },
+        ],
+      },
+      p4: {
+        icon: t("icon_admin_panel_settings", "admin_panel_settings"),
+        badge: t(
+          "dir_arch_p4_badge",
+          "ARCHITECTURE PILLAR 4 • GOVERNANCE, PASSKEYS & MALWARE LOCKDOWN"
+        ),
+        heading: t(
+          "dir_arch_p4_heading",
+          "6-Tier Clearance Matrix, 2-Column Hub Overviews, FIDO2 Passkeys & Malware Lockdown"
+        ),
+        summary: t(
+          "dir_arch_p4_summary",
+          "Enforces strict separation between Spoke and Core Hub clearances, hardware-backed WebAuthn Passkey gates, and full-OS Tier 5 Malware quarantine."
+        ),
+        cards: [
+          {
+            icon: t("icon_admin_panel_settings", "admin_panel_settings"),
+            title: t(
+              "dir_arch_p4_c1_title",
+              "6-Tier Clearance Hierarchy ({Citizen} to Keeper)"
+            ),
+            desc: t(
+              "dir_arch_p4_c1_desc",
+              "Decouples Game Spoke roles ({Citizen}, Verified {Mason}, Architect, Oversight, Wayfinder) from Global Core OS Hub roles (Keeper)."
+            ),
+          },
+          {
+            icon: t("icon_space_dashboard", "space_dashboard"),
+            title: t(
+              "dir_arch_p4_c2_title",
+              "Standardized 2-Column Recent & Anomalies Hub Overviews"
+            ),
+            desc: t(
+              "dir_arch_p4_c2_desc",
+              "Every Elevated Hub opens to a 2-column Recent and Anomalies overview surfacing live schema/lexicon edits and actionable configuration alerts."
+            ),
+          },
+          {
+            icon: t("icon_passkey", "passkey"),
+            title: t(
+              "dir_arch_p4_c3_title",
+              "FIDO2 Passkey & TOTP Security {Vault}"
+            ),
+            desc: t(
+              "dir_arch_p4_c3_desc",
+              "Hardware-bound WebAuthn Passkeys (Windows Hello, Touch ID, YubiKey) and TOTP gates protect Elevated Hubs inside a right-hand Security {Vault} drawer."
+            ),
+          },
+          {
+            icon: t("icon_gpp_bad", "gpp_bad"),
+            title: t(
+              "dir_arch_p4_c4_title",
+              "Dual-Tier Heuristic Scanner & Quarantine Lockdown"
+            ),
+            desc: t(
+              "dir_arch_p4_c4_desc",
+              "Merges Bytecode Hound Core + Spoke rules with Zlib/Zstd decompression to lock the OS shell on Tier 5 Malware and enforce a {Citizen}-signed Secure Shred."
+            ),
           },
         ],
       },
@@ -3785,52 +3171,74 @@ export default function WebDocumentFeed({
         }
       : defaultPillar;
 
+    const archPillarDefs = [
+      {
+        id: "p1" as const,
+        defaultIcon: t("icon_memory", "memory"),
+        defaultLabel: t("dir_ar_t1_lbl", "PILLAR 1"),
+        defaultValue: t("dir_ar_t1_val", "Core & Glass"),
+      },
+      {
+        id: "p2" as const,
+        defaultIcon: t("icon_hub", "hub"),
+        defaultLabel: t("dir_ar_t2_lbl", "PILLAR 2"),
+        defaultValue: t("dir_ar_t2_val", "Hub & Spokes"),
+      },
+      {
+        id: "p3" as const,
+        defaultIcon: t("icon_shield", "shield"),
+        defaultLabel: t("dir_ar_t3_lbl", "PILLAR 3"),
+        defaultValue: t("dir_ar_t3_val", "{Vault} & {Lab}"),
+      },
+      {
+        id: "p4" as const,
+        defaultIcon: t("icon_admin_panel_settings", "admin_panel_settings"),
+        defaultLabel: t("dir_ar_t4_lbl", "PILLAR 4"),
+        defaultValue: t("dir_ar_t4_val", "6-Tier & AV"),
+      },
+    ];
+
     return (
       <div className="flex flex-col gap-6">
-        {/* 1x3 Top Tiles (Responsive SidePanel Filter Grid) */}
-        <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
-          <DashboardStatTile
-            variant="filter"
-            className="!w-full"
-            icon={t("icon_memory", "memory")}
-            label={t("dir_ar_t1_lbl", "PILLAR 1")}
-            number={t("dir_ar_t1_val", "Core & Glass")}
-            colorClass="text-[var(--accent)]"
-            isActive={archTab === "p1"}
-            onClick={() => setArchTab("p1")}
-          />
-          <DashboardStatTile
-            variant="filter"
-            className="!w-full"
-            icon={t("icon_hub", "hub")}
-            label={t("dir_ar_t2_lbl", "PILLAR 2")}
-            number={t("dir_ar_t2_val", "Hub & Spokes")}
-            colorClass="text-[var(--accent)]"
-            isActive={archTab === "p2"}
-            onClick={() => setArchTab("p2")}
-          />
-          <DashboardStatTile
-            variant="filter"
-            className="!w-full"
-            icon={t("icon_shield", "shield")}
-            label={t("dir_ar_t3_lbl", "PILLAR 3")}
-            number={t("dir_ar_t3_val", "{Vault} & Lab")}
-            colorClass="text-[var(--accent)]"
-            isActive={archTab === "p3"}
-            onClick={() => setArchTab("p3")}
-          />
+        {/* 4 Pillar Tiles (Responsive SidePanel Filter Grid) */}
+        <SidePanelFilterBar className="sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {archPillarDefs.map((pDef) => {
+            const matchedTab = customArchSchema?.tabs?.find(
+              (tb) => tb.id === pDef.id
+            );
+            const resolvedIcon = matchedTab?.icon
+              ? t(`icon_${matchedTab.icon}`, matchedTab.icon)
+              : pDef.defaultIcon;
+            return (
+              <DashboardStatTile
+                key={pDef.id}
+                variant="filter"
+                className="!w-full"
+                icon={resolvedIcon}
+                label={
+                  matchedTab?.label ? td(matchedTab.label) : pDef.defaultLabel
+                }
+                number={
+                  matchedTab?.value ? td(matchedTab.value) : pDef.defaultValue
+                }
+                colorClass="text-[var(--accent)]"
+                isActive={archTab === pDef.id}
+                onClick={() => setArchTab(pDef.id)}
+              />
+            );
+          })}
         </SidePanelFilterBar>
 
-        {/* Clean 3-Tier Hero Container Below 1x3 Tiles */}
-        <div className="relative glass-panel rounded-2xl p-5 flex flex-col gap-4 border !border-[color-mix(in_srgb,var(--text)_22%,transparent)]">
-          <div className="flex items-start justify-between gap-3">
+        {/* Clean 3-Tier Hero Container */}
+        <div className="relative glass-panel rounded-2xl p-5 flex flex-col gap-4 min-w-0 overflow-hidden border !border-[color-mix(in_srgb,var(--text)_22%,transparent)]">
+          <div className="flex flex-wrap items-start justify-between gap-3 min-w-0">
             <div className="w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined !text-[22px]">
                 {activePillar.icon}
               </span>
             </div>
 
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider whitespace-nowrap">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] text-[9px] font-black uppercase tracking-wider shrink-0 whitespace-nowrap">
               <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                 {activePillar.icon}
               </span>
@@ -3838,38 +3246,41 @@ export default function WebDocumentFeed({
             </span>
           </div>
 
-          <div className="flex flex-col gap-1 mt-0.5">
-            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+          <div className="flex flex-col gap-1 mt-0.5 min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)] break-words">
               {activePillar.badge}
             </span>
-            <h3 className="text-base sm:text-lg font-black tracking-tight text-[var(--text)] leading-snug m-0">
-              {activePillar.heading}
+            <h3 className="text-base sm:text-lg font-black tracking-tight text-[var(--text)] leading-snug break-words [overflow-wrap:anywhere] m-0">
+              {renderDirectiveHeading(activePillar.heading)}
             </h3>
-            <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-              {activePillar.summary}
+            <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
+              {renderCleanInlineText(activePillar.summary)}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-            {activePillar.cards.map((c, idx) => (
+          <BalancedCardColumns
+            items={activePillar.cards}
+            columns={2}
+            className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+            renderItem={(c, idx) => (
               <div
                 key={`${c.title}-${idx}`}
-                className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 min-w-0 overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
               >
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                <div className="flex items-start gap-2 min-w-0">
+                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0 mt-0.5">
                     {c.icon}
                   </span>
-                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                    {c.title}
+                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug min-w-0 flex-1 break-words [overflow-wrap:anywhere] m-0">
+                    {renderDirectiveHeading(c.title)}
                   </h4>
                 </div>
-                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {c.desc}
+                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
+                  {renderCleanInlineText(c.desc)}
                 </p>
               </div>
-            ))}
-          </div>
+            )}
+          />
         </div>
       </div>
     );
@@ -3987,7 +3398,7 @@ export default function WebDocumentFeed({
             ),
             desc: t(
               "sd_proto_d1_r2_desc",
-              "1-click onboarding handshake on game-gateway that validates all 36 tables in schema.sql, seeds global_network_status, and auto-provisions the Founding Wayfinder."
+              "1-click onboarding handshake on game-gateway that validates all 52 tables in schema.sql, seeds global_network_status, and auto-provisions the Founding Wayfinder."
             ),
           },
           {
@@ -3998,7 +3409,7 @@ export default function WebDocumentFeed({
             ),
             desc: t(
               "sd_proto_d1_r3_desc",
-              "Self-service sovereignty protocol executable by either a Keeper or Wayfinder that logs to audit_logs, sets is_active = false, and permanently scrubs supabase_service_key from the Hub."
+              "Self-service sovereignty protocol executable by either a Keeper or Wayfinder that logs to audit_logs, sets is_active = false, revokes all active Spoke Gateway Tokens, and permanently purges the sealed Vault credential from the Hub."
             ),
           },
           {
@@ -4157,13 +3568,13 @@ export default function WebDocumentFeed({
         ),
         desc: t(
           "sd_proto_d4_desc",
-          "Hardware WebAuthn FIDO2 gates, Dual-Tier Rust Heuristics, Full-OS Malware Quarantine SidePanel Lockdown with Secure Shred, DEFCON 1 pre-patch shield, and decoupled hardware_bans."
+          "Hardware WebAuthn FIDO2 gates, Dual-Tier Rust Heuristics, Full-OS Malware Quarantine Lockdown with Secure Shred, DEFCON 1 pre-patch shield, and decoupled hardware_bans."
         ),
         rules: [
           {
             icon: t("icon_passkey", "passkey"),
             title: t("sd_proto_d4_r1_title", "FIDO2 Passkey & TOTP Security {Vault}"),
-            desc: t("sd_proto_d4_r1_desc", "Requires hardware-bound WebAuthn Passkeys or TOTP verification for all Elevated Clearances (Verified {Mason} through Keeper) inside the right-hand Security {Vault} SidePanel."),
+            desc: t("sd_proto_d4_r1_desc", "Requires hardware-bound WebAuthn Passkeys or TOTP verification for all Elevated Clearances (Verified {Mason} through Keeper) inside the right-hand Security {Vault} drawer."),
           },
           {
             icon: t("icon_security", "security"),
@@ -4234,6 +3645,11 @@ export default function WebDocumentFeed({
             badge: td(c.overline || c.footerMeta || ""),
             desc: td(c.desc || ""),
             requiresPasskey: c.status !== "citizen",
+            subCards: (c.subCards || []).map((sc) => ({
+              ...sc,
+              title: td(sc.title || ""),
+              desc: td(sc.desc || ""),
+            })),
           }))
         : elevatedRoles;
 
@@ -4278,9 +3694,20 @@ export default function WebDocumentFeed({
           <DashboardStatTile
             variant="filter"
             className="!w-full"
-            icon={t("icon_admin_panel_settings", "admin_panel_settings")}
+            icon={
+              customProtoRolesTab?.icon
+                ? t(
+                    `icon_${customProtoRolesTab.icon}`,
+                    customProtoRolesTab.icon
+                  )
+                : t("icon_admin_panel_settings", "admin_panel_settings")
+            }
             label={`${effectiveProtoRoles.length} ${t("dir_guide_tiers_unit", "TIERS")}`}
-            number={t("dir_pr_t1_val", "Role Matrix")}
+            number={
+              customProtoRolesTab?.value
+                ? td(customProtoRolesTab.value)
+                : t("dir_pr_t1_val", "Role Matrix")
+            }
             colorClass="text-[var(--accent)]"
             isActive={protoTab === "roles"}
             onClick={() => setProtoTab("roles")}
@@ -4288,9 +3715,21 @@ export default function WebDocumentFeed({
           <DashboardStatTile
             variant="filter"
             className="!w-full"
-            icon={t("icon_shield", "shield")}
-            label={t("dir_pr_t2_lbl", "TIERS 0–5")}
-            number={t("dir_pr_t2_val", "Safety & AV")}
+            icon={
+              customProtoCompTab?.icon
+                ? t(`icon_${customProtoCompTab.icon}`, customProtoCompTab.icon)
+                : t("icon_shield", "shield")
+            }
+            label={
+              customProtoCompTab?.label
+                ? td(customProtoCompTab.label)
+                : t("dir_pr_t2_lbl", "TIERS 0–5")
+            }
+            number={
+              customProtoCompTab?.value
+                ? td(customProtoCompTab.value)
+                : t("dir_pr_t2_val", "Safety & AV")
+            }
             colorClass="text-[var(--accent)]"
             isActive={protoTab === "compliance"}
             onClick={() => setProtoTab("compliance")}
@@ -4298,9 +3737,17 @@ export default function WebDocumentFeed({
           <DashboardStatTile
             variant="filter"
             className="!w-full"
-            icon={t("icon_policy", "policy")}
+            icon={
+              customProtoListTab?.icon
+                ? t(`icon_${customProtoListTab.icon}`, customProtoListTab.icon)
+                : t("icon_policy", "policy")
+            }
             label={`${totalProtoRules} ${t("dir_proto_rules_unit", "RULES")}`}
-            number={t("dir_pr_t3_val", "OS Protocols")}
+            number={
+              customProtoListTab?.value
+                ? td(customProtoListTab.value)
+                : t("dir_pr_t3_val", "OS Protocols")
+            }
             colorClass="text-[var(--accent)]"
             isActive={protoTab === "list"}
             onClick={() => setProtoTab("list")}
@@ -4338,7 +3785,7 @@ export default function WebDocumentFeed({
                         }
                       : undefined
                   }
-                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                  className={`relative glass-panel rounded-2xl flex flex-col min-w-0 overflow-hidden border text-left transition-all duration-300 ${
                     isActive
                       ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
                       : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
@@ -4358,12 +3805,12 @@ export default function WebDocumentFeed({
                           }
                         : undefined
                     }
-                    className={`flex flex-col gap-2 ${
+                    className={`flex flex-col gap-2 min-w-0 ${
                       isActive ? "cursor-pointer" : ""
                     }`}
                   >
-                    <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
-                      <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center md:items-start justify-between gap-2.5 min-w-0">
+                      <div className="flex items-center md:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
                         <div
                           className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                             isActive
@@ -4378,7 +3825,7 @@ export default function WebDocumentFeed({
 
                         <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                           <span
-                            className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug ${
+                            className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug break-words [overflow-wrap:anywhere] ${
                               isActive
                                 ? "text-[var(--accent)]"
                                 : "text-[var(--subtext)]"
@@ -4386,8 +3833,8 @@ export default function WebDocumentFeed({
                           >
                             {role.badge}
                           </span>
-                          <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                            {role.title}
+                          <h3 className="hidden md:block text-base font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                            {renderDirectiveHeading(role.title)}
                           </h3>
                         </div>
                       </div>
@@ -4421,19 +3868,46 @@ export default function WebDocumentFeed({
                       </div>
                     </div>
 
-                    <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                      {role.title}
+                    <h3 className="md:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                      {renderDirectiveHeading(role.title)}
                     </h3>
                   </div>
 
                   {isActive && (
-                    <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
-                        {role.desc}
+                    <div className="flex flex-col gap-4 min-w-0 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed break-words [overflow-wrap:anywhere] m-0">
+                        {renderCleanInlineText(role.desc)}
                       </p>
-                      <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      {(role as any).subCards?.length > 0 && (
+                        <BalancedCardColumns
+                          items={(role as any).subCards as any[]}
+                          columns={2}
+                          className="pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                          renderItem={(sc: any, scIdx: number) => (
+                            <div
+                              key={`${sc.id || scIdx}`}
+                              className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 min-w-0 overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                            >
+                              <div className="flex items-start gap-2 min-w-0">
+                                <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0 mt-0.5">
+                                  {sc.icon ||
+                                    t("icon_check_circle", "check_circle")}
+                                </span>
+                                <h4 className="text-sm font-bold text-[var(--text)] leading-snug min-w-0 flex-1 break-words [overflow-wrap:anywhere] m-0">
+                                  {renderDirectiveHeading(sc.title)}
+                                </h4>
+                              </div>
+                              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
+                                {renderCleanInlineText(sc.desc)}
+                              </p>
+                            </div>
+                          )}
+                        />
+                      )}
+                      <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] min-w-0">
                         <ActionButton
                           variant="glass"
+                          className="shrink-0"
                           icon={t("icon_navigate_before", "navigate_before")}
                           disabled={protoRoleIdx <= 0}
                           onClick={() => {
@@ -4443,11 +3917,12 @@ export default function WebDocumentFeed({
                         >
                           {t("sd_proto_prev_tier", "Previous Tier")}
                         </ActionButton>
-                        <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                        <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate min-w-0 flex-1 text-center">
                           {role.badge}
                         </span>
                         <ActionButton
                           variant="accent"
+                          className="shrink-0"
                           icon={t("icon_navigate_next", "navigate_next")}
                           disabled={
                             protoRoleIdx >= effectiveProtoRoles.length - 1
@@ -4504,7 +3979,7 @@ export default function WebDocumentFeed({
                         }
                       : undefined
                   }
-                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                  className={`relative glass-panel rounded-2xl flex flex-col min-w-0 overflow-hidden border text-left transition-all duration-300 ${
                     isActive
                       ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
                       : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
@@ -4524,11 +3999,11 @@ export default function WebDocumentFeed({
                           }
                         : undefined
                     }
-                    className={`flex flex-col gap-2 ${
+                    className={`flex flex-col gap-2 min-w-0 ${
                       isActive ? "cursor-pointer" : ""
                     }`}
                   >
-                    <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
+                    <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3 min-w-0">
                       <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
                         <div
                           className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${tier.textColor}`}
@@ -4540,14 +4015,14 @@ export default function WebDocumentFeed({
 
                         <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                           <span
-                            className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug ${
+                            className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug break-words [overflow-wrap:anywhere] ${
                               isActive ? tier.textColor : "text-[var(--subtext)]"
                             }`}
                           >
                             {tier.badge}
                           </span>
-                          <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                            {tier.title}
+                          <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                            {renderDirectiveHeading(tier.title)}
                           </h3>
                         </div>
                       </div>
@@ -4569,19 +4044,20 @@ export default function WebDocumentFeed({
                       </div>
                     </div>
 
-                    <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                      {tier.title}
+                    <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                      {renderDirectiveHeading(tier.title)}
                     </h3>
                   </div>
 
                   {isActive && (
-                    <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
-                        {tier.desc}
+                    <div className="flex flex-col gap-4 min-w-0 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed break-words [overflow-wrap:anywhere] m-0">
+                        {renderCleanInlineText(tier.desc)}
                       </p>
-                      <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <div className="flex items-center justify-between gap-3 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] min-w-0">
                         <ActionButton
                           variant="glass"
+                          className="shrink-0"
                           icon={t("icon_navigate_before", "navigate_before")}
                           disabled={protoCompIdx <= 0}
                           onClick={() => {
@@ -4591,11 +4067,12 @@ export default function WebDocumentFeed({
                         >
                           {t("sd_proto_prev_tier", "Previous Tier")}
                         </ActionButton>
-                        <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                        <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate min-w-0 flex-1 text-center">
                           {tier.badge}
                         </span>
                         <ActionButton
                           variant="accent"
+                          className="shrink-0"
                           icon={t("icon_navigate_next", "navigate_next")}
                           disabled={
                             protoCompIdx >=
@@ -4653,7 +4130,7 @@ export default function WebDocumentFeed({
                         }
                       : undefined
                   }
-                  className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
+                  className={`relative glass-panel rounded-2xl flex flex-col min-w-0 overflow-hidden border text-left transition-all duration-300 ${
                     isActive
                       ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
                       : "px-4 py-3.5 gap-2 opacity-50 hover:opacity-85 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer"
@@ -4675,12 +4152,12 @@ export default function WebDocumentFeed({
                           }
                         : undefined
                     }
-                    className={`flex flex-col gap-2 ${
+                    className={`flex flex-col gap-2 min-w-0 ${
                       isActive ? "cursor-pointer" : ""
                     }`}
                   >
-                    <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3">
-                      <div className="flex items-center sm:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center md:items-start justify-between gap-2.5 min-w-0">
+                      <div className="flex items-center md:items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
                         <div
                           className={`w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 transition-colors ${
                             isActive
@@ -4695,7 +4172,7 @@ export default function WebDocumentFeed({
 
                         <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                           <span
-                            className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug ${
+                            className={`text-[10px] font-black uppercase tracking-[0.18em] leading-snug break-words ${
                               isActive
                                 ? "text-[var(--accent)]"
                                 : "text-[var(--subtext)]"
@@ -4703,8 +4180,8 @@ export default function WebDocumentFeed({
                           >
                             {dom.badge}
                           </span>
-                          <h3 className="hidden sm:block text-base font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                            {dom.title}
+                          <h3 className="hidden md:block text-base font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                            {renderDirectiveHeading(dom.title)}
                           </h3>
                         </div>
                       </div>
@@ -4734,40 +4211,43 @@ export default function WebDocumentFeed({
                       </div>
                     </div>
 
-                    <h3 className="sm:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
-                      {dom.title}
+                    <h3 className="md:hidden text-sm font-black text-[var(--text)] tracking-tight leading-snug break-words [overflow-wrap:anywhere] m-0">
+                      {renderDirectiveHeading(dom.title)}
                     </h3>
                   </div>
 
                   {isActive && (
-                    <div className="flex flex-col gap-4 pt-3.5 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                      <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed m-0">
-                        {dom.desc}
+                    <div className="flex flex-col gap-4 pt-3.5 min-w-0 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <p className="text-xs font-normal text-[var(--subtext)] opacity-95 leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
+                        {renderCleanInlineText(dom.desc)}
                       </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                        {dom.rules.map((r, rIdx) => (
+                      <BalancedCardColumns
+                        items={dom.rules}
+                        columns={2}
+                        renderItem={(r, rIdx) => (
                           <div
                             key={`${r.title}-${rIdx}`}
-                            className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
+                            className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 min-w-0 overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                           >
-                            <div className="flex items-center gap-2">
-                              <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
+                            <div className="flex items-start gap-2 min-w-0">
+                              <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0 mt-0.5">
                                 {r.icon}
                               </span>
-                              <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                                {r.title}
+                              <h4 className="text-sm font-bold text-[var(--text)] leading-snug min-w-0 flex-1 break-words [overflow-wrap:anywhere] m-0">
+                                {renderDirectiveHeading(r.title)}
                               </h4>
                             </div>
-                            <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                              {r.desc}
+                            <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed min-w-0 break-words [overflow-wrap:anywhere] m-0">
+                              {renderCleanInlineText(r.desc)}
                             </p>
                           </div>
-                        ))}
-                      </div>
+                        )}
+                      />
 
-                      <div className="flex items-center justify-between gap-4 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                      <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 min-w-0 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                         <ActionButton
                           variant="glass"
+                          className="shrink-0"
                           icon={t("icon_navigate_before", "navigate_before")}
                           disabled={protoDomainIdx <= 0}
                           onClick={() => {
@@ -4777,11 +4257,12 @@ export default function WebDocumentFeed({
                         >
                           {t("sd_proto_prev_rule", "Previous Domain")}
                         </ActionButton>
-                        <span className="hidden sm:inline text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
+                        <span className="hidden sm:block min-w-0 flex-1 text-center text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--subtext)] opacity-70 truncate">
                           {dom.badge}
                         </span>
                         <ActionButton
                           variant="accent"
+                          className="shrink-0"
                           icon={t("icon_navigate_next", "navigate_next")}
                           disabled={
                             protoDomainIdx >=
@@ -4920,7 +4401,10 @@ export default function WebDocumentFeed({
       t("sd_card_proto_title", "Master Protocol & Clearance Matrix"),
     customProtoSchema?.summary ||
       directivesMap.master_protocols?.summary ||
-      t("sd_card_proto_desc", "Operational protocols"),
+      t(
+        "sd_card_proto_desc",
+        "Interactive directory of all 30 Sanctuary OS operational protocols across 4 domains, Florida Compliance Tiers 0–5, Bytecode Hound Core + Spoke Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy."
+      ),
     "protocol clearance matrix governance security compliance"
   );
 
@@ -4956,12 +4440,12 @@ export default function WebDocumentFeed({
         <UniversalCard
           layout="vertical"
           icon={t("icon_school", "school")}
-          title={
+          title={td(
             customGuideSchema?.title ||
-            directivesMap.citizen_guide?.published_title ||
-            directivesMap.citizen_guide?.title ||
-            t("sd_card_guide_title", "Interactive {Citizen} Guide & OS Walkthrough")
-          }
+              directivesMap.citizen_guide?.published_title ||
+              directivesMap.citizen_guide?.title ||
+              t("sd_card_guide_title", "Interactive {Citizen} Guide & OS Walkthrough")
+          )}
           subtitle={buildDirectiveSubtitle(
             t("sd_card_guide_sub", "Walkthrough")
           )}
@@ -4997,13 +4481,15 @@ export default function WebDocumentFeed({
           }
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {customGuideSchema?.summary ||
-              directivesMap.citizen_guide?.published_summary ||
-              directivesMap.citizen_guide?.summary ||
-              t(
-                "sd_card_guide_desc",
-                "Step-by-step interactive walkthrough of Sanctuary OS—from Cartographer setup, Symlink {Vault} & Load Order compilation, to Homestead Lab testing, {Backups} snapshots, Static Edge Auto-Push, Master Schema & Lexicon Studios, and Elevated Clearances."
-              )}
+            {td(
+              customGuideSchema?.summary ||
+                directivesMap.citizen_guide?.published_summary ||
+                directivesMap.citizen_guide?.summary ||
+                t(
+                  "sd_card_guide_desc",
+                  "Step-by-step interactive walkthrough of Sanctuary OS—from Cartographer setup, Symlink {Vault} & Load Order compilation, to Homestead Lab testing, {Backups} snapshots, Static Edge Auto-Push, Master Schema & Lexicon Studios, and Elevated Clearances."
+                )
+            )}
           </p>
         </UniversalCard>
         )}
@@ -5013,12 +4499,12 @@ export default function WebDocumentFeed({
         <UniversalCard
           layout="vertical"
           icon={t("icon_timeline", "timeline")}
-          title={
+          title={td(
             customRoadmapSchema?.title ||
-            directivesMap.phase_roadmap?.published_title ||
-            directivesMap.phase_roadmap?.title ||
-            t("sd_card_roadmap_title", "Sanctuary OS Phase Roadmap")
-          }
+              directivesMap.phase_roadmap?.published_title ||
+              directivesMap.phase_roadmap?.title ||
+              t("sd_card_roadmap_title", "Sanctuary OS Phase Roadmap")
+          )}
           subtitle={buildDirectiveSubtitle(
             `${t("dir_roadmap_tab_value", "Evolution Timeline")} • ${t("dir_phase_word", "Phase")} ${topRoadmapPhaseNum} ${t("active", "Active")}`
           )}
@@ -5054,13 +4540,15 @@ export default function WebDocumentFeed({
           }
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {customRoadmapSchema?.summary ||
-              directivesMap.phase_roadmap?.published_summary ||
-              directivesMap.phase_roadmap?.summary ||
-              t(
-                "sd_card_roadmap_desc",
-                "Interactive milestone timeline tracking Sanctuary OS from Phase 1 (Local Symlink Core) through Phase 12 (Multi-Spoke Sovereignty) into Phase 13 (V5.8 Multi-Engine Studios, 21+17 Heuristics & Bilateral Cloud Sync)."
-              )}
+            {td(
+              customRoadmapSchema?.summary ||
+                directivesMap.phase_roadmap?.published_summary ||
+                directivesMap.phase_roadmap?.summary ||
+                t(
+                  "sd_card_roadmap_desc",
+                  "Interactive milestone timeline tracking Sanctuary OS from Phase 1 (Local Symlink Core) through Phase 12 (Multi-Spoke Sovereignty) into Phase 13 (V5.8 Multi-Engine Studios, Core + Spoke Bytecode Hound Heuristics & Bilateral Cloud Sync)."
+                )
+            )}
           </p>
         </UniversalCard>
         )}
@@ -5075,12 +4563,12 @@ export default function WebDocumentFeed({
         <UniversalCard
           layout="vertical"
           icon={t("icon_call_split", "call_split")}
-          title={
+          title={td(
             customForkSchema?.title ||
-            directivesMap.forking_guide?.published_title ||
-            directivesMap.forking_guide?.title ||
-            t("sd_card_fork_title", "Forking & Spoke Provisioning Guide")
-          }
+              directivesMap.forking_guide?.published_title ||
+              directivesMap.forking_guide?.title ||
+              t("sd_card_fork_title", "Forking & Spoke Provisioning Guide")
+          )}
           subtitle={buildDirectiveSubtitle(
             t("sd_card_fork_sub", "Provisioning")
           )}
@@ -5119,13 +4607,15 @@ export default function WebDocumentFeed({
           }
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {customForkSchema?.summary ||
-              directivesMap.forking_guide?.published_summary ||
-              directivesMap.forking_guide?.summary ||
-              t(
-                "sd_card_fork_desc",
-                "Interactive {blueprint} for launching a Sovereign Community Spoke (SANCTUARY-UPLINK://) or a 1-file Standalone Codebase Fork (src/supabase.ts), plus Master Schema & Lexicon Studios and Cut the Cord."
-              )}
+            {td(
+              customForkSchema?.summary ||
+                directivesMap.forking_guide?.published_summary ||
+                directivesMap.forking_guide?.summary ||
+                t(
+                  "sd_card_fork_desc",
+                  "Interactive {blueprint} for launching a Sovereign Community Spoke (SANCTUARY-UPLINK://) or a 1-file Standalone Codebase Fork (src/supabase.ts), plus Master Schema & Lexicon Studios and Cut the Cord."
+                )
+            )}
           </p>
         </UniversalCard>
         )}
@@ -5135,12 +4625,12 @@ export default function WebDocumentFeed({
         <UniversalCard
           layout="vertical"
           icon={t("icon_architecture", "architecture")}
-          title={
+          title={td(
             customArchSchema?.title ||
-            directivesMap.master_architecture?.published_title ||
-            directivesMap.master_architecture?.title ||
-            t("sd_card_arch_title", "Master Architecture & Engine Systems")
-          }
+              directivesMap.master_architecture?.published_title ||
+              directivesMap.master_architecture?.title ||
+              t("sd_card_arch_title", "Master Architecture & Engine Systems")
+          )}
           subtitle={buildDirectiveSubtitle(
             t("sd_card_arch_sub", "Architecture")
           )}
@@ -5167,7 +4657,7 @@ export default function WebDocumentFeed({
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_layers", "layers")}
                 </span>
-                {`${customArchSchema?.tabs.length || 3} ${t("dir_builder_tabs_lbl", "Tabs")} • ${archSubCardCount} ${t("dir_builder_cards_lbl", "Cards")}`}
+                {`${customArchSchema?.tabs.length || 4} ${t("dir_builder_tabs_lbl", "Tabs")} • ${archSubCardCount} ${t("dir_builder_cards_lbl", "Cards")}`}
               </span>
               <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
                 {t("sd_card_arch_cta", "Inspect Architecture")}{" "}
@@ -5179,13 +4669,15 @@ export default function WebDocumentFeed({
           }
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {customArchSchema?.summary ||
-              directivesMap.master_architecture?.published_summary ||
-              directivesMap.master_architecture?.summary ||
-              t(
-                "sd_card_arch_desc",
-                "Deep-dive interactive explorer into the Tauri v2 Rust core, Hub-and-Spoke database federation, Offline Codebase Baseline + Live Cloud Sync, Symlink Airgap 2.5, Static Edge Auto-Push, and Universal 21+17 Heuristics."
-              )}
+            {td(
+              customArchSchema?.summary ||
+                directivesMap.master_architecture?.published_summary ||
+                directivesMap.master_architecture?.summary ||
+                t(
+                  "sd_card_arch_desc",
+                  "Deep-dive interactive explorer into the Tauri v2 Rust core, Hub-and-Spoke database federation, Offline Codebase Baseline + Live Cloud Sync, Symlink Airgap 2.5, Static Edge Auto-Push, and Bytecode Hound Core + Spoke Heuristics."
+                )
+            )}
           </p>
         </UniversalCard>
         )}
@@ -5195,12 +4687,12 @@ export default function WebDocumentFeed({
         <UniversalCard
           layout="vertical"
           icon={t("icon_policy", "policy")}
-          title={
+          title={td(
             customProtoSchema?.title ||
-            directivesMap.master_protocols?.published_title ||
-            directivesMap.master_protocols?.title ||
-            t("sd_card_proto_title", "Master Protocol & Clearance Matrix")
-          }
+              directivesMap.master_protocols?.published_title ||
+              directivesMap.master_protocols?.title ||
+              t("sd_card_proto_title", "Master Protocol & Clearance Matrix")
+          )}
           subtitle={buildDirectiveSubtitle(
             t("sd_card_proto_sub", "Governance")
           )}
@@ -5239,13 +4731,15 @@ export default function WebDocumentFeed({
           }
         >
           <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-            {customProtoSchema?.summary ||
-              directivesMap.master_protocols?.published_summary ||
-              directivesMap.master_protocols?.summary ||
-              t(
-                "sd_card_proto_desc",
-                "Interactive directory of all 36 Sanctuary OS operational protocols across 5 domains, Florida Compliance Tiers 0–5, Universal 21+17 Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy."
-              )}
+            {td(
+              customProtoSchema?.summary ||
+                directivesMap.master_protocols?.published_summary ||
+                directivesMap.master_protocols?.summary ||
+                t(
+                  "sd_card_proto_desc",
+                  "Interactive directory of all 30 Sanctuary OS operational protocols across 4 domains, Florida Compliance Tiers 0–5, Bytecode Hound Core + Spoke Heuristic Antivirus rules, and the 6-Tier Role Clearance Hierarchy."
+                )
+            )}
           </p>
         </UniversalCard>
         )}
@@ -5264,8 +4758,8 @@ export default function WebDocumentFeed({
                 key={p.id}
                 layout="vertical"
                 icon={t("icon_data_object", "data_object")}
-                title={p.title}
-                subtitle={buildDirectiveSubtitle(p.category)}
+                title={td(p.title)}
+                subtitle={buildDirectiveSubtitle(td(p.category || ""))}
                 onClick={() => setSelectedPost(p)}
                 className="w-full h-full"
                 imageOverlay={
@@ -5274,7 +4768,7 @@ export default function WebDocumentFeed({
                       <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                         {t("icon_folder_special", "folder_special")}
                       </span>
-                      {p.category}
+                      {td(p.category || "")}
                     </span>
                   </div>
                 }
@@ -5296,7 +4790,7 @@ export default function WebDocumentFeed({
                 }
               >
                 <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
-                  {summaryText}
+                  {td(summaryText)}
                 </p>
               </UniversalCard>
             );
@@ -5311,7 +4805,7 @@ export default function WebDocumentFeed({
         title={activePanelMeta.title}
         subtitle={activePanelMeta.subtitle}
         icon={activePanelMeta.icon}
-        widthClass="w-[62vw] max-w-5xl"
+        widthClass="w-[94vw] sm:w-[88vw] lg:w-[74vw] xl:w-[64vw] max-w-5xl"
         panelZ="z-[50001]"
         backdropZ="z-[50000]"
         panelClass="!border-l-[color-mix(in_srgb,var(--text)_15%,transparent)]"
@@ -5339,6 +4833,7 @@ export default function WebDocumentFeed({
           <SidePanelHeroCard
             title={activePanelMeta.title}
             subtitle={activePanelMeta.subtitle}
+            description={activePanelMeta.description}
             label={t("author_sanctuary_team", "Sanctuary Foundry")}
             icon={activePanelMeta.icon}
             variant="accent"

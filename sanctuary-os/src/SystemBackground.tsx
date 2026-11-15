@@ -566,11 +566,15 @@ export function SystemBackground() {
       const rawRadius = maxCorner;
       const isSidePanel = el.classList.contains('sa-side-panel-window');
       const isMobileOverlay = el.classList.contains('sa-mobile-glass-overlay');
+      const isDropdownPopover = el.classList.contains('sa-dropdown-popover');
+      const isStaticInlineToolbar =
+        el.classList.contains('sa-inline-md-toolbar') && cs.position === 'static';
       const isFloatingPill =
-        el.classList.contains('sa-floating-glass-pill') ||
-        el.classList.contains('sa-dropdown-popover') ||
-        el.classList.contains('sa-tooltip-glass') ||
-        (el.classList.contains('portal-glass-fix') && !el.classList.contains('portal-glass-modal'));
+        !isStaticInlineToolbar &&
+        (isDropdownPopover ||
+          el.classList.contains('sa-floating-glass-pill') ||
+          el.classList.contains('sa-tooltip-glass') ||
+          (el.classList.contains('portal-glass-fix') && !el.classList.contains('portal-glass-modal')));
       const isSidebar = el.tagName === 'NAV' && el.classList.contains('firefox-safe-glass');
       const isSurface = el.classList.contains('glass-surface');
 
@@ -601,20 +605,25 @@ export function SystemBackground() {
       for (let i = 0; i < staleCanvases.length; i++) {
         const c = staleCanvases[i];
         const p = c.parentElement;
+        const isStaticToolbar =
+          Boolean(p?.classList.contains('sa-inline-md-toolbar')) &&
+          window.getComputedStyle(p!).position === 'static';
         if (
-          !p?.classList.contains('sa-side-panel-window') &&
-          !p?.classList.contains('sa-mobile-glass-overlay') &&
-          !p?.classList.contains('sa-floating-glass-pill') &&
-          !p?.classList.contains('sa-dropdown-popover') &&
-          !p?.classList.contains('sa-tooltip-glass') &&
-          !(p?.classList.contains('portal-glass-fix') && !p?.classList.contains('portal-glass-modal'))
+          isStaticToolbar ||
+          (!p?.classList.contains('sa-side-panel-window') &&
+            !p?.classList.contains('sa-mobile-glass-overlay') &&
+            !p?.classList.contains('sa-floating-glass-pill') &&
+            !p?.classList.contains('sa-tooltip-glass') &&
+            !p?.classList.contains('sa-dropdown-popover') &&
+            !(p?.classList.contains('portal-glass-fix') &&
+              !p?.classList.contains('portal-glass-modal')))
         ) {
           staleCanvasesToRemove.push(c);
         }
       }
 
       const nodes = document.querySelectorAll<HTMLElement>(
-        'nav.firefox-safe-glass, .glass-panel, .glass-surface, .sa-side-panel-window, .sa-mobile-glass-overlay, .sa-floating-glass-pill, .sa-dropdown-popover, .sa-tooltip-glass, .portal-glass-fix:not(.portal-glass-modal)'
+        'nav.firefox-safe-glass, .glass-panel, .glass-surface, .sa-side-panel-window, .sa-mobile-glass-overlay, .sa-floating-glass-pill, .sa-tooltip-glass, .sa-dropdown-popover, .portal-glass-fix:not(.portal-glass-modal)'
       );
 
       const layer0: HTMLElement[] = []; // Main top-level cards & sidebar
@@ -629,14 +638,21 @@ export function SystemBackground() {
         if (el.classList.contains('portal-glass-modal') || el.closest('.portal-glass-modal')) {
           continue;
         }
+        if (
+          el.classList.contains('sa-inline-md-toolbar') &&
+          window.getComputedStyle(el).position === 'static'
+        ) {
+          continue;
+        }
 
         const isSelfOverlay =
           el.classList.contains('sa-side-panel-window') ||
           el.classList.contains('sa-mobile-glass-overlay') ||
           el.classList.contains('sa-floating-glass-pill') ||
-          el.classList.contains('sa-dropdown-popover') ||
           el.classList.contains('sa-tooltip-glass') ||
-          (el.classList.contains('portal-glass-fix') && !el.classList.contains('portal-glass-modal'));
+          el.classList.contains('sa-dropdown-popover') ||
+          (el.classList.contains('portal-glass-fix') &&
+            !el.classList.contains('portal-glass-modal'));
         if (isSelfOverlay) {
           layer2.push(el);
           if (!overlayChildren.has(el)) overlayChildren.set(el, []);
@@ -698,13 +714,13 @@ export function SystemBackground() {
       const isMobileOverlay =
         host.classList.contains('sa-mobile-glass-overlay') ||
         host.classList.contains('sa-floating-glass-pill') ||
-        host.classList.contains('sa-dropdown-popover') ||
         host.classList.contains('sa-tooltip-glass') ||
+        host.classList.contains('sa-dropdown-popover') ||
         host.classList.contains('portal-glass-fix');
       // Inside SidePanel / MobileOverlay / FloatingPill, content sits at z-10+, so z-index: 0 sits cleanly behind content and 100% above main page.
-      // For right-anchored SidePanels (border-left:1px, border-right:0px), align 1:1 with the host's border-box and keep right corners 0px flush.
+      // Floating desktop SidePanels carry 4 rounded corners + 4 borders (and overflow-hidden clips flush mobile panels), so inset:-1px aligns 1:1 with the host border-box.
       ov.style.cssText = isSidePanel
-        ? 'position:absolute;top:-1px;bottom:-1px;left:-1px;right:0px;width:calc(100% + 1px);height:calc(100% + 2px);pointer-events:none;z-index:0;border-top-left-radius:inherit;border-bottom-left-radius:inherit;border-top-right-radius:0px;border-bottom-right-radius:0px;'
+        ? 'position:absolute;inset:-1px;width:calc(100% + 2px);height:calc(100% + 2px);pointer-events:none;z-index:0;border-radius:inherit;'
         : isMobileOverlay
           ? 'position:absolute;inset:0px;width:100%;height:100%;pointer-events:none;z-index:0;border-radius:inherit;'
           : 'position:absolute;inset:-1px;width:calc(100% + 2px);height:calc(100% + 2px);pointer-events:none;z-index:-1;border-radius:inherit;';

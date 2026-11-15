@@ -28,6 +28,7 @@ import {
 } from "../shared";
 import { formatCleanModTitle } from "./CommandIncompatiblePanel";
 import { unpackBlueprintLoadOrder } from "../hooks/usePlaySetLogic";
+import { mergeImportedModWithClientPriority } from "../utils/blueprintOverrideUtils";
 import {
   deriveUserStagingToken,
   decryptStagingPayload,
@@ -46,7 +47,7 @@ export function SignatureQueueSidePanel({
   equipPlaySet,
   onOpenDossier,
 }: {
-  equipPlaySet?: (setNameOrIndex: any, overrideSet?: any) => Promise<void> | void;
+  equipPlaySet?: (setNameOrIndex: any, overrideSet?: any) => Promise<any> | void;
   onOpenDossier?: (mod: any) => void;
 }) {
   const { t, importLexicon } = useLexicon();
@@ -822,33 +823,35 @@ export function SignatureQueueSidePanel({
         const nextModHashes: Record<string, string> = {};
         const nextModMeta: Record<string, any> = {};
         let localOverrides: Record<string, any> = {};
+        let edgeLogic: Record<string, any> = {};
         let localOverridesDirty = false;
         try {
           localOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
         } catch { }
+        try {
+          edgeLogic = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+        } catch { }
+
+        const existingTargetMetaMap =
+          existingTargetIdx !== -1 ? playSets[existingTargetIdx]?.modMeta || {} : {};
 
         nonAssetSelected.forEach((item) => {
           const cleanArtifactFile = (item.name || "").split(/[\\/]/).pop() || item.name;
           const targetHash = item.localHash || item.hash;
-          if (
-            targetHash &&
-            (item.isLocalOverride || item.manifest_url || item.description || item.url)
-          ) {
-            const existingOvr = localOverrides[targetHash];
-            if (!existingOvr?.is_user_dossier) {
-              localOverrides[targetHash] = {
-                ...(existingOvr || {}),
-                displayName: existingOvr?.displayName || item.displayName,
-                author: existingOvr?.author || item.author,
-                version: existingOvr?.version || item.version,
-                url: existingOvr?.url || item.url,
-                manifest_url: existingOvr?.manifest_url || item.manifest_url,
-                description: existingOvr?.description || item.description,
-                category_override: existingOvr?.category_override || item.category_override,
-                compliance_tier: existingOvr?.compliance_tier ?? item.compliance_tier,
-              };
-              localOverridesDirty = true;
-            }
+          const metaKey = item.isOwned && item.localModName ? item.localModName : item.name;
+          const existingPlaysetMeta = metaKey
+            ? existingTargetMetaMap[metaKey] || existingTargetMetaMap[cleanArtifactFile]
+            : undefined;
+          const merged = mergeImportedModWithClientPriority({
+            importedMod: item,
+            targetHash,
+            localOverrides,
+            edgeLogic,
+            existingPlaysetMeta,
+          });
+          if (targetHash && merged.shouldWriteLocalOverride && merged.nextOverrideEntry) {
+            localOverrides[targetHash] = merged.nextOverrideEntry;
+            localOverridesDirty = true;
           }
 
           if (item.isOwned && item.localModName) {
@@ -858,28 +861,16 @@ export function SignatureQueueSidePanel({
             }
             rawAvailableMods.push(item.localModName);
             if (item.localHash) nextModHashes[item.localModName] = item.localHash;
-            if (item.url || item.author || item.manifest_url) {
-              nextModMeta[item.localModName] = {
-                url: item.url,
-                author: item.author,
-                manifest_url: item.manifest_url,
-                displayName: item.displayName,
-                compliance_tier: item.compliance_tier,
-              };
+            if (Object.keys(merged.resolvedModMeta).length > 0) {
+              nextModMeta[item.localModName] = merged.resolvedModMeta;
             }
           } else {
             if (queue.payload.isFullRigBlueprint && item.name) {
               rawAvailableMods.push(item.name);
             }
             if (item.hash) nextModHashes[item.name] = item.hash;
-            if (item.url || item.author || item.manifest_url) {
-              nextModMeta[item.name] = {
-                url: item.url,
-                author: item.author,
-                manifest_url: item.manifest_url,
-                displayName: item.displayName,
-                compliance_tier: item.compliance_tier,
-              };
+            if (item.name && Object.keys(merged.resolvedModMeta).length > 0) {
+              nextModMeta[item.name] = merged.resolvedModMeta;
             }
           }
         });
@@ -901,15 +892,6 @@ export function SignatureQueueSidePanel({
           nameRemap,
           activeGameSchema
         );
-
-        if (ignoredConflicts.length > 0) {
-          const prevIgnored = useStore.getState().ignoredGlobal || [];
-          const mergedIgnored = Array.from(new Set([...prevIgnored, ...ignoredConflicts]));
-          useStore.getState().setIgnoredGlobal(mergedIgnored);
-          try {
-            localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(mergedIgnored));
-          } catch { }
-        }
 
         const availableMods = rawAvailableMods.map((mName) => formatModWithTier(mName));
         const existingSetMods =
@@ -1227,9 +1209,7 @@ export function SignatureQueueSidePanel({
         key={`${mod.id}_${idx}`}
         onClick={handleCardClick}
         className={`glass-surface rounded-2xl p-4 border transition-all flex flex-col justify-between gap-3 cursor-pointer group ${mod.selected
-          ? mod.isOwned || isNexusAsset
-            ? "border-[color-mix(in_srgb,var(--success)_24%,transparent)] hover:border-[color-mix(in_srgb,var(--success)_50%,transparent)]"
-            : "border-[color-mix(in_srgb,var(--warning)_28%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_55%,transparent)]"
+          ? "border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_26%,transparent)]"
           : "border-[color-mix(in_srgb,var(--text)_6%,transparent)] opacity-55"
           }`}
       >
@@ -1339,7 +1319,7 @@ export function SignatureQueueSidePanel({
                 e.stopPropagation();
                 handleOpenUrl(targetUrl);
               }}
-              className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] rounded-lg transition-all group/btn relative cursor-pointer"
+              className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] rounded-lg transition-all group/btn relative cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[14px]">
                 {t("icon_open_in_new", "open_in_new")}
@@ -1361,7 +1341,7 @@ export function SignatureQueueSidePanel({
                   toggleItemSelection(mod.id);
                 }
               }}
-              className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] rounded-lg transition-all group/btn relative cursor-pointer"
+              className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] rounded-lg transition-all group/btn relative cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[14px]">
                 {mod.selected ? t("icon_close", "close") : t("icon_undo", "undo")}
@@ -1416,8 +1396,8 @@ export function SignatureQueueSidePanel({
                       setVisibleLimit(80);
                     }}
                     className={`glass-surface rounded-xl p-3 border text-left transition-all flex items-center justify-between gap-2.5 cursor-pointer ${isSelectedQueue
-                      ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]"
-                      : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                      ? "sa-glass-active"
+                      : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                       }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -1704,10 +1684,10 @@ export function SignatureQueueSidePanel({
                 {queue.payload.removedItems.map((remItem, rIdx) => (
                   <div
                     key={`rem_${remItem.id || remItem.name}_${rIdx}`}
-                    className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
+                    className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-between gap-3"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] flex items-center justify-center shrink-0 text-[var(--danger)]">
+                      <div className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0 text-[var(--danger)]">
                         <span className="material-symbols-outlined !text-[20px]">
                           {t("icon_remove_circle_outline", "remove_circle_outline")}
                         </span>
@@ -1739,7 +1719,7 @@ export function SignatureQueueSidePanel({
                           };
                         });
                       }}
-                      className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] rounded-lg transition-all cursor-pointer"
+                      className="w-7 h-7 shrink-0 flex items-center justify-center glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] rounded-lg transition-all cursor-pointer"
                     >
                       <span className="material-symbols-outlined !text-[14px]">
                         {t("icon_undo", "undo")}
@@ -1831,7 +1811,7 @@ export function SignatureQueueSidePanel({
                 <div
                   key={`exist_${mod.hash || mod.name}_${eIdx}`}
                   onClick={() => onOpenDossier?.(mod)}
-                  className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-all flex items-center justify-between gap-3 cursor-pointer group"
+                  className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all flex items-center justify-between gap-3 cursor-pointer group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
@@ -1885,7 +1865,7 @@ export function SignatureQueueSidePanel({
                         };
                       });
                     }}
-                    className="h-7 px-2.5 shrink-0 flex items-center justify-center gap-1 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] rounded-lg text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                    className="h-7 px-2.5 shrink-0 flex items-center justify-center gap-1 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] rounded-lg text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer"
                   >
                     <span className="material-symbols-outlined !text-[13px]">
                       {t("icon_remove_circle_outline", "remove_circle_outline")}
@@ -1964,7 +1944,7 @@ export function SignatureQueueSidePanel({
                 icon={t("icon_delete_forever", "delete_forever")}
                 disabled={isProcessing}
                 onClick={handleRejectAndShred}
-                className="justify-center !h-10 !px-4 !text-[10px] [&_span.material-symbols-outlined]:!text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--danger)_50%,transparent)]"
+                className="justify-center !h-10 !px-4 !text-[10px] [&_span.material-symbols-outlined]:!text-[var(--danger)] hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
               >
                 {t("sig_queue_btn_reject_shred", "Reject & Shred")}
               </ActionButton>

@@ -856,45 +856,19 @@ pub fn detect_cloud_hijack(mods_path: String) -> CloudHijackReport {
     }
 
     let path_obj = PathBuf::from(trimmed);
-    let canonical_or_raw = std::fs::canonicalize(&path_obj)
-        .unwrap_or_else(|_| path_obj.clone())
+    if let Some(detected) = crate::commands::system::detect_cloud_provider_for_path(&path_obj) {
+        return CloudHijackReport {
+            is_hijacked: true,
+            provider: Some(detected.provider),
+            detected_path: detected.resolved_path,
+        };
+    }
+
+    let cleaned = crate::utils::strip_windows_verbatim_prefix(&path_obj);
+    let canonical_or_raw = crate::utils::resolve_canonical_target(&cleaned)
+        .unwrap_or(cleaned)
         .to_string_lossy()
         .to_string();
-    let lower = canonical_or_raw.to_lowercase();
-
-    if lower.contains("onedrive") {
-        return CloudHijackReport {
-            is_hijacked: true,
-            provider: Some("OneDrive".to_string()),
-            detected_path: canonical_or_raw,
-        };
-    }
-
-    if lower.contains("mobile documents")
-        || lower.contains("clouddocs")
-        || lower.contains("icloud")
-    {
-        return CloudHijackReport {
-            is_hijacked: true,
-            provider: Some("iCloud Drive".to_string()),
-            detected_path: canonical_or_raw,
-        };
-    }
-
-    if path_obj.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&path_obj) {
-            for entry in entries.flatten() {
-                let fname = entry.file_name().to_string_lossy().to_lowercase();
-                if fname.ends_with(".icloud") {
-                    return CloudHijackReport {
-                        is_hijacked: true,
-                        provider: Some("iCloud Drive".to_string()),
-                        detected_path: canonical_or_raw,
-                    };
-                }
-            }
-        }
-    }
 
     CloudHijackReport {
         is_hijacked: false,

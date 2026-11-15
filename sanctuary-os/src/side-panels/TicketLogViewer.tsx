@@ -871,7 +871,7 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
           isOpen={activeSectionIndex !== null}
           onClose={() => setActiveSectionIndex(null)}
           title={sections[activeSectionIndex].title}
-          subtitle={t("dossier_attached_logs", "Attached Telemetry")}
+          subtitle={t("ticket_attached_logs", "Attached Logs")}
           icon={t("icon_terminal", "terminal")}
           iconColorClass="text-[var(--accent)]"
           widthClass="w-[95vw] md:w-[820px]"
@@ -897,7 +897,7 @@ export default function TicketLogViewer({ logs }: { logs: string }) {
           <div className="flex flex-col gap-5 mt-2 relative z-10 w-full pb-8">
             <SidePanelHeroCard
               icon={t("icon_terminal", "terminal")}
-              overline={t("dossier_attached_logs", "Attached Telemetry")}
+              overline={t("ticket_attached_logs", "Attached Logs")}
               title={sections[activeSectionIndex].title}
               description={t(
                 "view_details",

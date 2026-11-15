@@ -28,6 +28,7 @@ import {
   DynamicTemplatePreviewBanner,
 } from "./chameleon-components/ThemeCard";
 import TemplatePreviewer from "./TemplatePreviewer";
+import { MarketReportPanel } from "./side-panels/NexusSidePanels";
 
 export default function AssetPreviewSidebar({
   assetType,
@@ -60,6 +61,19 @@ export default function AssetPreviewSidebar({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [installedTemplates, setInstalledTemplates] = useState<Record<string, string>>({});
+  const [localReportState, setLocalReportState] = useState<{
+    isOpen: boolean;
+    assetId: string | null;
+    assetType: string | null;
+    reason: string;
+    complianceTier?: number;
+  }>({
+    isOpen: false,
+    assetId: null,
+    assetType: null,
+    reason: "",
+    complianceTier: 1,
+  });
   const session = useStore((state) => state.session);
   const vaultPath = useStore((state) => state.vaultPath);
   const stagingDraftItems = useModalStore((state) => state.stagingDraftItems);
@@ -156,9 +170,11 @@ export default function AssetPreviewSidebar({
             .eq("id", assetId)
             .single();
           if (mErr) throw mErr;
+          const mStatus = String(mData?.status || "").toLowerCase().trim();
           if (
             Number(mData?.compliance_tier || 0) >= 1 ||
-            String(mData?.status || "").toLowerCase() === "unverified"
+            mData?.has_pending_flag === true ||
+            ["unverified", "under_review", "pending", "rejected", "unknown"].includes(mStatus)
           ) {
             throw new Error(
               t(
@@ -175,7 +191,7 @@ export default function AssetPreviewSidebar({
             .eq("id", assetId)
             .single();
           if (bErr) throw bErr;
-          if (Number(bData?.compliance_tier || 0) >= 1) {
+          if (Number(bData?.compliance_tier || 0) >= 1 || bData?.has_pending_flag === true) {
             throw new Error(
               t(
                 "err_asset_restricted",
@@ -195,7 +211,32 @@ export default function AssetPreviewSidebar({
             .eq("id", assetId)
             .single();
           if (mErr) throw mErr;
+          if (mData?.has_pending_flag === true || mData?.is_public === false) {
+            throw new Error(
+              t(
+                "err_asset_restricted",
+                "This {mod} is restricted or unverified and cannot be previewed on the public network."
+              )
+            );
+          }
           setData(mData);
+        } else if (assetType === "collection") {
+          const normalizedColId = String(assetId || "").replace(/^collection_/, "");
+          const { data: cData, error: cErr } = await supabase
+            .from("collections")
+            .select("*")
+            .eq("id", normalizedColId)
+            .single();
+          if (cErr) throw cErr;
+          if (Number(cData?.compliance_tier || 0) >= 1 || cData?.has_pending_flag === true) {
+            throw new Error(
+              t(
+                "err_asset_restricted",
+                "This {mod} is restricted or unverified and cannot be previewed on the public network."
+              )
+            );
+          }
+          setData(cData);
         } else {
           setError(`Unsupported asset type: ${assetType}`);
         }
@@ -207,6 +248,101 @@ export default function AssetPreviewSidebar({
     fetchData();
   }, [assetType, assetId]);
 
+  const handleInternalReportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session?.user?.id) {
+      useStore
+        .getState()
+        .pushStatus(t("auto_guest_mode_active_45", "Authentication required."));
+      return;
+    }
+    if (!localReportState.assetId || !localReportState.reason.trim()) return;
+    try {
+      const normalizedId = String(localReportState.assetId || "").replace(
+        /^collection_/,
+        ""
+      );
+      if (
+        localReportState.assetType === "collection" ||
+        String(localReportState.assetId || "").startsWith("collection_")
+      ) {
+        const { error: repErr } = await supabase.from("content_flags").insert([
+          {
+            content_type: "collection",
+            content_id: normalizedId,
+            reporter_id: session.user.id,
+            reason: localReportState.reason.trim(),
+            status: "pending",
+          },
+        ]);
+        if (repErr) throw repErr;
+        useStore
+          .getState()
+          .pushStatus(t("report_submitted_success", "Report submitted successfully."), "success");
+      } else if (localReportState.assetType === "mod") {
+        const { error: repErr } = await supabase.rpc("flag_mod_for_compliance", {
+          p_mod_id: normalizedId,
+          p_tier: Math.min(4, Math.max(1, Number(localReportState.complianceTier || 1))),
+          p_reason: localReportState.reason.trim(),
+        });
+        if (repErr) throw repErr;
+        window.dispatchEvent(new CustomEvent("sanctuary-compliance-updated"));
+        useStore
+          .getState()
+          .pushStatus(
+            t("mod_flagged_compliance_pending", "{Mod} flagged for Oversight Compliance review.")
+          );
+      } else if (localReportState.assetType === "blueprint") {
+        const { error: repErr } = await supabase.from("blueprint_reports").insert([
+          {
+            blueprint_id: normalizedId,
+            reporter_name: session?.user?.user_metadata?.username || "Anonymous",
+            reporter_id: session.user.id,
+            reason: localReportState.reason.trim(),
+            status: "pending",
+          },
+        ]);
+        if (repErr) throw repErr;
+        useStore
+          .getState()
+          .pushStatus(t("report_submitted_success", "Report submitted successfully."), "success");
+      } else {
+        const { error: repErr } = await supabase.from("nexus_reports").insert([
+          {
+            asset_id: normalizedId,
+            reporter_name: session?.user?.user_metadata?.username || "Anonymous",
+            reporter_id: session.user.id,
+            reason: localReportState.reason.trim(),
+            status: "pending",
+          },
+        ]);
+        if (repErr) throw repErr;
+        useStore
+          .getState()
+          .pushStatus(t("report_submitted_success", "Report submitted successfully."), "success");
+      }
+      window.dispatchEvent(
+        new CustomEvent("sanctuary-content-flagged", {
+          detail: {
+            targetType: String(localReportState.assetType || assetType || "asset"),
+            targetId: normalizedId,
+          },
+        })
+      );
+    } catch (err: any) {
+      useStore
+        .getState()
+        .pushStatus(`${t("report_failed_prefix", "Report failed:")} ${err?.message || ""}`);
+    }
+    setLocalReportState({
+      isOpen: false,
+      assetId: null,
+      assetType: null,
+      reason: "",
+      complianceTier: 1,
+    });
+  };
+
   const panelIcon =
     assetType === "chameleon"
       ? t("icon_palette", "palette")
@@ -214,18 +350,22 @@ export default function AssetPreviewSidebar({
         ? t("icon_translate", "translate")
         : assetType === "blueprint"
           ? t("icon_map", "map")
-          : assetType === "workbench_template"
-            ? t("icon_edit", "edit")
-            : t("icon_extension", "extension");
+          : assetType === "collection"
+            ? t("icon_collections_bookmark", "collections_bookmark")
+            : assetType === "workbench_template"
+              ? t("icon_edit", "edit")
+              : t("icon_extension", "extension");
 
   const panelTitle =
     assetType === "chameleon"
       ? t("chameleon_inspector", "Chameleon Inspector")
       : assetType === "lexicon"
         ? t("lexicon_inspector", "Lexicon Inspector")
-        : assetType === "workbench_template"
-          ? t("template_inspector", "Template Inspector")
-          : t("asset_inspector", "Asset Inspector");
+        : assetType === "collection"
+          ? t("collections", "Collections")
+          : assetType === "workbench_template"
+            ? t("template_inspector", "Template Inspector")
+            : t("asset_inspector", "Asset Inspector");
 
   const panelSubtitle =
     assetType === "chameleon"
@@ -237,6 +377,7 @@ export default function AssetPreviewSidebar({
           : t("asset_desc", "Community Asset");
 
   return (
+    <>
     <SidePanel
       isOpen={true}
       onClose={onClose}
@@ -251,13 +392,24 @@ export default function AssetPreviewSidebar({
       headerActions={
         data &&
         session?.user &&
-        session?.user?.user_metadata?.username !== data.author &&
-        onFlag ? (
+        session?.user?.user_metadata?.username !== data.author ? (
           <PanelHeaderGroup>
             <PanelHeaderButton
               icon={t("icon_flag", "flag")}
               tooltip={t("feed_btn_flag", "Report")}
-              onClick={() => onFlag(assetId, assetType)}
+              onClick={() => {
+                if (onFlag) {
+                  onFlag(assetId, assetType);
+                } else {
+                  setLocalReportState({
+                    isOpen: true,
+                    assetId: String(assetId || "").replace(/^collection_/, ""),
+                    assetType,
+                    reason: "",
+                    complianceTier: 1,
+                  });
+                }
+              }}
               variant="danger"
             />
           </PanelHeaderGroup>
@@ -995,5 +1147,15 @@ export default function AssetPreviewSidebar({
         ) : null}
       </div>
     </SidePanel>
+    {!onFlag && (
+      <MarketReportPanel
+        reportState={localReportState}
+        setReportState={setLocalReportState}
+        handleReportSubmit={handleInternalReportSubmit}
+        backdropZ="z-[75000]"
+        panelZ="z-[75001]"
+      />
+    )}
+    </>
   );
 }

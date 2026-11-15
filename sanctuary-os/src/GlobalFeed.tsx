@@ -184,9 +184,10 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
           useStore.getState().pushStatus("GlobalFeed Error: " + error.message);
         }
         if (data) {
-          setPosts(data);
+          const visibleData = data.filter((p: any) => p?.has_pending_flag !== true);
+          setPosts(visibleData);
           if (window.__sanctuaryCache) {
-            window.__sanctuaryCache.globalFeed.posts = data;
+            window.__sanctuaryCache.globalFeed.posts = visibleData;
             window.__sanctuaryCache.globalFeed.lastFetch = performance.now();
           }
         }
@@ -196,8 +197,25 @@ export default function GlobalFeed({ onOpenMasonProfile }: { onOpenMasonProfile?
     fetchPosts();
   }, [activeTab, isOffline]);
 
+  useEffect(() => {
+    const onFlagged = (e: any) => {
+      const targetType = String(e?.detail?.targetType || "").toLowerCase();
+      const targetId = e?.detail?.targetId;
+      if (!targetId || (targetType !== "post" && targetType !== "broadcast")) return;
+      setPosts((prev) => prev.filter((p: any) => String(p?.id) !== String(targetId)));
+      if (window.__sanctuaryCache?.globalFeed?.posts) {
+        window.__sanctuaryCache.globalFeed.posts = window.__sanctuaryCache.globalFeed.posts.filter(
+          (p: any) => String(p?.id) !== String(targetId)
+        );
+      }
+    };
+    window.addEventListener("sanctuary-content-flagged", onFlagged);
+    return () => window.removeEventListener("sanctuary-content-flagged", onFlagged);
+  }, []);
+
   const filteredPosts = useMemo(() => {
     return posts.filter(p => {
+      if (p?.has_pending_flag === true) return false;
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matchTitle = p.title?.toLowerCase().includes(query);

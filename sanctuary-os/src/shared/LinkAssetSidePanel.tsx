@@ -56,6 +56,7 @@ interface LinkAssetSidePanelProps {
   isOpen: boolean;
   onClose: () => void;
   onAssetSelect: (asset: Asset) => void;
+  widthClass?: string;
   backdropZ?: string;
   panelZ?: string;
 }
@@ -64,6 +65,7 @@ export function LinkAssetSidePanel({
   isOpen,
   onClose,
   onAssetSelect,
+  widthClass = "w-[90vw] md:w-[800px]",
   backdropZ = "z-[50000]",
   panelZ = "z-[50001]",
 }: LinkAssetSidePanelProps) {
@@ -71,6 +73,54 @@ export function LinkAssetSidePanel({
   const [assets, setAssets] = useState<Asset[]>([]);
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
   const [activeAssetFilter, setActiveAssetFilter] = useState("all");
+  const [underlayWidth, setUnderlayWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setUnderlayWidth(null);
+      return;
+    }
+
+    const measureUnderlay = () => {
+      if (window.innerWidth < 768) {
+        setUnderlayWidth(null);
+        return;
+      }
+      const candidates = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          ".sa-side-panel-wrapper.sa-panel-open .sa-side-panel-window.sa-panel-right:not(.sa-link-asset-panel)"
+        )
+      );
+      let maxWidth = 0;
+      for (const el of candidates) {
+        const w = el.getBoundingClientRect().width;
+        if (w > maxWidth) maxWidth = w;
+      }
+      setUnderlayWidth(maxWidth > 0 ? Math.ceil(maxWidth) : null);
+    };
+
+    measureUnderlay();
+    const rafId = window.requestAnimationFrame(measureUnderlay);
+    window.addEventListener("resize", measureUnderlay);
+
+    const observer =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(measureUnderlay)
+        : null;
+    if (observer) {
+      document
+        .querySelectorAll<HTMLElement>(
+          ".sa-side-panel-wrapper.sa-panel-open .sa-side-panel-window.sa-panel-right:not(.sa-link-asset-panel)"
+        )
+        .forEach((el) => observer.observe(el));
+    }
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", measureUnderlay);
+      observer?.disconnect();
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -148,14 +198,17 @@ export function LinkAssetSidePanel({
       subtitle={t("cc_search", "Select an artifact, blueprint, theme, or lexicon to attach")}
       icon={t("icon_link", "link")}
       iconColorClass="text-[var(--accent)]"
-      widthClass="w-[92vw] md:w-[760px]"
+      widthClass={widthClass}
+      panelClass="sa-link-asset-panel"
+      panelStyle={underlayWidth ? { width: `${underlayWidth}px`, maxWidth: "100vw" } : undefined}
+      noScroll={true}
       backdropZ={backdropZ}
       panelZ={panelZ}
     >
-      <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
+      <div className="flex flex-col gap-4 flex-1 min-h-0 relative z-10 w-full">
         <SidePanelHeroCard
           icon={t("icon_link", "link")}
-          overline={t("link_asset", "Asset Directory")}
+          overline={t("pin_tab_assets", "Assets")}
           title={t("link_asset", "Attach Nexus or Vault Asset")}
           description={t(
             "cc_search",
@@ -169,46 +222,52 @@ export function LinkAssetSidePanel({
         <UniversalGroup
           title={`${t("link_asset", "Available Assets")} (${filteredAssets.length})`}
           icon={t("icon_inventory_2", "inventory_2")}
+          className="flex-1 min-h-0 !shrink"
+          innerClassName="flex flex-col gap-4 flex-1 min-h-0"
         >
-          <div className="flex flex-col gap-4">
-            <ActionPill
-              searchQuery={assetSearchQuery}
-              setSearchQuery={setAssetSearchQuery}
-              searchPlaceholder={t("cc_search", "Search assets...")}
-              primaryPopover={{
-                icon: t("icon_tune", "tune"),
-                label: t("filters", "Filters"),
-                content: (
-                  <div className="flex flex-col gap-4 w-[280px] p-2">
-                    <div className="flex flex-col gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">
-                        {t("asset_type", "Asset Type")}
-                      </span>
-                      <InlineFilterGroup
-                        value={activeAssetFilter}
-                        onChange={(v: string) => setActiveAssetFilter(v)}
-                        options={[
-                          { id: "all", label: t("filter_all", "ALL ASSETS") },
-                          { id: "mod", label: t("term_mods", "ARTIFACTS") },
-                          { id: "blueprint", label: t("playsets", "BLUEPRINTS") },
-                          { id: "chameleon", label: t("themes", "THEMES") },
-                          { id: "lexicon", label: t("lexicons", "LEXICONS") },
-                        ]}
-                      />
+          <div className="flex flex-col gap-4 flex-1 min-h-0">
+            <div className="shrink-0">
+              <ActionPill
+                searchQuery={assetSearchQuery}
+                setSearchQuery={setAssetSearchQuery}
+                searchPlaceholder={t("cc_search", "Search assets...")}
+                primaryPopover={{
+                  icon: t("icon_tune", "tune"),
+                  label: t("filters", "Filters"),
+                  content: (
+                    <div className="flex flex-col gap-4 w-[280px] p-2">
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">
+                          {t("asset_type", "Asset Type")}
+                        </span>
+                        <InlineFilterGroup
+                          value={activeAssetFilter}
+                          onChange={(v: string) => setActiveAssetFilter(v)}
+                          options={[
+                            { id: "all", label: t("filter_all", "ALL ASSETS") },
+                            { id: "mod", label: t("term_mods", "ARTIFACTS") },
+                            { id: "blueprint", label: t("playsets", "BLUEPRINTS") },
+                            { id: "chameleon", label: t("themes", "THEMES") },
+                            { id: "lexicon", label: t("lexicons", "LEXICONS") },
+                          ]}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ),
-              }}
-            />
+                  ),
+                }}
+              />
+            </div>
 
             {filteredAssets.length === 0 ? (
-              <EmptyState
-                icon={t("ui_icon_image_not_supported", "image_not_supported")}
-                title={t("no_assets", "No Assets Found")}
-                className="col-span-full py-12"
-              />
+              <div className="flex-1 min-h-0 flex items-center justify-center">
+                <EmptyState
+                  icon={t("ui_icon_image_not_supported", "image_not_supported")}
+                  title={t("no_assets", "No Assets Found")}
+                  className="py-12"
+                />
+              </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-[540px] overflow-y-auto custom-scrollbar pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 flex-1 min-h-0 overflow-y-auto content-start custom-scrollbar pr-1">
                 {filteredAssets.slice(0, 100).map((asset) => {
                   const assetIcon =
                     asset.type === "mod"

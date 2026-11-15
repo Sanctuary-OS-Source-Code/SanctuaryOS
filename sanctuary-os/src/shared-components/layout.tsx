@@ -1,6 +1,6 @@
 import { useLexicon, normalizeAllCapsForThemeCase } from '../LexiconContext';
 import { useTheme } from '../ThemeContext';
-import { isDesktop, isLinuxDesktop } from '../utils/envUtils';
+import { isLinuxDesktop } from '../utils/envUtils';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { PanelHeaderButton } from "./buttons";
@@ -635,7 +635,7 @@ export function SidePanel({
           />
           <div
             ref={panelRef}
-            className={`sa-side-panel-window ${position === "left" ? "sa-panel-left" : "sa-panel-right"} fixed top-0 bottom-0 h-full ${position === "left" ? "left-0 md:left-[calc(var(--sidebarWidth,260px)+1.5rem)] border-t border-b border-r border-l-0 rounded-r-3xl !rounded-l-none" : "right-0 border-t border-b border-l border-r-0 rounded-l-3xl !rounded-r-none"} overflow-hidden ${isResizable ? "" : widthClass} ${isDesktop() ? "" : "max-md:!w-full max-md:!max-w-[100vw] max-md:!rounded-none max-md:!border-x-0"} flex flex-col ${depth > 0 ? "" : panelZ} ${isResizing ? "!transition-none !duration-0 select-none" : ""} ${panelClass || ""} ${keepMounted ? "" : isAnimatingOut ? (position === "left" ? "sa-panel-slide-out-left" : "sa-panel-slide-out-right") : isAnimatingIn ? (position === "left" ? "sa-panel-slide-left" : "sa-panel-slide-right") : ""}`}
+            className={`sa-side-panel-window ${position === "left" ? "sa-panel-left" : "sa-panel-right"} fixed top-0 bottom-0 h-full ${position === "left" ? "left-0 md:left-[calc(var(--sidebarWidth,260px)+1.5rem)] border-t border-b border-r border-l-0 rounded-r-3xl !rounded-l-none" : "right-0 border-t border-b border-l border-r-0 rounded-l-3xl !rounded-r-none"} overflow-hidden ${isResizable ? "" : widthClass} max-md:!w-full max-md:!max-w-[100vw] max-md:!rounded-none max-md:!border-x-0 flex flex-col ${depth > 0 ? "" : panelZ} ${isResizing ? "!transition-none !duration-0 select-none" : ""} ${panelClass || ""} ${keepMounted ? "" : isAnimatingOut ? (position === "left" ? "sa-panel-slide-out-left" : "sa-panel-slide-out-right") : isAnimatingIn ? (position === "left" ? "sa-panel-slide-left" : "sa-panel-slide-right") : ""}`}
             style={{
               zIndex: finalPanelZ,
               pointerEvents: isPanelClosed || isResizing ? "none" : "auto",
@@ -644,27 +644,15 @@ export function SidePanel({
               borderLeftColor: "var(--glass-border-left)",
               borderRightColor: "var(--glass-border-right)",
               borderBottomColor: "var(--glass-border-bottom)",
-              ...(position === "left"
-                ? {
-                    borderLeftWidth: "0px",
-                    borderTopLeftRadius: "0px",
-                    borderBottomLeftRadius: "0px",
-                    borderTopRightRadius: "max(0px, calc(var(--radius, 1.25rem) * 1.25))",
-                    borderBottomRightRadius: "max(0px, calc(var(--radius, 1.25rem) * 1.25))",
-                  }
-                : {
-                    right: "0px",
-                    borderRightWidth: "0px",
-                    borderTopRightRadius: "0px",
-                    borderBottomRightRadius: "0px",
-                    borderTopLeftRadius: "max(0px, calc(var(--radius, 1.25rem) * 1.25))",
-                    borderBottomLeftRadius: "max(0px, calc(var(--radius, 1.25rem) * 1.25))",
-                  }),
               backgroundColor: "var(--glass-drawer-bg, rgba(15, 23, 42, 0.18))",
               boxShadow: "var(--glass-drawer-shadow)",
               ...(isResizable
                 ? {
                     width: `${isResizing ? dragWidthRef.current : panelWidth}px`,
+                    maxWidth:
+                      position === "left"
+                        ? "calc(100vw - var(--sidebarWidth, 260px) - 2.25rem)"
+                        : "calc(100vw - var(--sidebarWidth, 260px) - 2rem)",
                   }
                 : {}),
               ...panelStyle,
@@ -685,7 +673,7 @@ export function SidePanel({
             )}
             {isResizable && (
               <div
-                className="absolute top-0 left-[-6px] w-4 h-full cursor-col-resize hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] z-[100] transition-colors flex flex-col items-center justify-center opacity-0 hover:opacity-100"
+                className="absolute top-0 left-0 w-2.5 h-full cursor-col-resize hover:bg-[color-mix(in_srgb,var(--accent)_30%,transparent)] z-[100] transition-colors flex flex-col items-center justify-center opacity-0 hover:opacity-100"
                 onMouseDown={() => setIsResizing(true)}
               >
                 <div className="w-1 h-12 rounded-full bg-[var(--accent)]" />
@@ -711,7 +699,7 @@ export function SidePanel({
 
             {!hideHeader && (
               <div
-                className={`px-4 pt-3.5 pb-1.5 max-md:pt-[calc(env(safe-area-inset-top,0px)+0.875rem)] sm:px-6 sm:pt-4 sm:pb-2 md:px-7 md:pt-5 md:pb-2 shrink-0 relative z-30 ${coverImage ? "pt-36 sm:pt-48" : ""} flex flex-row items-center justify-between gap-3 md:gap-5 w-full`}
+                className={`px-4 pt-3.5 pb-2.5 max-md:pt-[calc(env(safe-area-inset-top,0px)+0.875rem)] sm:px-6 sm:pt-4 sm:pb-3 md:px-7 md:pt-5 md:pb-3.5 shrink-0 relative z-30 ${coverImage ? "pt-36 sm:pt-48" : ""} flex flex-row items-center justify-between gap-3 md:gap-5 w-full`}
               >
                 {coverImage && (
                   <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] rounded-tl-[inherit] rounded-tr-[inherit]">
@@ -758,11 +746,23 @@ export function SidePanel({
               </div>
             )}
 
-            <div
-              className={`flex-1 min-h-0 flex flex-col relative z-10 overflow-x-hidden ${noScroll ? "" : "overflow-y-auto custom-scrollbar"} ${noPadding ? "" : "p-4 max-md:pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] sm:p-6 md:p-7"} ${isResizing ? "pointer-events-none select-none overflow-hidden" : ""}`}
-            >
-              {children}
-            </div>
+            {noScroll ? (
+              <div
+                className={`flex-1 min-h-0 flex flex-col relative z-10 overflow-hidden ${noPadding ? "" : "p-4 max-md:pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] sm:p-6 md:p-7"} ${isResizing ? "pointer-events-none select-none" : ""}`}
+              >
+                {children}
+              </div>
+            ) : (
+              <div
+                className={`flex-1 min-h-0 relative z-10 overflow-x-hidden overflow-y-auto custom-scrollbar ${isResizing ? "pointer-events-none select-none overflow-hidden" : ""}`}
+              >
+                <div
+                  className={`min-h-full flex flex-col ${noPadding ? "" : "px-4 pt-3 pb-7 max-md:pb-[calc(env(safe-area-inset-bottom,0px)+1.75rem)] sm:px-6 sm:pt-4 sm:pb-8 md:px-7 md:pt-5 md:pb-9"}`}
+                >
+                  {children}
+                </div>
+              </div>
+            )}
 
             {(footer || actions) && (
               <div
@@ -821,7 +821,7 @@ export function ViewHeader({
     shape === "square" ? "rounded-lg" : "rounded-xl";
   return (
     <header className="flex flex-col md:flex-row w-full justify-between items-stretch md:items-center mb-6 md:mb-8 shrink-0 gap-3 md:gap-5">
-      <div className="glass-panel rounded-2xl p-2.5 pr-4 md:p-3 md:pr-5 flex items-center gap-3 md:gap-3.5 shrink-0 min-w-0 w-fit max-w-full relative group/header">
+      <div className="glass-panel rounded-2xl p-2.5 pr-4 md:p-3 md:pr-5 flex items-center gap-3 md:gap-3.5 min-w-0 w-fit max-w-full overflow-hidden relative group/header">
         {icon && (typeof icon !== "string" || icon.trim().length > 0) && (
           <div
             className={`w-9 h-9 md:w-11 md:h-11 ${shapeClass} flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] relative group [&_.material-symbols-outlined]:!text-[18px] md:[&_.material-symbols-outlined]:!text-[22px]`}
@@ -837,25 +837,25 @@ export function ViewHeader({
             )}
           </div>
         )}
-        <div className="flex flex-col gap-0.5 items-start justify-center text-left flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 w-full min-w-0">
+        <div className="flex flex-col gap-1 items-start justify-center text-left min-w-0 max-w-full">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 w-full min-w-0 max-w-full">
             <h1
-              className={`text-base md:text-xl font-black tracking-tight leading-tight m-0 text-left text-[var(--text)] shrink-0 transition-colors ${onTitleClick ? "hover:theme-text-accent cursor-pointer" : ""}`}
+              className={`text-base md:text-xl font-black tracking-tight leading-tight m-0 text-left text-[var(--text)] min-w-0 max-w-full whitespace-normal break-words transition-colors ${onTitleClick ? "hover:theme-text-accent cursor-pointer" : ""}`}
               onClick={onTitleClick}
             >
               {title}
             </h1>
             {breadcrumb && (
-              <div className="flex items-center gap-1.5 min-w-0 shrink-0">
-                <span className="px-2.5 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] md:text-[11px] font-black uppercase tracking-wider text-[var(--text)] leading-tight">
-                  {breadcrumb}
+              <div className="flex items-center min-w-0 max-w-full">
+                <span className="inline-flex items-center justify-center px-2.5 py-0.5 min-h-[22px] max-w-full rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] md:text-[11px] font-black uppercase tracking-wider text-[var(--text)]">
+                  <span className="truncate leading-snug">{breadcrumb}</span>
                 </span>
               </div>
             )}
           </div>
           {subtitle && (
             <h2
-              className={`text-[10px] md:text-[11px] font-medium tracking-wide text-[var(--subtext)] m-0 text-left opacity-80 leading-snug break-words max-w-2xl ${onSubtitleClick ? "hover:theme-text-accent cursor-pointer transition-colors" : ""}`}
+              className={`text-[10px] md:text-[11px] font-medium tracking-wide text-[var(--subtext)] m-0 text-left opacity-80 leading-snug break-words w-full max-w-2xl ${breadcrumb ? "mt-1" : ""} ${onSubtitleClick ? "hover:theme-text-accent cursor-pointer transition-colors" : ""}`}
               onClick={onSubtitleClick}
             >
               {subtitle}
@@ -1236,8 +1236,15 @@ export function DashboardStatTile({
   active = false,
   variant = "default",
 }: any) {
+  const { td } = useLexicon();
   const resolvedActive = Boolean(isActive || active);
-  const displayValue = number !== undefined ? number : value;
+  const resolvedLabel =
+    typeof label === "string" && label.includes("{") ? td(label) : label;
+  const rawDisplayValue = number !== undefined ? number : value;
+  const displayValue =
+    typeof rawDisplayValue === "string" && rawDisplayValue.includes("{")
+      ? td(rawDisplayValue)
+      : rawDisplayValue;
   const isStatusRed =
     colorClass?.includes("red") || colorClass?.includes("danger");
   const isStatusYellow =
@@ -1399,7 +1406,9 @@ export function DashboardStatTile({
                 : "text-[var(--subtext)] opacity-80 group-hover:text-[var(--text)] group-hover:opacity-100"
           }`}
         >
-          {typeof label === "string" ? normalizeAllCapsForThemeCase(label) : label}
+          {typeof resolvedLabel === "string"
+            ? normalizeAllCapsForThemeCase(resolvedLabel)
+            : resolvedLabel}
         </span>
         {hasValue && (
           <span
@@ -1496,7 +1505,7 @@ export function SidePanelFilterBar({
   className = "sm:grid-cols-3 gap-3",
   overlineLabel,
 }: SidePanelFilterBarProps) {
-  const { t } = useLexicon();
+  const { t, td } = useLexicon();
   const [isOpen, setIsOpen] = useState(false);
   const instanceId = React.useId();
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -1508,7 +1517,21 @@ export function SidePanelFilterBar({
     isDropUp: boolean;
   }>({ top: 0, left: 0, width: 280, isDropUp: false });
 
-  const items = React.useMemo(() => extractFilterTileItems(children), [children]);
+  const items = React.useMemo(
+    () =>
+      extractFilterTileItems(children).map((it) => ({
+        ...it,
+        label:
+          typeof it.label === "string" && it.label.includes("{")
+            ? td(it.label)
+            : it.label,
+        displayValue:
+          typeof it.displayValue === "string" && it.displayValue.includes("{")
+            ? td(it.displayValue)
+            : it.displayValue,
+      })),
+    [children, td],
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -1845,7 +1868,7 @@ export function SidePanelFilterBar({
                             <div
                               className={`w-7 h-7 rounded-lg glass-surface border flex items-center justify-center shrink-0 transition-colors ${
                                 item.isActive
-                                  ? "border-[color-mix(in_srgb,var(--accent)_50%,rgba(255,255,255,0.35))]"
+                                  ? "sa-glass-pill-active"
                                   : "border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
                               } ${itemTone}`}
                             >

@@ -7,6 +7,62 @@ import { SidePanelContext } from "./layout";
 import { HoverTooltip } from "./alerts";
 import { formatDisplayName } from "./stringUtils";
 import { getFileLabel } from "./modUtils";
+
+interface DropdownViewportCoords {
+  top: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+  isRight: boolean;
+  isDropUp: boolean;
+}
+
+function computeDropdownViewportCoords(
+  rect: DOMRect,
+  opts: {
+    preferredHeight?: number;
+    minWidth?: number;
+    alignRight?: boolean;
+    forceDropUp?: boolean;
+    gap?: number;
+    margin?: number;
+  } = {},
+): DropdownViewportCoords {
+  const margin = opts.margin ?? 12;
+  const gap = opts.gap ?? 6;
+  const preferredHeight = opts.preferredHeight ?? 300;
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+
+  const spaceBelow = Math.max(0, vh - rect.bottom - margin - gap);
+  const spaceAbove = Math.max(0, rect.top - margin - gap);
+  const shouldDropUp =
+    opts.forceDropUp !== undefined
+      ? opts.forceDropUp
+      : spaceBelow < preferredHeight && spaceAbove > spaceBelow;
+
+  const availableVertical = shouldDropUp ? spaceAbove : spaceBelow;
+  const maxHeight = Math.max(120, Math.min(preferredHeight, availableVertical));
+
+  const minW = opts.minWidth ?? 220;
+  const menuWidth = Math.min(Math.max(rect.width, minW), Math.max(160, vw - margin * 2));
+  const wouldOverflowRight = rect.left + menuWidth > vw - margin;
+  const preferredLeft =
+    (opts.alignRight || wouldOverflowRight) && rect.right - menuWidth >= margin
+      ? rect.right - menuWidth
+      : rect.left;
+  const clampedLeft = Math.max(margin, Math.min(preferredLeft, vw - menuWidth - margin));
+
+  return {
+    top: shouldDropUp ? rect.top - gap : rect.bottom + gap,
+    left: clampedLeft,
+    width: menuWidth,
+    maxHeight,
+    isRight: false,
+    isDropUp: shouldDropUp,
+  };
+}
+
 export function CustomDropdown({
   value,
   selectedValues: selectedValuesProp,
@@ -30,6 +86,7 @@ export function CustomDropdown({
   iconOnlyTrigger = false,
   tooltipPrefix,
   menuMinWidth,
+  topSlot,
 }: any) {
   const { t } = useLexicon();
   const multiSelect = multiSelectProp ?? allowMultiSelect;
@@ -40,11 +97,13 @@ export function CustomDropdown({
   const [activeCategory, setActiveCategory] = useState("ALL");
   const btnRef = React.useRef<HTMLButtonElement>(null);
   const popoverRef = React.useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState({
+  const [coords, setCoords] = useState<DropdownViewportCoords>({
     top: 0,
     left: 0,
     width: 0,
+    maxHeight: 300,
     isRight: false,
+    isDropUp: false,
   });
 
   const options = React.useMemo(
@@ -100,22 +159,15 @@ export function CustomDropdown({
       }
       if (btnRef.current) {
         const rect = btnRef.current.getBoundingClientRect();
-        const shouldDropUp = rect.bottom + 260 > window.innerHeight && rect.top > 260;
         const minW = menuMinWidth || (iconOnlyTrigger ? 250 : 220);
-        const menuWidth = Math.min(Math.max(rect.width, minW), window.innerWidth - 24);
-        const wouldOverflowRight = rect.left + menuWidth > window.innerWidth - 16;
-        const preferredLeft =
-          (iconOnlyTrigger || wouldOverflowRight) && rect.right - menuWidth >= 12
-            ? rect.right - menuWidth
-            : rect.left;
-        const clampedLeft = Math.max(12, Math.min(preferredLeft, window.innerWidth - menuWidth - 12));
-        setCoords({
-          top: shouldDropUp ? rect.top - 6 : rect.bottom + 6,
-          left: clampedLeft,
-          width: menuWidth,
-          isRight: false,
-          isDropUp: shouldDropUp,
-        } as any);
+        setCoords(
+          computeDropdownViewportCoords(rect, {
+            preferredHeight: topSlot ? 360 : 300,
+            minWidth: minW,
+            alignRight: iconOnlyTrigger,
+            gap: 6,
+          }),
+        );
       }
     };
     updatePosition();
@@ -125,7 +177,7 @@ export function CustomDropdown({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [isOpen, iconOnlyTrigger, menuMinWidth]);
+  }, [isOpen, iconOnlyTrigger, menuMinWidth, Boolean(topSlot)]);
 
   const getSelectedLabel = () => {
     if (displayLabel) return displayLabel;
@@ -225,17 +277,18 @@ export function CustomDropdown({
           <div
             ref={popoverRef}
             onClick={(e) => e.stopPropagation()}
-            className="!fixed pointer-events-auto glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-hidden flex flex-col text-[var(--text)]"
+            className="!fixed pointer-events-auto glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl animate-in fade-in zoom-in-95 duration-150 overflow-hidden flex flex-col text-[var(--text)]"
             style={{
               zIndex: 100000001,
-              top: (coords as any).isDropUp ? "auto" : coords.top,
-              bottom: (coords as any).isDropUp
-                ? window.innerHeight - coords.top + 8
+              top: coords.isDropUp ? "auto" : coords.top,
+              bottom: coords.isDropUp
+                ? window.innerHeight - coords.top
                 : "auto",
               left: coords.left,
               transition: "none",
               width: coords.width || 200,
               maxWidth: "calc(100vw - 24px)",
+              maxHeight: coords.maxHeight,
               "--glass-x": `${Math.round(coords.left)}px`,
               "--glass-y": `${Math.round(coords.top)}px`,
             } as React.CSSProperties}
@@ -243,7 +296,7 @@ export function CustomDropdown({
             {(showSearch || (multiSelect && options && options.length > 1)) && (
               <div className="flex items-center justify-between gap-2 px-2.5 py-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] shrink-0 z-10">
                 {showSearch ? (
-                  <div className="sa-dropdown-search px-2.5 h-7 flex items-center gap-1.5 flex-1 min-w-0 transition-colors">
+                  <div className="sa-dropdown-search px-3 h-8 flex items-center gap-1.5 flex-1 min-w-0 transition-colors">
                     <span className="material-symbols-outlined !text-[14px] text-[var(--accent)] opacity-85 shrink-0">
                       {t("icon_search", "search")}
                     </span>
@@ -278,7 +331,7 @@ export function CustomDropdown({
                 )}
 
                 {multiSelect && options && options.length > 1 && (
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {Array.isArray(extraHeaderActions) &&
                       extraHeaderActions.map((act: any, idx: number) => (
                         <button
@@ -288,7 +341,7 @@ export function CustomDropdown({
                             e.stopPropagation();
                             act.onClick?.();
                           }}
-                          className="sa-dropdown-action-chip px-2 h-6 text-[9px] font-bold uppercase tracking-wider cursor-pointer"
+                          className="sa-dropdown-action-chip px-2.5 h-7 text-[9px] font-bold uppercase tracking-wider cursor-pointer"
                         >
                           {act.label}
                         </button>
@@ -311,7 +364,7 @@ export function CustomDropdown({
                           onChange(options.map((o: any) => String(o.id)));
                         }
                       }}
-                      className="sa-dropdown-action-chip px-2 h-6 text-[9px] font-bold uppercase tracking-wider cursor-pointer"
+                      className="sa-dropdown-action-chip px-2.5 h-7 text-[9px] font-bold uppercase tracking-wider cursor-pointer"
                     >
                       {t("all", "All")}
                     </button>
@@ -321,7 +374,7 @@ export function CustomDropdown({
                         e.stopPropagation();
                         onChange([]);
                       }}
-                      className="sa-dropdown-action-chip px-2 h-6 text-[9px] font-bold uppercase tracking-wider cursor-pointer"
+                      className="sa-dropdown-action-chip px-2.5 h-7 text-[9px] font-bold uppercase tracking-wider cursor-pointer"
                     >
                       {t("clear", "Clear")}
                     </button>
@@ -330,7 +383,7 @@ export function CustomDropdown({
               </div>
             )}
             {Array.isArray(categoryTabs) && categoryTabs.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1 px-2.5 py-1.5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] shrink-0 z-10">
+              <div className="flex items-center gap-1 px-2.5 py-1.5 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] shrink-0 z-10 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {categoryTabs.map((cat: any) => {
                   const active = activeCategory === cat.id;
                   return (
@@ -341,8 +394,8 @@ export function CustomDropdown({
                         e.stopPropagation();
                         setActiveCategory(cat.id);
                       }}
-                      className={`sa-dropdown-action-chip px-2 h-6 text-[9px] font-bold uppercase tracking-wider cursor-pointer ${
-                        active ? "!text-[var(--accent)] !border-[color-mix(in_srgb,var(--accent)_50%,transparent)]" : ""
+                      className={`sa-dropdown-filter-tab px-2.5 h-6 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer shrink-0 whitespace-nowrap ${
+                        active ? "is-active" : ""
                       }`}
                     >
                       {cat.label}
@@ -351,7 +404,8 @@ export function CustomDropdown({
                 })}
               </div>
             )}
-            <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar p-2 flex flex-col gap-1">
+            {topSlot}
+            <div className="relative z-10 flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 flex flex-col gap-1">
               {filteredOptions
                 .slice(0, 100)
                 .map((opt: any) => {
@@ -378,8 +432,8 @@ export function CustomDropdown({
                           style={{ borderRadius: "5px" }}
                           className={`w-4 h-4 border flex items-center justify-center transition-colors shrink-0 ${
                             isSelected
-                              ? "bg-transparent border-[color-mix(in_srgb,var(--accent)_65%,transparent)] text-[var(--accent)]"
-                              : "bg-transparent border-[color-mix(in_srgb,var(--text)_22%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)]"
+                              ? "bg-[color-mix(in_srgb,var(--text)_12%,transparent)] border-[color-mix(in_srgb,var(--text)_34%,transparent)] text-[var(--accent)]"
+                              : "bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border-[color-mix(in_srgb,var(--text)_22%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)]"
                           }`}
                         >
                           {isSelected && (
@@ -408,10 +462,8 @@ export function CustomDropdown({
                         </span>
                       )}
                       {isSelected && !multiSelect && (
-                        <span className="w-5 h-5 rounded-md border border-[color-mix(in_srgb,var(--accent)_45%,transparent)] bg-transparent text-[var(--accent)] flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined !text-[13px] font-bold">
-                            {t("icon_check", "check")}
-                          </span>
+                        <span className="material-symbols-outlined !text-[15px] font-bold text-[var(--accent)] shrink-0">
+                          {t("icon_check", "check")}
                         </span>
                       )}
                     </button>
@@ -441,7 +493,7 @@ export function CustomDropdown({
                       handleSelect(query);
                       setQuery("");
                     }}
-                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-colors hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] flex items-center gap-2 cursor-pointer shrink-0"
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-colors hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] border border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--accent)] flex items-center gap-2 cursor-pointer shrink-0"
                   >
                     <span className="material-symbols-outlined !text-[15px]">
                       {t("icon_add", "add")}
@@ -500,7 +552,7 @@ export function CustomDropdown({
                         isActive
                           ? "sa-glass-pill-active"
                           : isOpen
-                            ? "!border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                            ? "sa-glass-pill-active"
                             : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
                       }`
               }`
@@ -653,6 +705,10 @@ export function GameVersionMultiSelect({
       : [];
   const { t } = useLexicon();
   const [versions, setVersions] = useState<string[]>(() => cachedGameVersions || []);
+  const [ruleMode, setRuleMode] = useState<"range" | "min" | "max" | "exclude">("range");
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
+  const datalistId = React.useId();
 
   useEffect(() => {
     if (cachedGameVersions) {
@@ -671,22 +727,181 @@ export function GameVersionMultiSelect({
   const latestPatch = versions[0];
 
   const versionOptions = React.useMemo(() => {
-    const set = new Set<string>(versions);
-    for (const sel of normalizedSelected) {
-      if (sel && sel !== "ALL") set.add(sel);
-    }
-    return Array.from(set).map((ver) => ({
-      id: ver,
-      label: ver,
-    }));
-  }, [versions, normalizedSelected]);
+    const knownSet = new Set<string>(versions);
+    const customRules = normalizedSelected.filter(
+      (sel) => sel && sel !== "ALL" && !knownSet.has(sel)
+    );
+    const ordered = Array.from(new Set<string>([...customRules, ...versions]));
+    return ordered.map((ver) => {
+      const isExclusion = ver.startsWith("!");
+      const isRange = ver.includes(" - ") || ver.includes("..");
+      const isBound = ver.endsWith("+") || ver.startsWith(">=") || ver.startsWith("<=");
+      return {
+        id: ver,
+        label: ver,
+        icon: isExclusion
+          ? t("icon_block", "block")
+          : isRange
+            ? t("icon_swap_horiz", "swap_horiz")
+            : isBound
+              ? t("icon_trending_up", "trending_up")
+              : undefined,
+        iconColorClass: isExclusion
+          ? "text-[var(--danger)]"
+          : isRange || isBound
+            ? "text-[var(--accent)]"
+            : undefined,
+      };
+    });
+  }, [versions, normalizedSelected, t]);
 
+  const canAddRule = React.useMemo(() => {
+    const cleanFrom = rangeFrom.trim();
+    const cleanTo = rangeTo.trim();
+    if (!cleanFrom) return false;
+    if (ruleMode === "range") return Boolean(cleanTo);
+    return true;
+  }, [rangeFrom, rangeTo, ruleMode]);
+
+  const handleAddRule = () => {
+    const cleanFrom = rangeFrom.trim().replace(/^!/, "");
+    const cleanTo = rangeTo.trim().replace(/^!/, "");
+    if (!cleanFrom) return;
+    let token = "";
+    if (ruleMode === "range") {
+      if (!cleanTo) return;
+      token = `${cleanFrom} - ${cleanTo}`;
+    } else if (ruleMode === "min") {
+      token = `${cleanFrom.replace(/\+$/, "")}+`;
+    } else if (ruleMode === "max") {
+      token = `<=${cleanFrom.replace(/^<=\s*/, "")}`;
+    } else {
+      token = cleanTo ? `!${cleanFrom} - ${cleanTo}` : `!${cleanFrom}`;
+    }
+    const base =
+      ruleMode === "exclude"
+        ? normalizedSelected
+        : normalizedSelected.filter((ver) => ver !== "ALL");
+    if (!base.includes(token)) {
+      onChange([...base, token]);
+    }
+    setRangeFrom("");
+    setRangeTo("");
+  };
+
+  const hasExclusions = normalizedSelected.some((v) => v.startsWith("!"));
   const displayLabel =
     variant === "pill" && normalizedSelected.length > 0
       ? `${t("versions", "Versions")} (${normalizedSelected.length})`
       : normalizedSelected.includes("ALL")
-        ? t("filter_all_versions", "All Versions")
+        ? hasExclusions
+          ? `${t("filter_all_versions", "All Versions")}, ${normalizedSelected
+              .filter((v) => v !== "ALL")
+              .join(", ")}`
+          : t("filter_all_versions", "All Versions")
         : undefined;
+
+  const rangeBuilderSlot = (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      className="px-2.5 py-2 border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-col gap-1.5 shrink-0 z-10"
+    >
+      <div className="flex flex-wrap items-center gap-1">
+        {(
+          [
+            { id: "range", label: t("ver_rule_range", "Range") },
+            { id: "min", label: t("ver_rule_min", "Min +") },
+            { id: "max", label: t("ver_rule_max", "Max <=") },
+            { id: "exclude", label: t("ver_rule_exclude", "Exclude !") },
+          ] as const
+        ).map((m) => {
+          const isActiveMode = ruleMode === m.id;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setRuleMode(m.id);
+              }}
+              className={`sa-dropdown-filter-tab px-2.5 h-6 rounded-lg text-[10px] font-black uppercase tracking-wider cursor-pointer ${
+                isActiveMode
+                  ? m.id === "exclude"
+                    ? "!border-[color-mix(in_srgb,var(--danger)_45%,transparent)] !bg-[color-mix(in_srgb,var(--danger)_12%,transparent)] !text-[var(--danger)]"
+                    : "is-active"
+                  : ""
+              }`}
+            >
+              {m.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <datalist id={datalistId}>
+        {versions.slice(0, 60).map((ver) => (
+          <option key={ver} value={ver} />
+        ))}
+      </datalist>
+
+      <div className="flex items-center gap-1.5">
+        <input
+          type="text"
+          list={datalistId}
+          value={rangeFrom}
+          onChange={(e) => setRangeFrom(e.target.value)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleAddRule();
+            }
+          }}
+          placeholder={
+            ruleMode === "range"
+              ? t("ver_from_ph", "From (e.g. 1.0)")
+              : ruleMode === "exclude"
+                ? t("ver_excl_from_ph", "Version / From")
+                : t("ver_single_ph", "Version (e.g. 1.9)")
+          }
+          className="h-7 px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] focus:border-[color-mix(in_srgb,var(--text)_34%,transparent)] text-[11px] font-mono text-[var(--text)] flex-1 min-w-0 outline-none"
+        />
+        {(ruleMode === "range" || ruleMode === "exclude") && (
+          <input
+            type="text"
+            list={datalistId}
+            value={rangeTo}
+            onChange={(e) => setRangeTo(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAddRule();
+              }
+            }}
+            placeholder={
+              ruleMode === "exclude"
+                ? t("ver_to_opt_ph", "To (opt)")
+                : t("ver_to_ph", "To (e.g. 1.5)")
+            }
+            className="h-7 px-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] focus:border-[color-mix(in_srgb,var(--text)_34%,transparent)] text-[11px] font-mono text-[var(--text)] flex-1 min-w-0 outline-none"
+          />
+        )}
+        <button
+          type="button"
+          disabled={!canAddRule}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleAddRule();
+          }}
+          className="sa-dropdown-action-chip h-7 px-2.5 disabled:opacity-40 text-[10px] font-black uppercase tracking-wider text-[var(--text)] shrink-0 cursor-pointer"
+        >
+          {t("ql_add", "Add")}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <CustomDropdown
@@ -694,6 +909,8 @@ export function GameVersionMultiSelect({
       searchable={true}
       allowCustom={true}
       disableTint={true}
+      menuMinWidth={300}
+      topSlot={rangeBuilderSlot}
       variant={variant}
       value={normalizedSelected}
       displayLabel={displayLabel}
@@ -744,9 +961,12 @@ export function CustomDatePicker({
   const [isOpen, setIsOpen] = useState(false);
   const instanceId = React.useId();
   const btnRef = React.useRef<HTMLButtonElement>(null);
-  const [coords, setCoords] = useState({
+  const popoverRef = React.useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<DropdownViewportCoords>({
     top: 0,
     left: 0,
+    width: 288,
+    maxHeight: 350,
     isRight: false,
     isDropUp: false,
   });
@@ -766,17 +986,26 @@ export function CustomDatePicker({
 
   React.useLayoutEffect(() => {
     if (!isOpen) return;
-    const updatePosition = () => {
+    const updatePosition = (e?: Event) => {
+      if (
+        e &&
+        e.type === "scroll" &&
+        popoverRef.current &&
+        e.target instanceof Node &&
+        popoverRef.current.contains(e.target)
+      ) {
+        return;
+      }
       if (btnRef.current) {
         const rect = btnRef.current.getBoundingClientRect();
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const shouldDropUp = spaceBelow < 320 && rect.top > 320;
-        setCoords({
-          top: shouldDropUp ? rect.top : rect.bottom,
-          left: rect.left >= window.innerWidth / 2 ? rect.right : rect.left,
-          isRight: rect.left >= window.innerWidth / 2,
-          isDropUp: shouldDropUp,
-        });
+        setCoords(
+          computeDropdownViewportCoords(rect, {
+            preferredHeight: 350,
+            minWidth: 288,
+            alignRight: rect.left >= window.innerWidth / 2,
+            gap: 8,
+          }),
+        );
       }
     };
     updatePosition();
@@ -826,7 +1055,7 @@ export function CustomDatePicker({
           e.preventDefault();
           setIsOpen(!isOpen);
         }}
-        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all group ${flat ? "bg-transparent border-none px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90 hover:opacity-100" : "h-11 px-4 rounded-xl glass-surface text-xs font-bold text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}
+        className={`w-full flex justify-start items-center focus:outline-none relative z-[10] transition-all group ${flat ? "bg-transparent border-none px-0 py-1 text-xs font-black capitalize tracking-widest text-[var(--text)] opacity-90 hover:opacity-100" : "h-11 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)] text-xs font-bold text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}
       >
         <span
           className={`flex-1 text-left flex items-center h-full overflow-hidden ${flat ? "" : "truncate pr-4"} ${!value ? "text-[var(--subtext)] opacity-75" : "text-[var(--text)]"}`}
@@ -865,27 +1094,23 @@ export function CustomDatePicker({
               onClick={() => setIsOpen(false)}
             />
             <div
-              className="!fixed pointer-events-none"
+              ref={popoverRef}
+              onClick={(e) => e.stopPropagation()}
+              className="!fixed pointer-events-auto glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl animate-in fade-in zoom-in-95 duration-150 w-72 overflow-hidden flex flex-col text-[var(--text)]"
               style={{
                 zIndex: 100000001,
-                top: coords.isDropUp ? undefined : coords.top,
+                top: coords.isDropUp ? "auto" : coords.top,
                 bottom: coords.isDropUp
                   ? window.innerHeight - coords.top
-                  : undefined,
-                left: coords.isRight ? undefined : coords.left,
-                right: coords.isRight
-                  ? window.innerWidth - coords.left
-                  : undefined,
+                  : "auto",
+                left: coords.left,
+                maxHeight: coords.maxHeight,
                 transition: "none",
-              }}
+                "--glass-x": `${Math.round(coords.left)}px`,
+                "--glass-y": `${Math.round(coords.top)}px`,
+              } as React.CSSProperties}
             >
-              <div
-                className={`!absolute ${coords.isDropUp ? "bottom-0 mb-2" : "top-0 mt-2"} ${coords.isRight ? "right-0" : "left-0"} pointer-events-auto glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl animate-in fade-in zoom-in-95 duration-150 p-4 w-72 text-[var(--text)]`}
-                style={{
-                  "--glass-x": `${Math.round(coords.left)}px`,
-                  "--glass-y": `${Math.round(coords.top)}px`,
-                } as React.CSSProperties}
-              >
+              <div className="p-4 overflow-y-auto custom-scrollbar max-h-full">
                 <div className="flex justify-between items-center mb-3 pb-2.5 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                   <button
                     type="button"
@@ -974,10 +1199,13 @@ export function ModSearchDropdown({
   const instanceId = React.useId();
   const [query, setQuery] = useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const [coords, setCoords] = useState({
+  const popoverRef = React.useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<DropdownViewportCoords>({
     top: 0,
     left: 0,
     width: 0,
+    maxHeight: 260,
+    isRight: false,
     isDropUp: false,
   });
 
@@ -996,21 +1224,26 @@ export function ModSearchDropdown({
 
   React.useLayoutEffect(() => {
     if (!isOpen) return;
-    const updatePosition = () => {
+    const updatePosition = (e?: Event) => {
+      if (
+        e &&
+        e.type === "scroll" &&
+        popoverRef.current &&
+        e.target instanceof Node &&
+        popoverRef.current.contains(e.target)
+      ) {
+        return;
+      }
       if (inputRef.current) {
         const rect = inputRef.current.getBoundingClientRect();
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const shouldDropUp = dropUp !== undefined ? dropUp : (spaceBelow < 280 && rect.top > 260);
-        const menuWidth = Math.min(Math.max(rect.width, 260), window.innerWidth - 24);
-        const clampedLeft = Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12));
-        setCoords({
-          top: shouldDropUp
-            ? window.innerHeight - rect.top + 8
-            : rect.bottom + 8,
-          left: clampedLeft,
-          width: menuWidth,
-          isDropUp: shouldDropUp,
-        });
+        setCoords(
+          computeDropdownViewportCoords(rect, {
+            preferredHeight: 260,
+            minWidth: 260,
+            forceDropUp: dropUp,
+            gap: 8,
+          }),
+        );
       }
     };
     updatePosition();
@@ -1069,7 +1302,7 @@ export function ModSearchDropdown({
           readOnly={!!selectedItem}
           className={
             className ||
-            "w-full h-11 glass-surface hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-4 text-[var(--text)] text-xs font-bold capitalize tracking-wide focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all relative"
+            "w-full h-11 glass-surface hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] rounded-xl px-4 text-[var(--text)] text-xs font-bold capitalize tracking-wide focus:outline-none focus:border-[color-mix(in_srgb,var(--text)_34%,transparent)] transition-all relative"
           }
         />
         {selectedItem ? (
@@ -1109,18 +1342,20 @@ export function ModSearchDropdown({
                 onClick={() => setIsOpen(false)}
               />
               <div
-                className="!fixed glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl pointer-events-auto max-h-60 overflow-hidden flex flex-col text-[var(--text)] animate-in fade-in zoom-in-95 duration-150"
+                ref={popoverRef}
+                className="!fixed glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl pointer-events-auto overflow-hidden flex flex-col text-[var(--text)] animate-in fade-in zoom-in-95 duration-150"
                 style={{
                   zIndex: 100000001,
-                  top: coords.isDropUp ? undefined : coords.top,
-                  bottom: coords.isDropUp ? coords.top : undefined,
+                  top: coords.isDropUp ? "auto" : coords.top,
+                  bottom: coords.isDropUp ? window.innerHeight - coords.top : "auto",
                   left: coords.left,
                   width: coords.width,
+                  maxHeight: coords.maxHeight,
                   "--glass-x": `${Math.round(coords.left)}px`,
                   "--glass-y": `${Math.round(coords.top)}px`,
                 } as React.CSSProperties}
               >
-                <div className="relative z-10 flex-1 overflow-y-auto custom-scrollbar flex flex-col p-1.5 gap-1">
+                <div className="relative z-10 flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col p-1.5 gap-1">
                   {results.map((m: any, idx: number) => {
                     const rawName = String(m.name || "").trim();
                     const cleanTitle =
@@ -1276,10 +1511,13 @@ export function CustomTierDropdown({ value, onChange }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const instanceId = React.useId();
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState({
+  const popoverRef = React.useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<DropdownViewportCoords>({
     top: 0,
     left: 0,
     width: 0,
+    maxHeight: 200,
+    isRight: false,
     isDropUp: false,
   });
 
@@ -1298,21 +1536,25 @@ export function CustomTierDropdown({ value, onChange }: any) {
 
   React.useLayoutEffect(() => {
     if (!isOpen) return;
-    const updatePosition = () => {
+    const updatePosition = (e?: Event) => {
+      if (
+        e &&
+        e.type === "scroll" &&
+        popoverRef.current &&
+        e.target instanceof Node &&
+        popoverRef.current.contains(e.target)
+      ) {
+        return;
+      }
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        const spaceBelow = window.innerHeight - rect.bottom;
-        const shouldDropUp = spaceBelow < 200 && rect.top > 200;
-        const menuWidth = Math.min(Math.max(rect.width, 260), window.innerWidth - 24);
-        const clampedLeft = Math.max(12, Math.min(rect.left, window.innerWidth - menuWidth - 12));
-        setCoords({
-          top: shouldDropUp
-            ? window.innerHeight - rect.top + 8
-            : rect.bottom + 8,
-          left: clampedLeft,
-          width: menuWidth,
-          isDropUp: shouldDropUp,
-        });
+        setCoords(
+          computeDropdownViewportCoords(rect, {
+            preferredHeight: 200,
+            minWidth: 260,
+            gap: 8,
+          }),
+        );
       }
     };
     updatePosition();
@@ -1381,43 +1623,39 @@ export function CustomTierDropdown({ value, onChange }: any) {
               onClick={() => setIsOpen(false)}
             />
             <div
-              className="fixed pointer-events-none"
+              ref={popoverRef}
+              className="!fixed pointer-events-auto glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl animate-in fade-in zoom-in-95 duration-150 flex flex-col p-1.5 gap-1 overflow-hidden text-[var(--text)]"
               style={{
                 zIndex: 100000001,
-                top: coords.isDropUp ? undefined : coords.top,
-                bottom: coords.isDropUp ? coords.top : undefined,
+                top: coords.isDropUp ? "auto" : coords.top,
+                bottom: coords.isDropUp ? window.innerHeight - coords.top : "auto",
                 left: coords.left,
                 width: coords.width,
+                maxHeight: coords.maxHeight,
                 transition: "none",
-              }}
+                "--glass-x": `${Math.round(coords.left)}px`,
+                "--glass-y": `${Math.round(coords.top)}px`,
+              } as React.CSSProperties}
             >
-              <div
-                className="absolute top-0 left-0 w-full pointer-events-auto mt-1.5 glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl animate-in fade-in zoom-in-95 duration-150 flex flex-col p-1.5 gap-1"
-                style={{
-                  "--glass-x": `${Math.round(coords.left)}px`,
-                  "--glass-y": `${Math.round(coords.top)}px`,
-                } as React.CSSProperties}
-              >
-                <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col gap-1">
-                  {options.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => {
-                        onChange(opt.id);
-                        setIsOpen(false);
-                      }}
-                      className={`sa-dropdown-item w-full text-left px-3 py-2 rounded-xl transition-colors flex items-center gap-2.5 ${value === opt.id ? "is-selected " + opt.color : ""}`}
-                    >
-                      <span className={`material-symbols-outlined !text-[16px] shrink-0 ${opt.color}`}>
-                        {opt.icon}
-                      </span>
-                      <span className="text-xs font-semibold capitalize tracking-wide truncate">
-                        {opt.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+              <div className="relative z-10 flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col gap-1">
+                {options.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.id);
+                      setIsOpen(false);
+                    }}
+                    className={`sa-dropdown-item w-full text-left px-3 py-2 rounded-xl transition-colors flex items-center gap-2.5 ${value === opt.id ? "is-selected " + opt.color : ""}`}
+                  >
+                    <span className={`material-symbols-outlined !text-[16px] shrink-0 ${opt.color}`}>
+                      {opt.icon}
+                    </span>
+                    <span className="text-xs font-semibold capitalize tracking-wide truncate">
+                      {opt.label}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
           </>,

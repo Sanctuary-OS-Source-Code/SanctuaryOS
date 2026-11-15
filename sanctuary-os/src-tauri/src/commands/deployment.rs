@@ -244,12 +244,119 @@ fn build_dlc_mask_launch_args(
         .collect()
 }
 
+static CLOUD_SESSION_CLEANUP_GEN: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
+fn spawn_post_game_symlink_cleanup_watcher(
+    app_handle: tauri::AppHandle,
+    vault_path: String,
+    mods_path: String,
+    game_schema: Option<crate::schema::GameSchema>,
+    spawned_pid: Option<u32>,
+) {
+    let my_gen = CLOUD_SESSION_CLEANUP_GEN
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+        + 1;
+    std::thread::spawn(move || {
+        let is_still_current = || {
+            CLOUD_SESSION_CLEANUP_GEN.load(std::sync::atomic::Ordering::SeqCst) == my_gen
+        };
+        let is_spawned_pid_alive = |pid_opt: Option<u32>| -> bool {
+            let Some(pid_u32) = pid_opt else {
+                return false;
+            };
+            let mut sys = sysinfo::System::new();
+            let spid = sysinfo::Pid::from_u32(pid_u32);
+            sys.refresh_processes_specifics(
+                sysinfo::ProcessesToUpdate::Some(&[spid]),
+                true,
+                passive_process_refresh_kind(),
+            );
+            sys.process(spid).is_some()
+        };
+
+        let started = std::time::Instant::now();
+        let mut saw_running = is_spawned_pid_alive(spawned_pid)
+            || is_any_game_process_running(&game_schema);
+
+        // Wait up to 45s for launcher/extender handoff or main game process startup
+        while started.elapsed() < std::time::Duration::from_secs(45) {
+            if !is_still_current() {
+                return;
+            }
+            if is_spawned_pid_alive(spawned_pid) || is_any_game_process_running(&game_schema) {
+                saw_running = true;
+            }
+            // Wait at least 12s after ignition before declaring exit so launcher stubs don't trigger early cleanup
+            if saw_running && started.elapsed() >= std::time::Duration::from_secs(12) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(2500));
+        }
+
+        if !saw_running && spawned_pid.is_none() {
+            return;
+        }
+
+        // Wait until both the direct spawned PID and any schema/live-root game processes stay exited for 3 polls (9s)
+        let mut quiet_streak = 0u8;
+        loop {
+            if !is_still_current() {
+                return;
+            }
+            let running_now = is_spawned_pid_alive(spawned_pid)
+                || is_any_game_process_running(&game_schema);
+            if running_now {
+                quiet_streak = 0;
+            } else {
+                quiet_streak = quiet_streak.saturating_add(1);
+                if quiet_streak >= 3 {
+                    break;
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_secs(3));
+        }
+
+        if !is_still_current() {
+            return;
+        }
+        // Never wipe symlinks if a Homestead Lab verification session is active
+        let lab_active = LAB_SESSION
+            .get()
+            .and_then(|m| m.lock().ok())
+            .map_or(false, |g| g.is_some());
+        if lab_active {
+            return;
+        }
+
+        cleanup_routed_links(&vault_path);
+        let mods_dir = PathBuf::from(&mods_path);
+        if mods_dir.exists() {
+            if !vault_path.trim().is_empty() {
+                crate::utils::safe_wipe_mods_dir_with_vault(
+                    &mods_dir,
+                    Some(&vault_path),
+                    &game_schema,
+                );
+            } else {
+                crate::utils::safe_wipe_mods_dir(&mods_dir, &game_schema);
+            }
+        }
+        let _ = app_handle.emit(
+            "sanctuary-cloud-session-mods-cleaned",
+            serde_json::json!({ "mods_path": mods_path }),
+        );
+    });
+}
+
 #[tauri::command]
 pub fn launch_game(
     live_path: String,
     mods_path: String,
     disabled_dlc: Option<Vec<String>>,
     auto_purge_caches: Option<bool>,
+    cleanup_symlinks_on_exit: Option<bool>,
+    app_handle: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     let game_schema = &state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
@@ -294,7 +401,7 @@ pub fn launch_game(
         game_schema,
     ));
 
-    if cfg!(target_os = "macos")
+    let spawned_pid: Option<u32> = if cfg!(target_os = "macos")
         && exe_path
             .extension()
             .and_then(|e| e.to_str())
@@ -306,92 +413,97 @@ pub fn launch_game(
         if !launch_args.is_empty() {
             open_cmd.arg("--args").args(&launch_args);
         }
-        return match open_cmd.spawn() {
-            Ok(_) => {
-                record_launched_game_info(None, &exe_path, &live_root);
-                Ok("backend_ignition_started".to_string())
-            }
-            Err(e) => Err(e.to_string()),
-        };
-    }
+        open_cmd.spawn().map_err(|e| e.to_string())?;
+        None
+    } else {
+        let parent_dir = exe_path
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."));
 
-    let parent_dir = exe_path
-        .parent()
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| PathBuf::from("."));
-
-    if cfg!(target_os = "linux")
-        && exe_path
-            .extension()
-            .and_then(|e| e.to_str())
-            .map_or(false, |e| e.eq_ignore_ascii_case("exe"))
-    {
-        let resolved_steam =
-            crate::game_logic::resolve_steam_app_and_proton_prefix(game_schema, Some(&live_path));
-        let steam_app_id = resolved_steam
-            .as_ref()
-            .map(|r| r.app_id.clone())
-            .filter(|id| !id.trim().is_empty())
-            .or_else(|| crate::game_logic::default_steam_app_id(game_schema));
-
-        if let Some(app_id) = steam_app_id {
-            let mut steam_cmd = std::process::Command::new("steam");
-            sanitize_game_spawn_env(&mut steam_cmd);
-            steam_cmd.args(["-applaunch", &app_id]);
-            if !launch_args.is_empty() {
-                steam_cmd.args(&launch_args);
-            }
-            if steam_cmd.spawn().is_ok() {
-                record_launched_game_info(None, &exe_path, &live_root);
-                return Ok("backend_ignition_started".to_string());
-            }
-            let mut xdg_cmd = std::process::Command::new("xdg-open");
-            sanitize_game_spawn_env(&mut xdg_cmd);
-            if launch_args.is_empty()
-                && xdg_cmd
-                    .arg(format!("steam://rungameid/{}", app_id))
-                    .spawn()
-                    .is_ok()
-            {
-                record_launched_game_info(None, &exe_path, &live_root);
-                return Ok("backend_ignition_started".to_string());
-            }
-        }
-
-        let mut wine_cmd = std::process::Command::new("wine");
-        sanitize_game_spawn_env(&mut wine_cmd);
-        wine_cmd.arg(&exe_path).args(&launch_args).current_dir(&parent_dir);
-        if let Some(pfx_user) = resolved_steam
-            .and_then(|r| r.compatdata_pfx_user_dir)
-            .or_else(|| crate::game_logic::extract_proton_user_dir_from_path(&mods_path))
+        if cfg!(target_os = "linux")
+            && exe_path
+                .extension()
+                .and_then(|e| e.to_str())
+                .map_or(false, |e| e.eq_ignore_ascii_case("exe"))
         {
-            // pfx_user is .../pfx/drive_c/users/steamuser -> pfx is 3 parents up
-            if let Some(pfx_root) = pfx_user.parent().and_then(|u| u.parent()).and_then(|dc| dc.parent()) {
-                wine_cmd.env("WINEPREFIX", pfx_root);
-            }
-        }
-        return match wine_cmd.spawn() {
-            Ok(child) => {
-                record_launched_game_info(Some(child.id()), &exe_path, &live_root);
-                Ok("backend_ignition_started".to_string())
-            }
-            Err(e) => Err(e.to_string()),
-        };
-    }
+            let resolved_steam =
+                crate::game_logic::resolve_steam_app_and_proton_prefix(game_schema, Some(&live_path));
+            let steam_app_id = resolved_steam
+                .as_ref()
+                .map(|r| r.app_id.clone())
+                .filter(|id| !id.trim().is_empty())
+                .or_else(|| crate::game_logic::default_steam_app_id(game_schema));
 
-    let mut cmd = std::process::Command::new(&exe_path);
-    sanitize_game_spawn_env(&mut cmd);
-    match cmd
-        .args(&launch_args)
-        .current_dir(parent_dir)
-        .spawn()
-    {
-        Ok(child) => {
-            record_launched_game_info(Some(child.id()), &exe_path, &live_root);
-            Ok("backend_ignition_started".to_string())
+            let mut launched_via_steam = false;
+            if let Some(app_id) = steam_app_id {
+                let mut steam_cmd = std::process::Command::new("steam");
+                sanitize_game_spawn_env(&mut steam_cmd);
+                steam_cmd.args(["-applaunch", &app_id]);
+                if !launch_args.is_empty() {
+                    steam_cmd.args(&launch_args);
+                }
+                if steam_cmd.spawn().is_ok() {
+                    launched_via_steam = true;
+                } else {
+                    let mut xdg_cmd = std::process::Command::new("xdg-open");
+                    sanitize_game_spawn_env(&mut xdg_cmd);
+                    if launch_args.is_empty()
+                        && xdg_cmd
+                            .arg(format!("steam://rungameid/{}", app_id))
+                            .spawn()
+                            .is_ok()
+                    {
+                        launched_via_steam = true;
+                    }
+                }
+            }
+
+            if launched_via_steam {
+                None
+            } else {
+                let mut wine_cmd = std::process::Command::new("wine");
+                sanitize_game_spawn_env(&mut wine_cmd);
+                wine_cmd.arg(&exe_path).args(&launch_args).current_dir(&parent_dir);
+                if let Some(pfx_user) = resolved_steam
+                    .and_then(|r| r.compatdata_pfx_user_dir)
+                    .or_else(|| crate::game_logic::extract_proton_user_dir_from_path(&mods_path))
+                {
+                    // pfx_user is .../pfx/drive_c/users/steamuser -> pfx is 3 parents up
+                    if let Some(pfx_root) =
+                        pfx_user.parent().and_then(|u| u.parent()).and_then(|dc| dc.parent())
+                    {
+                        wine_cmd.env("WINEPREFIX", pfx_root);
+                    }
+                }
+                let child = wine_cmd.spawn().map_err(|e| e.to_string())?;
+                Some(child.id())
+            }
+        } else {
+            let mut cmd = std::process::Command::new(&exe_path);
+            sanitize_game_spawn_env(&mut cmd);
+            let child = cmd
+                .args(&launch_args)
+                .current_dir(parent_dir)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+            Some(child.id())
         }
-        Err(e) => Err(e.to_string()),
+    };
+
+    record_launched_game_info(spawned_pid, &exe_path, &live_root);
+    if cleanup_symlinks_on_exit.unwrap_or(false) {
+        spawn_post_game_symlink_cleanup_watcher(
+            app_handle,
+            saved_coords.vault_path.clone(),
+            mods_path,
+            game_schema.clone(),
+            spawned_pid,
+        );
+    } else {
+        CLOUD_SESSION_CLEANUP_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }
+    Ok("backend_ignition_started".to_string())
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

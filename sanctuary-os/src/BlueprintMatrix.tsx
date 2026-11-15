@@ -27,6 +27,13 @@ import { packageBlueprintLoadOrder } from "./hooks/usePlaySetLogic";
 import { stageFullBlueprintToRigQueue } from "./utils/stagingCrypto";
 import { formatCleanModTitle } from "./side-panels/CommandIncompatiblePanel";
 import { VAULT_CHIP_CLASS } from "./shared-components/constants";
+import { buildExportableModMetadata, sanitizeComplianceTierForLocal } from "./utils/blueprintOverrideUtils";
+import {
+  getCachedComplianceHashTiers,
+  resolveComplianceHashTiers,
+  collectComplianceLookupHashes,
+  normalizeComplianceHash,
+} from "./utils/complianceHashTiers";
 
 const matrixNormCache = new Map<string, string>();
 function getCachedNormalizedName(raw: string): string {
@@ -139,6 +146,33 @@ export default function BlueprintMatrix({
   );
   const [loadOrderSearch, setLoadOrderSearch] = useState("");
   const [visibleLoadOrderCount, setVisibleLoadOrderCount] = useState(36);
+  const [hashTierMap, setHashTierMap] = useState<Map<string, number>>(() =>
+    getCachedComplianceHashTiers()
+  );
+
+  useEffect(() => {
+    if (!isOpen || !playSet) return;
+    let cancelled = false;
+    const syncTiers = async () => {
+      const lookupHashes = collectComplianceLookupHashes({ modList, playSet });
+      if (lookupHashes.length === 0) return;
+      const nextMap = await resolveComplianceHashTiers(supabase, lookupHashes);
+      if (!cancelled) setHashTierMap(nextMap);
+    };
+    syncTiers();
+    const onComplianceUpdated = () => {
+      const lookupHashes = collectComplianceLookupHashes({ modList, playSet });
+      if (lookupHashes.length === 0) return;
+      resolveComplianceHashTiers(supabase, lookupHashes, { forceRefresh: true }).then((nextMap) => {
+        if (!cancelled) setHashTierMap(nextMap);
+      });
+    };
+    window.addEventListener("sanctuary-compliance-updated", onComplianceUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("sanctuary-compliance-updated", onComplianceUpdated);
+    };
+  }, [isOpen, playSet, modList]);
 
   useEffect(() => {
     if (isOpen && playSet) {
@@ -215,6 +249,14 @@ export default function BlueprintMatrix({
     const modHashes = playSet.modHashes;
     const modMeta = playSet.modMeta;
     const unknownAuthor = t("unknown", "Unknown");
+    let localOverrides: Record<string, any> = {};
+    let edgeLogic: Record<string, any> = {};
+    try {
+      localOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+    } catch { }
+    try {
+      edgeLogic = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+    } catch { }
 
     for (let i = 0; i < modsArr.length; i++) {
       const rawEntry = modsArr[i];
@@ -241,8 +283,14 @@ export default function BlueprintMatrix({
       const resolvedHash = String(
         mod?.hash || modHashes?.[modName] || modHashes?.[cleanName] || ""
       ).trim();
+      const normHash = normalizeComplianceHash(resolvedHash);
+      const rpcTier = normHash ? hashTierMap.get(normHash) : undefined;
       const resolvedTier =
-        typeof mod?.compliance_tier === "number" ? mod.compliance_tier : -1;
+        typeof rpcTier === "number" && rpcTier >= 1 && rpcTier <= 5
+          ? rpcTier
+          : typeof mod?.compliance_tier === "number"
+            ? mod.compliance_tier
+            : -1;
       const rawStatus = String(mod?.status || "").toLowerCase().trim();
       const isVerifiedStableStatus =
         rawStatus === "stable" || rawStatus === "verified" || rawStatus === "approved";
@@ -253,17 +301,32 @@ export default function BlueprintMatrix({
         !mod.dbId ||
         !isVerifiedStableStatus;
 
+      const override = resolvedHash ? localOverrides[resolvedHash] : undefined;
+      const edgeEntry = resolvedHash ? edgeLogic[resolvedHash] : undefined;
+      const meta = modMeta?.[modName] || modMeta?.[cleanName];
+      const portableMeta = buildExportableModMetadata({
+        mod,
+        override,
+        meta,
+        edgeEntry,
+        modName,
+        cleanName,
+      });
+
       const entry = {
         ...(mod || {}),
+        ...portableMeta,
         name: modName,
         cleanName,
         hash: resolvedHash,
-        url: mod?.url || modMeta?.[modName]?.url || modMeta?.[cleanName]?.url || "",
-        author:
-          mod?.author || modMeta?.[modName]?.author || modMeta?.[cleanName]?.author || unknownAuthor,
-        compliance_tier: resolvedTier >= 0 ? resolvedTier : 0,
+        author: portableMeta.author || unknownAuthor,
+        compliance_tier:
+          resolvedTier === 0 && !isUnverifiedOrLocal
+            ? sanitizeComplianceTierForLocal(resolvedTier)
+            : resolvedTier >= 0
+              ? resolvedTier
+              : 0,
         isUnverified: isUnverifiedOrLocal,
-        displayName: mod?.displayName,
         isVirtual: mod?.isVirtual,
       };
 
@@ -289,7 +352,7 @@ export default function BlueprintMatrix({
       blockedMods: blocked,
       packagedLoadOrder: packagedLO,
     };
-  }, [isOpen, playSet, modLookup, activeGameSchema, t]);
+  }, [isOpen, playSet, modLookup, activeGameSchema, hashTierMap, t]);
 
   const {
     unknownRestrictedMods,
@@ -1046,8 +1109,8 @@ export default function BlueprintMatrix({
           >
             <div className="flex flex-col gap-3.5">
               {/* Calm Diagnostic Callout Header */}
-              <div className="p-3.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--danger)_24%,transparent)] flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-center shrink-0 text-[var(--danger)]">
+              <div className="p-3.5 rounded-2xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center shrink-0 text-[var(--danger)]">
                   <span className="material-symbols-outlined !text-[18px]">
                     {t("icon_gpp_bad", "gpp_bad")}
                   </span>

@@ -6,6 +6,7 @@ import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
 import { deduplicateBlueprintArtifacts } from "../shared";
 import { packageBlueprintLoadOrder } from "./usePlaySetLogic";
+import { buildExportableModMetadata } from "../utils/blueprintOverrideUtils";
 
 export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, activeMasonProfileId: string | null, tier2Hashes: string[], fetchBackups: () => void) {
   const { t } = useLexicon();
@@ -124,8 +125,12 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
     const targetSet = playSets.find((s) => s.name === setName);
     if (!targetSet) return;
     let localOverrides: any = {};
+    let edgeLogic: any = {};
     try {
       localOverrides = JSON.parse(localStorage.getItem('sanctuary_local_overrides') || '{}');
+    } catch(e) {}
+    try {
+      edgeLogic = JSON.parse(localStorage.getItem('sanctuary_edge_logic') || '{}');
     } catch(e) {}
 
     const activeGameSchema = useStore.getState().activeGameSchema;
@@ -137,34 +142,22 @@ export function useAppActions(runRadarSweep: (isInteractive?: boolean) => void, 
       const mod = modList.find((m) => m.name === modName || (m.name.split(/[\\/]/).pop() || m.name).toLowerCase() === cleanName.toLowerCase());
       const hash = mod?.hash || targetSet.modHashes?.[modName] || targetSet.modHashes?.[cleanName] || "";
       const override = hash ? localOverrides[hash] : undefined;
+      const edgeEntry = hash ? edgeLogic[hash] : undefined;
       const meta = targetSet.modMeta?.[modName] || targetSet.modMeta?.[cleanName];
+      const portableMeta = buildExportableModMetadata({
+        mod,
+        override,
+        meta,
+        edgeEntry,
+        modName,
+        cleanName,
+      });
 
-      return { 
+      return {
         name: modName,
-        displayName: override?.displayName || meta?.displayName || mod?.displayName || cleanName,
-        hash: hash, 
-        url: override?.url || meta?.url || mod?.url || "", 
-        manifest_url: override?.manifest_url || meta?.manifest_url || mod?.manifest_url || undefined,
-        author: override?.author || meta?.author || mod?.author || "Unknown", 
-        version: override?.version || meta?.version || mod?.version || "v.Local",
-        description: override?.description ?? meta?.description ?? mod?.description ?? undefined,
-        image_url: override?.image_url ?? meta?.image_url ?? mod?.image_url ?? undefined,
-        category_override: override?.category_override || meta?.category_override || mod?.category_override || undefined,
-        sub_type: override?.sub_type || meta?.sub_type || mod?.sub_type || undefined,
-        file_extension: override?.file_extension || meta?.file_extension || mod?.file_extension || undefined,
-        requiredDLC: override?.requiredDLC || meta?.requiredDLC || mod?.requiredDLC || [],
-        compatible_versions: override?.compatible_versions || meta?.compatible_versions || mod?.compatible_versions || [],
-        compliance_tier: Number(mod?.compliance_tier ?? meta?.compliance_tier ?? 0),
-        allow_write: Boolean(override?.allow_write ?? meta?.allow_write ?? mod?.allow_write ?? false),
-        is_paid: Boolean(override?.is_paid ?? meta?.is_paid ?? mod?.is_paid ?? false),
-        is_early_access: Boolean(override?.is_early_access ?? meta?.is_early_access ?? mod?.is_early_access ?? false),
-        created_at: override?.created_at || meta?.created_at || mod?.created_at || undefined,
-        updated_at: override?.updated_at || meta?.updated_at || mod?.updated_at || undefined,
-        requirements: mod?.requirements || meta?.requirements || undefined,
-        twins: mod?.twins || meta?.twins || undefined,
-        conflicts: mod?.conflicts || meta?.conflicts || undefined,
-        isLocalOverride: Boolean(override || mod?.isLocalOverride),
-        isVirtual: mod?.isVirtual 
+        hash,
+        ...portableMeta,
+        isVirtual: mod?.isVirtual,
       };
     }).filter((m: any) => !m.isVirtual && !m.name.startsWith("FOLDER_") && !m.name.startsWith("SET_") && !m.name.startsWith("LOCAL_SET_")).map(({ isVirtual, ...rest }: any) => rest);
 

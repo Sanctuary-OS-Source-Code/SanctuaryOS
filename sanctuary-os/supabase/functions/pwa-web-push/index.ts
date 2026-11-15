@@ -233,33 +233,26 @@ serve(async (req: Request) => {
           !hubProf?.is_banned && HUB_BROADCAST_ROLES.has(hubRole);
 
         if (!authorizedBroadcast && !hubProf?.is_banned && targetSpoke) {
-          // Verify Spoke staff clearance if dispatching for a specific Spoke
+          // Verify Spoke staff clearance if dispatching for a specific Spoke (profiles SELECT is public read-only)
           const { data: gameRow } = await supabase
             .from("sanctuary_games")
-            .select("id, supabase_url")
+            .select("id, supabase_url, supabase_anon_key")
             .ilike("schema_id", targetSpoke)
             .maybeSingle();
-          if (gameRow?.id && gameRow?.supabase_url) {
-            const { data: gameSecret } = await supabase
-              .from("sanctuary_game_secrets")
-              .select("supabase_service_key")
-              .eq("game_id", gameRow.id)
+          if (gameRow?.id && gameRow?.supabase_url && gameRow?.supabase_anon_key) {
+            const spokeDb = createClient(
+              gameRow.supabase_url,
+              gameRow.supabase_anon_key,
+              SERVER_AUTH_OPTS
+            );
+            const { data: spokeProf } = await spokeDb
+              .from("profiles")
+              .select("role, is_banned")
+              .eq("id", callerUserId)
               .maybeSingle();
-            if (gameSecret?.supabase_service_key) {
-              const spokeDb = createClient(
-                gameRow.supabase_url,
-                gameSecret.supabase_service_key,
-                SERVER_AUTH_OPTS
-              );
-              const { data: spokeProf } = await spokeDb
-                .from("profiles")
-                .select("role, is_banned")
-                .eq("id", callerUserId)
-                .maybeSingle();
-              const spokeRole = String(spokeProf?.role || "").toLowerCase();
-              if (!spokeProf?.is_banned && SPOKE_BROADCAST_ROLES.has(spokeRole)) {
-                authorizedBroadcast = true;
-              }
+            const spokeRole = String(spokeProf?.role || "").toLowerCase();
+            if (!spokeProf?.is_banned && SPOKE_BROADCAST_ROLES.has(spokeRole)) {
+              authorizedBroadcast = true;
             }
           }
         }

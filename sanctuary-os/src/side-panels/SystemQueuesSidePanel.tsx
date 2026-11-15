@@ -14,6 +14,7 @@ import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
 import { isDesktop } from "../utils/envUtils";
+import { navigateToBlueprintsTab } from "../components/BlueprintPatchReadiness";
 
 export interface IgnoredSystemCardEntry {
   tokens?: string[];
@@ -43,16 +44,16 @@ export function extractQueueTokens(
       typeof it === "string"
         ? it
         : it?.hash ||
-          it?.file_hash ||
-          it?.localHash ||
-          it?.id ||
-          it?.payload?.handshakeCode ||
-          it?.name ||
-          it?.fileName ||
-          it?.path ||
-          it?.blueprint_name ||
-          it?.created_at ||
-          String(i);
+        it?.file_hash ||
+        it?.localHash ||
+        it?.id ||
+        it?.payload?.handshakeCode ||
+        it?.name ||
+        it?.fileName ||
+        it?.path ||
+        it?.blueprint_name ||
+        it?.created_at ||
+        String(i);
     const short = String(raw || i)
       .trim()
       .toLowerCase()
@@ -167,15 +168,22 @@ export function useIgnoredSystemCards(workspaceId?: string | null) {
 export function SystemQueuesSidePanel({
   isOpen,
   onClose,
+  onTriggerShelter,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  onTriggerShelter?: (enable: boolean) => void;
 }) {
   const { t } = useLexicon();
 
   const setView = useStore((state) => state.setView);
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
-  const quarantineList = useStore((state) => state.quarantineList);
+  const shelterActive = useStore((state) => state.shelterActive);
+  const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const patchFireDrillEnabled = useStore((state) => state.patchFireDrillEnabled);
+  const selectedVersion = useStore((state) => state.selectedVersion);
+  const defconLevel = useStore((state) => state.defconLevel);
+  const isPatchDetected = useStore((state) => state.isPatchDetected);
   const nexusUpdatesCount = useStore((state) => state.nexusUpdatesCount);
   const activeConflictCount =
     useStore((state) => state.activeConflictCount) || { tier4: 0, tier3: 0 };
@@ -186,8 +194,7 @@ export function SystemQueuesSidePanel({
   const {
     updatePayload,
     setIsUpdatePanelOpen,
-    dnaMatchQueue,
-    setIsDnaModalOpen,
+    showDefconAlert,
     volatileSignatureQueue,
     setVolatileSignatureQueue,
     setActiveSignatureQueueIndex,
@@ -204,13 +211,11 @@ export function SystemQueuesSidePanel({
     setIsSideBrowserOpen,
     pendingPasskeyHandshakes,
     setIsPasskeyHandshakePanelOpen,
-    setShowQuarantineModal,
   } = useModalStore(
     useShallow((s) => ({
       updatePayload: s.updatePayload,
       setIsUpdatePanelOpen: s.setIsUpdatePanelOpen,
-      dnaMatchQueue: s.dnaMatchQueue,
-      setIsDnaModalOpen: s.setIsDnaModalOpen,
+      showDefconAlert: s.showDefconAlert,
       volatileSignatureQueue: s.volatileSignatureQueue,
       setVolatileSignatureQueue: s.setVolatileSignatureQueue,
       setActiveSignatureQueueIndex: s.setActiveSignatureQueueIndex,
@@ -227,22 +232,22 @@ export function SystemQueuesSidePanel({
       setIsSideBrowserOpen: s.setIsSideBrowserOpen,
       pendingPasskeyHandshakes: s.pendingPasskeyHandshakes,
       setIsPasskeyHandshakePanelOpen: s.setIsPasskeyHandshakePanelOpen,
-      setShowQuarantineModal: s.setShowQuarantineModal,
     }))
   );
 
-  const quarantineCount = Array.isArray(quarantineList)
-    ? quarantineList.length
-    : 0;
-  const dnaCount = Array.isArray(dnaMatchQueue) ? dnaMatchQueue.length : 0;
+  const schemaFeatures = activeGameSchema?.features || {
+    has_cc: true,
+    has_saves: true,
+  };
+  const hasCcSupport = schemaFeatures.has_cc !== false;
+  const hasSavesSupport = schemaFeatures.has_saves !== false;
+  const isDefconActive = Boolean(
+    isPatchDetected ||
+    showDefconAlert ||
+    (typeof defconLevel === "number" && defconLevel > 0 && defconLevel < 5)
+  );
   const volatileSignatureQueues = useModalStore((state) => state.volatileSignatureQueues);
   const stagingDraftRemovedItems = useModalStore((state) => state.stagingDraftRemovedItems);
-  const totalCloudQueues =
-    Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 0
-      ? volatileSignatureQueues.length
-      : volatileSignatureQueue
-        ? 1
-        : 0;
   const sigQueueCount =
     Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 0
       ? volatileSignatureQueues.filter((q: any) => !q?.isCompletedLocally).length
@@ -263,25 +268,23 @@ export function SystemQueuesSidePanel({
     ? pendingPasskeyHandshakes.length
     : 0;
 
+  const isVaultLockdownActive = isDesktop() && hasCcSupport && Boolean(shelterActive);
+
   const totalQueueItems =
-    quarantineCount +
-    dnaCount +
-    blueprintQueueCount +
-    scoutCount +
-    nexusCount +
+    (isDefconActive ? 1 : 0) +
+    (isVaultLockdownActive ? 1 : 0) +
     passkeyHandshakeCount +
-    (hasAppUpdate ? 1 : 0);
+    (hasAppUpdate ? 1 : 0) +
+    blueprintQueueCount +
+    nexusCount +
+    scoutCount;
 
   const heroVariant: "danger" | "warning" | "success" | "accent" =
-    quarantineCount > 0
+    isDefconActive || isVaultLockdownActive
       ? "danger"
-      : dnaCount > 0
+      : passkeyHandshakeCount > 0
         ? "warning"
-        : blueprintQueueCount > 0 &&
-            scoutCount === 0 &&
-            nexusCount === 0 &&
-            passkeyHandshakeCount === 0 &&
-            !hasAppUpdate
+        : hasAppUpdate || blueprintQueueCount > 0
           ? "success"
           : "accent";
 
@@ -298,6 +301,72 @@ export function SystemQueuesSidePanel({
     isIgnored?: boolean;
     onClick: () => void;
   }[] = [];
+
+  if (isDefconActive) {
+    const isNetworkLockdown =
+      typeof defconLevel === "number" && defconLevel > 0 && defconLevel < 5;
+    const tokens = [
+      `defcon:${isNetworkLockdown ? `lvl_${defconLevel}` : "patch"}:${selectedVersion || "active"}`,
+    ];
+    activeQueues.push({
+      id: "defcon",
+      icon: t("icon_gpp_maybe", "gpp_maybe"),
+      statusColor: "danger",
+      title: isNetworkLockdown
+        ? t("defcon_active", "Defcon 1 Active")
+        : t("defcon_lockdown_cursor_tooltip", "Emergency Patch Alert Active"),
+      subtitle: isNetworkLockdown
+        ? t("defcon_val_locked", "Locked (DEFCON 1)")
+        : t("defcon_patch_detected", "Patch Detected"),
+      description: t(
+        "defcon_queue_card_desc",
+        "A game patch or network safety alert is active. Verify {Backups} and {Blueprint} readiness before launching."
+      ),
+      badgeLabel: isNetworkLockdown
+        ? t("defcon_status_locked_badge", "Lockdown Active")
+        : t("defcon_patch_detected", "Patch Detected"),
+      badgeIcon: t("icon_gpp_maybe", "gpp_maybe"),
+      badgeColorClass: "text-[var(--danger)]",
+      isIgnored: isSystemCardIgnored(ignoredMap.defcon, tokens),
+      onClick: () => {
+        onClose();
+        if (isDesktop() && hasSavesSupport && setView) {
+          setView("backups");
+        } else if (hasCcSupport && patchFireDrillEnabled) {
+          navigateToBlueprintsTab("READINESS", { setView });
+        } else {
+          setIsSystemStatusOpen(true);
+        }
+      },
+    });
+  }
+
+  if (isVaultLockdownActive) {
+    const tokens = ["shelter:active"];
+    activeQueues.push({
+      id: "vault_lockdown",
+      icon: t("icon_lock", "lock"),
+      statusColor: "danger",
+      title: t("btn_lockdown", "Lockdown {Vault}").replace(/^[^\w]*/, "").trim(),
+      subtitle: t("active", "Active"),
+      description: t(
+        "cmd_lockdown_active_desc",
+        "Your {Vault} is currently air-gapped to protect {mods} during a game patch. Click to reclaim."
+      ),
+      badgeLabel: t("active", "Active"),
+      badgeIcon: t("icon_shield_lock", "shield_lock"),
+      badgeColorClass: "text-[var(--danger)]",
+      isIgnored: isSystemCardIgnored(ignoredMap.vault_lockdown, tokens),
+      onClick: () => {
+        onClose();
+        if (onTriggerShelter) {
+          onTriggerShelter(false);
+        } else if (setView) {
+          setView("dashboard");
+        }
+      },
+    });
+  }
 
   if (passkeyHandshakeCount > 0 && pendingPasskeyHandshakes[0]?.payload) {
     const activeReq = pendingPasskeyHandshakes[0];
@@ -334,7 +403,7 @@ export function SystemQueuesSidePanel({
     activeQueues.push({
       id: "os_update",
       icon: t("icon_system_update_alt", "system_update_alt"),
-      statusColor: "accent",
+      statusColor: "success",
       title: isDev
         ? t("sys_stat_dev_update_available", "Dev Build Available")
         : t("card_update_available", "Update Available"),
@@ -347,7 +416,7 @@ export function SystemQueuesSidePanel({
       ),
       badgeLabel: t("updates_ready", "Updates Ready"),
       badgeIcon: t("icon_download", "download"),
-      badgeColorClass: "text-[var(--accent)]",
+      badgeColorClass: "text-[var(--success)]",
       isIgnored: isSystemCardIgnored(ignoredMap.os_update, tokens),
       onClick: () => {
         setIsUpdatePanelOpen(true);
@@ -355,57 +424,7 @@ export function SystemQueuesSidePanel({
     });
   }
 
-  if (quarantineCount > 0) {
-    const tokens = extractQueueTokens(quarantineList, "quar");
-    activeQueues.push({
-      id: "quarantine",
-      icon: t("icon_warning_amber", "warning_amber"),
-      statusColor: "danger",
-      title: t("malware_alert_title", "Malware Detected"),
-      subtitle: `${quarantineCount} ${t("status_quarantined", "Quarantined")}`,
-      description: t(
-        "malware_and_manifests_subtitle",
-        "Active malware quarantine, Spoke & Core heuristics, and incoming Threat Manifests."
-      ),
-      badgeLabel: `${quarantineCount}`,
-      badgeIcon: t("icon_gpp_bad", "gpp_bad"),
-      badgeColorClass: "text-[var(--danger)]",
-      isIgnored: isSystemCardIgnored(ignoredMap.quarantine, tokens),
-      onClick: () => {
-        if (setShowQuarantineModal) {
-          onClose();
-          setShowQuarantineModal(true);
-        } else {
-          setView("vault");
-        }
-      },
-    });
-  }
-
-  if (dnaCount > 0) {
-    const tokens = extractQueueTokens(dnaMatchQueue, "dna");
-    activeQueues.push({
-      id: "dna_match",
-      icon: t("icon_difference", "difference"),
-      statusColor: "warning",
-      title: t("overlay_dna_match_title", "DNA Match & Collision Queue"),
-      subtitle: `${dnaCount} ${t("term_mods", "{Mods}")}`,
-      description: t(
-        "overlay_dna_match_desc",
-        "Resolve duplicate artifacts, settings collisions, and Edge overrides."
-      ),
-      badgeLabel: `${dnaCount}`,
-      badgeIcon: t("icon_difference", "difference"),
-      badgeColorClass: "text-[var(--warning)]",
-      isIgnored: isSystemCardIgnored(ignoredMap.dna_match, tokens),
-      onClick: () => {
-        setIsDnaModalOpen(true);
-      },
-    });
-  }
-
-  if (blueprintQueueCount > 0 || totalCloudQueues > 0) {
-    const isAllCompletedLocally = blueprintQueueCount === 0 && totalCloudQueues > 0;
+  if (blueprintQueueCount > 0) {
     const sigTokens = [
       ...extractQueueTokens(
         Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 0
@@ -420,27 +439,19 @@ export function SystemQueuesSidePanel({
     activeQueues.push({
       id: "signature_queue",
       icon: t("icon_phonelink_ring", "phonelink_ring"),
-      statusColor: isAllCompletedLocally ? "accent" : "success",
+      statusColor: "success",
       title: t("sig_queue_title", "Signature Queue"),
-      subtitle: isAllCompletedLocally
-        ? t("sig_queue_badge_completed_local", "Completed Here • Pending on Other Systems")
-        : `${blueprintQueueCount} ${t("playsets_title", "{Blueprints}")}`,
+      subtitle: `${blueprintQueueCount} ${t("playsets_title", "{Blueprints}")}`,
       description: t(
         "sig_queue_subtitle",
         "Volatile In-Memory Resolution • Awaiting {Citizen}'s Signature"
       ),
-      badgeLabel: isAllCompletedLocally
-        ? t("sig_queue_badge_completed_short", "Completed on Rig")
-        : `${blueprintQueueCount}`,
-      badgeIcon: isAllCompletedLocally
-        ? t("icon_task_alt", "task_alt")
-        : t("icon_draw", "draw"),
-      badgeColorClass: isAllCompletedLocally
-        ? "text-[var(--text-muted)]"
-        : "text-[var(--success)]",
+      badgeLabel: `${blueprintQueueCount}`,
+      badgeIcon: t("icon_draw", "draw"),
+      badgeColorClass: "text-[var(--success)]",
       isIgnored: isSystemCardIgnored(ignoredMap.signature_queue, sigTokens),
       onClick: () => {
-        if (sigQueueCount > 0 || totalCloudQueues > 0) {
+        if (sigQueueCount > 0) {
           if (Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 0) {
             const firstPendingIdx = volatileSignatureQueues.findIndex(
               (q: any) => !q?.isCompletedLocally
@@ -487,13 +498,13 @@ export function SystemQueuesSidePanel({
     activeQueues.push({
       id: "scout_queue",
       icon: t("icon_biotech", "biotech"),
-      statusColor: "warning",
+      statusColor: "accent",
       title: t("queue_title", "Unidentified Files"),
       subtitle: `${scoutCount} ${t("term_mods", "{Mods}")}`,
       description: t("queue_desc", "Unidentified {mods} detected."),
       badgeLabel: `${scoutCount}`,
       badgeIcon: t("icon_biotech", "biotech"),
-      badgeColorClass: "text-[var(--warning)]",
+      badgeColorClass: "text-[var(--accent)]",
       isIgnored: isSystemCardIgnored(ignoredMap.scout_queue, tokens),
       onClick: () => {
         setIsScoutPanelOpen(true);
@@ -528,8 +539,8 @@ export function SystemQueuesSidePanel({
       <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
         <SidePanelHeroCard
           icon={
-            quarantineCount > 0
-              ? t("icon_warning_amber", "warning_amber")
+            isDefconActive
+              ? t("icon_gpp_maybe", "gpp_maybe")
               : hasAppUpdate
                 ? t("icon_system_update_alt", "system_update_alt")
                 : t("icon_layers", "layers")
@@ -587,23 +598,16 @@ export function SystemQueuesSidePanel({
                   subtitle={q.subtitle}
                   description={q.description}
                   imageOverlay={
-                    <div className="absolute top-3 inset-x-3 z-20 flex items-center gap-1.5 flex-wrap">
+                    <div className="absolute top-3 inset-x-3 z-20 flex items-center gap-1.5">
                       <span className={VAULT_CHIP_CLASS}>
                         <span
-                          className={`material-symbols-rounded !text-[12px] shrink-0 ${q.badgeColorClass}`}
+                          className={`material-symbols-rounded !text-[12px] shrink-0 ${q.isIgnored ? "text-[var(--subtext)]" : q.badgeColorClass
+                            }`}
                         >
-                          {q.badgeIcon}
+                          {q.isIgnored ? t("icon_visibility_off", "visibility_off") : q.badgeIcon}
                         </span>
-                        <span>{q.badgeLabel}</span>
+                        <span>{q.isIgnored ? t("ignored", "Ignored") : q.badgeLabel}</span>
                       </span>
-                      {q.isIgnored && (
-                        <span className={VAULT_CHIP_CLASS}>
-                          <span className="material-symbols-rounded !text-[12px] shrink-0 text-[var(--subtext)]">
-                            {t("icon_visibility_off", "visibility_off")}
-                          </span>
-                          <span>{t("ignored", "Ignored")}</span>
-                        </span>
-                      )}
                     </div>
                   }
                   footer={
@@ -616,9 +620,12 @@ export function SystemQueuesSidePanel({
                           variant="glass"
                           icon={t("icon_visibility", "visibility")}
                           label={t("btn_restore", "Restore")}
-                          onClick={() =>
-                            restoreIgnoredSystemCard(activeWorkspaceId, q.id)
-                          }
+                          onClick={() => {
+                            restoreIgnoredSystemCard(activeWorkspaceId, q.id);
+                            if (q.id === "cloud_sync_detected") {
+                              restoreIgnoredSystemCard(activeWorkspaceId, "cloud_sync_guard");
+                            }
+                          }}
                           className="!px-3.5 !py-2"
                         />
                       </div>

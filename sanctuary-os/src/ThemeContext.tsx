@@ -78,6 +78,20 @@ const parseHexToRgb = (hexStr: string, fallback: [number, number, number]): [num
   return fallback;
 };
 
+const BUILTIN_WALLPAPER_BAR_PALETTES: Record<string, { topHex: string; bottomHex: string }> = {
+  '/themes/architect.png': { topHex: '#1d2737', bottomHex: '#0e2244' },
+  '/themes/aurora.png': { topHex: '#0c353d', bottomHex: '#0e2229' },
+  '/themes/bunker.png': { topHex: '#365345', bottomHex: '#192e21' },
+  '/themes/dracula.png': { topHex: '#211632', bottomHex: '#262646' },
+  '/themes/radiant.png': { topHex: '#dfe5f2', bottomHex: '#d8deec' },
+  '/themes/synthwave.png': { topHex: '#141236', bottomHex: '#291d48' },
+};
+
+const rgbToHex = (r: number, g: number, b: number): string => {
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+  return `#${clamp(r).toString(16).padStart(2, '0')}${clamp(g).toString(16).padStart(2, '0')}${clamp(b).toString(16).padStart(2, '0')}`;
+};
+
 export function computeGlassOpticalVars(currentTheme: any): Record<string, string> {
 
   const parseUnitOrPercent = (val: any, fallbackDecimal: number): number => {
@@ -207,22 +221,24 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
     vars['--glass-portal-bg'] = `rgba(${nestedLightR}, ${nestedLightG}, ${nestedLightB}, ${(isLinux ? Math.max(0.86, Math.min(0.94, lightPanelAlpha + 0.64)) : Math.max(0.24, Math.min(0.54, lightPanelAlpha + 0.06))).toFixed(3)})`;
     vars['--glass-portal-sheen'] = `none`;
     vars['--glass-portal-shadow'] = `0 18px 40px -8px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 1.15).toFixed(3)}), 0 6px 16px -4px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.72).toFixed(3)})`;
-    const ddLightR = Math.round(sbR * 0.55 + tr * 0.45);
-    const ddLightG = Math.round(sbG * 0.55 + tg * 0.45);
-    const ddLightB = Math.round(sbB * 0.55 + tb * 0.45);
-    const ddLightAlpha = Math.max(0.86, Math.min(0.94, 0.82 + lightPanelAlpha * 0.22));
+    const ddLightR = Math.round(nestedLightR * 0.68 + sbR * 0.20 + bgR * 0.12);
+    const ddLightG = Math.round(nestedLightG * 0.68 + sbG * 0.20 + bgG * 0.12);
+    const ddLightB = Math.round(nestedLightB * 0.68 + sbB * 0.20 + bgB * 0.12);
+    const ddLightAlpha = isLinux
+      ? 0.90
+      : Math.max(0.72, Math.min(0.84, 0.64 + lightPanelAlpha * 0.42));
     vars['--glass-dropdown-bg'] = `rgba(${ddLightR}, ${ddLightG}, ${ddLightB}, ${ddLightAlpha.toFixed(3)})`;
-    vars['--glass-dropdown-gradient'] = `none`;
-    vars['--glass-dropdown-border-top'] = `rgba(255, 255, 255, 0.28)`;
-    vars['--glass-dropdown-border-left'] = `rgba(255, 255, 255, 0.18)`;
-    vars['--glass-dropdown-border-right'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.08)`;
-    vars['--glass-dropdown-border-bottom'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.10)`;
-    vars['--glass-dropdown-shadow'] = `0 22px 48px -8px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 1.32).toFixed(3)}), 0 8px 20px -3px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.80).toFixed(3)}), inset 0 1px 0 0 rgba(255, 255, 255, 0.24)`;
-    vars['--glass-dropdown-input-bg'] = `rgba(255, 255, 255, 0.22)`;
-    vars['--glass-dropdown-input-border'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.08)`;
-    vars['--glass-dropdown-item-hover'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.05)`;
-    vars['--glass-dropdown-item-active'] = `rgba(${accR}, ${accG}, ${accB}, 0.08)`;
-    vars['--glass-dropdown-item-active-border'] = `rgba(${accR}, ${accG}, ${accB}, 0.28)`;
+    vars['--glass-dropdown-gradient'] = `radial-gradient(110% 65% at 50% -18%, rgba(255, 255, 255, 0.44) 0%, rgba(255, 255, 255, 0) 60%), linear-gradient(160deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.04) 48%, rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.05) 100%)`;
+    vars['--glass-dropdown-border-top'] = `rgba(255, 255, 255, 0.68)`;
+    vars['--glass-dropdown-border-left'] = `rgba(255, 255, 255, 0.46)`;
+    vars['--glass-dropdown-border-right'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.12)`;
+    vars['--glass-dropdown-border-bottom'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.16)`;
+    vars['--glass-dropdown-shadow'] = `0 24px 54px -10px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 1.38).toFixed(3)}), 0 10px 24px -4px rgba(${txtR}, ${txtG}, ${txtB}, ${(lightShadowScale * 0.85).toFixed(3)})`;
+    vars['--glass-dropdown-input-bg'] = `rgba(255, 255, 255, 0.34)`;
+    vars['--glass-dropdown-input-border'] = `rgba(${lBrdR}, ${lBrdG}, ${lBrdB}, 0.12)`;
+    vars['--glass-dropdown-item-hover'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.055)`;
+    vars['--glass-dropdown-item-active'] = `rgba(255, 255, 255, 0.56)`;
+    vars['--glass-dropdown-item-active-border'] = `rgba(255, 255, 255, 0.72)`;
     vars['--glass-backdrop-dim'] = `rgba(${txtR}, ${txtG}, ${txtB}, 0.08)`;
     vars['--glass-card-banner-bg'] = `transparent`;
     vars['--glass-card-icon-bg'] = `rgba(255, 255, 255, 0.18)`;
@@ -322,22 +338,24 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
     vars['--glass-portal-bg'] = `rgba(${linuxCardR}, ${linuxCardG}, ${linuxCardB}, ${(isLinux ? Math.max(0.86, Math.min(0.94, darkPanelAlpha + 0.76)) : Math.max(0.24, Math.min(0.56, darkPanelAlpha + 0.16))).toFixed(3)})`;
     vars['--glass-portal-sheen'] = `none`;
     vars['--glass-portal-shadow'] = `0 20px 42px -6px rgba(0, 0, 0, ${(outerShadowMain * 1.10).toFixed(3)}), 0 8px 18px -2px rgba(0, 0, 0, ${outerShadowAmbient.toFixed(3)})`;
-    const ddDarkR = Math.round(sbGlassR * 0.55 + baseR * 0.45);
-    const ddDarkG = Math.round(sbGlassG * 0.55 + baseG * 0.45);
-    const ddDarkB = Math.round(sbGlassB * 0.55 + baseB * 0.45);
-    const ddDarkAlpha = Math.max(0.84, Math.min(0.92, 0.80 + darkPanelAlpha * 0.25));
+    const ddDarkR = Math.round(bgR * 0.28 + baseR * 0.58 + accR * 0.14);
+    const ddDarkG = Math.round(bgG * 0.28 + baseG * 0.58 + accG * 0.14);
+    const ddDarkB = Math.round(bgB * 0.28 + baseB * 0.58 + accB * 0.14);
+    const ddDarkAlpha = isLinux
+      ? 0.88
+      : Math.max(0.56, Math.min(0.74, 0.48 + darkPanelAlpha * 0.45));
     vars['--glass-dropdown-bg'] = `rgba(${ddDarkR}, ${ddDarkG}, ${ddDarkB}, ${ddDarkAlpha.toFixed(3)})`;
-    vars['--glass-dropdown-gradient'] = `none`;
-    vars['--glass-dropdown-border-top'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.14)`;
-    vars['--glass-dropdown-border-left'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.10)`;
-    vars['--glass-dropdown-border-right'] = `rgba(255, 255, 255, 0.05)`;
-    vars['--glass-dropdown-border-bottom'] = `rgba(255, 255, 255, 0.07)`;
-    vars['--glass-dropdown-shadow'] = `0 24px 52px -8px rgba(0, 0, 0, ${(outerShadowMain * 1.20).toFixed(3)}), 0 10px 24px -4px rgba(0, 0, 0, ${(outerShadowAmbient * 1.05).toFixed(3)}), inset 0 1px 0 0 rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.12)`;
-    vars['--glass-dropdown-input-bg'] = `rgba(255, 255, 255, 0.04)`;
-    vars['--glass-dropdown-input-border'] = `rgba(255, 255, 255, 0.08)`;
-    vars['--glass-dropdown-item-hover'] = `rgba(255, 255, 255, 0.05)`;
-    vars['--glass-dropdown-item-active'] = `rgba(${accR}, ${accG}, ${accB}, 0.09)`;
-    vars['--glass-dropdown-item-active-border'] = `rgba(${accR}, ${accG}, ${accB}, 0.32)`;
+    vars['--glass-dropdown-gradient'] = `radial-gradient(110% 60% at 50% -18%, rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.09) 0%, transparent 58%), linear-gradient(155deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.01) 36%, rgba(0, 0, 0, 0.16) 100%)`;
+    vars['--glass-dropdown-border-top'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.26)`;
+    vars['--glass-dropdown-border-left'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.18)`;
+    vars['--glass-dropdown-border-right'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.09)`;
+    vars['--glass-dropdown-border-bottom'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.12)`;
+    vars['--glass-dropdown-shadow'] = `0 26px 58px -10px rgba(0, 0, 0, ${(outerShadowMain * 1.28).toFixed(3)}), 0 10px 26px -4px rgba(0, 0, 0, ${(outerShadowAmbient * 1.12).toFixed(3)})`;
+    vars['--glass-dropdown-input-bg'] = isLinux ? `rgba(255, 255, 255, 0.065)` : `rgba(255, 255, 255, 0.048)`;
+    vars['--glass-dropdown-input-border'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.13)`;
+    vars['--glass-dropdown-item-hover'] = `rgba(255, 255, 255, 0.065)`;
+    vars['--glass-dropdown-item-active'] = `rgba(255, 255, 255, 0.105)`;
+    vars['--glass-dropdown-item-active-border'] = `rgba(${dRimR}, ${dRimG}, ${dRimB}, 0.24)`;
     vars['--glass-backdrop-dim'] = `rgba(0, 0, 0, 0.22)`;
     vars['--glass-card-banner-bg'] = `transparent`;
     vars['--glass-card-icon-bg'] = `rgba(255, 255, 255, 0.032)`;
@@ -355,21 +373,7 @@ export function computeGlassOpticalVars(currentTheme: any): Record<string, strin
   return vars;
 }
 
-const GLASS_OPTICS_REV = "rev_74";
-
-const BUILTIN_WALLPAPER_BAR_PALETTES: Record<string, { topHex: string; bottomHex: string }> = {
-  '/themes/architect.png': { topHex: '#1d2737', bottomHex: '#0e2244' },
-  '/themes/aurora.png': { topHex: '#0c353d', bottomHex: '#0e2229' },
-  '/themes/bunker.png': { topHex: '#365345', bottomHex: '#192e21' },
-  '/themes/dracula.png': { topHex: '#211632', bottomHex: '#262646' },
-  '/themes/radiant.png': { topHex: '#dfe5f2', bottomHex: '#d8deec' },
-  '/themes/synthwave.png': { topHex: '#141236', bottomHex: '#291d48' },
-};
-
-const rgbToHex = (r: number, g: number, b: number): string => {
-  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
-  return `#${clamp(r).toString(16).padStart(2, '0')}${clamp(g).toString(16).padStart(2, '0')}${clamp(b).toString(16).padStart(2, '0')}`;
-};
+const GLASS_OPTICS_REV = "rev_77";
 
 export function harmonizeBarColorWithTheme(
   rawR: number,

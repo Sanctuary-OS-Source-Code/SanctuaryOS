@@ -46,7 +46,19 @@ import bundledRunningChangelog from "../../../changelog (running).md?raw";
 import {
   readAllLocalDocSnapshots,
   writeLocalDirectiveFile,
+  syncPublishedToLocalFallbackIfSafe,
+  markLocalDocSyncedHash,
+  LocalDocSlug,
 } from "../utils/directivesSync";
+import { isDesktop } from "../utils/envUtils";
+import {
+  useKeeperDocPresence,
+  KeeperDocSavedBroadcast,
+} from "../utils/useKeeperDocPresence";
+import {
+  KeeperDocConflictBar,
+  KeeperDocConflictInfo,
+} from "./universal/KeeperDocConflictBar";
 
 export const LEGACY_BLOG_BROADCAST_TITLE = "[KEEPERS_RELEASE_NOTES_BLOG]";
 const PUBLIC_POST_BROADCAST_TITLE = "[KEEPERS_RELEASE_POST_PUBLIC]";
@@ -1225,6 +1237,111 @@ export function StructuredReleaseNotesView({
           }
         }
 
+        const renderReleaseCard = (
+          card: (typeof orderedCards)[number],
+          cIdx: number,
+          spanFull: boolean
+        ) => (
+          <div
+            key={`${card.title || "card"}-${cIdx}`}
+            className={`glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-2.5 relative overflow-hidden ${
+              spanFull ? "md:col-span-2" : ""
+            }`}
+          >
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(var(--text-rgb, 255, 255, 255), 0.05) 0%, transparent 65%)",
+              }}
+            />
+            {card.title && (
+              <div className="flex items-center gap-2.5 relative z-10">
+                {card.icon && (
+                  <div className="w-7 h-7 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
+                    <span className="material-symbols-outlined !text-[15px]">
+                      {t(`icon_${card.icon}`, card.icon)}
+                    </span>
+                  </div>
+                )}
+                <h3 className="text-sm sm:text-[15px] font-bold tracking-tight text-[var(--text)] leading-snug">
+                  {renderCleanInlineText(card.title)}
+                </h3>
+              </div>
+            )}
+            {card.paragraphs.length > 0 && (
+              <div className="flex flex-col gap-2 text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed relative z-10">
+                {card.paragraphs.map((p, pIdx) => (
+                  <p key={pIdx}>{renderCleanInlineText(p)}</p>
+                ))}
+              </div>
+            )}
+            {card.codeBlock && (
+              <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative group/code z-10 overflow-x-auto custom-scrollbar">
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigator.clipboard.writeText(card.codeBlock || "")
+                  }
+                  className="absolute top-2.5 right-2.5 w-7 h-7 rounded-lg glass-panel text-[var(--subtext)] hover:text-[var(--text)] opacity-0 group-hover/code:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                >
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_content_copy", "content_copy")}
+                  </span>
+                  <HoverTooltip title={t("btn_copy", "Copy")} />
+                </button>
+                <pre className="font-mono text-xs text-[var(--accent)] whitespace-pre-wrap break-words m-0 pr-8">
+                  <code>{card.codeBlock}</code>
+                </pre>
+              </div>
+            )}
+            {card.subItems && card.subItems.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 relative z-10">
+                {card.subItems.map((sub, subIdx) => {
+                  const isLastOddSub =
+                    card.subItems!.length > 1 &&
+                    card.subItems!.length % 2 === 1 &&
+                    subIdx === card.subItems!.length - 1;
+                  return (
+                    <div
+                      key={`${sub.title || "sub"}-${subIdx}`}
+                      className={`glass-surface rounded-2xl p-3.5 flex flex-col gap-1 ${
+                        isLastOddSub ? "sm:col-span-2" : ""
+                      }`}
+                    >
+                      {sub.title && (
+                        <span className="text-xs font-bold text-[var(--text)]">
+                          {renderCleanInlineText(sub.title)}
+                        </span>
+                      )}
+                      <span className="text-xs text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed">
+                        {renderCleanInlineText(sub.body)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+
+        const canUseBalancedColumns =
+          !naturalFullFlags.some(Boolean) && orderedCards.length > 1;
+        const balancedCols: Array<
+          Array<{ card: (typeof orderedCards)[number]; idx: number }>
+        > = [[], []];
+        if (canUseBalancedColumns) {
+          const weights = [0, 0];
+          orderedCards.forEach((card, cIdx) => {
+            const targetCol = weights[0] <= weights[1] ? 0 : 1;
+            balancedCols[targetCol].push({ card, idx: cIdx });
+            weights[targetCol] +=
+              (card.title?.length || 0) +
+              card.paragraphs.join(" ").length +
+              60;
+          });
+        }
+
         return (
           <div key={`${section.title}-${sIdx}`} className="flex flex-col gap-3.5">
             {section.title && (
@@ -1253,97 +1370,31 @@ export function StructuredReleaseNotesView({
               </div>
             )}
 
-            {orderedCards.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                {orderedCards.map((card, cIdx) => {
-                  const spanFull = spanFullFlags[cIdx];
-
-                  return (
-                    <div
-                      key={`${card.title || "card"}-${cIdx}`}
-                      className={`glass-panel rounded-3xl p-4 sm:p-5 flex flex-col gap-2.5 relative overflow-hidden ${
-                        spanFull ? "md:col-span-2" : ""
-                      }`}
-                    >
-                      <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{
-                          background:
-                            "linear-gradient(135deg, rgba(var(--text-rgb, 255, 255, 255), 0.05) 0%, transparent 65%)",
-                        }}
-                      />
-                      {card.title && (
-                        <div className="flex items-center gap-2.5 relative z-10">
-                          {card.icon && (
-                            <div className="w-7 h-7 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
-                              <span className="material-symbols-outlined !text-[15px]">
-                                {t(`icon_${card.icon}`, card.icon)}
-                              </span>
-                            </div>
-                          )}
-                          <h3 className="text-sm sm:text-[15px] font-bold tracking-tight text-[var(--text)] leading-snug">
-                            {renderCleanInlineText(card.title)}
-                          </h3>
-                        </div>
-                      )}
-                      {card.paragraphs.length > 0 && (
-                        <div className="flex flex-col gap-2 text-xs sm:text-[13px] text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed relative z-10">
-                          {card.paragraphs.map((p, pIdx) => (
-                            <p key={pIdx}>{renderCleanInlineText(p)}</p>
-                          ))}
-                        </div>
-                      )}
-                      {card.codeBlock && (
-                        <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative group/code z-10 overflow-x-auto custom-scrollbar">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              navigator.clipboard.writeText(card.codeBlock || "")
-                            }
-                            className="absolute top-2.5 right-2.5 w-7 h-7 rounded-lg glass-panel text-[var(--subtext)] hover:text-[var(--text)] opacity-0 group-hover/code:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
-                          >
-                            <span className="material-symbols-outlined !text-[14px]">
-                              {t("icon_content_copy", "content_copy")}
-                            </span>
-                            <HoverTooltip title={t("btn_copy", "Copy")} />
-                          </button>
-                          <pre className="font-mono text-xs text-[var(--accent)] whitespace-pre-wrap break-words m-0 pr-8">
-                            <code>{card.codeBlock}</code>
-                          </pre>
-                        </div>
-                      )}
-                      {card.subItems && card.subItems.length > 0 && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 relative z-10">
-                          {card.subItems.map((sub, subIdx) => {
-                            const isLastOddSub =
-                              card.subItems!.length > 1 &&
-                              card.subItems!.length % 2 === 1 &&
-                              subIdx === card.subItems!.length - 1;
-                            return (
-                              <div
-                                key={`${sub.title || "sub"}-${subIdx}`}
-                                className={`glass-surface rounded-2xl p-3.5 flex flex-col gap-1 ${
-                                  isLastOddSub ? "sm:col-span-2" : ""
-                                }`}
-                              >
-                                {sub.title && (
-                                  <span className="text-xs font-bold text-[var(--text)]">
-                                    {renderCleanInlineText(sub.title)}
-                                  </span>
-                                )}
-                                <span className="text-xs text-[color-mix(in_srgb,var(--text)_80%,transparent)] leading-relaxed">
-                                  {renderCleanInlineText(sub.body)}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {orderedCards.length > 0 &&
+              (canUseBalancedColumns ? (
+                <>
+                  <div className="flex flex-col gap-3.5 md:hidden">
+                    {orderedCards.map((card, cIdx) =>
+                      renderReleaseCard(card, cIdx, false)
+                    )}
+                  </div>
+                  <div className="hidden md:grid md:grid-cols-2 gap-3.5 items-start">
+                    {balancedCols.map((col, colIdx) => (
+                      <div key={colIdx} className="flex flex-col gap-3.5">
+                        {col.map(({ card, idx }) =>
+                          renderReleaseCard(card, idx, false)
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
+                  {orderedCards.map((card, cIdx) =>
+                    renderReleaseCard(card, cIdx, spanFullFlags[cIdx])
+                  )}
+                </div>
+              ))}
 
             {renderSectionImages(section.images)}
           </div>
@@ -1601,12 +1652,7 @@ export function deserializeChangelogRow(
   const raw = String(
     (usePublished ? row.published_message || row.message : row.message) || ""
   ).trim();
-  if (
-    !raw ||
-    raw.length < 300 ||
-    raw.includes("- **Title:** Desc") ||
-    (fallback && fallback.length > raw.length + 1000)
-  ) {
+  if (!raw || raw.length < 300 || raw.includes("- **Title:** Desc")) {
     return fallback;
   }
   return raw;
@@ -1633,15 +1679,55 @@ export function areChangelogsEquivalent(a: string, b: string): boolean {
   return normalizeMd(a) === normalizeMd(b);
 }
 
+type ReleaseDocSlotKey =
+  | "stable:post"
+  | "dev:post"
+  | "stable:changelog"
+  | "dev:changelog";
+
+const RELEASE_SLOT_LOCAL_META: Record<
+  ReleaseDocSlotKey,
+  { slug: LocalDocSlug; fileName: string }
+> = {
+  "stable:post": {
+    slug: "release_notes_public",
+    fileName: "Release Notes (Community Blog).md",
+  },
+  "dev:post": {
+    slug: "release_notes_dev",
+    fileName: "Release Notes (Dev).md",
+  },
+  "stable:changelog": {
+    slug: "changelog_running",
+    fileName: "changelog (running).md",
+  },
+  "dev:changelog": {
+    slug: "changelog_dev",
+    fileName: "changelog.md",
+  },
+};
+
 export function ReleaseNotesShowcase({
   isKeepers = false,
   versionLabel,
+  presence: externalPresence,
+  keeperName,
 }: {
   isKeepers?: boolean;
   versionLabel?: string;
+  presence?: ReturnType<typeof useKeeperDocPresence>;
+  keeperName?: string;
 }) {
   const { t } = useLexicon();
   const session = useStore((state) => state.session);
+  const wayfinderDrafts = useStore((state) => state.wayfinderDrafts);
+  const setWayfinderDrafts = useStore((state) => state.setWayfinderDrafts);
+  const currentUserId = session?.user?.id || "anon";
+  const resolvedKeeperName =
+    keeperName ||
+    (session?.user?.user_metadata as any)?.username ||
+    session?.user?.email?.split("@")[0] ||
+    "Keepers Core";
   const osRole = useStore((state: any) => state.osRole);
   const userRole = useStore((state: any) => state.userRole);
   const [isDevSupporter, setIsDevSupporter] = useState(false);
@@ -1853,6 +1939,81 @@ export function ReleaseNotesShowcase({
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
+  const [revisionsBySlot, setRevisionsBySlot] = useState<
+    Record<
+      ReleaseDocSlotKey,
+      { revision: number; updatedBy: string; updatedAt: string }
+    >
+  >({
+    "stable:post": { revision: 1, updatedBy: "Keepers Core", updatedAt: "" },
+    "dev:post": { revision: 1, updatedBy: "Keepers Core", updatedAt: "" },
+    "stable:changelog": {
+      revision: 1,
+      updatedBy: "Keepers Core",
+      updatedAt: "",
+    },
+    "dev:changelog": { revision: 1, updatedBy: "Keepers Core", updatedAt: "" },
+  });
+
+  const [localMdBySlot, setLocalMdBySlot] = useState<
+    Record<
+      ReleaseDocSlotKey,
+      {
+        slug: LocalDocSlug;
+        fileName: string;
+        hasLocalChanges: boolean;
+        localContent: string;
+      }
+    >
+  >({
+    "stable:post": {
+      ...RELEASE_SLOT_LOCAL_META["stable:post"],
+      hasLocalChanges: false,
+      localContent: "",
+    },
+    "dev:post": {
+      ...RELEASE_SLOT_LOCAL_META["dev:post"],
+      hasLocalChanges: false,
+      localContent: "",
+    },
+    "stable:changelog": {
+      ...RELEASE_SLOT_LOCAL_META["stable:changelog"],
+      hasLocalChanges: false,
+      localContent: "",
+    },
+    "dev:changelog": {
+      ...RELEASE_SLOT_LOCAL_META["dev:changelog"],
+      hasLocalChanges: false,
+      localContent: "",
+    },
+  });
+
+  const [baseRevision, setBaseRevision] = useState<number>(1);
+  const [isDirty, setIsDirty] = useState<boolean>(false);
+  const [conflictServerInfo, setConflictServerInfo] =
+    useState<KeeperDocConflictInfo | null>(null);
+  const pendingPublishRef = useRef<boolean>(false);
+  const isDirtyRef = useRef(isDirty);
+  const isEditorOpenRef = useRef(isEditorOpen);
+  const baseRevisionRef = useRef(baseRevision);
+  const activeSlotRef = useRef<ReleaseDocSlotKey>(
+    `${editorChannel}:${editorDocType}`
+  );
+  isDirtyRef.current = isDirty;
+  isEditorOpenRef.current = isEditorOpen;
+  baseRevisionRef.current = baseRevision;
+  activeSlotRef.current = `${editorChannel}:${editorDocType}`;
+
+  const getReleaseDocKey = (
+    ch: "stable" | "dev",
+    docType: "post" | "changelog"
+  ): string => `release:${ch}:${docType}`;
+
+  const getScopedReleaseDraftKey = (
+    ch: "stable" | "dev",
+    docType: "post" | "changelog"
+  ): string => `${currentUserId}::release:${ch}:${docType}`;
+
   const updateTimeoutRef = useRef<any>(null);
 
   const editor = useEditor({
@@ -1864,6 +2025,7 @@ export function ReleaseNotesShowcase({
       updateTimeoutRef.current = setTimeout(() => {
         if (!ed || ed.isDestroyed || !(ed.storage as any)?.markdown) return;
         setDraftBody(getSafeEditorMarkdown(ed));
+        setIsDirty(true);
       }, 300);
     },
     editorProps: {
@@ -1907,20 +2069,131 @@ export function ReleaseNotesShowcase({
     []
   );
 
+  const handleRemoteReleaseSavedRef = useRef<
+    ((event: KeeperDocSavedBroadcast) => Promise<void>) | null
+  >(null);
+
+  const fallbackPresence = useKeeperDocPresence({
+    enabled: isKeepers && !externalPresence,
+    userId: currentUserId,
+    username: resolvedKeeperName,
+    onRemoteDocSaved: (ev) => {
+      void handleRemoteReleaseSavedRef.current?.(ev);
+    },
+  });
+  const activePresence = externalPresence || fallbackPresence;
+
+  const wasReleaseEditorOpenRef = useRef(false);
+  useEffect(() => {
+    if (!isKeepers) return;
+    if (isEditorOpen) {
+      wasReleaseEditorOpenRef.current = true;
+      activePresence.trackEditingDoc(
+        getReleaseDocKey(editorChannel, editorDocType),
+        editorDocType === "changelog"
+          ? editorChannel === "dev"
+            ? t("release_notes_dev_cl_title", "Dev Changelog")
+            : t("release_notes_stable_cl_title", "Stable Changelog")
+          : draftTitle ||
+            (editorChannel === "dev"
+              ? defaultDevPost.title
+              : defaultPublicPost.title),
+        isDirty
+      );
+    } else if (wasReleaseEditorOpenRef.current) {
+      wasReleaseEditorOpenRef.current = false;
+      activePresence.trackEditingDoc(null);
+    }
+  }, [
+    isKeepers,
+    isEditorOpen,
+    editorChannel,
+    editorDocType,
+    draftTitle,
+    isDirty,
+    activePresence.trackEditingDoc,
+    defaultDevPost.title,
+    defaultPublicPost.title,
+    t,
+  ]);
+
+  useEffect(() => {
+    if (!isKeepers || !isEditorOpen) return;
+    const draftKey = getScopedReleaseDraftKey(editorChannel, editorDocType);
+    const timer = setTimeout(() => {
+      if (!isDirty) {
+        setWayfinderDrafts((prev) => {
+          if (!prev[draftKey]) return prev;
+          const next = { ...prev };
+          delete next[draftKey];
+          return next;
+        });
+        return;
+      }
+
+      setWayfinderDrafts((prev) => ({
+        ...prev,
+        [draftKey]: {
+          _draftVersion: 5,
+          baseRevision,
+          isDirty: true,
+          draftTitle,
+          draftSummary,
+          draftVersion,
+          draftReleaseDate,
+          draftPlatform,
+          draftImageUrl,
+          draftCodeSnippet,
+          draftPollData,
+          draftBody,
+          savedAt: new Date().toISOString(),
+        },
+      }));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [
+    isKeepers,
+    isEditorOpen,
+    editorChannel,
+    editorDocType,
+    currentUserId,
+    isDirty,
+    baseRevision,
+    draftTitle,
+    draftSummary,
+    draftVersion,
+    draftReleaseDate,
+    draftPlatform,
+    draftImageUrl,
+    draftCodeSnippet,
+    draftPollData,
+    draftBody,
+    setWayfinderDrafts,
+  ]);
+
   const loadPostsAndReleases = useCallback(
     async (
       forceRefreshGitHub = false,
-      syncDirection: "auto" | "local_to_hub" | "hub_to_local" = "auto"
+      syncDirection:
+        | "hub_only"
+        | "hub_to_local"
+        | "auto"
+        | "local_to_hub" = "hub_only"
     ) => {
       try {
-        const cachedRawV5 = localStorage.getItem("sanctuary_keepers_release_posts_v5");
+        const cachedRawV5 = localStorage.getItem(
+          "sanctuary_keepers_release_posts_v5"
+        );
         if (cachedRawV5) {
           const parsedCache = JSON.parse(cachedRawV5);
-          if (parsedCache?.workingPublicPost) setWorkingPublicPost(parsedCache.workingPublicPost);
+          if (parsedCache?.workingPublicPost)
+            setWorkingPublicPost(parsedCache.workingPublicPost);
           if (parsedCache?.publishedPublicPost)
             setPublishedPublicPost(parsedCache.publishedPublicPost);
-          if (parsedCache?.workingDevPost) setWorkingDevPost(parsedCache.workingDevPost);
-          if (parsedCache?.publishedDevPost) setPublishedDevPost(parsedCache.publishedDevPost);
+          if (parsedCache?.workingDevPost)
+            setWorkingDevPost(parsedCache.workingDevPost);
+          if (parsedCache?.publishedDevPost)
+            setPublishedDevPost(parsedCache.publishedDevPost);
           if (parsedCache?.workingStableChangelog)
             setWorkingStableChangelog(parsedCache.workingStableChangelog);
           if (parsedCache?.publishedStableChangelog)
@@ -1939,7 +2212,7 @@ export function ReleaseNotesShowcase({
           supabaseAuth
             .from("keeper_system_broadcasts")
             .select(
-              "id, title, description, message, published_title, published_description, published_message, published_at, updated_at, category, target_audience, code_snippet, poll_data, created_at"
+              "id, title, description, message, published_title, published_description, published_message, published_at, updated_at, updated_by, revision, category, target_audience, code_snippet, poll_data, created_at"
             )
             .in("category", [
               "ReleasePost_Public",
@@ -1948,7 +2221,7 @@ export function ReleaseNotesShowcase({
               PUBLIC_CHANGELOG_BROADCAST_CATEGORY,
               DEV_CHANGELOG_BROADCAST_CATEGORY,
             ])
-            .order("created_at", { ascending: false }),
+            .order("updated_at", { ascending: false }),
           getKeepersPipelineConfig(forceRefreshGitHub),
           readAllLocalDocSnapshots(),
         ]);
@@ -1963,7 +2236,8 @@ export function ReleaseNotesShowcase({
             rows.find((r: any) => r.category === "ReleasePost_Public") ||
             rows.find(
               (r: any) =>
-                r.category === "ReleaseNotesBlog" || r.title === LEGACY_BLOG_BROADCAST_TITLE
+                r.category === "ReleaseNotesBlog" ||
+                r.title === LEGACY_BLOG_BROADCAST_TITLE
             );
           const devRow = rows.find((r: any) => r.category === "ReleasePost_Dev");
           const publicChangelogRow = rows.find(
@@ -1973,91 +2247,52 @@ export function ReleaseNotesShowcase({
             (r: any) => r.category === DEV_CHANGELOG_BROADCAST_CATEGORY
           );
 
-          // 1. Parse local .md snapshots
-          const localPubSnap = localSnapshots.release_notes_public;
-          const localDevSnap = localSnapshots.release_notes_dev;
-          const localRunningClSnap = localSnapshots.changelog_running;
-          const localDevClSnap = localSnapshots.changelog_dev;
-
-          const parsedLocalPub = localPubSnap?.content
-            ? parseSeedCommunityBlog(localPubSnap.content)
-            : seedPublicBlog;
-          const parsedLocalDev = localDevSnap?.content
-            ? parseSeedCommunityBlog(localDevSnap.content)
-            : seedDevBlog;
-
-          let resolvedPubPublished = deserializeReleasePostRow(
+          const resolvedPubPublished = deserializeReleasePostRow(
             publicRow,
             defaultPublicPost,
             true
           );
-          let resolvedPubWorking = deserializeReleasePostRow(
+          const resolvedPubWorking = deserializeReleasePostRow(
             publicRow,
             defaultPublicPost,
             false
           );
 
-          let resolvedDevPublished = deserializeReleasePostRow(
+          const resolvedDevPublished = deserializeReleasePostRow(
             devRow,
             defaultDevPost,
             true
           );
-          let resolvedDevWorking = deserializeReleasePostRow(
+          const resolvedDevWorking = deserializeReleasePostRow(
             devRow,
             defaultDevPost,
             false
           );
 
-          const localPubPostCandidate: KeepersReleasePostRecord = {
-            id: resolvedPubWorking.id,
-            title: parsedLocalPub.mainTitle || resolvedPubWorking.title,
-            summary: parsedLocalPub.summary || resolvedPubWorking.summary,
-            version: parsedLocalPub.version || resolvedPubWorking.version,
-            releaseDate: parsedLocalPub.releaseDate || resolvedPubWorking.releaseDate,
-            platform: parsedLocalPub.platform || resolvedPubWorking.platform,
-            imageUrl: resolvedPubWorking.imageUrl || "",
-            codeSnippet: resolvedPubWorking.codeSnippet || "",
-            pollData: resolvedPubWorking.pollData || null,
-            body: parsedLocalPub.cleanBody || resolvedPubWorking.body,
-          };
+          const baseStableClFallback =
+            bundledRunningChangelog || bundledNerdChangelog;
+          const baseDevClFallback =
+            bundledNerdChangelog || seedChangelog.markdown;
 
-          const localDevPostCandidate: KeepersReleasePostRecord = {
-            id: resolvedDevWorking.id,
-            title: parsedLocalDev.mainTitle || resolvedDevWorking.title,
-            summary: parsedLocalDev.summary || resolvedDevWorking.summary,
-            version: parsedLocalDev.version || resolvedDevWorking.version,
-            releaseDate: parsedLocalDev.releaseDate || resolvedDevWorking.releaseDate,
-            platform: parsedLocalDev.platform || resolvedDevWorking.platform,
-            imageUrl: resolvedDevWorking.imageUrl || "",
-            codeSnippet: resolvedDevWorking.codeSnippet || "",
-            pollData: resolvedDevWorking.pollData || null,
-            body: parsedLocalDev.cleanBody || resolvedDevWorking.body,
-          };
-
-          const localStableClContent =
-            localRunningClSnap?.content || bundledRunningChangelog || bundledNerdChangelog;
-          const localDevClContent =
-            localDevClSnap?.content || bundledNerdChangelog || seedChangelog.markdown;
-
-          let resolvedStableClPublished = deserializeChangelogRow(
+          const resolvedStableClPublished = deserializeChangelogRow(
             publicChangelogRow,
-            localStableClContent,
+            baseStableClFallback,
             true
           );
-          let resolvedStableClWorking = deserializeChangelogRow(
+          const resolvedStableClWorking = deserializeChangelogRow(
             publicChangelogRow,
-            localStableClContent,
+            baseStableClFallback,
             false
           );
 
-          let resolvedDevClPublished = deserializeChangelogRow(
+          const resolvedDevClPublished = deserializeChangelogRow(
             devChangelogRow,
-            localDevClContent,
+            baseDevClFallback,
             true
           );
-          let resolvedDevClWorking = deserializeChangelogRow(
+          const resolvedDevClWorking = deserializeChangelogRow(
             devChangelogRow,
-            localDevClContent,
+            baseDevClFallback,
             false
           );
 
@@ -2066,154 +2301,83 @@ export function ReleaseNotesShowcase({
           let nextPubClRowId = publicChangelogRow?.id || null;
           let nextDevClRowId = devChangelogRow?.id || null;
 
-          const canSyncWorking = isKeepers || isStaff || syncDirection !== "auto";
-
-          // 2. Two-Way Sync (.md <-> Hub DB Working Columns ONLY; never touches published_*)
-          if (canSyncWorking) {
-            // A. Public Release Post (Release Notes (Community Blog).md <-> ReleasePost_Public)
-            const pubDbEpoch = publicRow?.updated_at
-              ? new Date(publicRow.updated_at).getTime()
-              : publicRow?.created_at
-                ? new Date(publicRow.created_at).getTime()
-                : 0;
-            const pubLocalEpoch = localPubSnap?.modified_epoch_ms || 0;
-
-            if (!areReleasePostsEquivalent(localPubPostCandidate, resolvedPubWorking)) {
-              if (
-                syncDirection === "local_to_hub" ||
-                (syncDirection === "auto" && pubLocalEpoch > pubDbEpoch + 1500)
-              ) {
-                resolvedPubWorking = localPubPostCandidate;
-                const serialized = serializeReleasePostMessage(resolvedPubWorking);
-                const nowIso = new Date().toISOString();
-                if (nextPubRowId) {
-                  await supabaseAuth
-                    .from("keeper_system_broadcasts")
-                    .update({
-                      title: resolvedPubWorking.title,
-                      description: resolvedPubWorking.summary || null,
-                      message: serialized,
-                      updated_at: nowIso,
-                    })
-                    .eq("id", nextPubRowId);
-                } else {
-                  const { data } = await supabaseAuth
-                    .from("keeper_system_broadcasts")
-                    .insert({
-                      title: resolvedPubWorking.title,
-                      description: resolvedPubWorking.summary || null,
-                      category: "ReleasePost_Public",
-                      target_audience: "Public",
-                      message: serialized,
-                      published_title: resolvedPubPublished.title,
-                      published_description: resolvedPubPublished.summary || null,
-                      published_message: serializeReleasePostMessage(resolvedPubPublished),
-                      published_at: nowIso,
-                      updated_at: nowIso,
-                      is_active: false,
-                      is_pinned: "false",
-                    })
-                    .select("id");
-                  if (data?.[0]?.id) {
-                    nextPubRowId = data[0].id;
-                    resolvedPubWorking.id = nextPubRowId;
-                  }
-                }
-              } else if (
-                syncDirection === "hub_to_local" ||
-                (syncDirection === "auto" && pubDbEpoch > 0 && pubLocalEpoch > 0)
-              ) {
-                await writeLocalDirectiveFile(
-                  "release_notes_public",
-                  formatReleasePostToMarkdownFile(resolvedPubWorking)
-                );
+          // First-time seed ONLY when a singleton broadcast row is absent in DB
+          if (isKeepers || isStaff) {
+            const nowIso = new Date().toISOString();
+            if (!nextPubRowId) {
+              const serialized = serializeReleasePostMessage(resolvedPubWorking);
+              const { data } = await supabaseAuth
+                .from("keeper_system_broadcasts")
+                .insert({
+                  title: resolvedPubWorking.title,
+                  description: resolvedPubWorking.summary || null,
+                  category: "ReleasePost_Public",
+                  target_audience: "Public",
+                  message: serialized,
+                  published_title: resolvedPubPublished.title,
+                  published_description: resolvedPubPublished.summary || null,
+                  published_message: serializeReleasePostMessage(
+                    resolvedPubPublished
+                  ),
+                  published_at: nowIso,
+                  updated_at: nowIso,
+                  updated_by: resolvedKeeperName,
+                  revision: 1,
+                  is_active: false,
+                  is_pinned: "false",
+                })
+                .select("id");
+              if (data?.[0]?.id) {
+                nextPubRowId = data[0].id;
+                resolvedPubWorking.id = nextPubRowId;
               }
             }
-
-            // B. Dev Release Post (Release Notes (Dev).md <-> ReleasePost_Dev)
-            const devDbEpoch = devRow?.updated_at
-              ? new Date(devRow.updated_at).getTime()
-              : devRow?.created_at
-                ? new Date(devRow.created_at).getTime()
-                : 0;
-            const devLocalEpoch = localDevSnap?.modified_epoch_ms || 0;
-
-            if (!areReleasePostsEquivalent(localDevPostCandidate, resolvedDevWorking)) {
-              if (
-                syncDirection === "local_to_hub" ||
-                (syncDirection === "auto" && devLocalEpoch > devDbEpoch + 1500)
-              ) {
-                resolvedDevWorking = localDevPostCandidate;
-                const serialized = serializeReleasePostMessage(resolvedDevWorking);
-                const nowIso = new Date().toISOString();
-                if (nextDevRowId) {
-                  await supabaseAuth
-                    .from("keeper_system_broadcasts")
-                    .update({
-                      title: resolvedDevWorking.title,
-                      description: resolvedDevWorking.summary || null,
-                      message: serialized,
-                      updated_at: nowIso,
-                    })
-                    .eq("id", nextDevRowId);
-                } else {
-                  const { data } = await supabaseAuth
-                    .from("keeper_system_broadcasts")
-                    .insert({
-                      title: resolvedDevWorking.title,
-                      description: resolvedDevWorking.summary || null,
-                      category: "ReleasePost_Dev",
-                      target_audience: "Dev",
-                      message: serialized,
-                      published_title: resolvedDevPublished.title,
-                      published_description: resolvedDevPublished.summary || null,
-                      published_message: serializeReleasePostMessage(resolvedDevPublished),
-                      published_at: nowIso,
-                      updated_at: nowIso,
-                      is_active: false,
-                      is_pinned: "false",
-                    })
-                    .select("id");
-                  if (data?.[0]?.id) {
-                    nextDevRowId = data[0].id;
-                    resolvedDevWorking.id = nextDevRowId;
-                  }
-                }
-              } else if (
-                syncDirection === "hub_to_local" ||
-                (syncDirection === "auto" && devDbEpoch > 0 && devLocalEpoch > 0)
-              ) {
-                await writeLocalDirectiveFile(
-                  "release_notes_dev",
-                  formatReleasePostToMarkdownFile(resolvedDevWorking)
-                );
+            if (!nextDevRowId) {
+              const serialized = serializeReleasePostMessage(resolvedDevWorking);
+              const { data } = await supabaseAuth
+                .from("keeper_system_broadcasts")
+                .insert({
+                  title: resolvedDevWorking.title,
+                  description: resolvedDevWorking.summary || null,
+                  category: "ReleasePost_Dev",
+                  target_audience: "Dev",
+                  message: serialized,
+                  published_title: resolvedDevPublished.title,
+                  published_description: resolvedDevPublished.summary || null,
+                  published_message: serializeReleasePostMessage(
+                    resolvedDevPublished
+                  ),
+                  published_at: nowIso,
+                  updated_at: nowIso,
+                  updated_by: resolvedKeeperName,
+                  revision: 1,
+                  is_active: false,
+                  is_pinned: "false",
+                })
+                .select("id");
+              if (data?.[0]?.id) {
+                nextDevRowId = data[0].id;
+                resolvedDevWorking.id = nextDevRowId;
               }
             }
-
-            // C. Stable Changelog (changelog (running).md <-> ReleaseChangelog_Public)
-            const pubClDbEpoch = publicChangelogRow?.updated_at
-              ? new Date(publicChangelogRow.updated_at).getTime()
-              : publicChangelogRow?.created_at
-                ? new Date(publicChangelogRow.created_at).getTime()
-                : 0;
-            const pubClLocalEpoch = localRunningClSnap?.modified_epoch_ms || 0;
-
             if (!nextPubClRowId) {
-              const nowIso = new Date().toISOString();
               const { data } = await supabaseAuth
                 .from("keeper_system_broadcasts")
                 .insert({
                   title: "Full Change Log (Stable)",
-                  description: "Running changelog across dev builds since last stable release",
+                  description:
+                    "Running changelog across dev builds since last stable release",
                   category: PUBLIC_CHANGELOG_BROADCAST_CATEGORY,
                   target_audience: "Public",
-                  message: localStableClContent,
+                  message: resolvedStableClWorking,
                   published_title: "Full Change Log (Stable)",
                   published_description:
                     "Running changelog across dev builds since last stable release",
-                  published_message: localStableClContent,
+                  published_message: resolvedStableClPublished,
                   published_at: nowIso,
                   updated_at: nowIso,
+                  updated_by: resolvedKeeperName,
+                  revision: 1,
                   is_active: false,
                   is_pinned: "false",
                 })
@@ -2221,37 +2385,8 @@ export function ReleaseNotesShowcase({
               if (data?.[0]?.id) {
                 nextPubClRowId = data[0].id;
               }
-            } else if (!areChangelogsEquivalent(localStableClContent, resolvedStableClWorking)) {
-              if (
-                syncDirection === "local_to_hub" ||
-                (syncDirection === "auto" && pubClLocalEpoch > pubClDbEpoch + 1500)
-              ) {
-                resolvedStableClWorking = localStableClContent;
-                await supabaseAuth
-                  .from("keeper_system_broadcasts")
-                  .update({
-                    message: resolvedStableClWorking,
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq("id", nextPubClRowId);
-              } else if (
-                syncDirection === "hub_to_local" ||
-                (syncDirection === "auto" && pubClDbEpoch > 0 && pubClLocalEpoch > 0)
-              ) {
-                await writeLocalDirectiveFile("changelog_running", resolvedStableClWorking);
-              }
             }
-
-            // D. Dev Changelog (changelog.md <-> ReleaseChangelog_Dev)
-            const devClDbEpoch = devChangelogRow?.updated_at
-              ? new Date(devChangelogRow.updated_at).getTime()
-              : devChangelogRow?.created_at
-                ? new Date(devChangelogRow.created_at).getTime()
-                : 0;
-            const devClLocalEpoch = localDevClSnap?.modified_epoch_ms || 0;
-
             if (!nextDevClRowId) {
-              const nowIso = new Date().toISOString();
               const { data } = await supabaseAuth
                 .from("keeper_system_broadcasts")
                 .insert({
@@ -2259,12 +2394,14 @@ export function ReleaseNotesShowcase({
                   description: "Current Dev Build technical changelog",
                   category: DEV_CHANGELOG_BROADCAST_CATEGORY,
                   target_audience: "Dev",
-                  message: localDevClContent,
+                  message: resolvedDevClWorking,
                   published_title: "Full Change Log (Dev)",
                   published_description: "Current Dev Build technical changelog",
-                  published_message: localDevClContent,
+                  published_message: resolvedDevClPublished,
                   published_at: nowIso,
                   updated_at: nowIso,
+                  updated_by: resolvedKeeperName,
+                  revision: 1,
                   is_active: false,
                   is_pinned: "false",
                 })
@@ -2272,30 +2409,103 @@ export function ReleaseNotesShowcase({
               if (data?.[0]?.id) {
                 nextDevClRowId = data[0].id;
               }
-            } else if (!areChangelogsEquivalent(localDevClContent, resolvedDevClWorking) || (devChangelogRow?.message || "").length < localDevClContent.length - 500) {
-              if (
-                syncDirection === "local_to_hub" ||
-                localDevClContent.length >= resolvedDevClWorking.length ||
-                (syncDirection === "auto" && devClLocalEpoch > devClDbEpoch + 1500)
-              ) {
-                resolvedDevClWorking = localDevClContent;
-                resolvedDevClPublished = localDevClContent;
-                await supabaseAuth
-                  .from("keeper_system_broadcasts")
-                  .update({
-                    message: resolvedDevClWorking,
-                    published_message: resolvedDevClPublished,
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq("id", nextDevClRowId);
-              } else if (
-                (syncDirection === "hub_to_local" ||
-                  (syncDirection === "auto" && devClDbEpoch > 0 && devClLocalEpoch > 0)) &&
-                resolvedDevClWorking.length >= localDevClContent.length
-              ) {
-                await writeLocalDirectiveFile("changelog_dev", resolvedDevClWorking);
-              }
             }
+          }
+
+          const nextRevisions: Record<
+            ReleaseDocSlotKey,
+            { revision: number; updatedBy: string; updatedAt: string }
+          > = {
+            "stable:post": {
+              revision: Number(publicRow?.revision || 1),
+              updatedBy: publicRow?.updated_by || "Keepers Core",
+              updatedAt: publicRow?.updated_at || publicRow?.created_at || "",
+            },
+            "dev:post": {
+              revision: Number(devRow?.revision || 1),
+              updatedBy: devRow?.updated_by || "Keepers Core",
+              updatedAt: devRow?.updated_at || devRow?.created_at || "",
+            },
+            "stable:changelog": {
+              revision: Number(publicChangelogRow?.revision || 1),
+              updatedBy: publicChangelogRow?.updated_by || "Keepers Core",
+              updatedAt:
+                publicChangelogRow?.updated_at ||
+                publicChangelogRow?.created_at ||
+                "",
+            },
+            "dev:changelog": {
+              revision: Number(devChangelogRow?.revision || 1),
+              updatedBy: devChangelogRow?.updated_by || "Keepers Core",
+              updatedAt:
+                devChangelogRow?.updated_at ||
+                devChangelogRow?.created_at ||
+                "",
+            },
+          };
+          setRevisionsBySlot(nextRevisions);
+
+          // Published-Only Content-Hash Safe Local .md Fallback Sync
+          if (isDesktop() || import.meta.env.DEV) {
+            const forceOverwriteLocal = syncDirection === "hub_to_local";
+            const [pubLocalRes, devLocalRes, clStableRes, clDevRes] =
+              await Promise.all([
+                syncPublishedToLocalFallbackIfSafe({
+                  slug: "release_notes_public",
+                  publishedContent: formatReleasePostToMarkdownFile(
+                    resolvedPubPublished
+                  ),
+                  bundledBaseline: bundledCommunityBlog,
+                  localSnapshot: localSnapshots.release_notes_public,
+                  forceOverwriteLocal,
+                }),
+                syncPublishedToLocalFallbackIfSafe({
+                  slug: "release_notes_dev",
+                  publishedContent: formatReleasePostToMarkdownFile(
+                    resolvedDevPublished
+                  ),
+                  bundledBaseline: bundledDevBlog,
+                  localSnapshot: localSnapshots.release_notes_dev,
+                  forceOverwriteLocal,
+                }),
+                syncPublishedToLocalFallbackIfSafe({
+                  slug: "changelog_running",
+                  publishedContent: resolvedStableClPublished,
+                  bundledBaseline: bundledRunningChangelog,
+                  localSnapshot: localSnapshots.changelog_running,
+                  forceOverwriteLocal,
+                }),
+                syncPublishedToLocalFallbackIfSafe({
+                  slug: "changelog_dev",
+                  publishedContent: resolvedDevClPublished,
+                  bundledBaseline: bundledNerdChangelog,
+                  localSnapshot: localSnapshots.changelog_dev,
+                  forceOverwriteLocal,
+                }),
+              ]);
+
+            setLocalMdBySlot({
+              "stable:post": {
+                ...RELEASE_SLOT_LOCAL_META["stable:post"],
+                hasLocalChanges: pubLocalRes.localState === "local_ahead",
+                localContent: pubLocalRes.localContent,
+              },
+              "dev:post": {
+                ...RELEASE_SLOT_LOCAL_META["dev:post"],
+                hasLocalChanges: devLocalRes.localState === "local_ahead",
+                localContent: devLocalRes.localContent,
+              },
+              "stable:changelog": {
+                ...RELEASE_SLOT_LOCAL_META["stable:changelog"],
+                hasLocalChanges: clStableRes.localState === "local_ahead",
+                localContent: clStableRes.localContent,
+              },
+              "dev:changelog": {
+                ...RELEASE_SLOT_LOCAL_META["dev:changelog"],
+                hasLocalChanges: clDevRes.localState === "local_ahead",
+                localContent: clDevRes.localContent,
+              },
+            });
           }
 
           setStableChangelogRowId(nextPubClRowId);
@@ -2329,21 +2539,125 @@ export function ReleaseNotesShowcase({
     [
       defaultPublicPost,
       defaultDevPost,
-      seedPublicBlog,
-      seedDevBlog,
       seedChangelog.markdown,
       isKeepers,
       isStaff,
+      resolvedKeeperName,
       persistReleaseStateCache,
     ]
   );
 
+  handleRemoteReleaseSavedRef.current = async (
+    event: KeeperDocSavedBroadcast
+  ) => {
+    if (!event.docKey.startsWith("release:")) return;
+    await loadPostsAndReleases(false, "hub_only");
+
+    if (!isKeepers || !isEditorOpenRef.current) return;
+    const [, evChannel, evDocType] = event.docKey.split(":");
+    const activeKey = getReleaseDocKey(editorChannel, editorDocType);
+    if (event.docKey !== activeKey) return;
+
+    const isDev = evChannel === "dev";
+    const category =
+      evDocType === "changelog"
+        ? isDev
+          ? DEV_CHANGELOG_BROADCAST_CATEGORY
+          : PUBLIC_CHANGELOG_BROADCAST_CATEGORY
+        : isDev
+        ? "ReleasePost_Dev"
+        : "ReleasePost_Public";
+
+    const { data: latestRow } = await supabaseAuth
+      .from("keeper_system_broadcasts")
+      .select("*")
+      .eq("category", category)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!latestRow) return;
+
+    const latestRev = Number(latestRow.revision || event.revision || 1);
+    if (!isDirtyRef.current) {
+      if (evDocType === "changelog") {
+        const latestCl = deserializeChangelogRow(
+          latestRow,
+          isDev ? bundledNerdChangelog : bundledRunningChangelog,
+          false
+        );
+        setDraftBody(latestCl);
+        if (editor) editor.commands.setContent(latestCl || "", { emitUpdate: false });
+      } else {
+        const latestPost = deserializeReleasePostRow(
+          latestRow,
+          isDev ? defaultDevPost : defaultPublicPost,
+          false
+        );
+        setDraftTitle(latestPost.title);
+        setDraftSummary(latestPost.summary);
+        setDraftVersion(latestPost.version);
+        setDraftReleaseDate(latestPost.releaseDate);
+        setDraftPlatform(latestPost.platform);
+        setDraftImageUrl(latestPost.imageUrl || "");
+        setDraftCodeSnippet(latestPost.codeSnippet || "");
+        setShowCodeInput(Boolean(latestPost.codeSnippet));
+        setDraftPollData(latestPost.pollData || null);
+        setDraftBody(latestPost.body);
+        if (editor) {
+          editor.commands.setContent(latestPost.body || "", { emitUpdate: false });
+        }
+      }
+      setBaseRevision(latestRev);
+      setConflictServerInfo(null);
+      useStore
+        .getState()
+        .pushStatus(
+          t(
+            "keeper_toast_reloaded_upstream",
+            "Reloaded latest update from @{0} (v{1})."
+          )
+            .replace("{0}", event.updatedBy || "Keeper")
+            .replace("{1}", String(latestRev)),
+          "info"
+        );
+    } else {
+      const serverMd =
+        evDocType === "changelog"
+          ? deserializeChangelogRow(
+              latestRow,
+              isDev ? bundledNerdChangelog : bundledRunningChangelog,
+              false
+            )
+          : formatReleasePostToMarkdownFile(
+              deserializeReleasePostRow(
+                latestRow,
+                isDev ? defaultDevPost : defaultPublicPost,
+                false
+              )
+            );
+      setConflictServerInfo({
+        baseRevision: baseRevisionRef.current,
+        serverRevision: latestRev,
+        updatedBy: latestRow.updated_by || event.updatedBy || "Keepers Core",
+        updatedAt: latestRow.updated_at || event.updatedAt,
+        serverTitle: latestRow.title,
+        serverMarkdown: serverMd,
+        localMarkdown: draftBody,
+        isSaveBlocked: false,
+      });
+    }
+  };
+
   useEffect(() => {
-    loadPostsAndReleases(false);
+    loadPostsAndReleases(false, "hub_only");
     const onUpdated = (ev: Event) => {
       const detail = (ev as CustomEvent)?.detail;
-      const dir = detail?.syncDirection || "auto";
+      const dir = detail?.syncDirection === "hub_to_local" ? "hub_to_local" : "hub_only";
       loadPostsAndReleases(false, dir);
+    };
+    const onRemoteSaved = (ev: Event) => {
+      const detail = (ev as CustomEvent)?.detail as KeeperDocSavedBroadcast | undefined;
+      if (detail) void handleRemoteReleaseSavedRef.current?.(detail);
     };
     const onTourReleasePanel = (ev: Event) => {
       const detail = (ev as CustomEvent)?.detail || {};
@@ -2355,9 +2669,11 @@ export function ReleaseNotesShowcase({
       }
     };
     window.addEventListener("keepers_release_posts_updated", onUpdated);
+    window.addEventListener("keepers_remote_doc_saved", onRemoteSaved);
     window.addEventListener("sanctuary-tour-release-notes-panel", onTourReleasePanel);
     return () => {
       window.removeEventListener("keepers_release_posts_updated", onUpdated);
+      window.removeEventListener("keepers_remote_doc_saved", onRemoteSaved);
       window.removeEventListener("sanctuary-tour-release-notes-panel", onTourReleasePanel);
     };
   }, [loadPostsAndReleases]);
@@ -2367,24 +2683,81 @@ export function ReleaseNotesShowcase({
       const target = channel === "dev" ? workingDevPost : workingPublicPost;
       const targetChangelog =
         channel === "dev" ? workingDevChangelog : workingStableChangelog;
+      const slotKey: ReleaseDocSlotKey = `${channel}:${docType}`;
+      const scopedDraftKey = getScopedReleaseDraftKey(channel, docType);
+      const savedDraft = useStore.getState().wayfinderDrafts[
+        scopedDraftKey
+      ] as any;
+      const hasDraft = Boolean(savedDraft?.isDirty && Number(savedDraft?._draftVersion || 0) >= 5);
+      const serverRevInfo = revisionsBySlot[slotKey] || {
+        revision: 1,
+        updatedBy: "Keepers Core",
+        updatedAt: "",
+      };
+
       setEditorChannel(channel);
       setEditorDocType(docType);
-      setDraftTitle(target.title);
-      setDraftSummary(target.summary);
+      setBaseRevision(Number(hasDraft && savedDraft.baseRevision ? savedDraft.baseRevision : serverRevInfo.revision));
+      setIsDirty(hasDraft);
+
+      if (
+        hasDraft &&
+        savedDraft.baseRevision &&
+        serverRevInfo.revision > Number(savedDraft.baseRevision)
+      ) {
+        setConflictServerInfo({
+          baseRevision: Number(savedDraft.baseRevision),
+          serverRevision: serverRevInfo.revision,
+          updatedBy: serverRevInfo.updatedBy,
+          updatedAt: serverRevInfo.updatedAt,
+          serverTitle: target.title,
+          serverMarkdown:
+            docType === "changelog"
+              ? targetChangelog
+              : formatReleasePostToMarkdownFile(target),
+          localMarkdown: String(savedDraft.draftBody || ""),
+          isSaveBlocked: false,
+        });
+      } else {
+        setConflictServerInfo(null);
+      }
+
+      setDraftTitle(hasDraft ? savedDraft.draftTitle ?? target.title : target.title);
+      setDraftSummary(hasDraft ? savedDraft.draftSummary ?? target.summary : target.summary);
       setDraftVersion(
-        target.version || (channel === "dev" ? defaultDevVersion : defaultStableVersion)
+        hasDraft
+          ? savedDraft.draftVersion ?? target.version
+          : target.version || (channel === "dev" ? defaultDevVersion : defaultStableVersion)
       );
       setDraftReleaseDate(
-        target.releaseDate || (channel === "dev" ? defaultDevDate : defaultStableDate)
+        hasDraft
+          ? savedDraft.draftReleaseDate ?? target.releaseDate
+          : target.releaseDate || (channel === "dev" ? defaultDevDate : defaultStableDate)
       );
       setDraftPlatform(
-        target.platform || t("release_notes_meta_platform_default", "Windows & macOS")
+        hasDraft
+          ? savedDraft.draftPlatform ?? target.platform
+          : target.platform || t("release_notes_meta_platform_default", "Windows & macOS")
       );
-      setDraftImageUrl(target.imageUrl || "");
-      setDraftCodeSnippet(target.codeSnippet || "");
-      setShowCodeInput(Boolean(target.codeSnippet));
-      setDraftPollData(target.pollData || null);
-      const nextBody = docType === "changelog" ? targetChangelog : target.body;
+      setDraftImageUrl(hasDraft ? savedDraft.draftImageUrl ?? (target.imageUrl || "") : target.imageUrl || "");
+      setDraftCodeSnippet(
+        hasDraft ? savedDraft.draftCodeSnippet ?? (target.codeSnippet || "") : target.codeSnippet || ""
+      );
+      setShowCodeInput(
+        Boolean(hasDraft ? savedDraft.draftCodeSnippet ?? target.codeSnippet : target.codeSnippet)
+      );
+      setDraftPollData(
+        hasDraft
+          ? savedDraft.draftPollData !== undefined
+            ? savedDraft.draftPollData
+            : target.pollData || null
+          : target.pollData || null
+      );
+      const nextBody = hasDraft
+        ? savedDraft.draftBody ?? (docType === "changelog" ? targetChangelog : target.body)
+        : docType === "changelog"
+        ? targetChangelog
+        : target.body;
       setDraftBody(nextBody);
       if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
       if (editor) {
@@ -2401,6 +2774,8 @@ export function ReleaseNotesShowcase({
       defaultStableVersion,
       defaultDevDate,
       defaultStableDate,
+      revisionsBySlot,
+      currentUserId,
       editor,
       t,
     ]
@@ -2412,6 +2787,67 @@ export function ReleaseNotesShowcase({
   ) => {
     populateDraftForChannel(channel, docType);
     setIsEditorOpen(true);
+  };
+
+  const handleImportLocalReleaseMd = () => {
+    const slotKey: ReleaseDocSlotKey = `${editorChannel}:${editorDocType}`;
+    const localInfo = localMdBySlot[slotKey];
+    if (!localInfo?.localContent || !localInfo.localContent.trim()) return;
+
+    if (editorDocType === "changelog") {
+      const nextBody = localInfo.localContent.trim();
+      setDraftBody(nextBody);
+      if (editor) {
+        editor.commands.setContent(nextBody, { emitUpdate: false });
+      }
+    } else {
+      const parsed = parseSeedCommunityBlog(localInfo.localContent);
+      if (parsed.mainTitle) setDraftTitle(parsed.mainTitle);
+      if (parsed.summary) setDraftSummary(parsed.summary);
+      if (parsed.version) setDraftVersion(parsed.version);
+      if (parsed.releaseDate) setDraftReleaseDate(parsed.releaseDate);
+      if (parsed.platform) setDraftPlatform(parsed.platform);
+      const nextBody = (parsed.cleanBody || localInfo.localContent).trim();
+      setDraftBody(nextBody);
+      if (editor) {
+        editor.commands.setContent(nextBody, { emitUpdate: false });
+      }
+    }
+    setIsDirty(true);
+    useStore
+      .getState()
+      .pushStatus(
+        t(
+          "keeper_toast_imported_md",
+          "Imported local .md into your draft — review and Save or Publish when ready."
+        ),
+        "info"
+      );
+  };
+
+  const handleLoadLatestReleaseFromHub = async () => {
+    const draftKey = getScopedReleaseDraftKey(editorChannel, editorDocType);
+    setWayfinderDrafts((prev) => {
+      if (!prev[draftKey]) return prev;
+      const next = { ...prev };
+      delete next[draftKey];
+      return next;
+    });
+    setConflictServerInfo(null);
+    setIsDirty(false);
+    await loadPostsAndReleases(false, "hub_only");
+    setTimeout(() => {
+      populateDraftForChannel(editorChannel, editorDocType);
+    }, 50);
+    useStore
+      .getState()
+      .pushStatus(
+        t(
+          "keeper_toast_loaded_latest_hub",
+          "Loaded latest version from Keepers Core."
+        ),
+        "info"
+      );
   };
 
   const handleLinkAsset = (asset: any) => {
@@ -2446,14 +2882,16 @@ export function ReleaseNotesShowcase({
 
   const handlePublishChannel = async (
     channel: "stable" | "dev",
-    e?: React.MouseEvent
+    e?: React.MouseEvent,
+    overridePost?: KeepersReleasePostRecord,
+    overrideCl?: string
   ) => {
     if (e) e.stopPropagation();
     setIsPublishing(true);
     try {
       const isDev = channel === "dev";
-      const targetPost = isDev ? workingDevPost : workingPublicPost;
-      const targetCl = isDev ? workingDevChangelog : workingStableChangelog;
+      const targetPost = overridePost || (isDev ? workingDevPost : workingPublicPost);
+      const targetCl = overrideCl ?? (isDev ? workingDevChangelog : workingStableChangelog);
       const postCat = isDev ? "ReleasePost_Dev" : "ReleasePost_Public";
       const clCat = isDev
         ? DEV_CHANGELOG_BROADCAST_CATEGORY
@@ -2462,19 +2900,20 @@ export function ReleaseNotesShowcase({
 
       const serializedPostMsg = serializeReleasePostMessage(targetPost);
 
-      // 1. Publish Release Post row
-      let postId = targetPost.id;
-      if (!postId) {
-        const { data: existingRows } = await supabaseAuth
-          .from("keeper_system_broadcasts")
-          .select("id")
-          .eq("category", postCat)
-          .order("created_at", { ascending: false });
-        if (existingRows?.[0]?.id) postId = existingRows[0].id;
-      }
+      // 1. Publish Release Post row (reading current revision first)
+      const { data: existingPostRow } = await supabaseAuth
+        .from("keeper_system_broadcasts")
+        .select("id, revision")
+        .eq("category", postCat)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let postId = existingPostRow?.id || targetPost.id;
+      let nextPostRev = Number(existingPostRow?.revision || 1) + 1;
 
       if (postId) {
-        await supabaseAuth
+        const { data: pubData } = await supabaseAuth
           .from("keeper_system_broadcasts")
           .update({
             title: targetPost.title,
@@ -2485,9 +2924,14 @@ export function ReleaseNotesShowcase({
             published_message: serializedPostMsg,
             published_at: nowIso,
             updated_at: nowIso,
+            updated_by: resolvedKeeperName,
+            revision: nextPostRev,
           })
-          .eq("id", postId);
+          .eq("id", postId)
+          .select("id, revision");
+        if (pubData?.[0]?.revision) nextPostRev = Number(pubData[0].revision);
       } else {
+        nextPostRev = 1;
         const { data } = await supabaseAuth
           .from("keeper_system_broadcasts")
           .insert({
@@ -2501,6 +2945,8 @@ export function ReleaseNotesShowcase({
             published_message: serializedPostMsg,
             published_at: nowIso,
             updated_at: nowIso,
+            updated_by: resolvedKeeperName,
+            revision: 1,
             is_active: false,
             is_pinned: "false",
           })
@@ -2509,27 +2955,33 @@ export function ReleaseNotesShowcase({
       }
 
       // 2. Publish Changelog row
-      let clId = isDev ? devChangelogRowId : stableChangelogRowId;
-      if (!clId) {
-        const { data: existingCl } = await supabaseAuth
-          .from("keeper_system_broadcasts")
-          .select("id")
-          .eq("category", clCat)
-          .order("created_at", { ascending: false });
-        if (existingCl?.[0]?.id) clId = existingCl[0].id;
-      }
+      const { data: existingClRow } = await supabaseAuth
+        .from("keeper_system_broadcasts")
+        .select("id, revision")
+        .eq("category", clCat)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let clId = existingClRow?.id || (isDev ? devChangelogRowId : stableChangelogRowId);
+      let nextClRev = Number(existingClRow?.revision || 1) + 1;
 
       if (clId) {
-        await supabaseAuth
+        const { data: clUpd } = await supabaseAuth
           .from("keeper_system_broadcasts")
           .update({
             message: targetCl,
             published_message: targetCl,
             published_at: nowIso,
             updated_at: nowIso,
+            updated_by: resolvedKeeperName,
+            revision: nextClRev,
           })
-          .eq("id", clId);
+          .eq("id", clId)
+          .select("id, revision");
+        if (clUpd?.[0]?.revision) nextClRev = Number(clUpd[0].revision);
       } else {
+        nextClRev = 1;
         const { data } = await supabaseAuth
           .from("keeper_system_broadcasts")
           .insert({
@@ -2544,12 +2996,56 @@ export function ReleaseNotesShowcase({
             published_message: targetCl,
             published_at: nowIso,
             updated_at: nowIso,
+            updated_by: resolvedKeeperName,
+            revision: 1,
             is_active: false,
             is_pinned: "false",
           })
           .select("id");
         if (data?.[0]?.id) clId = data[0].id;
       }
+
+      // 3. Downstream Local .md Fallback Write + Content-Hash Mark ONLY ON PUBLISH
+      if (isDesktop() || import.meta.env.DEV) {
+        const postSlug: LocalDocSlug = isDev ? "release_notes_dev" : "release_notes_public";
+        const clSlug: LocalDocSlug = isDev ? "changelog_dev" : "changelog_running";
+        const postMd = formatReleasePostToMarkdownFile(targetPost);
+        const clMd = `${targetCl.trim()}\n`;
+        await Promise.all([
+          writeLocalDirectiveFile(postSlug, postMd),
+          writeLocalDirectiveFile(clSlug, clMd),
+        ]);
+        markLocalDocSyncedHash(postSlug, postMd);
+        markLocalDocSyncedHash(clSlug, clMd);
+
+        setLocalMdBySlot((prev) => ({
+          ...prev,
+          [`${channel}:post`]: {
+            ...prev[`${channel}:post`],
+            hasLocalChanges: false,
+            localContent: postMd,
+          },
+          [`${channel}:changelog`]: {
+            ...prev[`${channel}:changelog`],
+            hasLocalChanges: false,
+            localContent: clMd,
+          },
+        }));
+      }
+
+      setRevisionsBySlot((prev) => ({
+        ...prev,
+        [`${channel}:post`]: {
+          revision: nextPostRev,
+          updatedBy: resolvedKeeperName,
+          updatedAt: nowIso,
+        },
+        [`${channel}:changelog`]: {
+          revision: nextClRev,
+          updatedBy: resolvedKeeperName,
+          updatedAt: nowIso,
+        },
+      }));
 
       const nextPubPublished = isDev ? publishedPublicPost : { ...targetPost, id: postId };
       const nextDevPublished = isDev ? { ...targetPost, id: postId } : publishedDevPost;
@@ -2577,7 +3073,26 @@ export function ReleaseNotesShowcase({
         publishedDevChangelog: nextDevClPublished,
       });
 
-      window.dispatchEvent(new CustomEvent("keepers_release_posts_updated"));
+      activePresence.broadcastDocSaved({
+        docKey: getReleaseDocKey(channel, "post"),
+        revision: nextPostRev,
+        updatedBy: resolvedKeeperName,
+        updatedAt: nowIso,
+        published: true,
+      });
+      activePresence.broadcastDocSaved({
+        docKey: getReleaseDocKey(channel, "changelog"),
+        revision: nextClRev,
+        updatedBy: resolvedKeeperName,
+        updatedAt: nowIso,
+        published: true,
+      });
+
+      window.dispatchEvent(
+        new CustomEvent("keepers_release_posts_updated", {
+          detail: { syncDirection: "hub_only" },
+        })
+      );
       useStore
         .getState()
         .pushStatus(
@@ -2592,7 +3107,11 @@ export function ReleaseNotesShowcase({
     }
   };
 
-  const handleSaveKeepersPost = async (publishLive = false) => {
+  const handleSaveKeepersPost = async (
+    publishLive = false,
+    forceOverwrite = false
+  ) => {
+    pendingPublishRef.current = publishLive;
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
       updateTimeoutRef.current = null;
@@ -2614,22 +3133,54 @@ export function ReleaseNotesShowcase({
         const clCat = isDev
           ? DEV_CHANGELOG_BROADCAST_CATEGORY
           : PUBLIC_CHANGELOG_BROADCAST_CATEGORY;
-        const clSlug = isDev ? "changelog_dev" : "changelog_running";
         const trimmedCl = finalBody.trim();
 
-        // 1. Write to local .md file
-        await writeLocalDirectiveFile(clSlug, `${trimmedCl}\n`);
+        const { data: currentClRow, error: clFetchErr } = await supabaseAuth
+          .from("keeper_system_broadcasts")
+          .select("*")
+          .eq("category", clCat)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        // 2. Sync to Hub DB (working message + optional publish)
-        let clId = isDev ? devChangelogRowId : stableChangelogRowId;
-        if (!clId) {
-          const { data: existingRows } = await supabaseAuth
-            .from("keeper_system_broadcasts")
-            .select("id")
-            .eq("category", clCat)
-            .order("created_at", { ascending: false });
-          if (existingRows?.[0]?.id) clId = existingRows[0].id;
+        if (clFetchErr) {
+          useStore
+            .getState()
+            .pushStatus(`Failed to check Changelog revision: ${clFetchErr.message}`, "error");
+          return;
         }
+
+        if (
+          currentClRow &&
+          !forceOverwrite &&
+          baseRevision &&
+          Number(currentClRow.revision || 1) !== baseRevision
+        ) {
+          setConflictServerInfo({
+            baseRevision,
+            serverRevision: Number(currentClRow.revision || 1),
+            updatedBy: currentClRow.updated_by || "Keepers Core",
+            updatedAt: currentClRow.updated_at || currentClRow.created_at,
+            serverTitle: currentClRow.title,
+            serverMarkdown: String(currentClRow.message || ""),
+            localMarkdown: trimmedCl,
+            isSaveBlocked: true,
+          });
+          useStore
+            .getState()
+            .pushStatus(
+              t(
+                "keeper_conflict_blocked_title",
+                "Save paused — newer revision detected on Keepers Core"
+              ),
+              "warning"
+            );
+          return;
+        }
+
+        const currentRev = Number(currentClRow?.revision || 1);
+        const nextRev = currentClRow ? currentRev + 1 : 1;
+        let clId = currentClRow?.id || (isDev ? devChangelogRowId : stableChangelogRowId);
 
         const clPayload: any = {
           title: isDev ? "Full Change Log (Dev)" : "Full Change Log (Stable)",
@@ -2640,6 +3191,8 @@ export function ReleaseNotesShowcase({
           target_audience: isDev ? "Dev" : "Public",
           message: trimmedCl,
           updated_at: nowIso,
+          updated_by: resolvedKeeperName,
+          revision: nextRev,
           is_active: false,
           is_pinned: "false",
         };
@@ -2650,11 +3203,39 @@ export function ReleaseNotesShowcase({
           clPayload.published_at = nowIso;
         }
 
-        if (clId) {
-          await supabaseAuth
+        if (clId && currentClRow) {
+          let query = supabaseAuth
             .from("keeper_system_broadcasts")
             .update(clPayload)
             .eq("id", clId);
+          if (!forceOverwrite) {
+            query = query.eq("revision", currentRev);
+          }
+          const { data: updRows, error: updErr } = await query.select("*");
+          if (updErr) {
+            useStore
+              .getState()
+              .pushStatus(`Failed to save Changelog: ${updErr.message}`, "error");
+            return;
+          }
+          if (!forceOverwrite && (!updRows || updRows.length === 0)) {
+            const { data: latestRace } = await supabaseAuth
+              .from("keeper_system_broadcasts")
+              .select("*")
+              .eq("id", clId)
+              .maybeSingle();
+            setConflictServerInfo({
+              baseRevision,
+              serverRevision: Number(latestRace?.revision || currentRev + 1),
+              updatedBy: latestRace?.updated_by || "Keepers Core",
+              updatedAt: latestRace?.updated_at || nowIso,
+              serverTitle: latestRace?.title,
+              serverMarkdown: String(latestRace?.message || ""),
+              localMarkdown: trimmedCl,
+              isSaveBlocked: true,
+            });
+            return;
+          }
         } else {
           if (!publishLive) {
             clPayload.published_title = clPayload.title;
@@ -2664,10 +3245,16 @@ export function ReleaseNotesShowcase({
               : publishedStableChangelog;
             clPayload.published_at = nowIso;
           }
-          const { data } = await supabaseAuth
+          const { data, error: insErr } = await supabaseAuth
             .from("keeper_system_broadcasts")
             .insert(clPayload)
             .select("id");
+          if (insErr) {
+            useStore
+              .getState()
+              .pushStatus(`Failed to save Changelog: ${insErr.message}`, "error");
+            return;
+          }
           if (data?.[0]?.id) clId = data[0].id;
         }
 
@@ -2681,8 +3268,27 @@ export function ReleaseNotesShowcase({
           if (publishLive) setPublishedStableChangelog(trimmedCl);
         }
 
+        const draftKey = getScopedReleaseDraftKey(editorChannel, "changelog");
+        setWayfinderDrafts((prev) => {
+          if (!prev[draftKey]) return prev;
+          const next = { ...prev };
+          delete next[draftKey];
+          return next;
+        });
+        setConflictServerInfo(null);
+        setIsDirty(false);
+        setBaseRevision(nextRev);
+        setRevisionsBySlot((prev) => ({
+          ...prev,
+          [`${editorChannel}:changelog`]: {
+            revision: nextRev,
+            updatedBy: resolvedKeeperName,
+            updatedAt: nowIso,
+          },
+        }));
+
         if (publishLive) {
-          await handlePublishChannel(editorChannel);
+          await handlePublishChannel(editorChannel, undefined, undefined, trimmedCl);
         } else {
           persistReleaseStateCache({
             workingPublicPost,
@@ -2694,13 +3300,24 @@ export function ReleaseNotesShowcase({
             workingDevChangelog: isDev ? trimmedCl : workingDevChangelog,
             publishedDevChangelog,
           });
-          window.dispatchEvent(new CustomEvent("keepers_release_posts_updated"));
+          activePresence.broadcastDocSaved({
+            docKey: getReleaseDocKey(editorChannel, "changelog"),
+            revision: nextRev,
+            updatedBy: resolvedKeeperName,
+            updatedAt: nowIso,
+            published: false,
+          });
+          window.dispatchEvent(
+            new CustomEvent("keepers_release_posts_updated", {
+              detail: { syncDirection: "hub_only" },
+            })
+          );
           useStore
             .getState()
             .pushStatus(
               t(
-                "dir_sync_toast_synced",
-                "Directives & Covenants synchronized between Keepers Core & Codebase (.md)!"
+                "dir_toast_staged_hub",
+                "Saved shared draft to Keepers Core! Click Publish when ready to push live & sync .md."
               ),
               "success"
             );
@@ -2709,9 +3326,8 @@ export function ReleaseNotesShowcase({
         return;
       }
 
-      // Post mode: Save & Sync (.md + DB) and optionally Publish
+      // Post mode: Save Shared Draft to Hub DB, and write local .md ONLY if Publish Live
       const targetCategory = isDev ? "ReleasePost_Dev" : "ReleasePost_Public";
-      const existingId = isDev ? workingDevPost.id : workingPublicPost.id;
       const sanitizedPoll =
         draftPollData &&
         draftPollData.question.trim() &&
@@ -2725,6 +3341,22 @@ export function ReleaseNotesShowcase({
             }
           : null;
 
+      const { data: currentPostRow, error: postFetchErr } = await supabaseAuth
+        .from("keeper_system_broadcasts")
+        .select("*")
+        .eq("category", targetCategory)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (postFetchErr) {
+        useStore
+          .getState()
+          .pushStatus(`Failed to check Release Post revision: ${postFetchErr.message}`, "error");
+        return;
+      }
+
+      const existingId = currentPostRow?.id || (isDev ? workingDevPost.id : workingPublicPost.id);
       const nextRecord: KeepersReleasePostRecord = {
         id: existingId || null,
         title: draftTitle.trim(),
@@ -2740,15 +3372,43 @@ export function ReleaseNotesShowcase({
         body: finalBody.trim(),
       };
 
+      if (
+        currentPostRow &&
+        !forceOverwrite &&
+        baseRevision &&
+        Number(currentPostRow.revision || 1) !== baseRevision
+      ) {
+        const serverPost = deserializeReleasePostRow(
+          currentPostRow,
+          isDev ? defaultDevPost : defaultPublicPost,
+          false
+        );
+        setConflictServerInfo({
+          baseRevision,
+          serverRevision: Number(currentPostRow.revision || 1),
+          updatedBy: currentPostRow.updated_by || "Keepers Core",
+          updatedAt: currentPostRow.updated_at || currentPostRow.created_at,
+          serverTitle: currentPostRow.title,
+          serverMarkdown: formatReleasePostToMarkdownFile(serverPost),
+          localMarkdown: formatReleasePostToMarkdownFile(nextRecord),
+          isSaveBlocked: true,
+        });
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "keeper_conflict_blocked_title",
+              "Save paused — newer revision detected on Keepers Core"
+            ),
+            "warning"
+          );
+        return;
+      }
+
       const serializedMessage = serializeReleasePostMessage(nextRecord);
+      const currentRev = Number(currentPostRow?.revision || 1);
+      const nextRev = currentPostRow ? currentRev + 1 : 1;
 
-      // 1. Write to local .md file
-      await writeLocalDirectiveFile(
-        isDev ? "release_notes_dev" : "release_notes_public",
-        formatReleasePostToMarkdownFile(nextRecord)
-      );
-
-      // 2. Write to Hub DB (working columns + optional published columns)
       const payload: any = {
         title: nextRecord.title,
         description: nextRecord.summary || null,
@@ -2758,6 +3418,8 @@ export function ReleaseNotesShowcase({
         code_snippet: nextRecord.codeSnippet || null,
         poll_data: sanitizedPoll,
         updated_at: nowIso,
+        updated_by: resolvedKeeperName,
+        revision: nextRev,
         is_active: false,
         is_pinned: "false",
       };
@@ -2772,23 +3434,39 @@ export function ReleaseNotesShowcase({
       let savedId = existingId;
       let saveError: any = null;
 
-      if (!savedId) {
-        const { data: existingRows } = await supabaseAuth
-          .from("keeper_system_broadcasts")
-          .select("id")
-          .eq("category", targetCategory)
-          .order("created_at", { ascending: false });
-        if (existingRows && existingRows.length > 0) {
-          savedId = existingRows[0].id;
-        }
-      }
-
-      if (savedId) {
-        const { error } = await supabaseAuth
+      if (savedId && currentPostRow) {
+        let query = supabaseAuth
           .from("keeper_system_broadcasts")
           .update(payload)
           .eq("id", savedId);
+        if (!forceOverwrite) {
+          query = query.eq("revision", currentRev);
+        }
+        const { data: updRows, error } = await query.select("*");
         saveError = error;
+        if (!saveError && !forceOverwrite && (!updRows || updRows.length === 0)) {
+          const { data: latestRace } = await supabaseAuth
+            .from("keeper_system_broadcasts")
+            .select("*")
+            .eq("id", savedId)
+            .maybeSingle();
+          const serverPost = deserializeReleasePostRow(
+            latestRace,
+            isDev ? defaultDevPost : defaultPublicPost,
+            false
+          );
+          setConflictServerInfo({
+            baseRevision,
+            serverRevision: Number(latestRace?.revision || currentRev + 1),
+            updatedBy: latestRace?.updated_by || "Keepers Core",
+            updatedAt: latestRace?.updated_at || nowIso,
+            serverTitle: latestRace?.title,
+            serverMarkdown: formatReleasePostToMarkdownFile(serverPost),
+            localMarkdown: formatReleasePostToMarkdownFile(nextRecord),
+            isSaveBlocked: true,
+          });
+          return;
+        }
       } else {
         if (!publishLive) {
           const prevPub = isDev ? publishedDevPost : publishedPublicPost;
@@ -2818,83 +3496,68 @@ export function ReleaseNotesShowcase({
 
       const nextWorkingPublic = isDev ? workingPublicPost : nextRecord;
       const nextWorkingDev = isDev ? nextRecord : workingDevPost;
-      const nextPublishedPublic =
-        !isDev && publishLive ? nextRecord : publishedPublicPost;
-      const nextPublishedDev =
-        isDev && publishLive ? nextRecord : publishedDevPost;
 
       if (isDev) {
         setWorkingDevPost(nextRecord);
-        if (publishLive) setPublishedDevPost(nextRecord);
       } else {
         setWorkingPublicPost(nextRecord);
-        if (publishLive) setPublishedPublicPost(nextRecord);
       }
+
+      const draftKey = getScopedReleaseDraftKey(editorChannel, "post");
+      setWayfinderDrafts((prev) => {
+        if (!prev[draftKey]) return prev;
+        const next = { ...prev };
+        delete next[draftKey];
+        return next;
+      });
+      setConflictServerInfo(null);
+      setIsDirty(false);
+      setBaseRevision(nextRev);
+      setRevisionsBySlot((prev) => ({
+        ...prev,
+        [`${editorChannel}:post`]: {
+          revision: nextRev,
+          updatedBy: resolvedKeeperName,
+          updatedAt: nowIso,
+        },
+      }));
 
       if (publishLive) {
-        // Also publish the channel's changelog if it has staged changes
-        const clCat = isDev
-          ? DEV_CHANGELOG_BROADCAST_CATEGORY
-          : PUBLIC_CHANGELOG_BROADCAST_CATEGORY;
-        const targetCl = isDev ? workingDevChangelog : workingStableChangelog;
-        let clId = isDev ? devChangelogRowId : stableChangelogRowId;
-        if (clId) {
-          await supabaseAuth
-            .from("keeper_system_broadcasts")
-            .update({
-              message: targetCl,
-              published_message: targetCl,
-              published_at: nowIso,
-              updated_at: nowIso,
-            })
-            .eq("id", clId);
-        } else {
-          await supabaseAuth
-            .from("keeper_system_broadcasts")
-            .update({
-              message: targetCl,
-              published_message: targetCl,
-              published_at: nowIso,
-              updated_at: nowIso,
-            })
-            .eq("category", clCat);
-        }
-        if (isDev) {
-          setPublishedDevChangelog(targetCl);
-        } else {
-          setPublishedStableChangelog(targetCl);
-        }
-      }
-
-      persistReleaseStateCache({
-        workingPublicPost: nextWorkingPublic,
-        publishedPublicPost: nextPublishedPublic,
-        workingDevPost: nextWorkingDev,
-        publishedDevPost: nextPublishedDev,
-        workingStableChangelog,
-        publishedStableChangelog:
-          !isDev && publishLive ? workingStableChangelog : publishedStableChangelog,
-        workingDevChangelog,
-        publishedDevChangelog:
-          isDev && publishLive ? workingDevChangelog : publishedDevChangelog,
-      });
-
-      window.dispatchEvent(new CustomEvent("keepers_release_posts_updated"));
-      setIsEditorOpen(false);
-      useStore
-        .getState()
-        .pushStatus(
-          publishLive
-            ? t(
-                "dir_toast_published_live",
-                "Published live to {Citizens} and synced with local .md file!"
-              )
-            : t(
-                "dir_sync_toast_synced",
-                "Directives & Covenants synchronized between Keepers Core & Codebase (.md)!"
-              ),
-          "success"
+        await handlePublishChannel(editorChannel, undefined, nextRecord);
+      } else {
+        persistReleaseStateCache({
+          workingPublicPost: nextWorkingPublic,
+          publishedPublicPost,
+          workingDevPost: nextWorkingDev,
+          publishedDevPost,
+          workingStableChangelog,
+          publishedStableChangelog,
+          workingDevChangelog,
+          publishedDevChangelog,
+        });
+        activePresence.broadcastDocSaved({
+          docKey: getReleaseDocKey(editorChannel, "post"),
+          revision: nextRev,
+          updatedBy: resolvedKeeperName,
+          updatedAt: nowIso,
+          published: false,
+        });
+        window.dispatchEvent(
+          new CustomEvent("keepers_release_posts_updated", {
+            detail: { syncDirection: "hub_only" },
+          })
         );
+        useStore
+          .getState()
+          .pushStatus(
+            t(
+              "dir_toast_staged_hub",
+              "Saved shared draft to Keepers Core! Click Publish when ready to push live & sync .md."
+            ),
+            "success"
+          );
+      }
+      setIsEditorOpen(false);
     } finally {
       setIsSaving(false);
     }
@@ -2988,20 +3651,10 @@ export function ReleaseNotesShowcase({
       ? t("release_notes_github_changelog_title", "Full Change Log")
       : activePostRecord.title;
 
-  const activeChangelogHeading = useMemo(
-    () =>
-      parseLatestChangelogBlock(
-        isDevActive ? devGitHubChangelog : stableGitHubChangelog
-      ).heading || seedChangelog.heading,
-    [isDevActive, devGitHubChangelog, stableGitHubChangelog, seedChangelog.heading]
-  );
-
   const activeGroupTitle =
     activeView === "changelog"
-      ? activeChangelogHeading || t("release_notes_tile_changelog", "Changelog")
-      : activeChangelogHeading ||
-        activePostRecord.summary ||
-        t("release_notes_blog_panel_title", "Community Release Notes");
+      ? t("release_notes_full_changelog_heading", "Full Change Log")
+      : t("release_notes_post_overview_heading", "Release Overview");
 
   const activeMarkdownContent =
     activeView === "changelog"
@@ -3067,6 +3720,68 @@ export function ReleaseNotesShowcase({
     );
   };
 
+  const renderKeepersChannelChips = (ch: "stable" | "dev") => {
+    const postKey = getReleaseDocKey(ch, "post");
+    const clKey = getReleaseDocKey(ch, "changelog");
+    const rawPeers = [
+      ...(activePresence.peersByDocKey[postKey] || []),
+      ...(activePresence.peersByDocKey[clKey] || []),
+    ];
+    const dedupPeers: typeof rawPeers = [];
+    const seenSids = new Set<string>();
+    for (const p of rawPeers) {
+      if (!seenSids.has(p.sessionId)) {
+        seenSids.add(p.sessionId);
+        dedupPeers.push(p);
+      }
+    }
+    const hasScopedDraft = Boolean(
+      (wayfinderDrafts[getScopedReleaseDraftKey(ch, "post")] as any)?.isDirty ||
+        (wayfinderDrafts[getScopedReleaseDraftKey(ch, "changelog")] as any)?.isDirty
+    );
+    const hasLocalChanges =
+      (isDesktop() || import.meta.env.DEV) &&
+      (localMdBySlot[`${ch}:post`]?.hasLocalChanges ||
+        localMdBySlot[`${ch}:changelog`]?.hasLocalChanges);
+
+    return (
+      <>
+        {hasScopedDraft && (
+          <span className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+              {t("icon_edit", "edit")}
+            </span>
+            <span>{t("action_unsaved_draft", "Draft")}</span>
+          </span>
+        )}
+        {hasLocalChanges && (
+          <span className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+              {t("icon_description", "description")}
+            </span>
+            <span>{t("keeper_badge_local_md_ahead", "Local .md Modified")}</span>
+          </span>
+        )}
+        {dedupPeers.map((peer) => (
+          <span key={peer.sessionId} className={VAULT_CHIP_CLASS}>
+            <span
+              className={`material-symbols-outlined !text-[12px] ${
+                peer.hasUnsavedChanges
+                  ? "text-[var(--warning)]"
+                  : "text-[var(--accent)]"
+              }`}
+            >
+              {peer.hasUnsavedChanges
+                ? t("icon_edit_note", "edit_note")
+                : t("icon_visibility", "visibility")}
+            </span>
+            <span>@{peer.username}</span>
+          </span>
+        ))}
+      </>
+    );
+  };
+
   return (
     <div className="w-full flex flex-col gap-6">
       {/* 2-Card Grid: Compact Keepers cards when isKeepers=true, or full Landing cards */}
@@ -3095,6 +3810,7 @@ export function ReleaseNotesShowcase({
                       </span>
                     </span>
                   )}
+                  {renderKeepersChannelChips("stable")}
                   <span className={VAULT_CHIP_CLASS}>
                     <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                       {t("icon_verified", "verified")}
@@ -3169,6 +3885,7 @@ export function ReleaseNotesShowcase({
                       </span>
                     </span>
                   )}
+                  {renderKeepersChannelChips("dev")}
                   <span className={VAULT_CHIP_CLASS}>
                     <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
                       {t("icon_bolt", "bolt")}
@@ -3500,6 +4217,27 @@ export function ReleaseNotesShowcase({
             }
             headerActions={
               <PanelHeaderGroup>
+                {(isDesktop() || import.meta.env.DEV) &&
+                  Boolean(
+                    localMdBySlot[`${editorChannel}:${editorDocType}`]
+                      ?.localContent
+                  ) && (
+                    <PanelHeaderButton
+                      onClick={handleImportLocalReleaseMd}
+                      disabled={isSaving || isPublishing}
+                      tooltip={t(
+                        "keeper_local_md_import_btn",
+                        "Import .md to Draft"
+                      )}
+                      icon={t("icon_upload_file", "upload_file")}
+                      variant={
+                        localMdBySlot[`${editorChannel}:${editorDocType}`]
+                          ?.hasLocalChanges
+                          ? "warning"
+                          : "default"
+                      }
+                    />
+                  )}
                 <PanelHeaderButton
                   onClick={() => handleSaveKeepersPost(false)}
                   disabled={
@@ -3510,9 +4248,10 @@ export function ReleaseNotesShowcase({
                   tooltip={
                     isSaving
                       ? t("btn_saving", "Saving...")
-                      : t("dir_btn_save_sync_staged", "Save & Sync (.md + DB)")
+                      : t("dir_btn_save_sync_staged", "Save Shared Draft")
                   }
                   icon={isSaving ? t("icon_sync", "sync") : t("icon_save", "save")}
+                  variant={isDirty ? "warning" : "default"}
                 />
                 <PanelHeaderButton
                   onClick={() => handleSaveKeepersPost(true)}
@@ -3533,7 +4272,34 @@ export function ReleaseNotesShowcase({
               </PanelHeaderGroup>
             }
           >
-            <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div
+              className={`flex flex-col gap-6 flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-2 duration-300 ${
+                editorMode === "markdown" ? "pb-0" : ""
+              }`}
+            >
+              <KeeperDocConflictBar
+                peerEditors={
+                  activePresence.peersByDocKey[
+                    getReleaseDocKey(editorChannel, editorDocType)
+                  ] || []
+                }
+                hasLocalMdChanges={Boolean(
+                  (isDesktop() || import.meta.env.DEV) &&
+                    localMdBySlot[`${editorChannel}:${editorDocType}`]
+                      ?.hasLocalChanges
+                )}
+                localFileName={
+                  localMdBySlot[`${editorChannel}:${editorDocType}`]?.fileName
+                }
+                onImportLocalMd={handleImportLocalReleaseMd}
+                conflictInfo={conflictServerInfo}
+                onLoadLatestFromHub={handleLoadLatestReleaseFromHub}
+                onOverwriteWithMine={() =>
+                  handleSaveKeepersPost(pendingPublishRef.current, true)
+                }
+                onDismissConflict={() => setConflictServerInfo(null)}
+              />
+
               {/* Switch between Public and Dev Release Channel + Post vs Changelog */}
               <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-3">
                 <DashboardStatTile
@@ -3600,7 +4366,10 @@ export function ReleaseNotesShowcase({
                       </label>
                       <input
                         value={draftTitle}
-                        onChange={(e) => setDraftTitle(e.target.value)}
+                        onChange={(e) => {
+                          setDraftTitle(e.target.value);
+                          setIsDirty(true);
+                        }}
                         placeholder={t("post_title", "Title")}
                         className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-sm font-bold focus:outline-none focus:theme-border-accent transition-all"
                       />
@@ -3624,7 +4393,10 @@ export function ReleaseNotesShowcase({
                       <input
                         maxLength={250}
                         value={draftSummary}
-                        onChange={(e) => setDraftSummary(e.target.value)}
+                        onChange={(e) => {
+                          setDraftSummary(e.target.value);
+                          setIsDirty(true);
+                        }}
                         placeholder={t(
                           "post_description_ph",
                           "Short summary shown on the Release Card..."
@@ -3641,7 +4413,10 @@ export function ReleaseNotesShowcase({
                         </label>
                         <input
                           value={draftReleaseDate}
-                          onChange={(e) => setDraftReleaseDate(e.target.value)}
+                          onChange={(e) => {
+                            setDraftReleaseDate(e.target.value);
+                            setIsDirty(true);
+                          }}
                           className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
                         />
                       </div>
@@ -3651,7 +4426,10 @@ export function ReleaseNotesShowcase({
                         </label>
                         <input
                           value={draftVersion}
-                          onChange={(e) => setDraftVersion(e.target.value)}
+                          onChange={(e) => {
+                            setDraftVersion(e.target.value);
+                            setIsDirty(true);
+                          }}
                           className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--accent)] font-mono text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
                         />
                       </div>
@@ -3661,7 +4439,10 @@ export function ReleaseNotesShowcase({
                         </label>
                         <input
                           value={draftPlatform}
-                          onChange={(e) => setDraftPlatform(e.target.value)}
+                          onChange={(e) => {
+                            setDraftPlatform(e.target.value);
+                            setIsDirty(true);
+                          }}
                           className="w-full glass-surface rounded-xl px-4 py-2.5 text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
                         />
                       </div>
@@ -3675,7 +4456,10 @@ export function ReleaseNotesShowcase({
                 mode={editorMode}
                 onModeChange={setEditorMode}
                 content={draftBody}
-                onContentChange={setDraftBody}
+                onContentChange={(val) => {
+                  setDraftBody(val);
+                  setIsDirty(true);
+                }}
                 editor={editor}
                 placeholder={t("post_content", "{Dispatch} Body...")}
               />
@@ -3683,17 +4467,29 @@ export function ReleaseNotesShowcase({
               {editorDocType === "post" && (
                 <PostAttachmentsManager
                   content={draftBody}
-                  onContentChange={setDraftBody}
+                  onContentChange={(val) => {
+                    setDraftBody(val);
+                    setIsDirty(true);
+                  }}
                   editor={editor}
                   onOpenAssetLinker={() => setIsAssetPanelOpen(true)}
                   imageUrl={draftImageUrl}
-                  onImageUrlChange={setDraftImageUrl}
+                  onImageUrlChange={(val) => {
+                    setDraftImageUrl(val);
+                    setIsDirty(true);
+                  }}
                   showCodeInput={showCodeInput}
                   onToggleCodeInput={setShowCodeInput}
                   codeSnippet={draftCodeSnippet}
-                  onCodeSnippetChange={setDraftCodeSnippet}
+                  onCodeSnippetChange={(val) => {
+                    setDraftCodeSnippet(val);
+                    setIsDirty(true);
+                  }}
                   pollData={draftPollData}
-                  onPollDataChange={setDraftPollData}
+                  onPollDataChange={(val) => {
+                    setDraftPollData(val);
+                    setIsDirty(true);
+                  }}
                 />
               )}
             </div>
@@ -3703,6 +4499,7 @@ export function ReleaseNotesShowcase({
             isOpen={isAssetPanelOpen}
             onClose={() => setIsAssetPanelOpen(false)}
             onAssetSelect={handleLinkAsset}
+            widthClass="w-[800px]"
             backdropZ="z-[60002]"
             panelZ="z-[60003]"
           />

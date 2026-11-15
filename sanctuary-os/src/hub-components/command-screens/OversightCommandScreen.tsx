@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, Suspense } from "react";
-import { supabase } from "../../supabase";
+import { supabase, spokeOversightFrom } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
 import { SanctuaryAlertsSidePanel } from "../../side-panels/SanctuaryAlertsSidePanel";
@@ -158,8 +158,7 @@ export function OversightCommandScreen({
         .in("is_pinned", ["true", "True", true] as any)
         .order("created_at", { ascending: false })
         .limit(8),
-      supabase
-        .from("mods")
+      spokeOversightFrom("mods")
         .select("id, name, master_author, status, status_reason, compliance_tier, updated_at, created_at", {
           count: "exact",
         })
@@ -167,8 +166,7 @@ export function OversightCommandScreen({
         .lte("compliance_tier", 4)
         .order("updated_at", { ascending: false })
         .limit(6),
-      supabase
-        .from("mods")
+      spokeOversightFrom("mods")
         .select("id, name, master_author, status, status_reason, compliance_tier, updated_at, created_at", {
           count: "exact",
         })
@@ -177,8 +175,7 @@ export function OversightCommandScreen({
         .in("status", ["pending", "under_review", "unverified"])
         .order("updated_at", { ascending: false })
         .limit(6),
-      supabase
-        .from("mods")
+      spokeOversightFrom("mods")
         .select("id", { count: "exact", head: true })
         .eq("compliance_tier", 5),
       supabase
@@ -191,7 +188,7 @@ export function OversightCommandScreen({
         .from("sanctuary_tickets")
         .select("*")
         .order("created_at", { ascending: false }),
-      supabase.from("support_categories").select("*"),
+      supabase.from("sanctuary_support_categories").select("*"),
       supabase
         .from("nexus_reports")
         .select("*, nexus_assets(id, name, asset_type)")
@@ -234,7 +231,7 @@ export function OversightCommandScreen({
         .select("version")
         .order("release_date", { ascending: false })
         .limit(1),
-      supabase.from("dlc_packs").select("id", { count: "exact", head: true }),
+      supabase.from("dlc_registry").select("id", { count: "exact", head: true }),
     ]);
 
     const matchesOversightAudience = (p: any) => {

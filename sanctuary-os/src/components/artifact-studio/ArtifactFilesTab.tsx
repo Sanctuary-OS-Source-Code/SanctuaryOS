@@ -1,8 +1,9 @@
 import { useLexicon } from "../../LexiconContext";
-import { CustomDropdown, HoverTooltip, ModSearchDropdown } from "../../shared";
+import { CustomDropdown, HoverTooltip, ModSearchDropdown, openModDossier } from "../../shared";
 import ModStructureBuilder, { StructureNode } from "../../ModStructureBuilder";
 
 export function ArtifactFilesTab({
+  mode = "sandbox",
   mod,
   modStem,
   isCloudMod,
@@ -17,7 +18,7 @@ export function ArtifactFilesTab({
   setShowParentLinkPicker,
   newFamilyRole,
   setNewFamilyRole,
-  onSwitchMod,
+  onSwitchMod: _onSwitchMod,
   onLinkChildModule,
   onChangeChildRole,
   onUnlinkChildModule,
@@ -40,6 +41,7 @@ export function ArtifactFilesTab({
   onDetachConfig,
   onDeleteConfigFile,
 }: {
+  mode?: "sandbox" | "registry";
   mod: any;
   modStem: string;
   isCloudMod: boolean;
@@ -151,11 +153,10 @@ export function ArtifactFilesTab({
                   key={pill.id}
                   type="button"
                   onClick={() => setFamilyRoleFilter(pill.id)}
-                  className={`h-7 px-2.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                    active
-                      ? "glass-surface border border-[color-mix(in_srgb,var(--text)_22%,transparent)] text-[var(--text)]"
-                      : "text-[var(--subtext)] hover:text-[var(--text)] border border-transparent"
-                  }`}
+                  className={`h-7 px-2.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${active
+                    ? "glass-surface border border-[color-mix(in_srgb,var(--text)_22%,transparent)] text-[var(--text)]"
+                    : "text-[var(--subtext)] hover:text-[var(--text)] border border-transparent"
+                    }`}
                 >
                   <span>{pill.label}</span>
                   <span className="opacity-60">({pill.count})</span>
@@ -188,7 +189,10 @@ export function ArtifactFilesTab({
               <button
                 type="button"
                 onClick={() => {
-                  if (onSwitchMod && parentRel.mod) onSwitchMod(parentRel.mod);
+                  const target =
+                    parentRel.mod ||
+                    (parentRel.parent_id ? { id: parentRel.parent_id } : null);
+                  if (target) openModDossier({ ...target, isNexusView: true });
                 }}
                 className="text-xs font-bold text-[var(--text)] hover:text-[var(--accent)] truncate transition-colors cursor-pointer text-left flex items-center gap-2"
               >
@@ -254,7 +258,7 @@ export function ArtifactFilesTab({
                   if (selectedParent) onSetParentMod(selectedParent, newFamilyRole);
                 }}
                 selectedItem={null}
-                onClear={() => {}}
+                onClear={() => { }}
                 placeholder={t("studio_select_parent_ph", "Select Parent / Main {Mod}...")}
               />
             </div>
@@ -287,7 +291,7 @@ export function ArtifactFilesTab({
                 }
               }}
               selectedItem={null}
-              onClear={() => {}}
+              onClear={() => { }}
               placeholder={t("studio_family_search_ph", "Search your {mods} to link to this family...")}
             />
           </div>
@@ -308,7 +312,9 @@ export function ArtifactFilesTab({
                 <button
                   type="button"
                   onClick={() => {
-                    if (onSwitchMod && rel.mod) onSwitchMod(rel.mod);
+                    const target =
+                      rel.mod || (rel.child_id ? { id: rel.child_id } : null);
+                    if (target) openModDossier({ ...target, isNexusView: true });
                   }}
                   className="text-xs font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors text-left flex-1 min-w-0 cursor-pointer flex items-center gap-1.5"
                 >
@@ -386,7 +392,7 @@ export function ArtifactFilesTab({
                 : t("studio_configs_btn_new", "New Config File")}
             </button>
 
-            {isCloudMod && (
+            {isCloudMod && mode !== "registry" && (
               <button
                 type="button"
                 disabled={isSavingStructure}
@@ -410,7 +416,7 @@ export function ArtifactFilesTab({
               onChange={(e) => setNewConfigNameInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && onCreateAndOpenConfig()}
               placeholder={modStem || "mod_settings"}
-              className="h-12 glass-surface rounded-[var(--radius)] px-4 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex-1 min-w-[180px] outline-none focus:border-[var(--accent)]"
+              className="h-11 glass-surface rounded-xl px-4 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex-1 min-w-[180px] outline-none focus:border-[var(--accent)]"
             />
             <div className="w-32">
               <CustomDropdown
@@ -431,7 +437,7 @@ export function ArtifactFilesTab({
             <button
               type="button"
               onClick={onCreateAndOpenConfig}
-              className="h-12 px-4 rounded-[var(--radius)] glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
+              className="h-11 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
                 {t("icon_code", "code")}

@@ -1,7 +1,20 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { supabase } from "./supabase";
+import { supabase, supabaseAuth, getActiveGameClient } from "./supabase";
 import { useLexicon } from "./LexiconContext";
-import { CustomDropdown, ModSearchDropdown, ActionButton, PanelHeaderGroup, PanelHeaderButton, SidePanelPillToggle, getExtensionRegex, LoadingScreen, SidePanel, VAULT_CHIP_CLASS } from "./shared";
+import {
+  CustomDropdown,
+  ModSearchDropdown,
+  ActionButton,
+  PanelHeaderGroup,
+  PanelHeaderButton,
+  SidePanelPillToggle,
+  getExtensionRegex,
+  LoadingScreen,
+  SidePanel,
+  SidePanelFilterBar,
+  DashboardStatTile,
+  VAULT_CHIP_CLASS,
+} from "./shared";
 import { useStore } from "./store";
 import { useModalStore } from "./store/modalStore";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -10,19 +23,74 @@ import { invoke } from "@tauri-apps/api/core";
 import ArtifactResolutionSidePanel from "./side-panels/ArtifactResolutionSidePanel";
 import TicketLogViewer from "./side-panels/TicketLogViewer";
 import { UniversalInput, UniversalTextArea, UniversalToggle, SidePanelHeroCard, StatBox } from "./components/universal/UniversalLayout";
-import { getSupporterState, findLocalMasonSupporterPass, isFoundryPatron, LocalMasonSupporter } from "./utils/supporterManager";
+import {
+  getSupporterState,
+  findLocalMasonSupporterPass,
+  findAnyActiveMasonSupporterPasses,
+  isFoundryPatron,
+  isSpokeSupporter,
+  LocalMasonSupporter,
+  LocalSpokeSupporter,
+} from "./utils/supporterManager";
 import { scrubLogUserData } from "./utils/logScrubber";
 import { isLocalModKnownTier0, verifyKnownTier0CloudHashes } from "./components/LabVerificationGate";
+import { isDesktop } from "./utils/envUtils";
+import { isRootDomain } from "./utils/routingUtils";
+import {
+  getCachedComplianceHashTiers,
+  resolveComplianceHashTiers,
+  collectComplianceLookupHashes,
+  normalizeComplianceHash,
+  resolveEffectiveModComplianceTier,
+} from "./utils/complianceHashTiers";
+
+function findDirtyLogTraces(text: string, modList: any[], activeGameSchema: any): string[] {
+  if (!text || !Array.isArray(modList) || modList.length === 0) return [];
+  const extRegex = getExtensionRegex(activeGameSchema);
+  const restrictedOrUnknown = modList.filter((ml: any) => !ml?.isVirtual && !isLocalModKnownTier0(ml));
+  if (restrictedOrUnknown.length === 0) return [];
+  const dirtyTraces: string[] = [];
+  const lowerText = text.toLowerCase();
+  for (const am of restrictedOrUnknown) {
+    const baseName = am.name?.split(/[\\/]/).pop()?.replace(extRegex, "").toLowerCase();
+    if (baseName && baseName.length >= 4 && lowerText.includes(baseName)) {
+      dirtyTraces.push(am.displayName || am.name);
+    }
+  }
+  return [...new Set(dirtyTraces)];
+}
 
 export default function SupportHub() {
   const activeGameSchema = useStore(state => state.activeGameSchema);
   const { t } = useLexicon();
   const modList = useStore((state) => state.modList);
   const activeSet = useStore(state => state.playSets[state.activePlaySetIndex]);
+  const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const availableWorkspaces = useStore((state) => state.workspaces);
   const isScanning = useModalStore((state: any) => state.isScanning || state.isSilentScanning);
 
   const isOpen = useModalStore((state: any) => state.isSupportPanelOpen);
   const onClose = () => useModalStore.getState().setIsSupportPanelOpen(false);
+
+  const isWebHub = !isDesktop() && isRootDomain();
+  const hasLoadedSpoke = Boolean(
+    activeWorkspaceId &&
+      activeWorkspaceId !== "default_workspace" &&
+      activeWorkspaceId !== "web" &&
+      !isWebHub &&
+      getActiveGameClient()
+  );
+  const [supportStream, setSupportStream] = useState<"community" | "os_bug">(() =>
+    hasLoadedSpoke ? "community" : "os_bug"
+  );
+  const [osPlatform, setOsPlatform] = useState<"Desktop App" | "Website" | "Mobile PWA">(() =>
+    isDesktop()
+      ? "Desktop App"
+      : typeof window !== "undefined" &&
+          window.matchMedia?.("(display-mode: standalone)")?.matches
+        ? "Mobile PWA"
+        : "Website"
+  );
 
   const [activeTab, setActiveTab] = useState("BUG_MOD");
   const [activeCardIndex, setActiveCardIndex] = useState(0);
@@ -53,22 +121,57 @@ export default function SupportHub() {
   const session = useStore((state) => state.session);
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState("");
-  const [resolutionType, setResolutionType] = useState<'vault' | 'blueprint' | null>(null);
+  const [isResolutionOpen, setIsResolutionOpen] = useState(false);
   const [localSupporters, setLocalSupporters] = useState<LocalMasonSupporter[]>([]);
+  const [activeMasonSupporters, setActiveMasonSupporters] = useState<LocalMasonSupporter[]>([]);
+  const [spokeSupporterPass, setSpokeSupporterPass] = useState<LocalSpokeSupporter | null>(null);
   const [isPatronUser, setIsPatronUser] = useState(false);
   const [patronMonths, setPatronMonths] = useState(0);
+  const [hashTierMap, setHashTierMap] = useState<Map<string, number>>(() =>
+    getCachedComplianceHashTiers()
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    const syncTiers = async (forceRefresh = false) => {
+      const lookupHashes = collectComplianceLookupHashes({ modList, playSet: activeSet });
+      if (lookupHashes.length === 0) return;
+      const client = getActiveGameClient() || supabase;
+      const nextMap = await resolveComplianceHashTiers(client, lookupHashes, { forceRefresh });
+      if (!cancelled) setHashTierMap(nextMap);
+    };
+    syncTiers(false);
+    const onComplianceUpdated = () => syncTiers(true);
+    window.addEventListener("sanctuary-compliance-updated", onComplianceUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("sanctuary-compliance-updated", onComplianceUpdated);
+    };
+  }, [isOpen, modList, activeSet]);
+
+  useEffect(() => {
+    if (!hasLoadedSpoke && supportStream === "community") {
+      setSupportStream("os_bug");
+    }
+  }, [hasLoadedSpoke, supportStream]);
 
   useEffect(() => {
     if (!isOpen) return;
     getSupporterState().then(state => {
       setLocalSupporters(state.supporters || []);
+      setActiveMasonSupporters(findAnyActiveMasonSupporterPasses(state));
+      setSpokeSupporterPass(
+        isSpokeSupporter(state, activeWorkspaceId) ||
+          isSpokeSupporter(state, activeGameSchema?.display_name || activeGameSchema?.name)
+      );
       setIsPatronUser(isFoundryPatron(state));
       setPatronMonths(state.dev_build?.total_months_unlocked || 0);
     }).catch(() => {});
-  }, [isOpen]);
+  }, [isOpen, activeWorkspaceId, activeGameSchema?.display_name, activeGameSchema?.name]);
 
   const matchedSupporterPass = React.useMemo(() => {
-    if (!targetModId || localSupporters.length === 0) return null;
+    if (supportStream !== "community" || !targetModId || localSupporters.length === 0) return null;
     const targetMod = modList.find((m: any) => m.id === targetModId || m.hash === targetModId);
     if (!targetMod) return null;
     return findLocalMasonSupporterPass(
@@ -76,7 +179,39 @@ export default function SupportHub() {
       targetMod.mason_id,
       targetMod.author || targetMod.master_author
     );
-  }, [targetModId, localSupporters, modList]);
+  }, [supportStream, targetModId, localSupporters, modList]);
+
+  const effectiveMasonPass = matchedSupporterPass || activeMasonSupporters[0] || null;
+
+  const supporterPerkChips =
+    effectiveMasonPass || spokeSupporterPass || isPatronUser ? (
+      <>
+        {effectiveMasonPass && (
+          <span className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+              {t("icon_bolt", "bolt")}
+            </span>
+            <span>{t("ticket_badge_mason_priority", "Priority • {Mason} Supporter")}</span>
+          </span>
+        )}
+        {spokeSupporterPass && (
+          <span className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              {t("icon_favorite", "favorite")}
+            </span>
+            <span>{t("ticket_badge_spoke_supporter", "Spoke Supporter")}</span>
+          </span>
+        )}
+        {isPatronUser && (
+          <span className={VAULT_CHIP_CLASS}>
+            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+              {t("icon_workspace_premium", "workspace_premium")}
+            </span>
+            <span>{t("supporter_patron_badge_label", "Foundry Supporter")}</span>
+          </span>
+        )}
+      </>
+    ) : null;
 
   // Update maxReachedIndex when activeCardIndex changes
   useEffect(() => {
@@ -90,7 +225,7 @@ export default function SupportHub() {
     if (draft) {
       try {
         const parsed = JSON.parse(draft);
-        if (parsed.activeCardIndex > 0 || parsed.title || parsed.description || parsed.targetModId || parsed.targetUserId || Object.keys(parsed.customFieldsData).length > 0) {
+        if (parsed.activeCardIndex > 0 || parsed.title || parsed.description || parsed.targetModId || parsed.targetUserId || Object.keys(parsed.customFieldsData || {}).length > 0) {
           setDraftData(parsed);
           setShowDraftPrompt(true);
         }
@@ -102,6 +237,8 @@ export default function SupportHub() {
   useEffect(() => {
     if (!isOpen || showDraftPrompt) return;
     const data = {
+      supportStream,
+      osPlatform,
       activeTab,
       activeCardIndex,
       maxReachedIndex,
@@ -114,10 +251,14 @@ export default function SupportHub() {
       optedOutSources
     };
     localStorage.setItem('support_draft', JSON.stringify(data));
-  }, [isOpen, showDraftPrompt, activeTab, activeCardIndex, maxReachedIndex, title, description, targetModId, targetUserId, logs, customFieldsData, optedOutSources]);
+  }, [isOpen, showDraftPrompt, supportStream, osPlatform, activeTab, activeCardIndex, maxReachedIndex, title, description, targetModId, targetUserId, logs, customFieldsData, optedOutSources]);
 
   const loadDraft = () => {
     if (draftData) {
+      if (draftData.supportStream === "os_bug" || (draftData.supportStream === "community" && hasLoadedSpoke)) {
+        setSupportStream(draftData.supportStream);
+      }
+      if (draftData.osPlatform) setOsPlatform(draftData.osPlatform);
       setActiveTab(draftData.activeTab || "BUG_MOD");
       setActiveCardIndex(draftData.activeCardIndex || 0);
       setMaxReachedIndex(draftData.maxReachedIndex || 0);
@@ -168,6 +309,23 @@ export default function SupportHub() {
       if (selected && !Array.isArray(selected)) {
         const fileName = selected.split(/[\\/]/).pop() || "log.txt";
         const text = await readTextFile(selected);
+        if (supportStream === "community") {
+          const store = useStore.getState();
+          const dirtyTraces = findDirtyLogTraces(text, store.modList, store.activeGameSchema);
+          if (dirtyTraces.length > 0) {
+            setPolicyViolations(dirtyTraces);
+            const traceStr = `${dirtyTraces.slice(0, 3).join(", ")}${dirtyTraces.length > 3 ? "..." : ""}`;
+            const errStr = (
+              t(
+                "support_err_dirty_logs",
+                "Restricted or unverified {mods} were found in your logs: {0}. Please clear your logs or relaunch without them before attaching logs."
+              ) || "Restricted or unverified items found in logs: {0}."
+            ).replace("{0}", traceStr);
+            setError(errStr);
+            useStore.getState().pushStatus(errStr, "error");
+            return;
+          }
+        }
         const scrubbedText = scrubLogUserData(text);
         const block = `--- TELEMETRY: Manual Attachment (${fileName}) ---\n${scrubbedText}`;
         setLogs(prev => prev ? `${prev}\n\n${block}` : block);
@@ -177,106 +335,129 @@ export default function SupportHub() {
     }
   };
 
-  const vaultExtremeMods = React.useMemo(() => {
-    const extreme = modList.filter((ml: any) => ml.compliance_tier >= 3 && ml.compliance_tier <= 5).map((ml: any) => ({ ...ml, name: ml.displayName || ml.name, origName: ml.name, tier: ml.compliance_tier }));
-    const grouped = extreme.reduce((acc: any[], curr: any) => {
-      const existing = acc.find(m => m.name === curr.name);
-      if (existing) {
-        existing.count = (existing.count || 1) + 1;
-        if (!existing.paths) existing.paths = [existing.path];
-        if (curr.path) existing.paths.push(curr.path);
-      } else {
-        acc.push({ ...curr, count: 1, paths: curr.path ? [curr.path] : [] });
-      }
-      return acc;
-    }, []);
-    return grouped;
-  }, [modList]);
-
-  const activeAdultMods = React.useMemo(() => {
-    if (!activeSet?.mods) return [];
-    const adultModsInDB = modList.filter((ml: any) => ml.compliance_tier === 1 || ml.compliance_tier === 2);
-    if (adultModsInDB.length === 0) return [];
-
-    const activeModsSet = new Set<string>();
-    const activeBaseNames = new Set<string>();
+  const activeSupportLockMods = React.useMemo(() => {
+    if (!activeSet?.mods || activeSet.mods.length === 0) return [];
     const extRegex = getExtensionRegex(activeGameSchema);
+    const exactLookup = new Map<string, any>();
+    const baseLookup = new Map<string, any>();
 
+    const indexMod = (ml: any) => {
+      if (!ml) return;
+      if (ml?.name) exactLookup.set(String(ml.name), ml);
+      if (ml?.displayName) exactLookup.set(String(ml.displayName), ml);
+      const mBase = String(ml?.name || "").split(/[\\/]/).pop()?.replace(extRegex, "").toLowerCase();
+      if (mBase && !baseLookup.has(mBase)) baseLookup.set(mBase, ml);
+    };
+
+    for (const ml of modList) {
+      indexMod(ml);
+      if (Array.isArray(ml?.flavors)) {
+        for (const fl of ml.flavors) indexMod(fl);
+      }
+    }
+
+    const blocked: any[] = [];
+    const seen = new Set<string>();
     for (const rawMod of activeSet.mods) {
       const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
-      activeModsSet.add(modName);
-      const base = modName.split(/[\\/]/).pop()?.replace(extRegex, '');
-      if (base) activeBaseNames.add(base);
-    }
-
-    const matchedAdultMods: any[] = [];
-    for (const am of adultModsInDB) {
-      if (activeModsSet.has(am.name) || (am.displayName && activeModsSet.has(am.displayName))) {
-        matchedAdultMods.push({ ...am, origName: am.name, name: am.displayName || am.name, tier: am.compliance_tier });
-        continue;
+      if (!modName) continue;
+      const base = modName.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
+      const resolvedMod = exactLookup.get(modName) || (base ? baseLookup.get(base) : undefined);
+      const rawObjHash = typeof rawMod === 'object' ? (rawMod?.hash || rawMod?.dna_hash) : '';
+      const fallbackHash = String(
+        resolvedMod?.hash ||
+        activeSet?.modHashes?.[modName] ||
+        (base ? activeSet?.modHashes?.[base] : '') ||
+        rawObjHash ||
+        ''
+      ).trim();
+      const effectiveTier = resolveEffectiveModComplianceTier(resolvedMod, hashTierMap, fallbackHash);
+      if (!resolvedMod || !isLocalModKnownTier0(resolvedMod) || effectiveTier >= 1) {
+        const displayName = String(resolvedMod?.displayName || resolvedMod?.name || modName);
+        if (!seen.has(displayName)) {
+          seen.add(displayName);
+          const resolvedHash = normalizeComplianceHash(fallbackHash) || resolvedMod?.hash;
+          const resolvedTier = effectiveTier > 0 ? effectiveTier : 0;
+          blocked.push({
+            ...(resolvedMod || {}),
+            ...(resolvedHash ? { hash: resolvedHash } : {}),
+            origName: resolvedMod?.name || modName,
+            name: displayName,
+            compliance_tier: resolvedTier,
+            tier: resolvedTier,
+          });
+        }
       }
-      const mBase = am.name?.split(/[\\/]/).pop()?.replace(extRegex, '');
-      if (mBase && activeBaseNames.has(mBase)) {
-        matchedAdultMods.push({ ...am, origName: am.name, name: am.displayName || am.name, tier: am.compliance_tier });
-      }
     }
-    return matchedAdultMods.filter((mod, index, self) => index === self.findIndex((m) => m.name === mod.name));
-  }, [activeSet?.mods, modList, activeGameSchema]);
+    return blocked;
+  }, [activeSet?.mods, activeSet?.modHashes, modList, activeGameSchema, hashTierMap]);
 
   useEffect(() => {
     if (!isOpen) return;
     const fetchData = async () => {
+      if (!hasLoadedSpoke) {
+        setCategories([]);
+        setTelemetrySources([]);
+        setLoadingCats(false);
+        return;
+      }
       setLoadingCats(true);
-      const [{ data: cats }, { data: sources }] = await Promise.all([
-        supabase.from('sanctuary_support_categories').select('*').eq('is_active', true).order('category_name', { ascending: true }),
-        supabase.from('sanctuary_telemetry_sources').select('*').eq('is_active', true)
-      ]);
-      if (session?.user?.id) {
-        const { data: profile } = await supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', session.user.id).single();
-        if (profile?.is_comm_banned) {
-          setIsBanned(true);
-          setBanReason(profile.comm_blacklist_reason || "You have been banned from submitting support tickets.");
+      try {
+        const [{ data: cats }, { data: sources }] = await Promise.all([
+          supabase.from('sanctuary_support_categories').select('*').eq('is_active', true).order('category_name', { ascending: true }),
+          supabase.from('sanctuary_telemetry_sources').select('*').eq('is_active', true)
+        ]);
+        if (session?.user?.id) {
+          const { data: profile } = await supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', session.user.id).single();
+          if (profile?.is_comm_banned) {
+            setIsBanned(true);
+            setBanReason(profile.comm_blacklist_reason || t("support_banned_default", "You have been banned from submitting support tickets."));
+          }
         }
-      }
-      if (cats && cats.length > 0) {
-        setCategories(cats);
-        if (!activeTab || !cats.find(c => c.category_code === activeTab)) {
-          setActiveTab(cats[0].category_code);
+        if (cats && cats.length > 0) {
+          setCategories(cats);
+          if (!activeTab || !cats.find(c => c.category_code === activeTab)) {
+            setActiveTab(cats[0].category_code);
+          }
+          setCustomFieldsData({});
         }
-        setCustomFieldsData({});
+        if (sources) {
+          setTelemetrySources(sources);
+        }
+      } catch (err) {
+        console.error("Failed to fetch support categories:", err);
+      } finally {
+        setLoadingCats(false);
       }
-      if (sources) {
-        setTelemetrySources(sources);
-      }
-      setLoadingCats(false);
     };
     fetchData();
-  }, [isOpen]);
+  }, [isOpen, hasLoadedSpoke]);
 
   const activeCategory = categories.find(c => c.category_code === activeTab) || categories[0];
 
-  // When changing tabs, reset forms
+  // When changing tabs or streams, reset card step cleanly
   useEffect(() => {
-    setTitle("");
-    setDescription("");
-    setTargetModId("");
-    setTargetUserId("");
-    setLogs("");
-    setCustomFieldsData({});
     setError("");
     setPolicyViolations([]);
     setActiveCardIndex(0);
     setMaxReachedIndex(0);
-  }, [activeTab]);
+  }, [activeTab, supportStream]);
 
   const cards = React.useMemo(() => {
+    if (supportStream === "os_bug") {
+      return [
+        { id: "os_details", type: "OS_DETAILS", label: t("support_os_bug_details", "OS Bug Details"), required: true },
+        { id: "telemetry", type: "TELEMETRY", label: t("ticket_attached_logs", "Attached Logs"), required: false },
+        { id: "review", type: "REVIEW", label: t("support_ready_to_submit", "Ready to Submit"), required: false },
+      ];
+    }
     if (!activeCategory) return [];
 
     const params: any[] = [];
     params.push({ id: 'classification', type: 'CLASSIFICATION', label: t("comp_type", "Classification") || "Classification", required: true });
 
     if (activeCategory.requires_target_mod) {
-      params.push({ id: 'target_mod', type: 'TARGET_MOD', label: t("target_artifact", "Target {Mod}") || "Target Artifact", required: true });
+      params.push({ id: 'target_mod', type: 'TARGET_MOD', label: t("target_artifact", "Target {Mod}") || "Target Mod", required: true });
     }
     if (activeCategory.requires_target_user) {
       params.push({ id: 'target_user', type: 'TARGET_USER', label: t("support_target_user_label", "Target User ID") || "Target User", required: true });
@@ -293,13 +474,13 @@ export default function SupportHub() {
     }
 
     if (activeCategory.telemetry_config?.sources?.length > 0 || String(activeCategory.show_logs_box) !== "false") {
-      params.push({ id: 'telemetry', type: 'TELEMETRY', label: t("dossier_attached_logs", "Attached Logs") || "Diagnostic Telemetry", required: false });
+      params.push({ id: 'telemetry', type: 'TELEMETRY', label: t("ticket_attached_logs", "Attached Logs") || "Attached Logs", required: false });
     }
 
     params.push({ id: 'review', type: 'REVIEW', label: t("support_ready_to_submit", "Ready to Submit"), required: false });
 
     return params;
-  }, [activeCategory, t]);
+  }, [supportStream, activeCategory, t]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -315,6 +496,15 @@ export default function SupportHub() {
   }, [isOpen]);
 
   const effectiveTelemetrySources = React.useMemo(() => {
+    if (supportStream === "os_bug") {
+      return [
+        {
+          id: "sys_os_default",
+          label: t("support_os_logs_source", "Sanctuary OS System Logs"),
+          type: "OS",
+        },
+      ];
+    }
     const configuredIds: string[] = activeCategory?.telemetry_config?.sources || [];
     const matched = telemetrySources.filter((s) => configuredIds.includes(s.id));
     const hasOs = matched.some((s) => s.type === "OS");
@@ -322,17 +512,17 @@ export default function SupportHub() {
       return [
         {
           id: "sys_os_default",
-          label: "Sanctuary OS Logs",
+          label: t("support_os_logs_source", "Sanctuary OS System Logs"),
           type: "OS",
         },
         ...matched,
       ];
     }
     return matched;
-  }, [activeCategory, telemetrySources]);
+  }, [supportStream, activeCategory, telemetrySources, t]);
 
   const buildLiveTelemetryBundle = useCallback(async () => {
-    if (!isOpen || !activeCategory) return "";
+    if (!isOpen || (supportStream === "community" && !activeCategory)) return "";
     let bundle = "";
     if (logs && logs.trim()) {
       const trimmed = scrubLogUserData(logs.trim());
@@ -359,22 +549,28 @@ export default function SupportHub() {
           } catch {
             sysInfo = `OS: ${typeof navigator !== "undefined" ? navigator.platform || "Web" : "Desktop"}\nUser Agent: ${typeof navigator !== "undefined" ? navigator.userAgent : "Sanctuary OS"}`;
           }
-          const netUpdates = storeState.networkUpdates;
-          const totalUpdates =
-            (netUpdates?.broken?.length || 0) +
-            (netUpdates?.obsolete?.length || 0) +
-            (netUpdates?.updated?.length || 0);
-          const diagnostics = `\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nMods Path: ${scrubLogUserData(storeState.modsPath || "N/A")}\nActive Blueprint: ${currentSet?.name || "None"}\nActive Mods: ${currentSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toLocaleString()}\nDiagnostic Bundle Version: 1.0.0\n`;
           const osLabel = source.label.endsWith("(OS)")
             ? source.label
             : `${source.label} (OS)`;
-          bundle += `\n--- TELEMETRY: ${osLabel} ---\n${scrubLogUserData(sysInfo)}${diagnostics}\n`;
 
-          if (currentSet) {
-            const bpPayload = scrubLogUserData(
-              JSON.stringify({ sanctuary_profile: true, ...currentSet }, null, 2)
-            );
-            bundle += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
+          if (supportStream === "os_bug") {
+            const osDiagnostics = `\nPlatform: ${osPlatform}\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nCaptured At: ${new Date().toLocaleString()}\n`;
+            bundle += `\n--- TELEMETRY: ${osLabel} ---\n${scrubLogUserData(sysInfo)}${osDiagnostics}\n`;
+          } else {
+            const netUpdates = storeState.networkUpdates;
+            const totalUpdates =
+              (netUpdates?.broken?.length || 0) +
+              (netUpdates?.obsolete?.length || 0) +
+              (netUpdates?.updated?.length || 0);
+            const diagnostics = `\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nMods Path: ${scrubLogUserData(storeState.modsPath || "N/A")}\nActive Blueprint: ${currentSet?.name || "None"}\nActive Mods: ${currentSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toLocaleString()}\nDiagnostic Bundle Version: 1.0.0\n`;
+            bundle += `\n--- TELEMETRY: ${osLabel} ---\n${scrubLogUserData(sysInfo)}${diagnostics}\n`;
+
+            if (currentSet) {
+              const bpPayload = scrubLogUserData(
+                JSON.stringify({ sanctuary_profile: true, ...currentSet }, null, 2)
+              );
+              bundle += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
+            }
           }
 
           const systemLogHistory = (storeState.statusLog || [])
@@ -383,7 +579,7 @@ export default function SupportHub() {
             })
             .join("\n");
           bundle += `\n--- TELEMETRY: System Log History ---\n${systemLogHistory || "No system logs available."}\n`;
-        } else if (modsPath && source.search_path && source.file_pattern) {
+        } else if (supportStream === "community" && modsPath && source.search_path && source.file_pattern) {
           const docDirMatch = modsPath.match(/(.*)[\\/]+(?:mods|data|_mods)[\\/]*$/i);
           const docDir = docDirMatch
             ? docDirMatch[1]
@@ -405,7 +601,7 @@ export default function SupportHub() {
     }
 
     return scrubLogUserData(bundle.trim());
-  }, [isOpen, activeCategory, effectiveTelemetrySources, optedOutSources, logs]);
+  }, [isOpen, supportStream, osPlatform, activeCategory, effectiveTelemetrySources, optedOutSources, logs]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -419,6 +615,98 @@ export default function SupportHub() {
   }, [isOpen, buildLiveTelemetryBundle]);
 
   const submitTicket = async () => {
+    if (supportStream === "os_bug") {
+      if (!title.trim() || !description.trim()) {
+        return setError(t("support_error_fields", "Please fill out all required fields."));
+      }
+      setIsSubmitting(true);
+      setError("");
+      setPolicyViolations([]);
+
+      try {
+        const [{ data: authData }, { data: spokeUserData }] = await Promise.all([
+          supabaseAuth.auth.getUser(),
+          supabase.auth.getUser(),
+        ]);
+        const user = authData?.user || spokeUserData?.user || session?.user;
+        if (!user) {
+          throw new Error(t("auto_guest_mode_active_45", "Guest Mode Active"));
+        }
+
+        const builtLogs = previewTelemetryLogs || (await buildLiveTelemetryBundle());
+        const combinedLogs = builtLogs ? scrubLogUserData(builtLogs) : null;
+
+        const { error: insertErr } = await supabaseAuth.from("keeper_tickets").insert([
+          {
+            author_id: user.id,
+            ticket_type: "Bug Report",
+            title: `[Core Bug • ${osPlatform}] ${scrubLogUserData(title.trim())}`,
+            description: scrubLogUserData(description.trim()),
+            status: "NEW",
+            metadata: {
+              logs: combinedLogs,
+              feedback_meta: {
+                platform: osPlatform,
+                stream: "Core Bug Report",
+                sentiment: "Bug Report",
+                auto_captured: true,
+                author_label:
+                  user.user_metadata?.username ||
+                  user.email?.split("@")[0] ||
+                  t("term_citizen", "Citizen"),
+              },
+              ...(activeMasonSupporters[0]
+                ? {
+                    expedited_support: true,
+                    priority_ticket: true,
+                    priority_level: "mason_supporter",
+                    is_mason_supporter: true,
+                    mason_supporter_id: activeMasonSupporters[0].mason_id,
+                    mason_supporter_name: activeMasonSupporters[0].mason_name,
+                    supporter_tier: activeMasonSupporters[0].tier_name,
+                    supporter_provider: activeMasonSupporters[0].provider,
+                  }
+                : {}),
+              ...(spokeSupporterPass
+                ? {
+                    is_spoke_supporter: true,
+                    spoke_supporter_id: spokeSupporterPass.spoke_id,
+                    spoke_supporter_name: spokeSupporterPass.spoke_name,
+                  }
+                : {}),
+              ...(isPatronUser
+                ? {
+                    is_foundry_patron: true,
+                    patron_months: patronMonths,
+                  }
+                : {}),
+            },
+          },
+        ]);
+
+        if (insertErr) throw insertErr;
+
+        window.dispatchEvent(new CustomEvent("sanctuary-tickets-updated"));
+        useStore.getState().pushStatus(t("ss_support_success", "Ticket sent successfully"), "success");
+        localStorage.removeItem("support_draft");
+        setTitle("");
+        setDescription("");
+        setTargetModId("");
+        setLogs("");
+        onClose();
+      } catch (e: any) {
+        setError(e.message);
+        useStore.getState().pushStatus(e.message, "error");
+        invoke("write_os_log", {
+          message: "OS bug ticket submission failed: " + e.message,
+          level: "ERROR",
+        }).catch(console.error);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     if (String(activeCategory?.show_title_box) !== "false" && !title) return setError(t("support_error_fields", "Please fill out all required fields."));
     if (String(activeCategory?.show_description_box) !== "false" && !description) return setError(t("support_error_fields", "Please fill out all required fields."));
 
@@ -438,10 +726,10 @@ export default function SupportHub() {
 
     try {
       const storeState = useStore.getState();
-      const activeSet = storeState.playSets[storeState.activePlaySetIndex];
+      const currentSet = storeState.playSets[storeState.activePlaySetIndex];
 
       let hasViolations = false;
-      let violations: string[] = [];
+      const violations: string[] = [];
       let resolvedCloudTargetModId: string | null = null;
       const hashesToVerifyInCloud: string[] = [];
 
@@ -451,15 +739,17 @@ export default function SupportHub() {
         );
         if (!m || !isLocalModKnownTier0(m)) {
           hasViolations = true;
-          if (m) violations.push(m.displayName || m.name);
+          violations.push(m?.displayName || m?.name || targetModId);
         } else {
           const tHash = String(m.hash || (m as any).dna_hash || "").trim();
           if (tHash) hashesToVerifyInCloud.push(tHash);
           resolvedCloudTargetModId = String(m.dbId || m.id || "").trim() || null;
         }
       }
-      if (activeCategory?.requires_target_mod && activeSet && activeSet.mods) {
-        activeSet.mods.forEach((rawModEntry: any) => {
+
+      if (currentSet && currentSet.mods) {
+        const extRegex = getExtensionRegex(activeGameSchema);
+        currentSet.mods.forEach((rawModEntry: any) => {
           const modName =
             typeof rawModEntry === "string"
               ? rawModEntry
@@ -471,14 +761,8 @@ export default function SupportHub() {
           const resolvedMod =
             exactMatch ||
             storeState.modList.find((ml: any) => {
-              const mBase = ml.name
-                ?.split(/[\\/]/)
-                .pop()
-                ?.replace(getExtensionRegex(activeGameSchema), "");
-              const targetBase = modName
-                .split(/[\\/]/)
-                .pop()
-                ?.replace(getExtensionRegex(activeGameSchema), "");
+              const mBase = ml.name?.split(/[\\/]/).pop()?.replace(extRegex, "");
+              const targetBase = modName.split(/[\\/]/).pop()?.replace(extRegex, "");
               return mBase && targetBase && mBase === targetBase;
             });
 
@@ -492,17 +776,17 @@ export default function SupportHub() {
         });
       }
 
-      if (hasViolations && (activeCategory?.requires_target_mod || targetModId)) {
-        const uniqueViolations = [...new Set(violations)];
+      if (hasViolations) {
+        const uniqueViolations = [...new Set(violations.filter(Boolean))];
         setPolicyViolations(uniqueViolations);
         invoke("write_os_log", {
-          message: "Blocked support ticket with non-Tier-0 or unknown hashes: " + uniqueViolations.join(", "),
+          message: "Blocked support ticket with non-Tier-0 or unknown items: " + uniqueViolations.join(", "),
           level: "WARNING",
         }).catch(console.error);
         throw new Error(
           t(
             "support_err_known_tier0_required",
-            "Architect support tickets only accept known Tier 0 {mods}. Unknown Tier 0 {mods} must be uploaded through the Scout Queue or {Mason} Queue with a passing {Lab} test."
+            "Community support tickets only accept verified safe (Tier 0) {mods}. Please unequip restricted or unverified {mods} from your active {blueprint}, or switch to OS Bug Report."
           )
         );
       }
@@ -513,7 +797,7 @@ export default function SupportHub() {
           throw new Error(
             t(
               "support_err_known_tier0_required",
-              "Architect support tickets only accept known Tier 0 {mods}. Unknown Tier 0 {mods} must be uploaded through the Scout Queue or {Mason} Queue with a passing {Lab} test."
+              "Community support tickets only accept verified safe (Tier 0) {mods}. Please unequip restricted or unverified {mods} from your active {blueprint}, or switch to OS Bug Report."
             )
           );
         }
@@ -528,6 +812,19 @@ export default function SupportHub() {
 
       let finalLogs = "";
       if (logs && logs.trim()) {
+        const manualDirtyTraces = findDirtyLogTraces(logs, storeState.modList, activeGameSchema);
+        if (manualDirtyTraces.length > 0) {
+          setPolicyViolations(manualDirtyTraces);
+          const traceStr = `${manualDirtyTraces.slice(0, 3).join(", ")}${manualDirtyTraces.length > 3 ? "..." : ""}`;
+          throw new Error(
+            (
+              t(
+                "support_err_dirty_logs",
+                "Restricted or unverified {mods} were found in your logs: {0}. Please clear your logs or relaunch without them before submitting."
+              ) || "Restricted or unverified items found in logs: {0}."
+            ).replace("{0}", traceStr)
+          );
+        }
         const trimmedLogs = scrubLogUserData(logs.trim());
         finalLogs =
           trimmedLogs.includes("--- TELEMETRY:") ||
@@ -543,28 +840,22 @@ export default function SupportHub() {
         );
 
         for (const source of activeSources) {
-          try {
-            if (source.type === 'OS') {
+          if (source.type === 'OS') {
+            try {
               let sysInfo = "";
               try {
                 sysInfo = await invoke<string>("get_system_info");
               } catch {
                 sysInfo = `OS: ${typeof navigator !== "undefined" ? navigator.platform || "Web" : "Desktop"}\nUser Agent: ${typeof navigator !== "undefined" ? navigator.userAgent : "Sanctuary OS"}`;
               }
-              const storeState = useStore.getState();
-              const activeSet = storeState.playSets[storeState.activePlaySetIndex];
-
               const netUpdates = storeState.networkUpdates;
               const totalUpdates = (netUpdates?.broken?.length || 0) + (netUpdates?.obsolete?.length || 0) + (netUpdates?.updated?.length || 0);
-
-              const diagnostics = `\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nMods Path: ${scrubLogUserData(storeState.modsPath)}\nActive Blueprint: ${activeSet?.name || "None"}\nActive Mods: ${activeSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toLocaleString()}\nDiagnostic Bundle Version: 1.0.0\n`;
-              const osLabel = source.label.endsWith("(OS)")
-                ? source.label
-                : `${source.label} (OS)`;
+              const diagnostics = `\nDisplay Resolution: ${window.innerWidth}x${window.innerHeight}\nMods Path: ${scrubLogUserData(storeState.modsPath)}\nActive Blueprint: ${currentSet?.name || "None"}\nActive Mods: ${currentSet?.mods?.length || 0}\nPending Network Updates: ${totalUpdates}\nCaptured At: ${new Date().toLocaleString()}\nDiagnostic Bundle Version: 1.0.0\n`;
+              const osLabel = source.label.endsWith("(OS)") ? source.label : `${source.label} (OS)`;
               finalLogs += `\n--- TELEMETRY: ${osLabel} ---\n` + scrubLogUserData(sysInfo) + diagnostics + "\n";
 
-              if (activeSet) {
-                const bpPayload = scrubLogUserData(JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2));
+              if (currentSet) {
+                const bpPayload = scrubLogUserData(JSON.stringify({ sanctuary_profile: true, ...currentSet }, null, 2));
                 finalLogs += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
               }
 
@@ -572,42 +863,41 @@ export default function SupportHub() {
                 return `[${new Date(entry.timestamp).toISOString()}] [${entry.type.toUpperCase()}] ${scrubLogUserData(entry.message)}`;
               }).join('\n');
               finalLogs += `\n--- TELEMETRY: System Log History ---\n${systemLogHistory || "No system logs available."}\n`;
-            } else {
+            } catch {
+              // Optional OS probe unavailable
+            }
+          } else if (modsPath && source.search_path && source.file_pattern) {
+            let text = "";
+            try {
               const docDirMatch = modsPath.match(/(.*)[\\/]+(?:mods|data|_mods)[\\/]*$/i);
               const docDir = docDirMatch
                 ? docDirMatch[1]
                 : modsPath.replace(/[\\/]+[^\\/]+[\\/]*$/, "") || modsPath;
-              let searchPath = source.search_path.replace('%MODS_DIR%', modsPath).replace('%DOC_DIR%', docDir);
+              const searchPath = source.search_path.replace('%MODS_DIR%', modsPath).replace('%DOC_DIR%', docDir);
               let fullPath = searchPath;
               if (!fullPath.endsWith('\\') && !fullPath.endsWith('/')) fullPath += '/';
               fullPath += source.file_pattern;
-
-              const text = await readTextFile(fullPath);
-              if (text) {
-                if (activeCategory?.requires_target_mod) {
-                  const store = useStore.getState();
-                  const adultModsInDB = store.modList.filter((ml: any) => ml.compliance_tier >= 1 && ml.compliance_tier <= 4);
-                  const extRegex = getExtensionRegex(store.activeGameSchema);
-                  const dirtyTraces: string[] = [];
-                  const lowerText = text.toLowerCase();
-                  for (const am of adultModsInDB) {
-                    const baseName = am.name.split(/[\\/]/).pop()?.replace(extRegex, '').toLowerCase();
-                    if (baseName && baseName.length >= 4 && lowerText.includes(baseName)) {
-                      dirtyTraces.push(am.displayName || am.name);
-                    }
-                  }
-                  if (dirtyTraces.length > 0) {
-                    const uniqueTraces = [...new Set(dirtyTraces)];
-                    const traceStr = `${uniqueTraces.slice(0, 3).join(', ')}${uniqueTraces.length > 3 ? '...' : ''}`;
-                    const errStr = (t("support_err_dirty_logs", "Dirty game logs detected. Found traces of explicit {mods}: {0}. Please clear your logs or relaunch the game without these {mods} before submitting.") || `Dirty log detected in ${source.label}. Found traces of explicit artifacts: {0}. Please clear your logs or relaunch the game without these mods before submitting.`).replace("{0}", traceStr);
-                    throw new Error(errStr);
-                  }
-                }
-                const scrubbedTelemetry = scrubLogUserData(text.substring(0, 20000));
-                finalLogs += `\n--- TELEMETRY: ${source.label} ---\n` + scrubbedTelemetry + "\n";
-              }
+              text = await readTextFile(fullPath);
+            } catch {
+              // Optional log file absent on disk
             }
-          } catch (e) {
+            if (text) {
+              const dirtyTraces = findDirtyLogTraces(text, storeState.modList, storeState.activeGameSchema);
+              if (dirtyTraces.length > 0) {
+                setPolicyViolations(dirtyTraces);
+                const traceStr = `${dirtyTraces.slice(0, 3).join(', ')}${dirtyTraces.length > 3 ? '...' : ''}`;
+                throw new Error(
+                  (
+                    t(
+                      "support_err_dirty_logs",
+                      "Restricted or unverified {mods} were found in your logs: {0}. Please clear your logs or relaunch without them before submitting."
+                    ) || "Restricted or unverified items found in logs: {0}."
+                  ).replace("{0}", traceStr)
+                );
+              }
+              const scrubbedTelemetry = scrubLogUserData(text.substring(0, 20000));
+              finalLogs += `\n--- TELEMETRY: ${source.label} ---\n` + scrubbedTelemetry + "\n";
+            }
           }
         }
       }
@@ -619,11 +909,11 @@ export default function SupportHub() {
 
       const { data: profile } = await supabase.from('profiles').select('is_comm_banned, comm_blacklist_reason').eq('id', user.id).single();
       if (profile?.is_comm_banned) {
-        throw new Error(`Communications Ban: ${profile.comm_blacklist_reason || "You have been banned from submitting support tickets."}`);
+        throw new Error(`Communications Ban: ${profile.comm_blacklist_reason || t("support_banned_default", "You have been banned from submitting support tickets.")}`);
       }
 
-      if (activeSet && activeTab.toLowerCase().includes('bug') && !finalLogs.includes('--- TELEMETRY: Attached Blueprint ---')) {
-        const bpPayload = JSON.stringify({ sanctuary_profile: true, ...activeSet }, null, 2);
+      if (currentSet && activeTab.toLowerCase().includes('bug') && !finalLogs.includes('--- TELEMETRY: Attached Blueprint ---')) {
+        const bpPayload = JSON.stringify({ sanctuary_profile: true, ...currentSet }, null, 2);
         finalLogs += `\n--- TELEMETRY: Attached Blueprint ---\n${bpPayload}\n`;
       }
 
@@ -633,21 +923,84 @@ export default function SupportHub() {
         scrubbedCustomFields[k] = scrubLogUserData(String(v || ""));
       }
 
-      const { error } = await supabase.from('sanctuary_tickets').insert([{
+      const selectedTargetLocal =
+        activeCategory?.requires_target_mod && targetModId
+          ? storeState.modList.find(
+              (ml: any) => ml.dbId === targetModId || ml.id === targetModId || ml.hash === targetModId
+            )
+          : null;
+      let resolvedTargetModName: string | null = selectedTargetLocal
+        ? String(selectedTargetLocal.displayName || selectedTargetLocal.name || "").trim() || null
+        : null;
+      let targetMasonId: string | undefined = selectedTargetLocal?.mason_id || undefined;
+      let targetMasonName: string | undefined =
+        selectedTargetLocal?.author || selectedTargetLocal?.master_author || undefined;
+
+      if (
+        activeCategory?.requires_target_mod &&
+        resolvedCloudTargetModId &&
+        (!targetMasonId || !resolvedTargetModName)
+      ) {
+        try {
+          const { data: cloudMod } = await supabase
+            .from("mods")
+            .select("name, mason_id, author_name")
+            .eq("id", resolvedCloudTargetModId)
+            .maybeSingle();
+          if (cloudMod) {
+            if (!resolvedTargetModName && cloudMod.name) {
+              resolvedTargetModName = String(cloudMod.name).trim() || null;
+            }
+            if (!targetMasonId && cloudMod.mason_id) {
+              targetMasonId = String(cloudMod.mason_id);
+            }
+            if (!targetMasonName && cloudMod.author_name) {
+              targetMasonName = String(cloudMod.author_name);
+            }
+          }
+        } catch {
+          // Best-effort target mod Mason enrichment
+        }
+      }
+
+      const targetMatchedMasonPass =
+        activeCategory?.requires_target_mod &&
+        localSupporters.length > 0 &&
+        (targetMasonId || targetMasonName)
+          ? findLocalMasonSupporterPass(localSupporters, targetMasonId, targetMasonName)
+          : null;
+      const primaryMasonPass =
+        targetMatchedMasonPass || matchedSupporterPass || activeMasonSupporters[0] || null;
+
+      const { error: insertErr } = await supabase.from('sanctuary_tickets').insert([{
         author_id: user.id,
         ticket_type: activeTab,
-        title: scrubLogUserData(title) || (activeCategory?.category_name || "Support Ticket"),
-        description: scrubLogUserData(description || "No description provided."),
+        title: scrubLogUserData(title) || (activeCategory?.category_name || t("support_ticket", "Support Ticket")),
+        description: scrubLogUserData(description || t("no_description_provided", "No description provided.")),
         status: "open",
         metadata: {
           target_mod_id: activeCategory?.requires_target_mod ? (resolvedCloudTargetModId || null) : null,
+          ...(activeCategory?.requires_target_mod && resolvedTargetModName
+            ? { target_mod_name: resolvedTargetModName }
+            : {}),
           target_user_id: activeCategory?.requires_target_user ? (targetUserId || null) : null,
           logs: scrubbedFinalLogs,
           custom_fields: scrubbedCustomFields,
-          ...(matchedSupporterPass ? {
+          ...(primaryMasonPass ? {
             expedited_support: true,
-            supporter_tier: matchedSupporterPass.tier_name,
-            supporter_pass_hash: matchedSupporterPass.cryptographic_pass
+            priority_ticket: true,
+            priority_level: "mason_supporter",
+            is_mason_supporter: true,
+            mason_supporter_id: primaryMasonPass.mason_id,
+            mason_supporter_name: primaryMasonPass.mason_name,
+            supporter_tier: primaryMasonPass.tier_name,
+            supporter_provider: primaryMasonPass.provider,
+            supporter_pass_hash: primaryMasonPass.cryptographic_pass,
+          } : {}),
+          ...(spokeSupporterPass ? {
+            is_spoke_supporter: true,
+            spoke_supporter_id: spokeSupporterPass.spoke_id,
+            spoke_supporter_name: spokeSupporterPass.spoke_name,
           } : {}),
           ...(isPatronUser ? {
             is_foundry_patron: true,
@@ -656,12 +1009,12 @@ export default function SupportHub() {
         }
       }]);
 
-      if (error) throw error;
+      if (insertErr) throw insertErr;
 
       window.dispatchEvent(new CustomEvent("sanctuary-tickets-updated"));
       useStore.getState().pushStatus(t("ss_support_success", "Ticket sent successfully"), "success");
+      localStorage.removeItem("support_draft");
 
-      // Reset form after submit
       setTitle("");
       setDescription("");
       setTargetModId("");
@@ -703,7 +1056,7 @@ export default function SupportHub() {
     );
   }
 
-  if (loadingCats) {
+  if (loadingCats && supportStream === "community" && hasLoadedSpoke) {
     return (
       <SidePanel
         isOpen={isOpen}
@@ -715,16 +1068,30 @@ export default function SupportHub() {
         widthClass="w-[90vw] md:w-[760px]"
       >
         <div className="flex-1 w-full h-full min-h-[500px]">
-          <LoadingScreen title={t("support_loading_cats", "Connecting to Support Network")} subtitle={t("loading", "Establishing secure channel...")} icon="wifi_tethering" />
+          <LoadingScreen title={t("support_loading_cats", "Connecting to Support Network")} subtitle={t("loading", "Loading...")} icon="wifi_tethering" />
         </div>
       </SidePanel>
     );
   }
 
-  const isFormDisabled = vaultExtremeMods.length > 0 || (activeCategory?.requires_target_mod && activeAdultMods.length > 0);
+  const activeWorkspaceObj = Array.isArray(availableWorkspaces)
+    ? availableWorkspaces.find(
+        (w: any) =>
+          String(w?.id || "").toLowerCase() === String(activeWorkspaceId || "").toLowerCase() ||
+          String(w?.schema_id || "").toLowerCase() === String(activeWorkspaceId || "").toLowerCase()
+      )
+    : null;
+  const activeSpokeName =
+    activeGameSchema?.display_name ||
+    activeGameSchema?.name ||
+    activeWorkspaceObj?.name ||
+    t("support_stream_community", "Community Support");
+
+  const isFormDisabled = supportStream === "community" && activeSupportLockMods.length > 0;
   const currentCard = cards[activeCardIndex];
   const isCurrentCardInvalid = Boolean(
     currentCard && (
+      (currentCard.type === 'OS_DETAILS' && (!title.trim() || !description.trim())) ||
       (currentCard.type === 'TARGET_MOD' && activeCategory?.requires_target_mod && !targetModId) ||
       (currentCard.type === 'TARGET_USER' && activeCategory?.requires_target_user && !targetUserId) ||
       (currentCard.type === 'CUSTOM' && currentCard.field?.required && (!customFieldsData[currentCard.id] || (Array.isArray(customFieldsData[currentCard.id]) && customFieldsData[currentCard.id].length === 0))) ||
@@ -739,6 +1106,10 @@ export default function SupportHub() {
   );
 
   const getStepSummary = (card: any): string => {
+    if (card.type === "OS_DETAILS") {
+      if (title.trim()) return `${osPlatform} • ${title.trim()}`;
+      return osPlatform;
+    }
     if (card.type === "CLASSIFICATION") {
       return activeCategory?.category_name || activeTab;
     }
@@ -764,12 +1135,13 @@ export default function SupportHub() {
       const activeCount = effectiveTelemetrySources.filter(
         (s) => !optedOutSources.includes(s.id)
       ).length;
-      return `${activeCount} ${t("dossier_attached_logs", "Attached Telemetry")}`;
+      return `${activeCount} ${t("ticket_attached_logs", "Attached Logs")}`;
     }
     return "";
   };
 
   const getStepIcon = (card: any): string => {
+    if (card.type === "OS_DETAILS") return t("icon_bug_report", "bug_report");
     if (card.type === "CLASSIFICATION") return t("icon_category", "category");
     if (card.type === "TARGET_MOD") return t("icon_extension", "extension");
     if (card.type === "TARGET_USER") return t("icon_person", "person");
@@ -800,7 +1172,7 @@ export default function SupportHub() {
               {currentCard.type === 'REVIEW' ? (
                 <PanelHeaderButton
                   icon={isSubmitting || isScanning ? t("icon_sync", "sync") : t("icon_send", "send")}
-                  tooltip={isSubmitting || isScanning ? t("scanning", "Scanning...") : t("support_submit", "Submit Ticket")}
+                  tooltip={isSubmitting || isScanning ? t("scanning", "Submitting...") : t("support_submit", "Submit Ticket")}
                   variant="accent"
                   disabled={isSubmitting || isScanning || isFormDisabled}
                   onClick={submitTicket}
@@ -822,9 +1194,9 @@ export default function SupportHub() {
           <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
             <SidePanelHeroCard
               icon={t("icon_restore_page", "restore_page")}
-              overline={t("support_title", "Support Dossier")}
+              overline={t("support_title", "Submit A Ticket")}
               title={t("draft_detected", "Draft Detected")}
-              description={t("draft_detected_desc", "An unfinished support dossier was found in your local memory. Would you like to resume where you left off?")}
+              description={t("draft_detected_desc", "An unfinished support ticket draft was found locally. Would you like to resume where you left off?")}
               variant="accent"
             >
               <div className="flex flex-wrap items-center justify-end gap-2 w-full">
@@ -836,23 +1208,35 @@ export default function SupportHub() {
         ) : (
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-12">
           <SidePanelHeroCard
-            icon={t("icon_support_agent", "support_agent")}
-            overline={t("sidebar_support", "Support & Feedback")}
-            title={activeCategory?.category_name || t("support_title", "Submit A Ticket")}
-            description={activeCategory?.description || t("support_subtitle", "Complete each stage below to transmit a diagnostic support dossier.")}
+            icon={supportStream === "os_bug" ? t("icon_bug_report", "bug_report") : t("icon_support_agent", "support_agent")}
+            overline={supportStream === "os_bug" ? t("keepers_title", "Keepers Core") : t("sidebar_support", "Support & Feedback")}
+            title={
+              supportStream === "os_bug"
+                ? t("support_stream_os_bug", "OS Bug Report")
+                : activeCategory?.category_name || t("support_title", "Submit A Ticket")
+            }
+            description={
+              supportStream === "os_bug"
+                ? t("support_os_bug_subtitle", "Report an issue with the Sanctuary OS app directly to Keepers Core without attaching any game or {mod} data.")
+                : activeCategory?.description || t("support_wizard_subtitle", "Select a support channel and complete each step below to submit your ticket.")
+            }
             badge={`${activeCardIndex + 1} / ${cards.length}`}
             badgeIcon={t("icon_checklist", "checklist")}
-            variant={isFormDisabled ? "danger" : "accent"}
+            variant={isFormDisabled ? "warning" : "accent"}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <StatBox
                 label={t("support_category", "Category")}
-                value={activeCategory?.category_name || activeTab}
-                icon={t("icon_category", "category")}
+                value={
+                  supportStream === "os_bug"
+                    ? t("support_stream_os_bug", "OS Bug Report")
+                    : activeCategory?.category_name || activeTab
+                }
+                icon={supportStream === "os_bug" ? t("icon_bug_report", "bug_report") : t("icon_category", "category")}
                 iconColorClass="text-[var(--accent)]"
               />
               <StatBox
-                label={t("status", "Step Progress")}
+                label={t("wizard_progress_label", "Progress")}
                 value={`${activeCardIndex + 1} / ${cards.length}`}
                 icon={t("icon_checklist", "checklist")}
                 iconColorClass="text-[var(--success)]"
@@ -860,32 +1244,54 @@ export default function SupportHub() {
             </div>
           </SidePanelHeroCard>
 
+          {hasLoadedSpoke && (
+            <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
+              <DashboardStatTile
+                variant="filter"
+                icon={t("icon_local_activity", "local_activity")}
+                label={activeSpokeName}
+                value={t("support_stream_community", "Community Support")}
+                isActive={supportStream === "community"}
+                onClick={() => setSupportStream("community")}
+              />
+              <DashboardStatTile
+                variant="filter"
+                icon={t("icon_bug_report", "bug_report")}
+                label={t("keepers_title", "Keepers Core")}
+                value={t("support_stream_os_bug", "OS Bug Report")}
+                colorClass="text-[var(--warning)]"
+                isActive={supportStream === "os_bug"}
+                onClick={() => setSupportStream("os_bug")}
+              />
+            </SidePanelFilterBar>
+          )}
+
           <div className="flex flex-col w-full gap-4">
 
             {error && (
-              <div className="glass-panel border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-2xl flex flex-col relative shadow-md group">
+              <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_14%,transparent)] rounded-2xl flex flex-col relative shadow-md group">
                 <div className="flex items-start gap-4 p-5 relative z-10">
                   <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--danger)]">
                     <span className="material-symbols-outlined !text-[20px]">{t("icon_warning", "warning")}</span>
                   </div>
                   <div className="flex flex-col gap-1.5 pt-0.5 w-full pr-8">
                     <span className="text-sm font-black text-[var(--danger)] tracking-wide">{t("support_err_failed", "Submission Failed")}</span>
-                    <span className="text-xs font-bold text-[color-mix(in_srgb,var(--danger)_80%,transparent)] leading-relaxed pr-4">{error}</span>
+                    <span className="text-xs font-medium text-[var(--subtext)] leading-relaxed pr-4">{error}</span>
                   </div>
                   <button
                     onClick={() => { setError(""); setPolicyViolations([]); }}
-                    className="absolute top-4 right-4 w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_42%,transparent)] text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_65%,transparent)] flex items-center justify-center transition-all shrink-0 cursor-pointer"
+                    className="absolute top-4 right-4 w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center transition-all shrink-0 cursor-pointer"
                   >
                     <span className="material-symbols-outlined !text-[15px]">{t("icon_close", "close")}</span>
                   </button>
                 </div>
                 {policyViolations.length > 0 && (
-                  <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--danger)_20%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
-                    <span className="text-[9px] font-black tracking-widest text-[color-mix(in_srgb,var(--danger)_80%,transparent)] capitalize">{t("auto_restricted_artifacts_detected_34", "Restricted {mods}")}</span>
+                  <div className="glass-surface p-4 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 max-h-32 overflow-y-auto custom-scrollbar relative z-10">
+                    <span className="text-[9px] font-black tracking-widest text-[var(--subtext)] capitalize">{t("auto_restricted_artifacts_detected_34", "Restricted {mods}")}</span>
                     <div className="flex flex-wrap gap-2">
                       {policyViolations.map((mod, i) => (
-                        <div key={i} className="flex items-center gap-2 text-[var(--danger)] text-[10px] font-mono bg-transparent py-1.5 px-3 rounded-md border border-[color-mix(in_srgb,var(--danger)_38%,transparent)]">
-                          <span className="material-symbols-outlined !text-[12px] opacity-70">{t("auto_extension", "extension")}</span>
+                        <div key={i} className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">{t("auto_extension", "extension")}</span>
                           <span className="truncate">{mod.split(/[\\/]/).pop()?.replace(getExtensionRegex(activeGameSchema), '').replace(/[-_]/g, ' ') || mod.replace(/[-_]/g, ' ')}</span>
                         </div>
                       ))}
@@ -895,58 +1301,34 @@ export default function SupportHub() {
               </div>
             )}
 
-            {(vaultExtremeMods.length > 0 || (activeCategory?.requires_target_mod && activeAdultMods.length > 0)) && (
-              <div
-                className={`grid grid-cols-1 ${
-                  vaultExtremeMods.length > 0 && activeCategory?.requires_target_mod && activeAdultMods.length > 0
-                    ? "md:grid-cols-2"
-                    : ""
-                } gap-3.5 items-stretch`}
+            {supportStream === "community" && activeSupportLockMods.length > 0 && (
+              <SidePanelHeroCard
+                icon={t("icon_lock", "lock")}
+                overline={t("support_blueprint_lock", "{Blueprint} Support Lock")}
+                title={t("support_blueprint_lock_title", "{Blueprint} Support Lock Active")}
+                description={t(
+                  "support_blueprint_lock_desc",
+                  "Community tickets only allow verified safe (Tier 0) {mods}. Unequip restricted or unknown {mods} from your active {blueprint} to continue — your files stay untouched — or switch to OS Bug Report to report a Sanctuary OS issue."
+                )}
+                badge={`${activeSupportLockMods.length}`}
+                badgeIcon={t("icon_warning", "warning")}
+                variant="warning"
               >
-                {vaultExtremeMods.length > 0 && (
-                  <SidePanelHeroCard
-                    icon={t("icon_block", "block")}
-                    overline={t("security", "Compliance Lockout")}
-                    title={t("support_vault_lock_title", "{Vault} Lock Engaged")}
-                    description={t("support_vault_lock_desc", "Your vault contains severe {mods} (Tier 3-5). Support submissions are completely disabled until these {mods} are removed from Your {Vault}.")}
-                    badge={`${vaultExtremeMods.length}`}
-                    badgeIcon={t("icon_warning", "warning")}
-                    variant="danger"
-                    className="h-full justify-between"
-                  >
-                    <div className="flex flex-wrap items-center justify-end gap-2 w-full mt-auto pt-1">
-                      <ActionButton
-                        variant="danger"
-                        icon={t("icon_delete", "delete")}
-                        label={t("resolve_issues", "Resolve Anomalies")}
-                        onClick={() => setResolutionType('vault')}
-                      />
-                    </div>
-                  </SidePanelHeroCard>
-                )}
-
-                {activeCategory?.requires_target_mod && activeAdultMods.length > 0 && (
-                  <SidePanelHeroCard
-                    icon={t("icon_warning", "warning")}
-                    overline={t("tab_blueprints", "{Blueprint} Compliance")}
-                    title={t("support_adult_mods_title", "{Blueprint} Lock: Explicit {Mods} Detected")}
-                    description={t("support_adult_mods_desc", "Your active {blueprint} contains adult/NSFW {mod}(s). If your ticket is related to one of these {mods}, please bypass Sanctuary OS and contact the original {Mason} directly. Otherwise, remove the {mods} and retest. You may submit a ticket once your logs are clean.")}
-                    badge={`${activeAdultMods.length}`}
-                    badgeIcon={t("icon_extension", "extension")}
+                <div className="flex flex-wrap items-center justify-end gap-2 w-full pt-1">
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_bug_report", "bug_report")}
+                    label={t("support_switch_os_bug", "Report OS Bug Instead")}
+                    onClick={() => setSupportStream("os_bug")}
+                  />
+                  <ActionButton
                     variant="warning"
-                    className="h-full justify-between"
-                  >
-                    <div className="flex flex-wrap items-center justify-end gap-2 w-full mt-auto pt-1">
-                      <ActionButton
-                        variant="glass"
-                        icon={t("icon_engineering", "engineering")}
-                        label={t("resolve_issues", "Resolve Anomalies")}
-                        onClick={() => setResolutionType('blueprint')}
-                      />
-                    </div>
-                  </SidePanelHeroCard>
-                )}
-              </div>
+                    icon={t("icon_playlist_remove", "playlist_remove")}
+                    label={t("support_review_locked_mods", "Review & Unequip")}
+                    onClick={() => setIsResolutionOpen(true)}
+                  />
+                </div>
+              </SidePanelHeroCard>
             )}
 
             <div className="flex flex-col w-full transition-all duration-300">
@@ -962,7 +1344,7 @@ export default function SupportHub() {
                       <div
                         key={idx}
                         onClick={() => setActiveCardIndex(idx)}
-                        className="glass-panel p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center justify-between gap-3 cursor-pointer group hover:border-[var(--accent)] transition-all shrink-0 w-full"
+                        className="glass-panel p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-between gap-3 cursor-pointer group hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all shrink-0 w-full"
                       >
                         <div className="flex items-center gap-3.5 min-w-0 flex-1">
                           <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--success)]">
@@ -985,7 +1367,7 @@ export default function SupportHub() {
                             )}
                           </div>
                         </div>
-                        <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] group-hover:border-[var(--accent)] flex items-center justify-center shrink-0 text-[var(--subtext)] group-hover:text-[var(--accent)] transition-all">
+                        <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center shrink-0 text-[var(--subtext)] group-hover:text-[var(--accent)] transition-all">
                           <span className="material-symbols-outlined !text-[16px]">
                             {t("icon_edit", "edit")}
                           </span>
@@ -1002,6 +1384,7 @@ export default function SupportHub() {
                       e.preventDefault();
 
                       const isInvalid =
+                        (card.type === 'OS_DETAILS' && (!title.trim() || !description.trim())) ||
                         (card.type === 'TARGET_MOD' && activeCategory?.requires_target_mod && !targetModId) ||
                         (card.type === 'TARGET_USER' && activeCategory?.requires_target_user && !targetUserId) ||
                         (card.type === 'CUSTOM' && card.field?.required && (!customFieldsData[card.id] || (Array.isArray(customFieldsData[card.id]) && customFieldsData[card.id].length === 0))) ||
@@ -1018,15 +1401,15 @@ export default function SupportHub() {
                     <div
                       id={`support-card-${idx}`}
                       key={idx}
-                      className={`w-full glass-panel border-2 border-[var(--accent)] rounded-3xl p-6 md:p-7 flex flex-col gap-5 shrink-0 relative animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.45)] ${
+                      className={`w-full glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] rounded-3xl p-6 md:p-7 flex flex-col gap-5 shrink-0 relative animate-in zoom-in-95 duration-300 shadow-[0_20px_50px_rgba(0,0,0,0.35)] ${
                         isBlockDisabled ? "opacity-35 pointer-events-none grayscale select-none" : ""
                       }`}
                     >
                       {/* Active Step Header */}
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-black text-[var(--accent)] uppercase tracking-widest px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] w-max flex items-center gap-1.5">
-                            <span className="material-symbols-outlined !text-[13px]">
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
                               {getStepIcon(card)}
                             </span>
                             <span>{`${t("step", "STEP")} ${idx + 1} / ${cards.length}`}</span>
@@ -1051,6 +1434,43 @@ export default function SupportHub() {
 
                       {/* Card Body */}
                       <div className="flex flex-col gap-4">
+                        {card.type === 'OS_DETAILS' && (
+                          <div className="flex flex-col gap-4 w-full">
+                            <div className="flex flex-col gap-1.5 relative z-[60]">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-1">
+                                {t("landing_feedback_form_platform", "Target Platform")}
+                              </span>
+                              <CustomDropdown
+                                disableTint={true}
+                                value={osPlatform}
+                                options={[
+                                  { id: "Desktop App", label: t("landing_fb_desktop_title", "Desktop App") },
+                                  { id: "Website", label: t("landing_fb_web_title", "Website") },
+                                  { id: "Mobile PWA", label: t("landing_fb_pwa_title", "Mobile PWA") },
+                                ]}
+                                onChange={(val: string[]) =>
+                                  setOsPlatform((val[0] as "Desktop App" | "Website" | "Mobile PWA") || "Desktop App")
+                                }
+                                allowMultiSelect={false}
+                              />
+                            </div>
+                            <UniversalInput
+                              label={`${t("ticket_subject_label", "Ticket Subject")} *`}
+                              value={title}
+                              onChange={setTitle}
+                              onKeyDown={handleAdvance}
+                              placeholder={t("support_placeholder_title", "Enter a concise title...")}
+                            />
+                            <UniversalTextArea
+                              label={`${t("support_step_desc", "Issue Description")} *`}
+                              value={description}
+                              onChange={setDescription}
+                              placeholder={t("support_placeholder_desc", "Describe your issue and reproduction steps...")}
+                              className="min-h-[180px] sm:min-h-[220px]"
+                            />
+                          </div>
+                        )}
+
                         {card.type === 'CLASSIFICATION' && (
                           <div className="flex flex-col gap-4">
                             <div className="relative z-[70]">
@@ -1076,7 +1496,7 @@ export default function SupportHub() {
                                       {activeCategory.category_name}
                                     </span>
                                     <p className="text-xs text-[var(--subtext)] leading-relaxed">
-                                      {activeCategory.description || t("support_subtitle", "Complete each stage below to transmit a diagnostic support dossier.")}
+                                      {activeCategory.description || t("support_wizard_subtitle", "Select a support channel and complete each step below to submit your ticket.")}
                                     </p>
                                   </div>
                                 </div>
@@ -1102,7 +1522,7 @@ export default function SupportHub() {
                                       <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                                         {t("icon_terminal", "terminal")}
                                       </span>
-                                      <span>{t("dossier_attached_logs", "Attached Telemetry")}</span>
+                                      <span>{t("ticket_attached_logs", "Attached Logs")}</span>
                                     </span>
                                   )}
                                   <span className={VAULT_CHIP_CLASS}>
@@ -1111,6 +1531,7 @@ export default function SupportHub() {
                                     </span>
                                     <span>{`${cards.length} ${t("steps", "Steps")}`}</span>
                                   </span>
+                                  {supporterPerkChips}
                                 </div>
                               </div>
                             )}
@@ -1133,10 +1554,10 @@ export default function SupportHub() {
                                 </div>
                                 <div className="flex flex-col gap-1">
                                   <span className="text-xs font-black uppercase tracking-widest text-[var(--success)] flex items-center gap-1.5">
-                                    {t("supporter_ticket_expedited_banner", "Verified {Mason} Supporter — Expedited Support Routing Active")}
+                                    {t("supporter_ticket_expedited_banner", "Verified {Mason} Supporter — Priority Support Active")}
                                   </span>
                                   <p className="text-[11px] font-semibold text-[var(--subtext)] leading-relaxed">
-                                    {t("supporter_ticket_expedited_desc", "Your local SQLite Supporter Pass was verified for this {mason}. This ticket will be flagged for Priority Queue routing without exposing your global subscription list.")}
+                                    {t("supporter_ticket_expedited_desc", "Your local Supporter Pass was verified for this {mason}. This ticket will be flagged for Priority Queue routing without exposing your subscription list.")}
                                   </p>
                                 </div>
                               </div>
@@ -1226,18 +1647,18 @@ export default function SupportHub() {
                           <div className="flex flex-col gap-4 w-full">
                             {String(activeCategory?.show_title_box) !== "false" && (
                               <UniversalInput
-                                label={`${t("dossier_subtitle", "Ticket Subject")} *`}
+                                label={`${t("ticket_subject_label", "Ticket Subject")} *`}
                                 value={title}
                                 onChange={setTitle}
                                 onKeyDown={handleAdvance}
-                                placeholder={t("support_dossier_title_placeholder", "Enter Ticket Title...")}
+                                placeholder={t("support_placeholder_title", "Enter a concise title...")}
                               />
                             )}
                             <UniversalTextArea
-                              label={`${t("support_step_desc", "Incident Description")} *`}
+                              label={`${t("support_step_desc", "Issue Description")} *`}
                               value={description}
                               onChange={setDescription}
-                              placeholder={t("support_dossier_desc_placeholder", "Describe the issue in detail...")}
+                              placeholder={t("support_placeholder_desc", "Describe your issue in detail...")}
                               className="min-h-[180px] sm:min-h-[220px]"
                             />
                           </div>
@@ -1245,7 +1666,7 @@ export default function SupportHub() {
 
                         {card.type === 'TELEMETRY' && (
                           <div className="flex flex-col gap-4">
-                            <div className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_28%,transparent)] flex flex-col gap-3.5">
+                            <div className="glass-surface p-4 rounded-2xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-3.5">
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div className="flex items-center gap-2.5 min-w-0">
                                   <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center shrink-0 text-[var(--accent)]">
@@ -1255,7 +1676,7 @@ export default function SupportHub() {
                                   </div>
                                   <div className="flex flex-col min-w-0">
                                     <span className="text-xs font-black text-[var(--text)] truncate">
-                                      {t("dossier_attached_logs", "Attached Telemetry")}
+                                      {t("ticket_attached_logs", "Attached Logs")}
                                     </span>
                                     <span className="text-[10px] font-mono text-[var(--subtext)] truncate">
                                       {t("support_telemetry_opt", "Automatic Diagnostics")}
@@ -1263,7 +1684,7 @@ export default function SupportHub() {
                                   </div>
                                 </div>
 
-                                {String(activeCategory?.show_logs_box) !== "false" && (
+                                {(supportStream === "os_bug" || String(activeCategory?.show_logs_box) !== "false") && (
                                   <div className="ml-auto flex flex-wrap items-center justify-end gap-2 shrink-0">
                                     <button
                                       type="button"
@@ -1271,7 +1692,7 @@ export default function SupportHub() {
                                         e.stopPropagation();
                                         attachLog();
                                       }}
-                                      className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 cursor-pointer transition-all"
+                                      className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 cursor-pointer transition-all"
                                     >
                                       <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
                                         {t("icon_upload_file", "upload_file")}
@@ -1281,7 +1702,7 @@ export default function SupportHub() {
                                     <button
                                       type="button"
                                       onClick={() => setIsEditingRawTelemetry((prev) => !prev)}
-                                      className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1 cursor-pointer transition-all"
+                                      className="px-2.5 py-1.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--accent)] flex items-center gap-1 cursor-pointer transition-all"
                                     >
                                       <span className="material-symbols-outlined !text-[14px]">
                                         {isEditingRawTelemetry ? t("icon_check", "check") : t("icon_edit", "edit")}
@@ -1332,7 +1753,7 @@ export default function SupportHub() {
                                 <TicketLogViewer logs={previewTelemetryLogs} />
                               )}
 
-                              {isEditingRawTelemetry && String(activeCategory?.show_logs_box) !== "false" && (
+                              {isEditingRawTelemetry && (supportStream === "os_bug" || String(activeCategory?.show_logs_box) !== "false") && (
                                 <div className="pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
                                   <UniversalTextArea
                                     label={t("support_logs", "Attach Additional Logs")}
@@ -1352,17 +1773,21 @@ export default function SupportHub() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               <StatBox
                                 label={t("support_category", "Category")}
-                                value={activeCategory?.category_name || activeTab}
-                                icon={t("icon_category", "category")}
+                                value={
+                                  supportStream === "os_bug"
+                                    ? `${t("support_stream_os_bug", "OS Bug Report")} (${osPlatform})`
+                                    : activeCategory?.category_name || activeTab
+                                }
+                                icon={supportStream === "os_bug" ? t("icon_bug_report", "bug_report") : t("icon_category", "category")}
                                 iconColorClass="text-[var(--accent)]"
                               />
                               <StatBox
-                                label={t("dossier_subtitle", "Ticket Subject")}
+                                label={t("ticket_subject_label", "Ticket Subject")}
                                 value={title || activeCategory?.category_name || t("support_title", "Support Ticket")}
                                 icon={t("icon_receipt_long", "receipt_long")}
                                 iconColorClass="text-[var(--accent)]"
                               />
-                              {activeCategory?.requires_target_mod && (
+                              {supportStream === "community" && activeCategory?.requires_target_mod && (
                                 <StatBox
                                   label={t("target_artifact", "Target {Mod}")}
                                   value={selectedModItem?.displayName || selectedModItem?.name || targetModId || t("none", "None")}
@@ -1370,7 +1795,7 @@ export default function SupportHub() {
                                   iconColorClass="text-[var(--accent)]"
                                 />
                               )}
-                              {activeCategory?.requires_target_user && (
+                              {supportStream === "community" && activeCategory?.requires_target_user && (
                                 <StatBox
                                   label={t("support_target_user_label", "Target User ID")}
                                   value={targetUserId || t("none", "None")}
@@ -1379,6 +1804,12 @@ export default function SupportHub() {
                                 />
                               )}
                             </div>
+
+                            {supporterPerkChips && (
+                              <div className="flex flex-wrap items-center gap-2">
+                                {supporterPerkChips}
+                              </div>
+                            )}
 
                             {description && (
                               <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5">
@@ -1394,7 +1825,7 @@ export default function SupportHub() {
                             {previewTelemetryLogs && (
                               <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2.5">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                                  {t("dossier_attached_logs", "Attached Telemetry")}
+                                  {t("ticket_attached_logs", "Attached Logs")}
                                 </span>
                                 <TicketLogViewer logs={previewTelemetryLogs} />
                               </div>
@@ -1411,7 +1842,7 @@ export default function SupportHub() {
                               )}
                               <ActionButton
                                 icon={isSubmitting || isScanning ? t("icon_sync", "sync") : t("icon_send", "send")}
-                                label={isSubmitting || isScanning ? t("scanning", "Scanning...") : t("support_submit", "Submit Ticket")}
+                                label={isSubmitting || isScanning ? t("scanning", "Submitting...") : t("support_submit", "Submit Ticket")}
                                 variant="accent"
                                 disabled={isSubmitting || isScanning || isFormDisabled}
                                 onClick={submitTicket}
@@ -1436,6 +1867,7 @@ export default function SupportHub() {
                             label={t("confirm", "Confirm")}
                             icon={t("icon_done", "done")}
                             disabled={
+                              (card.type === 'OS_DETAILS' && (!title.trim() || !description.trim())) ||
                               (card.type === 'TARGET_MOD' && activeCategory?.requires_target_mod && !targetModId) ||
                               (card.type === 'TARGET_USER' && activeCategory?.requires_target_user && !targetUserId) ||
                               (card.type === 'CUSTOM' && card.field?.required && (!customFieldsData[card.id] || (Array.isArray(customFieldsData[card.id]) && customFieldsData[card.id].length === 0))) ||
@@ -1461,10 +1893,10 @@ export default function SupportHub() {
       </SidePanel>
 
       <ArtifactResolutionSidePanel
-        isOpen={!!resolutionType}
-        onClose={() => setResolutionType(null)}
-        type={resolutionType}
-        offendingMods={resolutionType === 'vault' ? vaultExtremeMods : resolutionType === 'blueprint' ? activeAdultMods : []}
+        isOpen={isResolutionOpen}
+        onClose={() => setIsResolutionOpen(false)}
+        type="support_lock"
+        offendingMods={activeSupportLockMods}
       />
     </>
   );

@@ -16,6 +16,7 @@ import { UniversalCard } from "../components/universal/UniversalCard";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import { useLexicon, CORE_LEXICONS_CACHE_KEY } from "../LexiconContext";
 import { useStore } from "../store";
+import { isStandaloneFork, getBrandConfig } from "../supabase";
 import {
   useTheme,
   DEFAULT_CORE_THEMES,
@@ -67,6 +68,10 @@ export function WayfinderChameleons({
   initialTab?: string;
 }) {
   const { t, osLogoUrl, titleAreaConfig, saveTitleAreaConfig } = useLexicon();
+  const canManageTitleArea = Boolean(isKeepers || isStandaloneFork);
+  const orgNameDisplay = isKeepers
+    ? t("sanctuary_foundry", "Sanctuary Foundry")
+    : getBrandConfig().orgName || t("sanctuary_foundry", "Sanctuary Foundry");
   const pushStatus = useStore((state: any) => state.pushStatus);
   const { activeThemeId, setActiveThemeId, setCoreThemes, currentTheme } = useTheme();
   const [isLogoPanelOpen, setIsLogoPanelOpen] = useState(false);
@@ -741,7 +746,7 @@ export function WayfinderChameleons({
       icon: t("icon_palette", "palette"),
       number: String(allThemeEntries.length),
     },
-    ...(isKeepers
+    ...(canManageTitleArea
       ? [
           {
             id: "title_area",
@@ -1165,7 +1170,7 @@ export function WayfinderChameleons({
         </div>
       ) : activeTab === "overview" ? (
         renderOverview()
-      ) : activeTab === "title_area" && isKeepers ? (
+      ) : activeTab === "title_area" && canManageTitleArea ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full pb-16">
           {(() => {
             const hasTitleDraft = hasIdeCachedDraft("cloud://core-title-area");
@@ -1177,7 +1182,7 @@ export function WayfinderChameleons({
                   layout="vertical"
                   icon={t("icon_subtitles", "subtitles")}
                   title={t("title_area_card_title_subtitles", "Title & Subtitles")}
-                  subtitle={`${t("lbl_by", "by")} ${t("sanctuary_foundry", "Sanctuary Foundry")}`}
+                  subtitle={`${t("lbl_by", "by")} ${orgNameDisplay}`}
                   onClick={openTitleAreaIde}
                   onContextMenu={(e) => {
                     openSanctuaryContextMenu(e, [
@@ -1219,7 +1224,7 @@ export function WayfinderChameleons({
                         <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                           {t("icon_verified", "verified")}
                         </span>
-                        <span>{t("sanctuary_foundry", "Sanctuary Foundry")}</span>
+                        <span>{orgNameDisplay}</span>
                       </div>
                       <div className={VAULT_CHIP_CLASS}>
                         <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
@@ -1245,7 +1250,7 @@ export function WayfinderChameleons({
                   layout="vertical"
                   icon={t("icon_branding_watermark", "branding_watermark")}
                   title={t("title_area_logo_group", "Logo & Brand Header")}
-                  subtitle={`${t("lbl_by", "by")} ${t("sanctuary_foundry", "Sanctuary Foundry")}`}
+                  subtitle={`${t("lbl_by", "by")} ${orgNameDisplay}`}
                   onClick={() => setIsLogoPanelOpen(true)}
                   onContextMenu={(e) => {
                     openSanctuaryContextMenu(e, [
@@ -1278,7 +1283,7 @@ export function WayfinderChameleons({
                         <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                           {t("icon_verified", "verified")}
                         </span>
-                        <span>{t("sanctuary_foundry", "Sanctuary Foundry")}</span>
+                        <span>{orgNameDisplay}</span>
                       </div>
                       <div className={VAULT_CHIP_CLASS}>
                         <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
@@ -1559,7 +1564,7 @@ export function WayfinderChameleons({
         )}
       </SidePanel>
 
-      {isKeepers && (
+      {canManageTitleArea && (
         <KeepersLogoSidePanel
           isOpen={isLogoPanelOpen}
           onClose={() => setIsLogoPanelOpen(false)}

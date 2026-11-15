@@ -4,7 +4,7 @@ import { isDesktop } from './utils/envUtils';
 import { isRootDomain } from './utils/routingUtils';
 import { mkdir, writeTextFile, readDir, readTextFile, remove, exists } from '@tauri-apps/plugin-fs';
 import enDefault from './lexicons/en-default.json';
-import { supabase, supabaseAuth } from './supabase';
+import { supabase, supabaseAuth, isStandaloneFork, getBrandConfig } from './supabase';
 import { useStore } from './store';
 import { postDevCoreAssetSync } from './utils/devAssetSync';
 import {
@@ -374,6 +374,33 @@ export function normalizeAllCapsForThemeCase(str: string): string {
   });
 }
 
+export function applyBrandTextOverrides(
+  text: string,
+  appTitleOverride?: string
+): string {
+  if (typeof text !== "string" || !text) return text;
+  const brand = getBrandConfig();
+  const effectiveAppTitle = (appTitleOverride || brand.appTitle || "Sanctuary OS").trim();
+  const effectiveOrgName = (brand.orgName || "Sanctuary Foundry").trim();
+  const effectiveSupportEmail = (brand.supportEmail || "support@sanctuaryos.gg").trim();
+  const effectiveRpId = (brand.webauthnRpId || "sanctuaryos.net").trim();
+
+  let out = text;
+  if ((isStandaloneFork || effectiveOrgName !== "Sanctuary Foundry") && out.includes("Sanctuary Foundry")) {
+    out = out.replace(/Sanctuary Foundry/g, effectiveOrgName);
+  }
+  if ((isStandaloneFork || effectiveAppTitle !== "Sanctuary OS") && effectiveAppTitle !== "Sanctuary OS" && out.includes("Sanctuary OS")) {
+    out = out.replace(/Sanctuary OS/g, effectiveAppTitle);
+  }
+  if (effectiveSupportEmail && effectiveSupportEmail !== "support@sanctuaryos.gg" && out.includes("support@sanctuaryos.gg")) {
+    out = out.replace(/support@sanctuaryos\.gg/g, effectiveSupportEmail);
+  }
+  if (effectiveRpId && effectiveRpId !== "sanctuaryos.net" && out.includes("sanctuaryos.net")) {
+    out = out.replace(/sanctuaryos\.net/g, effectiveRpId);
+  }
+  return out;
+}
+
 export function interpolateGlossaryTokens(
   str: string,
   dict: Record<string, any>,
@@ -435,7 +462,19 @@ export function interpolateGlossaryTokens(
     }
   );
 
-  return withArticles.replace(/\{\{?\{?([A-Za-z_]+)\}?\}?\}/g, (full, tokName) => {
+  const withDefiniteArticles = withArticles.replace(
+    /\b(the|The|THE)(\s+)\{\{?\{?([A-Za-z_]+)\}?\}?\}/g,
+    (full, article, space, tokName) => {
+      const resolved = resolveToken(tokName);
+      if (resolved === null) return full;
+      if (/^the\s+/i.test(resolved.trim())) {
+        return article === 'THE' ? resolved.toUpperCase() : resolved;
+      }
+      return `${article}${space}${resolved}`;
+    }
+  );
+
+  return withDefiniteArticles.replace(/\{\{?\{?([A-Za-z_]+)\}?\}?\}/g, (full, tokName) => {
     const resolved = resolveToken(tokName);
     return resolved !== null ? resolved : full;
   });
@@ -464,31 +503,35 @@ export interface CoreTitleAreaConfig {
   updatedAt?: string;
 }
 
+const INITIAL_BRAND = getBrandConfig();
+
 export const DEFAULT_CORE_TITLE_AREA_CONFIG: CoreTitleAreaConfig = {
-  logoUrl: '/icon.png',
-  appTitle: 'Sanctuary OS',
-  subtitles: [...DEFAULT_TITLE_AREA_SUBTITLES],
+  logoUrl: INITIAL_BRAND.logoUrl || '/icon.png',
+  appTitle: INITIAL_BRAND.appTitle || 'Sanctuary OS',
+  subtitles: INITIAL_BRAND.subtitles.length > 0 ? [...INITIAL_BRAND.subtitles] : [...DEFAULT_TITLE_AREA_SUBTITLES],
   lockedStrings: {},
 };
 
 export const CORE_TITLE_AREA_STORAGE_KEY = 'sanctuary_core_title_area_config_v1';
 
 export function readCoreTitleAreaConfig(): CoreTitleAreaConfig {
+  const brand = getBrandConfig();
+  const fallbackSubtitles = brand.subtitles.length > 0 ? brand.subtitles : DEFAULT_TITLE_AREA_SUBTITLES;
   try {
     const raw = localStorage.getItem(CORE_TITLE_AREA_STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_CORE_TITLE_AREA_CONFIG, subtitles: [...DEFAULT_TITLE_AREA_SUBTITLES], lockedStrings: {} };
+    if (!raw) return { ...DEFAULT_CORE_TITLE_AREA_CONFIG, subtitles: [...fallbackSubtitles], lockedStrings: {} };
     const parsed = JSON.parse(raw);
     return {
-      logoUrl: typeof parsed?.logoUrl === 'string' && parsed.logoUrl.trim() ? parsed.logoUrl.trim() : '/icon.png',
-      appTitle: typeof parsed?.appTitle === 'string' && parsed.appTitle.trim() ? parsed.appTitle.trim() : 'Sanctuary OS',
+      logoUrl: typeof parsed?.logoUrl === 'string' && parsed.logoUrl.trim() ? parsed.logoUrl.trim() : (brand.logoUrl || '/icon.png'),
+      appTitle: typeof parsed?.appTitle === 'string' && parsed.appTitle.trim() ? parsed.appTitle.trim() : (brand.appTitle || 'Sanctuary OS'),
       subtitles: Array.isArray(parsed?.subtitles) && parsed.subtitles.length > 0
         ? parsed.subtitles.map((s: any) => String(s || '').trim()).filter(Boolean)
-        : [...DEFAULT_TITLE_AREA_SUBTITLES],
+        : [...fallbackSubtitles],
       lockedStrings: parsed?.lockedStrings && typeof parsed.lockedStrings === 'object' ? { ...parsed.lockedStrings } : {},
       updatedAt: parsed?.updatedAt,
     };
   } catch {
-    return { ...DEFAULT_CORE_TITLE_AREA_CONFIG, subtitles: [...DEFAULT_TITLE_AREA_SUBTITLES], lockedStrings: {} };
+    return { ...DEFAULT_CORE_TITLE_AREA_CONFIG, subtitles: [...fallbackSubtitles], lockedStrings: {} };
   }
 }
 
@@ -690,6 +733,12 @@ export const LexiconProvider = ({ children }: any) => {
     ...readCachedSpokeBuiltinLexicons(wsId),
   }));
   const [titleAreaConfig, setTitleAreaConfig] = useState<CoreTitleAreaConfig>(() => readCoreTitleAreaConfig());
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = titleAreaConfig.appTitle || getBrandConfig().appTitle || 'Sanctuary OS';
+    }
+  }, [titleAreaConfig.appTitle]);
   const [previewSubtitleText, setPreviewSubtitleText] = useState<string | null>(null);
   const [previewLexiconState, setPreviewLexiconState] = useState<{
     id: string;
@@ -1354,26 +1403,28 @@ export const LexiconProvider = ({ children }: any) => {
     if (cached !== undefined) return cached;
 
     if (!key) {
-      const res = fallback ? interpolateGlossaryTokens(fallback, effectiveDictionary, effectiveLangState) : "";
+      const res = fallback ? applyBrandTextOverrides(interpolateGlossaryTokens(fallback, effectiveDictionary, effectiveLangState), titleAreaConfig.appTitle) : "";
       tCache.set(cacheKey, res);
       return res;
     }
 
     // 1. Dedicated Core Title Area System (ONLY Title & Subtitles are isolated from Lexicon files & locked from Spokes)
     if (key === "sidebar_app_title") {
-      const res = titleAreaConfig.appTitle || "Sanctuary OS";
+      const res = titleAreaConfig.appTitle || getBrandConfig().appTitle || "Sanctuary OS";
       tCache.set(cacheKey, res);
       return res;
     }
     if (key.startsWith("sidebar_app_subtitle_")) {
       if (previewSubtitleText) return previewSubtitleText;
+      const brandSubs = getBrandConfig().subtitles;
+      const fallbackSubs = brandSubs.length > 0 ? brandSubs : DEFAULT_TITLE_AREA_SUBTITLES;
       const list =
         Array.isArray(titleAreaConfig.subtitles) && titleAreaConfig.subtitles.length > 0
           ? titleAreaConfig.subtitles
-          : DEFAULT_TITLE_AREA_SUBTITLES;
+          : fallbackSubs;
       const num = parseInt(key.replace("sidebar_app_subtitle_", ""), 10);
       const idx = Number.isFinite(num) && num > 0 ? (num - 1) % list.length : 0;
-      const res = list[idx] || DEFAULT_TITLE_AREA_SUBTITLES[0];
+      const res = list[idx] || fallbackSubs[0];
       tCache.set(cacheKey, res);
       return res;
     }
@@ -1396,7 +1447,9 @@ export const LexiconProvider = ({ children }: any) => {
       } else if (key === "sidebar_wayfinder_tools" && (val === "Dev" || val === "Dev Tools")) {
         val = "Wayfinder";
       } else if (key === "supporter_keepers_title" && (val === "Sanctuary OS (Keepers Core)" || val === "Sanctuary Foundry (Keepers Core)")) {
-        val = "Sanctuary Foundry";
+        val = getBrandConfig().orgName || "Sanctuary Foundry";
+      } else if (key === "sanctuary_foundry" && isStandaloneFork) {
+        val = getBrandConfig().orgName || val;
       } else if (key === "icon_architecture" && val === "structure") {
         val = "architecture";
       }
@@ -1413,7 +1466,7 @@ export const LexiconProvider = ({ children }: any) => {
         key === "forge_case_upper"
           ? String(val)
           : typeof val === "string"
-            ? interpolateGlossaryTokens(val, effectiveDictionary, effectiveLangState)
+            ? applyBrandTextOverrides(interpolateGlossaryTokens(val, effectiveDictionary, effectiveLangState), titleAreaConfig.appTitle)
             : val;
       tCache.set(cacheKey, res);
       return res;
@@ -1440,7 +1493,7 @@ export const LexiconProvider = ({ children }: any) => {
           ? key
           : undefined;
     const res = resolvedFallback
-      ? interpolateGlossaryTokens(resolvedFallback, effectiveDictionary, effectiveLangState)
+      ? applyBrandTextOverrides(interpolateGlossaryTokens(resolvedFallback, effectiveDictionary, effectiveLangState), titleAreaConfig.appTitle)
       : resolvedFallback === "" || !key
         ? ""
         : `[${key}]`;

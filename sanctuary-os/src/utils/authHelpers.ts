@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import { supabase, supabaseAuth } from "../supabase";
 import { hashString } from "../lib/cryptoUtils";
 import { isDesktop } from "./envUtils";
@@ -7,6 +6,7 @@ import {
   checkAccountRecoveryMethod,
   clearPasskeySessionVerified,
   fetchMfaSecurityState,
+  getDesktopHardwareId,
 } from "./passkeyUtils";
 
 export interface PreparedMfaChallenge {
@@ -56,7 +56,7 @@ export async function checkDesktopHardwareBan(
 
   let rawHwid = "";
   try {
-    rawHwid = await invoke<string>("get_hardware_id");
+    rawHwid = (await getDesktopHardwareId()) || "";
   } catch {
     return { isBanned: false, hwidHash: null };
   }

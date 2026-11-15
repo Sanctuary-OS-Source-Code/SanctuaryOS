@@ -14,6 +14,129 @@ const corsHeaders = {
 
 const ALLOWED_DISPATCH_ROLES = new Set(["keeper", "admin", "core_dev"]);
 
+function parseVaultMasterKeyBytes(raw: string) {
+  const clean = String(raw || "").trim();
+  if (!clean) return null;
+  if (/^[0-9a-f]{64}$/i.test(clean)) {
+    const out = new Uint8Array(32);
+    for (let i = 0; i < 32; i++) {
+      out[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+    }
+    return out;
+  }
+  const b64 = clean.replace(/-/g, "+").replace(/_/g, "/").replace(/=+$/, "");
+  const pad = (4 - (b64.length % 4)) % 4;
+  try {
+    const bin = atob(b64 + "=".repeat(pad));
+    if (bin.length !== 32) return null;
+    const out = new Uint8Array(32);
+    for (let i = 0; i < 32; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+function bytesToB64UrlEmail(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function b64UrlToBytesEmail(input: string) {
+  const clean = (input || "").replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/").replace(/=+$/, "");
+  const pad = (4 - (clean.length % 4)) % 4;
+  const bin = atob(clean + "=".repeat(pad));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function sealRuntimeSecretWithMaster(keyName: string, plaintext: string): Promise<string> {
+  const clean = String(plaintext || "").trim();
+  if (!clean) return "";
+  const masterBytes = parseVaultMasterKeyBytes(Deno.env.get("SPOKE_VAULT_MASTER_KEY") || "");
+  if (!masterBytes) return clean;
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ikm = await crypto.subtle.importKey("raw", masterBytes, "HKDF", false, ["deriveKey"]);
+  const aesKey = await crypto.subtle.deriveKey(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt,
+      info: new TextEncoder().encode(`sanctuary-runtime-vault:v1:${keyName}`),
+    },
+    ikm,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"]
+  );
+  const aad = new TextEncoder().encode(`sanctuary-runtime-aad:v1|${keyName}`);
+  const ctBuf = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, additionalData: aad },
+    aesKey,
+    new TextEncoder().encode(clean)
+  );
+  return `enc:v1:master:${bytesToB64UrlEmail(salt)}:${bytesToB64UrlEmail(iv)}:${bytesToB64UrlEmail(new Uint8Array(ctBuf))}`;
+}
+
+async function openRuntimeSecretWithMaster(keyName: string, stored: string): Promise<string> {
+  const clean = String(stored || "").trim();
+  if (!clean) return "";
+  if (!clean.startsWith("enc:v1:")) return clean;
+  const parts = clean.split(":");
+  if (parts.length !== 6) throw new Error("Malformed encrypted runtime secret envelope");
+  const [, , kid, saltB64, ivB64, ctB64] = parts;
+  const candidates: Array<{ kid: string; key: NonNullable<ReturnType<typeof parseVaultMasterKeyBytes>> }> = [];
+  const primary = parseVaultMasterKeyBytes(Deno.env.get("SPOKE_VAULT_MASTER_KEY") || "");
+  if (primary) candidates.push({ kid: "master", key: primary });
+  const prevRaw = String(Deno.env.get("SPOKE_VAULT_PREVIOUS_KEYS") || "").trim();
+  if (prevRaw) {
+    for (const [idx, item] of prevRaw.split(",").map((s) => s.trim()).filter(Boolean).entries()) {
+      const colonIdx = item.indexOf(":");
+      const itemKid = colonIdx > 0 ? item.slice(0, colonIdx).trim() : `prev_${idx + 1}`;
+      const itemSecret = colonIdx > 0 ? item.slice(colonIdx + 1).trim() : item;
+      const parsed = parseVaultMasterKeyBytes(itemSecret);
+      if (parsed) candidates.push({ kid: itemKid, key: parsed });
+    }
+  }
+  const ordered = [
+    ...candidates.filter((c) => c.kid === kid),
+    ...candidates.filter((c) => c.kid !== kid),
+  ];
+  const salt = b64UrlToBytesEmail(saltB64);
+  const iv = b64UrlToBytesEmail(ivB64);
+  const ct = b64UrlToBytesEmail(ctB64);
+  const aad = new TextEncoder().encode(`sanctuary-runtime-aad:v1|${keyName}`);
+  for (const c of ordered) {
+    try {
+      const ikm = await crypto.subtle.importKey("raw", c.key, "HKDF", false, ["deriveKey"]);
+      const aesKey = await crypto.subtle.deriveKey(
+        {
+          name: "HKDF",
+          hash: "SHA-256",
+          salt,
+          info: new TextEncoder().encode(`sanctuary-runtime-vault:v1:${keyName}`),
+        },
+        ikm,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["decrypt"]
+      );
+      const ptBuf = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv, additionalData: aad },
+        aesKey,
+        ct
+      );
+      return new TextDecoder().decode(ptBuf);
+    } catch {
+      // try next key
+    }
+  }
+  throw new Error("Unable to decrypt runtime secret with configured master keys");
+}
+
 function escapeHtml(raw: string): string {
   return String(raw || "")
     .replace(/&/g, "&amp;")
@@ -200,9 +323,13 @@ Deno.serve(async (req: Request) => {
         );
       }
       if (body.support_email_api_key !== undefined) {
+        const rawKey = String(body.support_email_api_key || "").trim();
+        const sealedKey = rawKey
+          ? await sealRuntimeSecretWithMaster("support_email_api_key", rawKey)
+          : "";
         await adminClient.rpc("internal_set_runtime_secret", {
           p_key: "support_email_api_key",
-          p_value: String(body.support_email_api_key || "").trim(),
+          p_value: sealedKey,
         });
       }
       if (body.support_email_webhook_url !== undefined) {
@@ -307,7 +434,9 @@ Deno.serve(async (req: Request) => {
           p_key: "support_email_webhook_url",
         }),
       ]);
-      if (typeof secretKey === "string") vaultApiKey = secretKey.trim();
+      if (typeof secretKey === "string") {
+        vaultApiKey = (await openRuntimeSecretWithMaster("support_email_api_key", secretKey)).trim();
+      }
       if (typeof secretWebhook === "string") vaultWebhookUrl = secretWebhook.trim();
     } catch {
       // ignore if vault empty

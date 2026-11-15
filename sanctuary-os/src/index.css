@@ -139,7 +139,7 @@ html[data-sa-light-mode="true"] textarea::selection {
   width: 100vw;
   height: 100vh;
   pointer-events: none;
-  z-index: 999999;
+  z-index: 10000020;
   color: var(--text);
 }
 

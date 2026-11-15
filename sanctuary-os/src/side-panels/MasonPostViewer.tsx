@@ -174,6 +174,7 @@ export default function MasonPostViewer({
   const [userCollapsed, setUserCollapsed] = useState<Set<string>>(new Set());
   const [userExpanded, setUserExpanded] = useState<Set<string>>(new Set());
   const [repliesExpanded, setRepliesExpanded] = useState<Set<string>>(new Set());
+  const [hiddenLinkedAssetIds, setHiddenLinkedAssetIds] = useState<Set<string>>(new Set());
 
   const fetchComments = async () => {
     setLoading(true);
@@ -184,7 +185,10 @@ export default function MasonPostViewer({
       .order("created_at", { ascending: true });
 
     if (!error && commentsData) {
-      const authorIds = Array.from(new Set(commentsData.map((c) => c.author_id)));
+      const visibleComments = commentsData.filter(
+        (c: any) => c?.has_pending_flag !== true || c?.author_id === userId
+      );
+      const authorIds = Array.from(new Set(visibleComments.map((c) => c.author_id)));
       if (authorIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
@@ -194,13 +198,13 @@ export default function MasonPostViewer({
         const profileMap: any = {};
         profiles?.forEach((p: any) => (profileMap[p.id] = p));
 
-        const merged = commentsData.map((c) => ({
+        const merged = visibleComments.map((c) => ({
           ...c,
           author: profileMap[c.author_id] || { id: c.author_id, username: "Citizen" },
         }));
         setComments(merged);
       } else {
-        setComments(commentsData);
+        setComments(visibleComments);
       }
     }
     setLoading(false);
@@ -217,6 +221,99 @@ export default function MasonPostViewer({
       }
       fetchComments();
     }
+  }, [post?.id]);
+
+  useEffect(() => {
+    setHiddenLinkedAssetIds(new Set());
+    const rawContent = post?.content || "";
+    const linked = extractLinkedAssetsFromMarkdown(rawContent);
+    if (linked.length === 0) return;
+
+    const modIds = Array.from(new Set(linked.filter((a) => a.type === "mod").map((a) => a.id)));
+    const bpIds = Array.from(new Set(linked.filter((a) => a.type === "blueprint").map((a) => a.id)));
+    const nexusIds = Array.from(
+      new Set(linked.filter((a) => a.type !== "mod" && a.type !== "blueprint").map((a) => a.id))
+    );
+
+    let cancelled = false;
+    (async () => {
+      const hidden = new Set<string>();
+      const disallowedStatuses = new Set(["unverified", "under_review", "pending", "rejected", "unknown"]);
+
+      if (modIds.length > 0) {
+        const { data, error } = await supabase.from("mods").select("*").in("id", modIds);
+        if (!error && data) {
+          const foundMap = new Map(data.map((r: any) => [String(r.id), r]));
+          for (const id of modIds) {
+            const row: any = foundMap.get(String(id));
+            if (
+              !row ||
+              Number(row.compliance_tier || 0) >= 1 ||
+              row.has_pending_flag === true ||
+              disallowedStatuses.has(String(row.status || "").toLowerCase())
+            ) {
+              hidden.add(String(id));
+            }
+          }
+        }
+      }
+
+      if (bpIds.length > 0) {
+        const { data, error } = await supabase.from("blueprints").select("*").in("id", bpIds);
+        if (!error && data) {
+          const foundMap = new Map(data.map((r: any) => [String(r.id), r]));
+          for (const id of bpIds) {
+            const row: any = foundMap.get(String(id));
+            if (!row || Number(row.compliance_tier || 0) >= 1 || row.has_pending_flag === true) {
+              hidden.add(String(id));
+            }
+          }
+        }
+      }
+
+      if (nexusIds.length > 0) {
+        const { data, error } = await supabase.from("nexus_assets").select("*").in("id", nexusIds);
+        if (!error && data) {
+          const foundMap = new Map(data.map((r: any) => [String(r.id), r]));
+          for (const id of nexusIds) {
+            const row: any = foundMap.get(String(id));
+            if (!row || row.has_pending_flag === true || row.is_public === false) {
+              hidden.add(String(id));
+            }
+          }
+        }
+      }
+
+      if (!cancelled && hidden.size > 0) {
+        setHiddenLinkedAssetIds(hidden);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [post?.id, post?.content]);
+
+  useEffect(() => {
+    const onFlagged = (e: any) => {
+      const targetType = String(e?.detail?.targetType || "").toLowerCase();
+      const targetId = e?.detail?.targetId;
+      if (!targetId) return;
+      if (targetType === "comment") {
+        setComments((prev) => prev.filter((c: any) => String(c?.id) !== String(targetId)));
+      } else if ((targetType === "post" || targetType === "broadcast") && String(post?.id) === String(targetId)) {
+        onClose();
+      } else {
+        setHiddenLinkedAssetIds((prev) => {
+          if (prev.has(String(targetId))) return prev;
+          const next = new Set(prev);
+          next.add(String(targetId));
+          return next;
+        });
+      }
+    };
+    window.addEventListener("sanctuary-content-flagged", onFlagged);
+    return () => window.removeEventListener("sanctuary-content-flagged", onFlagged);
   }, [post?.id]);
 
   useEffect(() => {
@@ -968,7 +1065,9 @@ export default function MasonPostViewer({
 
               {/* Attached Nexus Assets Cards */}
               {(() => {
-                const linkedAssets = extractLinkedAssetsFromMarkdown(content);
+                const linkedAssets = extractLinkedAssetsFromMarkdown(content).filter(
+                  (asset) => !hiddenLinkedAssetIds.has(String(asset.id))
+                );
                 if (linkedAssets.length === 0) return null;
                 return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
@@ -1188,6 +1287,7 @@ export default function MasonPostViewer({
         isOpen={isAssetPanelOpen}
         onClose={() => setIsAssetPanelOpen(false)}
         onAssetSelect={handleLinkAsset}
+        widthClass="w-[90vw] md:w-[760px]"
         backdropZ="z-[60000]"
         panelZ="z-[60001]"
       />

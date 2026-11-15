@@ -2755,6 +2755,24 @@ export function GlobalCommandPalette({
           closePalette();
         },
       });
+      items.push({
+        id: "action_cloud_sync_guard",
+        category: "actions",
+        title: t("cloud_guard_panel_title", "Cloud-Sync Folder Guard"),
+        subtitle: t(
+          "cloud_guard_cmd_subtitle",
+          "Inspect OneDrive, iCloud, Dropbox & symlink safety or manage consent"
+        ),
+        badgeLabel: actionsBadge,
+        badgeIcon: t("icon_cloud_sync", "cloud_sync"),
+        icon: t("icon_cloud_sync", "cloud_sync"),
+        keywords:
+          "onedrive icloud dropbox google drive mega proton nextcloud cloud sync symlink hydration backup consent",
+        onSelect: () => {
+          useModalStore.getState().openCloudSyncGuard();
+          closePalette();
+        },
+      });
     }
 
     // Chameleon Themes

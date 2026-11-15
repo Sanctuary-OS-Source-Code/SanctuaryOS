@@ -529,7 +529,12 @@ fn main() {
             native_webauthn_authenticate,
             reveal_main_window,
             get_native_gamepad_state,
-            open_steam_osk
+            open_steam_osk,
+            inspect_cloud_sync_status,
+            pin_cloud_folder_local_hydration,
+            relocate_master_vault_with_consent,
+            apply_cloud_sync_folder_exclusion,
+            open_cloud_sync_provider_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

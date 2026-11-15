@@ -12,6 +12,7 @@ import {
   isUnrelatedGameBugLog,
 } from "./KnownExceptionRules";
 import { scrubLogUserData, formatHumanReadableLogText } from "../utils/logScrubber";
+import { checkAndPromptSymlinkCloudSyncConsent } from "../utils/cloudSyncGuard";
 
 export interface LabSaveFileInfo {
   file_name: string;
@@ -823,13 +824,28 @@ export function LabVerificationGate({
     };
   }, []);
 
-  const handleStartInlineTimedTest = async () => {
+  const handleStartInlineTimedTest = async (skipCloudCheck: boolean | unknown = false) => {
     const effectiveHash = dnaHash || modName;
     if (!isDesktop() || !effectiveHash) return;
     setIsStarting(true);
     setFailedError(undefined);
     try {
       const config: any = await invoke("get_saved_coordinates");
+      if (skipCloudCheck !== true) {
+        const allowed = await checkAndPromptSymlinkCloudSyncConsent({
+          modsPath: config?.mods_path,
+          vaultPath: config?.vault_path,
+          docsPath: config?.docs_path || config?.user_data_path,
+          livePath: config?.live_path,
+          actionLabel: t("lab_start_inline_btn", "Start Verification Test"),
+          onAuthorizedProceed: () => {
+            void handleStartInlineTimedTest(true);
+          },
+        });
+        if (!allowed) {
+          return;
+        }
+      }
       const dPath = String(
         config?.docs_path || config?.user_data_path || config?.mods_path || ""
       ).trim();

@@ -9,6 +9,7 @@ import {
   CustomTierDropdown,
   HoverTooltip,
   ModSearchDropdown,
+  openModDossier,
   toHighlanderSlotSlug,
   formatHighlanderSlotLabel,
   resolveModHighlanderSlot,
@@ -229,7 +230,7 @@ export function ArtifactRulesTab({
         };
         localStorage.setItem("sanctuary_sandbox_configs", JSON.stringify(savedAll));
       }
-    } catch {}
+    } catch { }
   };
 
   const handleBrowsePushFolder = async () => {
@@ -241,7 +242,7 @@ export function ArtifactRulesTab({
       if (selected && typeof selected === "string") {
         updatePushConfig({ local_folder_path: selected });
       }
-    } catch {}
+    } catch { }
   };
 
   const handlePushManifestNow = async () => {
@@ -257,9 +258,9 @@ export function ArtifactRulesTab({
         (mod?.download_url || mod?.url || "").trim() ||
         (customManifestUrl
           ? customManifestUrl.replace(
-              /\/(\.sanctuary\.)?manifest\.json$/i,
-              `/${safeNameSlug}_v${versionStr.replace(/^v/i, "")}.zip`
-            )
+            /\/(\.sanctuary\.)?manifest\.json$/i,
+            `/${safeNameSlug}_v${versionStr.replace(/^v/i, "")}.zip`
+          )
           : `https://example.com/${safeNameSlug}_v${versionStr.replace(/^v/i, "")}.zip`);
 
       const resolvedPrimaryHash =
@@ -270,13 +271,13 @@ export function ArtifactRulesTab({
           [
             ...(Array.isArray(mod?.local_versions)
               ? mod.local_versions
-                  .map((v: any) => v.dna_hash)
-                  .filter((h: string) => h && h !== resolvedPrimaryHash)
+                .map((v: any) => v.dna_hash)
+                .filter((h: string) => h && h !== resolvedPrimaryHash)
               : []),
             ...(Array.isArray(mod?.mod_versions)
               ? mod.mod_versions
-                  .map((v: any) => v.dna_hash)
-                  .filter((h: string) => h && h !== resolvedPrimaryHash)
+                .map((v: any) => v.dna_hash)
+                .filter((h: string) => h && h !== resolvedPrimaryHash)
               : []),
             ...(Array.isArray(mod?._olderVersions)
               ? mod._olderVersions.map((ov: any) => ov.hash).filter(Boolean)
@@ -302,6 +303,9 @@ export function ArtifactRulesTab({
           author: mod?.master_author || "Unknown Author",
           version: versionStr,
           game_version: mod?.compatible_versions?.[0] || "",
+          compatible_versions: Array.isArray(mod?.compatible_versions)
+            ? mod.compatible_versions
+            : [],
           release_date: new Date().toISOString(),
           game_id:
             useStore.getState().activeGameSchema?.id ||
@@ -316,14 +320,14 @@ export function ArtifactRulesTab({
         current_hashes: resolvedPrimaryHash ? [resolvedPrimaryHash] : [],
         modules: resolvedPrimaryHash
           ? [
-              {
-                name:
-                  (mod?.name || `artifact${fallbackExt}`).split(/[\\/]/).pop() ||
-                  `artifact${fallbackExt}`,
-                sha256: resolvedPrimaryHash,
-                role: "core",
-              },
-            ]
+            {
+              name:
+                (mod?.name || `artifact${fallbackExt}`).split(/[\\/]/).pop() ||
+                `artifact${fallbackExt}`,
+              sha256: resolvedPrimaryHash,
+              role: "core",
+            },
+          ]
           : [],
         atomic_logic: {
           required_dlc: activeDlcIds,
@@ -343,13 +347,13 @@ export function ArtifactRulesTab({
           collections: localCollectionNames,
           ...(currentHighlanderState.slug
             ? {
-                highlander_group: {
-                  slug: currentHighlanderState.slug,
-                  name:
-                    currentHighlanderState.name ||
-                    formatHighlanderSlotLabel(currentHighlanderState.slug),
-                },
-              }
+              highlander_group: {
+                slug: currentHighlanderState.slug,
+                name:
+                  currentHighlanderState.name ||
+                  formatHighlanderSlotLabel(currentHighlanderState.slug),
+              },
+            }
             : {}),
         },
         virtual_filesystem: {
@@ -563,7 +567,7 @@ export function ArtifactRulesTab({
                 if (selectedMod) onAddDependencyDirect(selectedMod);
               }}
               selectedItem={null}
-              onClear={() => {}}
+              onClear={() => { }}
               placeholder={t("studio_rules_deps_search_ph", "Search catalog to add a required {mod}...")}
             />
           </div>
@@ -586,9 +590,25 @@ export function ArtifactRulesTab({
                     key={dep.id}
                     className="h-8 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5"
                   >
-                    <span className="text-[11px] font-bold text-[var(--text)] truncate">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target =
+                          dep.mod ||
+                          (dep.dependency_mod_id || dep.dependency_name
+                            ? {
+                              id: dep.dependency_mod_id,
+                              name: dep.dependency_name,
+                            }
+                            : null);
+                        if (target) {
+                          openModDossier({ ...target, isNexusView: true });
+                        }
+                      }}
+                      className="text-[11px] font-bold text-[var(--text)] hover:text-[var(--accent)] truncate transition-colors text-left flex-1 min-w-0 cursor-pointer"
+                    >
                       {dep.mod?.name || dep.dependency_name}
-                    </span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => onRemoveDependency(dep)}
@@ -637,7 +657,7 @@ export function ArtifactRulesTab({
                   if (selectedMod) onAddConflictCard(selectedMod);
                 }}
                 selectedItem={null}
-                onClear={() => {}}
+                onClear={() => { }}
                 placeholder={t("studio_rules_conflicts_search_ph", "Search catalog to flag a conflicting {mod}...")}
               />
             </div>
@@ -663,12 +683,22 @@ export function ArtifactRulesTab({
                       key={conf.id}
                       className="h-8 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5"
                     >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target =
+                            conf.enemyMod ||
+                            (conf.enemy_mod_id ? { id: conf.enemy_mod_id } : null);
+                          if (target) {
+                            openModDossier({ ...target, isNexusView: true });
+                          }
+                        }}
+                        className="flex items-center gap-1.5 min-w-0 flex-1 text-left cursor-pointer group/conf"
+                      >
+                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center gap-1 shrink-0">
                           <span
-                            className={`material-symbols-outlined !text-[11px] ${
-                              sev === 4 ? "text-[var(--danger)]" : "text-[var(--warning)]"
-                            }`}
+                            className={`material-symbols-outlined !text-[11px] ${sev === 4 ? "text-[var(--danger)]" : "text-[var(--warning)]"
+                              }`}
                           >
                             {sev === 4
                               ? t("icon_crisis_alert", "crisis_alert")
@@ -676,10 +706,10 @@ export function ArtifactRulesTab({
                           </span>
                           {sev === 4 ? "S4" : "S3"}
                         </span>
-                        <span className="text-[11px] font-bold text-[var(--text)] truncate">
-                          {conf.enemyMod?.name || "Conflict Mod"}
+                        <span className="text-[11px] font-bold text-[var(--text)] group-hover/conf:text-[var(--accent)] transition-colors truncate">
+                          {conf.enemyMod?.name || t("conflict_mod_fallback", "Conflicting {Mod}")}
                         </span>
-                      </div>
+                      </button>
                       <button
                         type="button"
                         onClick={() => onRemoveConflict(conf)}
@@ -730,12 +760,12 @@ export function ArtifactRulesTab({
                 onChange={(e) => setNewCollectionName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && onAddCollectionQuick()}
                 placeholder={t("studio_add_local_collection_ph", "New Collection name...")}
-                className="h-12 glass-surface rounded-[var(--radius)] px-4 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
+                className="h-11 glass-surface rounded-xl px-4 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
               />
               <button
                 type="button"
                 onClick={onAddCollectionQuick}
-                className="h-12 px-4 rounded-[var(--radius)] glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                className="h-11 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
               >
                 <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
                   {t("icon_add", "add")}
@@ -753,37 +783,37 @@ export function ArtifactRulesTab({
             <div className="h-[116px] overflow-y-auto custom-scrollbar p-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 sm:grid-cols-2 gap-1.5 content-start">
               {isCloudMod
                 ? assignedCloudCollections.map((col) => (
-                    <div
-                      key={col.id}
-                      className="h-8 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5"
+                  <div
+                    key={col.id}
+                    className="h-8 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5"
+                  >
+                    <span className="text-[11px] font-bold text-[var(--text)] truncate">{col.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => onToggleCloudCollection(col.id)}
+                      className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0 relative group/btn"
                     >
-                      <span className="text-[11px] font-bold text-[var(--text)] truncate">{col.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => onToggleCloudCollection(col.id)}
-                        className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0 relative group/btn"
-                      >
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
-                        <HoverTooltip title={t("lineage_btn_delete", "Delete")} variant="danger" />
-                      </button>
-                    </div>
-                  ))
+                      <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
+                      <HoverTooltip title={t("lineage_btn_delete", "Delete")} variant="danger" />
+                    </button>
+                  </div>
+                ))
                 : localCollectionNames.map((name) => (
-                    <div
-                      key={name}
-                      className="h-8 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5"
+                  <div
+                    key={name}
+                    className="h-8 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5"
+                  >
+                    <span className="text-[11px] font-bold text-[var(--text)] truncate">{name}</span>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveLocalCollection(name)}
+                      className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0 relative group/btn"
                     >
-                      <span className="text-[11px] font-bold text-[var(--text)] truncate">{name}</span>
-                      <button
-                        type="button"
-                        onClick={() => onRemoveLocalCollection(name)}
-                        className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0 relative group/btn"
-                      >
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
-                        <HoverTooltip title={t("lineage_btn_delete", "Delete")} variant="danger" />
-                      </button>
-                    </div>
-                  ))}
+                      <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
+                      <HoverTooltip title={t("lineage_btn_delete", "Delete")} variant="danger" />
+                    </button>
+                  </div>
+                ))}
             </div>
           )}
         </div>
@@ -852,14 +882,14 @@ export function ArtifactRulesTab({
                   })),
                   ...(!isCloudMod
                     ? [
-                        {
-                          id: "__custom__",
-                          label: t(
-                            "highlander_slot_custom_edge",
-                            "Custom Static Edge Slot..."
-                          ),
-                        },
-                      ]
+                      {
+                        id: "__custom__",
+                        label: t(
+                          "highlander_slot_custom_edge",
+                          "Custom Static Edge Slot..."
+                        ),
+                      },
+                    ]
                     : []),
                 ]}
                 onChange={(val: string[]) => {
@@ -907,11 +937,11 @@ export function ArtifactRulesTab({
                     "studio_highlander_custom_ph",
                     "e.g. Main Menu Replacements"
                   )}
-                  className="h-12 glass-surface rounded-[var(--radius)] px-4 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] w-full outline-none focus:border-[var(--accent)]"
+                  className="h-11 glass-surface rounded-xl px-4 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] w-full outline-none focus:border-[var(--accent)]"
                 />
               </div>
             ) : (
-              <div className="h-12 md:mt-[22px] px-4 rounded-[var(--radius)] bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
+              <div className="h-11 md:mt-[22px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
                 {currentHighlanderState.slug ? (
                   <>
                     <span className="text-xs font-bold text-[var(--text)] truncate">
@@ -998,7 +1028,7 @@ export function ArtifactRulesTab({
               "placeholder_static_manifest_url",
               "https://raw.githubusercontent.com/author/mod/main/.sanctuary.manifest.json"
             )}
-            className="h-12 glass-surface rounded-[var(--radius)] px-4 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+            className="h-11 glass-surface rounded-xl px-4 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
           />
         </div>
 
@@ -1101,7 +1131,7 @@ export function ArtifactRulesTab({
                       value={pushConfig.repo_or_project}
                       onChange={(e) => updatePushConfig({ repo_or_project: e.target.value })}
                       placeholder={t("edge_autopush_repo_label", "Repository (owner/repo)")}
-                      className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      className="h-11 glass-surface rounded-xl px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -1112,7 +1142,7 @@ export function ArtifactRulesTab({
                       value={pushConfig.branch}
                       onChange={(e) => updatePushConfig({ branch: e.target.value })}
                       placeholder="main"
-                      className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      className="h-11 glass-surface rounded-xl px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -1127,7 +1157,7 @@ export function ArtifactRulesTab({
                           ? "catalog.json"
                           : "my_mod/.sanctuary.manifest.json"
                       }
-                      className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      className="h-11 glass-surface rounded-xl px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                     />
                   </div>
                 </>
@@ -1149,7 +1179,7 @@ export function ArtifactRulesTab({
                         "edge_autopush_gist_label",
                         "Gist ID (Blank = Auto-Create on First Push)"
                       )}
-                      className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      className="h-11 glass-surface rounded-xl px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -1162,7 +1192,7 @@ export function ArtifactRulesTab({
                       placeholder={
                         pushConfig.target_mode === "catalog" ? "catalog.json" : ".sanctuary.manifest.json"
                       }
-                      className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      className="h-11 glass-surface rounded-xl px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                     />
                   </div>
                 </>
@@ -1178,7 +1208,7 @@ export function ArtifactRulesTab({
                       value={pushConfig.repo_or_project}
                       onChange={(e) => updatePushConfig({ repo_or_project: e.target.value })}
                       placeholder={t("edge_autopush_site_label", "Neocities Site Name")}
-                      className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      className="h-11 glass-surface rounded-xl px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5 md:col-span-2">
@@ -1193,7 +1223,7 @@ export function ArtifactRulesTab({
                           ? "catalog.json"
                           : "manifests/.sanctuary.manifest.json"
                       }
-                      className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      className="h-11 glass-surface rounded-xl px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                     />
                   </div>
                 </>
@@ -1212,7 +1242,7 @@ export function ArtifactRulesTab({
                         ? "https://gitlab.com"
                         : "https://your-domain.com/upload/.sanctuary.manifest.json"
                     }
-                    className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                    className="h-11 glass-surface rounded-xl px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                   />
                 </div>
               )}
@@ -1228,12 +1258,12 @@ export function ArtifactRulesTab({
                         value={pushConfig.local_folder_path}
                         onChange={(e) => updatePushConfig({ local_folder_path: e.target.value })}
                         placeholder={t("edge_autopush_folder_label", "Local Synced Folder Path")}
-                        className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
+                        className="h-11 glass-surface rounded-xl px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
                       />
                       <button
                         type="button"
                         onClick={handleBrowsePushFolder}
-                        className="h-10 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 cursor-pointer shrink-0"
+                        className="h-11 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[var(--accent)] text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 cursor-pointer shrink-0"
                       >
                         <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
                           {t("icon_folder_open", "folder_open")}
@@ -1254,7 +1284,7 @@ export function ArtifactRulesTab({
                           ? "catalog.json"
                           : "my_mod/.sanctuary.manifest.json"
                       }
-                      className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
+                      className="h-11 glass-surface rounded-xl px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] outline-none focus:border-[var(--accent)]"
                     />
                   </div>
                 </>
@@ -1277,12 +1307,12 @@ export function ArtifactRulesTab({
                         "edge_autopush_token_label",
                         "Scoped API Token / Key (Stored Locally Only)"
                       )}
-                      className="h-10 glass-surface rounded-xl px-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
+                      className="h-11 glass-surface rounded-xl px-3.5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPushToken(!showPushToken)}
-                      className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer shrink-0 relative group/btn"
+                      className="w-11 h-11 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer shrink-0 relative group/btn"
                     >
                       <span className="material-symbols-outlined !text-[16px]">
                         {showPushToken
@@ -1324,9 +1354,8 @@ export function ArtifactRulesTab({
               className="h-11 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] disabled:opacity-40 text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-2 transition-all cursor-pointer"
             >
               <span
-                className={`material-symbols-outlined !text-[16px] text-[var(--accent)] ${
-                  isPushingManifest ? "animate-spin" : ""
-                }`}
+                className={`material-symbols-outlined !text-[16px] text-[var(--accent)] ${isPushingManifest ? "animate-spin" : ""
+                  }`}
               >
                 {isPushingManifest
                   ? t("icon_refresh", "refresh")

@@ -1,12 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
+import { useModalStore } from '../store/modalStore';
 import { ActionButton, VAULT_CHIP_CLASS } from '../shared';
 import { isDesktop } from '../utils/envUtils';
 import { TabContainer, CustomSettingsDropdown, SettingsGrid, SettingsToggle } from './shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { LiquidGlassAlertCard } from '../components/BlueprintPatchReadiness';
+import {
+  useCloudSyncGuard,
+  normalizeCloudPathKey,
+  isCloudSyncFindingConsented,
+  getCloudSessionCleanMods,
+  setCloudSessionCleanMods,
+} from '../utils/cloudSyncGuard';
 
 const obfuscatePath = (p: string, unsetLabel: string) =>
   p && p !== 'web'
@@ -27,6 +35,36 @@ export default function EngineTab({
   activeSpokeName,
 }: any) {
   const { t } = useLexicon();
+  const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
+  const openCloudSyncGuard = useModalStore((s) => s.openCloudSyncGuard);
+  const cloudSyncGuard = useCloudSyncGuard(activeWorkspaceId);
+  const unconsentedEngineFindings = isDesktop()
+    ? cloudSyncGuard.unconsentedFindings.filter(
+        (f) =>
+          f.role === 'mods_target' ||
+          f.role === 'user_data' ||
+          f.role === 'game_root' ||
+          f.role === 'install_route'
+      )
+    : [];
+  const findCloudFindingForDir = (dir: any) => {
+    const dirNorm = normalizeCloudPathKey(dir?.value);
+    if (!dirNorm || dirNorm === 'web') return undefined;
+    return cloudSyncGuard.findings.find((f) => {
+      if (
+        normalizeCloudPathKey(f.configured_path) === dirNorm ||
+        normalizeCloudPathKey(f.resolved_path) === dirNorm
+      ) {
+        return true;
+      }
+      if (dir?.rustKey === 'mods_path') {
+        return f.role === 'mods_target' || f.role === 'install_route';
+      }
+      if (dir?.rustKey === 'docs_path') return f.role === 'user_data';
+      if (dir?.rustKey === 'live_path') return f.role === 'game_root';
+      return false;
+    });
+  };
   const isDefconDisabled = Number(config?.engine_agency_level ?? 2) === 0;
   const capacityGb = Number(config?.vault_capacity_gb ?? 0);
 
@@ -36,7 +74,27 @@ export default function EngineTab({
   const [autoPurgeCachesOnLaunch, setAutoPurgeCachesOnLaunch] = useState<boolean>(() => {
     return localStorage.getItem('sanctuary_auto_purge_caches_on_launch') !== 'false';
   });
+  const [sessionCleanModsOnExit, setSessionCleanModsOnExit] = useState<boolean>(() => {
+    return getCloudSessionCleanMods(activeWorkspaceId);
+  });
   const [detectingPaths, setDetectingPaths] = useState(false);
+
+  useEffect(() => {
+    const syncCleanMods = () => {
+      setSessionCleanModsOnExit(getCloudSessionCleanMods(activeWorkspaceId));
+    };
+    syncCleanMods();
+    window.addEventListener('sanctuary-cloud-sync-consent-changed', syncCleanMods);
+    return () => {
+      window.removeEventListener('sanctuary-cloud-sync-consent-changed', syncCleanMods);
+    };
+  }, [activeWorkspaceId]);
+
+  const handleToggleSessionCleanMods = () => {
+    const next = !sessionCleanModsOnExit;
+    setSessionCleanModsOnExit(next);
+    setCloudSessionCleanMods(next, activeWorkspaceId);
+  };
 
   const handlePostLaunchActionChange = (val: string) => {
     const clean = val === 'minimize' || val === 'close' ? val : 'keep_open';
@@ -148,29 +206,90 @@ export default function EngineTab({
               onAction={handleAutoDetectGamePaths}
             />
 
+            {unconsentedEngineFindings.length > 0 && (
+              <LiquidGlassAlertCard
+                isAlertCard={true}
+                icon={t('icon_cloud_sync', 'cloud_sync')}
+                accentVar="var(--warning)"
+                iconColorClass="text-[var(--warning)]"
+                badgeIcon={t('icon_warning', 'warning')}
+                badgeLabel={Array.from(
+                  new Set(unconsentedEngineFindings.map((f) => f.provider))
+                ).join(', ')}
+                overline={t('cloud_guard_panel_title', 'Cloud-Sync Folder Guard')}
+                title={t(
+                  'cloud_guard_engine_warn_title',
+                  'Cloud Sync Detected In Game Paths'
+                )}
+                description={t(
+                  'cloud_guard_engine_warn_desc',
+                  'One or more active workspace paths resolve inside a cloud-synced folder. Review hydration pinning, local relocation, or explicit consent—nothing changes automatically.'
+                )}
+                actionLabel={t('cloud_guard_review_btn', 'Review Cloud-Sync Options')}
+                actionIcon={t('icon_verified_user', 'verified_user')}
+                actionVariant="warning"
+                onAction={() => openCloudSyncGuard()}
+              />
+            )}
+
             {safeGamePaths.map((dir: any) => {
               const isUnset = !dir.value || !String(dir.value).trim() || dir.value === 'web';
+              const dirCloudFinding = isDesktop() ? findCloudFindingForDir(dir) : undefined;
+              const isDirCloudUnconsented = Boolean(
+                dirCloudFinding && !isCloudSyncFindingConsented(dirCloudFinding)
+              );
               return (
                 <UniversalCard
                   key={dir.rustKey}
                   headerStyle="inline"
                   title={dir.label}
                   subtitle={dir.description}
-                  statusColor={isUnset ? 'warning' : undefined}
+                  statusColor={isUnset || isDirCloudUnconsented ? 'warning' : undefined}
                   icon={dir.icon || t('icon_folder', 'folder')}
                   actions={
-                    <span className={VAULT_CHIP_CLASS}>
-                      <span
-                        className={`material-symbols-outlined !text-[12px] ${
-                          isUnset ? 'text-[var(--warning)]' : 'text-[var(--accent)]'
-                        }`}
-                      >
-                        {t('icon_workspaces', 'workspaces')}
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      {dirCloudFinding && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openCloudSyncGuard();
+                          }}
+                          className={`${VAULT_CHIP_CLASS} cursor-pointer bg-transparent`}
+                        >
+                          <span
+                            className={`material-symbols-outlined !text-[12px] ${
+                              isDirCloudUnconsented
+                                ? 'text-[var(--warning)]'
+                                : 'text-[var(--success)]'
+                            }`}
+                          >
+                            {t('icon_cloud_sync', 'cloud_sync')}
+                          </span>
+                          <span
+                            className={
+                              isDirCloudUnconsented
+                                ? 'text-[var(--warning)]'
+                                : 'text-[var(--success)]'
+                            }
+                          >
+                            {dirCloudFinding.provider}
+                          </span>
+                        </button>
+                      )}
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span
+                          className={`material-symbols-outlined !text-[12px] ${
+                            isUnset ? 'text-[var(--warning)]' : 'text-[var(--accent)]'
+                          }`}
+                        >
+                          {t('icon_workspaces', 'workspaces')}
+                        </span>
+                        <span className="truncate max-w-[140px]">
+                          {activeSpokeName || t('scope_workspace', 'Workspace Scope')}
+                        </span>
                       </span>
-                      <span className="truncate max-w-[140px]">
-                        {activeSpokeName || t('scope_workspace', 'Workspace Scope')}
-                      </span>
-                    </span>
+                    </div>
                   }
                   onClick={() => pickPath(dir.rustKey, dir.label)}
                   footer={
@@ -261,6 +380,19 @@ export default function EngineTab({
               isActive={autoPurgeCachesOnLaunch}
               onClick={handleToggleAutoPurgeCaches}
               actions={<SettingsToggle checked={autoPurgeCachesOnLaunch} />}
+            />
+
+            <UniversalCard
+              headerStyle="inline"
+              title={t('settings_session_clean_mods_title', 'Clean {Mods} Symlinks When Game Closes')}
+              subtitle={t(
+                'settings_session_clean_mods_desc',
+                'ON: Automatically removes deployed {Blueprint} symlinks from {Mods} after your game exits so cloud-sync clients (Google Drive, OneDrive, iCloud) stay clear at rest.\nOFF: Leaves {Blueprint} symlinks deployed between sessions.'
+              )}
+              icon={t('icon_auto_delete', 'auto_delete')}
+              isActive={sessionCleanModsOnExit}
+              onClick={handleToggleSessionCleanMods}
+              actions={<SettingsToggle checked={sessionCleanModsOnExit} />}
             />
           </SettingsGrid>
         </TabContainer>

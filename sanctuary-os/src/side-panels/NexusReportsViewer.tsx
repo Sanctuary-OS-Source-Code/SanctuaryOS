@@ -121,6 +121,25 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
       });
     }
 
+    // Fetch Collections if any content_flags reference collections
+    const collectionIds = Array.from(
+      new Set(
+        (commData || [])
+          .filter((r: any) => r.content_type === "collection" && r.content_id)
+          .map((r: any) => String(r.content_id))
+      )
+    );
+    const collectionById = new Map<string, any>();
+    if (collectionIds.length > 0) {
+      const { data: colsData } = await supabase
+        .from("collections")
+        .select("*, masons(id, name, profile_id)")
+        .in("id", collectionIds);
+      (colsData || []).forEach((c: any) => {
+        if (c?.id) collectionById.set(String(c.id), c);
+      });
+    }
+
     const unified: UnifiedReport[] = [];
 
     if (nexusData) {
@@ -287,6 +306,41 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
 
     if (commData) {
       commData.forEach((r: any) => {
+        if (r.content_type === "collection") {
+          const col = collectionById.get(String(r.content_id));
+          const colMason = col?.masons
+            ? Array.isArray(col.masons)
+              ? col.masons[0]
+              : col.masons
+            : col?.mason_id
+              ? masonById.get(String(col.mason_id))
+              : null;
+          const colAuthorName =
+            colMason?.name || col?.creator_name || t("unknown", "Unknown");
+
+          unified.push({
+            id: r.id,
+            source: "nexus",
+            status: r.status === "pending" ? "pending" : r.status === "dismissed" ? "dismissed" : "resolved",
+            title: col?.name || t("collections", "Collections"),
+            description: r.reason || t("no_reason", "No reason provided"),
+            created_at: r.created_at,
+            reporter_name: r.reporter_id || t("anonymous", "Anonymous"),
+            target_id: r.content_id,
+            metadata: {
+              original_status: r.status,
+              report_table: "content_flags",
+              content_type: "collection",
+              asset_subtype: "collection",
+              author: colMason?.profile_id || null,
+              author_name: colAuthorName,
+              is_public: col?.status !== "hidden",
+              collection_full: col || null,
+            },
+          });
+          return;
+        }
+
         const post = r.content_type === "post" ? postById.get(String(r.content_id)) : null;
         const postMason = post?.masons
           ? Array.isArray(post.masons)
@@ -309,6 +363,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
           target_id: r.content_id,
           metadata: {
             original_status: r.status,
+            report_table: "content_flags",
             content_type: r.content_type,
             asset_subtype: "comm-link",
             author: postMason?.profile_id || null,
@@ -348,12 +403,49 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
     setIsSubmittingAction(true);
 
     try {
-      const table = selectedReport.source === 'nexus' ? 'nexus_reports'
-        : selectedReport.source === 'blueprint' ? 'blueprint_reports'
-          : 'content_flags';
+      const table =
+        selectedReport.metadata?.report_table ||
+        (selectedReport.source === 'nexus' ? 'nexus_reports'
+          : selectedReport.source === 'blueprint' ? 'blueprint_reports'
+            : 'content_flags');
 
       if (action === 'dismiss') {
         await supabase.from(table).update({ status: 'dismissed' }).eq('id', selectedReport.id);
+        try {
+          const targetCol =
+            table === 'content_flags'
+              ? 'content_id'
+              : selectedReport.source === 'nexus'
+                ? 'asset_id'
+                : 'blueprint_id';
+          let remainingQuery = supabase
+            .from(table)
+            .select('id', { count: 'exact', head: true })
+            .eq(targetCol, selectedReport.target_id)
+            .eq('status', 'pending');
+          if (table === 'content_flags' && selectedReport.metadata?.content_type) {
+            remainingQuery = remainingQuery.eq('content_type', selectedReport.metadata.content_type);
+          }
+          const { count: remainingPending } = await remainingQuery;
+          if (!remainingPending || remainingPending === 0) {
+            const targetEntityTable =
+              selectedReport.metadata?.content_type === 'collection'
+                ? 'collections'
+                : selectedReport.source === 'nexus'
+                  ? 'nexus_assets'
+                  : selectedReport.source === 'blueprint'
+                    ? 'blueprints'
+                    : selectedReport.metadata?.content_type === 'comment'
+                      ? 'mason_post_comments'
+                      : 'mason_posts';
+            await supabase
+              .from(targetEntityTable)
+              .update({ has_pending_flag: false })
+              .eq('id', selectedReport.target_id);
+          }
+        } catch (clearFlagErr) {
+          console.warn('Clear pending flag check warning:', clearFlagErr);
+        }
         logArchitectAction(
           `Dismissed report for ${selectedReport.title}`,
           table,
@@ -367,7 +459,29 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
           }
         );
       } else if (action === 'remove') {
-        if (selectedReport.source === 'nexus') {
+        if (selectedReport.metadata?.content_type === 'collection') {
+          await supabase
+            .from('collections')
+            .update({ status: 'hidden', has_pending_flag: false })
+            .eq('id', selectedReport.target_id);
+          await supabase
+            .from('content_flags')
+            .update({ status: 'resolved' })
+            .eq('content_type', 'collection')
+            .eq('content_id', selectedReport.target_id);
+          logArchitectAction(
+            `Removed Collection (Hidden from Public): ${selectedReport.title} due to: ${resolutionReason}`,
+            'collections',
+            selectedReport.target_id,
+            resolutionReason || undefined,
+            undefined,
+            false,
+            {
+              status: { to: 'hidden' },
+              report_status: { from: selectedReport.status || 'pending', to: 'resolved' },
+            }
+          );
+        } else if (selectedReport.source === 'nexus') {
           await supabase.from('nexus_assets').update({ is_public: false }).eq('id', selectedReport.target_id);
           await supabase.from(table).update({ status: 'resolved' }).eq('id', selectedReport.id);
           logArchitectAction(
@@ -420,6 +534,8 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
       } else if (action === 'flag_compliance') {
         const candidateModId = (
           flagModId.trim() ||
+          selectedReport.metadata?.mod_id ||
+          selectedReport.metadata?.asset_full?.mod_id ||
           selectedReport.metadata?.compliance_audit?.violations?.[0]?.modId ||
           ""
         ).trim();
@@ -528,6 +644,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
 
   const getAssetSubtypeLabel = (report: UnifiedReport) => {
     const sub = String(report.metadata?.asset_subtype || report.source || "").toLowerCase();
+    if (sub === "collection") return t("collections", "Collections");
     if (sub === "blueprint") return t("playsets_title", "{Blueprints}");
     if (sub === "lexicon") return t("tab_lexicons", "{Lexicons}");
     if (sub === "chameleon") return t("tab_chameleons", "Chameleons");
@@ -538,6 +655,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
 
   const getAssetSubtypeIcon = (report: UnifiedReport) => {
     const sub = String(report.metadata?.asset_subtype || report.source || "").toLowerCase();
+    if (sub === "collection") return t("icon_collections_bookmark", "collections_bookmark");
     if (sub === "blueprint") return t("icon_architecture", "architecture");
     if (sub === "lexicon") return t("icon_translate", "translate");
     if (sub === "chameleon") return t("icon_palette", "palette");
@@ -850,8 +968,21 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
                   icon={t("icon_save", "save")}
                   tooltip={t("dossier_btn_save", "Save Action")}
                   variant="accent"
-                  disabled={isSubmittingAction || !resolutionReason || !selectedAction || (selectedAction === 'ban' && !banDuration)}
-                  onClick={() => handleProcessReport(selectedAction as "dismiss" | "remove" | "ban")}
+                  disabled={
+                    isSubmittingAction ||
+                    !resolutionReason ||
+                    !selectedAction ||
+                    (selectedAction === 'ban' && !banDuration) ||
+                    (selectedAction === 'flag_compliance' &&
+                      !(
+                        flagModId ||
+                        selectedReport.metadata?.mod_id ||
+                        selectedReport.metadata?.asset_full?.mod_id ||
+                        selectedReport.metadata?.compliance_audit?.violations?.[0]?.modId ||
+                        ""
+                      ).trim())
+                  }
+                  onClick={() => handleProcessReport(selectedAction as "dismiss" | "remove" | "flag_compliance" | "ban")}
                 />
               )}
             </PanelHeaderGroup>
@@ -1045,6 +1176,8 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
                             label={t("target_mod_uuid", "Target {Mod} UUID")}
                             value={
                               flagModId ||
+                              selectedReport.metadata?.mod_id ||
+                              selectedReport.metadata?.asset_full?.mod_id ||
                               selectedReport.metadata?.compliance_audit?.violations?.[0]?.modId ||
                               ""
                             }
@@ -1071,7 +1204,20 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
                       <ActionButton
                         variant="accent"
                         icon={t("icon_save", "save")}
-                        disabled={isSubmittingAction || !resolutionReason || !selectedAction || (selectedAction === 'ban' && !banDuration)}
+                        disabled={
+                          isSubmittingAction ||
+                          !resolutionReason ||
+                          !selectedAction ||
+                          (selectedAction === 'ban' && !banDuration) ||
+                          (selectedAction === 'flag_compliance' &&
+                            !(
+                              flagModId ||
+                              selectedReport.metadata?.mod_id ||
+                              selectedReport.metadata?.asset_full?.mod_id ||
+                              selectedReport.metadata?.compliance_audit?.violations?.[0]?.modId ||
+                              ""
+                            ).trim())
+                        }
                         onClick={() => handleProcessReport(selectedAction as any)}
                         className="w-full justify-center !py-3 mt-1"
                       >

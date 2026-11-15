@@ -1,6 +1,6 @@
 # Sanctuary OS — Privacy Policy
 
-**Document Version:** V6.1 (v0.6.0-Dev.13)  
+**Document Version:** V6.2 (v0.6.0-Dev.14)  
 **Effective Date:** November 14, 2026  
 
 ---
@@ -56,5 +56,13 @@ When you support a Mason or donate to Sanctuary Foundry or a Partner Community S
 
 ---
 
-## 8. Data Retention, Offline Operation & Account Control
+## 8. Platform Classification, Minor Safety & Zero Social-Graph Harvesting
+Sanctuary OS is strictly **local-first technical configuration software, developer tooling, cybersecurity middleware, and a creator-to-subscriber release dispatch tool**—never an open social media network, commercial storefront, or user media host:
+* **No General User Profiles, DMs, or Social Posting:** Standard Citizen accounts do not have public social profiles, peer-to-peer direct messaging (DMs), or open Comm-Link posting privileges. **Comm-Link** operates strictly as a **Verified Creator Changelog & Release Dispatch Channel**, and all cloud **Nexus Asset uploads (minus non-media JSON hash Blueprints)** are strictly locked to FIDO2-authenticated **Verified Masons** behind Core hardgates that **Partner Spokes cannot override**. Consequently, Sanctuary OS performs zero social-graph profiling, behavioral ad targeting, or engagement tracking on Citizens or minors.
+* **Age Eligibility (`13+` Citizens / `18+` Creators & Staff) & COPPA / GDPR-K Compliance:** Sanctuary OS is not directed at children under `13` (or the higher minimum digital-consent age required in a user's jurisdiction, such as `13–16` under GDPR), and Elevated Creator/Staff clearances (`Verified Mason` through `Keeper`) require **18+ adult majority** and hardware/biometric FIDO2 Passkey enrollment.
+* **Zero Invasive Age-Surveillance Data Collection:** Sanctuary OS protects minors structurally through zero public Citizen profiles, zero stranger DMs, non-overridable Verified Mason publishing hardgates, and strict public **Compliance Tier 0** scrubbing—**without** collecting or storing government photo IDs, driver's licenses, or facial-biometric age-estimation scans. If we learn a child under the applicable minimum age has created a network account without verifiable legal consent, we will promptly deactivate and purge that account upon notice.
+
+---
+
+## 9. Data Retention, Offline Operation & Account Control
 * **100% Offline Capability:** You may use Sanctuary OS entirely offline (`Guest / Offline Local Mode` or `Local Network Only` air-gap mode) to manage your Vault, Mod Version History, Load Order, Homestead Lab, Workbench configs, and Time Capsule backups without creating an account.

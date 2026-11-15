@@ -9,7 +9,6 @@ import {
 import {
   SidePanel,
   SidePanelHeroCard,
-  UniversalGroup,
   DashboardStatTile,
   SidePanelFilterBar,
   PanelHeaderGroup,
@@ -34,7 +33,7 @@ export default function WebLegalViewer() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "").toLowerCase();
-      if (["eula", "privacy", "terms"].includes(hash)) {
+      if (["eula", "privacy", "terms", "compliance"].includes(hash)) {
         setActiveLegal(hash);
       } else if (!hash) {
         setActiveLegal(null);
@@ -49,6 +48,8 @@ export default function WebLegalViewer() {
         eula: "eula",
         privacy: "privacy",
         terms: "terms",
+        compliance: "compliance",
+        complianceprotocol: "compliance",
       };
       if (map[detail]) {
         setActiveLegal(map[detail]);
@@ -77,6 +78,7 @@ export default function WebLegalViewer() {
         eula: "EULA",
         privacy: "Privacy",
         terms: "Terms",
+        compliance: "ComplianceProtocol",
       };
 
       const targetCategory = catMap[activeLegal] || "EULA";
@@ -87,15 +89,16 @@ export default function WebLegalViewer() {
       setLegalContent(
         syncedRec
           ? {
-              title: syncedRec.title,
-              category: targetCategory,
-              message: syncedRec.content,
-            }
+            title: syncedRec.title,
+            category: targetCategory,
+            message: syncedRec.content,
+            updated_at: syncedRec.updated_at,
+          }
           : {
-              title: canonicalDoc.title,
-              category: canonicalDoc.category,
-              message: canonicalDoc.bundledContent,
-            }
+            title: canonicalDoc.title,
+            category: canonicalDoc.category,
+            message: canonicalDoc.bundledContent,
+          }
       );
       setLoading(false);
     };
@@ -110,7 +113,7 @@ export default function WebLegalViewer() {
   const handleClose = () => {
     setActiveLegal(null);
     if (
-      ["eula", "privacy", "terms"].includes(
+      ["eula", "privacy", "terms", "compliance"].includes(
         window.location.hash.replace("#", "").toLowerCase()
       )
     ) {
@@ -149,13 +152,13 @@ export default function WebLegalViewer() {
       }
     >
       <div className="flex flex-col gap-5 mt-2 relative z-10 w-full pb-8">
-        <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
+        <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
           <DashboardStatTile
             variant="filter"
             className="!w-full"
             icon={t("icon_gavel", "gavel")}
-            label={`V${stableVersion} • ${t("btn_view", "View")}`}
-            number={t("landing_eula", "EULA")}
+            label={t("auth_covenant_eula_badge", "Software License")}
+            number={t("landing_eula", "System EULA")}
             isActive={activeLegal === "eula"}
             onClick={() => setActiveLegal("eula")}
           />
@@ -163,8 +166,8 @@ export default function WebLegalViewer() {
             variant="filter"
             className="!w-full"
             icon={t("icon_shield", "shield")}
-            label={`V${stableVersion} • ${t("btn_view", "View")}`}
-            number={t("landing_privacy", "Privacy")}
+            label={t("auth_covenant_privacy_badge", "Zero-PII & Age Privacy")}
+            number={t("landing_privacy", "Privacy Protocol")}
             isActive={activeLegal === "privacy"}
             onClick={() => setActiveLegal("privacy")}
           />
@@ -172,10 +175,19 @@ export default function WebLegalViewer() {
             variant="filter"
             className="!w-full"
             icon={t("icon_description", "description")}
-            label={`V${stableVersion} • ${t("btn_view", "View")}`}
-            number={t("landing_terms", "Terms")}
+            label={t("auth_covenant_terms_badge", "User Rules & Clearances")}
+            number={t("landing_terms", "Terms of Service")}
             isActive={activeLegal === "terms"}
             onClick={() => setActiveLegal("terms")}
+          />
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_verified_user", "verified_user")}
+            label={t("compliance_protocol_badge", "Safety & Privacy")}
+            number={t("compliance_protocol_title", "Compliance Protocol")}
+            isActive={activeLegal === "compliance"}
+            onClick={() => setActiveLegal("compliance")}
           />
         </SidePanelFilterBar>
 
@@ -191,41 +203,35 @@ export default function WebLegalViewer() {
             "subtitle_sanctuary_alerts",
             "Official legal terms, privacy policy, and end-user license agreement."
           )}
-          badge={`V${stableVersion} • ${activeLegal?.toUpperCase() || "LEGAL"}`}
+          badge={`V${stableVersion}`}
           badgeIcon={t("icon_verified", "verified")}
           variant="accent"
         >
-          <LegalDocVersionInfoBlock />
+          <LegalDocVersionInfoBlock
+            content={legalContent?.message || legalContent?.content}
+            updatedAt={legalContent?.updated_at}
+          />
         </SidePanelHeroCard>
 
-        <UniversalGroup
-          title={
-            legalContent?.title ||
-            activeLegal?.toUpperCase() ||
-            t("legal_subtitle", "Document")
-          }
-          icon={t("icon_description", "description")}
-        >
-          {loading ? (
-            <EmptyState
-              icon={t("icon_sync", "sync")}
-              title={t("loading", "Loading...")}
+        {loading ? (
+          <EmptyState
+            icon={t("icon_sync", "sync")}
+            title={t("loading", "Loading...")}
+          />
+        ) : viewMode === "ui" ? (
+          <StructuredReleaseNotesView
+            content={legalContent?.message || legalContent?.content || ""}
+            hideIntro={true}
+          />
+        ) : (
+          <div className="glass-panel rounded-2xl p-5 sm:p-6 prose prose-invert max-w-none text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+            <MarkdownRenderer
+              content={cleanPostBodyForViewer(
+                legalContent?.message || legalContent?.content || ""
+              )}
             />
-          ) : viewMode === "ui" ? (
-            <StructuredReleaseNotesView
-              content={legalContent?.message || legalContent?.content || ""}
-              hideIntro={true}
-            />
-          ) : (
-            <div className="glass-panel rounded-3xl p-5 sm:p-6 prose prose-invert max-w-none text-[var(--text)]">
-              <MarkdownRenderer
-                content={cleanPostBodyForViewer(
-                  legalContent?.message || legalContent?.content || ""
-                )}
-              />
-            </div>
-          )}
-        </UniversalGroup>
+          </div>
+        )}
       </div>
     </SidePanel>
   );

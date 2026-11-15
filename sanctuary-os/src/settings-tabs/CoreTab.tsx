@@ -4,7 +4,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { isDesktop } from "../utils/envUtils";
-import { supabase, supabaseAuth, isStandaloneFork, getActiveGameClient } from "../supabase";
+import { supabase, supabaseAuth, isStandaloneFork, getActiveGameClient, getBrandConfig } from "../supabase";
 import { buildSpokeRelinkToken, parseSpokeRelinkToken } from "../utils/stagingCrypto";
 import { TabContainer, SettingsGrid, SettingsToggle } from "./shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
@@ -27,6 +27,8 @@ import {
 import { openSanctuaryLogin } from "../AuthWrapper";
 import {
   fetchMfaSecurityState,
+  getCachedMfaSecurityState,
+  prewarmPasskeyAuthenticationOptions,
   registerFidoPasskey,
   authenticateFidoPasskey,
   deleteSecurityFactor,
@@ -86,12 +88,15 @@ export default function CoreTab() {
     return null;
   });
 
-  const [factors, setFactors] = useState<any[]>([]);
-  const [passkeys, setPasskeys] = useState<any[]>([]);
-  const [totpFactors, setTotpFactors] = useState<any[]>([]);
-  const [isPasskeyVerified, setIsPasskeyVerified] = useState(false);
+  const initialMfa = getCachedMfaSecurityState(session?.user?.id);
+  const [factors, setFactors] = useState<any[]>(() => initialMfa?.allVerifiedFactors || []);
+  const [passkeys, setPasskeys] = useState<any[]>(() => initialMfa?.passkeys || []);
+  const [totpFactors, setTotpFactors] = useState<any[]>(() => initialMfa?.totpFactors || []);
+  const [isPasskeyVerified, setIsPasskeyVerified] = useState<boolean>(() =>
+    Boolean(initialMfa?.isPasskeyVerified)
+  );
   const [isVerifiedMason, setIsVerifiedMason] = useState(false);
-  const [loading2FA, setLoading2FA] = useState(true);
+  const [loading2FA, setLoading2FA] = useState<boolean>(() => !initialMfa);
   const [mfaEnrollTab, setMfaEnrollTab] = useState<"passkey" | "totp">("passkey");
   const [showAddPasskeyForm, setShowAddPasskeyForm] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
@@ -106,7 +111,11 @@ export default function CoreTab() {
   const [verifyingStepUp, setVerifyingStepUp] = useState(false);
   const [passkeyError, setPasskeyError] = useState("");
   const [citizenPolicy, setCitizenPolicy] = useState<CitizenSecurityPolicy>(() =>
-    getCitizenSecurityPolicy(session, false, false)
+    getCitizenSecurityPolicy(
+      session,
+      Boolean(initialMfa?.hasPasskey || initialMfa?.hasTotp),
+      Boolean(initialMfa?.hasPasskey)
+    )
   );
   const [savingPolicy, setSavingPolicy] = useState(false);
 
@@ -247,6 +256,16 @@ export default function CoreTab() {
     return rawMessage;
   };
 
+  useEffect(() => {
+    if (
+      activePanel === "2fa" &&
+      requiresPasskeyStepUp &&
+      isNativeLocalPasskeySupported()
+    ) {
+      void prewarmPasskeyAuthenticationOptions();
+    }
+  }, [activePanel, requiresPasskeyStepUp]);
+
   const handlePasskeyStepUp = async () => {
     setVerifyingStepUp(true);
     setPasskeyError("");
@@ -254,6 +273,17 @@ export default function CoreTab() {
     if (error) {
       setPasskeyError(formatPasskeyError(error.message));
       setVerifyingStepUp(false);
+      return;
+    }
+    const optimistic = getCachedMfaSecurityState(session?.user?.id);
+    if (optimistic) {
+      setPasskeys(optimistic.passkeys);
+      setTotpFactors(optimistic.totpFactors);
+      setFactors(optimistic.allVerifiedFactors);
+      setIsPasskeyVerified(Boolean(optimistic.isPasskeyVerified));
+      setLoading2FA(false);
+      setVerifyingStepUp(false);
+      void loadFactors();
       return;
     }
     await loadFactors();
@@ -340,7 +370,7 @@ export default function CoreTab() {
 
       const { data, error } = await supabaseAuth.auth.mfa.enroll({
         factorType: "totp",
-        issuer: "Sanctuary OS",
+        issuer: getBrandConfig().appTitle || "Sanctuary OS",
         friendlyName: fName,
       });
       if (error) {

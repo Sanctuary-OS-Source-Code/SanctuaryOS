@@ -6,6 +6,7 @@ import { useModalStore } from "../store/modalStore";
 import { useLexicon } from "../LexiconContext";
 import { logUserAction } from "../lib/audit";
 import { packageBlueprintLoadOrder, unpackBlueprintLoadOrder } from "./usePlaySetLogic";
+import { buildExportableModMetadata, mergeImportedModWithClientPriority } from "../utils/blueprintOverrideUtils";
 
 export function useCloudService(activeMasonProfileId: string | null, tier2Hashes: string[]) {
   const { t } = useLexicon();
@@ -170,7 +171,47 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       (m: any) => m?.hash && verifiedTier0Hashes.has(String(m.hash).trim())
     );
 
-    const modsToUpload = packagedLO.enrichAndSortArtifacts(strictTier0Mods);
+    let localOverrides: Record<string, any> = {};
+    let edgeLogic: Record<string, any> = {};
+    try {
+      localOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+    } catch { }
+    try {
+      edgeLogic = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+    } catch { }
+
+    const portableTier0Mods = strictTier0Mods.map((m: any) => {
+      const modName = String(m?.name || m?.path || "");
+      const lastSlash = Math.max(modName.lastIndexOf("/"), modName.lastIndexOf("\\"));
+      const cleanName = lastSlash >= 0 ? modName.slice(lastSlash + 1) || modName : modName;
+      const liveMod =
+        modList.find(
+          (lm: any) =>
+            lm?.name === modName ||
+            (lm?.hash && m?.hash && lm.hash === m.hash) ||
+            (lm?.name?.split(/[\\/]/).pop() || lm?.name || "").toLowerCase() ===
+              cleanName.toLowerCase()
+        ) || m;
+      const hash = String(m?.hash || liveMod?.hash || "").trim();
+      const override = hash ? localOverrides[hash] : undefined;
+      const edgeEntry = hash ? edgeLogic[hash] : undefined;
+      const meta = targetSet.modMeta?.[modName] || targetSet.modMeta?.[cleanName];
+      const portableMeta = buildExportableModMetadata({
+        mod: liveMod,
+        override,
+        meta,
+        edgeEntry,
+        modName,
+        cleanName,
+      });
+      return {
+        name: modName,
+        hash,
+        ...portableMeta,
+      };
+    });
+
+    const modsToUpload = packagedLO.enrichAndSortArtifacts(portableTier0Mods);
 
     const blueprintData = {
       name: targetSet.name,
@@ -276,9 +317,18 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
       const missing: any[] = [];
       const rawAvailableMods: string[] = [];
       const nextModHashes: Record<string, string> = {};
-      const nextModMeta: Record<string, { url?: string; author?: string }> = {};
+      const nextModMeta: Record<string, any> = {};
       const nameRemap = new Map<string, string>();
       const rawArtifacts = Array.isArray(data.artifacts) ? data.artifacts : [];
+      let localOverrides: Record<string, any> = {};
+      let edgeLogic: Record<string, any> = {};
+      let localOverridesDirty = false;
+      try {
+        localOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+      } catch { }
+      try {
+        edgeLogic = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
+      } catch { }
 
       rawArtifacts.forEach((m: any) => {
          let found = null;
@@ -293,6 +343,27 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
                if (targetBase) found = baseToMod.get(targetBase);
             }
          }
+         const targetHash =
+           (found && found.hash) ||
+           (m && typeof m !== 'string' ? m.hash : '') ||
+           '';
+         const metaKey = found ? found.name : rawNameToCheck;
+         if (m && typeof m !== 'string' && metaKey) {
+            const merged = mergeImportedModWithClientPriority({
+               importedMod: m,
+               targetHash,
+               localOverrides,
+               edgeLogic,
+               existingPlaysetMeta: nextModMeta[metaKey],
+            });
+            if (Object.keys(merged.resolvedModMeta).length > 0) {
+               nextModMeta[metaKey] = merged.resolvedModMeta;
+            }
+            if (targetHash && merged.shouldWriteLocalOverride && merged.nextOverrideEntry) {
+               localOverrides[targetHash] = merged.nextOverrideEntry;
+               localOverridesDirty = true;
+            }
+         }
          if (found) {
             const resolvedClean = found.name.split(/[\\/]/).pop() || found.name;
             if (cleanArtifactFile) {
@@ -305,12 +376,15 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
             missing.push(m);
             if (typeof m !== 'string') {
                if (m.hash) nextModHashes[rawNameToCheck] = m.hash;
-               if (m.url || m.author) {
-                  nextModMeta[rawNameToCheck] = { url: m.url, author: m.author };
-               }
             }
          }
       });
+
+      if (localOverridesDirty) {
+        try {
+          localStorage.setItem("sanctuary_local_overrides", JSON.stringify(localOverrides));
+        } catch { }
+      }
 
       const { loadRules, modTiers, loadOrder, ignoredConflicts, formatModWithTier } = unpackBlueprintLoadOrder(
         { mods: rawArtifacts, ...data },
@@ -321,15 +395,6 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
         rawAvailableMods.map((mName) => formatModWithTier(mName)),
         activeGameSchema
       );
-
-      if (ignoredConflicts.length > 0) {
-        const prevIgnored = useStore.getState().ignoredGlobal || [];
-        const mergedIgnored = Array.from(new Set([...prevIgnored, ...ignoredConflicts]));
-        useStore.getState().setIgnoredGlobal(mergedIgnored);
-        try {
-          localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(mergedIgnored));
-        } catch {}
-      }
 
       const readySet = {
         name: finalName,

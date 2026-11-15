@@ -176,7 +176,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
     setIsProcessing(true);
 
     const rejectPayload = {
-      status: 'unverified',
+      status: 'rejected',
       description: (editForm.description + '\n\nREJECTION REASON: ' + reason).trim()
     };
     const { error } = await supabase.from('mods').update(rejectPayload).eq('id', activeMod.id);
@@ -203,10 +203,14 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
   const verifiedSubmissions = submissions.filter(
     (s: any) => Number(s?.compliance_tier || 0) === 0 && s.mason_id && verifiedMasonIds.has(s.mason_id)
   );
+  const isPendingStatus = (status: any) =>
+    ['under_review', 'pending', 'unverified', 'unknown'].includes(String(status || '').toLowerCase().trim());
+  const isCompletedStatus = (status: any) =>
+    ['verified', 'stable', 'rejected'].includes(String(status || '').toLowerCase().trim());
 
   const activeSubmissions = verifiedSubmissions.filter((s: any) => {
-    if (filterTab === 'pending') return s.status === 'under_review';
-    if (filterTab === 'completed') return s.status === 'verified' || s.status === 'unverified';
+    if (filterTab === 'pending') return isPendingStatus(s.status);
+    if (filterTab === 'completed') return isCompletedStatus(s.status);
     return true;
   });
   let filteredSubmissions = activeSubmissions.filter((s: any) => s.name?.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -220,8 +224,8 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
     return true;
   });
 
-  const pendingList = filteredSubmissions.filter(s => s.status === 'under_review');
-  const completedList = filteredSubmissions.filter(s => s.status === 'verified' || s.status === 'unverified');
+  const pendingList = filteredSubmissions.filter(s => isPendingStatus(s.status));
+  const completedList = filteredSubmissions.filter(s => isCompletedStatus(s.status));
 
   const tabs = [
     {
@@ -234,13 +238,13 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
       id: "pending",
       label: t("pending", "Pending"),
       icon: t("icon_schedule", "schedule"),
-      number: verifiedSubmissions.filter(s => s.status === 'under_review').length.toString()
+      number: verifiedSubmissions.filter(s => isPendingStatus(s.status)).length.toString()
     },
     {
       id: "completed",
       label: t("status_completed", "Completed"),
       icon: t("icon_check_circle", "check_circle"),
-      number: verifiedSubmissions.filter(s => s.status === 'verified' || s.status === 'unverified').length.toString()
+      number: verifiedSubmissions.filter(s => isCompletedStatus(s.status)).length.toString()
     }
   ];
 

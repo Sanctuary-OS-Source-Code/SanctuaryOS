@@ -634,7 +634,7 @@ export default function VaultCompanionRadarSidePanel({
                             }}
                             className={`px-3 py-2 rounded-xl text-left text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
                               selectedBpScope === "ALL_VAULT"
-                                ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                                ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                                 : "text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent"
                             }`}
                           >
@@ -659,7 +659,7 @@ export default function VaultCompanionRadarSidePanel({
                                 }}
                                 className={`px-3 py-2 rounded-xl text-left text-xs font-bold transition-all flex items-center justify-between gap-2 cursor-pointer ${
                                   isSelected
-                                    ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                                    ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                                     : "text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent"
                                 }`}
                               >
@@ -696,7 +696,7 @@ export default function VaultCompanionRadarSidePanel({
                             onClick={() => setEquipFilter(opt.id)}
                             className={`px-3 py-2 rounded-xl text-left text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
                               equipFilter === opt.id
-                                ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                                ? "bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                                 : "text-[var(--text)] opacity-70 hover:opacity-100 hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border border-transparent"
                             }`}
                           >
@@ -769,8 +769,8 @@ export default function VaultCompanionRadarSidePanel({
                         }}
                         className={`p-4 rounded-2xl glass-surface border transition-all cursor-pointer flex flex-col justify-between gap-3 group ${
                           markedForRemoval
-                            ? "border-[color-mix(in_srgb,var(--danger)_45%,transparent)]"
-                            : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                            ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
+                            : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                         }`}
                       >
                         <div className="flex items-start gap-3 min-w-0 w-full">
@@ -799,7 +799,7 @@ export default function VaultCompanionRadarSidePanel({
                           <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                             {art.isBroken ? (
                               <span
-                                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]`}
+                                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--danger)]`}
                               >
                                 <span className="material-symbols-outlined !text-[12px]">
                                   {t("icon_warning", "warning")}
@@ -810,7 +810,7 @@ export default function VaultCompanionRadarSidePanel({
                               </span>
                             ) : art.alertType === "alert" ? (
                               <span
-                                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]`}
+                                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--warning)]`}
                               >
                                 <span className="material-symbols-outlined !text-[12px]">
                                   {t("icon_warning_amber", "warning_amber")}
@@ -819,7 +819,7 @@ export default function VaultCompanionRadarSidePanel({
                               </span>
                             ) : art.hasUpdate ? (
                               <span
-                                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]`}
+                                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--warning)]`}
                               >
                                 <span className="material-symbols-outlined !text-[12px]">
                                   {t("icon_update", "update")}
@@ -832,7 +832,7 @@ export default function VaultCompanionRadarSidePanel({
                               </span>
                             ) : (
                               <span
-                                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)]`}
+                                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--success)]`}
                               >
                                 <span className="material-symbols-outlined !text-[12px]">
                                   {t("icon_verified", "verified")}
@@ -842,7 +842,7 @@ export default function VaultCompanionRadarSidePanel({
                             )}
                             {filterMode === "ALL" && inBp && (
                               <span
-                                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)]`}
+                                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--accent)]`}
                               >
                                 <span className="material-symbols-outlined !text-[12px]">
                                   {t("icon_check_circle", "check_circle")}
@@ -870,7 +870,7 @@ export default function VaultCompanionRadarSidePanel({
                                 className={`h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                                   staged
                                     ? "sa-glass-active text-[var(--accent)]"
-                                    : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+                                    : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                                 }`}
                               >
                                 <span className="material-symbols-outlined !text-[14px]">
@@ -892,8 +892,8 @@ export default function VaultCompanionRadarSidePanel({
                                 onClick={() => handleYeetSingleMod(art)}
                                 className={`h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                                   markedForRemoval
-                                    ? "glass-surface border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)]"
-                                    : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
+                                    ? "glass-surface border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--danger)]"
+                                    : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                                 }`}
                               >
                                 <span className="material-symbols-outlined !text-[14px]">
@@ -917,7 +917,7 @@ export default function VaultCompanionRadarSidePanel({
                                 className={`h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                                   staged
                                     ? "sa-glass-active text-[var(--accent)]"
-                                    : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]"
+                                    : "glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                                 }`}
                               >
                                 <span className="material-symbols-outlined !text-[14px]">
@@ -942,7 +942,7 @@ export default function VaultCompanionRadarSidePanel({
                     <button
                       type="button"
                       onClick={() => setVisibleCount((prev) => prev + 100)}
-                      className="col-span-full w-full py-3 mt-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--accent)] rounded-2xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center justify-center gap-2 transition-all cursor-pointer"
+                      className="col-span-full w-full py-3 mt-1 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] rounded-2xl text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center justify-center gap-2 transition-all cursor-pointer"
                     >
                       <span className="material-symbols-outlined !text-[16px]">
                         {t("icon_expand_more", "expand_more")}

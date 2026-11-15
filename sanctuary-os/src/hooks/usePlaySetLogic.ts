@@ -6,6 +6,8 @@ import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getExtensionRegex, formatDisplayName, deduplicateBlueprintArtifacts, stripPriorityTierPrefix, resolveModHighlanderSlot } from "../shared";
+import { mergeImportedModWithClientPriority } from "../utils/blueprintOverrideUtils";
+import { checkAndPromptSymlinkCloudSyncConsent } from "../utils/cloudSyncGuard";
 
 export interface LoadOrderRule {
   id: string;
@@ -2638,9 +2640,13 @@ export function usePlaySetLogic() {
       const nameRemap = new Map<string, string>();
       const extRegex = getExtensionRegex(activeGameSchema);
       let localOverrides: Record<string, any> = {};
+      let edgeLogic: Record<string, any> = {};
       let localOverridesDirty = false;
       try {
         localOverrides = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+      } catch { }
+      try {
+        edgeLogic = JSON.parse(localStorage.getItem("sanctuary_edge_logic") || "{}");
       } catch { }
 
       (parsed.mods || []).forEach((importedMod: any) => {
@@ -2661,37 +2667,20 @@ export function usePlaySetLogic() {
 
         if (importedMod && typeof importedMod !== 'string') {
           const targetHash = importedMod.hash || found?.hash;
-          const extractedMeta: Record<string, any> = {};
-          const metaKeys = [
-            'displayName', 'url', 'manifest_url', 'author', 'version',
-            'description', 'image_url', 'category_override', 'sub_type',
-            'file_extension', 'requiredDLC', 'compatible_versions',
-            'compliance_tier', 'allow_write', 'is_paid', 'is_early_access',
-            'created_at', 'updated_at', 'requirements', 'twins', 'conflicts', 'isLocalOverride'
-          ];
-          metaKeys.forEach((k) => {
-            if (importedMod[k] !== undefined && importedMod[k] !== "") {
-              extractedMeta[k] = importedMod[k];
-            }
-          });
           const metaKey = found ? found.name : rawNameToCheck;
-          if (metaKey && Object.keys(extractedMeta).length > 0) {
-            nextModMeta[metaKey] = extractedMeta;
+          const merged = mergeImportedModWithClientPriority({
+            importedMod,
+            targetHash,
+            localOverrides,
+            edgeLogic,
+            existingPlaysetMeta: metaKey ? nextModMeta[metaKey] : undefined,
+          });
+          if (metaKey && Object.keys(merged.resolvedModMeta).length > 0) {
+            nextModMeta[metaKey] = merged.resolvedModMeta;
           }
-          if (targetHash && (importedMod.isLocalOverride || importedMod.displayName || importedMod.manifest_url || importedMod.description)) {
-            const existingOvr = localOverrides[targetHash];
-            if (!existingOvr?.is_user_dossier) {
-              localOverrides[targetHash] = {
-                ...(existingOvr || {}),
-                ...extractedMeta,
-                displayName: existingOvr?.displayName || extractedMeta.displayName,
-                author: existingOvr?.author || extractedMeta.author,
-                version: existingOvr?.version || extractedMeta.version,
-                url: existingOvr?.url || extractedMeta.url,
-                manifest_url: existingOvr?.manifest_url || extractedMeta.manifest_url,
-              };
-              localOverridesDirty = true;
-            }
+          if (targetHash && merged.shouldWriteLocalOverride && merged.nextOverrideEntry) {
+            localOverrides[targetHash] = merged.nextOverrideEntry;
+            localOverridesDirty = true;
           }
         }
 
@@ -2727,16 +2716,6 @@ export function usePlaySetLogic() {
         rawAvailableMods.map((mName) => formatModWithTier(mName)),
         activeGameSchema
       );
-
-      if (ignoredConflicts.length > 0) {
-        setIgnoredGlobal((prevIgnored: string[]) => {
-          const merged = Array.from(new Set([...(prevIgnored || []), ...ignoredConflicts]));
-          try {
-            localStorage.setItem("sanctuary_ignored_conflicts", JSON.stringify(merged));
-          } catch { }
-          return merged;
-        });
-      }
 
       let baseName = `${parsed.name} (Imported)`;
       let newName = baseName;
@@ -2792,7 +2771,12 @@ export function usePlaySetLogic() {
     setPendingImportSet(null);
   }
 
-  async function equipPlaySet(setName: string | number, overrideSet?: any) {
+  async function equipPlaySet(
+    setName: string | number,
+    overrideSet?: any,
+    skipCloudCheck = false,
+    onAfterAuthorizedDeploy?: () => void
+  ): Promise<boolean> {
     const latestPlaySets = useStore.getState().playSets || playSets;
     const targetSet =
       overrideSet ||
@@ -2800,7 +2784,7 @@ export function usePlaySetLogic() {
         ? latestPlaySets[setName]
         : latestPlaySets.find((s: any) => s.name === setName) ||
         playSets.find((s) => s.name === setName));
-    if (!targetSet) return;
+    if (!targetSet) return false;
     const resolvedSetName = targetSet.name || String(setName);
     setStatus(
       `${t("status_deploying_prefix", "DEPLOYING: {Blueprint} [")}${resolvedSetName}${t("status_deploying_suffix", "]...")}`,
@@ -3026,6 +3010,29 @@ export function usePlaySetLogic() {
       deployPayload.sort((a, b) => (a.load_order_index ?? 999999) - (b.load_order_index ?? 999999));
 
       console.timeEnd("equipPlaySet_JS_overhead");
+      if (!skipCloudCheck) {
+        const allowed = await checkAndPromptSymlinkCloudSyncConsent({
+          modsPath: config.mods_path,
+          vaultPath: config.vault_path,
+          docsPath: config.docs_path,
+          livePath: config.live_path,
+          actionLabel: `${t("btn_equip", "Deploy {Blueprint}")}: ${resolvedSetName || targetSet.name}`,
+          onAuthorizedProceed: () => {
+            void equipPlaySet(setName, overrideSet, true).then((ok) => {
+              if (ok && onAfterAuthorizedDeploy) onAfterAuthorizedDeploy();
+            });
+          },
+        });
+        if (!allowed) {
+          setStatus(
+            t(
+              "cloud_guard_pending_action_canceled",
+              "Cloud-sync folder consent required before projecting symlinks."
+            )
+          );
+          return false;
+        }
+      }
       const msg = await invoke("deploy_playset_bulk", {
         mods: deployPayload,
         modsPath: config.mods_path,
@@ -3041,9 +3048,11 @@ export function usePlaySetLogic() {
       }
       setStatus(`${t("icon_check_circle", "check_circle")} ${t("btn_deployed", "DEPLOYED")} ${msg as string} ${t("backend_deployed_suffix", "{mods}.")} `);
       precomputeBlueprintConflicts(resolvedSetName, targetSet.mods, config.vault_path).catch(() => { });
+      return true;
     } catch (err) {
       const errStr = typeof err === "string" ? err : (err as any)?.message || String(err);
       setStatus(`${t("status_deploy_failed", "Deployment Failed:")} ${t(errStr, errStr)}`);
+      return false;
     }
   }
 

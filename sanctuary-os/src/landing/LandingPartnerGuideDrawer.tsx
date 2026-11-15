@@ -44,242 +44,242 @@ export function LandingPartnerGuideDrawer({
       desc: string;
     }>;
   }> = [
-    {
-      id: 'what',
-      overline: t('landing_partners_stage_1', 'STAGE 01 • ARCHITECTURE'),
-      title: t('landing_partners_tab_what', 'What is a Partner'),
-      subtitle: t(
-        'landing_partners_tab_what_sub',
-        '100% Sovereignty & 0% Tax'
-      ),
-      badge: t('landing_partners_tab_what_sub', '100% Sovereignty & 0% Tax'),
-      icon: t('icon_handshake', 'handshake'),
-      badgeIcon: t('icon_verified', 'verified'),
-      items: [
-        {
-          icon: t('icon_dns', 'dns'),
-          title: t(
-            'landing_partners_what_h1',
-            '1. Sovereign Game Workspace — Never a Central Silo'
-          ),
-          desc: t(
-            'landing_partners_what_p1',
-            "A Sanctuary OS Partner Spoke is an independent, community-governed game workspace (e.g. Skyrim, GTA V, Stardew Valley, Baldur's Gate 3). Unlike legacy modding portals, your community owns its own Supabase PostgreSQL database, Master Schema, {Mod} registry, and Chameleon themes. Either side can sever the uplink ('Cut the Cord') at any time with zero data loss."
-          ),
-        },
-        {
-          icon: t('icon_volunteer_activism', 'volunteer_activism'),
-          title: t(
-            'landing_partners_what_h2',
-            '2. Zero Platform Tax (0% Cut) & Mutual Supporter Perks'
-          ),
-          desc: t(
-            'landing_partners_what_p2',
-            'Sanctuary Foundry takes 0% of {Mason} or Partner Community revenue. Partner Spokes link their own non-custodial Stripe, Ko-fi, or Patreon checkout directly in Wayfinder Operations, and every $5 a {Citizen} contributes to a verified Partner Spoke automatically grants them +30 days of Global Dev Build access across Sanctuary OS.'
-          ),
-        },
-        {
-          icon: t('icon_admin_panel_settings', 'admin_panel_settings'),
-          title: t(
-            'landing_partners_what_h3',
-            '3. Community-Owned Governance & Roles'
-          ),
-          desc: t(
-            'landing_partners_what_p3',
-            "Your Wayfinders and Architects control your workspace's Master Schema, {Mod} verification standards, Chameleon themes, and moderation clearances independently inside your own database."
-          ),
-        },
-        {
-          icon: t('icon_devices', 'devices'),
-          title: t(
-            'landing_partners_what_h4',
-            '4. Native Desktop, Web & Mobile PWA Reach'
-          ),
-          desc: t(
-            'landing_partners_what_p4',
-            'Connecting a Partner Spoke mounts your game workspace across the Sanctuary OS Desktop Client (Windows & macOS), Web Portal, and Mobile PWA with conflict detection, {Backups}, and {Blueprints}.'
-          ),
-        },
-      ],
-    },
-    {
-      id: 'setup',
-      overline: t('landing_partners_stage_2', 'STAGE 02 • PROVISIONING'),
-      title: t('landing_partners_tab_setup', 'How to Set Up'),
-      subtitle: t('landing_partners_tab_setup_sub', 'Supabase & schema.sql'),
-      badge: t('landing_partners_tab_setup_sub', 'Supabase & schema.sql'),
-      icon: t('icon_dns', 'dns'),
-      badgeIcon: t('icon_terminal', 'terminal'),
-      items: [
-        {
-          icon: t('icon_storage', 'storage'),
-          title: t(
-            'landing_partners_setup_h1',
-            '1. Provision Your Supabase Instance & Run schema.sql'
-          ),
-          desc: t(
-            'landing_partners_setup_p1',
-            "Create a dedicated Supabase project owned by your community team. Open the SQL Editor and execute Sanctuary OS's 36-table schema.sql bootstrap script to initialize profiles, {mods}, {mod}_versions, {masons}, {blueprints}, audit_logs, and row-level security (RLS) policies."
-          ),
-        },
-        {
-          icon: t('icon_schema', 'schema'),
-          title: t(
-            'landing_partners_setup_h2',
-            "2. Configure Your Game's Master Schema"
-          ),
-          desc: t(
-            'landing_partners_setup_p2',
-            "Define your game's supported {Mod} file extensions (.dll, .lua, .ini, .json, .zip), installation target folders, load-order rules, and conflict radar heuristics inside your Master Schema JSON."
-          ),
-        },
-        {
-          icon: t('icon_category', 'category'),
-          title: t(
-            'landing_partners_setup_h3',
-            '3. Seed Categories, Tags & {Vault} Rules'
-          ),
-          desc: t(
-            'landing_partners_setup_p3',
-            "Populate your game's categories, subcategories, load-order priority tiers, and {Lab} isolation rules using the built-in Master Schema Studio in Architect Console."
-          ),
-        },
-        {
-          icon: t('icon_palette', 'palette'),
-          title: t(
-            'landing_partners_setup_h4',
-            '4. Customize Spoke Aesthetics & {Lexicon}'
-          ),
-          desc: t(
-            'landing_partners_setup_p4',
-            "Tailor your workspace's default Chameleon theme, terminology ({Mods}, {Masons}, {Citizens}), and community branding from Wayfinder Operations -> Spoke Aesthetics."
-          ),
-        },
-      ],
-    },
-    {
-      id: 'connect',
-      overline: t('landing_partners_stage_3', 'STAGE 03 • UPLINK HANDSHAKE'),
-      title: t('landing_partners_tab_connect', 'How to Connect'),
-      subtitle: t(
-        'landing_partners_tab_connect_sub',
-        'SANCTUARY-UPLINK:// Handshake'
-      ),
-      badge: t(
-        'landing_partners_tab_connect_sub',
-        'SANCTUARY-UPLINK:// Handshake'
-      ),
-      icon: t('icon_hub', 'hub'),
-      badgeIcon: t('icon_link', 'link'),
-      items: [
-        {
-          icon: t('icon_key', 'key'),
-          title: t(
-            'landing_partners_connect_h1',
-            '1. Generate Your SANCTUARY-UPLINK:// Handshake Token'
-          ),
-          desc: t(
-            'landing_partners_connect_p1',
-            'Once your Partner Spoke application is approved by Keepers Core, open Wayfinder Operations -> Spoke Control -> Spoke Setup & Maintenance to generate your SANCTUARY-UPLINK:// bundle containing your Project URL, Anon Key, and Service Role Key.'
-          ),
-        },
-        {
-          icon: t('icon_verified_user', 'verified_user'),
-          title: t(
-            'landing_partners_connect_h2',
-            '2. Cryptographic Verification & Live Hub Mounting'
-          ),
-          desc: t(
-            'landing_partners_connect_p2',
-            'Keepers Core runs a live schema and RLS handshake check against your Spoke. Once verified, your workspace goes live on the Sanctuary OS Hub switcher for Desktop, Web, and Mobile PWA {Citizens}.'
-          ),
-        },
-        {
-          icon: t('icon_assignment_turned_in', 'assignment_turned_in'),
-          title: t(
-            'landing_partners_connect_h3',
-            '3. Submit Your Partner Spoke Application'
-          ),
-          desc: t(
-            'landing_partners_connect_p3',
-            'Complete the 4-step Partner Spoke Readiness Check & Dossier on this page. Human Keepers review your game metadata and Master Schema readiness in Keepers Core.'
-          ),
-        },
-        {
-          icon: t('icon_shield_lock', 'shield_lock'),
-          title: t(
-            'landing_partners_connect_h4',
-            '4. Bilateral Threat & Malware Sync'
-          ),
-          desc: t(
-            'landing_partners_connect_p4',
-            'Once linked, your Spoke automatically receives global heuristic malware definitions while keeping all community {Mod} records, {Citizens}, and dispatches hosted strictly on your own Supabase instance.'
-          ),
-        },
-      ],
-    },
-    {
-      id: 'maintain',
-      overline: t('landing_partners_stage_4', 'STAGE 04 • OPERATIONS'),
-      title: t('landing_partners_tab_maintain', 'How to Maintain'),
-      subtitle: t(
-        'landing_partners_tab_maintain_sub',
-        'Wayfinder Operations & Perks'
-      ),
-      badge: t(
-        'landing_partners_tab_maintain_sub',
-        'Wayfinder Operations & Perks'
-      ),
-      icon: t('icon_security', 'security'),
-      badgeIcon: t('icon_shield', 'shield'),
-      items: [
-        {
-          icon: t('icon_tune', 'tune'),
-          title: t(
-            'landing_partners_maintain_h1',
-            '1. Wayfinder Operations, Key Rotation & Oversight'
-          ),
-          desc: t(
-            'landing_partners_maintain_p1',
-            'Manage your workspace day-to-day from Wayfinder Operations: appoint Architects and Oversight moderators, verify {Masons}, triage community reports, review heuristic malware flags, and rotate your Supabase keys anytime with zero downtime.'
-          ),
-        },
-        {
-          icon: t('icon_history_edu', 'history_edu'),
-          title: t(
-            'landing_partners_maintain_h2',
-            '2. Append-Only Audit Integrity & Cut-the-Cord Freedom'
-          ),
-          desc: t(
-            'landing_partners_maintain_p2',
-            "Every administrative action is recorded in your Spoke's immutable audit_logs table. If your community ever wishes to operate standalone, click 'Cut the Cord' in Spoke Control to sever the Hub uplink immediately while keeping 100% of your database."
-          ),
-        },
-        {
-          icon: t('icon_payments', 'payments'),
-          title: t(
-            'landing_partners_maintain_h3',
-            '3. Non-Custodial Community Donations'
-          ),
-          desc: t(
-            'landing_partners_maintain_p3',
-            "Link your community's Stripe, Ko-fi, or Patreon checkout URL in Wayfinder Operations. 100% of funds go directly to your processor (0% platform cut) while automatically crediting {Citizens} +30 days of Dev Builds per $5."
-          ),
-        },
-        {
-          icon: t('icon_bolt', 'bolt'),
-          title: t(
-            'landing_partners_maintain_h4',
-            '4. Schema Evolution & Zero-Downtime Updates'
-          ),
-          desc: t(
-            'landing_partners_maintain_p4',
-            "Push game patch updates, new {Mod} file format rules, and compatibility alerts directly to your {Citizens}' Desktop and Web clients in real time without waiting on central platform releases."
-          ),
-        },
-      ],
-    },
-  ];
+      {
+        id: 'what',
+        overline: t('landing_partners_stage_1', 'STAGE 01 • ARCHITECTURE'),
+        title: t('landing_partners_tab_what', 'What is a Partner'),
+        subtitle: t(
+          'landing_partners_tab_what_sub',
+          '100% Sovereignty & 0% Tax'
+        ),
+        badge: t('landing_partners_tab_what_sub', '100% Sovereignty & 0% Tax'),
+        icon: t('icon_handshake', 'handshake'),
+        badgeIcon: t('icon_verified', 'verified'),
+        items: [
+          {
+            icon: t('icon_dns', 'dns'),
+            title: t(
+              'landing_partners_what_h1',
+              '1. Sovereign Game Workspace — Never a Central Silo'
+            ),
+            desc: t(
+              'landing_partners_what_p1',
+              "A Sanctuary OS Partner Spoke is an independent, community-governed game workspace (e.g. Skyrim, GTA V, Stardew Valley, Baldur's Gate 3). Unlike legacy modding portals, your community owns its own Supabase PostgreSQL database, Master Schema, {Mod} registry, and Chameleon themes. Either side can sever the uplink ('Cut the Cord') at any time with zero data loss."
+            ),
+          },
+          {
+            icon: t('icon_volunteer_activism', 'volunteer_activism'),
+            title: t(
+              'landing_partners_what_h2',
+              '2. Zero Platform Tax (0% Cut) & Mutual Supporter Perks'
+            ),
+            desc: t(
+              'landing_partners_what_p2',
+              'Sanctuary Foundry takes 0% of {Mason} or Partner Community revenue. Partner Spokes link their own non-custodial Stripe, Ko-fi, or Patreon checkout directly in Wayfinder Operations, and every $5 a {Citizen} contributes to a verified Partner Spoke automatically grants them +30 days of Global Dev Build access across Sanctuary OS.'
+            ),
+          },
+          {
+            icon: t('icon_admin_panel_settings', 'admin_panel_settings'),
+            title: t(
+              'landing_partners_what_h3',
+              '3. Community-Owned Governance & Roles'
+            ),
+            desc: t(
+              'landing_partners_what_p3',
+              "Your Wayfinders and Architects control your workspace's Master Schema, {Mod} verification standards, Chameleon themes, and moderation clearances independently inside your own database."
+            ),
+          },
+          {
+            icon: t('icon_devices', 'devices'),
+            title: t(
+              'landing_partners_what_h4',
+              '4. Native Desktop, Web & Mobile PWA Reach'
+            ),
+            desc: t(
+              'landing_partners_what_p4',
+              'Connecting a Partner Spoke mounts your game workspace across the Sanctuary OS Desktop Client (Windows, macOS & Linux / SteamOS), Web Portal, and Mobile PWA with conflict detection, {Backups}, and {Blueprints}.'
+            ),
+          },
+        ],
+      },
+      {
+        id: 'setup',
+        overline: t('landing_partners_stage_2', 'STAGE 02 • PROVISIONING'),
+        title: t('landing_partners_tab_setup', 'How to Set Up'),
+        subtitle: t('landing_partners_tab_setup_sub', 'Supabase & schema.sql'),
+        badge: t('landing_partners_tab_setup_sub', 'Supabase & schema.sql'),
+        icon: t('icon_dns', 'dns'),
+        badgeIcon: t('icon_terminal', 'terminal'),
+        items: [
+          {
+            icon: t('icon_storage', 'storage'),
+            title: t(
+              'landing_partners_setup_h1',
+              '1. Provision Your Supabase Instance & Run schema.sql'
+            ),
+            desc: t(
+              'landing_partners_setup_p1',
+              "Create a dedicated Supabase project owned by your community team. Open the SQL Editor, execute Sanctuary OS's 52-table schema.sql bootstrap script to initialize tables and RLS policies, and run SELECT public.mint_spoke_gateway_token(); to mint your one-time scoped Spoke Gateway Token (spk_gw_...)."
+            ),
+          },
+          {
+            icon: t('icon_schema', 'schema'),
+            title: t(
+              'landing_partners_setup_h2',
+              "2. Configure Your Game's Master Schema"
+            ),
+            desc: t(
+              'landing_partners_setup_p2',
+              "Define your game's supported {Mod} file extensions (.dll, .lua, .ini, .json, .zip), installation target folders, load-order rules, and conflict radar heuristics inside your Master Schema JSON."
+            ),
+          },
+          {
+            icon: t('icon_category', 'category'),
+            title: t(
+              'landing_partners_setup_h3',
+              '3. Seed Categories, Tags & {Vault} Rules'
+            ),
+            desc: t(
+              'landing_partners_setup_p3',
+              "Populate your game's categories, subcategories, load-order priority tiers, and {Lab} isolation rules using the built-in Master Schema Studio in Architect Console."
+            ),
+          },
+          {
+            icon: t('icon_palette', 'palette'),
+            title: t(
+              'landing_partners_setup_h4',
+              '4. Customize Spoke Aesthetics & {Lexicon}'
+            ),
+            desc: t(
+              'landing_partners_setup_p4',
+              "Tailor your workspace's default Chameleon theme, terminology ({Mods}, {Masons}, {Citizens}), and community branding from Wayfinder Operations -> Spoke Aesthetics."
+            ),
+          },
+        ],
+      },
+      {
+        id: 'connect',
+        overline: t('landing_partners_stage_3', 'STAGE 03 • UPLINK HANDSHAKE'),
+        title: t('landing_partners_tab_connect', 'How to Connect'),
+        subtitle: t(
+          'landing_partners_tab_connect_sub',
+          'SANCTUARY-UPLINK:// Handshake'
+        ),
+        badge: t(
+          'landing_partners_tab_connect_sub',
+          'SANCTUARY-UPLINK:// Handshake'
+        ),
+        icon: t('icon_hub', 'hub'),
+        badgeIcon: t('icon_link', 'link'),
+        items: [
+          {
+            icon: t('icon_key', 'key'),
+            title: t(
+              'landing_partners_connect_h1',
+              '1. Link Your SANCTUARY-UPLINK:// Bundle & Gateway Token'
+            ),
+            desc: t(
+              'landing_partners_connect_p1',
+              'Once your Partner Spoke application is approved by Keepers Core, open Wayfinder Operations -> Spoke Control -> Spoke Setup & Maintenance to copy your secret-free SANCTUARY-UPLINK:// bundle (Project URL + Anon Key) and submit your one-time Spoke Gateway Token (spk_gw_... from SELECT public.mint_spoke_gateway_token();) to seal inside the Split-Custody Hub Vault.'
+            ),
+          },
+          {
+            icon: t('icon_verified_user', 'verified_user'),
+            title: t(
+              'landing_partners_connect_h2',
+              '2. Cryptographic Verification & Live Hub Mounting'
+            ),
+            desc: t(
+              'landing_partners_connect_p2',
+              'Keepers Core runs a live schema and RLS handshake check against your Spoke. Once verified, your workspace goes live on the Sanctuary OS Hub switcher for Desktop, Web, and Mobile PWA {Citizens}.'
+            ),
+          },
+          {
+            icon: t('icon_assignment_turned_in', 'assignment_turned_in'),
+            title: t(
+              'landing_partners_connect_h3',
+              '3. Submit Your Partner Spoke Application'
+            ),
+            desc: t(
+              'landing_partners_connect_p3',
+              'Complete the 4-step Partner Spoke Readiness Check & Dossier on this page. Human Keepers review your game metadata and Master Schema readiness in Keepers Core.'
+            ),
+          },
+          {
+            icon: t('icon_shield_lock', 'shield_lock'),
+            title: t(
+              'landing_partners_connect_h4',
+              '4. Bilateral Threat & Malware Sync'
+            ),
+            desc: t(
+              'landing_partners_connect_p4',
+              'Once linked, your Spoke automatically receives global heuristic malware definitions while keeping all community {Mod} records, {Citizens}, and dispatches hosted strictly on your own Supabase instance.'
+            ),
+          },
+        ],
+      },
+      {
+        id: 'maintain',
+        overline: t('landing_partners_stage_4', 'STAGE 04 • OPERATIONS'),
+        title: t('landing_partners_tab_maintain', 'How to Maintain'),
+        subtitle: t(
+          'landing_partners_tab_maintain_sub',
+          'Wayfinder Operations & Perks'
+        ),
+        badge: t(
+          'landing_partners_tab_maintain_sub',
+          'Wayfinder Operations & Perks'
+        ),
+        icon: t('icon_security', 'security'),
+        badgeIcon: t('icon_shield', 'shield'),
+        items: [
+          {
+            icon: t('icon_tune', 'tune'),
+            title: t(
+              'landing_partners_maintain_h1',
+              '1. Wayfinder Operations, Key Rotation & Oversight'
+            ),
+            desc: t(
+              'landing_partners_maintain_p1',
+              'Manage your workspace day-to-day from Wayfinder Operations: appoint Architects and Oversight moderators, verify {Masons}, triage community reports, review heuristic malware flags, and rotate your Spoke Gateway Token or Anon key anytime in 1 click with zero downtime.'
+            ),
+          },
+          {
+            icon: t('icon_history_edu', 'history_edu'),
+            title: t(
+              'landing_partners_maintain_h2',
+              '2. Append-Only Audit Integrity & Cut-the-Cord Freedom'
+            ),
+            desc: t(
+              'landing_partners_maintain_p2',
+              "Every administrative action is recorded in your Spoke's immutable audit_logs table. If your community ever wishes to operate standalone, click 'Cut the Cord' in Spoke Control to sever the Hub uplink immediately while keeping 100% of your database."
+            ),
+          },
+          {
+            icon: t('icon_payments', 'payments'),
+            title: t(
+              'landing_partners_maintain_h3',
+              '3. Non-Custodial Community Donations'
+            ),
+            desc: t(
+              'landing_partners_maintain_p3',
+              "Link your community's Stripe, Ko-fi, or Patreon checkout URL in Wayfinder Operations. 100% of funds go directly to your processor (0% platform cut) while automatically crediting {Citizens} +30 days of Dev Builds per $5."
+            ),
+          },
+          {
+            icon: t('icon_bolt', 'bolt'),
+            title: t(
+              'landing_partners_maintain_h4',
+              '4. Schema Evolution & Zero-Downtime Updates'
+            ),
+            desc: t(
+              'landing_partners_maintain_p4',
+              "Push game patch updates, new {Mod} file format rules, and compatibility alerts directly to your {Citizens}' Desktop and Web clients in real time without waiting on central platform releases."
+            ),
+          },
+        ],
+      },
+    ];
 
   return (
     <SidePanel
@@ -347,11 +347,10 @@ export function LandingPartnerGuideDrawer({
                 onClick={() => {
                   if (!isExpanded) setActiveStage(stage.id);
                 }}
-                className={`glass-panel rounded-2xl transition-all duration-300 flex flex-col relative overflow-hidden ${
-                  isExpanded
-                    ? 'p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]'
-                    : 'px-4 py-3.5 opacity-55 hover:opacity-90 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer'
-                }`}
+                className={`glass-panel rounded-2xl transition-all duration-300 flex flex-col relative overflow-hidden ${isExpanded
+                  ? 'p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)] shadow-[0_16px_40px_rgba(0,0,0,0.35)]'
+                  : 'px-4 py-3.5 opacity-55 hover:opacity-90 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_20%,transparent)] group cursor-pointer'
+                  }`}
               >
                 {/* Stage Header Row */}
                 <div
@@ -361,25 +360,21 @@ export function LandingPartnerGuideDrawer({
                       setActiveStage(null);
                     }
                   }}
-                  className={`flex flex-col gap-2 w-full ${
-                    isExpanded ? 'cursor-pointer group/hdr' : ''
-                  }`}
+                  className={`flex flex-col gap-2 w-full ${isExpanded ? 'cursor-pointer group/hdr' : ''
+                    }`}
                 >
                   <div className="flex items-center sm:items-start justify-between gap-2.5 sm:gap-3 w-full">
                     <div className="flex items-center sm:items-start gap-3 min-w-0">
                       <div
-                        className={`${
-                          isExpanded ? 'w-10 h-10 sm:w-11 sm:h-11' : 'w-10 h-10'
-                        } rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center shrink-0 transition-transform ${
-                          !isExpanded ? 'group-hover:scale-105' : ''
-                        }`}
+                        className={`${isExpanded ? 'w-10 h-10 sm:w-11 sm:h-11' : 'w-10 h-10'
+                          } rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] flex items-center justify-center shrink-0 transition-transform ${!isExpanded ? 'group-hover:scale-105' : ''
+                          }`}
                       >
                         <span
-                          className={`material-symbols-outlined ${
-                            isExpanded
-                              ? '!text-[20px] sm:!text-[22px] text-[var(--accent)]'
-                              : '!text-[19px] text-[var(--text)] opacity-80'
-                          }`}
+                          className={`material-symbols-outlined ${isExpanded
+                            ? '!text-[20px] sm:!text-[22px] text-[var(--accent)]'
+                            : '!text-[19px] text-[var(--text)] opacity-80'
+                            }`}
                         >
                           {stage.icon}
                         </span>
@@ -387,18 +382,16 @@ export function LandingPartnerGuideDrawer({
 
                       <div className="flex flex-col gap-0.5 min-w-0">
                         <span
-                          className={`text-[10px] font-black uppercase tracking-[0.2em] leading-snug ${
-                            isExpanded
-                              ? 'text-[var(--accent)]'
-                              : 'text-[var(--subtext)]'
-                          }`}
+                          className={`text-[10px] font-black uppercase tracking-[0.2em] leading-snug ${isExpanded
+                            ? 'text-[var(--accent)]'
+                            : 'text-[var(--subtext)]'
+                            }`}
                         >
                           {stage.overline}
                         </span>
                         <h3
-                          className={`hidden sm:block ${
-                            isExpanded ? 'text-lg' : 'text-base truncate'
-                          } font-black text-[var(--text)] tracking-tight leading-snug m-0`}
+                          className={`hidden sm:block ${isExpanded ? 'text-lg' : 'text-base truncate'
+                            } font-black text-[var(--text)] tracking-tight leading-snug m-0`}
                         >
                           {stage.title}
                         </h3>
@@ -420,11 +413,10 @@ export function LandingPartnerGuideDrawer({
                       </span>
 
                       <span
-                        className={`w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] transition-colors ${
-                          isExpanded
-                            ? 'group-hover/hdr:text-[var(--text)] group-hover/hdr:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
-                            : 'group-hover:text-[var(--text)]'
-                        }`}
+                        className={`w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--subtext)] transition-colors ${isExpanded
+                          ? 'group-hover/hdr:text-[var(--text)] group-hover/hdr:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
+                          : 'group-hover:text-[var(--text)]'
+                          }`}
                       >
                         <span className="material-symbols-outlined !text-[16px]">
                           {isExpanded
@@ -437,9 +429,8 @@ export function LandingPartnerGuideDrawer({
 
                   <div className="flex sm:hidden flex-col gap-0.5 min-w-0">
                     <h3
-                      className={`${
-                        isExpanded ? 'text-base' : 'text-sm'
-                      } font-black text-[var(--text)] tracking-tight leading-snug m-0`}
+                      className={`${isExpanded ? 'text-base' : 'text-sm'
+                        } font-black text-[var(--text)] tracking-tight leading-snug m-0`}
                     >
                       {stage.title}
                     </h3>

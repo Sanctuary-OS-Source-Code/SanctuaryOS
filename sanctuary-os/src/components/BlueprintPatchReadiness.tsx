@@ -6,6 +6,11 @@ import { supabase } from "../supabase";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import {
+  fetchEncryptedVaultCompanionSnapshots,
+  type VaultCompanionSnapshot,
+  type VaultCompanionArtifact,
+} from "../utils/stagingCrypto";
+import {
   SidePanel,
   SidePanelHeroCard,
   UniversalGroup,
@@ -55,6 +60,69 @@ import {
   type MissingDepTarget,
   type StackedModIssue,
 } from "../side-panels/CommandIncompatiblePanel";
+
+export function LiquidGlassReadinessBar({
+  readyCount,
+  updateCount,
+  blockingCount,
+  totalCount,
+  heightClass = "h-2.5",
+}: {
+  readyCount: number;
+  updateCount: number;
+  blockingCount: number;
+  totalCount: number;
+  heightClass?: string;
+}) {
+  return (
+    <div
+      className={`w-full ${heightClass} rounded-full p-[1.5px] sa-liquid-progress-track overflow-hidden flex items-center gap-[2px]`}
+    >
+      {totalCount > 0 ? (
+        <>
+          {readyCount > 0 && (
+            <div
+              className="h-full min-w-[6px] sa-liquid-progress-segment"
+              style={
+                {
+                  width: `${(readyCount / totalCount) * 100}%`,
+                  "--seg-color": "var(--success)",
+                } as React.CSSProperties
+              }
+            />
+          )}
+          {updateCount > 0 && (
+            <div
+              className="h-full min-w-[6px] sa-liquid-progress-segment"
+              style={
+                {
+                  width: `${(updateCount / totalCount) * 100}%`,
+                  "--seg-color": "var(--warning)",
+                } as React.CSSProperties
+              }
+            />
+          )}
+          {blockingCount > 0 && (
+            <div
+              className="h-full min-w-[6px] sa-liquid-progress-segment"
+              style={
+                {
+                  width: `${(blockingCount / totalCount) * 100}%`,
+                  "--seg-color": "var(--danger)",
+                } as React.CSSProperties
+              }
+            />
+          )}
+        </>
+      ) : (
+        <div
+          className="h-full w-full sa-liquid-progress-segment opacity-40"
+          style={{ "--seg-color": "var(--success)" } as React.CSSProperties}
+        />
+      )}
+    </div>
+  );
+}
 
 export interface LiquidGlassAlertCardProps {
   icon: string;
@@ -117,25 +185,14 @@ export function LiquidGlassAlertCard({
   return (
     <div
       onClick={onClick}
-      className={`glass-panel rounded-[var(--radius)] p-5 border flex flex-col gap-3.5 relative overflow-hidden h-full transition-all duration-300 ${
+      className={`glass-panel rounded-[var(--radius)] p-5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-3.5 relative overflow-hidden h-full transition-all duration-300 ${
         onClick
-          ? "cursor-pointer hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--accent)_40%,rgba(255,255,255,0.35))]"
+          ? "cursor-pointer hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
           : ""
       }`}
-      style={
-        isAlertCard
-          ? {
-              backgroundColor: `color-mix(in srgb, ${accentVar} 5%, transparent)`,
-              borderTopColor: `color-mix(in srgb, ${accentVar} 38%, rgba(255, 255, 255, 0.14))`,
-              borderLeftColor: `color-mix(in srgb, ${accentVar} 26%, rgba(255, 255, 255, 0.1))`,
-              borderRightColor: `color-mix(in srgb, ${accentVar} 20%, rgba(255, 255, 255, 0.07))`,
-              borderBottomColor: `color-mix(in srgb, ${accentVar} 22%, rgba(255, 255, 255, 0.08))`,
-            }
-          : {
-              backgroundColor: `color-mix(in srgb, ${accentVar} 4%, transparent)`,
-              borderColor: `color-mix(in srgb, ${accentVar} 20%, transparent)`,
-            }
-      }
+      style={{
+        backgroundColor: `color-mix(in srgb, ${accentVar} ${isAlertCard ? "5%" : "4%"}, transparent)`,
+      }}
     >
       <div
         className="pointer-events-none absolute inset-0 rounded-[inherit]"
@@ -156,13 +213,6 @@ export function LiquidGlassAlertCard({
       <div className="flex items-center justify-between gap-3 relative z-10">
         <div
           className={`w-11 h-11 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] ${iconColorClass} flex items-center justify-center shrink-0 relative overflow-hidden`}
-          style={
-            isAlertCard
-              ? {
-                  borderColor: `color-mix(in srgb, ${accentVar} 42%, rgba(255, 255, 255, 0.2))`,
-                }
-              : undefined
-          }
         >
           {isAlertCard && (
             <div
@@ -244,7 +294,7 @@ export function LiquidGlassAlertCard({
                 <button
                   type="button"
                   onClick={onSecondaryAction}
-                  className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-center shrink-0 transition-all relative cursor-pointer"
+                  className="w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-center shrink-0 transition-all relative cursor-pointer"
                 >
                   <span className="material-symbols-outlined !text-[17px]">
                     {secondaryActionIcon}
@@ -424,6 +474,8 @@ interface WorkspacePatchCacheEntry {
   cloudModVersions: Map<string, any[]>;
   fetchedModIds: Set<string>;
   lastCloudFetch: number;
+  companionSnapshots?: VaultCompanionSnapshot[];
+  lastCompanionFetch?: number;
   lastReportsCache?: {
     playSets: any;
     activeSetName: string | null;
@@ -810,12 +862,17 @@ export function useBlueprintPatchReadiness(opts?: {
   const defconLevel = useStore((s) => s.defconLevel);
   const isPatchDetected = useStore((s) => s.isPatchDetected);
   const vaultPath = useStore((s) => s.vaultPath);
+  const session = useStore((s) => s.session);
+  const volatileSignatureQueues = useModalStore((s) => s.volatileSignatureQueues);
 
   const wsKey = activeWorkspaceId || "default";
   const storageKey = `sanctuary_${wsKey}_sim_patch_ver`;
 
   const [officialVersions, setOfficialVersions] = useState<string[]>(() => {
     return getOrCreateWorkspaceCache(wsKey).gameVersions;
+  });
+  const [companionSnapshots, setCompanionSnapshots] = useState<VaultCompanionSnapshot[]>(() => {
+    return getOrCreateWorkspaceCache(wsKey).companionSnapshots || [];
   });
   const [cloudTick, setCloudTick] = useState(0);
   const [poolItems, setPoolItems] = useState<any[]>([]);
@@ -936,6 +993,234 @@ export function useBlueprintPatchReadiness(opts?: {
     };
   }, [vaultPath, modList?.length, skip]);
 
+  // 2B. Hydrate Web/PWA via encrypted Zero-PII Companion Snapshots (zero passkey prompt)
+  useEffect(() => {
+    if (
+      skip ||
+      isDesktop() ||
+      !session?.user?.id ||
+      !navigator.onLine ||
+      localStorage.getItem("sanctuary_local_only") === "true"
+    ) {
+      return;
+    }
+    const cache = getOrCreateWorkspaceCache(wsKey);
+    if (
+      Array.isArray(cache.companionSnapshots) &&
+      cache.companionSnapshots.length > 0 &&
+      Date.now() - (cache.lastCompanionFetch || 0) < 30_000
+    ) {
+      setCompanionSnapshots(cache.companionSnapshots);
+      return;
+    }
+
+    let cancelled = false;
+    fetchEncryptedVaultCompanionSnapshots(session)
+      .then((snaps) => {
+        if (cancelled) return;
+        const safeSnaps = Array.isArray(snaps) ? snaps : [];
+        cache.companionSnapshots = safeSnaps;
+        cache.lastCompanionFetch = Date.now();
+        setCompanionSnapshots(safeSnaps);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [skip, wsKey, session?.user?.id]);
+
+  const companionData = useMemo(() => {
+    if (
+      skip ||
+      isDesktop() ||
+      (Array.isArray(playSets) &&
+        playSets.length > 0 &&
+        Array.isArray(modList) &&
+        modList.length > 0)
+    ) {
+      return null;
+    }
+
+    const activeSnap = companionSnapshots[0] || null;
+    const synthMods: any[] = [];
+    const modKeySet = new Set<string>();
+    const rawIndexToSynth = new Map<number, any>();
+
+    const registerSynthMod = (m: any, rawIdx?: number) => {
+      const key = String(m.dbId || m.hash || m.name || "").toLowerCase().trim();
+      if (key && modKeySet.has(key)) {
+        const existing = synthMods.find(
+          (x) => String(x.dbId || x.hash || x.name || "").toLowerCase().trim() === key
+        );
+        if (rawIdx !== undefined && existing) rawIndexToSynth.set(rawIdx, existing);
+        return existing;
+      }
+      if (key) modKeySet.add(key);
+      synthMods.push(m);
+      if (rawIdx !== undefined) rawIndexToSynth.set(rawIdx, m);
+      return m;
+    };
+
+    if (Array.isArray(activeSnap?.artifacts)) {
+      activeSnap.artifacts.forEach((art: VaultCompanionArtifact, idx: number) => {
+        registerSynthMod(
+          {
+            id: art.hash || art.dbId || art.name,
+            hash: art.hash,
+            dbId: art.dbId,
+            name: art.name,
+            displayName: art.displayName || art.name,
+            author: art.author,
+            version: art.version,
+            status: art.status || "stable",
+            hasUpdate: Boolean(art.hasUpdate),
+            newVersion: art.newVersion,
+            download_url: art.url,
+            url: art.url,
+            manifest_url: art.manifestUrl,
+            compliance_tier: art.complianceTier,
+            category: art.category,
+            compatible_versions: art.compatibleVersions,
+            isScript: Boolean(art.isScript),
+            isEquipped: Boolean(art.isEquipped),
+            _isCompanionArtifact: true,
+          },
+          idx
+        );
+      });
+    }
+
+    const synthPlaySets: any[] = [];
+    const bpNameSet = new Set<string>();
+    const toBpModEntry = (m: any) => ({
+      name: m.name,
+      hash: m.hash,
+      dbId: m.dbId,
+      displayName: m.displayName,
+      version: m.version,
+      compatible_versions: m.compatible_versions,
+      isScript: Boolean(m.isScript),
+    });
+
+    if (Array.isArray(activeSnap?.desktopBlueprints)) {
+      for (const bp of activeSnap.desktopBlueprints) {
+        if (!bp?.name) continue;
+        let bpMods: any[] = [];
+        if (Array.isArray(bp.artifactIndices) && bp.artifactIndices.length > 0) {
+          bpMods = bp.artifactIndices
+            .map((idx) => rawIndexToSynth.get(idx))
+            .filter(Boolean)
+            .map(toBpModEntry);
+        } else if (Array.isArray(bp.artifacts) && bp.artifacts.length > 0) {
+          bpMods = bp.artifacts.map((art) => {
+            const registered = registerSynthMod({
+              id: art.hash || art.dbId || art.name,
+              hash: art.hash,
+              dbId: art.dbId,
+              name: art.name,
+              displayName: art.displayName || art.name,
+              author: art.author,
+              version: art.version,
+              status: art.status || "stable",
+              hasUpdate: Boolean(art.hasUpdate),
+              newVersion: art.newVersion,
+              download_url: art.url,
+              url: art.url,
+              manifest_url: art.manifestUrl,
+              compliance_tier: art.complianceTier,
+              category: art.category,
+              compatible_versions: art.compatibleVersions,
+              isScript: Boolean(art.isScript),
+              isEquipped: Boolean(art.isEquipped),
+              _isCompanionArtifact: true,
+            });
+            return toBpModEntry(registered);
+          });
+        } else if (bp.isActive) {
+          bpMods = synthMods.filter((m) => m.isEquipped).map(toBpModEntry);
+        }
+        bpNameSet.add(bp.name.toLowerCase());
+        synthPlaySets.push({
+          name: bp.name,
+          code: bp.code,
+          mods: bpMods,
+          isSyncedCompanion: true,
+        });
+      }
+    }
+
+    if (Array.isArray(volatileSignatureQueues)) {
+      for (const q of volatileSignatureQueues) {
+        const items =
+          Array.isArray(q?.resolvedItems) && q.resolvedItems.length > 0
+            ? q.resolvedItems
+            : Array.isArray(q?.payload?.items)
+              ? q.payload.items
+              : [];
+        const bpMods: any[] = [];
+        for (const item of items) {
+          if (!item?.name) continue;
+          const registered = registerSynthMod({
+            id: item.id || item.hash || item.dbId || item.name,
+            hash: item.hash,
+            dbId: item.dbId,
+            name: item.name,
+            displayName: item.displayName || item.name,
+            author: item.author || item.master_author,
+            version: item.version,
+            status: item.status || "stable",
+            download_url: item.url,
+            url: item.url,
+            manifest_url: item.manifest_url,
+            compliance_tier: item.compliance_tier,
+            category: item.category_override || item.category || item.type,
+            compatible_versions: item.compatible_versions,
+            isScript: Boolean(
+              item.type && String(item.type).toLowerCase().includes("script")
+            ),
+          });
+          bpMods.push(toBpModEntry(registered));
+        }
+        const qBpName = String(q?.payload?.blueprintName || "").trim();
+        if (qBpName && !bpNameSet.has(qBpName.toLowerCase()) && bpMods.length > 0) {
+          bpNameSet.add(qBpName.toLowerCase());
+          synthPlaySets.push({
+            name: qBpName,
+            code: q?.payload?.code,
+            mods: bpMods,
+            isQueuedPipeline: true,
+          });
+        }
+      }
+    }
+
+    return {
+      playSets: synthPlaySets,
+      modList: synthMods,
+      activeSetName:
+        activeSetName || activeSnap?.activeBlueprintName || synthPlaySets[0]?.name || "",
+      selectedVersion: selectedVersion || activeSnap?.gameVersion || "",
+    };
+  }, [
+    skip,
+    companionSnapshots,
+    volatileSignatureQueues,
+    playSets,
+    modList,
+    activeSetName,
+    selectedVersion,
+  ]);
+
+  const effectiveModList = companionData ? companionData.modList : modList;
+  const effectivePlaySets = companionData ? companionData.playSets : playSets;
+  const effectiveActiveSetName = companionData
+    ? companionData.activeSetName
+    : activeSetName;
+  const effectiveSelectedVersion = companionData
+    ? companionData.selectedVersion
+    : selectedVersion;
+
   // 3. Fetch cloud mod_versions + parent mods.compatible_versions across the Vault
   useEffect(() => {
     if (
@@ -945,8 +1230,8 @@ export function useBlueprintPatchReadiness(opts?: {
       workspaces.length === 0 ||
       !navigator.onLine ||
       localStorage.getItem("sanctuary_local_only") === "true" ||
-      !Array.isArray(modList) ||
-      modList.length === 0
+      !Array.isArray(effectiveModList) ||
+      effectiveModList.length === 0
     ) {
       return;
     }
@@ -960,8 +1245,8 @@ export function useBlueprintPatchReadiness(opts?: {
       }
     };
 
-    for (let i = 0; i < modList.length; i++) {
-      const m = modList[i];
+    for (let i = 0; i < effectiveModList.length; i++) {
+      const m = effectiveModList[i];
       collectId(m?.dbId);
       if (Array.isArray(m?.flavors)) {
         for (let j = 0; j < m.flavors.length; j++) {
@@ -994,6 +1279,9 @@ export function useBlueprintPatchReadiness(opts?: {
           if (cancelled) return;
           if (Array.isArray(data)) {
             for (const row of data) {
+              const modRef = Array.isArray(row?.mods) ? row.mods[0] : row?.mods;
+              const tier = Number(modRef?.compliance_tier ?? 0);
+              if (tier >= 1 && tier <= 4) continue;
               const mid = String(row.mod_id || "");
               if (!mid) continue;
               const arr = cache.cloudModVersions.get(mid) || [];
@@ -1016,7 +1304,7 @@ export function useBlueprintPatchReadiness(opts?: {
     return () => {
       cancelled = true;
     };
-  }, [activeWorkspaceId, workspaces, modList, wsKey, skip]);
+  }, [activeWorkspaceId, workspaces, effectiveModList, wsKey, skip]);
 
   const availableVersions = useMemo(() => {
     if (skip) return [];
@@ -1035,7 +1323,7 @@ export function useBlueprintPatchReadiness(opts?: {
     };
 
     officialVersions.forEach(addVer);
-    addVer(selectedVersion);
+    addVer(effectiveSelectedVersion);
 
     if (Array.isArray(networkUpdates?.updated)) {
       networkUpdates.updated.forEach((u: any) => addVer(u?.newGameVersion));
@@ -1045,9 +1333,9 @@ export function useBlueprintPatchReadiness(opts?: {
         addVer(b?.gameVersion || b?.game_version || b?.version)
       );
     }
-    if (Array.isArray(modList)) {
-      for (let i = 0; i < Math.min(modList.length, 600); i++) {
-        parseCompatArray(modList[i]?.compatible_versions).forEach(addVer);
+    if (Array.isArray(effectiveModList)) {
+      for (let i = 0; i < Math.min(effectiveModList.length, 600); i++) {
+        parseCompatArray(effectiveModList[i]?.compatible_versions).forEach(addVer);
       }
     }
 
@@ -1064,17 +1352,17 @@ export function useBlueprintPatchReadiness(opts?: {
   }, [
     skip,
     officialVersions,
-    selectedVersion,
+    effectiveSelectedVersion,
     networkUpdates,
     backupList,
-    modList,
+    effectiveModList,
     wsKey,
     cloudTick,
   ]);
 
   const cleanCurrentVersion = useMemo(
-    () => cleanVersionLabel(selectedVersion),
-    [selectedVersion]
+    () => cleanVersionLabel(effectiveSelectedVersion),
+    [effectiveSelectedVersion]
   );
 
   const latestKnownVersion = availableVersions[0] || cleanCurrentVersion || "";
@@ -1130,15 +1418,16 @@ export function useBlueprintPatchReadiness(opts?: {
   const pinnedKey = useMemo(() => pinnedNames.join("|"), [pinnedNames]);
 
   const blueprintReports = useMemo<BlueprintPatchReport[]>(() => {
-    if (skip || !Array.isArray(playSets) || playSets.length === 0) return [];
+    if (skip || !Array.isArray(effectivePlaySets) || effectivePlaySets.length === 0)
+      return [];
     const cache = getOrCreateWorkspaceCache(wsKey);
     const prev = cache.lastReportsCache;
     if (
       prev &&
-      prev.playSets === playSets &&
-      prev.activeSetName === activeSetName &&
+      prev.playSets === effectivePlaySets &&
+      prev.activeSetName === effectiveActiveSetName &&
       prev.pinnedKey === pinnedKey &&
-      prev.modList === modList &&
+      prev.modList === effectiveModList &&
       prev.activeGameSchema === activeGameSchema &&
       prev.networkUpdates === networkUpdates &&
       prev.targetVersion === targetVersion &&
@@ -1158,9 +1447,9 @@ export function useBlueprintPatchReadiness(opts?: {
     const globalKnownFamilyIds = new Set<string>();
     const vaultDepLookup = new Map<string, any>();
 
-    if (Array.isArray(modList)) {
-      for (let i = 0; i < modList.length; i++) {
-        const vm = modList[i];
+    if (Array.isArray(effectiveModList)) {
+      for (let i = 0; i < effectiveModList.length; i++) {
+        const vm = effectiveModList[i];
         if (!vm) continue;
         const vmDbId = String(vm.dbId || "").split("@")[0].trim();
         if (vm.isCollection && vmDbId) {
@@ -1244,12 +1533,12 @@ export function useBlueprintPatchReadiness(opts?: {
       };
     };
 
-    const computedReports: BlueprintPatchReport[] = playSets.map((ps: any) => {
-      const isEquipped = ps.name === activeSetName;
+    const computedReports: BlueprintPatchReport[] = effectivePlaySets.map((ps: any) => {
+      const isEquipped = ps.name === effectiveActiveSetName;
       const isPinned = pinnedNames.includes(ps.name);
       const resolvedMods = resolveActiveBlueprintMods(
         ps.mods,
-        modList,
+        effectiveModList,
         activeGameSchema,
         networkUpdates
       );
@@ -1441,9 +1730,7 @@ export function useBlueprintPatchReadiness(opts?: {
         if (
           localStat === "broken" ||
           localStat === "corrupted" ||
-          localStat === "obsolete" ||
-          m?.compliance_tier === 3 ||
-          m?.compliance_tier === 4
+          localStat === "obsolete"
         ) {
           localMarkedBrokenOrObsolete = true;
         }
@@ -1458,13 +1745,10 @@ export function useBlueprintPatchReadiness(opts?: {
           const pm = Array.isArray(row.mods) ? row.mods[0] : row.mods;
           if (pm && !memberParentMod) memberParentMod = pm;
           const parentStatus = String(pm?.status || "").toLowerCase();
-          const parentTier = Number(pm?.compliance_tier ?? 0);
           if (
             parentStatus === "broken" ||
             parentStatus === "corrupted" ||
-            parentStatus === "obsolete" ||
-            parentTier === 3 ||
-            parentTier === 4
+            parentStatus === "obsolete"
           ) {
             cloudMarkedBroken = true;
           }
@@ -2050,10 +2334,10 @@ export function useBlueprintPatchReadiness(opts?: {
     });
 
     cache.lastReportsCache = {
-      playSets,
-      activeSetName,
+      playSets: effectivePlaySets,
+      activeSetName: effectiveActiveSetName,
       pinnedKey,
-      modList,
+      modList: effectiveModList,
       activeGameSchema,
       networkUpdates,
       targetVersion,
@@ -2071,10 +2355,10 @@ export function useBlueprintPatchReadiness(opts?: {
     return computedReports;
   }, [
     skip,
-    playSets,
-    activeSetName,
+    effectivePlaySets,
+    effectiveActiveSetName,
     pinnedKey,
-    modList,
+    effectiveModList,
     activeGameSchema,
     networkUpdates,
     targetVersion,
@@ -2147,6 +2431,7 @@ export function useBlueprintPatchReadiness(opts?: {
     shelterActive,
     defconLevel,
     isPatchDetected,
+    isCompanionSynced: !isDesktop() && companionSnapshots.length > 0,
   };
 }
 
@@ -2309,9 +2594,7 @@ export function clonePatchReadyBlueprint(
       if (
         localStat === "broken" ||
         localStat === "corrupted" ||
-        localStat === "obsolete" ||
-        m.compliance_tier === 3 ||
-        m.compliance_tier === 4
+        localStat === "obsolete"
       ) {
         excludeModAndSuite(m);
         newlyExcludedInPass += 1;
@@ -2544,7 +2827,11 @@ export function PatchReadinessSimulatorInfoCard({
               </span>
               {readiness.currentVersion && (
                 <span className="text-[9.5px] font-mono font-bold text-[var(--subtext)] opacity-75">
-                  {`${t("patch_sim_installed_tag", "Installed")}: v${readiness.currentVersion}`}
+                  {`${
+                    isDesktop()
+                      ? t("patch_sim_installed_tag", "Installed")
+                      : t("patch_sim_rig_tag", "Rig Synced")
+                  }: v${readiness.currentVersion}`}
                 </span>
               )}
             </div>
@@ -2562,44 +2849,6 @@ export function PatchReadinessSimulatorInfoCard({
             />
           </div>
         )}
-
-        <div className="flex items-center justify-center gap-1.5 flex-wrap">
-          <span className={VAULT_CHIP_CLASS}>
-            <span
-              className={`material-symbols-outlined !text-[12px] ${
-                readiness.backupCount > 0
-                  ? "text-[var(--success)]"
-                  : "text-[var(--warning)]"
-              }`}
-            >
-              {t("icon_history", "history")}
-            </span>
-            <span>{`${readiness.backupCount} ${t(
-              "cmd_snapshots_label",
-              "Snapshots"
-            )}`}</span>
-          </span>
-          <span className={VAULT_CHIP_CLASS}>
-            <span
-              className={`material-symbols-outlined !text-[12px] ${
-                readiness.shelterActive || readiness.isPatchDetected
-                  ? "text-[var(--warning)]"
-                  : "text-[var(--accent)]"
-              }`}
-            >
-              {readiness.shelterActive
-                ? t("icon_lock", "lock")
-                : t("icon_shield", "shield")}
-            </span>
-            <span>
-              {readiness.shelterActive
-                ? t("btn_lockdown", "Lockdown {Vault}")
-                    .replace(/^[^\w]*/, "")
-                    .trim()
-                : t("standby", "Standby")}
-            </span>
-          </span>
-        </div>
       </div>
     </LiquidGlassAlertCard>
   );
@@ -2619,7 +2868,7 @@ export function BlueprintPatchReadinessCard({
   const [justCloned, setJustCloned] = useState(false);
 
   const unreadyCount = report.blockingMods.length + report.updatableMods.length;
-  const canCloneReady = unreadyCount > 0 && report.readyMods.length > 0;
+  const canCloneReady = isDesktop() && unreadyCount > 0 && report.readyMods.length > 0;
 
   const handleCloneReady = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -2699,10 +2948,10 @@ export function BlueprintPatchReadinessCard({
           <button
             type="button"
             onClick={handleCloneReady}
-            className={`-mt-0.5 w-[26px] h-[26px] rounded-lg glass-surface border flex items-center justify-center transition-all relative cursor-pointer ${
+            className={`w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center transition-all relative cursor-pointer ${
               justCloned
-                ? "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_50%,transparent)]"
-                : "text-[var(--text)] opacity-80 hover:opacity-100 border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:text-[var(--accent)]"
+                ? "text-[var(--success)]"
+                : "text-[var(--text)] opacity-80 hover:opacity-100 hover:text-[var(--accent)]"
             }`}
           >
             <span className="material-symbols-outlined !text-[14px]">
@@ -2734,51 +2983,16 @@ export function BlueprintPatchReadinessCard({
         report.readyMods.length
       }/${report.totalMods} ${t("patch_sim_ready_label", "Ready")} (${
         report.readinessPercent
-      }%)`}
+      }%)${
+        report.blockingMods.length > 0
+          ? ` • ${report.blockingMods.length} ${t("patch_sim_awaiting_compact", "Awaiting")}`
+          : ""
+      }${
+        report.updatableMods.length > 0
+          ? ` • ${report.updatableMods.length} ${t("updates_available", "Updates")}`
+          : ""
+      }`}
       onClick={() => onInspect(report.blueprintName)}
-      badges={
-        <>
-          {report.blockingMods.length > 0 && (
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
-                {t("icon_block", "block")}
-              </span>
-              <span>
-                {`${report.blockingMods.length} ${t(
-                  "patch_sim_awaiting_compact",
-                  "Awaiting"
-                )}`}
-              </span>
-            </span>
-          )}
-          {report.updatableMods.length > 0 && (
-            <span className={VAULT_CHIP_CLASS}>
-              <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                {t("icon_download", "download")}
-              </span>
-              <span>
-                {`${report.updatableMods.length} ${t(
-                  "updates_available",
-                  "Updates"
-                )}`}
-              </span>
-            </span>
-          )}
-          {report.blockingMods.length === 0 &&
-            report.updatableMods.length === 0 && (
-              <span className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-                  {t("icon_check_circle", "check_circle")}
-                </span>
-                <span>
-                  {report.totalMods === 0
-                    ? t("empty", "Empty")
-                    : t("patch_sim_all_ready_chip", "All Ready")}
-                </span>
-              </span>
-            )}
-        </>
-      }
       footer={
         <div className="flex items-center justify-between gap-2 w-full">
           <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
@@ -2791,32 +3005,13 @@ export function BlueprintPatchReadinessCard({
       }
     >
       <div className="flex flex-col gap-2 w-full">
-        <div className="w-full h-1.5 rounded-full glass-surface overflow-hidden flex">
-          {report.totalMods > 0 ? (
-            <>
-              <div
-                className="h-full bg-[var(--success)] transition-all duration-500"
-                style={{
-                  width: `${(report.readyMods.length / report.totalMods) * 100}%`,
-                }}
-              />
-              <div
-                className="h-full bg-[var(--warning)] transition-all duration-500"
-                style={{
-                  width: `${(report.updatableMods.length / report.totalMods) * 100}%`,
-                }}
-              />
-              <div
-                className="h-full bg-[var(--danger)] transition-all duration-500"
-                style={{
-                  width: `${(report.blockingMods.length / report.totalMods) * 100}%`,
-                }}
-              />
-            </>
-          ) : (
-            <div className="h-full w-full bg-[var(--success)] opacity-40" />
-          )}
-        </div>
+        <LiquidGlassReadinessBar
+          readyCount={report.readyMods.length}
+          updateCount={report.updatableMods.length}
+          blockingCount={report.blockingMods.length}
+          totalCount={report.totalMods}
+          heightClass="h-2"
+        />
         <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed m-0">
           {report.verdict === "hold"
             ? t(
@@ -4593,60 +4788,6 @@ export function BlueprintPatchReadinessSidePanel({
                   )}
                 </div>
 
-                {/* Compact Telemetry Chips */}
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <span className={VAULT_CHIP_CLASS}>
-                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                      {t("icon_memory", "memory")}
-                    </span>
-                    <span>
-                      {`${t("patch_sim_installed_tag", "Installed")}: ${formatDisplayVersion(
-                        readiness.currentVersion,
-                        t("auto", "Auto")
-                      )}`}
-                    </span>
-                  </span>
-                  <span className={VAULT_CHIP_CLASS}>
-                    <span
-                      className={`material-symbols-outlined !text-[12px] ${
-                        readiness.hasPrePatchBackup
-                          ? "text-[var(--success)]"
-                          : "text-[var(--warning)]"
-                      }`}
-                    >
-                      {t("icon_history", "history")}
-                    </span>
-                    <span>
-                      {readiness.hasPrePatchBackup
-                        ? `${readiness.backupCount} ${t(
-                            "cmd_snapshots_label",
-                            "Snapshots"
-                          )}`
-                        : `${t("term_backups", "{Backups}")}: ${t("none", "None")}`}
-                    </span>
-                  </span>
-                  <span className={VAULT_CHIP_CLASS}>
-                    <span
-                      className={`material-symbols-outlined !text-[12px] ${
-                        readiness.shelterActive
-                          ? "text-[var(--warning)]"
-                          : "text-[var(--accent)]"
-                      }`}
-                    >
-                      {readiness.shelterActive
-                        ? t("icon_lock", "lock")
-                        : t("icon_shield", "shield")}
-                    </span>
-                    <span>
-                      {readiness.shelterActive
-                        ? t("btn_lockdown", "Lockdown {Vault}")
-                            .replace(/^[^\w]*/, "")
-                            .trim()
-                        : t("standby", "Standby")}
-                    </span>
-                  </span>
-                </div>
-
                 <div className="flex flex-wrap items-center justify-end gap-2 ml-auto pt-1 w-full">
                   {guidedQueue.length > 0 && (
                     <ActionButton
@@ -4664,8 +4805,9 @@ export function BlueprintPatchReadinessSidePanel({
                       }
                     />
                   )}
-                  {activeReport.blockingMods.length + activeReport.updatableMods.length >
-                    0 &&
+                  {isDesktop() &&
+                    activeReport.blockingMods.length + activeReport.updatableMods.length >
+                      0 &&
                     activeReport.readyMods.length > 0 && (
                       <ActionButton
                         variant={clonedNameFeedback ? "success" : "glass"}
@@ -5109,7 +5251,8 @@ export function BlueprintPatchReadinessView({
               </>
             }
           >
-            {focusedReport &&
+            {isDesktop() &&
+              focusedReport &&
               focusedReport.blockingMods.length +
                 focusedReport.updatableMods.length >
                 0 &&

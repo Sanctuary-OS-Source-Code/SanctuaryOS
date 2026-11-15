@@ -14,6 +14,7 @@ export function TitleBar({
   subtitleIndex = 0,
   unreadNotificationCount = 0,
   setIsNotificationSidebarOpen,
+  onTriggerShelter,
 }: any) {
   const { t, osLogoUrl } = useLexicon();
 
@@ -23,13 +24,14 @@ export function TitleBar({
   const isConfigured = useStore((state) => state.isConfigured);
   const view = useStore((state) => state.view);
   const setView = useStore((state) => state.setView);
-  const quarantineList = useStore((state) => state.quarantineList);
+  const defconLevel = useStore((state) => state.defconLevel);
+  const isPatchDetected = useStore((state) => state.isPatchDetected);
   const nexusUpdatesCount = useStore((state) => state.nexusUpdatesCount);
   const volatileSignatureQueue = useModalStore((state) => state.volatileSignatureQueue);
   const volatileSignatureQueues = useModalStore((state) => state.volatileSignatureQueues);
   const stagingDraftItems = useModalStore((state) => state.stagingDraftItems);
   const stagingDraftRemovedItems = useModalStore((state) => state.stagingDraftRemovedItems);
-  const dnaMatchQueue = useModalStore((state) => state.dnaMatchQueue);
+  const showDefconAlert = useModalStore((state) => state.showDefconAlert);
   const scoutQueue = useModalStore((state) => state.scoutQueue);
   const updatePayload = useModalStore((state) => state.updatePayload);
   const pendingPasskeyHandshakes = useModalStore((state) => state.pendingPasskeyHandshakes);
@@ -124,6 +126,7 @@ export function TitleBar({
   }, []);
 
   const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const shelterActive = useStore((state) => state.shelterActive);
   const targetSchemaId =
     activeWorkspace?.schema_id ||
     activeGameSchema?.schema_id ||
@@ -149,26 +152,36 @@ export function TitleBar({
     (Array.isArray(stagingDraftItems) && stagingDraftItems.length > 0 && stagingDraftItems.length <= 200) ||
     (Array.isArray(stagingDraftRemovedItems) && stagingDraftRemovedItems.length > 0);
   const blueprintQueueCount = sigQueueCount + (hasStagingDraft ? 1 : 0);
-  const quarantineCount = Array.isArray(quarantineList) ? quarantineList.length : 0;
-  const dnaCount = Array.isArray(dnaMatchQueue) ? dnaMatchQueue.length : 0;
+  const isRoot = !isDesktop() && isRootDomain();
+  const isOnLandingHub = view === 'landing' || (!isConfigured && !activeWorkspaceId) || isRoot;
+  const hasDefconAlert =
+    !isOnLandingHub &&
+    Boolean(
+      isPatchDetected ||
+      showDefconAlert ||
+      (typeof defconLevel === "number" && defconLevel > 0 && defconLevel < 5)
+    );
   const scoutCount = Array.isArray(scoutQueue) ? scoutQueue.length : 0;
   const nexusCount = nexusUpdatesCount || 0;
   const hasAppUpdate = isDesktop() && Boolean(updatePayload);
   const passkeyHandshakeCount = Array.isArray(pendingPasskeyHandshakes)
     ? pendingPasskeyHandshakes.length
     : 0;
+  const isVaultLockdownActive =
+    !isOnLandingHub &&
+    isDesktop() &&
+    activeGameSchema?.features?.has_cc !== false &&
+    Boolean(shelterActive);
   const totalQueueCount =
-    quarantineCount +
-    dnaCount +
-    blueprintQueueCount +
-    scoutCount +
-    nexusCount +
+    (hasDefconAlert ? 1 : 0) +
+    (isVaultLockdownActive ? 1 : 0) +
     passkeyHandshakeCount +
-    (hasAppUpdate ? 1 : 0);
+    (hasAppUpdate ? 1 : 0) +
+    blueprintQueueCount +
+    nexusCount +
+    scoutCount;
 
   const notifCount = unreadNotificationCount || 0;
-  const isRoot = !isDesktop() && isRootDomain();
-  const isOnLandingHub = view === 'landing' || (!isConfigured && !activeWorkspaceId) || isRoot;
   const isToolbarToolsVisible = !isRoot && !isSideBrowserOpen && !isHubLockdownActive;
   const shouldTuckCapsule =
     hasDomSidePanel ||
@@ -177,19 +190,20 @@ export function TitleBar({
     isQueuesPanelOpen ||
     isSideBrowserOpen;
 
-  const queueIcon =
-    quarantineCount > 0
-      ? t("icon_warning_amber", "warning_amber")
+  const queueIcon = hasDefconAlert
+    ? t("icon_gpp_maybe", "gpp_maybe")
+    : isVaultLockdownActive
+      ? t("icon_lock", "lock")
       : t("icon_layers", "layers");
 
   const queueColorClass =
     totalQueueCount === 0
       ? "text-[var(--subtext)] hover:text-[var(--text)]"
-      : quarantineCount > 0
+      : hasDefconAlert || isVaultLockdownActive
         ? "text-[var(--danger)]"
-        : dnaCount > 0
+        : passkeyHandshakeCount > 0
           ? "text-[var(--warning)]"
-          : blueprintQueueCount > 0 && scoutCount === 0 && nexusCount === 0 && !hasAppUpdate
+          : hasAppUpdate || blueprintQueueCount > 0
             ? "text-[var(--success)]"
             : "text-[var(--accent)]";
 
@@ -269,11 +283,10 @@ export function TitleBar({
           className={`h-full px-2.5 md:px-3 flex items-center justify-center gap-1.5 cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all ${queueColorClass} group/queues relative shrink-0`}
         >
           <span
-            className={`material-symbols-outlined !text-[17px] ${
-              totalQueueCount > 0
-                ? "opacity-100"
-                : "opacity-80 group-hover/queues:opacity-100"
-            } transition-opacity shrink-0 pointer-events-none`}
+            className={`material-symbols-outlined !text-[17px] ${totalQueueCount > 0
+              ? "opacity-100"
+              : "opacity-80 group-hover/queues:opacity-100"
+              } transition-opacity shrink-0 pointer-events-none`}
           >
             {queueIcon}
           </span>
@@ -291,11 +304,13 @@ export function TitleBar({
             variant={
               totalQueueCount === 0
                 ? "default"
-                : quarantineCount > 0
+                : hasDefconAlert || isVaultLockdownActive
                   ? "danger"
-                  : dnaCount > 0
+                  : passkeyHandshakeCount > 0
                     ? "warning"
-                    : "accent"
+                    : hasAppUpdate || blueprintQueueCount > 0
+                      ? "success"
+                      : "accent"
             }
           />
         </button>
@@ -306,18 +321,16 @@ export function TitleBar({
         <button
           type="button"
           onClick={() => setIsNotificationSidebarOpen?.((prev: boolean) => !prev)}
-          className={`h-full px-2.5 md:px-3 flex items-center justify-center gap-1.5 cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all ${
-            notifCount > 0
-              ? "text-[var(--accent)]"
-              : "text-[var(--subtext)] hover:text-[var(--text)]"
-          } group/notifs relative shrink-0`}
+          className={`h-full px-2.5 md:px-3 flex items-center justify-center gap-1.5 cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all ${notifCount > 0
+            ? "text-[var(--accent)]"
+            : "text-[var(--subtext)] hover:text-[var(--text)]"
+            } group/notifs relative shrink-0`}
         >
           <span
-            className={`material-symbols-outlined !text-[17px] ${
-              notifCount > 0
-                ? "text-[var(--accent)] opacity-100"
-                : "opacity-80 group-hover/notifs:opacity-100"
-            } transition-opacity shrink-0 pointer-events-none`}
+            className={`material-symbols-outlined !text-[17px] ${notifCount > 0
+              ? "text-[var(--accent)] opacity-100"
+              : "opacity-80 group-hover/notifs:opacity-100"
+              } transition-opacity shrink-0 pointer-events-none`}
           >
             {notifCount > 0
               ? t("icon_notifications_active", "notifications_active") || "notifications_active"
@@ -358,18 +371,16 @@ export function TitleBar({
         <button
           type="button"
           onClick={() => setView("settings")}
-          className={`flex h-full px-2.5 md:px-3 items-center justify-center cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all ${
-            view === "settings"
-              ? "text-[var(--accent)]"
-              : "text-[var(--subtext)] hover:text-[var(--text)]"
-          } group/settings relative shrink-0`}
+          className={`flex h-full px-2.5 md:px-3 items-center justify-center cursor-pointer hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] transition-all ${view === "settings"
+            ? "text-[var(--accent)]"
+            : "text-[var(--subtext)] hover:text-[var(--text)]"
+            } group/settings relative shrink-0`}
         >
           <span
-            className={`material-symbols-outlined !text-[17px] ${
-              view === "settings"
-                ? "text-[var(--accent)] opacity-100"
-                : "opacity-80 group-hover/settings:opacity-100"
-            } transition-opacity shrink-0 pointer-events-none`}
+            className={`material-symbols-outlined !text-[17px] ${view === "settings"
+              ? "text-[var(--accent)] opacity-100"
+              : "opacity-80 group-hover/settings:opacity-100"
+              } transition-opacity shrink-0 pointer-events-none`}
           >
             {t("icon_settings", "settings") || "settings"}
           </span>
@@ -509,26 +520,28 @@ export function TitleBar({
       {/* DESKTOP FLOATING UPPER-RIGHT CAPSULE (Above #sanctuary-main-scroll, strictly behind any SidePanel/modal) */}
       <div
         data-tauri-drag-region={isDesktop() ? true : undefined}
-        className={`hidden md:flex fixed top-3.5 right-6 z-30 items-center justify-end pointer-events-none select-none transition-all duration-300 ${
-          shouldTuckCapsule ? "opacity-0 -translate-y-16 pointer-events-none" : "opacity-100 translate-y-0"
-        }`}
+        className={`hidden md:flex fixed top-3.5 right-6 z-30 items-center justify-end pointer-events-none select-none transition-all duration-300 ${shouldTuckCapsule ? "opacity-0 -translate-y-16 pointer-events-none" : "opacity-100 translate-y-0"
+          }`}
       >
         {renderUpperRightCapsule()}
       </div>
 
       {/* MOBILE FLOATING CENTERED CAPSULE (Single unified segmented capsule centered at the top, behind any SidePanel/modal) */}
       <div
-        className={`md:hidden fixed top-[calc(env(safe-area-inset-top,0px)+10px)] inset-x-4 z-30 flex items-center justify-center pointer-events-none transition-all duration-300 ${
-          shouldTuckCapsule || isMobileHiddenOnScroll
-            ? "opacity-0 -translate-y-16 pointer-events-none"
-            : "opacity-100 translate-y-0"
-        }`}
+        className={`md:hidden fixed top-[calc(env(safe-area-inset-top,0px)+10px)] inset-x-4 z-30 flex items-center justify-center pointer-events-none transition-all duration-300 ${shouldTuckCapsule || isMobileHiddenOnScroll
+          ? "opacity-0 -translate-y-16 pointer-events-none"
+          : "opacity-100 translate-y-0"
+          }`}
       >
         {renderUpperRightCapsule()}
       </div>
 
       <WorkspaceSidePanel isOpen={isWorkspacePanelOpen} onClose={() => setIsWorkspacePanelOpen(false)} />
-      <SystemQueuesSidePanel isOpen={isQueuesPanelOpen} onClose={() => setIsQueuesPanelOpen(false)} />
+      <SystemQueuesSidePanel
+        isOpen={isQueuesPanelOpen}
+        onClose={() => setIsQueuesPanelOpen(false)}
+        onTriggerShelter={onTriggerShelter}
+      />
     </>
   );
 }

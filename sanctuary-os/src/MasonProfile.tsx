@@ -289,10 +289,12 @@ export default function MasonProfile({
       ]);
 
       if (modsDataRaw) {
-        const matureEnabled = localStorage.getItem("sanctuary_mature_transmissions") === "true";
+        const blockedStatuses = new Set(["unverified", "under_review", "pending", "rejected", "unknown"]);
         const filteredModsRaw = modsDataRaw.filter((m: any) => {
-          if (m.compliance_tier > 1) return false;
-          if (!matureEnabled && m.compliance_tier > 0) return false;
+          if (Number(m?.compliance_tier || 0) > 0) return false;
+          if (m?.has_pending_flag === true) return false;
+          const sLower = String(m?.status || "").toLowerCase().trim();
+          if (blockedStatuses.has(sLower)) return false;
           if (
             m.hash?.startsWith("dev_sandbox_") ||
             m.status?.toLowerCase().includes("sandbox")
@@ -301,10 +303,13 @@ export default function MasonProfile({
           return true;
         });
 
+        const safeCollections = (collectionsRes?.data || []).filter(
+          (c: any) => Number(c?.compliance_tier || 0) === 0 && c?.has_pending_flag !== true
+        );
         const groupedMods = processModsIntoCollections(
           filteredModsRaw,
           flavorGroupsRes?.data || [],
-          collectionsRes?.data || [],
+          safeCollections,
           relationshipsRes?.data || [],
           flavorMembersRes?.data || [],
           setMembersRes?.data || []
@@ -322,7 +327,9 @@ export default function MasonProfile({
         .order("is_pinned", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
       if (postsData) {
-        const sortedPostsData = [...postsData].sort((a: any, b: any) => {
+        const sortedPostsData = postsData
+          .filter((p: any) => p?.has_pending_flag !== true)
+          .sort((a: any, b: any) => {
           const aPin = a?.is_pinned === true || a?.is_pinned === "true" ? 1 : 0;
           const bPin = b?.is_pinned === true || b?.is_pinned === "true" ? 1 : 0;
           if (bPin !== aPin) return bPin - aPin;
@@ -348,15 +355,19 @@ export default function MasonProfile({
           .select("*")
           .eq("mason_id", masonId)
           .eq("is_market_listed", true)
+          .eq("compliance_tier", 0)
           .order("created_at", { ascending: false });
 
-        let newAssets = assetsData || [];
-        if (blueprintsData && blueprintsData.length > 0) {
-          const premiumMap = await enrichBlueprintsWithPremiumStatus(supabase, blueprintsData);
+        let newAssets = (assetsData || []).filter((a: any) => a?.has_pending_flag !== true);
+        const visibleBlueprints = (blueprintsData || []).filter(
+          (b: any) => Number(b?.compliance_tier || 0) === 0 && b?.has_pending_flag !== true
+        );
+        if (visibleBlueprints.length > 0) {
+          const premiumMap = await enrichBlueprintsWithPremiumStatus(supabase, visibleBlueprints);
 
           newAssets = [
             ...newAssets,
-            ...blueprintsData.map((b) => {
+            ...visibleBlueprints.map((b) => {
               const artifacts = b.json_data?.artifacts || b.artifacts || [];
               const premiumInfo = premiumMap[b.id];
               const isPaid =
@@ -404,6 +415,24 @@ export default function MasonProfile({
     }
     if (masonId) loadProfile();
   }, [masonId]);
+
+  useEffect(() => {
+    const onFlagged = (e: any) => {
+      const targetType = String(e?.detail?.targetType || "").toLowerCase();
+      const targetId = e?.detail?.targetId;
+      if (!targetId) return;
+      const idStr = String(targetId);
+      if (targetType === "post" || targetType === "broadcast") {
+        setPosts((prev) => prev.filter((p: any) => String(p?.id) !== idStr));
+      } else if (targetType === "mod") {
+        setMods((prev) => prev.filter((m: any) => String(m?.id) !== idStr));
+      } else {
+        setMarketAssets((prev) => prev.filter((a: any) => String(a?.id) !== idStr));
+      }
+    };
+    window.addEventListener("sanctuary-content-flagged", onFlagged);
+    return () => window.removeEventListener("sanctuary-content-flagged", onFlagged);
+  }, []);
 
   const isOwner = userId === mason?.profile_id;
 

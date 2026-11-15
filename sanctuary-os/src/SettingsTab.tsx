@@ -22,6 +22,7 @@ import TicketsTab from './settings-tabs/TicketsTab';
 import { isDesktop } from './utils/envUtils';
 import { isRootDomain } from './utils/routingUtils';
 import { getKeepersPipelineConfig, isTargetVersionNewer } from './utils/supporterManager';
+import { isPlaceholderWorkspaceKey } from './utils/workspaceConfigMatch';
 import packageJson from '../package.json';
 
 const normalizeSettingsTabId = (rawTab?: string | null): string => {
@@ -327,6 +328,16 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     refreshConfig();
   }, [activeWorkspaceId, activeGameSchema?.id]);
 
+  useEffect(() => {
+    const handleCoordsUpdated = () => {
+      void refreshConfig();
+    };
+    window.addEventListener('sanctuary-coordinates-updated', handleCoordsUpdated);
+    return () => {
+      window.removeEventListener('sanctuary-coordinates-updated', handleCoordsUpdated);
+    };
+  }, [activeWorkspaceId, activeGameSchema?.id]);
+
   const INT_CONFIG_KEYS = new Set([
     'vault_capacity_gb',
     'engine_agency_level',
@@ -348,12 +359,16 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
     }
 
     const { isGuest: _ignoredGuest, ...cleanBase } = config;
+    const storeActiveId = useStore.getState().activeWorkspaceId;
+    const lastActiveId = localStorage.getItem('sanctuary_last_active_workspace');
     const resolvedId =
-      cleanBase.id ||
-      useStore.getState().activeWorkspaceId ||
-      localStorage.getItem('sanctuary_last_active_workspace') ||
+      (!isPlaceholderWorkspaceKey(cleanBase.id) ? cleanBase.id : null) ||
+      (!isPlaceholderWorkspaceKey(storeActiveId) ? storeActiveId : null) ||
+      (!isPlaceholderWorkspaceKey(lastActiveId) ? lastActiveId : null) ||
       'default_workspace';
-    const resolvedSchema = cleanBase.schema_id || resolvedId;
+    const resolvedSchema =
+      (!isPlaceholderWorkspaceKey(cleanBase.schema_id) ? cleanBase.schema_id : null) ||
+      resolvedId;
 
     let universalMasterVault = resolveUniversalMasterVaultPath(
       globalConfig.vault_path || cleanBase.master_vault_path || cleanBase.vault_path,
@@ -399,8 +414,12 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
       : [];
     const matchIdx = existingList.findIndex(
       (w: any) =>
-        String(w.id || '').toLowerCase() === String(newConfig.id || '').toLowerCase() ||
-        String(w.schema_id || '').toLowerCase() === String(newConfig.schema_id || '').toLowerCase()
+        (!isPlaceholderWorkspaceKey(w?.id) &&
+          String(w.id).trim().toLowerCase() === String(newConfig.id || '').trim().toLowerCase()) ||
+        (!isPlaceholderWorkspaceKey(w?.schema_id) &&
+          String(w.schema_id).trim().toLowerCase() === String(newConfig.schema_id || '').trim().toLowerCase()) ||
+        ((isPlaceholderWorkspaceKey(w?.id) || isPlaceholderWorkspaceKey(w?.schema_id)) &&
+          isPlaceholderWorkspaceKey(cleanBase.id))
     );
     if (matchIdx >= 0) {
       existingList[matchIdx] = newConfig;
@@ -415,14 +434,17 @@ export default function Settings({ anarchyRules, setAnarchyRules }: any) {
           : '\\';
       existingList = existingList.map((w: any) => {
         const wsSchema =
-          w.schema_id && w.schema_id !== 'default_schema' ? w.schema_id : w.id;
+          w.schema_id && !isPlaceholderWorkspaceKey(w.schema_id)
+            ? w.schema_id
+            : !isPlaceholderWorkspaceKey(w.id)
+              ? w.id
+              : '';
         return {
           ...w,
           master_vault_path: universalMasterVault,
-          vault_path:
-            wsSchema && wsSchema !== 'default_workspace'
-              ? `${masterVaultWithSep(universalMasterVault, sep, wsSchema)}`
-              : universalMasterVault,
+          vault_path: wsSchema
+            ? `${masterVaultWithSep(universalMasterVault, sep, wsSchema)}`
+            : universalMasterVault,
         };
       });
     }

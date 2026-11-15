@@ -249,29 +249,23 @@ export function evaluateModIssues(
       isBroken = false;
     }
   }
-  const hasStaticEdgeVerification = Boolean(
-    mod.manifest_url &&
-      sLower !== "broken" &&
-      sLower !== "corrupted" &&
-      sLower !== "obsolete"
-  );
-  const isNonCompliant =
-    !hasVersionMismatch &&
-    !hasStaticEdgeVerification &&
-    (mod.compliance_tier === 3 || mod.compliance_tier === 4);
-
-  if (isBroken || isNonCompliant) {
+  if (isBroken) {
     addCategory("corrupted");
-    const nonCompliantFallback =
-      isNonCompliant && !cleanReason
-        ? `${t("registry_col_safety", "Safety Tier")} ${mod.compliance_tier}`
-        : "";
     issues.push({
       category: "corrupted",
       type: "red",
       icon: t("icon_broken_image", "broken_image"),
       title: t("status_corrupted", "Corrupted"),
-      detail: cleanReason || nonCompliantFallback,
+      detail: cleanReason,
+    });
+  } else if (sLower === "unstable") {
+    addCategory("unstable");
+    issues.push({
+      category: "unstable",
+      type: "amber",
+      icon: t("icon_warning_amber", "warning_amber"),
+      title: t("label_unstable", "Unstable"),
+      detail: cleanReason,
     });
   }
 
@@ -1887,8 +1881,8 @@ export function IncompatibleModCard({
               }}
               className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
                 isExpanded
-                  ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
-                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]"
+                  ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--accent)]"
+                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]"
               }`}
             >
               <span className="material-symbols-outlined !text-[15px]">
@@ -1913,7 +1907,7 @@ export function IncompatibleModCard({
                   }
                 });
               }}
-              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--success)_38%,transparent)] hover:border-[var(--success)] text-[var(--success)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--success)] flex items-center justify-center transition-all cursor-pointer shrink-0"
             >
               <span className="material-symbols-outlined !text-[15px]">
                 {t("icon_add_link", "add_link")}
@@ -1943,7 +1937,7 @@ export function IncompatibleModCard({
                   handleOpenUrl(primaryDep.url);
                 }
               }}
-              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_38%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
             >
               <span className="material-symbols-outlined !text-[15px]">
                 {missingDepTargets[0].sourceHost
@@ -1974,7 +1968,7 @@ export function IncompatibleModCard({
             <button
               type="button"
               onClick={openModUpdate}
-              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
             >
               <span className="material-symbols-outlined !text-[15px]">
                 {t("icon_update", "update")}
@@ -2037,7 +2031,7 @@ export function IncompatibleModCard({
                   toggleInActiveSet(m._originalSetName || m.name, true, true);
                 });
               }}
-              className="relative group/actionbtn h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center gap-1.5 text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
+              className="relative group/actionbtn h-7 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center gap-1.5 text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
             >
               <span className="material-symbols-outlined !text-[14px]">
                 {t("icon_remove_circle_outline", "remove_circle_outline")}
@@ -2361,7 +2355,7 @@ export function ConflictComparisonCard({
               onClick={() => openModDossier(slot.mod)}
               className={`glass-surface rounded-xl p-3 border transition-all flex flex-col justify-between gap-2.5 min-w-0 cursor-pointer ${
                 slot.isWinner && !isTier4
-                  ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)]"
+                  ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                   : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]"
               }`}
             >
@@ -2428,7 +2422,7 @@ export function ConflictComparisonCard({
                             true
                           );
                         }}
-                        className="relative group/actionbtn h-7 px-2.5 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center gap-1.5 text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
+                        className="relative group/actionbtn h-7 px-2.5 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center gap-1.5 text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer shrink-0"
                       >
                         <span className="material-symbols-outlined !text-[14px]">
                           {t("icon_remove_circle_outline", "remove_circle_outline")}
@@ -2465,7 +2459,7 @@ export function ConflictComparisonCard({
                               scopeName
                             );
                           }}
-                          className="relative group/actionbtn w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+                          className="relative group/actionbtn w-7 h-7 rounded-lg glass-panel border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
                         >
                           <span className="material-symbols-outlined !text-[15px]">
                             {t("icon_check_circle", "check_circle")}
@@ -2766,8 +2760,8 @@ export default function CommandIncompatiblePanel({
                   }}
                   className={`relative group/subaction w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] ${
                     filteredGroupedBrokenMods.some((m: any) => m._alert_type === "red")
-                      ? "text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
-                      : "text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]"
+                      ? "text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)]"
+                      : "text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]"
                   } flex items-center justify-center transition-all cursor-pointer shrink-0`}
                 >
                   <span className="material-symbols-outlined !text-[15px]">

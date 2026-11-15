@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from '../store';
-import { supabase, supabaseAuth } from "../supabase";
+import { supabase, supabaseAuth, getBrandConfig, isStandaloneFork } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
 import {
@@ -15,7 +15,10 @@ import {
   HoverTooltip,
   VAULT_CHIP_CLASS,
 } from "../shared";
-import { UniversalCard } from "../components/universal/UniversalCard";
+import {
+  SupportTicketCard,
+  sortTicketsPriorityFirst,
+} from "../components/universal/SupportTicketCard";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import { UniversalGroup, UniversalInput, UniversalTextArea } from "../components/universal/UniversalLayout";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
@@ -116,6 +119,7 @@ export default function KeepersSupportTickets({
   const [platformSubFilter, setPlatformSubFilter] = useState<string>("all");
   const [streamSubFilter, setStreamSubFilter] = useState<string>("all");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [modNameMap, setModNameMap] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryOptions, setCategoryOptions] = useState<any[]>([]);
   const [settingsCount, setSettingsCount] = useState<number>(0);
@@ -125,9 +129,15 @@ export default function KeepersSupportTickets({
 
   // Keepers Core In-App Email Center & Custom Sender State
   const [isEmailDrawerOpen, setIsEmailDrawerOpen] = useState(false);
-  const [supportSenderNameInput, setSupportSenderNameInput] = useState("Sanctuary OS Keepers Core");
-  const [supportEmailInput, setSupportEmailInput] = useState("support@sanctuaryos.gg");
-  const [supportReplyToInput, setSupportReplyToInput] = useState("support@sanctuaryos.gg");
+  const brandConfig = getBrandConfig();
+  const defaultSenderDisplayName = isStandaloneFork
+    ? `${brandConfig.orgName || brandConfig.appTitle || "Community"} Support`
+    : `${brandConfig.appTitle || "Sanctuary OS"} Keepers Core`;
+  const defaultSupportEmail = brandConfig.supportEmail || "support@sanctuaryos.gg";
+
+  const [supportSenderNameInput, setSupportSenderNameInput] = useState(defaultSenderDisplayName);
+  const [supportEmailInput, setSupportEmailInput] = useState(defaultSupportEmail);
+  const [supportReplyToInput, setSupportReplyToInput] = useState(defaultSupportEmail);
   const [supportEmailProvider, setSupportEmailProvider] = useState<"resend" | "webhook">("resend");
   const [supportEmailApiKey, setSupportEmailApiKey] = useState("");
   const [hasSavedEmailSecret, setHasSavedEmailSecret] = useState(false);
@@ -179,8 +189,8 @@ export default function KeepersSupportTickets({
     if (isSavingEmail) return;
     setIsSavingEmail(true);
     try {
-      const cleanedSender = supportSenderNameInput.trim() || "Sanctuary OS Keepers Core";
-      const cleanedEmail = supportEmailInput.trim() || "support@sanctuaryos.gg";
+      const cleanedSender = supportSenderNameInput.trim() || defaultSenderDisplayName;
+      const cleanedEmail = supportEmailInput.trim() || defaultSupportEmail;
       const cleanedReply = supportReplyToInput.trim() || cleanedEmail;
       const trimmedApiKey = supportEmailApiKey.trim();
 
@@ -241,9 +251,9 @@ export default function KeepersSupportTickets({
         to_email: emailComposeTo.trim(),
         subject: emailComposeSubject.trim(),
         body_text: emailComposeBody.trim(),
-        from_name: supportSenderNameInput.trim() || "Sanctuary OS Keepers Core",
-        from_email: supportEmailInput.trim() || "support@sanctuaryos.gg",
-        reply_to: supportReplyToInput.trim() || supportEmailInput.trim() || "support@sanctuaryos.gg",
+        from_name: supportSenderNameInput.trim() || defaultSenderDisplayName,
+        from_email: supportEmailInput.trim() || defaultSupportEmail,
+        reply_to: supportReplyToInput.trim() || supportEmailInput.trim() || defaultSupportEmail,
       });
       if (res.ok) {
         useStore
@@ -313,31 +323,46 @@ export default function KeepersSupportTickets({
       const hashes = targetModIds.filter(id => !isValidUUID(id));
       const modAuthorMap: Record<string, string> = {};
 
-      if (hashes.length > 0) {
-        const { data: verData } = await supabase.from('mod_versions').select('mod_id, dna_hash').in('dna_hash', hashes);
-        if (verData && verData.length > 0) {
-          const mIds = [...new Set(verData.map((v: any) => v.mod_id))];
-          mIds.forEach(id => {
-            if (!validModIds.includes(id)) validModIds.push(id);
+      const nextModNames: Record<string, string> = {};
+      try {
+        if (hashes.length > 0) {
+          const { data: verData } = await supabase.from('mod_versions').select('mod_id, dna_hash').in('dna_hash', hashes);
+          if (verData && verData.length > 0) {
+            const mIds = [...new Set(verData.map((v: any) => v.mod_id))];
+            mIds.forEach(id => {
+              if (!validModIds.includes(id)) validModIds.push(id);
+            });
+            verData.forEach((v: any) => {
+              modAuthorMap[`HASH_MAP_${v.dna_hash}`] = v.mod_id;
+            });
+          }
+        }
+
+        if (validModIds.length > 0) {
+          const { data: modsData } = await supabase.from('mods').select('id, name, mason_id').in('id', validModIds);
+          modsData?.forEach(m => {
+            modAuthorMap[m.id] = m.mason_id;
+            if (m.name) nextModNames[m.id] = String(m.name);
           });
-          verData.forEach((v: any) => {
-            modAuthorMap[`HASH_MAP_${v.dna_hash}`] = v.mod_id;
+          hashes.forEach(h => {
+            const resolvedId = modAuthorMap[`HASH_MAP_${h}`];
+            if (resolvedId && nextModNames[resolvedId]) {
+              nextModNames[h] = nextModNames[resolvedId];
+            }
           });
         }
+      } catch {
+        // Best-effort target mod lookup across active Spoke
       }
-
-      if (validModIds.length > 0) {
-        const { data: modsData } = await supabase.from('mods').select('id, mason_id').in('id', validModIds);
-        modsData?.forEach(m => {
-          modAuthorMap[m.id] = m.mason_id;
-        });
-      }
+      setModNameMap(nextModNames);
 
       // Partner Spoke Applications live in Partner Spokes (KeepersActiveGames), not Support Center.
-      const finalTickets = mergedTickets.filter(
-        (tk) =>
-          classifyKeeperTicket(tk) !== "partner_apps" &&
-          (userRole === "mason" || isTicketVisibleToStaff(tk, currentUserId))
+      const finalTickets = sortTicketsPriorityFirst(
+        mergedTickets.filter(
+          (tk) =>
+            classifyKeeperTicket(tk) !== "partner_apps" &&
+            (userRole === "mason" || isTicketVisibleToStaff(tk, currentUserId))
+        )
       );
 
       setTickets(finalTickets);
@@ -443,46 +468,21 @@ export default function KeepersSupportTickets({
   };
 
   const renderTicketCard = (ticket: Ticket) => {
-    const statusLower = ticket.status?.toLowerCase() || 'new';
-    const isNew = statusLower === 'new' || statusLower === 'open';
-    const isResolved = statusLower === 'closed' || statusLower === 'resolved';
-    const isRejected = statusLower === 'rejected';
-    const isPending = statusLower === 'investigating' || statusLower === 'pending';
-    const isEscalated = statusLower === 'escalated';
-
-    const statusIconColor = isResolved
-      ? "text-[var(--success)]"
-      : isEscalated || isRejected
-        ? "text-[var(--danger)]"
-        : isPending
-          ? "text-[var(--warning)]"
-          : "text-[var(--accent)]";
-
-    const statusIcon = isResolved
-      ? t("icon_check_circle", "check_circle")
-      : isRejected
-        ? t("icon_cancel", "cancel")
-        : isEscalated
-          ? t("icon_priority_high", "priority_high")
-          : isPending
-            ? t("icon_schedule", "schedule")
-            : t("icon_confirmation_number", "confirmation_number");
-
-    const statusLabel = isNew
-      ? t("ticket_status_open", "Open")
-      : isResolved
-        ? t("ticket_status_resolved", "Resolved")
-        : isRejected
-          ? t("ticket_status_rejected", "Rejected")
-          : isEscalated
-            ? t("ticket_status_escalated", "Escalated")
-            : isPending
-              ? t("ticket_status_pending", "Pending")
-              : t(`ticket_status_${statusLower}`, ticket.status || "Open");
+    const rawModId = String(ticket.target_mod_id || ticket.metadata?.target_mod_id || "").trim();
+    const resolvedModName = rawModId ? modNameMap[rawModId] || null : null;
+    const replyCount = Array.isArray(ticket.metadata?.replies)
+      ? ticket.metadata.replies.length
+      : 0;
 
     return (
-      <UniversalCard
+      <SupportTicketCard
         key={ticket.id}
+        ticket={ticket}
+        t={t}
+        claimedBySelf={Boolean(currentUserId) && isTicketClaimedBy(ticket) === String(currentUserId)}
+        resolvedModName={resolvedModName}
+        replyCount={replyCount}
+        authorLabel={ticket.author_username || null}
         onClick={() => setSelectedTicket(ticket)}
         onContextMenu={(e) => {
           openSanctuaryContextMenu(e, [
@@ -499,75 +499,7 @@ export default function KeepersSupportTickets({
             },
           ]);
         }}
-        layout="vertical"
-        isGhosted={isResolved || isRejected}
-        icon={t("icon_support_agent", "support_agent")}
-        imageOverlay={
-          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-            <div className={VAULT_CHIP_CLASS}>
-              <span className={`material-symbols-outlined !text-[12px] ${statusIconColor}`}>
-                {statusIcon}
-              </span>
-              <span>{statusLabel}</span>
-            </div>
-            {Boolean(currentUserId) && isTicketClaimedBy(ticket) === String(currentUserId) && (
-              <div className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-                  {t("icon_assignment_ind", "assignment_ind")}
-                </span>
-                <span>{t("ticket_tab_claimed", "Claimed")}</span>
-              </div>
-            )}
-            {(ticket.metadata?.expedited_support || ticket.metadata?.urgent) && (
-              <div className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
-                  {t("icon_bolt", "bolt")}
-                </span>
-                <span>{t("urgent", "Urgent")}</span>
-              </div>
-            )}
-          </div>
-        }
-        title={ticket.title}
-        subtitle={ticket.author_username ? `${ticket.author_username} • #${ticket.id.slice(0, 8)}` : `#${ticket.id.slice(0, 8)}`}
-        badges={
-          <>
-            {(ticket.ticket_type || ticket.category) && (
-              <div className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                  {t("icon_local_activity", "local_activity")}
-                </span>
-                <span>{(ticket.ticket_type || ticket.category || "").replace(/_/g, " ")}</span>
-              </div>
-            )}
-            {(ticket.target_mod_id || ticket.metadata?.target_mod_id) && (
-              <div className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-                  {t("icon_extension", "extension")}
-                </span>
-                <span className="truncate max-w-[140px]">
-                  {String(ticket.target_mod_id || ticket.metadata?.target_mod_id).slice(0, 12)}
-                </span>
-              </div>
-            )}
-          </>
-        }
-        footer={
-          <div className="flex justify-between items-center w-full">
-            <span className="text-[10px] font-black text-[var(--subtext)] capitalize tracking-widest flex items-center gap-1.5 opacity-60">
-              <span className="material-symbols-outlined !text-[14px] normal-case">{t("icon_calendar_today", "calendar_today")}</span>
-              {new Date(ticket.created_at).toLocaleDateString()}
-            </span>
-            <span className="text-[10px] font-black text-[var(--text)] group-hover:text-[var(--accent)] capitalize tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0">
-              {t("view_ticket", "View Ticket")} <span className="material-symbols-outlined !text-[12px]">{t("icon_arrow_forward", "arrow_forward")}</span>
-            </span>
-          </div>
-        }
-      >
-        <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
-          {ticket.description}
-        </p>
-      </UniversalCard>
+      />
     );
   };
 
@@ -1113,19 +1045,19 @@ export default function KeepersSupportTickets({
                 label={t("keepers_email_sender_name_label", "Custom Sender Display Name")}
                 value={supportSenderNameInput}
                 onChange={setSupportSenderNameInput}
-                placeholder="Sanctuary OS Keepers Core"
+                placeholder={defaultSenderDisplayName}
               />
               <UniversalInput
                 label={t("keepers_email_sender_addr_label", "Custom Sender Email (From)")}
                 value={supportEmailInput}
                 onChange={setSupportEmailInput}
-                placeholder="support@sanctuaryos.gg"
+                placeholder={defaultSupportEmail}
               />
               <UniversalInput
                 label={t("keepers_email_reply_to_label", "Reply-To Address")}
                 value={supportReplyToInput}
                 onChange={setSupportReplyToInput}
-                placeholder="support@sanctuaryos.gg"
+                placeholder={defaultSupportEmail}
               />
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">

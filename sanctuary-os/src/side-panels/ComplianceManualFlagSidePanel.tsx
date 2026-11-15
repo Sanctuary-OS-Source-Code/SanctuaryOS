@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { supabase, supabaseAuth } from "../supabase";
+import { supabase, supabaseAuth, spokeOversightFrom } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, CustomDropdown, CustomComplianceDropdown, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile, SidePanelFilterBar, SidePanelHeroCard, SidePanelPillToggle } from "../shared";
+import { SidePanel, ActionButton, CustomDropdown, CustomComplianceDropdown, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile, SidePanelFilterBar, SidePanelHeroCard, SidePanelPillToggle } from "../shared";
 import { UniversalGroup, UniversalInput, UniversalTextArea } from '../components/universal/UniversalLayout';
 import { useStore } from '../store';
 import { createPortal } from 'react-dom';
@@ -16,8 +16,18 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
   const [manualSearchQuery, setManualSearchQuery] = useState("");
   const [manualSearchResults, setManualSearchResults] = useState<any[]>([]);
   const [manualSelectedMod, setManualSelectedMod] = useState<any>(null);
-  const [manualTier, setManualTier] = useState<number>(5);
+  const [manualTier, setManualTier] = useState<number>(isMalwareOnly ? 5 : 1);
   const [registryReason, setRegistryReason] = useState("");
+  const [customModName, setCustomModName] = useState("");
+  const [customAuthor, setCustomAuthor] = useState("");
+  const [extraHashes, setExtraHashes] = useState<Array<{ dna_hash: string; version_label: string }>>([]);
+  const [newHashInput, setNewHashInput] = useState("");
+  const [newHashLabel, setNewHashLabel] = useState("");
+  const [familySearchQuery, setFamilySearchQuery] = useState("");
+  const [familySearchResults, setFamilySearchResults] = useState<any[]>([]);
+  const [linkedFamilyMods, setLinkedFamilyMods] = useState<Array<{ id: string; name: string; relType: "twin" | "addon" | "flavor" | "beta" }>>([]);
+  const [selectedFamilyRelType, setSelectedFamilyRelType] = useState<"twin" | "addon" | "flavor" | "beta">("addon");
+  const [cascadeFamilyTier, setCascadeFamilyTier] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -74,7 +84,17 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     if (isOpen) {
       setManualSearchQuery(initialQuery);
       setManualSelectedMod(null);
-      setManualTier(isMalwareOnly ? 5 : 5);
+      setManualTier(isMalwareOnly ? 5 : 1);
+      setCustomModName("");
+      setCustomAuthor("");
+      setExtraHashes([]);
+      setNewHashInput("");
+      setNewHashLabel("");
+      setFamilySearchQuery("");
+      setFamilySearchResults([]);
+      setLinkedFamilyMods([]);
+      setSelectedFamilyRelType("addon");
+      setCascadeFamilyTier(true);
       setConfirmDelete(false);
       loadSignatures();
       
@@ -86,7 +106,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
         setEditingId(null);
       }
     }
-  }, [isOpen, initialQuery, initialHeuristicEdit]);
+  }, [isOpen, initialQuery, initialHeuristicEdit, isMalwareOnly]);
 
   useEffect(() => {
     if (!manualSearchQuery.trim() || manualSelectedMod || !isOpen || activeTab !== 'registry') {
@@ -99,14 +119,14 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       const isHash = /^[0-9a-f]{64}$/i.test(q);
 
       if (isHash) {
-        const { data: verData } = await supabase
-          .from('mod_versions')
-          .select('*, mods(id, name, master_author, compliance_tier)')
-          .eq('dna_hash', q)
+        const { data: verData } = await spokeOversightFrom('mod_versions')
+          .select('*, mods(id, name, master_author, compliance_tier, status)')
+          .eq('dna_hash', q.toLowerCase())
           .maybeSingle();
         
         if (verData && verData.mods) {
-          setManualSearchResults([verData.mods as any]);
+          const modObj = Array.isArray(verData.mods) ? verData.mods[0] : verData.mods;
+          setManualSearchResults(modObj ? [modObj] : []);
         } else {
           setManualSearchResults([]);
         }
@@ -121,9 +141,8 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
           ? `name.ilike.%${safeQ}%,id.eq.${safeQ}`
           : `name.ilike.%${safeQ}%`;
 
-        const { data } = await supabase
-          .from('mods')
-          .select('id, name, master_author, compliance_tier')
+        const { data } = await spokeOversightFrom('mods')
+          .select('id, name, master_author, compliance_tier, status')
           .or(orCondition)
           .limit(10);
         if (data) setManualSearchResults(data);
@@ -132,6 +151,38 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     return () => clearTimeout(delayDebounceFn);
   }, [manualSearchQuery, manualSelectedMod, isOpen, activeTab]);
 
+  useEffect(() => {
+    const q = familySearchQuery.trim();
+    if (!q || !isOpen || activeTab !== 'registry') {
+      setFamilySearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      const isHash = /^[0-9a-f]{64}$/i.test(q);
+      if (isHash) {
+        const { data: verData } = await spokeOversightFrom('mod_versions')
+          .select('mod_id, mods(id, name, master_author, compliance_tier)')
+          .eq('dna_hash', q.toLowerCase())
+          .maybeSingle();
+        const modObj = verData?.mods ? (Array.isArray(verData.mods) ? verData.mods[0] : verData.mods) : null;
+        setFamilySearchResults(modObj && modObj.id !== manualSelectedMod?.id ? [modObj] : []);
+      } else {
+        const { escapePostgrestFilterValue } = await import('../utils/postgrestUtils');
+        const safeQ = escapePostgrestFilterValue(q);
+        if (!safeQ) {
+          setFamilySearchResults([]);
+          return;
+        }
+        const { data } = await spokeOversightFrom('mods')
+          .select('id, name, master_author, compliance_tier')
+          .ilike('name', `%${safeQ}%`)
+          .limit(8);
+        setFamilySearchResults((data || []).filter((m: any) => m.id !== manualSelectedMod?.id));
+      }
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [familySearchQuery, isOpen, activeTab, manualSelectedMod?.id]);
+
   const handleManualFlag = async () => {
     if ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim()) {
       useStore.getState().pushStatus(t("comp_manual_alert_req", "Required fields missing"));
@@ -139,18 +190,24 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
     }
     setIsSubmitting(true);
     try {
-      let targetId = null;
-      let targetName = null;
+      let targetId: string | null = null;
+      let targetName: string | null = null;
+      const accessToken = useStore.getState().session?.access_token || '';
 
-      const manualStatus = manualTier === 5 ? 'blacklisted' : manualTier === 0 ? 'verified' : 'verified';
+      // Oversight manual flags skip Pending and transition directly to Active ('verified' or 'blacklisted')
+      const manualStatus = manualTier === 5 ? 'blacklisted' : 'verified';
       const cleanManualReason = registryReason.trim();
+      const trimmedName = customModName.trim();
+      const trimmedAuthor = customAuthor.trim();
 
       if (manualSelectedMod) {
         const { error } = await supabase.rpc('secure_upsert_cloud_file', {
-          p_token: useStore.getState().session?.access_token || '',
+          p_token: accessToken,
           p_target: 'mods',
           p_payload: {
             id: manualSelectedMod.id,
+            ...(trimmedName ? { name: trimmedName } : {}),
+            ...(trimmedAuthor ? { master_author: trimmedAuthor } : {}),
             compliance_tier: manualTier,
             status: manualStatus,
             status_reason: cleanManualReason,
@@ -158,19 +215,24 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
         });
         if (error) throw error;
         targetId = manualSelectedMod.id;
-        targetName = manualSelectedMod.name;
+        targetName = trimmedName || manualSelectedMod.name;
       } else {
         const q = manualSearchQuery.trim();
         const isHash = /^[0-9a-f]{64}$/i.test(q);
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q);
 
         if (isUUID) {
+          const { data: existingMod } = await spokeOversightFrom('mods')
+            .select('id, name')
+            .eq('id', q)
+            .maybeSingle();
           const { error } = await supabase.rpc('secure_upsert_cloud_file', {
-            p_token: useStore.getState().session?.access_token || '',
+            p_token: accessToken,
             p_target: 'mods',
             p_payload: {
               id: q,
-              name: 'Manual Flag (Unknown)',
+              name: trimmedName || existingMod?.name || t("manual_flag_unindexed_label", "Flagged Unindexed Artifact"),
+              ...(trimmedAuthor ? { master_author: trimmedAuthor } : {}),
               compliance_tier: manualTier,
               status: manualStatus,
               status_reason: cleanManualReason,
@@ -178,33 +240,52 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
           });
           if (error) throw error;
           targetId = q;
-          targetName = q;
+          targetName = trimmedName || existingMod?.name || q;
         } else if (isHash) {
-          const newId = crypto.randomUUID();
+          const normalizedHash = q.toLowerCase();
+          const { data: existingVer } = await spokeOversightFrom('mod_versions')
+            .select('id, mod_id, mods(id, name)')
+            .eq('dna_hash', normalizedHash)
+            .maybeSingle();
+          const existingModRef = existingVer?.mods
+            ? (Array.isArray(existingVer.mods) ? existingVer.mods[0] : existingVer.mods)
+            : null;
+          const resolvedId = existingVer?.mod_id || existingModRef?.id || crypto.randomUUID();
+          const resolvedName = trimmedName || existingModRef?.name || `Manual Flag (${normalizedHash.slice(0, 10)})`;
+
           const { error: modErr } = await supabase.rpc('secure_upsert_cloud_file', {
-            p_token: useStore.getState().session?.access_token || '',
+            p_token: accessToken,
             p_target: 'mods',
             p_payload: {
-              id: newId,
-              name: 'Manual Flag (Hash)',
+              id: resolvedId,
+              name: resolvedName,
+              ...(trimmedAuthor ? { master_author: trimmedAuthor } : {}),
               compliance_tier: manualTier,
               status: manualStatus,
               status_reason: cleanManualReason,
             },
           });
           if (modErr) throw modErr;
-          const { error: verErr } = await supabase.rpc('secure_upsert_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'mod_versions', p_payload: { mod_id: newId, dna_hash: q, version_label: 'unknown' } });
-          if (verErr) throw verErr;
-          targetId = newId;
-          targetName = q;
+          if (!existingVer?.id) {
+            const { error: verErr } = await supabase.rpc('secure_upsert_cloud_file', {
+              p_token: accessToken,
+              p_target: 'mod_versions',
+              p_payload: { mod_id: resolvedId, dna_hash: normalizedHash, version_label: '1.0' },
+            });
+            if (verErr) throw verErr;
+          }
+          targetId = resolvedId;
+          targetName = resolvedName;
         } else {
           const newId = crypto.randomUUID();
+          const resolvedName = trimmedName || q;
           const { error: modErr } = await supabase.rpc('secure_upsert_cloud_file', {
-            p_token: useStore.getState().session?.access_token || '',
+            p_token: accessToken,
             p_target: 'mods',
             p_payload: {
               id: newId,
-              name: q,
+              name: resolvedName,
+              ...(trimmedAuthor ? { master_author: trimmedAuthor } : {}),
               compliance_tier: manualTier,
               status: manualStatus,
               status_reason: cleanManualReason,
@@ -212,14 +293,59 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
           });
           if (modErr) throw modErr;
           targetId = newId;
-          targetName = q;
+          targetName = resolvedName;
+        }
+      }
+
+      if (targetId && extraHashes.length > 0) {
+        for (const eh of extraHashes) {
+          const cleanH = eh.dna_hash.trim().toLowerCase();
+          if (!/^[0-9a-f]{64}$/i.test(cleanH)) continue;
+          const { data: existingVer } = await spokeOversightFrom('mod_versions')
+            .select('id')
+            .eq('dna_hash', cleanH)
+            .maybeSingle();
+          await supabase.rpc('secure_upsert_cloud_file', {
+            p_token: accessToken,
+            p_target: 'mod_versions',
+            p_payload: {
+              ...(existingVer?.id ? { id: existingVer.id } : {}),
+              mod_id: targetId,
+              dna_hash: cleanH,
+              version_label: eh.version_label.trim() || 'companion',
+            },
+          });
+        }
+      }
+
+      if (targetId && linkedFamilyMods.length > 0) {
+        for (const fam of linkedFamilyMods) {
+          if (!fam.id || fam.id === targetId) continue;
+          await supabase
+            .from('mod_relationships')
+            .upsert(
+              { parent_id: targetId, child_id: fam.id, relationship_type: fam.relType },
+              { onConflict: 'parent_id,child_id' }
+            );
+          if (cascadeFamilyTier) {
+            await supabase.rpc('secure_upsert_cloud_file', {
+              p_token: accessToken,
+              p_target: 'mods',
+              p_payload: {
+                id: fam.id,
+                compliance_tier: manualTier,
+                status: manualStatus,
+                status_reason: cleanManualReason,
+              },
+            });
+          }
         }
       }
       
       await logArchitectAction(
-        `Manually flagged with tier ${manualTier}`,
+        `Manually flagged with tier ${manualTier} (${manualStatus})`,
         'mods',
-        targetName || targetId,
+        targetName || targetId || manualSearchQuery.trim(),
         registryReason.trim(),
         sourceHub || 'Oversight',
         false,
@@ -228,18 +354,22 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
             from: manualSelectedMod?.compliance_tier ?? 0,
             to: manualTier,
           },
+          status: { to: manualStatus },
           target: { to: targetName || targetId },
+          linked_hashes_added: { to: extraHashes.length },
+          linked_family_count: { to: linkedFamilyMods.length },
         }
       );
 
-      useStore.getState().pushStatus(t("comp_manual_alert_success", "{Mod} flagged manually successfully."));
+      useStore.getState().pushStatus(t("comp_manual_alert_success", "{Mod} flagged manually successfully."), "success");
+      window.dispatchEvent(new CustomEvent('sanctuary-compliance-updated'));
       onClose();
       if (onSuccess) onSuccess();
       if (manualTier === 5) {
          window.dispatchEvent(new CustomEvent('force-radar-sweep'));
       }
     } catch (err: any) {
-      useStore.getState().pushStatus(t("comp_manual_alert_fail", "Failed:") + " " + err.message);
+      useStore.getState().pushStatus(t("comp_manual_alert_fail", "Failed:") + " " + err.message, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -418,7 +548,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                   onChange={e => setManualSearchQuery(e.target.value)} 
                   readOnly={!!manualSelectedMod}
                   onFocus={() => { if (!manualSelectedMod) setIsDropdownOpen(true); }}
-                  className="w-full glass-surface rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] placeholder:opacity-40" 
+                  className="w-full glass-surface rounded-2xl pl-5 pr-6 h-12 text-sm font-bold focus:outline-none focus:border-[color-mix(in_srgb,var(--text)_32%,transparent)] transition-all text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] placeholder:opacity-40" 
                   placeholder={t("comp_manual_search_placeholder", "Search mod name, UUID, or SHA-256 hash...")} 
                 />
                 {manualSelectedMod && (
@@ -428,8 +558,8 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
 
               {isDropdownOpen && !manualSelectedMod && manualSearchResults.length > 0 && createPortal(
                 <>
-                  <div className="fixed inset-0 z-[50000]" onClick={() => setIsDropdownOpen(false)} />
-                  <div className="fixed mt-2 glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl z-[50001] animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-hidden" style={{
+                  <div className="fixed inset-0 z-[200000]" onClick={() => setIsDropdownOpen(false)} />
+                  <div className="fixed mt-2 glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl z-[200001] animate-in fade-in slide-in-from-top-2 flex flex-col max-h-60 overflow-hidden" style={{
                     top: inputRef.current?.getBoundingClientRect().bottom,
                     left: inputRef.current?.getBoundingClientRect().left,
                     width: inputRef.current?.getBoundingClientRect().width,
@@ -443,9 +573,26 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                       ))}
                     </div>
                   </div>
-                </>, document.body
+                </>, document.getElementById("sa-portals") || document.body
               )}
             </div>
+
+            {!manualSelectedMod && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative z-50 mt-4">
+                <UniversalInput
+                  label={t("comp_manual_custom_name", "{Mod} Name (Optional)")}
+                  value={customModName}
+                  onChange={setCustomModName}
+                  placeholder={t("comp_manual_custom_name_ph", "Display title if hash is unindexed...")}
+                />
+                <UniversalInput
+                  label={t("comp_manual_custom_author", "{Mason} / Author (Optional)")}
+                  value={customAuthor}
+                  onChange={setCustomAuthor}
+                  placeholder={t("author", "Author")}
+                />
+              </div>
+            )}
 
             {!isMalwareOnly && (
               <div className="flex flex-col gap-2 relative z-40 mt-4">
@@ -461,6 +608,178 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                   onChange={setRegistryReason}
                   className="min-h-[80px]" 
                   placeholder={t("comp_reason_ph", "Enter enforcement reason...")}
+              />
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-[var(--border)]/40 flex flex-col gap-3 relative z-20">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5">
+                  <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                    {t("icon_account_tree", "account_tree")}
+                  </span>
+                  {t("comp_family_hashes_title", "Family & Companion Hashes")}
+                </span>
+                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]">
+                  {extraHashes.length + linkedFamilyMods.length}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+                <div className="sm:col-span-6">
+                  <UniversalInput
+                    label={t("comp_companion_hash_label", "Companion SHA-256 Hash")}
+                    value={newHashInput}
+                    onChange={setNewHashInput}
+                    placeholder={t("comp_companion_hash_ph", "64-character SHA-256 hash...")}
+                  />
+                </div>
+                <div className="sm:col-span-3">
+                  <UniversalInput
+                    label={t("version", "Version")}
+                    value={newHashLabel}
+                    onChange={setNewHashLabel}
+                    placeholder={t("comp_companion_ver_ph", "1.0 / addon")}
+                  />
+                </div>
+                <div className="sm:col-span-3">
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_add", "add")}
+                    label={t("add", "Add")}
+                    className="!w-full !justify-center !h-12"
+                    disabled={!/^[0-9a-f]{64}$/i.test(newHashInput.trim())}
+                    onClick={() => {
+                      const cleanH = newHashInput.trim().toLowerCase();
+                      if (!/^[0-9a-f]{64}$/i.test(cleanH)) return;
+                      if (!extraHashes.some((h) => h.dna_hash === cleanH)) {
+                        setExtraHashes([...extraHashes, { dna_hash: cleanH, version_label: newHashLabel.trim() || "companion" }]);
+                      }
+                      setNewHashInput("");
+                      setNewHashLabel("");
+                    }}
+                  />
+                </div>
+              </div>
+
+              {extraHashes.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {extraHashes.map((eh) => (
+                    <span
+                      key={eh.dna_hash}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[10px] font-mono text-[var(--text)]"
+                    >
+                      <span>{eh.dna_hash.slice(0, 14)}... ({eh.version_label})</span>
+                      <button
+                        type="button"
+                        onClick={() => setExtraHashes(extraHashes.filter((h) => h.dna_hash !== eh.dna_hash))}
+                        className="text-[var(--danger)] hover:opacity-80 cursor-pointer flex items-center"
+                      >
+                        <span className="material-symbols-outlined !text-[13px]">{t("icon_close", "close")}</span>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+                <div className="sm:col-span-4 relative z-40">
+                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 block mb-1.5">
+                    {t("comp_family_rel_type", "Relationship")}
+                  </label>
+                  <CustomDropdown
+                    value={selectedFamilyRelType}
+                    options={[
+                      { id: "addon", label: t("rel_addon", "Addon") },
+                      { id: "twin", label: t("rel_twin", "Twin") },
+                      { id: "flavor", label: t("rel_flavor", "Flavor") },
+                      { id: "beta", label: t("rel_beta", "Beta") },
+                    ]}
+                    onChange={(v: any) => {
+                      const val = Array.isArray(v) ? v[0] : v;
+                      if (val) setSelectedFamilyRelType(val as any);
+                    }}
+                    disableTint={true}
+                  />
+                </div>
+                <div className="sm:col-span-8 relative">
+                  <UniversalInput
+                    label={t("comp_family_search_label", "Link Family {Mod} (Name or SHA-256)")}
+                    value={familySearchQuery}
+                    onChange={setFamilySearchQuery}
+                    placeholder={t("search_ph", "Search {mods}...")}
+                  />
+                  {familySearchResults.length > 0 && (
+                    <div className="mt-1 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_15%,transparent)] max-h-40 overflow-y-auto custom-scrollbar flex flex-col p-1 gap-0.5">
+                      {familySearchResults.map((fm) => (
+                        <button
+                          key={fm.id}
+                          type="button"
+                          onClick={() => {
+                            if (!linkedFamilyMods.some((x) => x.id === fm.id)) {
+                              setLinkedFamilyMods([
+                                ...linkedFamilyMods,
+                                { id: fm.id, name: fm.name || fm.id, relType: selectedFamilyRelType },
+                              ]);
+                            }
+                            setFamilySearchQuery("");
+                            setFamilySearchResults([]);
+                          }}
+                          className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] flex items-center justify-between gap-2 text-xs text-[var(--text)] cursor-pointer"
+                        >
+                          <span className="font-bold truncate">{fm.name}</span>
+                          <span className="text-[10px] font-black text-[var(--accent)] shrink-0">
+                            + {selectedFamilyRelType.toUpperCase()}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {linkedFamilyMods.length > 0 && (
+                <>
+                  <div className="flex flex-wrap gap-1.5">
+                    {linkedFamilyMods.map((fm) => (
+                      <span
+                        key={fm.id}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[10px] font-bold text-[var(--text)]"
+                      >
+                        <span className="text-[var(--accent)] uppercase">{fm.relType}</span>
+                        <span className="truncate max-w-[180px]">{fm.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setLinkedFamilyMods(linkedFamilyMods.filter((x) => x.id !== fm.id))}
+                          className="text-[var(--danger)] hover:opacity-80 cursor-pointer flex items-center"
+                        >
+                          <span className="material-symbols-outlined !text-[13px]">{t("icon_close", "close")}</span>
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <SidePanelPillToggle
+                    label={t("comp_cascade_family_tier", "Cascade Tier & Active Enforcement to Linked Family")}
+                    icon={t("icon_hub", "hub")}
+                    checked={cascadeFamilyTier}
+                    onChange={setCascadeFamilyTier}
+                  />
+                </>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2.5 pt-1 w-full">
+              <ActionButton
+                variant="glass"
+                label={t("cancel", "Cancel")}
+                onClick={onClose}
+                disabled={isSubmitting}
+              />
+              <ActionButton
+                variant={isMalwareOnly || manualTier === 5 ? "danger" : "primary"}
+                icon={t("icon_flag", "flag")}
+                label={isSubmitting ? t("btn_submitting", "Submitting...") : t("comp_manual_btn_activate", "Enforce Active Flag")}
+                disabled={isSubmitting || ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim())}
+                onClick={handleManualFlag}
               />
             </div>
           </UniversalGroup>
@@ -510,6 +829,39 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                 checked={enabled}
                 onChange={setEnabled}
               />
+
+              <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1 w-full">
+                {editingId ? (
+                  <ActionButton
+                    variant="danger"
+                    icon={confirmDelete ? t("icon_warning", "warning") : t("icon_delete", "delete")}
+                    label={confirmDelete ? t("btn_confirm_delete", "Confirm {Delete}") : t("btn_delete", "{Delete}")}
+                    disabled={isSubmitting}
+                    onClick={() => {
+                      if (!confirmDelete) {
+                        setConfirmDelete(true);
+                        return;
+                      }
+                      handleRemoveHeuristic(editingId);
+                    }}
+                  />
+                ) : <div />}
+                <div className="flex flex-wrap items-center gap-3">
+                  <ActionButton
+                    variant="glass"
+                    label={t("cancel", "Cancel")}
+                    onClick={onClose}
+                    disabled={isSubmitting}
+                  />
+                  <ActionButton
+                    variant="danger"
+                    icon={t("icon_save", "save")}
+                    label={isSubmitting ? t("btn_submitting", "Submitting...") : t("save", "Save")}
+                    disabled={isSubmitting || !newSig.trim() || !notes.trim()}
+                    onClick={handleAddHeuristic}
+                  />
+                </div>
+              </div>
             </div>
           </UniversalGroup>
         )}

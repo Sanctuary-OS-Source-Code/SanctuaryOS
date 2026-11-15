@@ -10,7 +10,7 @@ export function useModActions(
   fetchVault: () => void,
   runRadarSweep: (silent?: boolean) => Promise<void>,
   activeSetName: string | null,
-  equipPlaySet: (setName: string) => Promise<void>,
+  equipPlaySet: (setName: string) => Promise<boolean | void>,
   setShelterActive: (active: boolean) => void
 ) {
   const { setStatus, activeGameSchema } = useStore(

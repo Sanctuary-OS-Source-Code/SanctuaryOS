@@ -356,14 +356,17 @@ export default function MasonEditorPanel({
           </div>
         </div>
         <div className="monaco-wrapper flex-1 min-h-0 relative w-full">
-          <Editor
-            height="100%"
-            language={resolveEditorLanguage(activeFile.name, activeFile.content)}
-            theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
-            beforeMount={ensureSanctuaryThemes}
-            value={activeFile.content}
-            onChange={handleEditorChange}
-            onMount={(editor, monaco) => {
+          <div className="absolute inset-0">
+            <Editor
+              height="100%"
+              width="100%"
+              language={resolveEditorLanguage(activeFile.name, activeFile.content)}
+              theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
+              beforeMount={ensureSanctuaryThemes}
+              value={activeFile.content}
+              onChange={handleEditorChange}
+              onMount={(editor, monaco) => {
+                editor.layout();
               ensureSanctuaryThemes(monaco);
               monaco.editor.setTheme(
                 isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"
@@ -407,6 +410,7 @@ export default function MasonEditorPanel({
               scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
             }}
           />
+          </div>
         </div>
       </div>
     );
@@ -635,18 +639,21 @@ export default function MasonEditorPanel({
                             </div>
                           </div>
                           <div className="monaco-wrapper flex-1 min-h-0 relative w-full">
-                            <Editor
-                              height="100%"
-                              language="json"
-                              theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
-                              beforeMount={ensureSanctuaryThemes}
-                              value={JSON.stringify(referenceData, null, 2)}
-                              onMount={(editor, monaco) => {
-                                ensureSanctuaryThemes(monaco);
-                                monaco.editor.setTheme(
-                                  isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"
-                                );
-                                rightEditorRef.current = editor;
+                            <div className="absolute inset-0">
+                              <Editor
+                                height="100%"
+                                width="100%"
+                                language="json"
+                                theme={isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"}
+                                beforeMount={ensureSanctuaryThemes}
+                                value={JSON.stringify(referenceData, null, 2)}
+                                onMount={(editor, monaco) => {
+                                  ensureSanctuaryThemes(monaco);
+                                  monaco.editor.setTheme(
+                                    isLight ? "sanctuary-glass-light" : "sanctuary-glass-dark"
+                                  );
+                                  rightEditorRef.current = editor;
+                                  editor.layout();
                                 editor.onContextMenu((e: any) => {
                                   if (e.event) {
                                     if (e.event.browserEvent) e.event.browserEvent.preventDefault();
@@ -678,6 +685,7 @@ export default function MasonEditorPanel({
                                 hover: { enabled: "on", above: false },
                               }}
                             />
+                            </div>
                           </div>
                         </div>
                       </div>

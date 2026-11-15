@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabase';
+import { supabase, spokeOversightFrom } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { CustomDropdown, CustomComplianceDropdown, SidePanel, PanelHeaderGroup, PanelHeaderButton, ActionButton, SidePanelHeroCard, StatBox, EmptyState, VAULT_CHIP_CLASS } from '../shared';
+import { CustomDropdown, CustomComplianceDropdown, SidePanel, SidePanelPillToggle, PanelHeaderGroup, PanelHeaderButton, ActionButton, SidePanelHeroCard, StatBox, EmptyState, VAULT_CHIP_CLASS } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
+import { UniversalInput } from '../components/universal/UniversalLayout';
 import { openSanctuaryContextMenu } from '../ContextMenu';
 import { DynamicArtifactPreviewBanner } from '../chameleon-components/ThemeCard';
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
@@ -33,10 +34,198 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState("");
 
+  // Family & Tracked Hashes state inside Enforcement drawer
+  const [trackedHashes, setTrackedHashes] = useState<any[]>([]);
+  const [familyRelations, setFamilyRelations] = useState<any[]>([]);
+  const [newTrackedHash, setNewTrackedHash] = useState("");
+  const [newTrackedLabel, setNewTrackedLabel] = useState("");
+  const [familyLinkSearch, setFamilyLinkSearch] = useState("");
+  const [familyLinkResults, setFamilyLinkResults] = useState<any[]>([]);
+  const [familyRelType, setFamilyRelType] = useState<"addon" | "twin" | "flavor" | "beta">("addon");
+  const [cascadeFamily, setCascadeFamily] = useState(true);
+  const [isMutatingFamily, setIsMutatingFamily] = useState(false);
+
+  const loadFamilyAndHashes = async (modId: string) => {
+    if (!modId) {
+      setTrackedHashes([]);
+      setFamilyRelations([]);
+      return;
+    }
+    const [{ data: verRows }, { data: relRows }] = await Promise.all([
+      spokeOversightFrom('mod_versions')
+        .select('id, mod_id, dna_hash, version_label, created_at')
+        .eq('mod_id', modId)
+        .order('created_at', { ascending: false }),
+      spokeOversightFrom('mod_relationships')
+        .select('id, parent_id, child_id, relationship_type')
+        .or(`parent_id.eq.${modId},child_id.eq.${modId}`),
+    ]);
+    setTrackedHashes(Array.isArray(verRows) ? verRows : []);
+
+    const rows = Array.isArray(relRows) ? relRows : [];
+    const peerIds = Array.from(
+      new Set(
+        rows
+          .map((r: any) => (String(r.parent_id) === String(modId) ? r.child_id : r.parent_id))
+          .filter(Boolean)
+          .map(String)
+      )
+    );
+    const peerMap = new Map<string, any>();
+    if (peerIds.length > 0) {
+      const { data: peerMods } = await spokeOversightFrom('mods')
+        .select('id, name, master_author, compliance_tier, status')
+        .in('id', peerIds);
+      (peerMods || []).forEach((pm: any) => {
+        if (pm?.id) peerMap.set(String(pm.id), pm);
+      });
+    }
+    setFamilyRelations(
+      rows.map((r: any) => {
+        const peerId = String(r.parent_id) === String(modId) ? String(r.child_id) : String(r.parent_id);
+        return {
+          ...r,
+          peerId,
+          peer: peerMap.get(peerId) || null,
+        };
+      })
+    );
+  };
+
+  useEffect(() => {
+    const q = familyLinkSearch.trim();
+    if (!q || !selectedMod?.id) {
+      setFamilyLinkResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      const isHash = /^[0-9a-f]{64}$/i.test(q);
+      if (isHash) {
+        const { data: mv } = await spokeOversightFrom('mod_versions')
+          .select('mod_id, mods(id, name, master_author, compliance_tier)')
+          .eq('dna_hash', q.toLowerCase())
+          .maybeSingle();
+        const modObj = mv?.mods ? (Array.isArray(mv.mods) ? mv.mods[0] : mv.mods) : null;
+        setFamilyLinkResults(modObj && modObj.id !== selectedMod.id ? [modObj] : []);
+      } else {
+        const { escapePostgrestFilterValue } = await import('../utils/postgrestUtils');
+        const safeQ = escapePostgrestFilterValue(q);
+        if (!safeQ) {
+          setFamilyLinkResults([]);
+          return;
+        }
+        const { data } = await spokeOversightFrom('mods')
+          .select('id, name, master_author, compliance_tier')
+          .ilike('name', `%${safeQ}%`)
+          .limit(8);
+        setFamilyLinkResults((data || []).filter((m: any) => m.id !== selectedMod.id));
+      }
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [familyLinkSearch, selectedMod?.id]);
+
+  const handleAddTrackedHash = async () => {
+    if (!selectedMod?.id) return;
+    const cleanH = newTrackedHash.trim().toLowerCase();
+    if (!/^[0-9a-f]{64}$/i.test(cleanH)) return;
+    setIsMutatingFamily(true);
+    try {
+      const { data: existing } = await spokeOversightFrom('mod_versions')
+        .select('id')
+        .eq('dna_hash', cleanH)
+        .maybeSingle();
+      const { error } = await supabase.rpc('secure_upsert_cloud_file', {
+        p_token: useStore.getState().session?.access_token || '',
+        p_target: 'mod_versions',
+        p_payload: {
+          ...(existing?.id ? { id: existing.id } : {}),
+          mod_id: selectedMod.id,
+          dna_hash: cleanH,
+          version_label: newTrackedLabel.trim() || 'companion',
+        },
+      });
+      if (error) throw error;
+      setNewTrackedHash("");
+      setNewTrackedLabel("");
+      await loadFamilyAndHashes(selectedMod.id);
+    } catch (err: any) {
+      setStatus(`${t("identities_failed_prefix", "Failed:")} ${err?.message || String(err)}`);
+    } finally {
+      setIsMutatingFamily(false);
+    }
+  };
+
+  const handleRemoveTrackedHash = async (versionId: string) => {
+    if (!selectedMod?.id || !versionId) return;
+    setIsMutatingFamily(true);
+    try {
+      await supabase.rpc('secure_delete_cloud_file', {
+        p_token: useStore.getState().session?.access_token || '',
+        p_target: 'mod_versions',
+        p_id: versionId,
+      });
+      await loadFamilyAndHashes(selectedMod.id);
+    } catch (err: any) {
+      setStatus(`${t("identities_failed_prefix", "Failed:")} ${err?.message || String(err)}`);
+    } finally {
+      setIsMutatingFamily(false);
+    }
+  };
+
+  const handleLinkFamilyMod = async (peerMod: any) => {
+    if (!selectedMod?.id || !peerMod?.id || peerMod.id === selectedMod.id) return;
+    setIsMutatingFamily(true);
+    try {
+      await supabase
+        .from('mod_relationships')
+        .upsert(
+          { parent_id: selectedMod.id, child_id: peerMod.id, relationship_type: familyRelType },
+          { onConflict: 'parent_id,child_id' }
+        );
+      setFamilyLinkSearch("");
+      setFamilyLinkResults([]);
+      await loadFamilyAndHashes(selectedMod.id);
+    } catch (err: any) {
+      setStatus(`${t("identities_failed_prefix", "Failed:")} ${err?.message || String(err)}`);
+    } finally {
+      setIsMutatingFamily(false);
+    }
+  };
+
+  const handleUnlinkFamilyRel = async (relId: string) => {
+    if (!selectedMod?.id || !relId) return;
+    setIsMutatingFamily(true);
+    try {
+      await supabase.from('mod_relationships').delete().eq('id', relId);
+      await loadFamilyAndHashes(selectedMod.id);
+    } catch (err: any) {
+      setStatus(`${t("identities_failed_prefix", "Failed:")} ${err?.message || String(err)}`);
+    } finally {
+      setIsMutatingFamily(false);
+    }
+  };
+
+  const cascadeFamilyComplianceUpdate = async (tierValue: number, statusValue: string, reasonValue: string) => {
+    if (!cascadeFamily || familyRelations.length === 0) return;
+    const token = useStore.getState().session?.access_token || '';
+    for (const rel of familyRelations) {
+      if (!rel?.peerId || rel.peerId === selectedMod?.id) continue;
+      await supabase.rpc('secure_upsert_cloud_file', {
+        p_token: token,
+        p_target: 'mods',
+        p_payload: {
+          id: rel.peerId,
+          compliance_tier: tierValue,
+          status: statusValue,
+          status_reason: reasonValue,
+        },
+      });
+    }
+  };
+
   const fetchMods = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('mods')
+    const { data } = await spokeOversightFrom('mods')
       .select('id, name, master_author, compliance_tier, status, status_reason, mason_id, image_url')
       .or('compliance_tier.in.(1,2,3,4,5),status.in.(under_review,pending,blacklisted,quarantined)')
       .order('compliance_tier', { ascending: false });
@@ -75,6 +264,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         },
       });
       if (error) throw error;
+      await cascadeFamilyComplianceUpdate(0, 'verified', editReason.trim());
       await logArchitectAction(
         `Cleared compliance flag for artifact: ${mod.name}`,
         'mods',
@@ -121,6 +311,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         },
       });
       if (error) throw error;
+      await cascadeFamilyComplianceUpdate(confirmedTier, confirmedStatus, editReason.trim());
       await logArchitectAction(
         `Confirmed compliance classification for artifact: ${mod.name} (Tier ${confirmedTier})`,
         'mods',
@@ -145,13 +336,23 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     }
   };
 
-  useEffect(() => { fetchMods(); }, []);
+  useEffect(() => {
+    fetchMods();
+    const onUpdated = () => { fetchMods(); };
+    window.addEventListener('sanctuary-compliance-updated', onUpdated);
+    return () => window.removeEventListener('sanctuary-compliance-updated', onUpdated);
+  }, []);
 
   const handleOpenPanel = (mod: any) => {
     setSelectedMod(mod);
     setEditTier(Number(mod.compliance_tier || 1));
     setEditReason("");
     setStatus("");
+    setNewTrackedHash("");
+    setNewTrackedLabel("");
+    setFamilyLinkSearch("");
+    setFamilyLinkResults([]);
+    loadFamilyAndHashes(mod.id);
   };
 
   const handleSaveTier = async (forceQuarantine = false) => {
@@ -177,6 +378,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         },
       });
       if (error) throw error;
+      await cascadeFamilyComplianceUpdate(editTier, nextStatus, editReason.trim());
 
       await logArchitectAction(
         `Changed compliance tier from ${selectedMod.compliance_tier} to ${editTier}`,
@@ -431,16 +633,14 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
           </div>
         )
       } : undefined}
-      actions={
-        filterStatus !== 'overview' ? [
-          {
-            id: "manual_flag",
-            icon: t("icon_flag", "flag") as string,
-            label: t("comp_btn_manual_flag", "Manual Flag") as string,
-            onClick: () => onOpenManualFlag("")
-          }
-        ] : undefined
-      }
+      actions={[
+        {
+          id: "manual_flag",
+          icon: t("icon_flag", "flag") as string,
+          label: t("comp_btn_manual_flag", "Manual Flag") as string,
+          onClick: () => onOpenManualFlag("")
+        }
+      ]}
     >
       {loading ? (
         <EmptyState
@@ -494,47 +694,6 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
               />
             )}
           </PanelHeaderGroup>
-        }
-        footer={
-          selectedMod ? (
-            <div className="flex flex-wrap items-center justify-between gap-2.5 w-full">
-              <ActionButton
-                variant="glass"
-                icon={t("icon_check_circle", "check_circle")}
-                label={t("btn_clear_flag", "Clear Flag")}
-                disabled={isSubmitting || !editReason.trim()}
-                onClick={(e: React.MouseEvent) => handleClearFlag(e, selectedMod)}
-              />
-              <div className="flex items-center gap-2.5">
-                <ActionButton
-                  variant="danger"
-                  icon={t("icon_block", "block")}
-                  label={t("quarantine", "Quarantine")}
-                  disabled={isSubmitting || !editReason.trim()}
-                  onClick={() => handleSaveTier(true)}
-                />
-                <ActionButton
-                  variant="primary"
-                  icon={t("icon_verified", "verified")}
-                  label={
-                    ["pending", "under_review", "unverified"].includes(
-                      String(selectedMod?.status || "").toLowerCase()
-                    )
-                      ? t("btn_confirm_compliance", "Confirm Compliance Tier")
-                      : t("save", "Save")
-                  }
-                  disabled={isSubmitting || !editReason.trim()}
-                  onClick={(e: React.MouseEvent) =>
-                    ["pending", "under_review", "unverified"].includes(
-                      String(selectedMod?.status || "").toLowerCase()
-                    )
-                      ? handleSetFlag(e, selectedMod)
-                      : handleSaveTier(false)
-                  }
-                />
-              </div>
-            </div>
-          ) : undefined
         }
       >
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
@@ -613,7 +772,201 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
                 placeholder={t("comp_reason_placeholder", "Enter audit reason...")}
               />
             </div>
+
+            {selectedMod && (
+              <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-[var(--border)]/40 w-full">
+                <ActionButton
+                  variant="glass"
+                  icon={t("icon_check_circle", "check_circle")}
+                  label={t("btn_clear_flag", "Clear Flag")}
+                  disabled={isSubmitting || !editReason.trim()}
+                  onClick={(e: React.MouseEvent) => handleClearFlag(e, selectedMod)}
+                />
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <ActionButton
+                    variant="danger"
+                    icon={t("icon_block", "block")}
+                    label={t("quarantine", "Quarantine")}
+                    disabled={isSubmitting || !editReason.trim()}
+                    onClick={() => handleSaveTier(true)}
+                  />
+                  <ActionButton
+                    variant="primary"
+                    icon={t("icon_verified", "verified")}
+                    label={
+                      ["pending", "under_review", "unverified"].includes(
+                        String(selectedMod?.status || "").toLowerCase()
+                      )
+                        ? t("btn_confirm_compliance", "Confirm Compliance Tier")
+                        : t("save", "Save")
+                    }
+                    disabled={isSubmitting || !editReason.trim()}
+                    onClick={(e: React.MouseEvent) =>
+                      ["pending", "under_review", "unverified"].includes(
+                        String(selectedMod?.status || "").toLowerCase()
+                      )
+                        ? handleSetFlag(e, selectedMod)
+                        : handleSaveTier(false)
+                    }
+                  />
+                </div>
+              </div>
+            )}
           </UniversalGroup>
+
+          {selectedMod && (
+            <UniversalGroup title={t("comp_family_hashes_title", "Family & Tracked Hashes")} icon={t("icon_account_tree", "account_tree")}>
+              <div className="flex flex-col gap-3 w-full">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
+                    {t("comp_tracked_hashes_count", "Tracked DNA Hashes")} ({trackedHashes.length})
+                  </span>
+                  <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
+                    {t("comp_linked_family_count", "Linked Family")} ({familyRelations.length})
+                  </span>
+                </div>
+
+                {trackedHashes.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {trackedHashes.map((ver: any) => (
+                      <span
+                        key={ver.id || ver.dna_hash}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[10px] font-mono text-[var(--text)]"
+                      >
+                        <span className="text-[var(--accent)] font-bold">{ver.version_label || "1.0"}</span>
+                        <span>{String(ver.dna_hash || "").slice(0, 14)}...</span>
+                        {ver.id && (
+                          <button
+                            type="button"
+                            disabled={isMutatingFamily}
+                            onClick={() => handleRemoveTrackedHash(ver.id)}
+                            className="text-[var(--danger)] hover:opacity-80 cursor-pointer flex items-center disabled:opacity-40"
+                          >
+                            <span className="material-symbols-outlined !text-[13px]">{t("icon_close", "close")}</span>
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+                  <div className="sm:col-span-6">
+                    <UniversalInput
+                      label={t("comp_companion_hash_label", "Companion SHA-256 Hash")}
+                      value={newTrackedHash}
+                      onChange={setNewTrackedHash}
+                      placeholder={t("comp_companion_hash_ph", "64-character SHA-256 hash...")}
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <UniversalInput
+                      label={t("version", "Version")}
+                      value={newTrackedLabel}
+                      onChange={setNewTrackedLabel}
+                      placeholder={t("comp_companion_ver_ph", "1.0 / addon")}
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_add", "add")}
+                      label={t("add", "Add")}
+                      className="!w-full !justify-center !h-12"
+                      disabled={isMutatingFamily || !/^[0-9a-f]{64}$/i.test(newTrackedHash.trim())}
+                      onClick={handleAddTrackedHash}
+                    />
+                  </div>
+                </div>
+
+                {familyRelations.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[var(--border)]/30">
+                    {familyRelations.map((rel: any) => (
+                      <span
+                        key={rel.id || rel.peerId}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[10px] font-bold text-[var(--text)]"
+                      >
+                        <span className="text-[var(--accent)] uppercase">{rel.relationship_type || "addon"}</span>
+                        <span className="truncate max-w-[160px]">{rel.peer?.name || rel.peerId}</span>
+                        {rel.peer?.compliance_tier !== undefined && (
+                          <span className="text-[9px] font-black opacity-75">
+                            ({t("stat_tier", "Tier")} {rel.peer.compliance_tier})
+                          </span>
+                        )}
+                        {rel.id && (
+                          <button
+                            type="button"
+                            disabled={isMutatingFamily}
+                            onClick={() => handleUnlinkFamilyRel(rel.id)}
+                            className="text-[var(--danger)] hover:opacity-80 cursor-pointer flex items-center disabled:opacity-40"
+                          >
+                            <span className="material-symbols-outlined !text-[13px]">{t("icon_close", "close")}</span>
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end pt-1">
+                  <div className="sm:col-span-4 relative z-40">
+                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 block mb-1.5">
+                      {t("comp_family_rel_type", "Relationship")}
+                    </label>
+                    <CustomDropdown
+                      value={familyRelType}
+                      options={[
+                        { id: "addon", label: t("rel_addon", "Addon") },
+                        { id: "twin", label: t("rel_twin", "Twin") },
+                        { id: "flavor", label: t("rel_flavor", "Flavor") },
+                        { id: "beta", label: t("rel_beta", "Beta") },
+                      ]}
+                      onChange={(v: any) => {
+                        const val = Array.isArray(v) ? v[0] : v;
+                        if (val) setFamilyRelType(val as any);
+                      }}
+                      disableTint={true}
+                    />
+                  </div>
+                  <div className="sm:col-span-8 relative">
+                    <UniversalInput
+                      label={t("comp_family_search_label", "Link Family {Mod} (Name or SHA-256)")}
+                      value={familyLinkSearch}
+                      onChange={setFamilyLinkSearch}
+                      placeholder={t("search_ph", "Search {mods}...")}
+                    />
+                    {familyLinkResults.length > 0 && (
+                      <div className="mt-1 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_15%,transparent)] max-h-40 overflow-y-auto custom-scrollbar flex flex-col p-1 gap-0.5">
+                        {familyLinkResults.map((fm: any) => (
+                          <button
+                            key={fm.id}
+                            type="button"
+                            disabled={isMutatingFamily}
+                            onClick={() => handleLinkFamilyMod(fm)}
+                            className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] flex items-center justify-between gap-2 text-xs text-[var(--text)] cursor-pointer"
+                          >
+                            <span className="font-bold truncate">{fm.name}</span>
+                            <span className="text-[10px] font-black text-[var(--accent)] shrink-0">
+                              + {familyRelType.toUpperCase()}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {familyRelations.length > 0 && (
+                  <SidePanelPillToggle
+                    label={t("comp_cascade_family_tier", "Cascade Tier & Active Enforcement to Linked Family")}
+                    icon={t("icon_hub", "hub")}
+                    checked={cascadeFamily}
+                    onChange={setCascadeFamily}
+                  />
+                )}
+              </div>
+            </UniversalGroup>
+          )}
         </div>
       </SidePanel>
 

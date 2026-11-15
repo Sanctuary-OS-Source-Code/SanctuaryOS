@@ -56,6 +56,8 @@ import {
 import { VAULT_CHIP_CLASS } from "./shared-components/constants";
 import {
   BlueprintPatchReadinessView,
+  BlueprintPatchReadinessSidePanel,
+  LiquidGlassReadinessBar,
   useBlueprintPatchReadiness,
   peekPendingBlueprintsNavigation,
   consumePendingBlueprintsNavigation,
@@ -88,7 +90,7 @@ export default function Blueprints({
   onRefreshMods,
 }: any) {
   const { t } = useLexicon();
-  const { ownedDLC, maskedDLC, selectedVersion, modList, activeGameSchema, ignoredGlobal, session } = useStore(
+  const { ownedDLC, maskedDLC, selectedVersion, modList, activeGameSchema, ignoredGlobal, session, patchFireDrillEnabled, setView } = useStore(
     useShallow((s) => ({
       ownedDLC: s.ownedDLC,
       maskedDLC: s.maskedDLC,
@@ -97,6 +99,8 @@ export default function Blueprints({
       activeGameSchema: s.activeGameSchema,
       ignoredGlobal: s.ignoredGlobal,
       session: s.session,
+      patchFireDrillEnabled: s.patchFireDrillEnabled,
+      setView: s.setView,
     }))
   );
   const {
@@ -119,6 +123,7 @@ export default function Blueprints({
     }))
   );
 
+  const [drawerReadinessBp, setDrawerReadinessBp] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(() => {
     const pending = peekPendingBlueprintsNavigation();
     return pending?.tab || "LANDING";
@@ -156,10 +161,11 @@ export default function Blueprints({
       const initSub =
         detail?.initialSubFilter ?? consumed?.initialSubFilter ?? null;
 
+      const canUseReadiness = useStore.getState().patchFireDrillEnabled;
       if (targetTab) {
-        setActiveTab(targetTab);
+        setActiveTab(targetTab === "READINESS" && !canUseReadiness ? "LANDING" : targetTab);
       }
-      if (inspectBp) {
+      if (inspectBp && canUseReadiness) {
         setPendingReadinessInspect({
           bpName: inspectBp,
           bucket: initBucket,
@@ -210,7 +216,14 @@ export default function Blueprints({
   const [uplinkArtifactsLimit, setUplinkArtifactsLimit] = useState(100);
   const patchReadiness = useBlueprintPatchReadiness({
     pinnedBlueprintNames: pinnedBlueprints,
+    skip: !patchFireDrillEnabled,
   });
+
+  useEffect(() => {
+    if (!patchFireDrillEnabled && activeTab === "READINESS") {
+      setActiveTab("LANDING");
+    }
+  }, [patchFireDrillEnabled, activeTab]);
 
   useEffect(() => {
     setUplinkArtifactsLimit(100);
@@ -590,7 +603,6 @@ export default function Blueprints({
     if (!cloudTarget?.payload) return null;
     const cloudItems = cloudTarget.resolvedItems || [];
     const cloudRemoved = cloudTarget.payload?.removedItems || [];
-    const isFullRig = Boolean(cloudTarget.payload?.isFullRigBlueprint);
     const ownedCount = cloudItems.filter((i: any) => i.isOwned).length;
     const bpTitle =
       cloudTarget.payload.blueprintName || t("term_blueprint", "{Blueprint}");
@@ -708,30 +720,13 @@ export default function Blueprints({
         }
         badges={
           <>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedUplinkBlueprint({
-                  name: bpTitle,
-                  code: cloudTarget.payload.blueprintCode || "RIG PIPELINE",
-                  artifacts: cloudItems,
-                });
-              }}
-              className={`${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:text-[var(--accent)] transition-colors cursor-pointer`}
-            >
-              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t("icon_extension", "extension")}
-              </span>
-              <span>
-                {cloudItems.length} {t("artifacts_linked", "{Mods} Linked")}
-              </span>
-            </button>
             <div className={VAULT_CHIP_CLASS}>
               <span
-                className={`material-symbols-outlined !text-[12px] ${ownedCount === cloudItems.length && cloudItems.length > 0
-                    ? "text-[var(--success)]"
-                    : "text-[var(--warning)]"
+                className={`material-symbols-outlined !text-[12px] ${cloudRemoved.length > 0
+                    ? "text-[var(--danger)]"
+                    : ownedCount === cloudItems.length && cloudItems.length > 0
+                      ? "text-[var(--success)]"
+                      : "text-[var(--warning)]"
                   }`}
               >
                 {ownedCount === cloudItems.length && cloudItems.length > 0
@@ -740,28 +735,9 @@ export default function Blueprints({
               </span>
               <span>
                 {ownedCount}/{cloudItems.length} {t("status_in_vault", "In {Vault}")}
+                {cloudRemoved.length > 0 ? ` • -${cloudRemoved.length}` : ""}
               </span>
             </div>
-            {isFullRig && (
-              <div className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]`}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                  {t("icon_devices", "devices")}
-                </span>
-                <span>{t("pipeline_badge_full_rig", "Full Rig {Blueprint}")}</span>
-              </div>
-            )}
-            {cloudRemoved.length > 0 && (
-              <div
-                className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[var(--danger)]`}
-              >
-                <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
-                  {t("icon_remove_circle_outline", "remove_circle_outline")}
-                </span>
-                <span>
-                  -{cloudRemoved.length} {t("staging_badge_removing", "Queued to {Remove}")}
-                </span>
-              </div>
-            )}
           </>
         }
         footer={
@@ -772,7 +748,7 @@ export default function Blueprints({
                 e.stopPropagation();
                 handleOpenInSignatureQueue(cloudTarget, queueIdx);
               }}
-              className="w-full h-9 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 relative border bg-transparent glass-surface border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] cursor-pointer"
+              className="w-full h-9 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 relative border bg-transparent glass-surface border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_26%,transparent)] cursor-pointer"
             >
               <span className="material-symbols-outlined !text-[15px]">
                 {t("icon_draw", "draw")}
@@ -789,9 +765,9 @@ export default function Blueprints({
                   e.stopPropagation();
                   handleTogglePipelineCompleteLocally(cloudTarget);
                 }}
-                className={`h-8 glass-surface border rounded-lg transition-all flex items-center justify-center relative cursor-pointer ${cloudTarget.isCompletedLocally
-                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                    : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:text-[var(--success)]"
+                className={`h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer ${cloudTarget.isCompletedLocally
+                    ? "text-[var(--success)]"
+                    : "text-[var(--subtext)] hover:text-[var(--success)]"
                   }`}
               >
                 <span className="material-symbols-outlined !text-[16px]">
@@ -816,7 +792,7 @@ export default function Blueprints({
                     e.stopPropagation();
                     handleStageSetToRigQueue(matchingLocalSet);
                   }}
-                  className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
+                  className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:text-[var(--accent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
                 >
                   <span
                     className={`material-symbols-outlined !text-[16px] ${stagingRigSetName === matchingLocalSet.name
@@ -841,7 +817,7 @@ export default function Blueprints({
                   e.stopPropagation();
                   handleShredPipelineRow(cloudTarget);
                 }}
-                className="h-8 glass-surface border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[var(--danger)] hover:border-[var(--danger)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
+                className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--danger)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
               >
                 <span className="material-symbols-outlined !text-[16px]">
                   {t("icon_delete_forever", "delete_forever")}
@@ -862,6 +838,13 @@ export default function Blueprints({
     const { alertStatus } = setComputations[set.name] || {
       alertStatus: { total: 0, tier4: 0, tier3: 0, broken: 0, unstable: 0 },
     };
+    const bpPatchReport = patchFireDrillEnabled
+      ? patchReadiness.blueprintReports.find(
+          (r) =>
+            String(r.blueprintName || "").toLowerCase() ===
+            String(set.name || "").toLowerCase()
+        ) || null
+      : null;
     const isPinned = pinnedBlueprints.includes(set.name);
     const hasAlerts = alertStatus && alertStatus.total > 0;
     const isDeployed = activeSetName === set.name;
@@ -1081,7 +1064,7 @@ export default function Blueprints({
               </span>
             </div>
             {pipelineSetNames.has(String(set.name || "").toLowerCase()) && (
-              <div className={`${VAULT_CHIP_CLASS} border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]`}>
+              <div className={`${VAULT_CHIP_CLASS} text-[var(--accent)]`}>
                 <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                   {t("icon_phonelink_ring", "phonelink_ring")}
                 </span>
@@ -1097,13 +1080,13 @@ export default function Blueprints({
               e.stopPropagation();
               togglePin(set.name);
             }}
-            className={`w-8 h-8 rounded-xl glass-surface border flex items-center justify-center transition-all relative ${isPinned
-                ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_55%,transparent)] opacity-100"
-                : "text-[var(--subtext)] opacity-65 hover:opacity-100 border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)]"
+            className={`w-6 h-6 rounded-lg glass-surface border flex items-center justify-center transition-all relative cursor-pointer ${isPinned
+                ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_20%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] opacity-100"
+                : "text-[var(--subtext)] opacity-75 hover:opacity-100 border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:text-[var(--accent)]"
               }`}
           >
             <span
-              className="material-symbols-outlined !text-[16px]"
+              className="material-symbols-outlined !text-[14px]"
               style={{
                 fontVariationSettings: isPinned ? "'FILL' 1" : "'FILL' 0",
               }}
@@ -1121,77 +1104,57 @@ export default function Blueprints({
             />
           </button>
         }
-        badges={
-          <>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedUplinkBlueprint({
-                  name: set.name,
-                  code: "LOCAL BLUEPRINT",
-                  artifacts: set.mods,
-                });
-              }}
-              className={`${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] hover:text-[var(--accent)] transition-colors cursor-pointer`}
-            >
-              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                {t("icon_extension", "extension")}
-              </span>
-              <span>
-                {linkedModsCount} {t("artifacts_linked", "{Mods} Linked")}
-              </span>
-            </button>
-            {selectedVersion && (
-              <div className={VAULT_CHIP_CLASS}>
-                <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-                  {t("icon_sell", "sell")}
-                </span>
-                <span className="text-[var(--subtext)]">v{selectedVersion}</span>
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (setActivePlaySetIndex)
-                  setActivePlaySetIndex(playSets.findIndex((s: any) => s.name === set.name));
-                setIsArchitectOpen(true);
-              }}
-              className={`${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] transition-colors cursor-pointer`}
-            >
-              <span
-                className={`material-symbols-outlined !text-[12px] ${hasAlerts
-                    ? alertStatus.tier4 > 0 || alertStatus.broken > 0
-                      ? "text-[var(--danger)]"
-                      : "text-[var(--warning)]"
-                    : "text-[var(--success)]"
-                  }`}
-              >
-                {hasAlerts
-                  ? alertStatus.tier4 > 0 || alertStatus.broken > 0
-                    ? t("icon_error", "error")
-                    : t("icon_warning", "warning")
-                  : t("icon_verified", "verified")}
-              </span>
-              <span
-                className={
-                  hasAlerts
-                    ? alertStatus.tier4 > 0 || alertStatus.broken > 0
-                      ? "text-[var(--danger)]"
-                      : "text-[var(--warning)]"
-                    : "text-[var(--subtext)]"
-                }
-              >
-                {hasAlerts
-                  ? `${alertStatus.total} ${t("system_alerts_title", "Alerts")}`
-                  : t("tier_clean", "Clean")}
-              </span>
-            </button>
-          </>
-        }
         footer={
           <div className="flex flex-col gap-2.5 w-full">
+            {bpPatchReport && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDrawerReadinessBp(set.name);
+                }}
+                className="w-full rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] px-2.5 py-2 flex flex-col gap-1.5 transition-all cursor-pointer group/drill text-left"
+              >
+                <div className="flex items-center justify-between gap-2 text-[10px] font-bold">
+                  <span className="flex items-center gap-1.5 text-[var(--subtext)] group-hover/drill:text-[var(--text)] transition-colors min-w-0">
+                    <span
+                      className={`material-symbols-outlined !text-[13px] ${
+                        bpPatchReport.verdict === "hold"
+                          ? "text-[var(--danger)]"
+                          : bpPatchReport.verdict === "updates_ready"
+                            ? "text-[var(--warning)]"
+                            : "text-[var(--success)]"
+                      }`}
+                    >
+                      {t("icon_published_with_changes", "published_with_changes")}
+                    </span>
+                    <span className="truncate font-mono">
+                      {patchReadiness.targetVersion
+                        ? `v${patchReadiness.targetVersion}`
+                        : t("patch_sim_tab_title", "Patch Readiness")}
+                    </span>
+                  </span>
+                  <span
+                    className={`font-mono font-black shrink-0 ${
+                      bpPatchReport.verdict === "hold"
+                        ? "text-[var(--danger)]"
+                        : bpPatchReport.verdict === "updates_ready"
+                          ? "text-[var(--warning)]"
+                          : "text-[var(--success)]"
+                    }`}
+                  >
+                    {bpPatchReport.readinessPercent}% {t("patch_sim_ready_label", "Ready")}
+                  </span>
+                </div>
+                <LiquidGlassReadinessBar
+                  readyCount={bpPatchReport.readyMods.length}
+                  updateCount={bpPatchReport.updatableMods.length}
+                  blockingCount={bpPatchReport.blockingMods.length}
+                  totalCount={bpPatchReport.totalMods}
+                  heightClass="h-2"
+                />
+              </button>
+            )}
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -1199,9 +1162,9 @@ export default function Blueprints({
                   e.stopPropagation();
                   equipPlaySet && equipPlaySet(set.name);
                 }}
-                className={`flex-1 h-9 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 relative border glass-surface ${isDeployed
-                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                    : "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]"
+                className={`flex-1 h-9 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 relative border glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] ${isDeployed
+                    ? "text-[var(--success)]"
+                    : "text-[var(--accent)]"
                   }`}
               >
                 <span className="material-symbols-outlined !text-[15px]">
@@ -1229,11 +1192,11 @@ export default function Blueprints({
                     setActivePlaySetIndex(playSets.findIndex((s: any) => s.name === set.name));
                   setIsArchitectOpen(true);
                 }}
-                className={`h-9 px-3.5 glass-surface border rounded-xl transition-all flex items-center justify-center gap-1.5 relative font-black uppercase text-[10px] tracking-wider ${hasAlerts
+                className={`h-9 px-3.5 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] rounded-xl transition-all flex items-center justify-center gap-1.5 relative font-black uppercase text-[10px] tracking-wider ${hasAlerts
                     ? alertStatus.tier4 > 0 || alertStatus.broken > 0
-                      ? "border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--danger)]"
-                      : "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
-                    : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)]"
+                      ? "text-[var(--danger)]"
+                      : "text-[var(--warning)]"
+                    : "text-[var(--text)] hover:text-[var(--accent)]"
                   }`}
               >
                 <span className="material-symbols-outlined !text-[16px]">
@@ -1261,9 +1224,9 @@ export default function Blueprints({
                   e.stopPropagation();
                   handleStageSetToRigQueue(set);
                 }}
-                className={`h-8 glass-surface border rounded-lg transition-all flex items-center justify-center relative cursor-pointer ${stagedRigSuccessSetName === set.name
-                    ? "border-[color-mix(in_srgb,var(--success)_45%,transparent)] text-[var(--success)]"
-                    : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                className={`h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer ${stagedRigSuccessSetName === set.name
+                    ? "text-[var(--success)]"
+                    : "text-[var(--subtext)] hover:text-[var(--accent)]"
                   }`}
               >
                 <span
@@ -1290,7 +1253,7 @@ export default function Blueprints({
                   e.stopPropagation();
                   handleOpenMatrix(set.name);
                 }}
-                className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
+                className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
               >
                 <span className="material-symbols-outlined !text-[16px]">
                   {t("icon_cloud", "cloud")}
@@ -1303,7 +1266,7 @@ export default function Blueprints({
                   e.stopPropagation();
                   exportPlaySet && exportPlaySet(set.name);
                 }}
-                className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
+                className="h-8 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] rounded-lg transition-all flex items-center justify-center relative cursor-pointer"
               >
                 <span className="material-symbols-outlined !text-[16px]">
                   {t("icon_upload", "upload")}
@@ -1322,9 +1285,9 @@ export default function Blueprints({
                     setTimeout(() => setDeleteConfirm(null), 3000);
                   }
                 }}
-                className={`h-8 transition-all flex items-center justify-center rounded-lg border glass-surface relative cursor-pointer ${deleteConfirm === set.name
-                    ? "border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)]"
-                    : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
+                className={`h-8 transition-all flex items-center justify-center rounded-lg border glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] relative cursor-pointer ${deleteConfirm === set.name
+                    ? "text-[var(--danger)]"
+                    : "text-[var(--subtext)] hover:text-[var(--danger)]"
                   }`}
               >
                 <span className="material-symbols-outlined !text-[16px]">
@@ -1511,14 +1474,16 @@ export default function Blueprints({
             setTab={switchTab}
             iconColorClass="text-sky-500"
           />
-          <VerticalTabButton
-            id="READINESS"
-            icon={t("icon_published_with_changes", "published_with_changes")}
-            label={t("patch_sim_tab_title", "Patch Readiness")}
-            activeTab={activeTab}
-            setTab={switchTab}
-            iconColorClass="text-emerald-400"
-          />
+          {patchFireDrillEnabled && (
+            <VerticalTabButton
+              id="READINESS"
+              icon={t("icon_published_with_changes", "published_with_changes")}
+              label={t("patch_sim_tab_title", "Patch Readiness")}
+              activeTab={activeTab}
+              setTab={switchTab}
+              iconColorClass="text-emerald-400"
+            />
+          )}
         </HoverTabDrawer>
       </div>
 
@@ -1558,21 +1523,23 @@ export default function Blueprints({
             onClick={() => switchTab("NETWORK")}
             isActive={activeTab === "NETWORK"}
           />
-          <DashboardStatTile
-            variant="tab"
-            icon={t("icon_published_with_changes", "published_with_changes")}
-            label={t("patch_sim_tab_title", "Patch Readiness")}
-            colorClass={
-              patchReadiness.activeBlueprintReport?.verdict === "hold"
-                ? "text-[var(--danger)]"
-                : patchReadiness.activeBlueprintReport?.verdict === "updates_ready"
-                  ? "text-[var(--warning)]"
-                  : "text-[var(--success)]"
-            }
-            number={`${patchReadiness.activeBlueprintReport?.readinessPercent ?? 100}%`}
-            onClick={() => switchTab("READINESS")}
-            isActive={activeTab === "READINESS"}
-          />
+          {patchFireDrillEnabled && (
+            <DashboardStatTile
+              variant="tab"
+              icon={t("icon_published_with_changes", "published_with_changes")}
+              label={t("patch_sim_tab_title", "Patch Readiness")}
+              colorClass={
+                patchReadiness.activeBlueprintReport?.verdict === "hold"
+                  ? "text-[var(--danger)]"
+                  : patchReadiness.activeBlueprintReport?.verdict === "updates_ready"
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--success)]"
+              }
+              number={`${patchReadiness.activeBlueprintReport?.readinessPercent ?? 100}%`}
+              onClick={() => switchTab("READINESS")}
+              isActive={activeTab === "READINESS"}
+            />
+          )}
         </StatTileCarousel>
       </div>
 
@@ -1692,7 +1659,7 @@ export default function Blueprints({
                   iconColorClass="text-[var(--accent)]"
                 />
                 {syncInputVisible ? (
-                  <div className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] rounded-2xl relative h-24 text-left group animate-in fade-in zoom-in-95 duration-200">
+                  <div className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] rounded-2xl relative h-24 text-left group animate-in fade-in zoom-in-95 duration-200">
                     <div className="flex items-center gap-5 h-full relative z-10 w-full">
                       <div className="w-12 h-12 rounded-xl glass-surface border flex items-center justify-center shrink-0 border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)]">
                         <span className="material-symbols-outlined !text-3xl">
@@ -1700,7 +1667,7 @@ export default function Blueprints({
                         </span>
                       </div>
                       <div className="flex flex-col flex-1 min-w-0 w-full justify-center">
-                        <div className="flex items-center justify-start w-full border-b border-[color-mix(in_srgb,var(--accent)_30%,transparent)] pb-1">
+                        <div className="flex items-center justify-start w-full border-b border-[color-mix(in_srgb,var(--text)_14%,transparent)] pb-1">
                           <input
                             autoFocus
                             value={localSyncCode}
@@ -1762,7 +1729,7 @@ export default function Blueprints({
         </div>
       )}
 
-      {activeTab === "READINESS" && (
+      {patchFireDrillEnabled && activeTab === "READINESS" && (
         <BlueprintPatchReadinessView
           pinnedBlueprints={pinnedBlueprints}
           readiness={patchReadiness}
@@ -1777,7 +1744,7 @@ export default function Blueprints({
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pb-12 pt-2">
             {isDraftingSet && (
-              <div className="glass-panel border-[color-mix(in_srgb,var(--accent)_35%,transparent)] p-6 rounded-2xl flex flex-col gap-4 animate-in zoom-in-95 relative min-h-[14rem] justify-center">
+              <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] p-6 rounded-2xl flex flex-col gap-4 animate-in zoom-in-95 relative min-h-[14rem] justify-center">
                 <input
                   autoFocus
                   type="text"
@@ -1792,13 +1759,13 @@ export default function Blueprints({
                 <div className="flex gap-3 mt-2 z-10">
                   <button
                     onClick={finalizeDraftSet}
-                    className="flex-1 py-3 glass-surface border border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)] font-black capitalize tracking-widest text-[10px] rounded-xl hover:border-[color-mix(in_srgb,var(--success)_65%,transparent)] transition-all"
+                    className="flex-1 py-3 glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--success)] font-black capitalize tracking-widest text-[10px] rounded-xl transition-all"
                   >
                     {t("hub_save", "Save")}
                   </button>
                   <button
                     onClick={() => setIsDraftingSet && setIsDraftingSet(false)}
-                    className="w-16 py-3 flex items-center justify-center glass-surface text-[var(--text)] font-black rounded-xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] hover:text-[var(--danger)] transition-all"
+                    className="w-16 py-3 flex items-center justify-center glass-surface text-[var(--text)] font-black rounded-xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:text-[var(--danger)] transition-all"
                   >
                     <span className="material-symbols-outlined !text-[18px]">
                       {t("icon_close", "close")}
@@ -2058,9 +2025,9 @@ export default function Blueprints({
                                 syncBlueprintByCode(bp.code).finally(() => setIsSyncing(false));
                               }
                             }}
-                            className="w-8 h-8 rounded-xl glass-surface text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] flex items-center justify-center transition-all relative"
+                            className="w-6 h-6 rounded-lg glass-surface text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:text-[var(--accent)] flex items-center justify-center transition-all relative cursor-pointer"
                           >
-                            <span className="material-symbols-outlined !text-[16px]">
+                            <span className="material-symbols-outlined !text-[14px]">
                               {t("icon_download", "download")}
                             </span>
                             <HoverTooltip title={t("action_sync", "Sync {Blueprint}")} />
@@ -2076,7 +2043,7 @@ export default function Blueprints({
                                 e.stopPropagation();
                                 setSelectedUplinkBlueprint(bp);
                               }}
-                              className={`${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:text-[var(--accent)] transition-colors cursor-pointer`}
+                              className={`${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:text-[var(--accent)] transition-colors cursor-pointer`}
                             >
                               <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                                 {t("icon_extension", "extension")}
@@ -2094,7 +2061,7 @@ export default function Blueprints({
                               setCopiedCode(bp.code);
                               setTimeout(() => setCopiedCode(null), 2000);
                             }}
-                            className={`${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-colors cursor-pointer`}
+                            className={`${VAULT_CHIP_CLASS} hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-colors cursor-pointer`}
                           >
                             <span
                               className={`material-symbols-outlined !text-[12px] ${copiedCode === bp.code
@@ -2201,6 +2168,26 @@ export default function Blueprints({
           vaultPath={vaultPath}
           onRefreshMods={onRefreshMods}
           renamePlaySet={renamePlaySet}
+        />
+      )}
+
+      {drawerReadinessBp !== null && (
+        <BlueprintPatchReadinessSidePanel
+          isOpen={drawerReadinessBp !== null}
+          onClose={() => setDrawerReadinessBp(null)}
+          initialBlueprintName={drawerReadinessBp || undefined}
+          readiness={patchReadiness}
+          onOpenFullTool={() => {
+            const target = drawerReadinessBp;
+            setDrawerReadinessBp(null);
+            setPendingReadinessInspect({
+              bpName: target,
+              bucket: null,
+              subFilter: null,
+            });
+            switchTab("READINESS");
+          }}
+          onNavigateView={setView}
         />
       )}
 

@@ -176,7 +176,7 @@ export function AuditLogViewer({
 
       // Scope filtering in Keepers Core
       if (effectiveIsKeepers) {
-        if (effectiveScope === "CORE_OS") {
+        if (effectiveScope === "CORE_OS" || effectiveScope === "CORE") {
           query = query.or("game_name.eq.Core OS,game_name.is.null");
         } else if (effectiveScope === "SPOKES_ONLY") {
           query = query.not("game_name", "is", null).neq("game_name", "Core OS");
@@ -278,22 +278,24 @@ export function AuditLogViewer({
       if (uncachedActorIds.length > 0) {
         const [{ data: spokeProfs }, { data: authProfs }, { data: spokeMasons }] =
           await Promise.all([
-            client
-              .from("profiles")
-              .select(
-                "id, username, role, is_banned, is_comm_banned, blacklist_reason, comm_blacklist_reason"
-              )
-              .in("id", uncachedActorIds),
+            effectiveIsKeepers
+              ? Promise.resolve({ data: [] as any[] })
+              : client
+                  .from("profiles")
+                  .select(
+                    "id, username, role, is_banned, is_comm_banned, blacklist_reason, comm_blacklist_reason"
+                  )
+                  .in("id", uncachedActorIds),
             supabaseAuth
               .from("profiles")
-              .select(
-                "id, username, role, is_banned, is_comm_banned, blacklist_reason, comm_blacklist_reason"
-              )
+              .select("id, username, role, is_banned, blacklist_reason")
               .in("id", uncachedActorIds),
-            client
-              .from("masons")
-              .select("id, name, profile_id")
-              .in("id", uncachedActorIds),
+            effectiveIsKeepers
+              ? Promise.resolve({ data: [] as any[] })
+              : client
+                  .from("masons")
+                  .select("id, name, profile_id")
+                  .in("id", uncachedActorIds),
           ]);
 
         if (spokeMasons) {

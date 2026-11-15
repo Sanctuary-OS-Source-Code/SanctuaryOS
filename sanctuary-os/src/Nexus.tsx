@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { supabase } from "./supabase";
-import { ViewHeader, CustomDropdown, getFileLabel, getExtensionRegex, isScriptExtension, formatDisplayName, getModIcon, compareVersions, enrichBlueprintsWithPremiumStatus, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip, EmptyState, countBlueprintArtifacts, toHighlanderSlotSlug, formatHighlanderSlotLabel } from "./shared";
+import { ViewHeader, CustomDropdown, ActionButton, getFileLabel, getExtensionRegex, isScriptExtension, formatDisplayName, getModIcon, compareVersions, isVersionMatch, enrichBlueprintsWithPremiumStatus, AccordionDrawer, DeferredRender, ActionPill, HoverTooltip, EmptyState, countBlueprintArtifacts, toHighlanderSlotSlug, formatHighlanderSlotLabel } from "./shared";
+import {
+  NEXUS_CACHE_SCHEMA_REV,
+  NEXUS_ELIGIBLE_MOD_STATUSES,
+  isNexusTier0EligibleMod,
+  fetchNexusTier0CatalogSummary,
+} from "./utils/nexusCatalogStats";
 import { useLexicon } from "./LexiconContext";
 import { useShallow } from "zustand/react/shallow";
 import { useStore } from "./store";
@@ -30,7 +36,7 @@ import { useVerifiedMasonOrStaff } from "./utils/hubCommandCache";
 if (!window.__sanctuaryCache) {
   window.__sanctuaryCache = {} as any;
 }
-if (!window.__sanctuaryCache!.nexus || (window.__sanctuaryCache!.nexus as any).schemaRev !== 4) {
+if (!window.__sanctuaryCache!.nexus || (window.__sanctuaryCache!.nexus as any).schemaRev !== NEXUS_CACHE_SCHEMA_REV) {
   window.__sanctuaryCache!.nexus = {
     nexusItems: null,
     lastNexusFetch: 0,
@@ -40,7 +46,7 @@ if (!window.__sanctuaryCache!.nexus || (window.__sanctuaryCache!.nexus as any).s
 
     recentFeed: [],
     lastHomeFetch: 0,
-    schemaRev: 4,
+    schemaRev: NEXUS_CACHE_SCHEMA_REV,
   } as any;
 }
 
@@ -169,7 +175,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     return localStorage.getItem('sanctuary_hide_missing_dlc') === 'true';
   });
   const [hideInstalled, setHideInstalled] = useState<boolean>(() => {
-    return localStorage.getItem('sanctuary_hide_installed_assets') === 'true';
+    return localStorage.getItem('sanctuary_hide_installed_assets') !== 'false';
   });
 
   const [assetSearchQuery, setAssetSearchQuery] = useState(marketSearchQuery);
@@ -232,6 +238,66 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
   }, [marketSearchQuery]);
 
   useEffect(() => {
+    const invalidateNexusStatCaches = () => {
+      if (window.__sanctuaryCache?.nexus) {
+        window.__sanctuaryCache.nexus.lastHomeFetch = 0;
+        window.__sanctuaryCache.nexus.lastNexusFetch = 0;
+        window.__sanctuaryCache.nexus.lastAssetFetch = 0;
+      }
+    };
+    const onFlagged = (e: any) => {
+      const targetType = String(e?.detail?.targetType || "").toLowerCase();
+      const targetId = e?.detail?.targetId;
+      if (!targetId) return;
+      const idStr = String(targetId);
+      invalidateNexusStatCaches();
+      setRecentFeed((prev) => prev.filter((item: any) => String(item?.id) !== idStr));
+      if (window.__sanctuaryCache?.nexus?.recentFeed) {
+        window.__sanctuaryCache.nexus.recentFeed = window.__sanctuaryCache.nexus.recentFeed.filter(
+          (item: any) => String(item?.id) !== idStr
+        );
+      }
+      if (targetType === "mod") {
+        setResults((prev) => prev.filter((m: any) => String(m?.id) !== idStr));
+        if (window.__sanctuaryCache?.nexus?.nexusItems) {
+          window.__sanctuaryCache.nexus.nexusItems = window.__sanctuaryCache.nexus.nexusItems.filter(
+            (m: any) => String(m?.id) !== idStr
+          );
+        }
+        setStats((prev: any) => ({
+          ...prev,
+          artifacts: Math.max(0, (prev.artifacts || 0) - 1),
+        }));
+        if (window.__sanctuaryCache?.nexus?.homeStats) {
+          window.__sanctuaryCache.nexus.homeStats = {
+            ...window.__sanctuaryCache.nexus.homeStats,
+            artifacts: Math.max(0, (window.__sanctuaryCache.nexus.homeStats.artifacts || 0) - 1),
+          };
+        }
+      } else {
+        setAssetResultsMap((prev) => {
+          const next = { ...prev };
+          for (const k of Object.keys(next)) {
+            if (Array.isArray(next[k])) {
+              next[k] = next[k].filter((a: any) => String(a?.id) !== idStr);
+            }
+          }
+          if (window.__sanctuaryCache?.nexus) {
+            window.__sanctuaryCache.nexus.assetResultsMap = next;
+          }
+          return next;
+        });
+      }
+    };
+    window.addEventListener("sanctuary-content-flagged", onFlagged);
+    window.addEventListener("sanctuary-compliance-updated", invalidateNexusStatCaches);
+    return () => {
+      window.removeEventListener("sanctuary-content-flagged", onFlagged);
+      window.removeEventListener("sanctuary-compliance-updated", invalidateNexusStatCaches);
+    };
+  }, []);
+
+  useEffect(() => {
     if (marketTab === 'HOME' && !isOffline) {
       const fetchHomeData = async () => {
         const cachedFeed = window.__sanctuaryCache!.nexus!.recentFeed || [];
@@ -247,7 +313,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         // Stale-While-Revalidate: Show cache immediately if we have it
         if (window.__sanctuaryCache!.nexus!.homeStats && !hasIncompleteSuiteCache) {
           setStats(window.__sanctuaryCache!.nexus!.homeStats);
-          setRecentFeed(cachedFeed.filter((item: any) => item.is_public !== false));
+          setRecentFeed(cachedFeed.filter((item: any) => item.is_public !== false && item?.has_pending_flag !== true));
           setLoadingHome(false);
         }
 
@@ -261,43 +327,43 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         try {
           const selectFields = "*";
           const [
-            { count: artifactsCount },
-            { count: blueprintsCount },
-            { count: lexiconsCount },
-            { count: chameleonsCount },
-            { count: templatesCount },
+            catalogSummary,
             { data: recentModsRawData },
             { data: recentBps },
             { data: recentAssets }
           ] = await Promise.all([
-            supabase.from('mods').select('*', { count: 'exact', head: true }).eq('compliance_tier', 0).in('status', ['stable', 'verified', 'unstable', 'corrupted', 'pending']),
-            supabase.from('blueprints').select('*', { count: 'exact', head: true }).eq('is_public', true).eq('is_market_listed', true).eq('compliance_tier', 0),
-            supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'lexicon').or('is_public.eq.true,is_public.is.null'),
-            supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'chameleon').or('is_public.eq.true,is_public.is.null'),
-            supabase.from('nexus_assets').select('*', { count: 'exact', head: true }).eq('asset_type', 'workbench_template').or('is_public.eq.true,is_public.is.null'),
+            fetchNexusTier0CatalogSummary(supabase, { forceRefresh: true }),
             supabase
               .from('mods')
               .select(selectFields)
               .eq('compliance_tier', 0)
-              .in('status', ['stable', 'verified', 'unstable', 'corrupted', 'pending'])
+              .eq('has_pending_flag', false)
+              .in('status', [...NEXUS_ELIGIBLE_MOD_STATUSES])
               .order('created_at', { ascending: false })
               .limit(100),
-            supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_public', true).eq('is_market_listed', true).eq('compliance_tier', 0).order('created_at', { ascending: false }).limit(20),
-            supabase.from('nexus_assets').select('id, asset_type, name, author, description, downloads, created_at, language, lexicon_type, theme_mode, is_community_default, version, release_notes, is_public, is_paid, is_early_access, json_data').or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(20)
+            supabase.from('blueprints').select('*').eq('is_public', true).eq('is_market_listed', true).eq('compliance_tier', 0).eq('has_pending_flag', false).order('created_at', { ascending: false }).limit(20),
+            supabase.from('nexus_assets').select('*').eq('has_pending_flag', false).or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(20)
           ]);
 
+          const visibleRecentBps = (recentBps || []).filter((b: any) => b?.has_pending_flag !== true && Number(b?.compliance_tier ?? -1) === 0);
+          const visibleRecentAssets = (recentAssets || []).filter((a: any) => a?.has_pending_flag !== true);
+
+          const cachedArtifactsCount = Array.isArray(window.__sanctuaryCache?.nexus?.nexusItems)
+            ? window.__sanctuaryCache!.nexus!.nexusItems!.length
+            : catalogSummary.artifacts;
+
           const newStats = {
-            artifacts: artifactsCount || 0,
-            blueprints: blueprintsCount || 0,
-            lexicons: lexiconsCount || 0,
-            chameleons: chameleonsCount || 0,
-            templates: templatesCount || 0
+            artifacts: cachedArtifactsCount,
+            blueprints: catalogSummary.blueprints || visibleRecentBps.length || 0,
+            lexicons: catalogSummary.lexicons,
+            chameleons: catalogSummary.chameleons,
+            templates: catalogSummary.templates
           };
 
           setStats(newStats);
           window.__sanctuaryCache!.nexus!.homeStats = newStats;
 
-          let recentModsRaw = recentModsRawData ? recentModsRawData.filter(m => !m.name?.toLowerCase().includes('manual flag')).slice(0, 50) : [];
+          let recentModsRaw = recentModsRawData ? recentModsRawData.filter(m => isNexusTier0EligibleMod(m)).slice(0, 50) : [];
 
           let processedRecentMods: any[] = [];
           if (recentModsRaw && recentModsRaw.length > 0) {
@@ -320,7 +386,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     .select(selectFields)
                     .in('id', parentIdsToFetch)
                     .eq('compliance_tier', 0)
-                    .neq('status', 'unverified')
+                    .eq('has_pending_flag', false)
+                    .in('status', [...NEXUS_ELIGIBLE_MOD_STATUSES])
                 : Promise.resolve({ data: [] as any[] }),
               allParentIds.length > 0 ? supabase.from('mod_relationships').select('child_id, parent_id').in('parent_id', allParentIds).in('relationship_type', ['twin', 'addon', 'flavor', 'set_item', 'beta']) : Promise.resolve({ data: [] as any[] }),
               allSetIds.length > 0 ? supabase.from('collection_members').select('mod_id, set_id').in('set_id', allSetIds) : Promise.resolve({ data: [] as any[] })
@@ -339,7 +406,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 .select(selectFields)
                 .in('id', siblingIdsToFetch.slice(0, 200))
                 .eq('compliance_tier', 0)
-                .neq('status', 'unverified');
+                .eq('has_pending_flag', false)
+                .in('status', [...NEXUS_ELIGIBLE_MOD_STATUSES]);
               fetchedSiblings = sibData || [];
             }
 
@@ -470,13 +538,15 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
           let combined = [
             ...(processedRecentMods).map((m: any) => ({ ...m, feed_type: 'artifact' })),
-            ...(recentBps || []).map((b: any) => ({ ...b, feed_type: 'blueprint' })),
-            ...(recentAssets || []).map((a: any) => ({ ...a, feed_type: a.asset_type === 'workbench_template' ? 'template' : a.asset_type }))
+            ...visibleRecentBps.map((b: any) => ({ ...b, feed_type: 'blueprint' })),
+            ...visibleRecentAssets.map((a: any) => ({ ...a, feed_type: a.asset_type === 'workbench_template' ? 'template' : a.asset_type }))
           ];
 
           combined = combined.filter((item: any) => {
-            if (item.is_public === false) return false;
+            if (item.is_public === false || item.has_pending_flag === true) return false;
+            if (item.feed_type === 'blueprint' && Number(item.compliance_tier || 0) !== 0) return false;
             if (item.feed_type === 'artifact') {
+              if (Number(item.compliance_tier || 0) !== 0) return false;
               return !item.name?.toLowerCase().includes("manual flag");
             }
             return true;
@@ -610,17 +680,24 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     assetsFetchPromise = (async () => {
       try {
         const [
-          { data: blueprints, error: bpError },
-          { data: allAssets, error: assetError },
+          { data: rawBlueprints, error: bpError },
+          { data: rawAllAssets, error: assetError },
           { data: masonData }
         ] = await Promise.all([
-          supabase.from('blueprints').select('id, name, created_at, mason_id, compliance_tier, is_public, is_locked, is_market_listed, game_version, is_paid, is_early_access, downloads, artifacts').eq('is_market_listed', true).eq('compliance_tier', 0).order('created_at', { ascending: false }).limit(1000),
-          supabase.from('nexus_assets').select('id, asset_type, name, author, description, downloads, created_at, language, lexicon_type, theme_mode, is_community_default, version, release_notes, is_public, is_paid, is_early_access, json_data').or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(1000),
+          supabase.from('blueprints').select('*').eq('is_market_listed', true).eq('compliance_tier', 0).eq('has_pending_flag', false).order('created_at', { ascending: false }).limit(1000),
+          supabase.from('nexus_assets').select('*').eq('has_pending_flag', false).or('is_public.eq.true,is_public.is.null').order('created_at', { ascending: false }).limit(1000),
           supabase.from('masons').select('id, name, is_verified')
         ]);
 
         if (bpError) throw bpError;
         if (assetError) throw assetError;
+
+        const blueprints = (rawBlueprints || []).filter(
+          (b: any) => b?.has_pending_flag !== true && Number(b?.compliance_tier || 0) === 0
+        );
+        const allAssets = (rawAllAssets || []).filter(
+          (a: any) => a?.has_pending_flag !== true && a?.is_public !== false
+        );
 
         let premiumMap: Record<string, any> = {};
         let verifiedCompliantBlueprints = blueprints || [];
@@ -835,34 +912,60 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
     }
     if (!reportState.assetId || !reportState.reason.trim()) return;
     try {
-      if (reportState.assetType === 'mod') {
+      const normalizedAssetId = String(reportState.assetId || "").replace(/^collection_/, "");
+      const isCollectionAsset =
+        reportState.assetType === "collection" ||
+        String(reportState.assetId || "").startsWith("collection_");
+
+      if (isCollectionAsset) {
+        const { error } = await supabase.from("content_flags").insert([
+          {
+            content_type: "collection",
+            content_id: normalizedAssetId,
+            reporter_id: session.user.id,
+            reason: reportState.reason.trim(),
+            status: "pending",
+          },
+        ]);
+        if (error) throw error;
+        window.dispatchEvent(
+          new CustomEvent("sanctuary-content-flagged", {
+            detail: { targetType: "collection", targetId: normalizedAssetId },
+          })
+        );
+        onSetStatus(t("report_submitted_success", "Report submitted successfully."));
+      } else if (reportState.assetType === 'mod') {
         const tierToFlag = Math.min(4, Math.max(1, Number(reportState.complianceTier || 1)));
         const { error } = await supabase.rpc('flag_mod_for_compliance', {
-          p_mod_id: String(reportState.assetId),
+          p_mod_id: normalizedAssetId,
           p_tier: tierToFlag,
           p_reason: reportState.reason.trim(),
         });
         if (error) throw error;
+        window.dispatchEvent(new CustomEvent("sanctuary-compliance-updated"));
+        window.dispatchEvent(new CustomEvent("sanctuary-content-flagged", { detail: { targetType: 'mod', targetId: normalizedAssetId } }));
         onSetStatus(t("mod_flagged_compliance_pending", "{Mod} flagged for Oversight Compliance review."));
       } else if (reportState.assetType === 'blueprint') {
         const { error } = await supabase.from('blueprint_reports').insert([{
-          blueprint_id: reportState.assetId,
+          blueprint_id: normalizedAssetId,
           reporter_name: session?.user?.user_metadata?.username || 'Anonymous',
           reporter_id: session?.user?.id,
           reason: reportState.reason.trim(),
           status: 'pending'
         }]);
         if (error) throw error;
+        window.dispatchEvent(new CustomEvent("sanctuary-content-flagged", { detail: { targetType: 'blueprint', targetId: normalizedAssetId } }));
         onSetStatus(t("report_submitted_success", "Report submitted successfully."));
       } else {
         const { error } = await supabase.from('nexus_reports').insert([{
-          asset_id: reportState.assetId,
+          asset_id: normalizedAssetId,
           reporter_name: session?.user?.user_metadata?.username || 'Anonymous',
           reporter_id: session?.user?.id,
           reason: reportState.reason.trim(),
           status: 'pending'
         }]);
         if (error) throw error;
+        window.dispatchEvent(new CustomEvent("sanctuary-content-flagged", { detail: { targetType: String(reportState.assetType || 'asset'), targetId: normalizedAssetId } }));
         onSetStatus(t("report_submitted_success", "Report submitted successfully."));
       }
     } catch (err: any) {
@@ -1012,7 +1115,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       try {
         const BATCH_SIZE = 1000;
         const modSelectCols =
-          "id, name, created_at, category_override, sub_type, file_extension, master_author, compliance_tier, highlander_group_id, image_url, description, url, compatible_versions, requiredDLC, is_official, status, status_reason, is_paid, is_early_access, mod_versions(dna_hash, version_label), masons(id, name)";
+          "*, mod_versions(dna_hash, version_label), masons(id, name)";
 
         const [
           firstModsRes,
@@ -1027,7 +1130,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
             .from("mods")
             .select(modSelectCols, { count: "exact" })
             .eq('compliance_tier', 0)
-            .in('status', ['stable', 'verified', 'unstable', 'corrupted', 'pending'])
+            .eq('has_pending_flag', false)
+            .in('status', [...NEXUS_ELIGIBLE_MOD_STATUSES])
             .range(0, BATCH_SIZE - 1),
           supabase.from('masons').select('name, is_verified'),
           supabase.from("flavor_groups").select("*"),
@@ -1051,7 +1155,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                 .from("mods")
                 .select(modSelectCols)
                 .eq('compliance_tier', 0)
-                .in('status', ['stable', 'verified', 'unstable', 'corrupted', 'pending'])
+                .eq('has_pending_flag', false)
+                .in('status', [...NEXUS_ELIGIBLE_MOD_STATUSES])
                 .range(i * BATCH_SIZE, (i + 1) * BATCH_SIZE - 1)
             );
           }
@@ -1098,7 +1203,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         const hashToModMap = new Map<string, { modId: string; mod: any }>();
         if (modsData) {
           modsData.forEach((rawMod: any) => {
-            if (rawMod.compliance_tier > 0) return;
+            if (!isNexusTier0EligibleMod(rawMod)) return;
             let resolvedGroupId = rawMod.highlander_group_id ? String(rawMod.highlander_group_id) : "";
             if (!resolvedGroupId && Array.isArray(rawMod.mod_versions)) {
               for (const v of rawMod.mod_versions) {
@@ -1225,17 +1330,17 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           }
 
           for (const set of collections) {
+            if (!set || Number(set.compliance_tier ?? 0) !== 0 || set.has_pending_flag === true) {
+              continue;
+            }
             const setMembers = membersBySet.get(set.id) || [];
 
             const members = setMembers
               .map((sm: any) => modsById.get(String(sm.mod_id)))
               .filter(Boolean) || [];
 
-            if (setMembers.length > 0) {
-              setMembers.forEach((sm: any) => processedMods.add(String(sm.mod_id)));
-            }
-
             if (members.length > 0) {
+              members.forEach((m: any) => processedMods.add(String(m.id)));
               const setMasonName = Array.isArray(set.masons) ? set.masons[0]?.name : set.masons?.name;
               const resolvedSetAuthor =
                 setMasonName ||
@@ -1300,6 +1405,13 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
         window.__sanctuaryCache!.nexus!.nexusItems = allItems;
         window.__sanctuaryCache!.nexus!.lastNexusFetch = performance.now();
+        setStats((prev: any) => ({ ...prev, artifacts: allItems.length }));
+        if (window.__sanctuaryCache?.nexus?.homeStats) {
+          window.__sanctuaryCache.nexus.homeStats = {
+            ...window.__sanctuaryCache.nexus.homeStats,
+            artifacts: allItems.length,
+          };
+        }
 
         if (!isSilent || useStore.getState().marketTab === 'MODS') {
           setResults(allItems);
@@ -1338,7 +1450,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           mod.mod_versions?.some((v: any) => ownedHashesSet.has(v.dna_hash));
       })();
 
-      if (isOwned) return false;
+      if (hideInstalled && isOwned) return false;
 
       if (hidePaid && mod.is_paid) return false;
       if (hideEarlyAccess && mod.is_early_access) return false;
@@ -1389,7 +1501,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         matchesGameVersion = modsToCheck.some((m: any) => {
           const versions = Array.isArray(m.compatible_versions) ? m.compatible_versions : [];
           if (versions.length === 0) return true;
-          return versions.some((v: string) => v === selectedGameVersion);
+          return isVersionMatch(versions, selectedGameVersion);
         });
       }
 
@@ -1428,7 +1540,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           return 0;
       }
     });
-  }, [results, ownedHashesSet, hidePaid, hideEarlyAccess, hideMissingDLC, ownedDLC, maskedDLC, searchQuery, categoryFilter, selectedGameVersion, dlcFilter, sortBy, t]);
+  }, [results, ownedHashesSet, hideInstalled, hidePaid, hideEarlyAccess, hideMissingDLC, ownedDLC, maskedDLC, searchQuery, categoryFilter, selectedGameVersion, dlcFilter, sortBy, t]);
 
   const totalPages = Math.max(1, Math.ceil(filteredResults.length / itemsPerPage));
   const paginatedResults = useMemo(() => filteredResults.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage), [filteredResults, currentPage, itemsPerPage]);
@@ -1690,13 +1802,17 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
       icon: t("icon_flag", "flag"),
       variant: "danger",
       dividerBefore: true,
-      onClick: () =>
+      onClick: () => {
+        const rawId = String(mod.id || "");
+        const isCol = Boolean(mod.isCollection || rawId.startsWith("collection_"));
         setReportState({
           isOpen: true,
-          assetId: mod.id,
-          assetType: "mod",
+          assetId: isCol ? rawId.replace(/^collection_/, "") : mod.id,
+          assetType: isCol ? "collection" : "mod",
           reason: "",
-        }),
+          complianceTier: 1,
+        });
+      },
     });
 
     openSanctuaryContextMenu(e, {
@@ -1906,7 +2022,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           title={t("market_title", "The {Nexus}")}
           subtitle={`${t("subtitle_suffix", "Community index, {mod} discovery, and metadata links")}`}
           icon={t("icon_hub", "hub")}
-          iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+          iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_14%,transparent)]"
           breadcrumb={marketTab !== 'HOME' ? (marketTab === 'HOME' ? t('tab_overview', 'Overview') : marketTab === 'STAGING' ? t('tab_staging', 'Staging') : t(`tab_${marketTab.toLowerCase()}`, marketTab)) : undefined}
           onTitleClick={() => setMarketTab('HOME')}
         >
@@ -2005,7 +2121,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         multiSelect={true}
                         value={activeViewFilters}
                         onChange={handleViewFiltersChange}
-                        options={viewFilterOptions.filter(o => o.id !== 'hide_installed')}
+                        options={viewFilterOptions}
                       />
 
                       {(marketTab === 'MODS' || (marketTab === 'BLUEPRINTS' && gameVersions.length > 0)) && (
@@ -2117,7 +2233,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                               : t("icon_palette", "palette");
 
                       const renderedCard = (
-                        <div key={mainKey} className={`relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-colors duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.35))] group ${expandedFolder === mainKey ? 'ring-2 ring-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : ''}`} onClick={() => {
+                        <div key={mainKey} className={`relative flex flex-col h-full glass-panel rounded-[var(--radius)] transition-colors duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] group ${expandedFolder === mainKey ? 'sa-glass-active' : ''}`} onClick={() => {
                           if (item.feed_type === 'artifact') {
                             if (onOpenDossier) onOpenDossier({ ...item, isNexusView: true });
                           } else if (item.feed_type === 'blueprint') {
@@ -2242,7 +2358,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
                           <AccordionDrawer isOpen={expandedFolder === mainKey}>
                             <div
-                              className="w-full glass-panel rounded-3xl p-4 sm:p-6 md:p-8 border border-[color-mix(in_srgb,var(--accent)_25%,rgba(255,255,255,0.16))] shadow-[0_24px_60px_rgba(0,0,0,0.45)] flex flex-col gap-5 md:gap-6 relative isolate"
+                              className="w-full glass-panel rounded-3xl p-4 sm:p-6 md:p-8 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[0_24px_60px_rgba(0,0,0,0.45)] flex flex-col gap-5 md:gap-6 relative isolate"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {/* Header */}
@@ -2307,7 +2423,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                       setDrawerSearchQuery("");
                                       setExpandedFolder(null);
                                     }}
-                                    className="w-10 h-10 rounded-xl glass-surface hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shrink-0 cursor-pointer pointer-events-auto"
+                                    className="w-10 h-10 rounded-xl glass-surface hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shrink-0 cursor-pointer pointer-events-auto"
                                   >
                                     <span className="material-symbols-outlined !text-[20px]">
                                       {t("icon_close", "close")}
@@ -2337,7 +2453,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                           <div
                                             key={`sub-${flavor.id || flavor.hash || flavor.name}-${subIdx}`}
                                             onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
-                                            className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group"
+                                            className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] group"
                                           >
                                             <div
                                               className="relative z-20 h-28 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
@@ -2389,7 +2505,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                                     }}
                                                     className={`px-2.5 py-1 rounded-lg border text-[8px] font-black uppercase tracking-widest flex items-center gap-1 transition-all ${
                                                       (stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
-                                                        ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]'
+                                                        ? 'sa-glass-active text-[var(--accent)]'
                                                         : 'glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]'
                                                     }`}
                                                   >
@@ -2438,7 +2554,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     textColorClass="text-emerald-500"
                     hoverTextColorClass="group-hover:text-emerald-400"
                     iconShadowClass="drop-shadow-md text-emerald-500"
-                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--success)_30%,transparent)]"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                   />
                   <CommandScreenQuickLink
                     icon={t("icon_map", "map")}
@@ -2448,7 +2564,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     textColorClass="text-blue-500"
                     hoverTextColorClass="group-hover:text-blue-400"
                     iconShadowClass="drop-shadow-md text-blue-500"
-                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                   />
                   <CommandScreenQuickLink
                     icon={t("icon_translate", "translate")}
@@ -2458,7 +2574,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     textColorClass="text-purple-500"
                     hoverTextColorClass="group-hover:text-purple-400"
                     iconShadowClass="drop-shadow-md text-purple-500"
-                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                   />
                   <CommandScreenQuickLink
                     icon={t("icon_palette", "palette")}
@@ -2468,7 +2584,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     textColorClass="text-rose-500"
                     hoverTextColorClass="group-hover:text-rose-400"
                     iconShadowClass="drop-shadow-md text-rose-500"
-                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--danger)_30%,transparent)]"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                   />
                   <CommandScreenQuickLink
                     icon={t("icon_draw", "draw")}
@@ -2478,7 +2594,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     textColorClass="text-amber-500"
                     hoverTextColorClass="group-hover:text-amber-400"
                     iconShadowClass="drop-shadow-md text-amber-500"
-                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--warning)_30%,transparent)]"
+                    iconBorderHoverClass="group-hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                   />
                 </div>
               </CommandScreenSidebar>
@@ -2538,7 +2654,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                         key={mainKey}
                         onClick={() => onOpenDossier && onOpenDossier({ ...mod, isNexusView: true })}
                         onContextMenu={(e) => handleNexusModContextMenu(e, mod, mainKey, isFolder)}
-                        className={`relative flex flex-col h-full glass-panel rounded-2xl transition-colors duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.35))] group ${expandedFolder === mainKey ? 'ring-2 ring-[color-mix(in_srgb,var(--accent)_50%,transparent)]' : ''}`}
+                        className={`relative flex flex-col h-full glass-panel rounded-2xl transition-colors duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] group ${expandedFolder === mainKey ? 'sa-glass-active' : ''}`}
                       >
                         <div
                           className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
@@ -2654,7 +2770,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                   className={`h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 whitespace-nowrap transition-all pointer-events-auto z-20 cursor-pointer ${
                                     isModOrSuiteStaged
                                       ? 'sa-glass-active text-[var(--accent)]'
-                                      : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]'
+                                      : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
                                   }`}
                                 >
                                   <span className="material-symbols-outlined !text-[14px]">
@@ -2694,7 +2810,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
 
                         <AccordionDrawer isOpen={expandedFolder === mainKey}>
                           <div
-                            className="w-full glass-panel rounded-3xl p-4 sm:p-6 md:p-8 border border-[color-mix(in_srgb,var(--accent)_25%,rgba(255,255,255,0.16))] shadow-[0_24px_60px_rgba(0,0,0,0.45)] flex flex-col gap-5 md:gap-6 relative isolate"
+                            className="w-full glass-panel rounded-3xl p-4 sm:p-6 md:p-8 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] shadow-[0_24px_60px_rgba(0,0,0,0.45)] flex flex-col gap-5 md:gap-6 relative isolate"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {/* Header */}
@@ -2759,7 +2875,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                     setDrawerSearchQuery("");
                                     setExpandedFolder(null);
                                   }}
-                                  className="w-10 h-10 rounded-xl glass-surface hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shrink-0 cursor-pointer pointer-events-auto"
+                                  className="w-10 h-10 rounded-xl glass-surface hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center text-[var(--text)] transition-colors shrink-0 cursor-pointer pointer-events-auto"
                                 >
                                   <span className="material-symbols-outlined !text-[20px]">
                                     {t("icon_close", "close")}
@@ -2789,7 +2905,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                         <div
                                           key={`sub-${flavor.id || flavor.hash || flavor.name}-${subIdx}`}
                                           onClick={() => onOpenDossier && onOpenDossier({ ...flavor, isNexusView: true })}
-                                          className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group"
+                                          className="relative flex flex-col h-full glass-panel rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] group"
                                         >
                                           <div
                                             className="relative z-20 h-28 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
@@ -2841,7 +2957,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                                   }}
                                                   className={`px-2.5 py-1 rounded-lg border text-[8px] font-black uppercase tracking-widest flex items-center gap-1 transition-all ${
                                                     (stagedModKeys.has(String(flavor.id)) || (flavor.hash && stagedModKeys.has(String(flavor.hash))))
-                                                      ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]'
+                                                      ? 'sa-glass-active text-[var(--accent)]'
                                                       : 'glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]'
                                                   }`}
                                                 >
@@ -2871,14 +2987,52 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                     );
                   })}
                 </>
-              ) : (
-                <EmptyState
-                  icon={t("icon_hub", "hub")}
-                  title={t("empty_title", "No new {mods} detected.")}
-                  subtitle={t("empty_desc", "Everything in The {Nexus} is already in Your {Vault}.")}
-                  className="col-span-full py-16"
-                />
-              )}
+              ) : (() => {
+                const isHiddenOnlyByInstalled =
+                  hideInstalled &&
+                  results.length > 0 &&
+                  !searchQuery.trim() &&
+                  (categoryFilter === "ALL" || categoryFilter === t("filter_all", "All")) &&
+                  (selectedGameVersion === "all" || selectedGameVersion === (selectedVersion || "all")) &&
+                  dlcFilter === "all" &&
+                  !hidePaid &&
+                  !hideEarlyAccess &&
+                  !hideMissingDLC;
+                const showInstalledAction =
+                  hideInstalled && results.length > 0 ? (
+                    <ActionButton
+                      variant={isHiddenOnlyByInstalled ? "accent" : "default"}
+                      icon={t("icon_visibility", "visibility")}
+                      label={t("nexus_show_installed", "Show Installed")}
+                      onClick={() => {
+                        setHideInstalled(false);
+                        localStorage.setItem('sanctuary_hide_installed_assets', 'false');
+                        setCurrentPage(1);
+                      }}
+                    />
+                  ) : undefined;
+                return (
+                  <EmptyState
+                    icon={
+                      isHiddenOnlyByInstalled
+                        ? t("icon_hub", "hub")
+                        : t("icon_search_off", "search_off")
+                    }
+                    title={
+                      isHiddenOnlyByInstalled
+                        ? t("nexus_empty_installed_title", "No new {mods} detected.")
+                        : t("no_matches_found", "No matching {mods} found.")
+                    }
+                    subtitle={
+                      isHiddenOnlyByInstalled
+                        ? t("empty_desc", "Everything in The {Nexus} is already in Your {Vault}.")
+                        : t("nexus_no_matches_desc", "Try adjusting your search or filter options.")
+                    }
+                    action={showInstalledAction}
+                    className="col-span-full py-16"
+                  />
+                );
+              })()}
             </div>
 
             {totalPages > 1 && !loadingMods && (
@@ -2928,7 +3082,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                       else if (onOpenDossier) onOpenDossier({ ...asset, isNexusView: true });
                     }}
                     onContextMenu={(e) => handleNexusAssetContextMenu(e, asset, marketTab)}
-                    className="relative flex flex-col h-full glass-panel rounded-2xl transition-colors duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_35%,rgba(255,255,255,0.35))] group"
+                    className="relative flex flex-col h-full glass-panel rounded-2xl transition-colors duration-300 shadow-xl hover:shadow-2xl cursor-pointer hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] group"
                   >
                     <div
                       className="relative z-20 h-32 border-b border-[color-mix(in_srgb,var(--text)_5%,rgba(255,255,255,0.14))] shrink-0 flex items-center justify-center transition-colors duration-500 overflow-hidden"
@@ -3105,7 +3259,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                             <button
                               type="button"
                               onClick={(e) => handleEditAsset(e, asset)}
-                              className="relative group/editbtn w-8 h-8 rounded-xl border flex items-center justify-center transition-all glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] cursor-pointer shrink-0"
+                              className="relative group/editbtn w-8 h-8 rounded-xl border flex items-center justify-center transition-all glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] cursor-pointer shrink-0"
                             >
                               <span className="material-symbols-outlined !text-[14px]">
                                 {t("icon_edit", "edit")}
@@ -3149,7 +3303,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 className={`relative group/prevbtn w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 ${
                                   isPreviewingThis
                                     ? 'sa-glass-active text-[var(--accent)]'
-                                    : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]'
+                                    : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
                                 }`}
                               >
                                 <span className="material-symbols-outlined !text-[14px]">
@@ -3180,7 +3334,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                     onSetStatus(t("status_staging_blueprint_loaded", "Blueprint loaded into Payload Editor."));
                                     useStore.getState().setView('playsets');
                                   }}
-                                  className="h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 whitespace-nowrap transition-all glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] cursor-pointer"
+                                  className="h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 whitespace-nowrap transition-all glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] cursor-pointer"
                                 >
                                   <span className="material-symbols-outlined !text-[14px]">
                                     {t("icon_phonelink", "phonelink")}
@@ -3198,8 +3352,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 }}
                                 className={`h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
                                   isInstalledBp
-                                    ? 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]'
-                                    : 'glass-surface border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]'
+                                    ? 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
+                                    : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
                                 }`}
                               >
                                 <span className="material-symbols-outlined !text-[14px]">
@@ -3236,7 +3390,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                     className={`h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
                                       isAssetStaged
                                         ? 'sa-glass-active text-[var(--accent)]'
-                                        : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]'
+                                        : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
                                     }`}
                                   >
                                     <span className="material-symbols-outlined !text-[14px]">
@@ -3306,7 +3460,7 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                   className={`h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
                                     isAssetStaged
                                       ? 'sa-glass-active text-[var(--accent)]'
-                                      : 'glass-surface border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]'
+                                      : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
                                   }`}
                                 >
                                   <span className="material-symbols-outlined !text-[14px]">
@@ -3364,8 +3518,8 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
                                 }}
                                 className={`h-8 px-3 rounded-xl border text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
                                   isInstalled(asset) && !isOutdated(asset)
-                                    ? 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)]'
-                                    : 'glass-surface border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)]'
+                                    ? 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
+                                    : 'glass-surface border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
                                 }`}
                               >
                                 <span className="material-symbols-outlined !text-[14px]">
@@ -3450,6 +3604,16 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
         onOpenDossier={onOpenDossier}
         cleanModName={cleanModName}
         syncBlueprintByCode={syncBlueprintByCode}
+        onReportBlueprint={(bpId: string) => {
+          setSelectedBlueprint(null);
+          setReportState({
+            isOpen: true,
+            assetId: bpId,
+            assetType: "blueprint",
+            reason: "",
+            complianceTier: 1,
+          });
+        }}
         onDownloadSuccess={(id: any) => setAssetResultsMap(prev => {
           const newMap = { ...prev, [marketTab]: (prev[marketTab] || []).map(a => a.id === id ? { ...a, downloads: (a.downloads || 0) + 1 } : a) };
           if (window.__sanctuaryCache!.nexus) window.__sanctuaryCache!.nexus.assetResultsMap = newMap;
@@ -3492,6 +3656,18 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           assetType={previewAsset.type}
           assetId={previewAsset.id}
           onClose={() => setPreviewAsset(null)}
+          onFlag={(id, type) => {
+            setPreviewAsset(null);
+            const raw = String(id || "");
+            const isCol = type === "collection" || raw.startsWith("collection_");
+            setReportState({
+              isOpen: true,
+              assetId: raw.replace(/^collection_/, ""),
+              assetType: isCol ? "collection" : type,
+              reason: "",
+              complianceTier: 1,
+            });
+          }}
         />
       )}
     </>

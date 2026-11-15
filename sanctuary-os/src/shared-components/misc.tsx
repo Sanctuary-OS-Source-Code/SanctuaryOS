@@ -303,7 +303,7 @@ export function FilterPopover({
                             <div className="flex items-center gap-2.5 min-w-0">
                               {multiSelect && (
                                 <div
-                                  style={{ borderRadius: "5px" }} className={`w-4 h-4 border flex items-center justify-center transition-colors shrink-0 ${active ? "bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] border-[color-mix(in_srgb,var(--accent)_65%,transparent)] text-[var(--accent)]" : "bg-transparent border-[color-mix(in_srgb,var(--text)_22%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)]"}`}
+                                  style={{ borderRadius: "5px" }} className={`w-4 h-4 border flex items-center justify-center transition-colors shrink-0 ${active ? "bg-[color-mix(in_srgb,var(--text)_12%,transparent)] border-[color-mix(in_srgb,var(--text)_34%,transparent)] text-[var(--accent)]" : "bg-transparent border-[color-mix(in_srgb,var(--text)_22%,transparent)] group-hover:border-[color-mix(in_srgb,var(--text)_40%,transparent)]"}`}
                                 >
                                   {active && (
                                     <span className="material-symbols-outlined !text-[12px] font-bold">

@@ -4,6 +4,8 @@ import {
   SidePanelHeroCard,
   UniversalGroup,
   ActionButton,
+  ActionPill,
+  InlineFilterGroup,
   PanelHeaderGroup,
   PanelHeaderButton,
   DashboardStatTile,
@@ -49,6 +51,8 @@ export default function CitizenTicketsSidePanel({
   );
   const [spokeTicketCount, setSpokeTicketCount] = useState<number>(0);
   const [coreTicketCount, setCoreTicketCount] = useState<number>(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "pending" | "closed">("all");
 
   useEffect(() => {
     if (!hasLoadedSpoke && activeScope === "spoke") {
@@ -103,6 +107,8 @@ export default function CitizenTicketsSidePanel({
   }, [isOpen, userId, hasLoadedSpoke, activeWorkspaceId]);
 
   const resolvedScope: "spoke" | "core" = hasLoadedSpoke ? activeScope : "core";
+  const activeScopeCount =
+    resolvedScope === "spoke" && hasLoadedSpoke ? spokeTicketCount : coreTicketCount;
   const activeWorkspaceObj = Array.isArray(availableWorkspaces)
     ? availableWorkspaces.find((w: any) => w.id === activeWorkspaceId)
     : null;
@@ -142,10 +148,10 @@ export default function CitizenTicketsSidePanel({
         isOpen={isOpen}
         onClose={onClose}
         title={t("sidebar_support", "Support Desk")}
-        subtitle={t("support_desk_sub", "Manage your support tickets and dispatches")}
+        subtitle={t("support_desk_sub", "Manage your support tickets and requests")}
         icon={t("icon_support_agent", "support_agent")}
         iconColorClass="text-[var(--accent)]"
-        widthClass="w-[90vw] md:w-[760px]"
+        widthClass="w-[92vw] md:w-[840px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
@@ -155,7 +161,7 @@ export default function CitizenTicketsSidePanel({
             />
             <PanelHeaderButton
               icon={t("icon_add_circle", "add_circle")}
-              tooltip={t("support_title", "New Support Ticket")}
+              tooltip={t("ticket_new", "New Support Ticket")}
               variant="accent"
               onClick={handleOpenNewTicket}
             />
@@ -165,28 +171,22 @@ export default function CitizenTicketsSidePanel({
         <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
           <SidePanelHeroCard
             icon={t("icon_support_agent", "support_agent")}
-            overline={t("sidebar_support", "Support Desk")}
-            title={t("support_desk_sub", "Citizen Support & Ticket Registry")}
+            overline={hasLoadedSpoke ? activeSpokeName : t("keepers_title", "Keepers Core")}
+            title={t("support_tickets", "Support Tickets")}
             description={t(
-              "support_title",
+              "support_desk_desc",
               "Review active support threads, inspect attached telemetry logs, or open a new support request."
             )}
-            badge={t("status_active", "Online")}
-            badgeIcon={t("icon_verified", "verified")}
+            badge={`${activeScopeCount} ${t("support_tickets", "Support Tickets")}`}
+            badgeIcon={t("icon_confirmation_number", "confirmation_number")}
             variant="accent"
           >
             <div className="flex flex-wrap items-center justify-end gap-2 w-full">
               <ActionButton
                 variant="glass"
                 icon={t("icon_add_circle", "add_circle")}
-                label={t("support_title", "Create Support Ticket")}
+                label={t("support_title", "Submit A Ticket")}
                 onClick={handleOpenNewTicket}
-              />
-              <ActionButton
-                variant="glass"
-                icon={t("icon_open_in_new", "open_in_new")}
-                label={t("support_tickets", "Support Tickets")}
-                onClick={handleOpenFullTicketRegistry}
               />
             </div>
           </SidePanelHeroCard>
@@ -195,7 +195,7 @@ export default function CitizenTicketsSidePanel({
             <SidePanelFilterBar className="sm:grid-cols-2 gap-3">
               <DashboardStatTile
                 variant="filter"
-                icon={t("icon_local_activity", "local_activity")}
+                icon={t("icon_confirmation_number", "confirmation_number")}
                 label={activeSpokeName}
                 value={spokeTicketCount}
                 isActive={resolvedScope === "spoke"}
@@ -212,10 +212,41 @@ export default function CitizenTicketsSidePanel({
             </SidePanelFilterBar>
           )}
 
+          <ActionPill
+            className="w-full !max-w-none shrink-0"
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            searchPlaceholder={t("ph_search_tickets", "Search Tickets...")}
+            primaryPopover={{
+              icon: t("icon_tune", "tune"),
+              label: t("filters", "Filters"),
+              content: (
+                <div className="flex flex-col gap-4 w-[280px] p-2">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] px-2">
+                      {t("ticket_status", "Ticket Status")}
+                    </span>
+                    <InlineFilterGroup
+                      value={statusFilter}
+                      onChange={(v) => setStatusFilter(v as "all" | "open" | "pending" | "closed")}
+                      options={[
+                        { id: "all", label: t("filter_all", "All") },
+                        { id: "open", label: t("ticket_status_open", "Open") },
+                        { id: "pending", label: t("ticket_status_in_progress", "In Progress") },
+                        { id: "closed", label: t("filter_closed", "Closed") },
+                      ]}
+                    />
+                  </div>
+                </div>
+              ),
+            }}
+          />
+
           {resolvedScope === "spoke" && hasLoadedSpoke ? (
             <UniversalGroup
-              title={`${activeSpokeName} • ${t("support_tickets", "Support Tickets")}`}
-              icon={t("icon_local_activity", "local_activity")}
+              title={activeSpokeName}
+              count={spokeTicketCount}
+              icon={t("icon_confirmation_number", "confirmation_number")}
             >
               <CitizenTickets
                 key={`spoke-${activeWorkspaceId}`}
@@ -226,7 +257,11 @@ export default function CitizenTicketsSidePanel({
                   setSelectedTicket({ ...tk, table_name: "sanctuary_tickets" })
                 }
                 onOpenNewTicket={handleOpenNewTicket}
+                embedded={true}
                 isSidePanel={true}
+                hideActionPill={true}
+                externalSearch={searchQuery}
+                externalFilter={statusFilter}
               />
             </UniversalGroup>
           ) : (
@@ -235,6 +270,7 @@ export default function CitizenTicketsSidePanel({
                 "landing_feedback_my_tickets_btn",
                 "My Platform Tickets & Feedback"
               )}
+              count={coreTicketCount}
               icon={t("icon_receipt_long", "receipt_long")}
             >
               <CitizenTickets
@@ -246,7 +282,11 @@ export default function CitizenTicketsSidePanel({
                   setSelectedTicket({ ...tk, table_name: "keeper_tickets" })
                 }
                 onOpenNewTicket={handleOpenNewTicket}
+                embedded={true}
                 isSidePanel={true}
+                hideActionPill={true}
+                externalSearch={searchQuery}
+                externalFilter={statusFilter}
               />
             </UniversalGroup>
           )}

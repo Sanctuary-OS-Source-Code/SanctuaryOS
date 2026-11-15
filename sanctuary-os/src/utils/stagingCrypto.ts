@@ -4,6 +4,8 @@ import { packageBlueprintLoadOrder } from "../hooks/usePlaySetLogic";
 import { triggerPwaWebPush } from "./webPushClient";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
+import { isScriptExtension } from "../shared";
+import { sanitizeComplianceTierForLocal } from "./blueprintOverrideUtils";
 
 export interface StagedArtifactItem {
   id: string;
@@ -79,6 +81,8 @@ export interface VaultCompanionArtifact {
   manifestUrl?: string;
   complianceTier?: number;
   category?: string;
+  compatibleVersions?: string[];
+  isScript?: boolean;
   alertType?: "critical" | "alert";
   alertReason?: string;
 }
@@ -398,6 +402,7 @@ export interface EncryptedSupporterVaultPayload {
   syncedAt: string;
   follows: any[];
   supporters: any[];
+  spokeSupporters?: any[];
   removedFollowKeys?: Record<string, number>;
   removedSupporterKeys?: Record<string, number>;
 }
@@ -1644,7 +1649,9 @@ export async function stageFullBlueprintToRigQueue(
             meta?.compatible_versions ||
             mod?.compatible_versions ||
             [],
-          compliance_tier: Number(mod?.compliance_tier ?? meta?.compliance_tier ?? 0),
+          compliance_tier: sanitizeComplianceTierForLocal(
+            mod?.compliance_tier ?? meta?.compliance_tier
+          ),
           status: mod?.status || "stable",
           is_paid: Boolean(override?.is_paid ?? meta?.is_paid ?? mod?.is_paid ?? false),
           is_early_access: Boolean(
@@ -1665,7 +1672,7 @@ export async function stageFullBlueprintToRigQueue(
       };
     }
 
-    // Enrich any items that have a DNA hash and are missing a creator URL from Spoke mod_versions (including Tier 1-4!)
+    // Enrich any items that have a DNA hash and are missing a creator URL from Spoke mod_versions (Tier 0 / Tier 5 only)
     const hashesMissingUrl = Array.from(
       new Set(
         enrichedArtifacts
@@ -1711,6 +1718,8 @@ export async function stageFullBlueprintToRigQueue(
           if (!dbRow) continue;
           const modRef = Array.isArray(dbRow.mods) ? dbRow.mods[0] : dbRow.mods;
           if (!modRef) continue;
+          const rawTier = Number(modRef.compliance_tier ?? 0);
+          if (rawTier >= 1 && rawTier <= 4) continue;
           enrichedArtifacts[i] = {
             ...item,
             dbId: item.dbId || (modRef.id ? String(modRef.id) : undefined),
@@ -1723,7 +1732,9 @@ export async function stageFullBlueprintToRigQueue(
               !item.version || item.version === "v.Local"
                 ? dbRow.version_label || item.version
                 : item.version,
-            compliance_tier: item.compliance_tier || modRef.compliance_tier || 0,
+            compliance_tier: sanitizeComplianceTierForLocal(
+              item.compliance_tier ?? modRef.compliance_tier
+            ),
             category: item.category || modRef.category_override || undefined,
             category_override: item.category_override || modRef.category_override || undefined,
             is_paid: item.is_paid ?? Boolean(modRef.is_paid),
@@ -2158,6 +2169,23 @@ function toCompanionArtifact(
     String(m?._groupedTitle || m?.displayName || m?.meta_name || m?.name || "")
       .split(/[\\/]/)
       .pop() || resolvedHash;
+  const activeSchema = useStore.getState()?.activeGameSchema;
+  const rawCompat =
+    Array.isArray(m?.compatible_versions)
+      ? m.compatible_versions
+      : Array.isArray(m?.compatibleVersions)
+        ? m.compatibleVersions
+        : Array.isArray(firstFlavor?.compatible_versions)
+          ? firstFlavor.compatible_versions
+          : undefined;
+  const compatibleVersions = Array.isArray(rawCompat)
+    ? Array.from(new Set(rawCompat.map((v: any) => String(v || "").trim()).filter(Boolean)))
+    : undefined;
+  const isScript = Boolean(
+    m?.isScript ||
+      m?.is_script ||
+      isScriptExtension(String(m?.name || cleanName), activeSchema)
+  );
   return {
     hash: resolvedHash,
     dbId: resolvedDbId,
@@ -2178,6 +2206,8 @@ function toCompanionArtifact(
     manifestUrl: m?.manifest_url || firstFlavor?.manifest_url || undefined,
     complianceTier: typeof m?.compliance_tier === "number" ? m.compliance_tier : undefined,
     category: m?.category_override || m?.category || m?.type || undefined,
+    compatibleVersions: compatibleVersions && compatibleVersions.length > 0 ? compatibleVersions : undefined,
+    isScript: isScript || undefined,
     alertType: overrideAlertType,
     alertReason: m?._issue_label || m?.status_reason || undefined,
   };
@@ -2368,6 +2398,23 @@ export async function syncDesktopCompanionRadarSnapshot(
     const dedupKey = kDb || kHash || kTitle;
     if (dedupKey) addedTopKeys.add(dedupKey);
 
+    const rawCompat =
+      Array.isArray(mod.compatible_versions)
+        ? mod.compatible_versions
+        : Array.isArray(mod.compatibleVersions)
+          ? mod.compatibleVersions
+          : Array.isArray(firstFlavor?.compatible_versions)
+            ? firstFlavor.compatible_versions
+            : undefined;
+    const compatibleVersions = Array.isArray(rawCompat)
+      ? Array.from(new Set(rawCompat.map((v: any) => String(v || "").trim()).filter(Boolean)))
+      : undefined;
+    const modIsScript = Boolean(
+      mod.isScript ||
+        mod.is_script ||
+        isScriptExtension(String(mod.name || cleanName), activeSchema)
+    );
+
     const topIdx = topLevelVaultItems.length;
     topLevelVaultItems.push({
       hash: resolvedHash,
@@ -2390,6 +2437,8 @@ export async function syncDesktopCompanionRadarSnapshot(
       manifestUrl: mod.manifest_url || firstFlavor?.manifest_url || undefined,
       complianceTier: typeof mod.compliance_tier === "number" ? mod.compliance_tier : undefined,
       category: mod.category_override || mod.category || mod.type || undefined,
+      compatibleVersions: compatibleVersions && compatibleVersions.length > 0 ? compatibleVersions : undefined,
+      isScript: modIsScript || undefined,
       alertType: isCrit ? "critical" : isAlrt ? "alert" : undefined,
     });
 

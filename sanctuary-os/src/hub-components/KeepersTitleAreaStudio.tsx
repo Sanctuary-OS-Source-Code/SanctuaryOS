@@ -19,6 +19,7 @@ import {
 } from "../shared";
 import { UniversalGroup } from "../components/universal/UniversalLayout";
 import { notifyOS } from "../utils/notificationHelper";
+import { getBrandConfig } from "../supabase";
 
 const enDefault = enDefaultRaw as Record<string, any>;
 const enSanctuary = enSanctuaryRaw as Record<string, any>;
@@ -36,19 +37,22 @@ function humanizeKey(key: string): string {
 }
 
 export function buildTitleAreaIdeJsonObject(config: CoreTitleAreaConfig): Record<string, any> {
+  const brand = getBrandConfig();
   const obj: Record<string, any> = {
     _meta_name: "Title & Subtitles",
-    _meta_badge: "Sanctuary Foundry",
+    _meta_badge: brand.orgName || "Sanctuary Foundry",
     _meta_author: "Keepers Core",
     _meta_version: 1,
-    sidebar_app_title: config?.appTitle || "Sanctuary OS",
+    sidebar_app_title: config?.appTitle || brand.appTitle || "Sanctuary OS",
   };
 
   const subs =
     Array.isArray(config?.subtitles) && config.subtitles.length > 0
       ? config.subtitles
-      : DEFAULT_TITLE_AREA_SUBTITLES;
-  subs.forEach((s, idx) => {
+      : brand.subtitles.length > 0
+        ? brand.subtitles
+        : DEFAULT_TITLE_AREA_SUBTITLES;
+  subs.forEach((s: string, idx: number) => {
     obj[`sidebar_app_subtitle_${idx + 1}`] = s;
   });
 
@@ -58,10 +62,11 @@ export function buildTitleAreaIdeJsonObject(config: CoreTitleAreaConfig): Record
 export function parseTitleAreaIdeJsonToConfig(
   parsed: Record<string, any>
 ): Partial<CoreTitleAreaConfig> {
+  const brand = getBrandConfig();
   const appTitle =
     typeof parsed?.sidebar_app_title === "string" && parsed.sidebar_app_title.trim()
       ? parsed.sidebar_app_title.trim()
-      : "Sanctuary OS";
+      : brand.appTitle || "Sanctuary OS";
 
   const subtitleEntries: { num: number; val: string }[] = [];
 
@@ -79,10 +84,11 @@ export function parseTitleAreaIdeJsonToConfig(
   }
 
   subtitleEntries.sort((a, b) => a.num - b.num);
+  const fallbackSubs = brand.subtitles.length > 0 ? brand.subtitles : DEFAULT_TITLE_AREA_SUBTITLES;
   const subtitles =
     subtitleEntries.length > 0
       ? subtitleEntries.map((e) => e.val)
-      : [...DEFAULT_TITLE_AREA_SUBTITLES];
+      : [...fallbackSubs];
 
   return {
     appTitle,
@@ -470,19 +476,21 @@ export function KeepersLogoSidePanel({
   onClose: () => void;
 }) {
   const { t, osLogoUrl, titleAreaConfig, saveTitleAreaConfig } = useLexicon();
-  const [logoUrl, setLogoUrl] = useState<string>(osLogoUrl || "/icon.png");
+  const brand = getBrandConfig();
+  const defaultLogo = brand.logoUrl || "/icon.png";
+  const [logoUrl, setLogoUrl] = useState<string>(osLogoUrl || defaultLogo);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setLogoUrl(titleAreaConfig?.logoUrl || "/icon.png");
+      setLogoUrl(titleAreaConfig?.logoUrl || defaultLogo);
     }
-  }, [isOpen, titleAreaConfig?.logoUrl]);
+  }, [isOpen, titleAreaConfig?.logoUrl, defaultLogo]);
 
   const hasChanges =
-    ((logoUrl || "").trim() || "/icon.png") !==
-    ((titleAreaConfig?.logoUrl || "").trim() || "/icon.png");
+    ((logoUrl || "").trim() || defaultLogo) !==
+    ((titleAreaConfig?.logoUrl || "").trim() || defaultLogo);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -514,11 +522,11 @@ export function KeepersLogoSidePanel({
     }
   };
 
-  const titleWords = (titleAreaConfig?.appTitle || "Sanctuary OS").trim().split(/\s+/);
+  const titleWords = (titleAreaConfig?.appTitle || brand.appTitle || "Sanctuary OS").trim().split(/\s+/);
   const primaryWord = titleWords[0] || "Sanctuary";
   const secondaryWords = titleWords.slice(1).join(" ");
   const sampleSubtitle =
-    titleAreaConfig?.subtitles?.[0] || DEFAULT_TITLE_AREA_SUBTITLES[0];
+    titleAreaConfig?.subtitles?.[0] || brand.subtitles[0] || DEFAULT_TITLE_AREA_SUBTITLES[0];
 
   return (
     <SidePanel

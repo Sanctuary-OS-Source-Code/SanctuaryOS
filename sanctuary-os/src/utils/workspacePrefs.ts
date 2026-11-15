@@ -1,5 +1,9 @@
 import { isDesktop } from './envUtils';
 import { useStore } from '../store';
+import {
+  findMatchingWorkspaceEntry,
+  isWorkspaceRecordConfigured,
+} from './workspaceConfigMatch';
 
 export const PINNED_WORKSPACES_KEY = 'sanctuary_pinned_workspaces';
 export const RECENT_WORKSPACES_KEY = 'sanctuary_workspace_recent_timestamps';
@@ -187,19 +191,16 @@ export function isWorkspaceSetupConfigured(
   const candidates = getCandidateWorkspaceKeys(item);
   const matchedWs =
     ws ||
+    findMatchingWorkspaceEntry(item, workspaces) ||
     (workspaces || []).find((w: any) => {
       const wKeys = getCandidateWorkspaceKeys(w);
       return wKeys.some((k) => candidates.includes(k));
     });
 
   if (isDesktop()) {
-    const hasConfiguredPaths = Boolean(
-      (typeof matchedWs?.mods_path === 'string' &&
-        matchedWs.mods_path.trim().length > 0) ||
-        (typeof matchedWs?.live_path === 'string' &&
-          matchedWs.live_path.trim().length > 0)
-    );
-    if (hasConfiguredPaths) return true;
+    if (isWorkspaceRecordConfigured(matchedWs)) {
+      return true;
+    }
 
     const isCurrentlyActive = Boolean(
       activeWorkspaceId &&
@@ -210,9 +211,11 @@ export function isWorkspaceSetupConfigured(
       if (
         storeState.isConfigured &&
         Boolean(
-          storeState.modsPath?.trim() ||
-            storeState.livePath?.trim() ||
-            matchedWs?.vault_path?.trim()
+          storeState.livePath?.trim() &&
+            storeState.modsPath?.trim() &&
+            (storeState.vaultPath?.trim() ||
+              matchedWs?.vault_path?.trim() ||
+              matchedWs?.master_vault_path?.trim())
         )
       ) {
         return true;

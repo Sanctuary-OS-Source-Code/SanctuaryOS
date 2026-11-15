@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "./utils/envUtils";
 import { resolvePayloadDependencies } from "./utils/stagingCrypto";
+import { sanitizeComplianceTierForLocal } from "./utils/blueprintOverrideUtils";
 import { useLexicon } from "./LexiconContext";
 import { supabase, submitThreatManifestToSpoke } from "./supabase";
 import { useShallow } from "zustand/react/shallow";
@@ -15,7 +16,7 @@ import {
   CustomClassificationDropdown,
   CustomComplianceDropdown,
   getHighestVersion,
-  getLowestVersion,
+  formatVersionRangesLabel,
   getFileLabel,
   getExtensionRegex,
   getModIcon,
@@ -64,9 +65,67 @@ import {
   ModVersionBinaryGroup,
 } from "./side-panels/VaultSidePanels";
 import { UniversalTextArea } from "./components/universal/UniversalLayout";
+import {
+  fetchModLabReports,
+  LabReportDiagnosticCards,
+} from "./components/KnownExceptionRules";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function getComplianceTierDisplay(
+  item: any,
+  isNexus: boolean,
+  t: (key: string, fallback?: string) => string
+) {
+  const rawTier = item?.compliance_tier;
+  const hasTier = rawTier !== null && rawTier !== undefined && rawTier !== "";
+  const tier = hasTier ? Number(rawTier) : -1;
+  if (tier === 5) {
+    return {
+      value: t("tier_5_label", "Malware / Security Threat (T5)"),
+      color: "text-[var(--danger)]",
+    };
+  }
+  if (tier === 4) {
+    return {
+      value: t("tier_4_label", "Taboo / Sensitive (T4)"),
+      color: "text-[var(--danger)]",
+    };
+  }
+  if (tier === 3) {
+    return {
+      value: t("tier_3_label", "Extreme / Violence (T3)"),
+      color: "text-[var(--danger)]",
+    };
+  }
+  if (tier === 2) {
+    return {
+      value: t("tier_2_label", "Illicit / Substance (T2)"),
+      color: "text-[var(--warning)]",
+    };
+  }
+  if (tier === 1) {
+    return {
+      value: t("tier_1_label", "Adult / NSFW (T1)"),
+      color: "text-[var(--warning)]",
+    };
+  }
+  const isVerifiedTier0 =
+    (tier === 0 || (!hasTier && isNexus)) &&
+    String(item?.status || "").toLowerCase() !== "unverified" &&
+    (isNexus || Boolean(item?.dbId || item?.isSynced || item?.id));
+  if (isVerifiedTier0) {
+    return {
+      value: t("tier_0_label", "Clean / Safe (T0)"),
+      color: "text-[var(--success)]",
+    };
+  }
+  return {
+    value: t("status_unknown_unverified", "Unknown / Unverified"),
+    color: "text-[var(--warning)]",
+  };
+}
 
 function extractCleanUuid(...vals: any[]): string {
   for (const v of vals) {
@@ -833,18 +892,33 @@ function mergeHydratedMod(
     }
   }
 
+  let localOvr: Record<string, any> | undefined;
+  if (!baseMod?.isNexusView) {
+    try {
+      const h = baseMod?.hash ? String(baseMod.hash).trim() : "";
+      if (h) {
+        const allOvr = JSON.parse(localStorage.getItem("sanctuary_local_overrides") || "{}");
+        if (allOvr && typeof allOvr[h] === "object" && allOvr[h] !== null) {
+          localOvr = allOvr[h];
+        }
+      }
+    } catch { }
+  }
+
   const resolvedAuthor =
-    pickFirstValidAuthor(
-      t,
-      baseMod.author,
-      baseMod.master_author,
-      hydratedMeta?.author,
-      hydratedMeta?.master_author,
-      ...childSources
-    ) ||
-    hydratedMeta?.author ||
-    baseMod.author ||
-    "";
+    localOvr?.author !== undefined
+      ? String(localOvr.author || "")
+      : pickFirstValidAuthor(
+          t,
+          baseMod.author,
+          baseMod.master_author,
+          hydratedMeta?.author,
+          hydratedMeta?.master_author,
+          ...childSources
+        ) ||
+        hydratedMeta?.author ||
+        baseMod.author ||
+        "";
 
   const resolvedMasonId =
     baseMod.mason_id ||
@@ -862,14 +936,16 @@ function mergeHydratedMod(
     "";
 
   const resolvedCompat =
-    Array.isArray(baseMod.compatible_versions) && baseMod.compatible_versions.length > 0
-      ? baseMod.compatible_versions
-      : hydratedMeta?.compatible_versions ||
-      childSources.find(
-        (cs: any) =>
-          Array.isArray(cs?.compatible_versions) && cs.compatible_versions.length > 0
-      )?.compatible_versions ||
-      [];
+    localOvr && Array.isArray(localOvr.compatible_versions)
+      ? localOvr.compatible_versions
+      : Array.isArray(baseMod.compatible_versions) && baseMod.compatible_versions.length > 0
+        ? baseMod.compatible_versions
+        : hydratedMeta?.compatible_versions ||
+        childSources.find(
+          (cs: any) =>
+            Array.isArray(cs?.compatible_versions) && cs.compatible_versions.length > 0
+        )?.compatible_versions ||
+        [];
 
   const latestVerCreated =
     baseMod.mod_versions?.[0]?.created_at ||
@@ -902,25 +978,35 @@ function mergeHydratedMod(
     "";
 
   const resolvedDesc =
-    baseMod.description ||
-    baseMod.desc ||
-    hydratedMeta?.description ||
-    childSources.find((cs: any) => cs?.description && String(cs.description).trim() !== "")
-      ?.description ||
-    "";
+    localOvr?.description !== undefined
+      ? String(localOvr.description || "")
+      : localOvr?.desc !== undefined
+        ? String(localOvr.desc || "")
+        : baseMod.description ||
+          baseMod.desc ||
+          hydratedMeta?.description ||
+          childSources.find((cs: any) => cs?.description && String(cs.description).trim() !== "")
+            ?.description ||
+          "";
 
   const resolvedUrl =
-    baseMod.url ||
-    hydratedMeta?.url ||
-    childSources.find((cs: any) => cs?.url)?.url ||
-    "";
+    localOvr?.url !== undefined
+      ? String(localOvr.url || "")
+      : baseMod.url ||
+        hydratedMeta?.url ||
+        childSources.find((cs: any) => cs?.url)?.url ||
+        "";
 
   const resolvedImageUrl =
-    baseMod.image_url ||
-    baseMod.imageUrl ||
-    hydratedMeta?.image_url ||
-    childSources.find((cs: any) => cs?.image_url || cs?.imageUrl)?.image_url ||
-    "";
+    localOvr?.image_url !== undefined
+      ? String(localOvr.image_url || "")
+      : localOvr?.imageUrl !== undefined
+        ? String(localOvr.imageUrl || "")
+        : baseMod.image_url ||
+          baseMod.imageUrl ||
+          hydratedMeta?.image_url ||
+          childSources.find((cs: any) => cs?.image_url || cs?.imageUrl)?.image_url ||
+          "";
 
   return {
     ...baseMod,
@@ -944,30 +1030,43 @@ function mergeHydratedMod(
     updated_at: resolvedUpdated,
     version: resolvedVersion,
     status:
-      baseMod.status ||
-      hydratedMeta?.status ||
-      childSources.find((cs: any) => cs?.status)?.status ||
-      (baseMod.isNexusView ? "stable" : ""),
+      localOvr?.status !== undefined
+        ? String(localOvr.status || "")
+        : baseMod.status ||
+          hydratedMeta?.status ||
+          childSources.find((cs: any) => cs?.status)?.status ||
+          (baseMod.isNexusView ? "stable" : ""),
     status_reason:
-      baseMod.status_reason ||
-      hydratedMeta?.status_reason ||
-      childSources.find((cs: any) => cs?.status_reason)?.status_reason ||
-      undefined,
-    compliance_tier:
-      baseMod.compliance_tier ??
-      hydratedMeta?.compliance_tier ??
-      childSources.find((cs: any) => cs?.compliance_tier != null)?.compliance_tier ??
-      0,
-    is_paid: Boolean(
-      baseMod.is_paid ||
-      hydratedMeta?.is_paid ||
-      childSources.some((cs: any) => Boolean(cs?.is_paid))
-    ),
-    is_early_access: Boolean(
-      baseMod.is_early_access ||
-      hydratedMeta?.is_early_access ||
-      childSources.some((cs: any) => Boolean(cs?.is_early_access))
-    ),
+      localOvr?.status_reason !== undefined
+        ? (localOvr.status_reason || undefined)
+        : baseMod.status_reason ||
+          hydratedMeta?.status_reason ||
+          childSources.find((cs: any) => cs?.status_reason)?.status_reason ||
+          undefined,
+    compliance_tier: (() => {
+      const rawTier =
+        baseMod.compliance_tier ??
+        hydratedMeta?.compliance_tier ??
+        childSources.find((cs: any) => cs?.compliance_tier != null)?.compliance_tier ??
+        0;
+      return !baseMod?.isNexusView ? sanitizeComplianceTierForLocal(rawTier) : rawTier;
+    })(),
+    is_paid:
+      localOvr?.is_paid !== undefined
+        ? Boolean(localOvr.is_paid)
+        : Boolean(
+            baseMod.is_paid ||
+            hydratedMeta?.is_paid ||
+            childSources.some((cs: any) => Boolean(cs?.is_paid))
+          ),
+    is_early_access:
+      localOvr?.is_early_access !== undefined
+        ? Boolean(localOvr.is_early_access)
+        : Boolean(
+            baseMod.is_early_access ||
+            hydratedMeta?.is_early_access ||
+            childSources.some((cs: any) => Boolean(cs?.is_early_access))
+          ),
     highlanderGroupId:
       baseMod.highlanderGroupId ||
       baseMod.highlander_group_id ||
@@ -976,31 +1075,51 @@ function mergeHydratedMod(
         ?.highlanderGroupId ||
       undefined,
     highlanderSlotKey:
-      baseMod.highlanderSlotKey ||
-      baseMod.highlander_slot_key ||
-      hydratedMeta?.highlanderSlotKey ||
-      childSources.find((cs: any) => cs?.highlanderSlotKey)?.highlanderSlotKey ||
-      undefined,
+      localOvr?.highlanderSlotKey !== undefined
+        ? (localOvr.highlanderSlotKey || undefined)
+        : baseMod.highlanderSlotKey ||
+          baseMod.highlander_slot_key ||
+          hydratedMeta?.highlanderSlotKey ||
+          childSources.find((cs: any) => cs?.highlanderSlotKey)?.highlanderSlotKey ||
+          undefined,
     highlanderSlotName:
-      baseMod.highlanderSlotName ||
-      baseMod.highlander_slot_name ||
-      hydratedMeta?.highlanderSlotName ||
-      childSources.find((cs: any) => cs?.highlanderSlotName)?.highlanderSlotName ||
-      undefined,
+      localOvr?.highlanderSlotName !== undefined
+        ? (localOvr.highlanderSlotName || undefined)
+        : baseMod.highlanderSlotName ||
+          baseMod.highlander_slot_name ||
+          hydratedMeta?.highlanderSlotName ||
+          childSources.find((cs: any) => cs?.highlanderSlotName)?.highlanderSlotName ||
+          undefined,
     mod_versions:
       baseMod.mod_versions ||
       hydratedMeta?.mod_versions ||
       childSources.find((cs: any) => cs?.mod_versions)?.mod_versions,
     requirements:
-      Array.isArray(baseMod.requirements) && baseMod.requirements.length > 0
-        ? baseMod.requirements
-        : Array.isArray(baseMod.requires) && baseMod.requires.length > 0
-          ? baseMod.requires
-          : hydratedMeta?.requirements || undefined,
+      localOvr && Array.isArray(localOvr.requirements)
+        ? localOvr.requirements
+        : Array.isArray(baseMod.requirements) && baseMod.requirements.length > 0
+          ? baseMod.requirements
+          : Array.isArray(baseMod.requires) && baseMod.requires.length > 0
+            ? baseMod.requires
+            : hydratedMeta?.requirements || undefined,
     twins:
-      Array.isArray(baseMod.twins) && baseMod.twins.length > 0
-        ? baseMod.twins
-        : hydratedMeta?.twins || undefined,
+      localOvr && Array.isArray(localOvr.twins)
+        ? localOvr.twins
+        : Array.isArray(baseMod.twins) && baseMod.twins.length > 0
+          ? baseMod.twins
+          : hydratedMeta?.twins || undefined,
+    ...(localOvr && Array.isArray(localOvr.requiredDLC) ? { requiredDLC: localOvr.requiredDLC } : {}),
+    ...(localOvr && Array.isArray(localOvr.conflicts) ? { conflicts: localOvr.conflicts } : {}),
+    ...(localOvr?.manifest_url !== undefined ? { manifest_url: localOvr.manifest_url || undefined } : {}),
+    ...(localOvr?.folder_structure !== undefined ? { folder_structure: localOvr.folder_structure } : {}),
+    ...(localOvr?.category_override !== undefined
+      ? {
+          category: localOvr.category_override,
+          category_override: localOvr.category_override,
+          type: localOvr.category_override,
+        }
+      : {}),
+    ...(localOvr?.version !== undefined ? { version: String(localOvr.version || "") } : {}),
     hydratedCollectionChildren:
       hydratedMeta?.hydratedCollectionChildren ||
       baseMod.hydratedCollectionChildren ||
@@ -1142,9 +1261,9 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
       }}
       className={`glass-panel rounded-2xl p-3.5 border flex flex-col justify-between gap-3 transition-all duration-200 cursor-pointer relative ${isExpanded && groupedMods.length > 1 ? "sm:col-span-2" : ""
         } ${!isInstalled
-          ? "border-[color-mix(in_srgb,var(--danger)_32%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_50%,transparent)]"
+          ? "border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
           : isEquipped
-            ? "border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_55%,transparent)]"
+            ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)]"
             : "border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
         }`}
     >
@@ -1281,8 +1400,8 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
                 setIsExpanded((prev) => !prev);
               }}
               className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${isExpanded
-                ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]"
-                : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]"
+                ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--accent)]"
+                : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)]"
                 }`}
             >
               <span className="material-symbols-outlined !text-[15px]">
@@ -1303,7 +1422,7 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
                 e.stopPropagation();
                 handleOpenUrl(searchOrDownloadUrl);
               }}
-              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
+              className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer shrink-0"
             >
               <span className="material-symbols-outlined !text-[15px]">
                 {!isDesktop()
@@ -1341,9 +1460,9 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
                 e.stopPropagation();
                 onToggleGroup(item);
               }}
-              className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${isEquipped
-                ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:border-[var(--danger)]"
-                : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_40%,transparent)] hover:border-[var(--success)]"
+              className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center transition-all cursor-pointer shrink-0 ${isEquipped
+                ? "text-[var(--danger)]"
+                : "text-[var(--success)]"
                 }`}
             >
               <span className="material-symbols-outlined !text-[15px]">
@@ -1376,8 +1495,8 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
                     );
                   }}
                   className={`relative group/actionbtn w-7 h-7 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer shrink-0 ${kidStaged
-                    ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
-                    : "text-[var(--subtext)] hover:text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                    ? "text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
+                    : "text-[var(--subtext)] hover:text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                     }`}
                 >
                   <span className="material-symbols-outlined !text-[15px]">
@@ -1417,7 +1536,7 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
               <div
                 key={gm?.hash || gm?.name || idx}
                 onClick={() => onInspect(gm)}
-                className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] transition-all cursor-pointer"
+                className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
@@ -1440,9 +1559,9 @@ const DossierModuleCard = React.memo(function DossierModuleCard({
                           e.stopPropagation();
                           onToggleSingle(gm.name);
                         }}
-                        className={`w-6 h-6 rounded-lg glass-surface border flex items-center justify-center transition-all cursor-pointer ${childEquipped
-                          ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
-                          : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_40%,transparent)]"
+                        className={`w-6 h-6 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center transition-all cursor-pointer ${childEquipped
+                          ? "text-[var(--danger)]"
+                          : "text-[var(--success)]"
                           }`}
                       >
                         <span className="material-symbols-outlined !text-[14px]">
@@ -1906,6 +2025,25 @@ export default function ModDossier({
       toggleModInStagingDraft: s.toggleModInStagingDraft,
     }))
   );
+
+  const [dossierLabReports, setDossierLabReports] = useState<any[]>([]);
+
+  useEffect(() => {
+    const cleanId = extractCleanUuid(
+      mod?.dbId || mod?.cloudModId || mod?.mod_id || mod?.id || ""
+    );
+    if (!cleanId) {
+      setDossierLabReports([]);
+      return;
+    }
+    let cancelled = false;
+    fetchModLabReports(cleanId, 5).then((rows) => {
+      if (!cancelled) setDossierLabReports(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mod?.dbId, mod?.cloudModId, mod?.mod_id, mod?.id]);
 
   useEffect(() => {
     if (!mod) {
@@ -2456,7 +2594,7 @@ export default function ModDossier({
               setCollectionCategoryFilter("ALL");
               setCollectionStatusFilter("ALL");
             }}
-            className="mt-1 px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[11px] font-bold text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-center gap-2 transition-all cursor-pointer"
+            className="mt-1 px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[11px] font-bold text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">
               {t("icon_filter_alt_off", "filter_alt_off")}
@@ -2783,10 +2921,11 @@ export default function ModDossier({
       : v || [];
   };
 
+  const modVersionsList = getVersions(mod);
   let familyVersion = "Unknown";
   if (mod.isVirtual) {
-    const highestPerFlavor = (mod.flavors || [])
-      .map((f: any) => getHighestVersion(getVersions(f)))
+    const flavorRules = (mod.flavors || [])
+      .flatMap((f: any) => getVersions(f))
       .filter(
         (v: string) =>
           v &&
@@ -2796,11 +2935,16 @@ export default function ModDossier({
           v.toLowerCase() !== "global"
       );
     familyVersion =
-      highestPerFlavor.length > 0
-        ? getLowestVersion(highestPerFlavor)
-        : getHighestVersion(getVersions(mod));
+      flavorRules.length > 0
+        ? formatVersionRangesLabel(flavorRules)
+        : modVersionsList.length > 0
+          ? formatVersionRangesLabel(modVersionsList)
+          : "Unknown";
   } else {
-    familyVersion = getHighestVersion(getVersions(mod));
+    familyVersion =
+      modVersionsList.length > 0
+        ? formatVersionRangesLabel(modVersionsList)
+        : "Unknown";
   }
 
   const getBatchCasualties = (
@@ -3078,34 +3222,21 @@ export default function ModDossier({
     }
 
     // 1. Game Version Mismatch
-    const versionCandidates: string[] = [];
-    resolvedTargets.forEach((tm) => {
-      const vList = getVersions(tm);
-      const hv = getHighestVersion(vList);
-      if (
-        hv &&
-        hv !== "Unknown" &&
-        hv !== "ALL" &&
-        hv !== "ANY" &&
-        hv.toLowerCase() !== "global"
-      ) {
-        versionCandidates.push(hv);
-      }
-    });
+    const mismatchedTargets = selectedVersion
+      ? resolvedTargets.filter((tm) => {
+          const vList = getVersions(tm).filter(Boolean);
+          return vList.length > 0 && !isVersionMatch(vList, selectedVersion);
+        })
+      : [];
+    const mismatchedVersionsList = Array.from(
+      new Set(mismatchedTargets.flatMap((tm) => getVersions(tm)).filter(Boolean))
+    );
     const effectiveTargetVer =
-      versionCandidates.length > 0
-        ? getLowestVersion(versionCandidates)
+      mismatchedVersionsList.length > 0
+        ? formatVersionRangesLabel(mismatchedVersionsList)
         : familyVersion;
 
-    const isGameVersionMismatch = Boolean(
-      selectedVersion &&
-      effectiveTargetVer &&
-      effectiveTargetVer !== "Unknown" &&
-      effectiveTargetVer !== "ALL" &&
-      effectiveTargetVer !== "ANY" &&
-      effectiveTargetVer.toLowerCase() !== "global" &&
-      !isVersionMatch([effectiveTargetVer], selectedVersion)
-    );
+    const isGameVersionMismatch = mismatchedTargets.length > 0;
 
     // 2. Missing DLC
     const rawDlcSet = new Set<string>();
@@ -3874,7 +4005,11 @@ export default function ModDossier({
       return;
     }
 
-    if (!targetDbId) {
+    const validLocalSha256 = /^[0-9a-f]{64}$/i.test(String(mod?.hash || "").trim())
+      ? String(mod.hash).trim().toLowerCase()
+      : "";
+
+    if (!targetDbId && !validLocalSha256) {
       useStore.getState().pushStatus(t("auto_cannot_flag_local_32", "Cannot flag a local-only {mod}."));
       return;
     }
@@ -3935,12 +4070,15 @@ export default function ModDossier({
         );
 
       const { error } = await supabase.rpc("flag_mod_for_compliance", {
-        p_mod_id: targetDbId,
+        p_mod_id: targetDbId || undefined,
+        p_dna_hash: validLocalSha256 || undefined,
+        p_mod_name: mod?.displayName || mod?.name || undefined,
         p_tier: resolvedTier,
         p_reason: cleanNotes,
       });
 
       if (!error) {
+        window.dispatchEvent(new CustomEvent("sanctuary-compliance-updated"));
         useStore
           .getState()
           .pushStatus(
@@ -4323,9 +4461,14 @@ export default function ModDossier({
           const canShredMalware = Boolean(
             userRole === "oversight" && mod.compliance_tier === 5
           );
+          const validLocalSha256 = /^[0-9a-f]{64}$/i.test(
+            String(mod?.hash || "").trim()
+          );
           const canFlagMod = Boolean(
             !(Number(mod.compliance_tier || 0) >= 1 && Number(mod.compliance_tier || 0) <= 4) &&
-            targetDbId &&
+            (targetDbId || validLocalSha256) &&
+            !mod?.isVirtual &&
+            !String(mod?.hash || "").startsWith("dev_sandbox_") &&
             session &&
             !isBanned
           );
@@ -4552,8 +4695,7 @@ export default function ModDossier({
                     />
                   )}
                   {!editMode &&
-                    mod.compliance_tier !== 1 &&
-                    mod.compliance_tier !== 2 &&
+                    Number(mod.compliance_tier || 0) === 0 &&
                     isDesktop() && (
                       <ActionButton
                         variant="glass"
@@ -4710,19 +4852,9 @@ export default function ModDossier({
                   )}
                   <StatBox
                     label={t("tab_compliance", "Compliance")}
-                    value={
-                      mod.compliance_tier === 1
-                        ? t("tier_nsfw", "NSFW")
-                        : mod.compliance_tier === 2
-                          ? t("tier_adult", "Adult")
-                          : t("tier_clean", "Clean")
-                    }
+                    value={getComplianceTierDisplay(mod, isNexusView, t).value}
                     icon={t("icon_shield", "shield")}
-                    iconColorClass={
-                      mod.compliance_tier === 1 || mod.compliance_tier === 2
-                        ? "text-[var(--warning)]"
-                        : "text-[var(--success)]"
-                    }
+                    iconColorClass={getComplianceTierDisplay(mod, isNexusView, t).color}
                   />
                   <StatBox
                     label={t("badge_early_access", "Access Tier")}
@@ -4761,7 +4893,7 @@ export default function ModDossier({
                 </div>
 
                 {(metaInputs.manifest_url || mod.manifest_url) && (
-                  <div className="flex items-center justify-between gap-4 p-3.5 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--accent)_35%,transparent)]">
+                  <div className="flex items-center justify-between gap-4 p-3.5 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_14%,transparent)]">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined !text-[18px]">
@@ -4793,6 +4925,75 @@ export default function ModDossier({
                     />
                   </div>
                 )}
+
+                {(() => {
+                  const rawReason = String(mod.status_reason || "").trim();
+                  const cleanStatusReason =
+                    rawReason && !/^\[ARCHITECT\b/i.test(rawReason) ? rawReason : "";
+                  const modStatusLower = String(mod.status || "").toLowerCase();
+                  const hasIssueStatus =
+                    modStatusLower === "broken" ||
+                    modStatusLower === "corrupted" ||
+                    modStatusLower === "unstable";
+                  if (
+                    !hasIssueStatus &&
+                    !cleanStatusReason &&
+                    dossierLabReports.length === 0
+                  ) {
+                    return null;
+                  }
+                  const isCorruptedStatus =
+                    modStatusLower === "broken" || modStatusLower === "corrupted";
+                  const statusToneClass = isCorruptedStatus
+                    ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--text)_14%,transparent)]"
+                    : modStatusLower === "unstable"
+                      ? "text-[var(--warning)] border-[color-mix(in_srgb,var(--text)_14%,transparent)]"
+                      : "text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_14%,transparent)]";
+
+                  return (
+                    <div className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5">
+                          <span className="material-symbols-outlined !text-[14px] text-[var(--warning)]">
+                            {t("icon_science", "science")}
+                          </span>
+                          {t(
+                            "dossier_issues_lab_title",
+                            "Issues, Causes & {Lab} Diagnostics"
+                          )}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-md bg-transparent border text-[9px] font-black uppercase tracking-widest ${statusToneClass}`}
+                        >
+                          {isCorruptedStatus
+                            ? t("status_corrupted", "Corrupted")
+                            : modStatusLower === "unstable"
+                              ? t("status_unstable", "Unstable")
+                              : t("tab_lab_reports", "Lab Reports")}
+                        </span>
+                      </div>
+
+                      {cleanStatusReason && (
+                        <div className="rounded-xl p-3 glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-1">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                            {t(
+                              "label_issue_cause_summary",
+                              "Documented Issue & Cause"
+                            )}
+                          </span>
+                          <p className="text-xs font-semibold text-[var(--text)] leading-relaxed whitespace-pre-wrap break-words">
+                            {cleanStatusReason}
+                          </p>
+                        </div>
+                      )}
+
+                      <LabReportDiagnosticCards
+                        reports={dossierLabReports}
+                        activeGameSchema={activeGameSchema}
+                      />
+                    </div>
+                  );
+                })()}
               </div>
             ) : (
               <div className="flex flex-col gap-4">
@@ -5022,8 +5223,8 @@ export default function ModDossier({
                     type="button"
                     onClick={handleToggleAll}
                     className={`h-7 px-3 rounded-lg glass-surface border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${allEquipped
-                      ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)]"
-                      : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] hover:border-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)]"
+                      ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)]"
+                      : "text-[var(--success)] border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)]"
                       }`}
                   >
                     <span className="material-symbols-outlined !text-[14px]">
@@ -5188,7 +5389,7 @@ export default function ModDossier({
 
           const kidCompat = getVersions(kidToRender);
           const kidHighestVer =
-            kidCompat.length > 0 ? getHighestVersion(kidCompat) : familyVersion;
+            kidCompat.length > 0 ? formatVersionRangesLabel(kidCompat) : familyVersion;
           const kidGameVersionLabel =
             kidHighestVer === "Unknown" ||
               kidHighestVer === "ALL" ||
@@ -5533,20 +5734,9 @@ export default function ModDossier({
                     />
                     <StatBox
                       label={t("tab_compliance", "Compliance")}
-                      value={
-                        kidToRender.compliance_tier === 1
-                          ? t("tier_nsfw", "NSFW")
-                          : kidToRender.compliance_tier === 2
-                            ? t("tier_adult", "Adult")
-                            : t("tier_clean", "Clean")
-                      }
+                      value={getComplianceTierDisplay(kidToRender, isNexusView, t).value}
                       icon={t("icon_shield", "shield")}
-                      iconColorClass={
-                        kidToRender.compliance_tier === 1 ||
-                          kidToRender.compliance_tier === 2
-                          ? "text-[var(--warning)]"
-                          : "text-[var(--success)]"
-                      }
+                      iconColorClass={getComplianceTierDisplay(kidToRender, isNexusView, t).color}
                     />
                     <StatBox
                       label={t("badge_early_access", "Access Tier")}
@@ -5610,8 +5800,8 @@ export default function ModDossier({
                           type="button"
                           onClick={() => safeToggleGroup(kidToRender)}
                           className={`h-7 px-3 rounded-lg glass-surface border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${isKidEquipped
-                            ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--danger)_35%,transparent)] hover:border-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)]"
-                            : "text-[var(--success)] border-[color-mix(in_srgb,var(--success)_35%,transparent)] hover:border-[var(--success)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)]"
+                            ? "text-[var(--danger)] border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:bg-[color-mix(in_srgb,var(--danger)_12%,transparent)]"
+                            : "text-[var(--success)] border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:bg-[color-mix(in_srgb,var(--success)_12%,transparent)]"
                             }`}
                         >
                           <span className="material-symbols-outlined !text-[14px]">
@@ -5849,7 +6039,7 @@ export default function ModDossier({
                   label={t("flag_malware", "Suspected Malware")}
                   disabled={isSubmittingFlag}
                   onClick={() => handleFlagMod("Suspected Malware")}
-                  className="!w-full !h-11 !justify-start !px-4 !text-[var(--danger)] !border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
+                  className="!w-full !h-11 !justify-start !px-4 !text-[var(--danger)]"
                 />
               </div>
             </UniversalGroup>
@@ -5944,7 +6134,7 @@ export default function ModDossier({
                       {casualties.map((c: any, i: number) => (
                         <div
                           key={i}
-                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
+                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-between gap-3"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--danger)] flex items-center justify-center shrink-0">
@@ -6169,10 +6359,10 @@ export default function ModDossier({
                       {missingPacks.map((p: string) => (
                         <div
                           key={p}
-                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
+                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-between gap-3"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[15px]">
                                 {t("icon_currency_exchange", "currency_exchange")}
                               </span>
@@ -6210,10 +6400,10 @@ export default function ModDossier({
                               setDossierAlertPending(null);
                               handleInspectKid(dep);
                             }}
-                            className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_55%,transparent)] flex items-center justify-between gap-3 cursor-pointer transition-all"
+                            className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-between gap-3 cursor-pointer transition-all"
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                              <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
                                 <span className="material-symbols-outlined !text-[15px]">
                                   {t("icon_extension", "extension")}
                                 </span>
@@ -6245,10 +6435,10 @@ export default function ModDossier({
                       {brokenMods.map((bm: any, idx: number) => (
                         <div
                           key={idx}
-                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
+                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-between gap-3"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[15px]">
                                 {t("icon_broken_image", "broken_image")}
                               </span>
@@ -6276,10 +6466,10 @@ export default function ModDossier({
                       {flavorRivals.map((rv: any, idx: number) => (
                         <div
                           key={idx}
-                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-between gap-3"
+                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-between gap-3"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--accent)_32%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
+                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--accent)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[15px]">
                                 {t("icon_swap_horiz", "swap_horiz")}
                               </span>
@@ -6307,10 +6497,10 @@ export default function ModDossier({
                       {fatalConflicts.map((fc: any, idx: number) => (
                         <div
                           key={idx}
-                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] flex items-center justify-between gap-3"
+                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-between gap-3"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--danger)_32%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
+                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--danger)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[15px]">
                                 {t("icon_crisis_alert", "crisis_alert")}
                               </span>
@@ -6338,10 +6528,10 @@ export default function ModDossier({
                       {tier3Conflicts.map((tc: any, idx: number) => (
                         <div
                           key={idx}
-                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] flex items-center justify-between gap-3"
+                          className="glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-between gap-3"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--warning)_32%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0">
+                            <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--warning)] flex items-center justify-center shrink-0">
                               <span className="material-symbols-outlined !text-[15px]">
                                 {t("icon_tune", "tune")}
                               </span>

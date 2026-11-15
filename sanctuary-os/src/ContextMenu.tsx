@@ -210,6 +210,10 @@ export function ContextMenu() {
     };
 
     const handleMouseDown = (e: MouseEvent) => {
+      const targetEl = e.target as Element | null;
+      if (targetEl?.closest?.("[data-sa-icon-picker]")) {
+        return;
+      }
       if (isVisible && menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setIsVisible(false);
       }
@@ -521,7 +525,7 @@ export function ContextMenu() {
   };
 
   const menuBtnClass =
-    "w-full rounded-xl text-left px-2.5 py-2 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-bold text-[var(--text)] flex items-center justify-between gap-2.5 transition-all cursor-pointer group/ctxitem";
+    "sa-dropdown-item w-full rounded-xl text-left px-2.5 py-2 hover:bg-[color-mix(in_srgb,var(--text)_8%,transparent)] text-xs font-bold text-[var(--text)] flex items-center justify-between gap-2.5 transition-all cursor-pointer group/ctxitem";
   const dangerMenuBtnClass =
     "w-full rounded-xl text-left px-2.5 py-2 hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-xs font-bold text-[var(--danger)] flex items-center justify-between gap-2.5 transition-all cursor-pointer group/ctxitem";
   const iconWellClass =
@@ -551,7 +555,7 @@ export function ContextMenu() {
       >
         <div
           style={{ overflow: "visible" }}
-          className="w-full h-full glass-panel portal-glass-fix sa-dropdown-popover !overflow-visible rounded-2xl p-2 border border-[color-mix(in_srgb,var(--text)_14%,rgba(255,255,255,0.22))] shadow-[0_24px_60px_rgba(0,0,0,0.65)] flex flex-col gap-1"
+          className="w-full h-full glass-panel portal-glass-fix sa-dropdown-popover !overflow-visible rounded-2xl p-2 flex flex-col gap-1"
         >
           {/* Liquid Glass Context Header Card */}
           <div className="flex items-center gap-3 p-2.5 mb-1 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
@@ -643,7 +647,8 @@ export function ContextMenu() {
                           openSubmenuLeft ? "right-full pr-1.5" : "left-full pl-1.5"
                         }`}
                       >
-                        <div className="w-full glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl p-2 border border-[color-mix(in_srgb,var(--text)_14%,rgba(255,255,255,0.22))] shadow-[0_24px_60px_rgba(0,0,0,0.65)] flex flex-col gap-1 max-h-64 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-150">
+                        <div className="w-full glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl overflow-hidden flex flex-col max-h-64 animate-in fade-in zoom-in-95 duration-150">
+                          <div className="p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar max-h-full">
                           {item.submenu!.map((sub, sIdx) => {
                             const subDanger = sub.variant === "danger";
                             const subIconColor =
@@ -691,6 +696,7 @@ export function ContextMenu() {
                               </React.Fragment>
                             );
                           })}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -730,7 +736,7 @@ export function ContextMenu() {
           })}
         </div>
       </div>,
-      document.body
+      document.getElementById("sa-portals") || document.body
     );
   }
 
@@ -748,7 +754,7 @@ export function ContextMenu() {
       className="flex"
     >
       <div
-        className="w-56 h-max glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl p-2 border border-[color-mix(in_srgb,var(--text)_14%,rgba(255,255,255,0.22))] shadow-[0_24px_60px_rgba(0,0,0,0.65)] flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150"
+        className="w-56 h-max glass-panel portal-glass-fix sa-dropdown-popover rounded-2xl p-2 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150"
         onContextMenu={(e) => e.preventDefault()}
       >
         {misspelledInfo && (
@@ -888,12 +894,14 @@ export function ContextMenu() {
           }`}
         >
           <IconPicker
+            anchorElement={menuRef.current}
+            preferSidePlacement={true}
             onSelect={(icon) => handleAction(`insert_icon:${icon}`)}
             onClose={() => setShowIconPicker(false)}
           />
         </div>
       )}
     </div>,
-    document.body
+    document.getElementById("sa-portals") || document.body
   );
 }

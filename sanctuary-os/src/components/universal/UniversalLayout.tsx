@@ -56,14 +56,14 @@ export function HubOverviewSection({
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
       <div className="flex items-center justify-start gap-4 w-full min-w-0">
-        <div className="glass-panel rounded-xl flex items-stretch shrink-0 min-w-0 max-w-full overflow-hidden">
+        <div className="glass-panel rounded-xl flex items-stretch w-fit min-w-0 max-w-full overflow-hidden">
           <div className="p-2 pr-3.5 md:p-2.5 md:pr-4 flex items-center gap-3 md:gap-3.5 min-w-0">
             {resolvedIcon && (
               <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] flex items-center justify-center shrink-0">
                 <span className={`material-symbols-outlined !text-[17px] md:!text-[19px] opacity-90 ${iconColorClass}`}>{resolvedIcon}</span>
               </div>
             )}
-            <h2 className="text-sm sm:text-base font-black text-[var(--text)] capitalize tracking-tight leading-tight min-w-0 m-0 truncate">
+            <h2 className="text-sm sm:text-base font-black text-[var(--text)] capitalize tracking-tight leading-snug min-w-0 max-w-full m-0 whitespace-normal break-words">
               {title}
             </h2>
           </div>
@@ -499,7 +499,7 @@ export function UniversalGroup({
       className={`glass-panel ![background-image:none] rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col shrink-0 relative ${delayClass} ${className}`}
     >
       {heading && (
-        <div className="px-4 min-h-[52px] border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-wrap sm:flex-nowrap items-center sm:items-stretch justify-between gap-x-2.5 gap-y-1.5">
+        <div className="px-4 min-h-[52px] border-b border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex flex-wrap items-center justify-between gap-x-2.5 gap-y-1.5">
           <div className="py-2.5 sm:py-3 flex items-center gap-2.5 min-w-0 flex-1">
             {icon && (
               <div className="w-7 h-7 rounded-lg glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
@@ -511,7 +511,7 @@ export function UniversalGroup({
             <h4
               className={`text-[11px] font-black uppercase tracking-wide sm:tracking-wider leading-snug m-0 min-w-0 ${
                 typeof heading === "string"
-                  ? "line-clamp-2 sm:truncate break-words"
+                  ? "break-words"
                   : "flex flex-wrap items-center gap-1.5"
               } ${headerColorClass}`}
             >

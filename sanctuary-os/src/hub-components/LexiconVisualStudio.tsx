@@ -1128,7 +1128,7 @@ export default function LexiconVisualStudio({
       <div
         key={key}
         className={`glass-surface rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition-all ${isCustomized
-          ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+          ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
           : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
           } ${isLong ? "md:col-span-2" : ""}`}
       >
@@ -1167,7 +1167,7 @@ export default function LexiconVisualStudio({
 
             {isCustomized && (
               <>
-                <span className="px-2 py-0.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)]">
+                <span className="px-2 py-0.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)]">
                   {t("modified", "Customized")}
                 </span>
                 <button
@@ -1275,7 +1275,7 @@ export default function LexiconVisualStudio({
               <button
                 type="button"
                 onClick={() => setActiveTab("settings")}
-                className="px-2.5 py-0.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] hover:border-[var(--accent)] text-[10px] font-black text-[var(--accent)] flex items-center gap-1 cursor-pointer transition-all"
+                className="px-2.5 py-0.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-black text-[var(--accent)] flex items-center gap-1 cursor-pointer transition-all"
               >
                 <span className="material-symbols-outlined !text-[12px]">
                   {t("icon_language", "language")}
@@ -1323,9 +1323,9 @@ export default function LexiconVisualStudio({
 
         {/* Helpful First-Run Banner When Opening an Untranslated Foreign-Language Pack */}
         {showFirstRunTranslateBanner && (
-          <div className="glass-panel rounded-2xl px-4 py-3 border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="glass-panel rounded-2xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
+              <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
                 <span className="material-symbols-outlined !text-[18px]">
                   {t("icon_translate", "translate")}
                 </span>
@@ -1497,7 +1497,7 @@ export default function LexiconVisualStudio({
                     <div
                       key={term.key}
                       className={`glass-surface rounded-2xl p-3.5 border flex flex-col justify-between gap-2 transition-all ${isCustom
-                        ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                        ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                         : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                         }`}
                     >
@@ -1521,7 +1521,7 @@ export default function LexiconVisualStudio({
                                 );
                               }
                             }}
-                            className="px-2 py-0.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] text-[10px] font-mono font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer transition-all"
+                            className="px-2 py-0.5 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-mono font-bold text-[var(--subtext)] hover:text-[var(--text)] cursor-pointer transition-all"
                           >
                             {`{${term.token}}`}
                             <HoverTooltip
@@ -1615,7 +1615,7 @@ export default function LexiconVisualStudio({
                         type="button"
                         onClick={() => setStatusFilter(st.id)}
                         className={`h-8 px-2.5 rounded-xl border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all ${active
-                          ? "sa-glass-pill-active text-[var(--text)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                          ? "sa-glass-pill-active text-[var(--text)]"
                           : "bg-transparent border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
                           }`}
                       >
@@ -1642,7 +1642,7 @@ export default function LexiconVisualStudio({
                   type="button"
                   onClick={() => setSelectedSection(sec.id)}
                   className={`h-8 px-3 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all ${isSelected
-                    ? "sa-glass-pill-active text-[var(--text)] border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                    ? "sa-glass-pill-active text-[var(--text)]"
                     : "glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_22%,transparent)]"
                     }`}
                 >
@@ -1939,7 +1939,7 @@ export default function LexiconVisualStudio({
                   <button
                     type="button"
                     onClick={() => setWholeWord(!wholeWord)}
-                    className="h-10 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center gap-2.5 cursor-pointer transition-all"
+                    className="h-10 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center gap-2.5 cursor-pointer transition-all"
                   >
                     <span className="text-xs font-bold text-[var(--text)]">
                       {t("lex_studio_whole_word", "Whole word")}
@@ -1955,7 +1955,7 @@ export default function LexiconVisualStudio({
                   <button
                     type="button"
                     onClick={() => setMatchCase(!matchCase)}
-                    className="h-10 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center gap-2.5 cursor-pointer transition-all"
+                    className="h-10 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center gap-2.5 cursor-pointer transition-all"
                   >
                     <span className="text-xs font-bold text-[var(--text)]">
                       {t("lex_studio_match_case", "Match case")}
@@ -1972,7 +1972,7 @@ export default function LexiconVisualStudio({
                     <button
                       type="button"
                       onClick={() => setReplaceCustomizedOnly(!replaceCustomizedOnly)}
-                      className="h-10 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center gap-2.5 cursor-pointer transition-all"
+                      className="h-10 px-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center gap-2.5 cursor-pointer transition-all"
                     >
                       <span className="text-xs font-bold text-[var(--text)]">
                         {t("lex_studio_replace_custom_only", "Customized strings only")}
@@ -2260,7 +2260,7 @@ export default function LexiconVisualStudio({
                       {overriddenIcons.map((ic) => (
                         <div
                           key={ic.key}
-                          className="px-3 py-1.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex items-center gap-2 text-xs"
+                          className="px-3 py-1.5 rounded-xl bg-transparent border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center gap-2 text-xs"
                         >
                           <span className="material-symbols-outlined !text-[15px] text-[var(--subtext)]">
                             {ic.baseGlyph}
@@ -2326,7 +2326,7 @@ export default function LexiconVisualStudio({
                               activeIconPickerKey === "__builder__" ? null : "__builder__"
                             )
                           }
-                          className="h-10 w-full glass-panel rounded-xl px-3.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] flex items-center justify-between gap-2 cursor-pointer transition-all"
+                          className="h-10 w-full glass-panel rounded-xl px-3.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-between gap-2 cursor-pointer transition-all"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">
@@ -2403,7 +2403,7 @@ export default function LexiconVisualStudio({
                           <div
                             key={iconKey}
                             className={`glass-surface rounded-2xl p-3 border flex items-center justify-between gap-2 relative transition-all ${isOverridden
-                              ? "border-[color-mix(in_srgb,var(--accent)_45%,transparent)]"
+                              ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
                               : "border-[color-mix(in_srgb,var(--text)_10%,transparent)]"
                               }`}
                           >

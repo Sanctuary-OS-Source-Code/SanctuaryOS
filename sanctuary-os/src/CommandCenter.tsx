@@ -3,9 +3,18 @@ import { useShallow } from "zustand/react/shallow";
 import { isDesktop } from "./utils/envUtils";
 import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "./LexiconContext";
-import { DashboardStatTile, ViewHeader, HoverTooltip, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS, stripMarkdown, isSupportedExtension, stripPriorityTierPrefix, compareVersions } from "./shared";
-import { UniversalCard } from "./components/universal/UniversalCard";
-import { formatSanctuaryDate } from "./utils/dateUtils";
+import { DashboardStatTile, ViewHeader, HoverTooltip, PanelHeaderGroup, PanelHeaderButton, stripMarkdown, sanitizeVaultModList, stripPriorityTierPrefix, compareVersions } from "./shared";
+import {
+  SupportTicketCard,
+  sortTicketsPriorityFirst,
+  TicketSupporterFallback,
+} from "./components/universal/SupportTicketCard";
+import {
+  getSupporterState,
+  findAnyActiveMasonSupporterPasses,
+  isSpokeSupporter,
+  isFoundryPatron,
+} from "./utils/supporterManager";
 import {
   LiquidGlassAlertCard,
   useBlueprintPatchReadiness,
@@ -27,6 +36,7 @@ import {
 
 import { fetchEncryptedVaultCompanionSnapshots, syncDesktopCompanionRadarSnapshot, VaultCompanionSnapshot, VaultCompanionArtifact } from "./utils/stagingCrypto";
 import { groupUpdateMods } from './side-panels/CommandCenterSidePanels';
+import { fetchNexusTier0CatalogSummary } from "./utils/nexusCatalogStats";
 import {
   extractQueueTokens,
   isSystemCardIgnored,
@@ -34,6 +44,7 @@ import {
   restoreIgnoredSystemCard,
   useIgnoredSystemCards,
 } from "./side-panels/SystemQueuesSidePanel";
+import { useCloudSyncGuard } from "./utils/cloudSyncGuard";
 import { evaluateModIssues, groupBrokenMods, resolveActiveBlueprintMods, resolveBlueprintConflicts } from "./side-panels/CommandIncompatiblePanel";
 import {
   CommandScreenStats,
@@ -68,8 +79,10 @@ export default function CommandCenter({
   const ignoredGlobal = useStore((state) => state.ignoredGlobal);
 
   const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const patchFireDrillEnabled = useStore((state) => state.patchFireDrillEnabled);
   const nexusUpdatesCount = useStore((state) => state.nexusUpdatesCount);
   const backupList = useStore((state) => state.backupList);
+  const defconLevel = useStore((state) => state.defconLevel);
   const isPatchDetected = useStore((state) => state.isPatchDetected);
   const cwUnsavedEdits = useStore((state) => state.cwUnsavedEdits);
   const statusLog = useStore((state) => state.statusLog);
@@ -79,8 +92,6 @@ export default function CommandCenter({
     setIsBlueprintSwapOpen,
     updatePayload,
     setIsUpdatePanelOpen,
-    dnaMatchQueue,
-    setIsDnaModalOpen,
     volatileSignatureQueue,
     volatileSignatureQueues,
     setVolatileSignatureQueue,
@@ -99,7 +110,8 @@ export default function CommandCenter({
     useInternalBrowser,
     browserTabs,
     setIsSideBrowserOpen,
-    modalSetShowQuarantineModal,
+    showDefconAlert,
+    openCloudSyncGuard,
   } = useModalStore(
     useShallow((s) => ({
       setShowUpdatesModal: s.setShowUpdatesModal,
@@ -107,8 +119,6 @@ export default function CommandCenter({
       setIsBlueprintSwapOpen: s.setIsBlueprintSwapOpen,
       updatePayload: s.updatePayload,
       setIsUpdatePanelOpen: s.setIsUpdatePanelOpen,
-      dnaMatchQueue: s.dnaMatchQueue,
-      setIsDnaModalOpen: s.setIsDnaModalOpen,
       volatileSignatureQueue: s.volatileSignatureQueue,
       volatileSignatureQueues: s.volatileSignatureQueues,
       setVolatileSignatureQueue: s.setVolatileSignatureQueue,
@@ -127,7 +137,8 @@ export default function CommandCenter({
       useInternalBrowser: s.useInternalBrowser,
       browserTabs: s.browserTabs,
       setIsSideBrowserOpen: s.setIsSideBrowserOpen,
-      modalSetShowQuarantineModal: s.setShowQuarantineModal,
+      showDefconAlert: s.showDefconAlert,
+      openCloudSyncGuard: s.openCloudSyncGuard,
     }))
   );
   const [hasSymlinkPerms, setHasSymlinkPerms] = useState<boolean | null>(null);
@@ -159,12 +170,21 @@ export default function CommandCenter({
   const [ticketCount, setTicketCount] = useState<number | "-">("-");
   const [openCitizenTickets, setOpenCitizenTickets] = useState<any[]>([]);
   const [selectedCitizenTicket, setSelectedCitizenTicket] = useState<any | null>(null);
+  const [citizenSupporterFallback, setCitizenSupporterFallback] = useState<TicketSupporterFallback>({});
+  const [citizenTicketModNames, setCitizenTicketModNames] = useState<Record<string, string>>({});
   const [patchReadinessDrawerBp, setPatchReadinessDrawerBp] = useState<string | null>(null);
-  const patchReadiness = useBlueprintPatchReadiness();
+  const schemaHasCc = activeGameSchema?.features?.has_cc !== false;
+  const patchReadiness = useBlueprintPatchReadiness({ skip: !schemaHasCc || !patchFireDrillEnabled });
+
+  useEffect(() => {
+    if (!patchFireDrillEnabled && patchReadinessDrawerBp !== null) {
+      setPatchReadinessDrawerBp(null);
+    }
+  }, [patchFireDrillEnabled, patchReadinessDrawerBp]);
 
   useEffect(() => {
     const preloadTimer = setTimeout(() => {
-      import("./Blueprints").catch(() => {});
+      import("./Blueprints").catch(() => { });
     }, 350);
     return () => clearTimeout(preloadTimer);
   }, []);
@@ -221,7 +241,7 @@ export default function CommandCenter({
         ...art,
         newVersion:
           art.newVersion &&
-          (!cleanLocalVer || compareVersions(art.newVersion, cleanLocalVer) > 0)
+            (!cleanLocalVer || compareVersions(art.newVersion, cleanLocalVer) > 0)
             ? art.newVersion
             : undefined,
         isBroken,
@@ -256,9 +276,10 @@ export default function CommandCenter({
   );
 
   const vaultItemCount = React.useMemo(() => {
-    if (!Array.isArray(modList) || modList.length === 0) return 0;
+    const cleanModList = sanitizeVaultModList(modList, activeGameSchema);
+    if (!Array.isArray(cleanModList) || cleanModList.length === 0) return 0;
     const virtualFolderIds = new Set<string>();
-    modList.forEach((v: any) => {
+    cleanModList.forEach((v: any) => {
       if (!v?.isVirtual || !v.dbId) return;
       const dbIdStr = String(v.dbId);
       if (dbIdStr === "undefined" || dbIdStr === "null") return;
@@ -272,21 +293,12 @@ export default function CommandCenter({
       virtualFolderIds.add(dbIdStr);
     });
     let count = 0;
-    for (let i = 0; i < modList.length; i++) {
-      const mod = modList[i];
+    for (let i = 0; i < cleanModList.length; i++) {
+      const mod = cleanModList[i];
       if (!mod) continue;
       if (mod.isVirtual && (mod.hash?.startsWith("local_set_") || mod.name?.startsWith("LOCAL_SET_"))) {
         const dbIdStr = String(mod.dbId || "");
         if (!dbIdStr.startsWith("f_") && !dbIdStr.startsWith("local_")) continue;
-      }
-      if (!mod.isVirtual && mod.name) {
-        if (!isSupportedExtension(mod.name, activeGameSchema)) continue;
-        if (activeGameSchema?.extensions?.vault_visible) {
-          const isVaultVisible = activeGameSchema.extensions.vault_visible.some((ext: string) =>
-            mod.name.toLowerCase().endsWith(ext.toLowerCase())
-          );
-          if (!isVaultVisible) continue;
-        }
       }
       const modNameUpper = String(mod.displayName || mod.meta_name || mod.name || mod.title || "").toUpperCase().trim();
       const baseModName = modNameUpper.split(/[\\/]/).pop()?.replace(/\.[^/.]+$/, "") || modNameUpper;
@@ -305,12 +317,26 @@ export default function CommandCenter({
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const workspaces = useStore((state) => state.workspaces);
   const ignoredSystemCards = useIgnoredSystemCards(activeWorkspaceId);
+  const cloudSyncGuard = useCloudSyncGuard(activeWorkspaceId);
+  const hasCloudSyncAlert =
+    isDesktop() && Boolean(isConfigured) && cloudSyncGuard.hasUnconsentedInterference;
+  const isDefconActive = Boolean(
+    isPatchDetected ||
+    showDefconAlert ||
+    (typeof defconLevel === "number" && defconLevel > 0 && defconLevel < 5)
+  );
 
   useEffect(() => {
     if (isDesktop() && isConfigured && !shelterActive && ignoredSystemCards.vault_lockdown) {
       restoreIgnoredSystemCard(activeWorkspaceId, "vault_lockdown");
     }
   }, [isConfigured, shelterActive, activeWorkspaceId, ignoredSystemCards.vault_lockdown]);
+
+  useEffect(() => {
+    if (!isDefconActive && ignoredSystemCards.defcon) {
+      restoreIgnoredSystemCard(activeWorkspaceId, "defcon");
+    }
+  }, [isDefconActive, activeWorkspaceId, ignoredSystemCards.defcon]);
 
   const checkPerms = () => {
     invoke<boolean>("check_symlink_permissions")
@@ -356,50 +382,9 @@ export default function CommandCenter({
         };
 
         try {
-          const [assetsRes, modsRes, bpRes] = await Promise.all([
-            supabase
-              .from('nexus_assets')
-              .select('id', { count: 'exact', head: true })
-              .in('asset_type', ['lexicon', 'chameleon', 'workbench_template'])
-              .or('is_public.eq.true,is_public.is.null'),
-            supabase
-              .from('mods')
-              .select('id', { count: 'exact', head: true })
-              .eq('compliance_tier', 0)
-              .in('status', ['stable', 'verified', 'unstable', 'corrupted', 'pending']),
-            supabase
-              .from('blueprints')
-              .select('id', { count: 'exact', head: true })
-              .eq('is_public', true)
-              .eq('is_market_listed', true)
-              .eq('compliance_tier', 0)
-          ]);
-
+          const summary = await fetchNexusTier0CatalogSummary(supabase);
           if (!cancelled) {
-            let total = 0;
-            let anySucceeded = false;
-            if (!assetsRes.error && typeof assetsRes.count === 'number') {
-              total += assetsRes.count;
-              anySucceeded = true;
-            }
-            if (!modsRes.error && typeof modsRes.count === 'number') {
-              total += modsRes.count;
-              anySucceeded = true;
-            }
-            if (!bpRes.error && typeof bpRes.count === 'number') {
-              total += bpRes.count;
-              anySucceeded = true;
-            }
-
-            if (assetsRes.error || modsRes.error || bpRes.error) {
-              console.warn("Partial or failed Nexus stat count query:", {
-                nexus_assets: assetsRes.error,
-                mods: modsRes.error,
-                blueprints: bpRes.error,
-              });
-            }
-
-            setNexusCount(anySucceeded ? total : "-");
+            setNexusCount(summary.total);
           }
 
           fetchUrgent();
@@ -436,7 +421,57 @@ export default function CommandCenter({
                 const st = String(tk?.status || 'open').toLowerCase();
                 return st !== 'resolved' && st !== 'rejected' && st !== 'closed';
               });
-              setOpenCitizenTickets(openOnly.slice(0, 5));
+              let authorFallback: TicketSupporterFallback = {};
+              try {
+                const st = await getSupporterState();
+                const masonPasses = findAnyActiveMasonSupporterPasses(st);
+                const spokePass = isSpokeSupporter(st, activeWorkspaceId);
+                authorFallback = {
+                  isMasonSupporter: masonPasses.length > 0,
+                  masonSupporterName: masonPasses[0]?.mason_name || null,
+                  isSpokeSupporter: Boolean(spokePass),
+                  spokeSupporterName: spokePass?.spoke_name || null,
+                  isFoundryPatron: isFoundryPatron(st),
+                };
+              } catch {
+                // Best-effort local supporter hydration
+              }
+              const sortedOpen = sortTicketsPriorityFirst(openOnly, () => authorFallback);
+              const topOpen = sortedOpen.slice(0, 5);
+              if (!cancelled) {
+                setCitizenSupporterFallback(authorFallback);
+                setOpenCitizenTickets(topOpen);
+              }
+              const isUuid = (s: string) =>
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
+              const missingIds: string[] = [];
+              topOpen.forEach((tk: any) => {
+                const tid = String(tk?.target_mod_id || tk?.metadata?.target_mod_id || "").trim();
+                if (!tid || tk?.metadata?.target_mod_name || !isUuid(tid)) return;
+                const localMatch = (modList || []).find(
+                  (m: any) => m.dbId === tid || m.id === tid || m.hash === tid
+                );
+                if (!localMatch && !missingIds.includes(tid)) missingIds.push(tid);
+              });
+              if (missingIds.length > 0) {
+                try {
+                  const { data: modsData } = await supabase
+                    .from("mods")
+                    .select("id, name")
+                    .in("id", missingIds);
+                  if (!cancelled && Array.isArray(modsData) && modsData.length > 0) {
+                    const nextMap: Record<string, string> = {};
+                    modsData.forEach((m: any) => {
+                      if (m?.id && m?.name) nextMap[m.id] = String(m.name);
+                    });
+                    if (Object.keys(nextMap).length > 0) {
+                      setCitizenTicketModNames((prev) => ({ ...prev, ...nextMap }));
+                    }
+                  }
+                } catch {
+                  // Best-effort mod name resolution
+                }
+              }
               if ((window as any).__sanctuaryCache?.support) {
                 const cacheKey = `spokeTickets_${activeWorkspaceId || "default"}_${uid}`;
                 (window as any).__sanctuaryCache.support[cacheKey] = normalized;
@@ -459,10 +494,14 @@ export default function CommandCenter({
     refreshCommandStats();
     window.addEventListener('sanctuary-games-updated', refreshCommandStats);
     window.addEventListener('sanctuary-tickets-updated', refreshCommandStats);
+    window.addEventListener('sanctuary-compliance-updated', refreshCommandStats);
+    window.addEventListener('sanctuary-content-flagged', refreshCommandStats);
     return () => {
       cancelled = true;
       window.removeEventListener('sanctuary-games-updated', refreshCommandStats);
       window.removeEventListener('sanctuary-tickets-updated', refreshCommandStats);
+      window.removeEventListener('sanctuary-compliance-updated', refreshCommandStats);
+      window.removeEventListener('sanctuary-content-flagged', refreshCommandStats);
     };
   }, [activeWorkspaceId, workspaces, session?.user?.id]);
 
@@ -660,7 +699,7 @@ export default function CommandCenter({
           updateItems: activeUpdates,
           playSets: Array.isArray(playSets) ? playSets : [],
         }
-      ).catch(() => {});
+      ).catch(() => { });
     }, 800);
     return () => clearTimeout(timer);
   }, [
@@ -741,16 +780,6 @@ export default function CommandCenter({
   const hasCcSupport = schemaFeatures.has_cc !== false;
   const hasSavesSupport = schemaFeatures.has_saves !== false;
 
-  const quarantineCount = Array.isArray(quarantineList)
-    ? quarantineList.length
-    : 0;
-  const dnaCount = Array.isArray(dnaMatchQueue) ? dnaMatchQueue.length : 0;
-  const totalCloudQueues =
-    Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 0
-      ? volatileSignatureQueues.length
-      : volatileSignatureQueue
-        ? 1
-        : 0;
   const sigQueueCount =
     Array.isArray(volatileSignatureQueues) && volatileSignatureQueues.length > 0
       ? volatileSignatureQueues.filter((q: any) => !q?.isCompletedLocally).length
@@ -786,7 +815,7 @@ export default function CommandCenter({
   };
 
   const openSignatureQueueDrawer = () => {
-    if (sigQueueCount > 0 || totalCloudQueues > 0) {
+    if (sigQueueCount > 0) {
       if (
         Array.isArray(volatileSignatureQueues) &&
         volatileSignatureQueues.length > 0
@@ -801,16 +830,6 @@ export default function CommandCenter({
       setIsSignatureQueueOpen(true);
     } else {
       setIsSignatureQueueOpen(true);
-    }
-  };
-
-  const openQuarantineDrawer = () => {
-    if (setShowQuarantineModal) {
-      setShowQuarantineModal(true);
-    } else if (modalSetShowQuarantineModal) {
-      modalSetShowQuarantineModal(true);
-    } else if (setView) {
-      setView("vault");
     }
   };
 
@@ -833,6 +852,72 @@ export default function CommandCenter({
       isIgnored: boolean;
       onClick: () => void;
     }[] = [];
+
+    if (isDefconActive) {
+      const isNetworkLockdown =
+        typeof defconLevel === "number" && defconLevel > 0 && defconLevel < 5;
+      const tokens = [
+        `defcon:${isNetworkLockdown ? `lvl_${defconLevel}` : "patch"}:${selectedVersion || "active"}`,
+      ];
+      cards.push({
+        id: "defcon",
+        icon: t("icon_gpp_maybe", "gpp_maybe"),
+        accentVar: "var(--danger)",
+        iconColorClass: "text-[var(--danger)]",
+        actionVariant: "danger",
+        overline: isNetworkLockdown
+          ? t("defcon_val_locked", "Locked (DEFCON 1)")
+          : t("defcon_patch_detected", "Patch Detected"),
+        title: isNetworkLockdown
+          ? t("defcon_active", "Defcon 1 Active")
+          : t("defcon_lockdown_cursor_tooltip", "Emergency Patch Alert Active"),
+        description: t(
+          "defcon_queue_card_desc",
+          "A game patch or network safety alert is active. Verify {Backups} and {Blueprint} readiness before launching."
+        ),
+        badgeLabel: isNetworkLockdown
+          ? t("defcon_status_locked_badge", "Lockdown Active")
+          : t("defcon_patch_detected", "Patch Detected"),
+        badgeIcon: t("icon_gpp_maybe", "gpp_maybe"),
+        actionLabel: t("open", "Open"),
+        actionIcon: t("icon_shield", "shield"),
+        ignoreTokens: tokens,
+        isIgnored: isSystemCardIgnored(ignoredSystemCards.defcon, tokens),
+        onClick: () => {
+          if (isDesktop() && hasSavesSupport && setView) {
+            setView("backups");
+          } else if (hasCcSupport && patchFireDrillEnabled) {
+            jumpToPatchReadinessTool();
+          } else {
+            setIsSystemStatusOpen(true);
+          }
+        },
+      });
+    }
+
+    if (isDesktop() && hasCcSupport && shelterActive) {
+      const tokens = ["shelter:active"];
+      cards.push({
+        id: "vault_lockdown",
+        icon: t("icon_lock", "lock"),
+        accentVar: "var(--danger)",
+        iconColorClass: "text-[var(--danger)]",
+        actionVariant: "danger",
+        overline: t("active", "Active"),
+        title: t("btn_lockdown", "Lockdown {Vault}").replace(/^[^\w]*/, "").trim(),
+        description: t(
+          "cmd_lockdown_active_desc",
+          "Your {Vault} is currently air-gapped to protect {mods} during a game patch. Click to reclaim."
+        ),
+        badgeLabel: t("active", "Active"),
+        badgeIcon: t("icon_shield_lock", "shield_lock"),
+        actionLabel: t("btn_reclaim", "Reclaim {Vault}").replace(/^[^\w]*/, "").trim(),
+        actionIcon: t("icon_lock_open", "lock_open"),
+        ignoreTokens: tokens,
+        isIgnored: isSystemCardIgnored(ignoredSystemCards.vault_lockdown, tokens),
+        onClick: () => triggerShelter(false),
+      });
+    }
 
     if (passkeyHandshakeCount > 0 && pendingPasskeyHandshakes[0]?.payload) {
       const activeReq = pendingPasskeyHandshakes[0];
@@ -871,9 +956,9 @@ export default function CommandCenter({
       cards.push({
         id: "os_update",
         icon: t("icon_system_update_alt", "system_update_alt"),
-        accentVar: "var(--accent)",
-        iconColorClass: "text-[var(--accent)]",
-        actionVariant: "accent",
+        accentVar: "var(--success)",
+        iconColorClass: "text-[var(--success)]",
+        actionVariant: "success",
         overline: rawVer ? `v${rawVer}` : t("updates_ready", "Updates Ready"),
         title: isDev
           ? t("sys_stat_dev_update_available", "Dev Build Available")
@@ -892,57 +977,7 @@ export default function CommandCenter({
       });
     }
 
-    if (quarantineCount > 0) {
-      const tokens = extractQueueTokens(quarantineList, "quar");
-      cards.push({
-        id: "quarantine",
-        icon: t("icon_warning_amber", "warning_amber"),
-        accentVar: "var(--danger)",
-        iconColorClass: "text-[var(--danger)]",
-        actionVariant: "danger",
-        overline: `${quarantineCount} ${t("status_quarantined", "Quarantined")}`,
-        title: t("malware_alert_title", "Malware Detected"),
-        description: t(
-          "malware_and_manifests_subtitle",
-          "Active malware quarantine, Spoke & Core heuristics, and incoming Threat Manifests."
-        ),
-        badgeLabel: `${quarantineCount}`,
-        badgeIcon: t("icon_gpp_bad", "gpp_bad"),
-        actionLabel: t("inspect", "Inspect"),
-        actionIcon: t("icon_shield", "shield"),
-        ignoreTokens: tokens,
-        isIgnored: isSystemCardIgnored(ignoredSystemCards.quarantine, tokens),
-        onClick: openQuarantineDrawer,
-      });
-    }
-
-    if (dnaCount > 0) {
-      const tokens = extractQueueTokens(dnaMatchQueue, "dna");
-      cards.push({
-        id: "dna_match",
-        icon: t("icon_difference", "difference"),
-        accentVar: "var(--warning)",
-        iconColorClass: "text-[var(--warning)]",
-        actionVariant: "warning",
-        overline: `${dnaCount} ${t("term_mods", "{Mods}")}`,
-        title: t("overlay_dna_match_title", "DNA Match & Collision Queue"),
-        description: t(
-          "overlay_dna_match_desc",
-          "Resolve duplicate artifacts, settings collisions, and Edge overrides."
-        ),
-        badgeLabel: `${dnaCount}`,
-        badgeIcon: t("icon_difference", "difference"),
-        actionLabel: t("inspect", "Inspect"),
-        actionIcon: t("icon_difference", "difference"),
-        ignoreTokens: tokens,
-        isIgnored: isSystemCardIgnored(ignoredSystemCards.dna_match, tokens),
-        onClick: () => setIsDnaModalOpen(true),
-      });
-    }
-
-    if (blueprintQueueCount > 0 || totalCloudQueues > 0) {
-      const isAllCompletedLocally =
-        blueprintQueueCount === 0 && totalCloudQueues > 0;
+    if (blueprintQueueCount > 0) {
       const tokens = [
         ...extractQueueTokens(
           Array.isArray(volatileSignatureQueues) &&
@@ -958,28 +993,17 @@ export default function CommandCenter({
       cards.push({
         id: "signature_queue",
         icon: t("icon_phonelink_ring", "phonelink_ring"),
-        accentVar: isAllCompletedLocally ? "var(--accent)" : "var(--success)",
-        iconColorClass: isAllCompletedLocally
-          ? "text-[var(--accent)]"
-          : "text-[var(--success)]",
-        actionVariant: isAllCompletedLocally ? "accent" : "success",
-        overline: isAllCompletedLocally
-          ? t(
-              "sig_queue_badge_completed_local",
-              "Completed Here • Pending on Other Systems"
-            )
-          : `${blueprintQueueCount} ${t("playsets_title", "{Blueprints}")}`,
+        accentVar: "var(--success)",
+        iconColorClass: "text-[var(--success)]",
+        actionVariant: "success",
+        overline: `${blueprintQueueCount} ${t("playsets_title", "{Blueprints}")}`,
         title: t("sig_queue_title", "Signature Queue"),
         description: t(
           "sig_queue_subtitle",
           "Volatile In-Memory Resolution • Awaiting {Citizen}'s Signature"
         ),
-        badgeLabel: isAllCompletedLocally
-          ? t("sig_queue_badge_completed_short", "Completed on Rig")
-          : `${blueprintQueueCount}`,
-        badgeIcon: isAllCompletedLocally
-          ? t("icon_task_alt", "task_alt")
-          : t("icon_draw", "draw"),
+        badgeLabel: `${blueprintQueueCount}`,
+        badgeIcon: t("icon_draw", "draw"),
         actionLabel: t("open", "Open"),
         actionIcon: t("icon_draw", "draw"),
         ignoreTokens: tokens,
@@ -1020,9 +1044,9 @@ export default function CommandCenter({
       cards.push({
         id: "scout_queue",
         icon: t("icon_biotech", "biotech"),
-        accentVar: "var(--warning)",
-        iconColorClass: "text-[var(--warning)]",
-        actionVariant: "warning",
+        accentVar: "var(--accent)",
+        iconColorClass: "text-[var(--accent)]",
+        actionVariant: "accent",
         overline: `${scoutCount} ${t("term_mods", "{Mods}")}`,
         title: t("queue_title", "Unidentified Files"),
         description: t("queue_desc", "Unidentified {mods} detected."),
@@ -1036,30 +1060,6 @@ export default function CommandCenter({
       });
     }
 
-    if (isDesktop() && hasCcSupport && shelterActive) {
-      const tokens = ["shelter:active"];
-      cards.push({
-        id: "vault_lockdown",
-        icon: t("icon_lock", "lock"),
-        accentVar: "var(--warning)",
-        iconColorClass: "text-[var(--warning)]",
-        actionVariant: "warning",
-        overline: t("active", "Active"),
-        title: t("btn_lockdown", "Lockdown {Vault}").replace(/^[^\w]*/, "").trim(),
-        description: t(
-          "cmd_lockdown_active_desc",
-          "Your {Vault} is currently air-gapped to protect {mods} during a game patch. Click to reclaim."
-        ),
-        badgeLabel: t("active", "Active"),
-        badgeIcon: t("icon_shield_lock", "shield_lock"),
-        actionLabel: t("btn_reclaim", "Reclaim {Vault}").replace(/^[^\w]*/, "").trim(),
-        actionIcon: t("icon_lock_open", "lock_open"),
-        ignoreTokens: tokens,
-        isIgnored: isSystemCardIgnored(ignoredSystemCards.vault_lockdown, tokens),
-        onClick: () => triggerShelter(false),
-      });
-    }
-
     return cards;
   })();
 
@@ -1069,7 +1069,7 @@ export default function CommandCenter({
   return (
     <div className="flex flex-col pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <ViewHeader title={t("center_title", "Dashboard")} subtitle={t("center_subtitle", "System status & active deployment overview")} icon={t("icon_desktop_windows", "desktop_windows")} iconColorClass="text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-      
+
 
 
       {(() => {
@@ -1088,7 +1088,7 @@ export default function CommandCenter({
           systemTiles.push(
             <div key="perms" className="relative group/perms flex-1 flex min-w-0 w-full h-full">
               <HoverTooltip
-                variant="warning"
+                variant="danger"
                 icon={t("icon_warning", "warning")}
                 title={t("perm_restricted", "Permissions Restricted")}
                 subtitle={t("perm_hover_desc", "Click to permanently unlock cross-drive Symlink permissions via 1-click Windows UAC (no Admin mode needed on future launches).") || t("perm_desc", "Sanctuary OS lacks sufficient clearance to manage your {Vault}.")}
@@ -1100,7 +1100,7 @@ export default function CommandCenter({
                 number="!"
                 label={t("perm_restricted", "Permissions Restricted")}
                 disableBgStrip={true}
-                colorClass="!bg-[color-mix(in_srgb,var(--warning)_15%,transparent)] !border-[color-mix(in_srgb,var(--warning)_30%,transparent)] !text-[var(--warning)] animate-pulse w-full"
+                colorClass="!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] animate-pulse w-full"
                 onClick={async () => {
                   try {
                     await invoke("open_developer_settings");
@@ -1108,6 +1108,32 @@ export default function CommandCenter({
                     checkPerms();
                   }
                 }}
+              />
+            </div>
+          );
+        }
+
+        if (hasCloudSyncAlert) {
+          systemTiles.push(
+            <div key="cloud_sync" className="relative group/cloudsync flex-1 flex min-w-0 w-full h-full">
+              <HoverTooltip
+                variant="danger"
+                icon={t("icon_cloud_sync", "cloud_sync")}
+                title={t("cloud_guard_tile_label", "Cloud Sync Detected")}
+                subtitle={t(
+                  "cloud_guard_tile_hover",
+                  "Cloud sync overlaps your {Vault} or {Mods} folder. Click to review safe options or grant explicit consent—nothing changes automatically."
+                )}
+                className="group-hover/cloudsync:flex z-[1000] w-full"
+                vAlign="bottom"
+              />
+              <DashboardStatTile
+                icon={<span className="material-symbols-outlined">{t("icon_cloud_sync", "cloud_sync")}</span>}
+                number={cloudSyncGuard.unconsentedFindings.length}
+                label={t("cloud_guard_tile_label", "Cloud Sync Detected")}
+                disableBgStrip={true}
+                colorClass="!bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] !border-[color-mix(in_srgb,var(--danger)_30%,transparent)] !text-[var(--danger)] w-full"
+                onClick={() => openCloudSyncGuard()}
               />
             </div>
           );
@@ -1408,7 +1434,7 @@ export default function CommandCenter({
                     "Pending updates, file verification queues, and quick system utilities."
                   )}
                   icon={t("icon_layers", "layers")}
-                  iconColorClass="text-[var(--warning)]"
+                  iconColorClass={visibleQueueCards[0]?.iconColorClass || "text-[var(--accent)]"}
                   onJump={() => setIsQueuesPanelOpen(true)}
                   rightSlot={
                     <PanelHeaderGroup>
@@ -1486,37 +1512,41 @@ export default function CommandCenter({
               />
             </div>
 
-            {/* 3. Blueprint Patch Readiness Simulator (Non-Destructive Target Game Version Health) */}
-            {hasCcSupport && isDesktop() && (
-              <div className="flex flex-col gap-4">
-                <CommandScreenSectionHeading
-                  title={t("patch_sim_title", "{Blueprint} Patch Readiness")}
-                  subtitle={t(
-                    "patch_sim_cmd_sub",
-                    "Simulate {Blueprint} health on upcoming or past game versions before updating"
-                  )}
-                  icon={t(
-                    "icon_published_with_changes",
-                    "published_with_changes"
-                  )}
-                  onJump={setView ? jumpToPatchReadinessTool : undefined}
-                  jumpTooltip={t("patch_sim_tab_title", "Patch Readiness")}
-                />
+            {/* 3. Blueprint Patch Readiness Simulator (Desktop Local + Web/PWA Zero-PII Companion Pipeline) */}
+            {patchFireDrillEnabled &&
+              hasCcSupport &&
+              (isDesktop() ||
+                patchReadiness.blueprintReports.length > 0 ||
+                Boolean(activeCompanionSnapshot)) && (
+                <div className="flex flex-col gap-4">
+                  <CommandScreenSectionHeading
+                    title={t("patch_sim_title", "{Blueprint} Patch Readiness")}
+                    subtitle={t(
+                      "patch_sim_cmd_sub",
+                      "Simulate {Blueprint} health on upcoming or past game versions before updating"
+                    )}
+                    icon={t(
+                      "icon_published_with_changes",
+                      "published_with_changes"
+                    )}
+                    onJump={setView ? jumpToPatchReadinessTool : undefined}
+                    jumpTooltip={t("patch_sim_tab_title", "Patch Readiness")}
+                  />
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6 w-full">
-                  <PatchReadinessSimulatorInfoCard readiness={patchReadiness} />
+                  <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6 w-full">
+                    <PatchReadinessSimulatorInfoCard readiness={patchReadiness} />
 
-                  {patchReadiness.blueprintReports.slice(0, 5).map((rep) => (
-                    <BlueprintPatchReadinessCard
-                      key={rep.blueprintName}
-                      report={rep}
-                      targetVersion={patchReadiness.targetVersion}
-                      onInspect={(bpName) => setPatchReadinessDrawerBp(bpName)}
-                    />
-                  ))}
+                    {patchReadiness.blueprintReports.slice(0, 5).map((rep) => (
+                      <BlueprintPatchReadinessCard
+                        key={rep.blueprintName}
+                        report={rep}
+                        targetVersion={patchReadiness.targetVersion}
+                        onInspect={(bpName) => setPatchReadinessDrawerBp(bpName)}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* 4. Spoke Support Tickets — Alert Info Card + Up to 5 Open Citizen Tickets */}
             <div className="flex flex-col gap-4">
@@ -1555,9 +1585,9 @@ export default function CommandCenter({
                     !session
                       ? t("auto_guest_mode_active_45", "Guest Mode Active")
                       : `${openCitizenTickets.length} ${t(
-                          "ticket_status_open",
-                          "Open"
-                        )}`
+                        "ticket_status_open",
+                        "Open"
+                      )}`
                   }
                   overline={t("sidebar_support", "Sanctuary Support")}
                   title={
@@ -1593,110 +1623,40 @@ export default function CommandCenter({
                 />
 
                 {openCitizenTickets.slice(0, 5).map((ticket) => {
-                  const st = String(ticket.status || "open").toLowerCase();
-                  const isEscalated = st === "escalated";
-                  const isPending =
-                    st === "pending" || st === "investigating" || st === "claimed";
-                  const statusIconColor = isEscalated
-                    ? "text-[var(--danger)]"
-                    : isPending
-                      ? "text-[var(--warning)]"
-                      : "text-[var(--accent)]";
-                  const statusIcon = isEscalated
-                    ? t("icon_priority_high", "priority_high")
-                    : isPending
-                      ? t("icon_schedule", "schedule")
-                      : t("icon_confirmation_number", "confirmation_number");
-                  const statusLabel = isEscalated
-                    ? t("ticket_status_escalated", "Escalated")
-                    : isPending
-                      ? t("ticket_status_pending", "Pending")
-                      : t("ticket_status_open", "Open");
+                  const rawTargetModId = String(
+                    ticket?.target_mod_id || ticket?.metadata?.target_mod_id || ""
+                  ).trim();
+                  const localModMatch = rawTargetModId
+                    ? (modList || []).find(
+                      (m: any) =>
+                        m.dbId === rawTargetModId ||
+                        m.id === rawTargetModId ||
+                        m.hash === rawTargetModId
+                    )
+                    : null;
+                  const resolvedModName = rawTargetModId
+                    ? localModMatch
+                      ? String(localModMatch.displayName || localModMatch.name || "").trim() || null
+                      : citizenTicketModNames[rawTargetModId] || null
+                    : null;
                   const replyCount = Array.isArray(ticket.metadata?.replies)
                     ? ticket.metadata.replies.length
                     : 0;
 
                   return (
-                    <UniversalCard
+                    <SupportTicketCard
                       key={ticket.id}
-                      layout="vertical"
-                      icon={t(
-                        "icon_confirmation_number",
-                        "confirmation_number"
-                      )}
-                      statusColor={
-                        isEscalated
-                          ? "danger"
-                          : isPending
-                            ? "warning"
-                            : "accent"
+                      ticket={ticket}
+                      t={t}
+                      resolvedModName={resolvedModName}
+                      supporterFallback={
+                        !ticket.author_id || ticket.author_id === session?.user?.id
+                          ? citizenSupporterFallback
+                          : undefined
                       }
-                      imageOverlay={
-                        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[80%] z-30 pointer-events-none">
-                          <span className={VAULT_CHIP_CLASS}>
-                            <span
-                              className={`material-symbols-outlined !text-[12px] ${statusIconColor}`}
-                            >
-                              {statusIcon}
-                            </span>
-                            <span>{statusLabel}</span>
-                          </span>
-                          {ticket.metadata?.expedited_support && (
-                            <span className={VAULT_CHIP_CLASS}>
-                              <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
-                                {t("icon_bolt", "bolt")}
-                              </span>
-                              <span>
-                                {t(
-                                  "supporter_badge_expedited_support",
-                                  "Expedited Support"
-                                )}
-                              </span>
-                            </span>
-                          )}
-                        </div>
-                      }
-                      title={ticket.title}
-                      subtitle={`#${String(ticket.id || "").slice(0, 8)} • ${formatSanctuaryDate(
-                        ticket.created_at
-                      )}`}
+                      replyCount={replyCount}
                       onClick={() => setSelectedCitizenTicket(ticket)}
-                      badges={
-                        <>
-                          <span className={VAULT_CHIP_CLASS}>
-                            <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                              {t("icon_local_activity", "local_activity")}
-                            </span>
-                            <span>
-                              {String(
-                                ticket.ticket_type ||
-                                  t("support_tickets", "Support Tickets")
-                              ).replace(/_/g, " ")}
-                            </span>
-                          </span>
-                          {replyCount > 0 && (
-                            <span className={VAULT_CHIP_CLASS}>
-                              <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
-                                {t("icon_forum", "forum")}
-                              </span>
-                              <span>{`${replyCount} ${t("replies", "Replies")}`}</span>
-                            </span>
-                          )}
-                        </>
-                      }
-                      footer={
-                        <span className="text-[10px] font-black text-[var(--accent)] flex items-center gap-1">
-                          {t("inspect", "Inspect")}
-                          <span className="material-symbols-outlined !text-[12px]">
-                            {t("icon_arrow_forward", "arrow_forward")}
-                          </span>
-                        </span>
-                      }
-                    >
-                      <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed m-0">
-                        {stripMarkdown(ticket.description || "")}
-                      </p>
-                    </UniversalCard>
+                    />
                   );
                 })}
               </div>
@@ -1710,80 +1670,200 @@ export default function CommandCenter({
             metricsTitle={t("sys_telemetry_title", "System Telemetry")}
             metricsIcon={t("icon_monitoring", "monitoring")}
             metrics={
-              <>
-                <CommandScreenMetricTile
-                  icon={t("icon_memory", "memory")}
-                  value={
-                    selectedVersion
-                      ? String(selectedVersion).startsWith("v")
-                        ? selectedVersion
-                        : `v${selectedVersion}`
-                      : t("auto", "Auto")
-                  }
-                  label={t("game_version", "Game Version")}
-                  onClick={() => setIsSystemStatusOpen(true)}
-                />
-                <CommandScreenMetricTile
-                  icon={t("icon_terminal", "terminal")}
-                  value={statusLogCount}
-                  label={t("cmd_metric_system_logs", "System Logs")}
-                  onClick={() => setIsLogExpanded(true)}
-                />
-                <CommandScreenMetricTile
-                  icon={t("icon_phonelink_ring", "phonelink_ring")}
-                  value={blueprintQueueCount}
-                  label={t("sig_queue_title", "Signature Queue")}
-                  valueColorClass={
-                    blueprintQueueCount > 0
-                      ? "text-[var(--success)]"
-                      : "theme-text-accent"
-                  }
-                  onClick={openSignatureQueueDrawer}
-                />
-                <CommandScreenMetricTile
-                  icon={t("icon_biotech", "biotech")}
-                  value={hasCcSupport ? scoutCount : "-"}
-                  label={t("cmd_metric_unknown_dna", "Unknown DNA")}
-                  valueColorClass={
-                    scoutCount > 0 ? "text-[var(--warning)]" : "theme-text-accent"
-                  }
-                  onClick={() => {
-                    if (hasCcSupport) setIsScoutPanelOpen(true);
-                  }}
-                />
-                <CommandScreenMetricTile
-                  icon={t("icon_history", "history")}
-                  value={isDesktop() && hasSavesSupport ? backupCount : "-"}
-                  label={t("term_backups", "{Backups}")}
-                  valueColorClass={
-                    isPatchDetected
-                      ? "text-[var(--warning)]"
-                      : "theme-text-accent"
-                  }
-                  onClick={() => {
-                    if (isDesktop() && hasSavesSupport && setView) {
-                      setView("backups");
+              isDesktop() ? (
+                <>
+                  <CommandScreenMetricTile
+                    icon={t("icon_memory", "memory")}
+                    value={
+                      selectedVersion
+                        ? String(selectedVersion).startsWith("v")
+                          ? selectedVersion
+                          : `v${selectedVersion}`
+                        : t("auto", "Auto")
                     }
-                  }}
-                />
-                <CommandScreenMetricTile
-                  icon={t("icon_design_services", "design_services")}
-                  value={
-                    isDesktop() && hasCcSupport ? unsavedWorkbenchCount : "-"
-                  }
-                  label={t("title_sidebar", "Workbench")}
-                  valueColorClass={
-                    unsavedWorkbenchCount > 0
-                      ? "text-[var(--warning)]"
-                      : "theme-text-accent"
-                  }
-                  onClick={() => {
-                    if (isDesktop() && hasCcSupport && setView) {
-                      setView("CitizensWorkbench");
+                    label={t("game_version", "Game Version")}
+                    onClick={() => setIsSystemStatusOpen(true)}
+                  />
+                  <CommandScreenMetricTile
+                    icon={t("icon_terminal", "terminal")}
+                    value={statusLogCount}
+                    label={t("cmd_metric_system_logs", "System Logs")}
+                    onClick={() => setIsLogExpanded(true)}
+                  />
+                  <CommandScreenMetricTile
+                    icon={t("icon_phonelink_ring", "phonelink_ring")}
+                    value={blueprintQueueCount}
+                    label={t("sig_queue_title", "Signature Queue")}
+                    valueColorClass={
+                      blueprintQueueCount > 0
+                        ? "text-[var(--success)]"
+                        : "theme-text-accent"
                     }
-                  }}
-                />
-              </>
+                    onClick={openSignatureQueueDrawer}
+                  />
+                  <CommandScreenMetricTile
+                    icon={t("icon_biotech", "biotech")}
+                    value={hasCcSupport ? scoutCount : "-"}
+                    label={t("cmd_metric_unknown_dna", "Unknown DNA")}
+                    valueColorClass={
+                      scoutCount > 0 ? "text-[var(--warning)]" : "theme-text-accent"
+                    }
+                    onClick={() => {
+                      if (hasCcSupport) setIsScoutPanelOpen(true);
+                    }}
+                  />
+                  <CommandScreenMetricTile
+                    icon={t("icon_history", "history")}
+                    value={hasSavesSupport ? backupCount : "-"}
+                    label={t("term_backups", "{Backups}")}
+                    valueColorClass={
+                      isDefconActive
+                        ? "text-[var(--danger)]"
+                        : "theme-text-accent"
+                    }
+                    onClick={() => {
+                      if (hasSavesSupport && setView) {
+                        setView("backups");
+                      }
+                    }}
+                  />
+                  <CommandScreenMetricTile
+                    icon={t("icon_design_services", "design_services")}
+                    value={hasCcSupport ? unsavedWorkbenchCount : "-"}
+                    label={t("title_sidebar", "Workbench")}
+                    valueColorClass={
+                      unsavedWorkbenchCount > 0
+                        ? "text-[var(--warning)]"
+                        : "theme-text-accent"
+                    }
+                    onClick={() => {
+                      if (hasCcSupport && setView) {
+                        setView("CitizensWorkbench");
+                      }
+                    }}
+                  />
+                </>
+              ) : (
+                (() => {
+                  const pwaVersionRaw =
+                    selectedVersion ||
+                    activeCompanionSnapshot?.gameVersion ||
+                    patchReadiness.targetVersion ||
+                    "";
+                  const pwaVersionDisplay = pwaVersionRaw
+                    ? String(pwaVersionRaw).startsWith("v")
+                      ? pwaVersionRaw
+                      : `v${pwaVersionRaw}`
+                    : t("auto", "Auto");
+                  const nonEmptyPatchReports = patchReadiness.blueprintReports.filter(
+                    (r) => r.totalMods > 0
+                  );
+                  const activeOrFirstReport =
+                    patchReadiness.activeBlueprintReport || nonEmptyPatchReports[0] || null;
+                  const pwaReadinessPct =
+                    nonEmptyPatchReports.length > 0 && activeOrFirstReport
+                      ? activeOrFirstReport.readinessPercent
+                      : null;
+                  const pwaRigAlertsCount =
+                    companionCriticalCount + companionAlertsCount;
+                  return (
+                    <>
+                      <CommandScreenMetricTile
+                        icon={t("icon_memory", "memory")}
+                        value={pwaVersionDisplay}
+                        label={t("game_version", "Game Version")}
+                        onClick={() => setIsSystemStatusOpen(true)}
+                      />
+                      {hasCcSupport && patchFireDrillEnabled && (
+                        <CommandScreenMetricTile
+                          icon={t(
+                            "icon_published_with_changes",
+                            "published_with_changes"
+                          )}
+                          value={
+                            pwaReadinessPct !== null
+                              ? `${pwaReadinessPct}%`
+                              : "-"
+                          }
+                          label={t("patch_sim_tab_title", "Patch Readiness")}
+                          valueColorClass={
+                            pwaReadinessPct === null
+                              ? "theme-text-accent"
+                              : pwaReadinessPct >= 100
+                                ? "text-[var(--success)]"
+                                : pwaReadinessPct >= 70
+                                  ? "text-[var(--warning)]"
+                                  : "text-[var(--danger)]"
+                          }
+                          onClick={() => {
+                            if (activeOrFirstReport) {
+                              setPatchReadinessDrawerBp(
+                                activeOrFirstReport.blueprintName
+                              );
+                            }
+                          }}
+                        />
+                      )}
+                      <CommandScreenMetricTile
+                        icon={t("icon_inventory_2", "inventory_2")}
+                        value={activeCompanionSnapshot ? companionVaultCount : "-"}
+                        label={t("cmd_synced_vault_label", "Synced {Vault}")}
+                        onClick={() => {
+                          if (activeCompanionSnapshot) {
+                            setCompanionRadarInitialFilter("ALL");
+                            setIsCompanionRadarOpen(true);
+                          }
+                        }}
+                      />
+                      <CommandScreenMetricTile
+                        icon={t("icon_radar", "radar")}
+                        value={activeCompanionSnapshot ? pwaRigAlertsCount : "-"}
+                        label={t("cmd_rig_alerts_label", "Rig Alerts")}
+                        valueColorClass={
+                          companionCriticalCount > 0
+                            ? "text-[var(--danger)]"
+                            : companionAlertsCount > 0
+                              ? "text-[var(--warning)]"
+                              : "theme-text-accent"
+                        }
+                        onClick={() => {
+                          if (activeCompanionSnapshot) {
+                            setCompanionRadarInitialFilter("ISSUES");
+                            setIsCompanionRadarOpen(true);
+                          }
+                        }}
+                      />
+                      <CommandScreenMetricTile
+                        icon={t("icon_update", "update")}
+                        value={activeCompanionSnapshot ? companionUpdatesCount : "-"}
+                        label={t("updates_available", "Updates")}
+                        valueColorClass={
+                          companionUpdatesCount > 0
+                            ? "text-[var(--warning)]"
+                            : "theme-text-accent"
+                        }
+                        onClick={() => {
+                          if (activeCompanionSnapshot) {
+                            setCompanionRadarInitialFilter("UPDATES");
+                            setIsCompanionRadarOpen(true);
+                          }
+                        }}
+                      />
+                      <CommandScreenMetricTile
+                        icon={t("icon_phonelink_ring", "phonelink_ring")}
+                        value={blueprintQueueCount}
+                        label={t("sig_queue_title", "Signature Queue")}
+                        valueColorClass={
+                          blueprintQueueCount > 0
+                            ? "text-[var(--success)]"
+                            : "theme-text-accent"
+                        }
+                        onClick={openSignatureQueueDrawer}
+                      />
+                    </>
+                  );
+                })()
+              )
             }
           >
             {(() => {
@@ -1846,11 +1926,11 @@ export default function CommandCenter({
                 title={
                   shelterActive
                     ? t("btn_reclaim", "Reclaim {Vault}")
-                        .replace(/^[^\w]*/, "")
-                        .trim()
+                      .replace(/^[^\w]*/, "")
+                      .trim()
                     : t("btn_lockdown", "Lockdown {Vault}")
-                        .replace(/^[^\w]*/, "")
-                        .trim()
+                      .replace(/^[^\w]*/, "")
+                      .trim()
                 }
                 subtitle={
                   shelterActive
@@ -1868,15 +1948,14 @@ export default function CommandCenter({
                 title={t("sidebar_web_browser", "Sanctuary Browser")}
                 subtitle={
                   openBrowserTabCount > 0
-                    ? `${openBrowserTabCount} ${t("active", "Active")} • ${
-                        useInternalBrowser
-                          ? t("cmd_browser_integrated", "Integrated Intake Ready")
-                          : t("open", "Open")
-                      }`
+                    ? `${openBrowserTabCount} ${t("active", "Active")} • ${useInternalBrowser
+                      ? t("cmd_browser_integrated", "Integrated Intake Ready")
+                      : t("open", "Open")
+                    }`
                     : t(
-                        "cmd_browser_quick_sub",
-                        "Browse & Auto-Stage {Mods} Into {Vault}"
-                      )
+                      "cmd_browser_quick_sub",
+                      "Browse & Auto-Stage {Mods} Into {Vault}"
+                    )
                 }
                 onClick={() => setIsSideBrowserOpen(true)}
               />
@@ -1897,20 +1976,20 @@ export default function CommandCenter({
                     localStorage.getItem("sanctuary_blacklisted") === "true"
                       ? t("alert_comm_banned", "Communications Restricted")
                       : t(
-                          "alert_guest_mode_uploads",
-                          "Guest Mode Active:\nUploads are disabled."
-                        )
+                        "alert_guest_mode_uploads",
+                        "Guest Mode Active:\nUploads are disabled."
+                      )
                   }
                   subtitle={
                     localStorage.getItem("sanctuary_blacklisted") === "true"
                       ? t(
-                          "alert_comm_banned_desc",
-                          "Your account has been restricted from posting or submitting content."
-                        )
+                        "alert_comm_banned_desc",
+                        "Your account has been restricted from posting or submitting content."
+                      )
                       : t(
-                          "alert_guest_mode_desc",
-                          "Guest mode is active. Login or register to access full features."
-                        )
+                        "alert_guest_mode_desc",
+                        "Guest mode is active. Login or register to access full features."
+                      )
                   }
                   className="group-hover/supportdesk:flex z-[1000]"
                 />
@@ -1995,7 +2074,7 @@ export default function CommandCenter({
           />
         )}
 
-        {patchReadinessDrawerBp !== null && (
+        {patchFireDrillEnabled && patchReadinessDrawerBp !== null && (
           <BlueprintPatchReadinessSidePanel
             isOpen={patchReadinessDrawerBp !== null}
             onClose={() => setPatchReadinessDrawerBp(null)}

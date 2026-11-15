@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase, supabaseAuth, getActiveGameClient } from "../supabase";
 import { useLexicon } from "../LexiconContext";
 import { useStore, getSafeSchema } from "../store";
@@ -38,11 +38,21 @@ import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from "../utils/m
 import {
   CANONICAL_DIRECTIVES,
   SPOKE_SCHEMA_SQL,
-  HUB_SCHEMA_SQL,
   COMPLIANCE_PROTOCOL_MD,
   PARTNERS_AGREEMENT_MD,
   fetchSyncedLegalAndCovenants,
+  syncDirectivesBidirectional,
+  type SystemDirectiveRecord,
 } from "../utils/directivesSync";
+import {
+  extractDirectiveBuilderSchema,
+  getDefaultDirectiveBuilderSchema,
+  stripDirectiveBuilderComment,
+} from "../utils/directivesBuilderSchema";
+import {
+  InteractiveForkingGuideView,
+  type ForkTabId,
+} from "../components/InteractiveForkingGuideView";
 import MarkdownRenderer from "../MarkdownRenderer";
 import {
   StructuredReleaseNotesView,
@@ -58,26 +68,12 @@ import WayfinderSupportSidePanel from "../side-panels/WayfinderSupportSidePanel"
 import { WayfinderDonationSetupSidePanel } from "../side-panels/WayfinderSidePanels";
 import { postDevCoreAssetSync } from "../utils/devAssetSync";
 
-const STANDALONE_MANUAL_SNIPPET = `export const SANCTUARY_CONFIG = {
-  uplinkBundle: "",
-  mode: "standalone",
-  supabaseUrl: "https://YOUR_PROJECT_ID.supabase.co",
-  supabaseAnonKey: "YOUR_SUPABASE_ANON_KEY",
-};`;
-
-const HUB_AND_SPOKE_FORK_SNIPPET = `export const SANCTUARY_CONFIG = {
-  uplinkBundle: "",
-  mode: "hub_and_spoke",
-  supabaseUrl: "https://YOUR_HUB_PROJECT_ID.supabase.co",
-  supabaseAnonKey: "YOUR_HUB_SUPABASE_ANON_KEY",
-};`;
-
 export default function WayfinderMasterSchemas({
   initialTab = "overview",
 }: {
   initialTab?: string;
 }) {
-  const { t } = useLexicon();
+  const { t, td } = useLexicon();
   const session = useStore((state: any) => state.session);
   const pushStatus = useStore((state: any) => state.pushStatus);
   const userRole = useStore((state: any) => state.userRole);
@@ -130,6 +126,14 @@ export default function WayfinderMasterSchemas({
   const [uplinkAnonKey, setUplinkAnonKey] = useState("");
   const [uplinkServiceKey, setUplinkServiceKey] = useState("");
   const [updatingKeys, setUpdatingKeys] = useState(false);
+  const [credentialStatus, setCredentialStatus] = useState<{
+    has_credential?: boolean;
+    credential_kind?: string;
+    key_version?: string;
+    key_fingerprint?: string;
+    rotated_at?: string | null;
+  } | null>(null);
+  const [rotatingToken, setRotatingToken] = useState(false);
 
   // Spoke Sever State
   const [severReason, setSeverReason] = useState("");
@@ -144,10 +148,10 @@ export default function WayfinderMasterSchemas({
   const [donationUrl, setDonationUrl] = useState("");
 
   // Interactive Forking Guide SidePanel State
-  const [forkTab, setForkTab] = useState<"spoke" | "standalone" | "sql">("spoke");
-  const [forkModeIdx, setForkModeIdx] = useState<0 | 1>(0);
+  const [forkTab, setForkTab] = useState<ForkTabId>("spoke");
+  const [forkModeIdx, setForkModeIdx] = useState<number>(0);
   const [sqlSchemaTab, setSqlSchemaTab] = useState<"spoke" | "hub">("spoke");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [forkViewMode, setForkViewMode] = useState<"ui" | "normal">("ui");
 
   // Partners Agreement & Compliance Protocol Viewer State
   const [isCovenantPanelOpen, setIsCovenantPanelOpen] = useState(false);
@@ -177,25 +181,72 @@ export default function WayfinderMasterSchemas({
   const [syncedComplianceMd, setSyncedComplianceMd] = useState<string>(
     COMPLIANCE_PROTOCOL_MD
   );
+  const [syncedPartnersTitle, setSyncedPartnersTitle] = useState<string>("");
+  const [syncedComplianceTitle, setSyncedComplianceTitle] = useState<string>("");
+  const [syncedPartnersUpdatedAt, setSyncedPartnersUpdatedAt] = useState<string>("");
+  const [syncedComplianceUpdatedAt, setSyncedComplianceUpdatedAt] = useState<string>("");
+  const [syncedForkingRecord, setSyncedForkingRecord] =
+    useState<SystemDirectiveRecord | null>(null);
 
   useEffect(() => {
-    const loadSyncedCovenants = async () => {
-      const map = await fetchSyncedLegalAndCovenants();
-      if (map.PartnersAgreement?.content) {
-        setSyncedPartnersMd(map.PartnersAgreement.content);
-      }
-      if (map.ComplianceProtocol?.content) {
-        setSyncedComplianceMd(map.ComplianceProtocol.content);
+    const loadSyncedDirectivesAndCovenants = async () => {
+      try {
+        const [covenantsMap, directives] = await Promise.all([
+          fetchSyncedLegalAndCovenants(),
+          syncDirectivesBidirectional({ canWriteHub: false }),
+        ]);
+        if (covenantsMap.PartnersAgreement) {
+          const p = covenantsMap.PartnersAgreement;
+          if (p.content) setSyncedPartnersMd(p.content);
+          if (p.title) setSyncedPartnersTitle(p.title);
+          if (p.updated_at) setSyncedPartnersUpdatedAt(p.updated_at);
+        }
+        if (covenantsMap.ComplianceProtocol) {
+          const c = covenantsMap.ComplianceProtocol;
+          if (c.content) setSyncedComplianceMd(c.content);
+          if (c.title) setSyncedComplianceTitle(c.title);
+          if (c.updated_at) setSyncedComplianceUpdatedAt(c.updated_at);
+        }
+        const forkDoc = directives.find((d) => d.slug === "forking_guide");
+        if (forkDoc) setSyncedForkingRecord(forkDoc);
+      } catch (err) {
+        console.error("Failed to sync covenants/directives:", err);
       }
     };
-    loadSyncedCovenants();
-    window.addEventListener("sanctuary_directives_updated", loadSyncedCovenants);
-    return () =>
+    loadSyncedDirectivesAndCovenants();
+    window.addEventListener(
+      "sanctuary_directives_updated",
+      loadSyncedDirectivesAndCovenants
+    );
+    window.addEventListener("focus", loadSyncedDirectivesAndCovenants);
+    return () => {
       window.removeEventListener(
         "sanctuary_directives_updated",
-        loadSyncedCovenants
+        loadSyncedDirectivesAndCovenants
       );
+      window.removeEventListener("focus", loadSyncedDirectivesAndCovenants);
+    };
   }, []);
+
+  const rawForkingMarkdown =
+    syncedForkingRecord?.published_content ||
+    syncedForkingRecord?.content ||
+    CANONICAL_DIRECTIVES.forking_guide.bundledContent;
+
+  const syncedForkingSchema = useMemo(
+    () =>
+      extractDirectiveBuilderSchema(
+        rawForkingMarkdown,
+        "forking_guide",
+        t
+      ) || getDefaultDirectiveBuilderSchema("forking_guide", t),
+    [rawForkingMarkdown, t]
+  );
+
+  const cleanForkingReferenceMd = useMemo(
+    () => stripDirectiveBuilderComment(rawForkingMarkdown),
+    [rawForkingMarkdown]
+  );
 
   // Master Schemas Cloud Files Hook
   const mason = useMasonFiles({
@@ -295,6 +346,20 @@ export default function WayfinderMasterSchemas({
       setUplinkUrl(activeWs.supabase_url || "");
       setUplinkAnonKey(activeWs.supabase_anon_key || "");
       setUplinkServiceKey("");
+      const targetGameId = activeWs.game_id || activeWs.schema_id || activeWorkspaceId;
+      if (targetGameId) {
+        (supabase as any)
+          .rpc("secure_get_spoke_credential_status", {
+            p_game_id: targetGameId,
+            p_payload: {},
+          })
+          .then((res: any) => {
+            if (!res?.error && res?.data) {
+              setCredentialStatus(res.data);
+            }
+          })
+          .catch(() => {});
+      }
     }
   }, [activeWs?.id]);
 
@@ -382,7 +447,6 @@ export default function WayfinderMasterSchemas({
       schema_id: (activeWs?.schema_id || activeWs?.id || "").toUpperCase(),
       supabase_url: uplinkUrl.trim(),
       supabase_anon_key: uplinkAnonKey.trim(),
-      supabase_service_key: uplinkServiceKey.trim() || undefined,
       founder_identifier: session?.user?.id || undefined,
     };
     const token = "SANCTUARY-UPLINK://" + btoa(JSON.stringify(payload));
@@ -398,15 +462,6 @@ export default function WayfinderMasterSchemas({
     pushStatus(t("alert_saved", "Copied to clipboard"), "success");
   };
 
-  const handleCopyCode = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    pushStatus(t("alert_saved", "Copied to clipboard"), "success");
-    setTimeout(() => {
-      setCopiedId((prev) => (prev === id ? null : prev));
-    }, 2200);
-  };
-
   const handleUpdateKeys = async () => {
     if (!uplinkUrl.trim() || !uplinkAnonKey.trim() || !uplinkServiceKey.trim()) {
       pushStatus(t("fill_required_fields", "Please fill all required fields"), "error");
@@ -414,11 +469,13 @@ export default function WayfinderMasterSchemas({
     }
     setUpdatingKeys(true);
     try {
-      const res: any = await supabase.rpc("secure_update_spoke_uplink", {
+      const targetGameId = activeWs?.game_id || activeWs?.schema_id || activeWorkspaceId;
+      const res: any = await (supabase as any).rpc("secure_update_spoke_uplink", {
+        p_game_id: targetGameId,
         p_payload: {
           supabase_url: uplinkUrl.trim(),
           supabase_anon_key: uplinkAnonKey.trim(),
-          supabase_service_key: uplinkServiceKey.trim(),
+          spoke_gateway_token: uplinkServiceKey.trim(),
         },
       });
       if (res?.error || res?.data?.error) {
@@ -427,6 +484,17 @@ export default function WayfinderMasterSchemas({
       const { syncGameDatabases } = await import("../store");
       await syncGameDatabases();
       setUplinkServiceKey("");
+      if (targetGameId) {
+        try {
+          const credRes: any = await (supabase as any).rpc("secure_get_spoke_credential_status", {
+            p_game_id: targetGameId,
+            p_payload: {},
+          });
+          if (!credRes?.error && credRes?.data) {
+            setCredentialStatus(credRes.data);
+          }
+        } catch {}
+      }
       pushStatus(
         t("wf_uplink_keys_updated", "Spoke uplink keys verified and updated on the Hub."),
         "success"
@@ -435,6 +503,40 @@ export default function WayfinderMasterSchemas({
       pushStatus(err.message, "error");
     } finally {
       setUpdatingKeys(false);
+    }
+  };
+
+  const handleRotateGatewayToken = async () => {
+    const targetGameId = activeWs?.game_id || activeWs?.schema_id || activeWorkspaceId;
+    if (!targetGameId) return;
+    setRotatingToken(true);
+    try {
+      const res: any = await (supabase as any).rpc("secure_rotate_spoke_gateway_token", {
+        p_game_id: targetGameId,
+        p_payload: {},
+      });
+      const errMsg = res?.error?.message || res?.data?.error;
+      if (errMsg) {
+        throw new Error(errMsg);
+      }
+      setCredentialStatus({
+        has_credential: true,
+        credential_kind: res?.data?.credential_kind || "spoke_gateway",
+        key_version: res?.data?.key_version || "v1:master",
+        key_fingerprint: res?.data?.key_fingerprint || "",
+        rotated_at: res?.data?.rotated_at || new Date().toISOString(),
+      });
+      pushStatus(
+        `${t("spoke_token_rotated_toast", "Spoke Gateway Token rotated and sealed:")} ${res?.data?.key_fingerprint || "spk_gw_..."}`,
+        "success"
+      );
+    } catch (err: any) {
+      pushStatus(
+        err?.message || t("spoke_token_rotate_failed", "Failed to rotate Spoke Gateway Token"),
+        "error"
+      );
+    } finally {
+      setRotatingToken(false);
     }
   };
 
@@ -462,7 +564,7 @@ export default function WayfinderMasterSchemas({
       pushStatus(
         t(
           "wf_cut_cord_success",
-          "Uplink severed. Your Spoke database is now independent and its service key has been scrubbed from the Hub."
+          "Uplink severed. Your Spoke database is now independent, its Spoke Gateway Tokens have been revoked, and its Hub Vault credential has been purged."
         ),
         "info"
       );
@@ -779,7 +881,7 @@ export default function WayfinderMasterSchemas({
               e.stopPropagation();
               handleCopyUplinkBundle();
             }}
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:scale-110"
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:scale-110"
           >
             <span className="material-symbols-outlined !text-[14px]">
               {t("icon_content_copy", "content_copy")}
@@ -804,7 +906,7 @@ export default function WayfinderMasterSchemas({
         <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
           {t(
             "wf_card_spoke_setup_desc",
-            "Inspect Spoke node telemetry, rotate Supabase Anon and Service Role keys, verify Hub handshake status, and copy your SANCTUARY-UPLINK:// bundle."
+            "Inspect Spoke node telemetry, rotate Spoke Gateway Tokens and Anon keys, verify Hub handshake status, and copy a secret-free SANCTUARY-UPLINK:// bundle."
           )}
         </p>
       </UniversalCard>
@@ -829,7 +931,7 @@ export default function WayfinderMasterSchemas({
       icon={t("icon_link_off", "link_off")}
       title={t("wf_card_spoke_sever_title", "Spoke Sever (Cut the Cord)")}
       subtitle={t("wf_badge_sovereign", "Bilateral Sovereignty")}
-      statusColor="border-[color-mix(in_srgb,var(--danger)_35%,transparent)]"
+      statusColor="border-[color-mix(in_srgb,var(--text)_14%,transparent)]"
       imageOverlay={
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
           <div className={VAULT_CHIP_CLASS}>
@@ -852,7 +954,7 @@ export default function WayfinderMasterSchemas({
             <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
               {t("icon_security", "security")}
             </span>
-            <span>{t("wf_sever_key_custody_val", "Scrubbed on Sever")}</span>
+            <span>{t("wf_sever_key_custody_val", "Revoked & Purged on Sever")}</span>
           </div>
         </>
       }
@@ -873,7 +975,7 @@ export default function WayfinderMasterSchemas({
       <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
         {t(
           "wf_cut_cord_desc",
-          "Unilaterally sever your community's Spoke database from the Sanctuary OS Hub. This immediately deactivates the workspace on the global network and scrubs your Service Role Key from the Hub while leaving 100% of your Spoke database intact."
+          "Unilaterally sever this community's Spoke database from the Sanctuary OS Hub. This immediately deactivates the workspace on the global network, revokes all active Spoke Gateway Tokens, and purges its sealed Vault credential from Keepers Core while leaving 100% of the Spoke database intact."
         )}
       </p>
     </UniversalCard>
@@ -900,7 +1002,7 @@ export default function WayfinderMasterSchemas({
       }}
       icon={t("icon_menu_book", "menu_book")}
       title={t("wf_tab_forking_help", "Forking Help & Walkthrough")}
-      subtitle={CANONICAL_DIRECTIVES.forking_guide.title}
+      subtitle={td(syncedForkingSchema.title)}
       imageOverlay={
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
           <div className={VAULT_CHIP_CLASS}>
@@ -917,7 +1019,7 @@ export default function WayfinderMasterSchemas({
             <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
               {t("icon_storage", "storage")}
             </span>
-            <span>{t("dir_fork_sql_spoke_val", "schema.sql (36 Tables)")}</span>
+            <span>{t("dir_fork_sql_spoke_val", "schema.sql (52 Tables)")}</span>
           </div>
           <div className={VAULT_CHIP_CLASS}>
             <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
@@ -933,7 +1035,7 @@ export default function WayfinderMasterSchemas({
             e.stopPropagation();
             handleCopySpokeSql();
           }}
-          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:scale-110"
+          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:scale-110"
         >
           <span className="material-symbols-outlined !text-[14px]">
             {t("icon_database", "database")}
@@ -956,7 +1058,7 @@ export default function WayfinderMasterSchemas({
       }
     >
       <p className="text-xs text-[var(--subtext)] opacity-80 line-clamp-2 leading-relaxed">
-        {CANONICAL_DIRECTIVES.forking_guide.summary}
+        {td(syncedForkingSchema.summary)}
       </p>
     </UniversalCard>
   );
@@ -1051,14 +1153,14 @@ export default function WayfinderMasterSchemas({
         "wf_card_sql_schemas_title",
         "Spoke & Hub SQL Schemas (schema.sql)"
       )}
-      subtitle={t("dir_fork_sql_spoke_val", "schema.sql (36 Tables)")}
+      subtitle={t("dir_fork_sql_spoke_val", "schema.sql (52 Tables)")}
       imageOverlay={
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
           <div className={VAULT_CHIP_CLASS}>
             <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
               {t("icon_storage", "storage")}
             </span>
-            <span>{t("dir_fork_sql_spoke_val", "schema.sql (36 Tables)")}</span>
+            <span>{t("dir_fork_sql_spoke_val", "schema.sql (52 Tables)")}</span>
           </div>
         </div>
       }
@@ -1068,7 +1170,7 @@ export default function WayfinderMasterSchemas({
             <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
               {t("icon_hub", "hub")}
             </span>
-            <span>{t("dir_fork_sql_hub_val", "schema_os.sql (19 Tables)")}</span>
+            <span>{t("dir_fork_sql_hub_val", "schema_os.sql (22 Tables)")}</span>
           </div>
           <div className={VAULT_CHIP_CLASS}>
             <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
@@ -1084,7 +1186,7 @@ export default function WayfinderMasterSchemas({
             e.stopPropagation();
             handleCopySpokeSql();
           }}
-          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:scale-110"
+          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:scale-110"
         >
           <span className="material-symbols-outlined !text-[14px]">
             {t("icon_content_copy", "content_copy")}
@@ -1254,9 +1356,9 @@ export default function WayfinderMasterSchemas({
         layout="vertical"
         statusColor={
           hasUnsaved
-            ? "border-[color-mix(in_srgb,var(--warning)_40%,transparent)]"
+            ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
             : isOpen
-              ? "border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
+              ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
               : undefined
         }
         onClick={() => {
@@ -1338,7 +1440,7 @@ export default function WayfinderMasterSchemas({
               <div className="flex justify-end gap-1">
                 <button
                   onClick={() => handleRenameSubmit(file.path, file.name)}
-                  className="p-1.5 rounded-lg border border-[color-mix(in_srgb,var(--success)_40%,transparent)] text-[var(--success)] bg-transparent hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] flex items-center justify-center cursor-pointer"
+                  className="p-1.5 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--success)] bg-transparent hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] flex items-center justify-center cursor-pointer"
                 >
                   <span className="material-symbols-outlined !text-[14px]">
                     {t("icon_check", "check")}
@@ -1408,7 +1510,7 @@ export default function WayfinderMasterSchemas({
                       handleDeleteFile(file.path);
                       setDeleteConfirmPath(null);
                     }}
-                    className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--danger)_50%,transparent)] text-[var(--danger)] bg-transparent hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex items-center justify-center transition-all cursor-pointer"
+                    className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--danger)] bg-transparent hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] flex items-center justify-center transition-all cursor-pointer"
                   >
                     <span className="material-symbols-outlined !text-[14px]">
                       {t("icon_check", "check")}
@@ -1441,7 +1543,7 @@ export default function WayfinderMasterSchemas({
                       }
                       setRenamingFile(file.path);
                     }}
-                    className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[var(--accent)] bg-transparent flex items-center justify-center transition-all cursor-pointer"
+                    className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] bg-transparent flex items-center justify-center transition-all cursor-pointer"
                   >
                     <span className="material-symbols-outlined !text-[14px]">
                       {t("icon_edit", "edit")}
@@ -1453,7 +1555,7 @@ export default function WayfinderMasterSchemas({
                       e.stopPropagation();
                       setDeleteConfirmPath(file.path);
                     }}
-                    className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] bg-transparent flex items-center justify-center transition-all cursor-pointer"
+                    className="w-7 h-7 rounded-lg border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] bg-transparent flex items-center justify-center transition-all cursor-pointer"
                   >
                     <span className="material-symbols-outlined !text-[14px]">
                       {t("icon_delete", "delete")}
@@ -1541,469 +1643,6 @@ export default function WayfinderMasterSchemas({
           {ticket.description}
         </p>
       </UniversalCard>
-    );
-  };
-
-  // Interactive Forking Content inside Forking Help SidePanel
-  const renderInteractiveForkingGuide = () => {
-    const spokeSqlLineCount = SPOKE_SCHEMA_SQL.split(/\r?\n/).length;
-    const hubSqlLineCount = HUB_SCHEMA_SQL.split(/\r?\n/).length;
-    const isSpokeSqlActive = sqlSchemaTab === "spoke";
-    const activeSqlCode = isSpokeSqlActive ? SPOKE_SCHEMA_SQL : HUB_SCHEMA_SQL;
-    const activeSqlCopyId = isSpokeSqlActive ? "sql_spoke" : "sql_hub";
-
-    return (
-      <div className="flex flex-col gap-5 w-full">
-        <SidePanelFilterBar className="md:grid-cols-3 gap-3.5">
-          <DashboardStatTile
-            variant="filter"
-            icon={t("icon_hub", "hub")}
-            label={t("dir_fk_t1_lbl", "STEP 1")}
-            number={t("dir_fk_t1_val", "Spoke Setup")}
-            colorClass="text-[var(--accent)]"
-            isActive={forkTab === "spoke"}
-            onClick={() => setForkTab("spoke")}
-          />
-          <DashboardStatTile
-            variant="filter"
-            icon={t("icon_call_split", "call_split")}
-            label={t("dir_fk_t2_lbl", "FORK MODES")}
-            number={t("dir_fk_t2_val", "Standalone & Hub")}
-            colorClass="text-[var(--accent)]"
-            isActive={forkTab === "standalone"}
-            onClick={() => setForkTab("standalone")}
-          />
-          <DashboardStatTile
-            variant="filter"
-            icon={t("icon_database", "database")}
-            label={t("dir_fk_t3_lbl", "STEP 3")}
-            number={t("dir_fk_t3_val", "SQL Schemas")}
-            colorClass="text-[var(--accent)]"
-            isActive={forkTab === "sql"}
-            onClick={() => setForkTab("sql")}
-          />
-        </SidePanelFilterBar>
-
-        {forkTab === "spoke" && (
-          <div className="glass-panel rounded-2xl p-5 flex flex-col gap-4 border border-[color-mix(in_srgb,var(--accent)_40%,transparent)]">
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                {t("sd_fork_spoke_hero_badge", "OFFICIAL PARTNER NETWORK • ZERO CODE EDITS")}
-              </span>
-              <h3 className="text-base font-black tracking-tight text-[var(--text)] leading-snug m-0">
-                {t("sd_fork_spoke_hero_title", "Connect a Sovereign Community Spoke in 3 Steps")}
-              </h3>
-              <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                {t(
-                  "sd_fork_spoke_hero_desc",
-                  "Join the official Sanctuary OS multi-game network while retaining 100% ownership of your community's Supabase PostgreSQL database. No client forking or code edits required."
-                )}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                    {t("icon_database", "database")}
-                  </span>
-                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                    {t(
-                      "sd_fork_spoke_step1_title",
-                      "Step 1: Initialize Your Supabase Spoke (schema.sql)"
-                    )}
-                  </h4>
-                </div>
-                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {t(
-                    "sd_fork_spoke_step1_desc",
-                    "Create a free Supabase project, open the SQL Editor, and run schema.sql. This single script provisions all 36 community tables, RLS policies, immutable audit triggers, and role functions."
-                  )}
-                </p>
-              </div>
-
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                    {t("icon_key", "key")}
-                  </span>
-                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                    {t(
-                      "sd_fork_spoke_step2_title",
-                      "Step 2: Generate Your SANCTUARY-UPLINK:// Bundle"
-                    )}
-                  </h4>
-                </div>
-                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {t(
-                    "sd_fork_spoke_step2_desc",
-                    "In Keepers Core -> Active Workspaces (or Wayfinder Hub), paste your Supabase URL, Anon Key, and Service Role Key to generate an encrypted SANCTUARY-UPLINK:// handshake bundle."
-                  )}
-                </p>
-              </div>
-
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                    {t("icon_rocket_launch", "rocket_launch")}
-                  </span>
-                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                    {t(
-                      "sd_fork_spoke_step3_title",
-                      "Step 3: Verify Handshake & Provision Founding Wayfinder"
-                    )}
-                  </h4>
-                </div>
-                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {t(
-                    "sd_fork_spoke_step3_desc",
-                    "Click 'Test Handshake & Verify Schema'. The game-gateway Edge Function verifies table readiness, seeds global_network_status, and automatically promotes your founder account to Wayfinder."
-                  )}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--warning)_35%,transparent)]">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--warning)] shrink-0">
-                    {t("icon_link_off", "link_off")}
-                  </span>
-                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                    {t(
-                      "sd_fork_cord_community_title",
-                      "Community-Initiated Severance (Wayfinder Hub)"
-                    )}
-                  </h4>
-                </div>
-                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {t(
-                    "sd_fork_cord_community_desc",
-                    "A Wayfinder can double-click 'Cut the Cord' in Wayfinder Hub -> Spoke Uplink & Sovereignty at any time. This writes an immutable audit log, sets is_active = false on the Hub, and permanently scrubs (NULLs) the Spoke's supabase_service_key from the Hub while leaving 100% of the community's database intact."
-                  )}
-                </p>
-              </div>
-
-              <div className="glass-surface rounded-2xl p-4 flex flex-col gap-1.5 border border-[color-mix(in_srgb,var(--success)_35%,transparent)]">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--success)] shrink-0">
-                    {t("icon_verified", "verified")}
-                  </span>
-                  <h4 className="text-sm font-bold text-[var(--text)] leading-snug m-0">
-                    {t("sd_fork_cord_keeper_title", "Zero Platform Tax & 100% Data Ownership")}
-                  </h4>
-                </div>
-                <p className="text-xs font-normal text-[var(--subtext)] opacity-90 leading-relaxed m-0">
-                  {t(
-                    "sd_fork_cord_keeper_desc",
-                    "Sanctuary OS takes 0% of {mason} Patreon/Ko-fi revenue and 0% of community donations. Export your SANCTUARY-UPLINK:// bundle before severing to paste directly into a standalone fork."
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {forkTab === "standalone" && (
-          <div className="flex flex-col gap-3.5 w-full">
-            <div
-              role={forkModeIdx !== 0 ? "button" : undefined}
-              tabIndex={forkModeIdx !== 0 ? 0 : undefined}
-              onClick={forkModeIdx !== 0 ? () => setForkModeIdx(0) : undefined}
-              className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
-                forkModeIdx === 0
-                  ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)]"
-                  : "px-4 py-3.5 gap-2 opacity-60 hover:opacity-90 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] cursor-pointer"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined !text-[20px]">
-                      {t("icon_call_split", "call_split")}
-                    </span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                      {t("sd_fork_mode_standalone_badge", "MODE 1 • 1-DATABASE STANDALONE")}
-                    </span>
-                    <h3 className="text-sm sm:text-base font-black text-[var(--text)] m-0">
-                      {t(
-                        "sd_fork_mode_standalone_title",
-                        "1-File Standalone Fork (Single Database)"
-                      )}
-                    </h3>
-                  </div>
-                </div>
-                <span className={VAULT_CHIP_CLASS}>
-                  <span>{forkModeIdx === 0 ? t("active", "Active") : t("open", "Open")}</span>
-                </span>
-              </div>
-
-              {forkModeIdx === 0 && (
-                <div className="flex flex-col gap-3.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <p className="text-xs text-[var(--subtext)] leading-relaxed m-0">
-                    {t(
-                      "sd_fork_mode_standalone_desc",
-                      "Run your own independent Sanctuary OS build backed by a single Supabase project (schema.sql) and a 1-file edit in src/supabase.ts with zero Edge Functions."
-                    )}
-                  </p>
-                  <div className="glass-surface rounded-2xl p-4 flex flex-col gap-2.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-[var(--accent)] font-mono">
-                        sanctuary-os/src/supabase.ts
-                      </span>
-                      <ActionButton
-                        variant="accent"
-                        icon={
-                          copiedId === "supabase_cfg_manual"
-                            ? t("icon_check_circle", "check_circle")
-                            : t("icon_content_copy", "content_copy")
-                        }
-                        onClick={() =>
-                          handleCopyCode("supabase_cfg_manual", STANDALONE_MANUAL_SNIPPET)
-                        }
-                      >
-                        {copiedId === "supabase_cfg_manual"
-                          ? t("alert_copied", "Copied to Clipboard!")
-                          : t("sd_btn_copy_snippet", "Copy Code Snippet")}
-                      </ActionButton>
-                    </div>
-                    <pre className="text-xs font-mono text-[var(--text)] opacity-90 overflow-x-auto custom-scrollbar leading-relaxed p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)] m-0">
-                      <code>{STANDALONE_MANUAL_SNIPPET}</code>
-                    </pre>
-                  </div>
-
-                  <div className="glass-surface rounded-2xl p-4 flex flex-col gap-2 border border-[color-mix(in_srgb,var(--accent)_35%,transparent)]">
-                    <div className="flex items-center gap-2 text-[var(--accent)]">
-                      <span className="material-symbols-outlined !text-[16px]">
-                        {t("icon_passkey", "passkey")}
-                      </span>
-                      <span className="text-xs font-black uppercase tracking-wider">
-                        {t(
-                          "wf_sever_identity_arch_title",
-                          "How Accounts Work After Severing (Hub Auth vs. Spoke Profiles)"
-                        )}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[var(--subtext)] leading-relaxed m-0">
-                      {t(
-                        "wf_sever_identity_arch_desc",
-                        "In federated mode, login credentials (auth.users) live in the Core Hub database while your Spoke stores public.profiles and zero-PII SHA-256 relink commitments. If you transition your severed Spoke into a Standalone Fork pointed solely at your Spoke Supabase URL, {Citizens} and {Masons} register a local login on your Spoke Auth and supply their Spoke Relink Token (SRK1.<uuid>.<secret>) at sign-up or in {Settings} -> System ID to cryptographically reclaim their Spoke profile, {Mason} studio, and {Blueprints} without username hijacking. The first local signup automatically promotes to Founding Wayfinder."
-                      )}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div
-              role={forkModeIdx !== 1 ? "button" : undefined}
-              tabIndex={forkModeIdx !== 1 ? 0 : undefined}
-              onClick={forkModeIdx !== 1 ? () => setForkModeIdx(1) : undefined}
-              className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
-                forkModeIdx === 1
-                  ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)]"
-                  : "px-4 py-3.5 gap-2 opacity-60 hover:opacity-90 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] cursor-pointer"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined !text-[20px]">
-                      {t("icon_hub", "hub")}
-                    </span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                      {t("sd_fork_mode_hub_badge", "MODE 2 • FULL HUB & SPOKE FEDERATION")}
-                    </span>
-                    <h3 className="text-sm sm:text-base font-black text-[var(--text)] m-0">
-                      {t(
-                        "sd_fork_mode_hub_title",
-                        "Full Hub & Spoke Multi-Game Fork (Hub + Child Spokes)"
-                      )}
-                    </h3>
-                  </div>
-                </div>
-                <span className={VAULT_CHIP_CLASS}>
-                  <span>{forkModeIdx === 1 ? t("active", "Active") : t("open", "Open")}</span>
-                </span>
-              </div>
-
-              {forkModeIdx === 1 && (
-                <div className="flex flex-col gap-3.5 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <p className="text-xs text-[var(--subtext)] leading-relaxed m-0">
-                    {t(
-                      "sd_fork_mode_hub_desc",
-                      "Self-host your own central Sanctuary OS Hub (schema_os.sql + game-gateway Edge Function) that authenticates users once and routes across multiple independent community Spoke databases (schema.sql)."
-                    )}
-                  </p>
-                  <div className="glass-surface rounded-2xl p-4 flex flex-col gap-2.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-bold text-[var(--accent)] font-mono">
-                        sanctuary-os/src/supabase.ts
-                      </span>
-                      <ActionButton
-                        variant="accent"
-                        icon={
-                          copiedId === "supabase_cfg_hub"
-                            ? t("icon_check_circle", "check_circle")
-                            : t("icon_content_copy", "content_copy")
-                        }
-                        onClick={() =>
-                          handleCopyCode("supabase_cfg_hub", HUB_AND_SPOKE_FORK_SNIPPET)
-                        }
-                      >
-                        {copiedId === "supabase_cfg_hub"
-                          ? t("alert_copied", "Copied to Clipboard!")
-                          : t("sd_btn_copy_snippet", "Copy Code Snippet")}
-                      </ActionButton>
-                    </div>
-                    <pre className="text-xs font-mono text-[var(--text)] opacity-90 overflow-x-auto custom-scrollbar leading-relaxed p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)] m-0">
-                      <code>{HUB_AND_SPOKE_FORK_SNIPPET}</code>
-                    </pre>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {forkTab === "sql" && (
-          <div className="flex flex-col gap-3.5 w-full">
-            <div
-              role={!isSpokeSqlActive ? "button" : undefined}
-              tabIndex={!isSpokeSqlActive ? 0 : undefined}
-              onClick={!isSpokeSqlActive ? () => setSqlSchemaTab("spoke") : undefined}
-              className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
-                isSpokeSqlActive
-                  ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)]"
-                  : "px-4 py-3.5 gap-2 opacity-60 hover:opacity-90 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] cursor-pointer"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--success)] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined !text-[20px]">
-                      {t("icon_storage", "storage")}
-                    </span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--success)]">
-                      {t("dir_fork_sql_spoke_sub", "SPOKE & STANDALONE DB • 36 TABLES")}
-                    </span>
-                    <h3 className="text-sm sm:text-base font-black text-[var(--text)] m-0">
-                      {t("dir_fork_sql_spoke_val", "schema.sql (36 Tables)")}
-                    </h3>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {isSpokeSqlActive && (
-                    <ActionButton
-                      variant="accent"
-                      icon={
-                        copiedId === activeSqlCopyId
-                          ? t("icon_check_circle", "check_circle")
-                          : t("icon_content_copy", "content_copy")
-                      }
-                      onClick={() => handleCopyCode(activeSqlCopyId, activeSqlCode)}
-                    >
-                      {copiedId === activeSqlCopyId
-                        ? t("dir_fork_sql_copied", "SQL Copied")
-                        : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
-                    </ActionButton>
-                  )}
-                  <span className={VAULT_CHIP_CLASS}>
-                    <span>
-                      {spokeSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
-                    </span>
-                  </span>
-                </div>
-              </div>
-
-              {isSpokeSqlActive && (
-                <div className="flex flex-col gap-3 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <p className="text-xs text-[var(--subtext)] leading-relaxed m-0">
-                    {t(
-                      "dir_fork_sql_spoke_desc",
-                      "Complete community registry schema (mods, blueprints, masons, conflicts, tickets, heuristics, RLS policies, and Founding Wayfinder trigger)."
-                    )}
-                  </p>
-                  <pre className="text-[11px] font-mono text-[var(--text)] opacity-90 overflow-x-auto max-h-[320px] overflow-y-auto custom-scrollbar leading-relaxed p-3 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)] m-0">
-                    <code>{SPOKE_SCHEMA_SQL}</code>
-                  </pre>
-                </div>
-              )}
-            </div>
-
-            <div
-              role={isSpokeSqlActive ? "button" : undefined}
-              tabIndex={isSpokeSqlActive ? 0 : undefined}
-              onClick={isSpokeSqlActive ? () => setSqlSchemaTab("hub") : undefined}
-              className={`relative glass-panel rounded-2xl flex flex-col border text-left transition-all duration-300 ${
-                !isSpokeSqlActive
-                  ? "p-5 gap-4 opacity-100 !border-[color-mix(in_srgb,var(--text)_26%,transparent)]"
-                  : "px-4 py-3.5 gap-2 opacity-60 hover:opacity-90 !border-[color-mix(in_srgb,var(--text)_10%,transparent)] cursor-pointer"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] text-[var(--accent)] flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined !text-[20px]">
-                      {t("icon_hub", "hub")}
-                    </span>
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                      {t("dir_fork_sql_hub_sub", "CENTRAL HUB DB • 19 TABLES")}
-                    </span>
-                    <h3 className="text-sm sm:text-base font-black text-[var(--text)] m-0">
-                      {t("dir_fork_sql_hub_val", "schema_os.sql (19 Tables)")}
-                    </h3>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {!isSpokeSqlActive && (
-                    <ActionButton
-                      variant="accent"
-                      icon={
-                        copiedId === activeSqlCopyId
-                          ? t("icon_check_circle", "check_circle")
-                          : t("icon_content_copy", "content_copy")
-                      }
-                      onClick={() => handleCopyCode(activeSqlCopyId, activeSqlCode)}
-                    >
-                      {copiedId === activeSqlCopyId
-                        ? t("dir_fork_sql_copied", "SQL Copied")
-                        : t("dir_fork_sql_copy_btn", "Copy Full SQL")}
-                    </ActionButton>
-                  )}
-                  <span className={VAULT_CHIP_CLASS}>
-                    <span>
-                      {hubSqlLineCount} {t("dir_fork_sql_lines", "Lines")}
-                    </span>
-                  </span>
-                </div>
-              </div>
-
-              {!isSpokeSqlActive && (
-                <div className="flex flex-col gap-3 pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
-                  <p className="text-xs text-[var(--subtext)] leading-relaxed m-0">
-                    {t(
-                      "dir_fork_sql_hub_desc",
-                      "Central federation Hub schema (global SSO profiles, FIDO2 passkeys, sanctuary_games, sanctuary_schemas, system_directives, and heuristic signatures)."
-                    )}
-                  </p>
-                  <pre className="text-[11px] font-mono text-[var(--text)] opacity-90 overflow-x-auto max-h-[320px] overflow-y-auto custom-scrollbar leading-relaxed p-3 rounded-xl bg-[color-mix(in_srgb,var(--bg)_45%,transparent)] m-0">
-                    <code>{HUB_SCHEMA_SQL}</code>
-                  </pre>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
     );
   };
 
@@ -2342,7 +1981,7 @@ export default function WayfinderMasterSchemas({
                 icon={t("icon_volunteer_activism", "volunteer_activism")}
                 title={t("wf_anomaly_missing_donation", "Missing Donation Link")}
                 subtitle={t("wf_donation_no_link", "No Checkout Link Set")}
-                statusColor="border-[color-mix(in_srgb,var(--warning)_40%,transparent)]"
+                statusColor="border-[color-mix(in_srgb,var(--text)_14%,transparent)]"
                 imageOverlay={
                   <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
                     <div className={VAULT_CHIP_CLASS}>
@@ -2410,11 +2049,7 @@ export default function WayfinderMasterSchemas({
                   icon={t("icon_data_object", "data_object")}
                   title={displayTitle}
                   subtitle={file.name}
-                  statusColor={
-                    isDanger
-                      ? "border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
-                      : "border-[color-mix(in_srgb,var(--warning)_40%,transparent)]"
-                  }
+                  statusColor="border-[color-mix(in_srgb,var(--text)_14%,transparent)]"
                   imageOverlay={
                     <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
                       <div className={VAULT_CHIP_CLASS}>
@@ -2520,7 +2155,7 @@ export default function WayfinderMasterSchemas({
                 icon={t("icon_dns", "dns")}
                 title={t("wf_anomaly_missing_uplink", "Spoke Uplink Unconfigured")}
                 subtitle={activeWs?.name || t("wf_tab_spoke_setup", "Spoke & Setup")}
-                statusColor="border-[color-mix(in_srgb,var(--warning)_40%,transparent)]"
+                statusColor="border-[color-mix(in_srgb,var(--text)_14%,transparent)]"
                 imageOverlay={
                   <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
                     <div className={VAULT_CHIP_CLASS}>
@@ -2569,7 +2204,7 @@ export default function WayfinderMasterSchemas({
                 icon={t("icon_gavel", "gavel")}
                 title={log.action || t("action", "Action")}
                 subtitle={new Date(log.created_at).toLocaleDateString()}
-                statusColor="border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
+                statusColor="border-[color-mix(in_srgb,var(--text)_14%,transparent)]"
                 imageOverlay={
                   <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
                     <div className={VAULT_CHIP_CLASS}>
@@ -2652,15 +2287,15 @@ export default function WayfinderMasterSchemas({
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">
             {matchesQuery(
               `${t("wf_tab_forking_help", "Forking Help & Walkthrough")} ${
-                CANONICAL_DIRECTIVES.forking_guide.title
+                syncedForkingSchema.title
               }`
             ) && renderForkingHelpCard()}
 
             {matchesQuery(
               `${t("wf_card_sql_schemas_title", "Spoke & Hub SQL Schemas (schema.sql)")} ${t(
                 "dir_fork_sql_spoke_val",
-                "schema.sql (36 Tables)"
-              )} ${t("dir_fork_sql_hub_val", "schema_os.sql (19 Tables)")}`
+                "schema.sql (52 Tables)"
+              )} ${t("dir_fork_sql_hub_val", "schema_os.sql (22 Tables)")}`
             ) && renderSqlSchemasCard()}
 
             {matchesQuery(
@@ -2745,7 +2380,7 @@ export default function WayfinderMasterSchemas({
             title={t("wf_card_spoke_setup_title", "Spoke Setup & Maintenance")}
             description={t(
               "wf_card_spoke_setup_desc",
-              "Inspect Spoke node telemetry, rotate Supabase Anon and Service Role keys, verify Hub handshake status, and copy your SANCTUARY-UPLINK:// bundle."
+              "Inspect Spoke node telemetry, rotate Spoke Gateway Tokens and Anon keys, verify Hub handshake status, and copy a secret-free SANCTUARY-UPLINK:// bundle."
             )}
             badge={activeWs?.schema_id || activeWorkspaceId || "SPOKE"}
             badgeIcon={t("icon_check_circle", "check_circle")}
@@ -2799,30 +2434,145 @@ export default function WayfinderMasterSchemas({
               <p className="text-xs font-bold text-[var(--subtext)] leading-relaxed m-0">
                 {t(
                   "wf_uplink_key_rotation_desc",
-                  "Rotate your community Supabase keys or generate an Uplink Bundle token for Keepers Core."
+                  "Rotate your Spoke Gateway Token (spk_gw_*), update Supabase credentials, or copy a secret-free Uplink Bundle for Keepers Core."
                 )}
               </p>
-              <input
-                type="text"
-                value={uplinkUrl}
-                onChange={(e) => setUplinkUrl(e.target.value)}
-                placeholder={t("ui_supabase_url", "Supabase Project URL")}
-                className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-              />
-              <input
-                type="text"
-                value={uplinkAnonKey}
-                onChange={(e) => setUplinkAnonKey(e.target.value)}
-                placeholder={t("ui_supabase_key", "Supabase Anon Key")}
-                className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-              />
-              <input
-                type="password"
-                value={uplinkServiceKey}
-                onChange={(e) => setUplinkServiceKey(e.target.value)}
-                placeholder={t("ui_supabase_service_key", "Supabase Service Key")}
-                className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
-              />
+              <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2.5">
+                <div className="flex items-center gap-2 text-[var(--accent)]">
+                  <span className="material-symbols-outlined !text-[16px]">
+                    {t("icon_terminal", "terminal")}
+                  </span>
+                  <span className="text-xs font-black uppercase tracking-wider">
+                    {t("spoke_workflow_guide_title", "How to Link or Mint a Spoke Gateway Token")}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5 text-[11px] font-medium text-[var(--subtext)] leading-relaxed">
+                  <p className="m-0">
+                    {t(
+                      "spoke_workflow_step_1",
+                      "1. Run schema.sql in the Spoke's Supabase SQL Editor to initialize all 52 tables and gateway auth."
+                    )}
+                  </p>
+                  <p className="m-0">
+                    {t(
+                      "spoke_workflow_step_2",
+                      "2. Run SELECT public.mint_spoke_gateway_token(); in the Spoke's SQL Editor and copy the one-time spk_gw_... token:"
+                    )}
+                  </p>
+                  <div className="flex items-center justify-between gap-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-3 py-1.5 my-0.5">
+                    <code className="text-[11px] font-mono font-bold text-[var(--accent)] break-all select-all">
+                      {"SELECT public.mint_spoke_gateway_token();"}
+                    </code>
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_content_copy", "content_copy")}
+                      onClick={() => {
+                        navigator.clipboard.writeText("SELECT public.mint_spoke_gateway_token();");
+                        pushStatus(
+                          t("spoke_mint_sql_copied", "Mint Gateway Token SQL copied to clipboard!"),
+                          "success"
+                        );
+                      }}
+                      className="!px-2.5 !py-1 shrink-0"
+                    >
+                      {t("spoke_btn_copy_mint_sql", "Copy SQL")}
+                    </ActionButton>
+                  </div>
+                  <p className="m-0">
+                    {t(
+                      "spoke_workflow_step_3_wayfinder",
+                      "3. Once linked, click Rotate Gateway Token above for 1-click zero-downtime rotation (no SQL needed). Only paste a manual spk_gw_... token below when linking for the first time, updating keys, or reconnecting after severing."
+                    )}
+                  </p>
+                </div>
+              </div>
+              {credentialStatus && (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div
+                    className={`${VAULT_CHIP_CLASS} ${
+                      !credentialStatus.has_credential
+                        ? "!text-[var(--danger)] !border-[var(--danger)]/30"
+                        : credentialStatus.credential_kind !== "spoke_gateway"
+                          ? "!text-[var(--warning)] !border-[var(--warning)]/30"
+                          : "!text-[var(--success)] !border-[var(--success)]/30"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {credentialStatus.has_credential
+                        ? t("icon_encrypted", "encrypted")
+                        : t("icon_warning", "warning")}
+                    </span>
+                    <span>
+                      {credentialStatus.has_credential
+                        ? credentialStatus.credential_kind === "spoke_gateway"
+                          ? t("spoke_cred_vault_sealed", "Envelope + Vault Sealed")
+                          : t("spoke_cred_legacy_sealed", "Legacy Key Sealed")
+                        : t("spoke_cred_missing", "No Uplink Token Sealed")}
+                    </span>
+                    {credentialStatus.key_fingerprint && (
+                      <span className="font-mono opacity-80">
+                        ({credentialStatus.key_fingerprint})
+                      </span>
+                    )}
+                  </div>
+                  {credentialStatus.has_credential && (
+                    <ActionButton
+                      variant="glass"
+                      icon={
+                        rotatingToken
+                          ? t("icon_sync", "sync")
+                          : t("icon_autorenew", "autorenew")
+                      }
+                      onClick={handleRotateGatewayToken}
+                      disabled={rotatingToken}
+                      className="!px-3 !py-1.5"
+                    >
+                      {rotatingToken
+                        ? t("spoke_rotating_token", "Rotating Token...")
+                        : t("spoke_btn_rotate_token", "Rotate Gateway Token")}
+                    </ActionButton>
+                  )}
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 ml-1">
+                  {t("ui_supabase_url", "Supabase Project URL")}
+                </label>
+                <input
+                  type="text"
+                  value={uplinkUrl}
+                  onChange={(e) => setUplinkUrl(e.target.value)}
+                  placeholder={t("ui_supabase_url", "Supabase Project URL")}
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 ml-1">
+                  {t("ui_supabase_key", "Supabase Anon Key")}
+                </label>
+                <input
+                  type="text"
+                  value={uplinkAnonKey}
+                  onChange={(e) => setUplinkAnonKey(e.target.value)}
+                  placeholder={t("ui_supabase_key", "Supabase Anon Key")}
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-75 ml-1">
+                  {t("spoke_gateway_token_label", "Spoke Gateway Token")}
+                </label>
+                <input
+                  type="password"
+                  value={uplinkServiceKey}
+                  onChange={(e) => setUplinkServiceKey(e.target.value)}
+                  placeholder={t(
+                    "spoke_gateway_token_ph",
+                    "spk_gw_... (scoped HMAC token, or leave blank to keep sealed credential)"
+                  )}
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+                />
+              </div>
               <ActionButton
                 variant="glass"
                 icon={t("icon_sync_lock", "sync_lock")}
@@ -2853,7 +2603,7 @@ export default function WayfinderMasterSchemas({
                     setCovenantDocTab("partners_agreement");
                     setIsCovenantPanelOpen(true);
                   }}
-                  className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-left flex flex-col gap-2 transition-all cursor-pointer group"
+                  className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-left flex flex-col gap-2 transition-all cursor-pointer group"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5 text-xs font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
@@ -2862,7 +2612,7 @@ export default function WayfinderMasterSchemas({
                       </span>
                       {t("partner_agreement_title", "Partners Agreement")}
                     </span>
-                    <span className="px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[9px] font-mono font-bold text-[var(--accent)] uppercase">
+                    <span className="px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[9px] font-mono font-bold text-[var(--accent)] uppercase">
                       {`V${stableVersion} • ${t("partner_agreement_badge", "Spoke Charter")}`}
                     </span>
                   </div>
@@ -2880,7 +2630,7 @@ export default function WayfinderMasterSchemas({
                     setCovenantDocTab("compliance_protocol");
                     setIsCovenantPanelOpen(true);
                   }}
-                  className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-left flex flex-col gap-2 transition-all cursor-pointer group"
+                  className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-left flex flex-col gap-2 transition-all cursor-pointer group"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5 text-xs font-black text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
@@ -2889,7 +2639,7 @@ export default function WayfinderMasterSchemas({
                       </span>
                       {t("compliance_protocol_title", "Compliance Protocol")}
                     </span>
-                    <span className="px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--success)_35%,transparent)] text-[9px] font-mono font-bold text-[var(--success)] uppercase">
+                    <span className="px-2 py-0.5 rounded-md border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[9px] font-mono font-bold text-[var(--success)] uppercase">
                       {`V${stableVersion} • ${t("compliance_protocol_badge", "Safety & Privacy")}`}
                     </span>
                   </div>
@@ -2914,8 +2664,12 @@ export default function WayfinderMasterSchemas({
         panelZ="z-[100051]"
         title={
           covenantDocTab === "partners_agreement"
-            ? t("partner_agreement_title", "Partners Agreement")
-            : t("compliance_protocol_title", "Compliance Protocol")
+            ? syncedPartnersTitle
+              ? td(syncedPartnersTitle)
+              : t("partner_agreement_title", "Partners Agreement")
+            : syncedComplianceTitle
+              ? td(syncedComplianceTitle)
+              : t("compliance_protocol_title", "Compliance Protocol")
         }
         subtitle={t(
           "partner_covenants_subtitle",
@@ -2990,8 +2744,12 @@ export default function WayfinderMasterSchemas({
             }
             title={
               covenantDocTab === "partners_agreement"
-                ? t("partner_agreement_title", "Partners Agreement")
-                : t("compliance_protocol_title", "Compliance Protocol")
+                ? syncedPartnersTitle
+                  ? td(syncedPartnersTitle)
+                  : t("partner_agreement_title", "Partners Agreement")
+                : syncedComplianceTitle
+                  ? td(syncedComplianceTitle)
+                  : t("compliance_protocol_title", "Compliance Protocol")
             }
             description={
               covenantDocTab === "partners_agreement"
@@ -3011,7 +2769,18 @@ export default function WayfinderMasterSchemas({
             }
             variant="accent"
           >
-            <LegalDocVersionInfoBlock />
+            <LegalDocVersionInfoBlock
+              content={
+                covenantDocTab === "partners_agreement"
+                  ? syncedPartnersMd
+                  : syncedComplianceMd
+              }
+              updatedAt={
+                covenantDocTab === "partners_agreement"
+                  ? syncedPartnersUpdatedAt
+                  : syncedComplianceUpdatedAt
+              }
+            />
           </SidePanelHeroCard>
 
           {covenantViewMode === "ui" ? (
@@ -3027,8 +2796,12 @@ export default function WayfinderMasterSchemas({
             <UniversalGroup
               title={
                 covenantDocTab === "partners_agreement"
-                  ? t("partner_agreement_title", "Partners Agreement")
-                  : t("compliance_protocol_title", "Compliance Protocol")
+                  ? syncedPartnersTitle
+                    ? td(syncedPartnersTitle)
+                    : t("partner_agreement_title", "Partners Agreement")
+                  : syncedComplianceTitle
+                    ? td(syncedComplianceTitle)
+                    : t("compliance_protocol_title", "Compliance Protocol")
               }
               icon={t("icon_gavel", "gavel")}
             >
@@ -3076,15 +2849,15 @@ export default function WayfinderMasterSchemas({
             title={t("wf_cut_cord_title", "Cut the Cord (Sever Sanctuary Uplink)")}
             description={t(
               "wf_cut_cord_desc",
-              "Unilaterally sever your community's Spoke database from the Sanctuary OS Hub. This immediately deactivates the workspace on the global network and scrubs your Service Role Key from the Hub while leaving 100% of your Spoke database intact."
+              "Unilaterally sever this community's Spoke database from the Sanctuary OS Hub. This immediately deactivates the workspace on the global network, revokes all active Spoke Gateway Tokens, and purges its sealed Vault credential from Keepers Core while leaving 100% of the Spoke database intact."
             )}
             badge={activeWs?.schema_id || activeWorkspaceId || "SPOKE"}
             variant="danger"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <StatBox
-                label={t("wf_sever_key_custody_lbl", "Service Key Custody")}
-                value={t("wf_sever_key_custody_val", "Scrubbed on Sever")}
+                label={t("wf_sever_key_custody_lbl", "Gateway Token Custody")}
+                value={t("wf_sever_key_custody_val", "Revoked & Purged on Sever")}
                 icon={t("icon_security", "security")}
                 iconColorClass="text-[var(--danger)]"
               />
@@ -3105,7 +2878,7 @@ export default function WayfinderMasterSchemas({
               <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
                 {t(
                   "wf_sever_backup_desc",
-                  "Copy your SANCTUARY-UPLINK:// bundle before severing if you plan to reconnect later or paste your credentials into a standalone fork."
+                  "Copy your secret-free SANCTUARY-UPLINK:// bundle (Project URL + Anon Key) before severing if you plan to paste your connection metadata into a standalone fork or reconnect later with a newly minted Gateway Token."
                 )}
               </p>
               <ActionButton
@@ -3125,7 +2898,7 @@ export default function WayfinderMasterSchemas({
             headerColorClass="text-[var(--danger)]"
           >
             <div className="flex flex-col gap-4 w-full">
-              <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] flex flex-col gap-2">
+              <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-[var(--danger)]">
                   <span className="material-symbols-outlined !text-[16px]">
                     {t("icon_warning", "warning")}
@@ -3140,12 +2913,12 @@ export default function WayfinderMasterSchemas({
                 <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
                   {t(
                     "wf_sever_warning_desc",
-                    "Cutting the cord immediately deactivates your Spoke on the Sanctuary OS Hub and permanently scrubs your Service Role Key from Keepers Core. 100% of your Spoke database tables remain intact in your own Supabase project."
+                    "Cutting the cord immediately deactivates the Spoke on the Sanctuary OS Hub, revokes all active Spoke Gateway Tokens, and permanently purges its sealed Vault credential from Keepers Core. 100% of the Spoke database tables remain intact in the community's own Supabase project."
                   )}
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] flex flex-col gap-2">
+              <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-[var(--accent)]">
                   <span className="material-symbols-outlined !text-[16px]">
                     {t("icon_passkey", "passkey")}
@@ -3173,7 +2946,7 @@ export default function WayfinderMasterSchemas({
                   "wf_cut_cord_reason_ph",
                   "Optional reason for severing the uplink (logged to Audit Trail)..."
                 )}
-                className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] focus:outline-none focus:border-[var(--danger)]"
+                className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--danger)]"
               />
 
               <div className="flex flex-col gap-1.5">
@@ -3191,7 +2964,7 @@ export default function WayfinderMasterSchemas({
                     setConfirmSever(false);
                   }}
                   placeholder={t("wf_sever_type_confirm_ph", "CUT THE CORD")}
-                  className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono font-black uppercase tracking-wider text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] focus:outline-none focus:border-[var(--danger)]"
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono font-black uppercase tracking-wider text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--danger)]"
                 />
               </div>
 
@@ -3224,22 +2997,23 @@ export default function WayfinderMasterSchemas({
         isOpen={activeSpokePanel === "forking"}
         onClose={() => setActiveSpokePanel(null)}
         title={t("wf_tab_forking_help", "Forking Help & Walkthrough")}
-        subtitle={CANONICAL_DIRECTIVES.forking_guide.title}
+        subtitle={td(syncedForkingSchema.title)}
         icon={t("icon_menu_book", "menu_book")}
         iconColorClass="text-[var(--accent)]"
         widthClass="w-[90vw] md:w-[820px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
-              icon={t("icon_database", "database")}
-              tooltip={t("wf_btn_copy_spoke_sql", "Copy schema.sql")}
-              onClick={handleCopySpokeSql}
+              icon={t("icon_dashboard", "dashboard")}
+              tooltip={t("tab_visual", "Visual")}
+              onClick={() => setForkViewMode("ui")}
+              variant={forkViewMode === "ui" ? "accent" : "default"}
             />
             <PanelHeaderButton
-              icon={t("icon_content_copy", "content_copy")}
-              variant="accent"
-              tooltip={t("spoke_copy_uplink_bundle", "Copy Uplink Bundle")}
-              onClick={handleCopyUplinkBundle}
+              icon={t("icon_menu_book", "menu_book")}
+              tooltip={t("btn_post", "Post")}
+              onClick={() => setForkViewMode("normal")}
+              variant={forkViewMode === "normal" ? "accent" : "default"}
             />
           </PanelHeaderGroup>
         }
@@ -3248,12 +3022,12 @@ export default function WayfinderMasterSchemas({
           <SidePanelHeroCard
             icon={t("icon_menu_book", "menu_book")}
             overline={t("wf_tab_forking_help", "Forking Help & Walkthrough")}
-            title={CANONICAL_DIRECTIVES.forking_guide.title}
-            description={CANONICAL_DIRECTIVES.forking_guide.summary}
+            title={td(syncedForkingSchema.title)}
+            description={td(syncedForkingSchema.summary)}
             badge={CANONICAL_DIRECTIVES.forking_guide.category}
             variant="accent"
           >
-            <div className="flex flex-wrap items-center justify-end gap-2 ml-auto pt-1 w-full">
+            <div className="flex flex-wrap items-center justify-end gap-2 ml-auto pt-3 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)] w-full">
               <ActionButton
                 variant="glass"
                 icon={t("icon_database", "database")}
@@ -3271,7 +3045,28 @@ export default function WayfinderMasterSchemas({
             </div>
           </SidePanelHeroCard>
 
-          {renderInteractiveForkingGuide()}
+          {forkViewMode === "ui" ? (
+            <InteractiveForkingGuideView
+              schema={syncedForkingSchema}
+              forkTab={forkTab}
+              setForkTab={setForkTab}
+              forkModeIdx={forkModeIdx}
+              setForkModeIdx={setForkModeIdx}
+              sqlSchemaTab={sqlSchemaTab}
+              setSqlSchemaTab={setSqlSchemaTab}
+              onInspectCovenants={() => {
+                setCovenantDocTab("partners_agreement");
+                setIsCovenantPanelOpen(true);
+              }}
+            />
+          ) : (
+            <UniversalGroup
+              title={td(syncedForkingSchema.title)}
+              icon={t("icon_menu_book", "menu_book")}
+            >
+              <StructuredReleaseNotesView content={cleanForkingReferenceMd} />
+            </UniversalGroup>
+          )}
         </div>
       </SidePanel>
 

@@ -44,6 +44,8 @@ import TicketDossierSidePanel from "../side-panels/TicketDossierSidePanel";
 import { DEFAULT_SCHEMA_CACHE_KEY } from "../utils/bundledSchemas";
 import { postDevCoreAssetSync } from "../utils/devAssetSync";
 
+const MINT_SPOKE_TOKEN_SQL = "SELECT public.mint_spoke_gateway_token();";
+
 export default function KeepersActiveGames({
   initialTab = "overview",
 }: {
@@ -65,7 +67,7 @@ export default function KeepersActiveGames({
     "all" | "active" | "inactive" | "keepers_only"
   >("all");
   const [auditFilterAction, setAuditFilterAction] = useState("ALL");
-  const auditScopeFilter = "CORE";
+  const [auditScopeFilter, setAuditScopeFilter] = useState("ALL");
   const [auditTimeRange, setAuditTimeRange] = useState("ALL");
   const openAuditRetentionRef = useRef<(() => void) | null>(null);
 
@@ -86,7 +88,7 @@ export default function KeepersActiveGames({
     schema_id: "",
     supabase_url: "",
     supabase_anon_key: "",
-    supabase_service_key: "",
+    spoke_gateway_token: "",
     icon: "",
     is_active: true,
     is_keepers_only: false,
@@ -94,6 +96,7 @@ export default function KeepersActiveGames({
   });
   const [bundleInput, setBundleInput] = useState("");
   const [verifyingHandshake, setVerifyingHandshake] = useState(false);
+  const [rotatingToken, setRotatingToken] = useState(false);
   const [handshakeStatus, setHandshakeStatus] = useState<{
     ok: boolean;
     message: string;
@@ -215,7 +218,7 @@ export default function KeepersActiveGames({
 
   const fetchGames = async () => {
     setLoading(true);
-    const [{ data, error }, { data: appsData }] = await Promise.all([
+    const [{ data, error }, { data: appsData }, credsMetaRes] = await Promise.all([
       supabaseAuth
         .from("sanctuary_games")
         .select(
@@ -227,9 +230,18 @@ export default function KeepersActiveGames({
         .select("*")
         .eq("ticket_type", "Partner Spoke Application")
         .order("created_at", { ascending: false }),
+      supabaseAuth.functions
+        .invoke("game-gateway", { body: { action: "keeper_list_spoke_credentials_meta" } })
+        .catch(() => ({ data: null, error: null })),
     ]);
+    const credMap: Record<string, any> = credsMetaRes?.data?.credentials || {};
     if (!error && data) {
-      setGames(data);
+      setGames(
+        data.map((g: any) => ({
+          ...g,
+          ...(credMap[g.id] || {}),
+        }))
+      );
     }
     if (appsData) {
       setPartnerApps(appsData);
@@ -255,7 +267,10 @@ export default function KeepersActiveGames({
           schema_id: (parsed.schema_id || prev.schema_id || "").toUpperCase(),
           supabase_url: parsed.supabase_url || prev.supabase_url,
           supabase_anon_key: parsed.supabase_anon_key || prev.supabase_anon_key,
-          supabase_service_key: parsed.supabase_service_key || prev.supabase_service_key,
+          spoke_gateway_token:
+            parsed.spoke_gateway_token ||
+            parsed.supabase_service_key ||
+            prev.spoke_gateway_token,
           founder_identifier: parsed.founder_identifier || prev.founder_identifier,
         }));
         setBundleInput("");
@@ -270,18 +285,20 @@ export default function KeepersActiveGames({
       }
     } catch {}
 
-    // Fallback: extract URL and keys from raw text / .env paste
+    // Fallback: extract URL, Anon/Publishable keys, and Spoke Gateway Tokens from raw text
     const urlMatch = trimmed.match(/https:\/\/[a-z0-9-]+\.supabase\.co/i);
+    const gwMatch = trimmed.match(/\bspk_gw_[0-9a-f]{64}\b/i);
     const keys =
       trimmed.match(
         /(?:eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+|sb_(?:publishable|secret)_[A-Za-z0-9_-]+)/g
       ) || [];
-    if (urlMatch || keys.length > 0) {
+    if (urlMatch || gwMatch || keys.length > 0) {
       setFormData((prev) => ({
         ...prev,
         supabase_url: urlMatch ? urlMatch[0] : prev.supabase_url,
         supabase_anon_key: keys[0] || prev.supabase_anon_key,
-        supabase_service_key: keys[1] || prev.supabase_service_key,
+        spoke_gateway_token:
+          (gwMatch ? gwMatch[0].toLowerCase() : keys[1]) || prev.spoke_gateway_token,
       }));
       setBundleInput("");
       setHandshakeStatus(null);
@@ -301,7 +318,6 @@ export default function KeepersActiveGames({
       schema_id: target.schema_id,
       supabase_url: target.supabase_url,
       supabase_anon_key: target.supabase_anon_key,
-      supabase_service_key: target.supabase_service_key || undefined,
       founder_identifier: target.founder_identifier || undefined,
     };
     const token = "SANCTUARY-UPLINK://" + btoa(JSON.stringify(payload));
@@ -315,7 +331,7 @@ export default function KeepersActiveGames({
   };
 
   const handleVerifyHandshake = async () => {
-    if (!formData.supabase_url || (!formData.supabase_anon_key && !formData.supabase_service_key)) {
+    if (!formData.supabase_url || (!formData.supabase_anon_key && !formData.spoke_gateway_token && !formData.id)) {
       alert(t("fill_required_fields", "Please fill all required fields"));
       return null;
     }
@@ -323,9 +339,10 @@ export default function KeepersActiveGames({
     setHandshakeStatus(null);
     try {
       const handshakePayload = {
+        game_id: formData.id || undefined,
         supabase_url: formData.supabase_url.trim(),
         supabase_anon_key: formData.supabase_anon_key.trim(),
-        supabase_service_key: formData.supabase_service_key?.trim() || "",
+        spoke_gateway_token: formData.spoke_gateway_token?.trim() || "",
         founder_identifier: formData.founder_identifier?.trim() || "",
       };
       const res: any = await supabaseAuth.functions.invoke("game-gateway", {
@@ -378,7 +395,7 @@ export default function KeepersActiveGames({
       return;
     }
 
-    if (formData.supabase_service_key) {
+    if (formData.spoke_gateway_token) {
       await handleVerifyHandshake();
     }
 
@@ -389,7 +406,7 @@ export default function KeepersActiveGames({
       schema_id: formData.schema_id.trim().toUpperCase(),
       supabase_url: formData.supabase_url.trim(),
       supabase_anon_key: formData.supabase_anon_key.trim(),
-      supabase_service_key: formData.supabase_service_key?.trim() || undefined,
+      spoke_gateway_token: formData.spoke_gateway_token?.trim() || undefined,
       icon: formData.icon,
       is_active: formData.is_active,
       is_keepers_only: Boolean(formData.is_keepers_only),
@@ -449,7 +466,7 @@ export default function KeepersActiveGames({
         schema_id: "",
         supabase_url: "",
         supabase_anon_key: "",
-        supabase_service_key: "",
+        spoke_gateway_token: "",
         icon: "",
         is_active: true,
         is_keepers_only: false,
@@ -459,6 +476,36 @@ export default function KeepersActiveGames({
       await syncGameDatabases();
     } else {
       alert(`${t("identities_failed_prefix", "Error saving game:")} ${invokeError.message}`);
+    }
+  };
+
+  const handleRotateGatewayToken = async (gameId: string) => {
+    if (!gameId) return;
+    setRotatingToken(true);
+    try {
+      const res: any = await supabaseAuth.functions.invoke("game-gateway", {
+        body: {
+          action: "rotate_spoke_gateway_token",
+          game_id: gameId,
+        },
+      });
+      const errMsg = res?.error?.message || res?.data?.error;
+      if (errMsg) {
+        throw new Error(errMsg);
+      }
+      const fp = res?.data?.key_fingerprint || "spk_gw_...";
+      pushStatus(
+        `${t("spoke_token_rotated_toast", "Spoke Gateway Token rotated and sealed:")} ${fp}`,
+        "success"
+      );
+      await fetchGames();
+    } catch (err: any) {
+      pushStatus(
+        err?.message || t("spoke_token_rotate_failed", "Failed to rotate Spoke Gateway Token"),
+        "error"
+      );
+    } finally {
+      setRotatingToken(false);
     }
   };
 
@@ -818,7 +865,7 @@ export default function KeepersActiveGames({
         schema_id: game.schema_id || "",
         supabase_url: game.supabase_url || "",
         supabase_anon_key: game.supabase_anon_key || "",
-        supabase_service_key: game.supabase_service_key || "",
+        spoke_gateway_token: "",
         icon: game.icon || "",
         is_active: game.is_active !== false,
         is_keepers_only: Boolean(game.is_keepers_only),
@@ -909,6 +956,23 @@ export default function KeepersActiveGames({
                 <span>{game.schema_id}</span>
               </div>
             )}
+            {game.has_credential && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span
+                  className={`material-symbols-outlined !text-[12px] ${
+                    game.credential_kind === "spoke_gateway"
+                      ? "text-[var(--success)]"
+                      : "text-[var(--warning)]"
+                  }`}
+                >
+                  {t("icon_encrypted", "encrypted")}
+                </span>
+                <span>
+                  {game.key_fingerprint ||
+                    t("spoke_cred_vault_sealed", "Envelope + Vault Sealed")}
+                </span>
+              </div>
+            )}
           </>
         }
         actions={
@@ -921,8 +985,8 @@ export default function KeepersActiveGames({
               }}
               className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border hover:scale-110 ${
                 isKeepersOnly
-                  ? "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]"
-                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--warning)_40%,transparent)]"
+                  ? "border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--warning)]"
+                  : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
               }`}
             >
               <span className="material-symbols-outlined !text-[14px]">
@@ -944,7 +1008,7 @@ export default function KeepersActiveGames({
                   e.stopPropagation();
                   handleToggleActive(game.id, game.name, game.is_active);
                 }}
-                className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:scale-110"
+                className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:scale-110"
               >
                 <span className="material-symbols-outlined !text-[14px]">
                   {game.is_active === false
@@ -966,7 +1030,7 @@ export default function KeepersActiveGames({
                 e.stopPropagation();
                 openSeverSpokePanel(game);
               }}
-              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--warning)_40%,transparent)] hover:scale-110"
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:scale-110"
             >
               <span className="material-symbols-outlined !text-[14px]">
                 {t("icon_link_off", "link_off")}
@@ -982,7 +1046,7 @@ export default function KeepersActiveGames({
                   e.stopPropagation();
                   handleDeleteGame(game.id, game.name);
                 }}
-                className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--danger)_40%,transparent)] hover:scale-110"
+                className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:scale-110"
               >
                 <span className="material-symbols-outlined !text-[14px]">
                   {t("icon_delete", "delete")}
@@ -1038,7 +1102,7 @@ export default function KeepersActiveGames({
               schema_id: "",
               supabase_url: "",
               supabase_anon_key: "",
-              supabase_service_key: "",
+              spoke_gateway_token: "",
               icon: "",
               is_active: true,
               is_keepers_only: false,
@@ -1103,6 +1167,27 @@ export default function KeepersActiveGames({
         content: (
           <div className="flex flex-col w-[280px] p-4 max-w-[calc(100vw-40px)] gap-3">
             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+              {t("audit_scope_label", "Log Scope")}
+            </span>
+            <CustomDropdown
+              flat={true}
+              disableTint={true}
+              variant="pill"
+              value={auditScopeFilter}
+              onChange={(v: string[]) => setAuditScopeFilter(v[0] || "ALL")}
+              options={[
+                { id: "ALL", label: t("all", "All") },
+                { id: "CORE_OS", label: t("audit_scope_core", "Core OS") },
+                { id: "SPOKES_ONLY", label: t("audit_scope_spokes", "Partner Spokes") },
+                ...games
+                  .filter((g) => g?.name && g.is_keepers_only !== true)
+                  .map((g) => ({
+                    id: String(g.name),
+                    label: String(g.name),
+                  })),
+              ]}
+            />
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mt-1">
               {t("auto_filter_logs", "Action Type")}
             </span>
             <CustomDropdown
@@ -1253,11 +1338,7 @@ export default function KeepersActiveGames({
 
           {handshakeStatus && (
             <div
-              className={`glass-panel rounded-2xl p-4 border flex items-center justify-between gap-3 ${
-                handshakeStatus.ok
-                  ? "border-[color-mix(in_srgb,var(--success)_40%,transparent)]"
-                  : "border-[color-mix(in_srgb,var(--danger)_40%,transparent)]"
-              }`}
+              className="glass-panel rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-between gap-3"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <span
@@ -1344,6 +1425,54 @@ export default function KeepersActiveGames({
             title={t("ui_supabase_url", "Spoke Database & Handshake Credentials")}
             icon={t("icon_dns", "dns")}
           >
+            <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-2.5">
+              <div className="flex items-center gap-2 text-[var(--accent)]">
+                <span className="material-symbols-outlined !text-[16px]">
+                  {t("icon_terminal", "terminal")}
+                </span>
+                <span className="text-xs font-black uppercase tracking-wider">
+                  {t("spoke_workflow_guide_title", "How to Link or Mint a Spoke Gateway Token")}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5 text-[11px] font-medium text-[var(--subtext)] leading-relaxed">
+                <p className="m-0">
+                  {t(
+                    "spoke_workflow_step_1",
+                    "1. Run schema.sql in the Spoke's Supabase SQL Editor to initialize all 52 tables and gateway auth."
+                  )}
+                </p>
+                <p className="m-0">
+                  {t(
+                    "spoke_workflow_step_2",
+                    "2. Run SELECT public.mint_spoke_gateway_token(); in the Spoke's SQL Editor and copy the one-time spk_gw_... token:"
+                  )}
+                </p>
+                <div className="flex items-center justify-between gap-2 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] px-3 py-1.5 my-0.5">
+                  <code className="text-[11px] font-mono font-bold text-[var(--accent)] break-all select-all">
+                    {MINT_SPOKE_TOKEN_SQL}
+                  </code>
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_content_copy", "content_copy")}
+                    label={t("spoke_btn_copy_mint_sql", "Copy SQL")}
+                    className="!px-2.5 !py-1 shrink-0"
+                    onClick={() => {
+                      navigator.clipboard.writeText(MINT_SPOKE_TOKEN_SQL);
+                      pushStatus(
+                        t("spoke_mint_sql_copied", "Mint Gateway Token SQL copied to clipboard!"),
+                        "success"
+                      );
+                    }}
+                  />
+                </div>
+                <p className="m-0">
+                  {t(
+                    "spoke_workflow_step_3_keeper",
+                    "3. Paste the Spoke URL, Anon Key (or secret-free SANCTUARY-UPLINK:// bundle), and spk_gw_... token below, then test handshake. Leave the token blank when editing to keep the sealed credential, or click Rotate Gateway Token anytime."
+                  )}
+                </p>
+              </div>
+            </div>
             <UniversalInput
               label={t("ui_schema_id", "Schema ID")}
               type="text"
@@ -1366,12 +1495,68 @@ export default function KeepersActiveGames({
               placeholder={t("ui_supabase_key", "ey...")}
             />
             <UniversalInput
-              label={t("ui_supabase_service_key", "Supabase Service Key")}
+              label={t("spoke_gateway_token_label", "Spoke Gateway Token")}
               type="password"
-              value={formData.supabase_service_key || ""}
-              onChange={(val) => setFormData({ ...formData, supabase_service_key: val })}
-              placeholder={t("ui_supabase_service_key", "secret...")}
+              value={formData.spoke_gateway_token || ""}
+              onChange={(val) => setFormData({ ...formData, spoke_gateway_token: val })}
+              placeholder={t(
+                "spoke_gateway_token_ph",
+                "spk_gw_... (scoped HMAC token, or leave blank to keep sealed credential)"
+              )}
             />
+            {sidePanelMode === "edit" && formData.id && (() => {
+              const editingGameRec = games.find((g) => g.id === formData.id);
+              const hasCred = Boolean(editingGameRec?.has_credential);
+              const isLegacy = hasCred && editingGameRec?.credential_kind !== "spoke_gateway";
+              return (
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <div
+                    className={`${VAULT_CHIP_CLASS} ${
+                      !hasCred
+                        ? "!text-[var(--danger)] !border-[var(--danger)]/30"
+                        : isLegacy
+                          ? "!text-[var(--warning)] !border-[var(--warning)]/30"
+                          : "!text-[var(--success)] !border-[var(--success)]/30"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {hasCred
+                        ? t("icon_encrypted", "encrypted")
+                        : t("icon_warning", "warning")}
+                    </span>
+                    <span>
+                      {hasCred
+                        ? isLegacy
+                          ? t("spoke_cred_legacy_sealed", "Legacy Key Sealed")
+                          : t("spoke_cred_vault_sealed", "Envelope + Vault Sealed")
+                        : t("spoke_cred_missing", "No Uplink Token Sealed")}
+                    </span>
+                    {editingGameRec?.key_fingerprint && (
+                      <span className="font-mono opacity-80">
+                        ({editingGameRec.key_fingerprint})
+                      </span>
+                    )}
+                  </div>
+                  {hasCred && (
+                    <ActionButton
+                      variant="glass"
+                      icon={
+                        rotatingToken
+                          ? t("icon_sync", "sync")
+                          : t("icon_autorenew", "autorenew")
+                      }
+                      label={
+                        rotatingToken
+                          ? t("spoke_rotating_token", "Rotating Token...")
+                          : t("spoke_btn_rotate_token", "Rotate Gateway Token")
+                      }
+                      disabled={rotatingToken}
+                      onClick={() => handleRotateGatewayToken(formData.id)}
+                    />
+                  )}
+                </div>
+              );
+            })()}
             <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
               <ActionButton
                 variant="glass"
@@ -1447,15 +1632,15 @@ export default function KeepersActiveGames({
             title={t("wf_cut_cord_title", "Cut the Cord (Sever Sanctuary Uplink)")}
             description={t(
               "wf_cut_cord_desc",
-              "Unilaterally sever this community's Spoke database from the Sanctuary OS Hub. This immediately deactivates the workspace on the global network and scrubs its Service Role Key from Keepers Core while leaving 100% of the Spoke database intact."
+              "Unilaterally sever this community's Spoke database from the Sanctuary OS Hub. This immediately deactivates the workspace on the global network, revokes all active Spoke Gateway Tokens, and purges its sealed Vault credential from Keepers Core while leaving 100% of the Spoke database intact."
             )}
             badge={severTargetGame?.schema_id || "SPOKE"}
             variant="danger"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <StatBox
-                label={t("wf_sever_key_custody_lbl", "Service Key Custody")}
-                value={t("wf_sever_key_custody_val", "Scrubbed on Sever")}
+                label={t("wf_sever_key_custody_lbl", "Gateway Token Custody")}
+                value={t("wf_sever_key_custody_val", "Revoked & Purged on Sever")}
                 icon={t("icon_security", "security")}
                 iconColorClass="text-[var(--danger)]"
               />
@@ -1476,7 +1661,7 @@ export default function KeepersActiveGames({
               <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
                 {t(
                   "wf_sever_backup_desc",
-                  "Copy the SANCTUARY-UPLINK:// bundle before severing if you plan to reconnect later or archive the node's public connection metadata."
+                  "Copy your secret-free SANCTUARY-UPLINK:// bundle (Project URL + Anon Key) before severing if you plan to paste your connection metadata into a standalone fork or reconnect later with a newly minted Gateway Token."
                 )}
               </p>
               <ActionButton
@@ -1496,7 +1681,7 @@ export default function KeepersActiveGames({
             headerColorClass="text-[var(--danger)]"
           >
             <div className="flex flex-col gap-4 w-full">
-              <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] flex flex-col gap-2">
+              <div className="p-3.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-[var(--danger)]">
                   <span className="material-symbols-outlined !text-[16px]">
                     {t("icon_warning", "warning")}
@@ -1511,7 +1696,7 @@ export default function KeepersActiveGames({
                 <p className="text-xs font-medium text-[var(--subtext)] leading-relaxed m-0">
                   {t(
                     "wf_sever_warning_desc",
-                    "Cutting the cord immediately deactivates the Spoke on the Sanctuary OS Hub and permanently scrubs its Service Role Key from Keepers Core. 100% of the Spoke database tables remain intact in the community's own Supabase project."
+                    "Cutting the cord immediately deactivates the Spoke on the Sanctuary OS Hub, revokes all active Spoke Gateway Tokens, and permanently purges its sealed Vault credential from Keepers Core. 100% of the Spoke database tables remain intact in the community's own Supabase project."
                   )}
                 </p>
               </div>
@@ -1524,7 +1709,7 @@ export default function KeepersActiveGames({
                   "wf_cut_cord_reason_ph",
                   "Optional reason for severing the uplink (logged to Audit Trail)..."
                 )}
-                className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_25%,transparent)] focus:outline-none focus:border-[var(--danger)]"
+                className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--danger)]"
               />
 
               <div className="flex flex-col gap-1.5">
@@ -1542,7 +1727,7 @@ export default function KeepersActiveGames({
                     setConfirmSever(false);
                   }}
                   placeholder={t("wf_sever_type_confirm_ph", "CUT THE CORD")}
-                  className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono font-black uppercase tracking-wider text-[var(--text)] border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] focus:outline-none focus:border-[var(--danger)]"
+                  className="w-full glass-surface rounded-xl px-4 py-3 text-xs font-mono font-black uppercase tracking-wider text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:outline-none focus:border-[var(--danger)]"
                 />
               </div>
 
@@ -1804,7 +1989,7 @@ export default function KeepersActiveGames({
                   icon={t("icon_data_object", "data_object")}
                   title={file.displayTitle || file.name.replace(/\.json$/i, "")}
                   subtitle={file.name}
-                  statusColor="border-[color-mix(in_srgb,var(--warning)_40%,transparent)]"
+                  statusColor="border-[color-mix(in_srgb,var(--text)_14%,transparent)]"
                   imageOverlay={
                     <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
                       <div className={VAULT_CHIP_CLASS}>
@@ -1965,7 +2150,7 @@ export default function KeepersActiveGames({
                               schema_id: cleanSchemaId,
                               supabase_url: "",
                               supabase_anon_key: "",
-                              supabase_service_key: "",
+                              spoke_gateway_token: "",
                               icon: "",
                               is_active: true,
                               is_keepers_only: false,
@@ -1973,7 +2158,7 @@ export default function KeepersActiveGames({
                             });
                             setSidePanelMode("add");
                           }}
-                          className="h-8 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
+                          className="h-8 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
                         >
                           <span className="material-symbols-outlined !text-[13px]">
                             {t("icon_add_link", "add_link")}

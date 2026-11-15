@@ -6,7 +6,6 @@ import {
   EmptyState,
   SidePanel,
   CustomDropdown,
-  CustomComplianceDropdown,
   PanelHeaderGroup,
   PanelHeaderButton,
   ActionPill,
@@ -56,9 +55,7 @@ export function MasonCollectionBuilder({
   const [searchQuery, setSearchQuery] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isForgePanelOpen, setIsForgePanelOpen] = useState(false);
-  const [setTier, setSetTier] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
-  const [tierFilter, setTierFilter] = useState("ALL");
   const [activeTab, setActiveTab] = useState("overview");
 
   const fetchSets = async () => {
@@ -67,26 +64,26 @@ export function MasonCollectionBuilder({
       .select("*")
       .eq("mason_id", masonId)
       .order("name");
-    if (data) setSets(data);
+    if (data) setSets(data.filter((s: any) => Number(s?.compliance_tier || 0) === 0));
   };
 
   const fetchMyMods = async () => {
     const { data } = await supabase
       .from("mods")
-      .select("id, name, image_url, category_override")
+      .select("id, name, image_url, category_override, compliance_tier")
       .eq("mason_id", masonId)
       .order("name");
-    if (data) setMyMods(data);
+    if (data) setMyMods(data.filter((m: any) => Number(m?.compliance_tier || 0) === 0));
   };
 
   const fetchMembers = async (setId: string) => {
     const { data } = await supabase
       .from("collection_members")
       .select(
-        "id, mod_id, mods(id, name, image_url, status, category_override, created_at, mason_id, master_author, file_extension)"
+        "id, mod_id, mods(id, name, image_url, status, category_override, created_at, mason_id, master_author, file_extension, compliance_tier)"
       )
       .eq("set_id", setId);
-    if (data) setMembers(data);
+    if (data) setMembers(data.filter((m: any) => Number(m?.mods?.compliance_tier || 0) === 0));
   };
 
   useEffect(() => {
@@ -102,8 +99,8 @@ export function MasonCollectionBuilder({
       creator_name: masonName,
       mason_id: masonId,
       is_official: true,
-      compliance_tier: setTier,
-      status: setTier >= 1 ? "pending" : "stable",
+      compliance_tier: 0,
+      status: "stable",
     };
     const { data, error } = await supabase
       .from("collections")
@@ -123,7 +120,6 @@ export function MasonCollectionBuilder({
       );
       setSets((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
       setNewSetName("");
-      setSetTier(0);
       setIsForgePanelOpen(false);
     }
   };
@@ -137,7 +133,7 @@ export function MasonCollectionBuilder({
       image_url: activeSet.image_url,
       url: activeSet.url,
       status: resolveCollectionStatus(activeSet),
-      compliance_tier: activeSet.compliance_tier,
+      compliance_tier: 0,
     };
     const { error } = await supabase
       .from("collections")
@@ -250,7 +246,6 @@ export function MasonCollectionBuilder({
     if (activeTab !== "overview" && resolvedStatus !== activeTab) {
       return false;
     }
-    if (tierFilter !== "ALL" && s.compliance_tier !== parseInt(tierFilter)) return false;
     return s.name?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
@@ -389,36 +384,6 @@ export function MasonCollectionBuilder({
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
       hideSearch={activeTab === "overview"}
-      primaryPopover={
-        activeTab !== "overview"
-          ? {
-              icon: t("icon_tune", "tune"),
-              label: t("filters", "Filters"),
-              content: (
-                <div className="flex flex-col w-[300px] p-4 text-left">
-                  <div className="flex flex-col mb-5 w-full">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                      {t("registry_col_safety", "TIER")}
-                    </div>
-                    <CustomDropdown
-                      disableTint={true}
-                      variant="pill"
-                      flat={true}
-                      value={tierFilter}
-                      onChange={(v: string[]) => setTierFilter(v[0])}
-                      options={[
-                        { id: "ALL", label: t("filter_all", "All") },
-                        { id: "0", label: `${t("auto_tier", "Tier")} 0` },
-                        { id: "1", label: `${t("auto_tier", "Tier")} 1` },
-                        { id: "2", label: `${t("auto_tier", "Tier")} 2` },
-                      ]}
-                    />
-                  </div>
-                </div>
-              ),
-            }
-          : undefined
-      }
       actions={
         activeTab !== "overview"
           ? [
@@ -464,8 +429,6 @@ export function MasonCollectionBuilder({
             overline={t("collections", "Collections")}
             title={newSetName || t("forge_new_set", "New {Vault}")}
             description={t("create_subtitle", "Create a new collection")}
-            badge={`Tier ${setTier}`}
-            badgeIcon={t("icon_verified_user", "verified_user")}
             variant="accent"
           />
 
@@ -476,13 +439,6 @@ export function MasonCollectionBuilder({
             label={t("forge_set_name", "{Vault} Name...")}
             icon={t("icon_collections_bookmark", "collections_bookmark")}
           />
-
-          <UniversalGroup
-            title={t("registry_col_safety", "Compliance Tier")}
-            icon={t("icon_verified_user", "verified_user")}
-          >
-            <CustomComplianceDropdown value={setTier} onChange={setSetTier} maxTier={4} />
-          </UniversalGroup>
         </div>
       </SidePanel>
 
@@ -529,17 +485,11 @@ export function MasonCollectionBuilder({
               badgeIcon={t("icon_verified", "verified")}
               variant="accent"
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <div className="grid grid-cols-1 gap-2.5 pt-1">
                 <StatBox
                   label={t("registry_assets_title", "Included Assets")}
                   value={members.length}
                   icon={t("icon_inventory_2", "inventory_2")}
-                  iconColorClass="text-[var(--accent)]"
-                />
-                <StatBox
-                  label={t("registry_col_safety", "Compliance Tier")}
-                  value={`Tier ${activeSet.compliance_tier || 0}`}
-                  icon={t("icon_verified_user", "verified_user")}
                   iconColorClass="text-[var(--accent)]"
                 />
               </div>
@@ -582,19 +532,7 @@ export function MasonCollectionBuilder({
                     className="w-full glass-surface rounded-xl px-4 py-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--text)] text-xs font-bold focus:outline-none focus:theme-border-accent transition-all"
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest ml-1">
-                    {t("registry_col_safety", "Compliance Tier")}
-                  </label>
-                  <CustomComplianceDropdown
-                    value={activeSet.compliance_tier || 0}
-                    onChange={(val: number) =>
-                      setActiveSet({ ...activeSet, compliance_tier: val })
-                    }
-                    maxTier={4}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
                   <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest ml-1">
                     {t("status", "Status")}
                   </label>
@@ -705,7 +643,6 @@ export function CollectionForge({ setStatus }: any) {
   const [setName, setSetName] = useState("");
   const [setMasonId, setSetMasonId] = useState("");
   const [setSetUrl, setSetSetUrl] = useState("");
-  const [setTier, setSetTier] = useState(0);
 
   const [isForgePanelOpen, setIsForgePanelOpen] = useState(false);
   const [isMasonPanelOpen, setIsMasonPanelOpen] = useState(false);
@@ -713,7 +650,6 @@ export function CollectionForge({ setStatus }: any) {
   const [isCreatingMason, setIsCreatingMason] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [tierFilter, setTierFilter] = useState("ALL");
   const [filterTab, setFilterTab] = useState<
     "overview" | "exclusive_slots" | "stable" | "under_review" | "pending" | "unknown" | "corrupted"
   >("overview");
@@ -859,12 +795,11 @@ export function CollectionForge({ setStatus }: any) {
 
   const createSet = async () => {
     if (!setName) return;
-    const targetTier = Math.min(4, Math.max(0, Number(setTier || 0)));
     const payload: any = {
       name: setName,
       is_official: true,
-      compliance_tier: targetTier,
-      status: targetTier >= 1 ? "pending" : "stable",
+      compliance_tier: 0,
+      status: "stable",
       mason_id: setMasonId && setMasonId.trim() !== "" ? setMasonId : null,
       url: setSetUrl && setSetUrl.trim() !== "" ? setSetUrl : null,
     };
@@ -888,7 +823,6 @@ export function CollectionForge({ setStatus }: any) {
       setSetName("");
       setSetMasonId("");
       setSetSetUrl("");
-      setSetTier(0);
       setIsForgePanelOpen(false);
     }
   };
@@ -897,14 +831,13 @@ export function CollectionForge({ setStatus }: any) {
     if (!activeSet) return;
     setIsSaving(true);
     const prevSet = sets.find((s) => s.id === activeSet.id) || activeSet;
-    const targetTier = Math.min(4, Math.max(0, Number(activeSet.compliance_tier || 0)));
     const updatedPayload = {
       name: activeSet.name,
       image_url: activeSet.image_url,
       url: activeSet.url,
       mason_id: activeSet.mason_id,
-      status: targetTier >= 1 ? "pending" : resolveCollectionStatus(activeSet),
-      compliance_tier: targetTier,
+      status: resolveCollectionStatus(activeSet),
+      compliance_tier: 0,
     };
     const { error } = await supabase
       .from("collections")
@@ -921,9 +854,6 @@ export function CollectionForge({ setStatus }: any) {
         false,
         computeAuditDiff(prevSet, updatedPayload)
       );
-      if (Number(updatedPayload.compliance_tier || 0) > 0) {
-        setActiveSet(null);
-      }
       await fetchSets();
       if (setStatus)
         setStatus(
@@ -1245,7 +1175,6 @@ export function CollectionForge({ setStatus }: any) {
       return false;
     }
 
-    if (tierFilter !== "ALL" && s.compliance_tier !== parseInt(tierFilter)) return false;
     return s.name?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
@@ -1324,36 +1253,6 @@ export function CollectionForge({ setStatus }: any) {
           },
         ]}
         hideSearch={filterTab === "overview"}
-        primaryPopover={
-          filterTab !== "overview" && filterTab !== "exclusive_slots"
-            ? {
-                icon: t("icon_tune", "tune"),
-                label: t("filters", "Filters"),
-                content: (
-                  <div className="flex flex-col w-[300px] p-4 text-left">
-                    <div className="flex flex-col mb-5 w-full">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 mb-2.5 px-1 flex items-center gap-2">
-                        {t("registry_col_safety", "TIER")}
-                      </div>
-                      <CustomDropdown
-                        disableTint={true}
-                        variant="pill"
-                        flat={true}
-                        value={tierFilter}
-                        onChange={(v: string[]) => setTierFilter(v[0])}
-                        options={[
-                          { id: "ALL", label: t("filter_all", "All") },
-                          { id: "0", label: `${t("auto_tier", "Tier")} 0` },
-                          { id: "1", label: `${t("auto_tier", "Tier")} 1` },
-                          { id: "2", label: `${t("auto_tier", "Tier")} 2` },
-                        ]}
-                      />
-                    </div>
-                  </div>
-                ),
-              }
-            : undefined
-        }
         actions={
           filterTab !== "overview"
             ? [
@@ -1501,8 +1400,6 @@ export function CollectionForge({ setStatus }: any) {
             overline={t("collections", "Collections")}
             title={setName || t("forge_new_set", "New {Vault}")}
             description={t("create_subtitle", "Create a new collection")}
-            badge={`Tier ${setTier}`}
-            badgeIcon={t("icon_verified_user", "verified_user")}
             variant="accent"
           />
 
@@ -1541,17 +1438,6 @@ export function CollectionForge({ setStatus }: any) {
                     </span>
                   </button>
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest ml-1">
-                  {t("registry_col_safety", "Compliance Tier")}
-                </label>
-                <CustomComplianceDropdown
-                  value={setTier}
-                  onChange={setSetTier}
-                  maxTier={4}
-                />
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -1613,17 +1499,11 @@ export function CollectionForge({ setStatus }: any) {
               badgeIcon={t("icon_verified", "verified")}
               variant="accent"
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <div className="grid grid-cols-1 gap-2.5 pt-1">
                 <StatBox
                   label={t("registry_assets_title", "Included Assets")}
                   value={manifestMembers.length}
                   icon={t("icon_inventory_2", "inventory_2")}
-                  iconColorClass="text-[var(--accent)]"
-                />
-                <StatBox
-                  label={t("registry_col_safety", "Compliance Tier")}
-                  value={`Tier ${activeSet.compliance_tier || 0}`}
-                  icon={t("icon_verified_user", "verified_user")}
                   iconColorClass="text-[var(--accent)]"
                 />
               </div>
@@ -1668,20 +1548,7 @@ export function CollectionForge({ setStatus }: any) {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest ml-1">
-                    {t("registry_col_safety", "Compliance Tier")}
-                  </label>
-                  <CustomComplianceDropdown
-                    value={activeSet.compliance_tier || 0}
-                    onChange={(val: number) =>
-                      setActiveSet({ ...activeSet, compliance_tier: val })
-                    }
-                    maxTier={4}
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
                   <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest ml-1">
                     {t("status", "Status")}
                   </label>

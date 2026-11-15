@@ -180,31 +180,31 @@ export function CommandScreenSectionHeading({
   
   return (
     <div className={`flex items-center justify-start w-full relative z-10 min-w-0 gap-4 ${className}`}>
-      <div className="glass-panel rounded-xl flex items-stretch shrink-0 min-w-0 max-w-full overflow-hidden">
+      <div className="glass-panel rounded-xl flex items-stretch w-fit min-w-0 max-w-full overflow-hidden">
         <div className="p-2 pr-3.5 md:p-2.5 md:pr-4 flex items-center gap-3 md:gap-3.5 min-w-0">
           {icon && (
             <div className={`w-8 h-8 md:w-9 md:h-9 ${shapeClass} flex items-center justify-center shrink-0 glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] relative group`}>
               <span className={`material-symbols-outlined !text-[17px] md:!text-[19px] relative z-10 ${iconColorClass}`}>{icon}</span>
             </div>
           )}
-          <div className="flex flex-col gap-0.5 items-start justify-center text-left min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
+          <div className="flex flex-col gap-1 items-start justify-center text-left min-w-0 max-w-full">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0 max-w-full">
               <h2 
                   onClick={handleJump}
-                  className={`text-sm sm:text-base font-black text-[var(--text)] capitalize tracking-tight leading-snug m-0 truncate min-w-0 ${handleJump ? 'cursor-pointer hover:text-[var(--accent)] transition-colors' : ''}`}
+                  className={`text-sm sm:text-base font-black text-[var(--text)] capitalize tracking-tight leading-snug m-0 whitespace-normal break-words min-w-0 max-w-full ${handleJump ? 'cursor-pointer hover:text-[var(--accent)] transition-colors' : ''}`}
               >
                 {title}
               </h2>
               {breadcrumb && (
-                <div className="flex items-center gap-1.5 shrink-0 min-w-0">
-                  <span className="px-2 py-0.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)] leading-tight truncate">
-                    {breadcrumb}
+                <div className="flex items-center gap-1.5 min-w-0 max-w-full">
+                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 min-h-[22px] max-w-full rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-black uppercase tracking-wider text-[var(--text)]">
+                    <span className="truncate leading-snug">{breadcrumb}</span>
                   </span>
                 </div>
               )}
             </div>
             {subtitle && (
-              <p className="font-medium tracking-wide text-[10px] opacity-80 m-0 text-[var(--subtext)] leading-snug break-words max-w-full">
+              <p className={`font-medium tracking-wide text-[10px] opacity-80 m-0 text-[var(--subtext)] leading-snug break-words max-w-full ${breadcrumb ? "mt-1" : ""}`}>
                 {subtitle}
               </p>
             )}
@@ -220,11 +220,15 @@ export function CommandScreenSectionHeading({
   );
 }
 
-function flattenStatChildren(node: React.ReactNode): React.ReactNode[] {
-    return React.Children.toArray(node).flatMap((child: any) => {
+function flattenStatChildren(node: React.ReactNode, prefix = "stat"): React.ReactNode[] {
+    return React.Children.toArray(node).flatMap((child: any, idx: number) => {
         if (!child) return [];
+        const scopedKey = `${prefix}:${React.isValidElement(child) && child.key != null ? child.key : idx}`;
         if (React.isValidElement(child) && child.type === React.Fragment) {
-            return flattenStatChildren((child.props as any).children);
+            return flattenStatChildren((child.props as any).children, scopedKey);
+        }
+        if (React.isValidElement(child)) {
+            return [React.cloneElement(child, { key: scopedKey })];
         }
         return [child];
     });

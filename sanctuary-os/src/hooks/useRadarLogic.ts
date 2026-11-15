@@ -4,13 +4,14 @@ import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
 import { invoke } from "@tauri-apps/api/core";
 import { supabase, supabaseAuth, getActiveGameClient, submitThreatManifestToSpoke } from "../supabase";
-import { isVersionMatch, getExtensionRegex, parseStringArray, isScriptExtension, formatDisplayName, toHighlanderSlotSlug, formatHighlanderSlotLabel } from "../shared";
+import { isVersionMatch, getExtensionRegex, parseStringArray, isScriptExtension, isConfigOrCompanionExtension, formatDisplayName, toHighlanderSlotSlug, formatHighlanderSlotLabel } from "../shared";
 import { hashString } from "../lib/cryptoUtils";
 import { useState, useEffect, useRef } from "react";
 import { useModalStore } from "../store/modalStore";
 import { notifyOS } from "../utils/notificationHelper";
 import { precomputeBlueprintConflicts } from "./usePlaySetLogic";
 import { syncDesktopCompanionRadarSnapshot } from "../utils/stagingCrypto";
+import { resolveComplianceHashTiers, getCachedComplianceHashTiers, normalizeComplianceHash } from "../utils/complianceHashTiers";
 
 const recentlyShreddedSet = new Set<string>();
 
@@ -56,10 +57,10 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
     }))
   );
   const setScoutQueue = useModalStore((s) => s.setScoutQueue);
-    const [malwareAlert, setMalwareAlert] = useState<any[]>([]);
+  const [malwareAlert, setMalwareAlert] = useState<any[]>([]);
   const { t } = useLexicon();
 
-async function fetchVault() {
+  async function fetchVault() {
     if (!isDesktop()) return;
     const [rawQList, sList] = await Promise.all([
       invoke<string[]>("get_quarantine_list").catch(() => []),
@@ -70,14 +71,14 @@ async function fetchVault() {
     );
     setQuarantineList(qList);
     setShelterContents(sList || []);
-    
+
     if (qList.length > 0) {
       let vaultPath = useStore.getState().vaultPath;
       if (!vaultPath) {
         try {
           const cfg: any = await invoke("get_saved_coordinates");
           vaultPath = cfg?.vault_path || "";
-        } catch {}
+        } catch { }
       }
 
       const enrichedItems = await Promise.all(
@@ -88,7 +89,7 @@ async function fetchVault() {
               hash: "",
               filename: q,
             });
-          } catch {}
+          } catch { }
           if (vaultPath) {
             try {
               const sep = vaultPath.includes("/") ? "/" : "\\";
@@ -109,7 +110,7 @@ async function fetchVault() {
                       hash: parsed.detected_hash,
                       filename: q,
                     });
-                  } catch {}
+                  } catch { }
                 }
                 return {
                   hash: parsed.detected_hash || q,
@@ -136,7 +137,7 @@ async function fetchVault() {
                   compliance_tier: 5,
                 };
               }
-            } catch {}
+            } catch { }
           }
           return {
             hash: q,
@@ -157,11 +158,11 @@ async function fetchVault() {
           );
           return match
             ? {
-                ...item,
-                ...match,
-                volatile_original_path:
-                  match.volatile_original_path || item.volatile_original_path,
-              }
+              ...item,
+              ...match,
+              volatile_original_path:
+                match.volatile_original_path || item.volatile_original_path,
+            }
             : item;
         });
         const newItems = enrichedItems.filter(
@@ -188,11 +189,11 @@ async function fetchVault() {
     }
   }
 
-async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isSilent) {
+  async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isSilent) {
     if (activeGameSchema?.features?.has_cc === false) return;
     if (!isDesktop()) return;
     if (useModalStore.getState().isScanning || useModalStore.getState().isSilentScanning) return;
-    
+
     useModalStore.getState().setIsScanning(!isSilent);
     useModalStore.getState().setIsSilentScanning(isSilent);
 
@@ -204,7 +205,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         return { current: nextPct, total: 100, message };
       });
     };
-    
+
     if (!isSilent) {
       setScanProgress({
         current: 1,
@@ -230,13 +231,13 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           if (malwareData) {
             const malwareHashes = malwareData.map((d: any) => d.dna_hash).filter(Boolean);
             localStorage.setItem("sanctuary_malware_hashes", JSON.stringify(malwareHashes));
-            await invoke("sync_security_definitions", { malware: malwareHashes, tier2: cachedVerified }).catch(() => {});
+            await invoke("sync_security_definitions", { malware: malwareHashes, tier2: cachedVerified }).catch(() => { });
           }
         } else {
           const cachedMalware: string[] = JSON.parse(localStorage.getItem("sanctuary_malware_hashes") || "[]");
-          await invoke("sync_security_definitions", { malware: cachedMalware, tier2: cachedVerified }).catch(() => {});
+          await invoke("sync_security_definitions", { malware: cachedMalware, tier2: cachedVerified }).catch(() => { });
         }
-      } catch {}
+      } catch { }
 
       try {
         await invoke("sanitize_vault", { vaultPath: config.vault_path });
@@ -262,7 +263,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                 .replace("\\{packs\\}", "([\\w,.-]+)");
               try {
                 maskRegex = new RegExp(escaped, "i");
-              } catch {}
+              } catch { }
             }
             const maskMatch = config.launch_args.match(maskRegex);
             if (maskMatch?.[1]) {
@@ -319,22 +320,24 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       const evasionDetected = allLocalMods.some(m => m.status === "☣️ EVASION DETECTED");
       if (evasionDetected) {
         try {
-          const rawHwid = await invoke<string>("get_hardware_id");
+          const { getDesktopHardwareId } = await import("../utils/passkeyUtils");
+          const rawHwid = (await getDesktopHardwareId()) || "";
+          if (!rawHwid) throw new Error("Missing HWID");
           const hwid = await hashString(rawHwid);
-          
+
           await supabase.from('hardware_bans').insert({ hwid_hash: hwid, reason: 'Malware Evasion' });
-          
+
           const { data: sessionData } = await supabase.auth.getSession();
           if (sessionData?.session?.user) {
             await supabaseAuth.from('profiles').update({ is_banned: true, blacklist_reason: "Malware Evasion" }).eq('id', sessionData.session.user.id);
-            
+
             const gameClient = getActiveGameClient();
             if (gameClient) {
-               await supabase.rpc('secure_sync_hub_ban_to_spokes', { p_target_user_id: sessionData.session.user.id });
+              await supabase.rpc('secure_sync_hub_ban_to_spokes', { p_target_user_id: sessionData.session.user.id });
             }
           }
           localStorage.setItem("sanctuary_blacklisted", "true");
-        } catch(err) {
+        } catch (err) {
           console.error("Evasion ban failed", err);
         }
       }
@@ -351,7 +354,15 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         if (m.hash) uniqueMap.set(m.hash, m);
         else uniqueMap.set(m.name, m);
       });
-      const localMods = Array.from(uniqueMap.values());
+      const localMods = Array.from(uniqueMap.values()).filter((m: any) => {
+        if (
+          Number(m?.compliance_tier) === 5 ||
+          String(m?.status || "").toUpperCase() === "QUARANTINED"
+        ) {
+          return true;
+        }
+        return !isConfigOrCompanionExtension(m?.name || "", activeGameSchema);
+      });
       const initialList = localMods.map((m) => ({
         name: m.name,
         hash: m.hash,
@@ -406,22 +417,30 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         ),
       ];
       let allCloudData: any[] = [];
+      let restrictedHashTierMap = getCachedComplianceHashTiers();
+      const restrictedHashesSet = new Set<string>();
+      restrictedHashTierMap.forEach((tier, h) => {
+        if (tier >= 1 && tier <= 4) restrictedHashesSet.add(h);
+      });
       let flavorData: any[] = [],
         flavorGroupNames: Record<string, string> = {},
         flavorGroupSlugs: Record<string, string> = {};
       let communityData: any[] = [],
         communityGroupNames: Record<string, string> = {};
-      
-        const runInBatches = async (items: any[], chunkSize: number, concurrency: number, processor: (chunk: any[]) => Promise<void>) => {
-         const chunks = [];
-         for (let i = 0; i < items.length; i += chunkSize) chunks.push(items.slice(i, i + chunkSize));
-         await Promise.all(chunks.map(chunk => processor(chunk)));
-        };
 
-        if (hashes.length > 0 && !isOfflineMode) {
-          const totalChunks = Math.ceil(hashes.length / 200);
-          let completedChunks = 0;
-          await runInBatches(hashes, 200, 0, async (chunk) => {
+      const runInBatches = async (items: any[], chunkSize: number, concurrency: number, processor: (chunk: any[]) => Promise<void>) => {
+        const chunks = [];
+        for (let i = 0; i < items.length; i += chunkSize) chunks.push(items.slice(i, i + chunkSize));
+        await Promise.all(chunks.map(chunk => processor(chunk)));
+      };
+
+      if (hashes.length > 0 && !isOfflineMode) {
+        const totalChunks = Math.ceil(hashes.length / 200);
+        let completedChunks = 0;
+        const rawCloudRows: any[] = [];
+        const [resolvedTierMap] = await Promise.all([
+          resolveComplianceHashTiers(supabase, hashes, { forceRefresh: true }),
+          runInBatches(hashes, 200, 0, async (chunk) => {
             const [verRes, fRes, cRes] = await Promise.all([
               supabase
                 .from("mod_versions")
@@ -446,15 +465,42 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                 .in("dna_hash", chunk);
               data = fallback.data as any;
             }
-            allCloudData.push(...((data as any[]) || []));
+            if (Array.isArray(data)) rawCloudRows.push(...(data as any[]));
             flavorData.push(...((fRes.data as any[]) || []));
             communityData.push(...((cRes.data as any[]) || []));
             completedChunks++;
             updateProgress(55 + Math.floor((completedChunks / totalChunks) * 20), t("scan_identifying", "IDENTIFYING FILES..."));
-          });
-        }
-        updateProgress(75, t("scan_identifying", "IDENTIFYING FILES..."));
-      
+          }),
+        ]);
+
+        restrictedHashTierMap = resolvedTierMap;
+        resolvedTierMap.forEach((tier, normH) => {
+          if (tier >= 1 && tier <= 4) {
+            restrictedHashesSet.add(normH);
+          }
+        });
+
+        const safeCloudRows = rawCloudRows.filter((row: any) => {
+          const dbM = Array.isArray(row?.mods) ? row.mods[0] : row?.mods;
+          const tVal = Number(dbM?.compliance_tier ?? 0);
+          const rawHash = row?.dna_hash ? String(row.dna_hash).trim() : "";
+          const normHash = normalizeComplianceHash(rawHash);
+          const rpcTier = normHash ? restrictedHashTierMap.get(normHash) : undefined;
+          if ((tVal >= 1 && tVal <= 4) || (typeof rpcTier === "number" && rpcTier >= 1 && rpcTier <= 4)) {
+            const effTier = tVal >= 1 && tVal <= 4 ? tVal : Number(rpcTier);
+            if (rawHash) restrictedHashesSet.add(rawHash);
+            if (normHash) {
+              restrictedHashesSet.add(normHash);
+              restrictedHashTierMap.set(normHash, effTier);
+            }
+            return false;
+          }
+          return true;
+        });
+        allCloudData.push(...safeCloudRows);
+      }
+      updateProgress(75, t("scan_identifying", "IDENTIFYING FILES..."));
+
       const getDbMod = (sig: any) =>
         Array.isArray(sig?.mods) ? sig.mods[0] : sig?.mods;
       const isCloudMetadataRestricted = (dbM: any) => {
@@ -468,12 +514,14 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const verifiedCloudHashes = allCloudData
           .filter((c) => {
             const dbMod = getDbMod(c);
-            return c?.dna_hash && dbMod && !isCloudMetadataRestricted(dbMod) && Number(dbMod.compliance_tier ?? 0) !== 5;
+            const h = c?.dna_hash ? String(c.dna_hash).trim() : "";
+            return Boolean(h) && !restrictedHashesSet.has(h) && dbMod && !isCloudMetadataRestricted(dbMod) && Number(dbMod.compliance_tier ?? 0) !== 5;
           })
-          .map((c) => c.dna_hash);
-        if (verifiedCloudHashes.length > 0) {
+          .map((c) => String(c.dna_hash).trim());
+        if (verifiedCloudHashes.length > 0 || restrictedHashesSet.size > 0) {
           const prevVerified: string[] = JSON.parse(localStorage.getItem("sanctuary_verified_hashes") || "[]");
-          const mergedVerified = Array.from(new Set([...prevVerified, ...verifiedCloudHashes]));
+          const scrubbedPrev = prevVerified.filter((h: string) => !restrictedHashesSet.has(String(h || "").trim()));
+          const mergedVerified = Array.from(new Set([...scrubbedPrev, ...verifiedCloudHashes]));
           localStorage.setItem("sanctuary_verified_hashes", JSON.stringify(mergedVerified));
           const cachedMalware: string[] = JSON.parse(localStorage.getItem("sanctuary_malware_hashes") || "[]");
           await invoke("sync_security_definitions", { malware: cachedMalware, tier2: mergedVerified });
@@ -601,7 +649,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             supabase.from("mod_dependencies").select("*").in("child_id", chunk),
             supabase.from("mod_dependencies").select("*").in("parent_id", chunk)
           ]);
-          
+
           allRels.push(...((rC.data as any[]) || []), ...((rP.data as any[]) || []));
           allDeps.push(...((dC.data as any[]) || []), ...((dP.data as any[]) || []));
 
@@ -620,9 +668,9 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           const extraHighlanderIds = new Set<string>();
           await runInBatches(pIds, 200, 0, async (chunk) => {
             let { data, error } = await supabase
-                .from("mods")
-                .select("id, name, status, status_reason, master_author, mason_id, highlander_group_id, masons(name), image_url, url, description, category_override, compatible_versions, created_at")
-                .in("id", chunk);
+              .from("mods")
+              .select("id, name, status, status_reason, master_author, mason_id, highlander_group_id, masons(name), image_url, url, description, category_override, compatible_versions, created_at")
+              .in("id", chunk);
             if (error) {
               const fb = await supabase
                 .from("mods")
@@ -630,7 +678,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
                 .in("id", chunk);
               data = fb.data as any;
             }
-            
+
             ((data as any[]) || []).forEach((pm: any) => {
               const pmMasonName = Array.isArray(pm.masons) ? pm.masons[0]?.name : pm.masons?.name;
               if (pm.highlander_group_id && !flavorGroupNames[String(pm.highlander_group_id)]) {
@@ -676,36 +724,36 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       const communityMap = new Map();
       flavorData.forEach(f => flavorMap.set(String(f.mod_hash), f));
       communityData.forEach(f => communityMap.set(String(f.mod_hash), f));
-      
+
       const dbVersionMap = new Map<string, string[]>();
       allCloudData.forEach(c => {
-          const dbM = getDbMod(c);
-          if (isCloudMetadataRestricted(dbM)) return;
-          const dbId = dbM?.id ? String(dbM.id) : null;
-          const v = c.game_version || dbM?.compatible_versions;
-          if (dbId && v) {
-              const vArr = typeof v === 'string' ? v.split(',').map((s: string) => s.trim()) : v;
-              const existing = dbVersionMap.get(dbId) || [];
-              dbVersionMap.set(dbId, Array.from(new Set([...existing, ...vArr])));
-          }
+        const dbM = getDbMod(c);
+        if (isCloudMetadataRestricted(dbM)) return;
+        const dbId = dbM?.id ? String(dbM.id) : null;
+        const v = c.game_version || dbM?.compatible_versions;
+        if (dbId && v) {
+          const vArr = typeof v === 'string' ? v.split(',').map((s: string) => s.trim()) : v;
+          const existing = dbVersionMap.get(dbId) || [];
+          dbVersionMap.set(dbId, Array.from(new Set([...existing, ...vArr])));
+        }
       });
-      
+
       const parentRelMap = new Map();
       const childRelMap = new Map();
       allRels.forEach(r => {
-         const cid = String(r.child_id);
-         const pid = String(r.parent_id);
-         if (!parentRelMap.has(cid)) parentRelMap.set(cid, []);
-         parentRelMap.get(cid).push(r);
-         if (!childRelMap.has(pid)) childRelMap.set(pid, []);
-         childRelMap.get(pid).push(r);
+        const cid = String(r.child_id);
+        const pid = String(r.parent_id);
+        if (!parentRelMap.has(cid)) parentRelMap.set(cid, []);
+        parentRelMap.get(cid).push(r);
+        if (!childRelMap.has(pid)) childRelMap.set(pid, []);
+        childRelMap.get(pid).push(r);
       });
-      
+
       const depsMap = new Map();
       allDeps.forEach(d => {
-         const cid = String(d.child_id);
-         if (!depsMap.has(cid)) depsMap.set(cid, []);
-         depsMap.get(cid).push(d);
+        const cid = String(d.child_id);
+        if (!depsMap.has(cid)) depsMap.set(cid, []);
+        depsMap.get(cid).push(d);
       });
 
       // Hydrate static Edge Network manifests from local SQLite + localStorage
@@ -737,14 +785,14 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             if (row.last_fetched_metadata) {
               try {
                 parsedMeta = JSON.parse(row.last_fetched_metadata);
-              } catch (e) {}
+              } catch (e) { }
             } else if (!isOfflineMode && !quickScan && row.artifact_id) {
               try {
                 parsedMeta = await invoke<any>("fetch_and_sync_edge_manifest", {
                   vaultPath: config.vault_path,
                   artifactId: row.artifact_id,
                 });
-              } catch (e) {}
+              } catch (e) { }
             }
 
             const familyHashes = Array.from(
@@ -990,7 +1038,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
 
       const dirMap = new Map();
       const bossVersionMap = new Map();
-      
+
       localMods.forEach(m => {
         const rawCm = cloudMap.get(String(m.hash));
         const rawDbM = getDbMod(rawCm);
@@ -999,11 +1047,11 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const dbM = isRestricted ? null : rawDbM;
         const f = isRestricted ? undefined : flavorMap.get(String(m.hash));
         const cg = isRestricted ? undefined : communityMap.get(String(m.hash));
-        
+
         const dbId = dbM?.id ? String(dbM.id) : null;
         const myParentRels = dbId ? (parentRelMap.get(dbId) || []) : [];
         const myChildRels = dbId ? (childRelMap.get(dbId) || []) : [];
-        
+
         const isFamilyRel = (rt: any) =>
           rt === "twin" ||
           rt === "addon" ||
@@ -1012,7 +1060,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           rt === "set_item" ||
           rt === "module";
         const directParentRel = myParentRels.find((r: any) => isFamilyRel(r.relationship_type));
-        
+
         let bId = dbId || (f ? String(f.group_id) : cg ? String(cg.group_id) : null);
         if (directParentRel && directParentRel.parent_id) {
           bId = String(directParentRel.parent_id);
@@ -1022,7 +1070,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         if (bId) visitedBoss1.add(bId);
         let isTracingBoss1 = true;
         let safetyTraceCount1 = 0;
-        
+
         while (isTracingBoss1 && bId && safetyTraceCount1 < 6) {
           const nextLevelRels = parentRelMap.get(bId) || [];
           const nextParentRel = nextLevelRels.find((r: any) => isFamilyRel(r.relationship_type));
@@ -1043,45 +1091,45 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         }
 
         if (bId && cm && cm.version_label && !cm.version_label.includes(',')) {
-           const existing = bossVersionMap.get(bId);
-           if (!existing || cm.version_label.localeCompare(existing, undefined, { numeric: true, sensitivity: 'base' }) > 0) {
-               bossVersionMap.set(bId, cm.version_label);
-           }
+          const existing = bossVersionMap.get(bId);
+          if (!existing || cm.version_label.localeCompare(existing, undefined, { numeric: true, sensitivity: 'base' }) > 0) {
+            bossVersionMap.set(bId, cm.version_label);
+          }
         }
 
         const dir = m.name.substring(0, Math.max(m.name.lastIndexOf("\\"), m.name.lastIndexOf("/")));
         if (dir && dir.length > 0) {
-            const existing = dirMap.get(dir);
-            const isTwinGroup = myParentRels.some((r: any) => r.relationship_type === "twin") || myChildRels.some((r: any) => r.relationship_type === "twin");
-            
-            const effectiveBossId = bId || `local_dir_${dir}`;
-            
-            if (!existing || effectiveBossId === dbId || bId === dbId) {
-                let shouldSet = true;
-                let nextBossId: string | null = effectiveBossId;
-                if (existing && existing.bossId === effectiveBossId) {
-                    if (!existing.isTwinGroup && isTwinGroup) {
-                        existing.isTwinGroup = true; 
-                    }
-                    if (existing.cloudMatch?.version_label && !cm?.version_label) {
-                        shouldSet = false;
-                    } 
-                    else if (existing.cloudMatch?.version_label && cm?.version_label && cm.version_label.localeCompare(existing.cloudMatch.version_label, undefined, { numeric: true, sensitivity: 'base' }) >= 0) {
-                        shouldSet = false; 
-                    }
-                } else if (existing && existing.bossId !== effectiveBossId) {
-                    if (existing.bossId?.startsWith('local_dir_') && !effectiveBossId.startsWith('local_dir_')) {
-                        nextBossId = effectiveBossId;
-                    } else if (!existing.bossId?.startsWith('local_dir_')) {
-                        nextBossId = existing.bossId;
-                    }
-                } else if (existing && existing.isTwinGroup && !isTwinGroup) {
-                    shouldSet = false; 
-                }
-                if (shouldSet) {
-                    dirMap.set(dir, { bossId: nextBossId, cloudMatch: cm || existing?.cloudMatch, dbMod: dbM || existing?.dbMod, isTwinGroup: existing?.isTwinGroup || isTwinGroup });
-                }
+          const existing = dirMap.get(dir);
+          const isTwinGroup = myParentRels.some((r: any) => r.relationship_type === "twin") || myChildRels.some((r: any) => r.relationship_type === "twin");
+
+          const effectiveBossId = bId || `local_dir_${dir}`;
+
+          if (!existing || effectiveBossId === dbId || bId === dbId) {
+            let shouldSet = true;
+            let nextBossId: string | null = effectiveBossId;
+            if (existing && existing.bossId === effectiveBossId) {
+              if (!existing.isTwinGroup && isTwinGroup) {
+                existing.isTwinGroup = true;
+              }
+              if (existing.cloudMatch?.version_label && !cm?.version_label) {
+                shouldSet = false;
+              }
+              else if (existing.cloudMatch?.version_label && cm?.version_label && cm.version_label.localeCompare(existing.cloudMatch.version_label, undefined, { numeric: true, sensitivity: 'base' }) >= 0) {
+                shouldSet = false;
+              }
+            } else if (existing && existing.bossId !== effectiveBossId) {
+              if (existing.bossId?.startsWith('local_dir_') && !effectiveBossId.startsWith('local_dir_')) {
+                nextBossId = effectiveBossId;
+              } else if (!existing.bossId?.startsWith('local_dir_')) {
+                nextBossId = existing.bossId;
+              }
+            } else if (existing && existing.isTwinGroup && !isTwinGroup) {
+              shouldSet = false;
             }
+            if (shouldSet) {
+              dirMap.set(dir, { bossId: nextBossId, cloudMatch: cm || existing?.cloudMatch, dbMod: dbM || existing?.dbMod, isTwinGroup: existing?.isTwinGroup || isTwinGroup });
+            }
+          }
         }
       });
 
@@ -1117,7 +1165,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             });
           }
         });
-      } catch (e) {}
+      } catch (e) { }
 
       const localByHash = new Map<string, any>();
       const localByNormName = new Map<string, any>();
@@ -1138,96 +1186,112 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       await yieldToMain();
 
       const physicalMods = localMods.map((mod) => {
-        const rawCloudMatch = cloudMap.get(String(mod.hash));
-        const rawDbMod = getDbMod(rawCloudMatch);
-        const detectedComplianceTier = Number(rawDbMod?.compliance_tier ?? mod.compliance_tier ?? 0);
-        const isRestrictedCloud = isCloudMetadataRestricted(rawDbMod);
+        const rawModHash = String(mod.hash || "").trim();
+        const normHash = normalizeComplianceHash(mod.hash);
+        const rpcRestrictedTier = normHash ? restrictedHashTierMap.get(normHash) : undefined;
+        const isHashRestricted = Boolean(
+          (typeof rpcRestrictedTier === "number" && rpcRestrictedTier >= 1 && rpcRestrictedTier <= 4) ||
+          (rawModHash && restrictedHashesSet.has(rawModHash)) ||
+          (normHash && restrictedHashesSet.has(normHash))
+        );
+        const rawCloudMatch = isHashRestricted ? null : cloudMap.get(String(mod.hash));
+        const rawDbMod = isHashRestricted ? null : getDbMod(rawCloudMatch);
+        const rawExplicitTier = Number(rawDbMod?.compliance_tier ?? mod.compliance_tier ?? 0);
+        const detectedComplianceTier =
+          typeof rpcRestrictedTier === "number" && rpcRestrictedTier >= 1 && rpcRestrictedTier <= 5
+            ? rpcRestrictedTier
+            : rawDbMod
+              ? Number(rawDbMod.compliance_tier ?? 0)
+              : Number.isFinite(rawExplicitTier) && rawExplicitTier >= 0
+                ? rawExplicitTier
+                : 0;
+        const isRestrictedCloud = isHashRestricted || isCloudMetadataRestricted(rawDbMod);
         const cloudMatch = isRestrictedCloud ? null : rawCloudMatch;
         const dbMod = isRestrictedCloud ? null : rawDbMod;
         const dbId = dbMod?.id ? String(dbMod.id) : null;
         const modEdgeLogic = mod.hash ? edgeLogic[String(mod.hash)] : null;
         const modLocalOvr = mod.hash ? earlyLocalOvr[String(mod.hash)] : null;
-        
+
         const mySetRel = dbId ? setRelMap.get(dbId) : undefined;
         const myFlavor = isRestrictedCloud ? undefined : flavorMap.get(String(mod.hash));
         const myCommunityGroup = isRestrictedCloud ? undefined : communityMap.get(String(mod.hash));
-        
+
         const myParentRels = dbId ? (parentRelMap.get(dbId) || []) : [];
         const myChildRels = dbId ? (childRelMap.get(dbId) || []) : [];
-        
+
         const twinRel = myParentRels.find((r: any) => r.relationship_type === "twin");
         const betaRel = myParentRels.find((r: any) => r.relationship_type === "beta");
         const addonRel = myParentRels.find((r: any) => r.relationship_type === "addon");
         const flavorRel = myParentRels.find((r: any) => r.relationship_type === "flavor");
         const moduleRel = myParentRels.find((r: any) => r.relationship_type === "module");
         const setItemRel = myParentRels.find((r: any) => r.relationship_type === "set_item");
-        
+
         const childTwinRel = myChildRels.find((r: any) => r.relationship_type === "twin");
         const childBetaRel = myChildRels.find((r: any) => r.relationship_type === "beta");
-        
+
         const invisibleRivalIds = myChildRels
           .filter((r: any) => r.relationship_type === "rival")
           .map((r: any) => String(r.child_id));
-          
+
         const myDeps = dbId ? (depsMap.get(dbId) || []).map((d: any) => ({
-            id: String(d.parent_id),
-            name: parentNameMap[String(d.parent_id)]?.name || String(d.parent_id),
-            url: parentNameMap[String(d.parent_id)]?.url || null
+          id: String(d.parent_id),
+          name: parentNameMap[String(d.parent_id)]?.name || String(d.parent_id),
+          url: parentNameMap[String(d.parent_id)]?.url || null
         })) : [];
 
         // Merge Edge Network dependencies & addons
         const edgeDeps = [
           ...(Array.isArray(modEdgeLogic?.dependencies)
             ? modEdgeLogic.dependencies.map((d: any) => {
-                const depRef =
-                  typeof d === "string"
-                    ? d.trim()
-                    : String(d?.hash || d?.id || d?.name || "").trim();
-                const matchedLocal = depRef
-                  ? localByHash.get(depRef) || localByNormName.get(normModKey(depRef))
-                  : null;
-                return {
-                  id: String(matchedLocal?.hash || depRef),
-                  hash: String(matchedLocal?.hash || depRef),
-                  name:
-                    matchedLocal?.name?.split(/[\\/]/).pop() ||
-                    (typeof d === "object" && (d?.name || d?.id)) ||
-                    String(depRef),
-                  min_version: typeof d === "object" ? d.min_version : undefined,
-                  url:
-                    (typeof d === "object" && (d?.url || d?.download_url)) ||
-                    matchedLocal?.url ||
-                    null,
-                };
-              })
+              const depRef =
+                typeof d === "string"
+                  ? d.trim()
+                  : String(d?.hash || d?.id || d?.name || "").trim();
+              const matchedLocal = depRef
+                ? localByHash.get(depRef) || localByNormName.get(normModKey(depRef))
+                : null;
+              return {
+                id: String(matchedLocal?.hash || depRef),
+                hash: String(matchedLocal?.hash || depRef),
+                name:
+                  matchedLocal?.name?.split(/[\\/]/).pop() ||
+                  (typeof d === "object" && (d?.name || d?.id)) ||
+                  String(depRef),
+                min_version: typeof d === "object" ? d.min_version : undefined,
+                url:
+                  (typeof d === "object" && (d?.url || d?.download_url)) ||
+                  matchedLocal?.url ||
+                  null,
+              };
+            })
             : []),
           ...(Array.isArray(modEdgeLogic?.addons)
             ? modEdgeLogic.addons.map((addonHash: string) => {
-                const matchedLocal =
-                  localByHash.get(String(addonHash)) ||
-                  localByNormName.get(normModKey(String(addonHash)));
-                return {
-                  id: String(matchedLocal?.hash || addonHash),
-                  hash: String(matchedLocal?.hash || addonHash),
-                  name: matchedLocal?.name?.split(/[\\/]/).pop() || String(addonHash),
-                  url: matchedLocal?.url || null,
-                };
-              })
+              const matchedLocal =
+                localByHash.get(String(addonHash)) ||
+                localByNormName.get(normModKey(String(addonHash)));
+              return {
+                id: String(matchedLocal?.hash || addonHash),
+                hash: String(matchedLocal?.hash || addonHash),
+                name: matchedLocal?.name?.split(/[\\/]/).pop() || String(addonHash),
+                url: matchedLocal?.url || null,
+              };
+            })
             : []),
         ];
 
         const edgeTwins = Array.isArray(modEdgeLogic?.twins)
           ? modEdgeLogic.twins.map((twinHash: string) => {
-              const matchedLocal =
-                localByHash.get(String(twinHash)) ||
-                localByNormName.get(normModKey(String(twinHash)));
-              return {
-                id: String(matchedLocal?.hash || twinHash),
-                hash: String(matchedLocal?.hash || twinHash),
-                name: matchedLocal?.name?.split(/[\\/]/).pop() || String(twinHash),
-                url: null,
-              };
-            })
+            const matchedLocal =
+              localByHash.get(String(twinHash)) ||
+              localByNormName.get(normModKey(String(twinHash)));
+            return {
+              id: String(matchedLocal?.hash || twinHash),
+              hash: String(matchedLocal?.hash || twinHash),
+              name: matchedLocal?.name?.split(/[\\/]/).pop() || String(twinHash),
+              url: null,
+            };
+          })
           : [];
 
         // Local Dossier takes top priority for requiredDLC
@@ -1236,7 +1300,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             ? modLocalOvr.requiredDLC
             : (dbMod?.requiredDLC || modEdgeLogic?.required_dlc || [])
         );
-        if (!modLocalOvr?.is_user_dossier && Array.isArray(modEdgeLogic?.required_dlc) && modEdgeLogic.required_dlc.length > 0) {
+        if (modLocalOvr?.requiredDLC === undefined && !modLocalOvr?.is_user_dossier && Array.isArray(modEdgeLogic?.required_dlc) && modEdgeLogic.required_dlc.length > 0) {
           rawDLC = Array.from(new Set([...rawDLC, ...parseStringArray(modEdgeLogic.required_dlc)]));
         }
         rawDLC = rawDLC.filter((dlc: string) => {
@@ -1288,12 +1352,18 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           if (!parentNameMap[myBossId]) {
             parentNameMap[myBossId] = {
               name:
-                modEdgeLogic.name ||
                 modLocalOvr?.parentName ||
                 modLocalOvr?.displayName ||
+                modEdgeLogic.name ||
                 modEdgeLogic.artifact_id,
-              author: modEdgeLogic.author || modLocalOvr?.author || "Unknown",
-              url: modEdgeLogic.download_url || modEdgeLogic.manifest_url || null,
+              author:
+                modLocalOvr?.author !== undefined
+                  ? modLocalOvr.author
+                  : (modEdgeLogic.author || "Unknown"),
+              url:
+                modLocalOvr?.url !== undefined
+                  ? (modLocalOvr.url || null)
+                  : (modEdgeLogic.download_url || modEdgeLogic.manifest_url || null),
             };
           }
         }
@@ -1309,7 +1379,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         if (myBossId) visitedBoss2.add(myBossId);
         let isTracingBoss2 = true;
         let safetyTraceCount2 = 0;
-        
+
         while (isTracingBoss2 && myBossId && safetyTraceCount2 < 6) {
           const nextLevelRels = parentRelMap.get(myBossId) || [];
           const nextParentRel = nextLevelRels.find((r: any) => isFamilyRel2(r.relationship_type));
@@ -1328,83 +1398,87 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             isTracingBoss2 = false;
           }
         }
-        
+
         const originalDir = mod.name.substring(0, Math.max(mod.name.lastIndexOf("\\"), mod.name.lastIndexOf("/")));
         let dirData = null;
         let currentDir = originalDir;
 
         while (currentDir && currentDir.length > 0) {
-             const data = dirMap.get(currentDir);
-             if (data) {
-                 dirData = data;
-                 break;
-             }
-             const lastSlash = Math.max(currentDir.lastIndexOf("\\"), currentDir.lastIndexOf("/"));
-             if (lastSlash > 0) {
-                 currentDir = currentDir.substring(0, lastSlash);
-             } else {
-                 break;
-             }
+          const data = dirMap.get(currentDir);
+          if (data) {
+            dirData = data;
+            break;
+          }
+          const lastSlash = Math.max(currentDir.lastIndexOf("\\"), currentDir.lastIndexOf("/"));
+          if (lastSlash > 0) {
+            currentDir = currentDir.substring(0, lastSlash);
+          } else {
+            break;
+          }
         }
-        
-        const hasOwnTwins = myParentRels.some((r: any) => r.relationship_type === "twin") || 
-                            myChildRels.some((r: any) => r.relationship_type === "twin") ||
-                            edgeTwins.length > 0;
-                            
+
+        const hasOwnTwins = myParentRels.some((r: any) => r.relationship_type === "twin") ||
+          myChildRels.some((r: any) => r.relationship_type === "twin") ||
+          edgeTwins.length > 0;
+
         if (!myBossId && !hasOwnTwins && dirData && dirData.bossId && !isRestrictedCloud) {
-            myBossId = dirData.bossId;
+          myBossId = dirData.bossId;
         }
-        
+
         let effectiveCloudMatch = cloudMatch;
         let effectiveDbMod = dbMod;
-        
+
         if (!dbId && !isRestrictedCloud && dirData && myBossId === dirData.bossId && !isCloudMetadataRestricted(dirData.dbMod)) {
-            effectiveCloudMatch = dirData.cloudMatch;
-            effectiveDbMod = dirData.dbMod || dbMod;
+          effectiveCloudMatch = dirData.cloudMatch;
+          effectiveDbMod = dirData.dbMod || dbMod;
         }
 
         let unifiedVersion = null;
 
         if (!unifiedVersion && myBossId && !isRestrictedCloud) {
-            const isDirBossValid = dirData && (dirData.bossId === myBossId || myParentRels.some((r: any) => String(r.parent_id) === String(dirData.bossId)));
-            if (isDirBossValid && dirData.cloudMatch?.version_label) {
-                unifiedVersion = dirData.cloudMatch.version_label;
-            } else if (!effectiveCloudMatch?.version_label) {
-                unifiedVersion = bossVersionMap.get(myBossId);
-            }
+          const isDirBossValid = dirData && (dirData.bossId === myBossId || myParentRels.some((r: any) => String(r.parent_id) === String(dirData.bossId)));
+          if (isDirBossValid && dirData.cloudMatch?.version_label) {
+            unifiedVersion = dirData.cloudMatch.version_label;
+          } else if (!effectiveCloudMatch?.version_label) {
+            unifiedVersion = bossVersionMap.get(myBossId);
+          }
         }
 
         // Local Dossier takes priority if overwritten
-        let finalVersion = modLocalOvr?.version || unifiedVersion || effectiveCloudMatch?.version_label || modEdgeLogic?.version || "v.Local";
+        let finalVersion =
+          modLocalOvr?.version !== undefined
+            ? modLocalOvr.version
+            : (unifiedVersion || effectiveCloudMatch?.version_label || modEdgeLogic?.version || "v.Local");
 
-        const compVerRaw = (modLocalOvr?.compatible_versions && modLocalOvr.compatible_versions.length > 0)
-          ? modLocalOvr.compatible_versions
-          : (effectiveCloudMatch?.game_version || effectiveDbMod?.compatible_versions || (modEdgeLogic?.game_version ? [modEdgeLogic.game_version] : []));
+        const compVerRaw =
+          modLocalOvr?.compatible_versions !== undefined
+            ? modLocalOvr.compatible_versions
+            : (effectiveCloudMatch?.game_version || effectiveDbMod?.compatible_versions || (modEdgeLogic?.game_version ? [modEdgeLogic.game_version] : []));
         const compVerArray = Array.isArray(compVerRaw) ? compVerRaw : (typeof compVerRaw === 'string' ? compVerRaw.split(',').map((s: string) => s.trim()) : []);
         if (myBossId && myBossId !== dbId && myBossId !== `local_${mod.hash}`) {
-            const myVersionsRaw = effectiveCloudMatch?.game_version || effectiveDbMod?.compatible_versions;
-            if (myVersionsRaw) {
-                const myVArr = typeof myVersionsRaw === 'string' ? myVersionsRaw.split(',').map((s:string) => s.trim()) : myVersionsRaw;
-                const bossVArr = dbVersionMap.get(myBossId);
-                if (bossVArr && myVArr.length > 0 && bossVArr.length > 0) {
-                    let hasOverlap = false;
-                    if (myVArr.some((v:string) => ['vlocal', 'any', 'all', ''].includes(v.toLowerCase())) || 
-                        bossVArr.some((v:string) => ['vlocal', 'any', 'all', ''].includes(v.toLowerCase()))) {
-                        hasOverlap = true;
-                    } else {
-                        hasOverlap = myVArr.some((mv: string) => isVersionMatch(bossVArr, mv)) || bossVArr.some((bv: string) => isVersionMatch(myVArr, bv));
-                    }
-                    if (!hasOverlap) {
-                        myBossId = dbId;
-                        myRelType = null;
-                    }
-                }
+          const myVersionsRaw = effectiveCloudMatch?.game_version || effectiveDbMod?.compatible_versions;
+          if (myVersionsRaw) {
+            const myVArr = typeof myVersionsRaw === 'string' ? myVersionsRaw.split(',').map((s: string) => s.trim()) : myVersionsRaw;
+            const bossVArr = dbVersionMap.get(myBossId);
+            if (bossVArr && myVArr.length > 0 && bossVArr.length > 0) {
+              let hasOverlap = false;
+              if (myVArr.some((v: string) => ['vlocal', 'any', 'all', ''].includes(v.toLowerCase())) ||
+                bossVArr.some((v: string) => ['vlocal', 'any', 'all', ''].includes(v.toLowerCase()))) {
+                hasOverlap = true;
+              } else {
+                hasOverlap = myVArr.some((mv: string) => isVersionMatch(bossVArr, mv)) || bossVArr.some((bv: string) => isVersionMatch(myVArr, bv));
+              }
+              if (!hasOverlap) {
+                myBossId = dbId;
+                myRelType = null;
+              }
             }
+          }
         }
 
         let isVersionMismatch = false;
         if (selectedVersion && compVerArray.length > 0) {
-            isVersionMismatch = !isVersionMatch(compVerArray, selectedVersion);
+          isVersionMismatch = !isVersionMatch(compVerArray, selectedVersion);
         }
 
         const mergedRequirements = [
@@ -1435,17 +1509,19 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           ? modLocalOvr.image_url
           : (modLocalOvr?.imageUrl !== undefined ? modLocalOvr.imageUrl : effectiveDbMod?.image_url);
 
-        const candidateStaticManifestUrl = [
-          modLocalOvr?.manifest_url,
-          modEdgeLogic?.manifest_url,
-          mod.manifest_url,
-          typeof rawDbMod?.url === "string" && /\.json(\?.*)?$/i.test(rawDbMod.url.trim())
-            ? rawDbMod.url.trim()
-            : undefined,
-          typeof rawCloudMatch?.download_url === "string" && /\.json(\?.*)?$/i.test(rawCloudMatch.download_url.trim())
-            ? rawCloudMatch.download_url.trim()
-            : undefined,
-        ].find((u) => typeof u === "string" && u.trim().length > 0);
+        const candidateStaticManifestUrl =
+          modLocalOvr?.manifest_url !== undefined
+            ? (String(modLocalOvr.manifest_url || "").trim() || undefined)
+            : [
+              modEdgeLogic?.manifest_url,
+              mod.manifest_url,
+              typeof rawDbMod?.url === "string" && /\.json(\?.*)?$/i.test(rawDbMod.url.trim())
+                ? rawDbMod.url.trim()
+                : undefined,
+              typeof rawCloudMatch?.download_url === "string" && /\.json(\?.*)?$/i.test(rawCloudMatch.download_url.trim())
+                ? rawCloudMatch.download_url.trim()
+                : undefined,
+            ].find((u) => typeof u === "string" && u.trim().length > 0);
 
         const edgeStatusNorm = String(modEdgeLogic?.status || "").toLowerCase().trim();
         const lowerModHash = String(mod.hash || "").toLowerCase().trim();
@@ -1458,10 +1534,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const edgeLatestSha = String(modEdgeLogic?.sha256 || "").toLowerCase().trim();
         const isEdgeOutdated = Boolean(
           modEdgeLogic &&
-            lowerModHash &&
-            !edgeCurrentHashes.includes(lowerModHash) &&
-            (edgePrevHashes.includes(lowerModHash) ||
-              (edgeLatestSha && edgeLatestSha !== lowerModHash))
+          lowerModHash &&
+          !edgeCurrentHashes.includes(lowerModHash) &&
+          (edgePrevHashes.includes(lowerModHash) ||
+            (edgeLatestSha && edgeLatestSha !== lowerModHash))
         );
 
         const resolvedHighlanderSlot = (() => {
@@ -1515,6 +1591,8 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           return null;
         })();
 
+        const localStatusNorm = String(modLocalOvr?.status || "").toLowerCase().trim();
+
         return {
           ...mod,
           ...(modLocalOvr || {}),
@@ -1540,8 +1618,11 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           sub_type: modLocalOvr?.sub_type || effectiveDbMod?.sub_type,
           image_url: resolvedImageUrl,
           imageUrl: resolvedImageUrl,
-          description: modLocalOvr?.description !== undefined ? modLocalOvr.description : (effectiveDbMod?.description || mod.description),
-          folder_structure: effectiveDbMod?.folder_structure,
+          description: modLocalOvr?.description !== undefined ? modLocalOvr.description : (effectiveDbMod?.description || (!isHashRestricted ? mod.description : undefined)),
+          folder_structure:
+            modLocalOvr?.folder_structure !== undefined
+              ? modLocalOvr.folder_structure
+              : effectiveDbMod?.folder_structure,
           file_extension:
             modLocalOvr?.file_extension ||
             effectiveDbMod?.file_extension ||
@@ -1551,16 +1632,20 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               const extMatch = (mod.name || "").match(/\.([a-z0-9]{2,12})$/i);
               return extMatch ? extMatch[1].toLowerCase() : undefined;
             })(),
-          url: modLocalOvr?.url || effectiveCloudMatch?.download_url || effectiveDbMod?.url || modEdgeLogic?.download_url || mod.url || null,
+          url:
+            modLocalOvr?.url !== undefined
+              ? (modLocalOvr.url || null)
+              : (effectiveCloudMatch?.download_url || effectiveDbMod?.url || modEdgeLogic?.download_url || (!isHashRestricted ? mod.url : null) || null),
           manifest_url: candidateStaticManifestUrl,
           author:
-            modLocalOvr?.author ||
-            modEdgeLogic?.author ||
-            (Array.isArray(effectiveDbMod?.masons)
-              ? effectiveDbMod.masons[0]?.name
-              : effectiveDbMod?.masons?.name) ||
-            effectiveDbMod?.master_author ||
-            mod.author,
+            modLocalOvr?.author !== undefined
+              ? modLocalOvr.author
+              : (modEdgeLogic?.author ||
+                (Array.isArray(effectiveDbMod?.masons)
+                  ? effectiveDbMod.masons[0]?.name
+                  : effectiveDbMod?.masons?.name) ||
+                effectiveDbMod?.master_author ||
+                (!isHashRestricted ? mod.author : undefined)),
           version: finalVersion,
           compatible_versions: compVerArray,
           familyId: myBossId || dbId ? `${myBossId || dbId}` : `local_${mod.hash}`,
@@ -1568,9 +1653,18 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           relationshipType: myRelType,
           invisibleRivals:
             invisibleRivalIds.length > 0 ? invisibleRivalIds : undefined,
-          requirements: mergedRequirements.length > 0 ? mergedRequirements : undefined,
-          dependencies: mergedRequirements.length > 0 ? mergedRequirements : undefined,
-          twins: mergedTwins.length > 0 ? mergedTwins : undefined,
+          requirements:
+            modLocalOvr && Array.isArray(modLocalOvr.requirements)
+              ? modLocalOvr.requirements
+              : (mergedRequirements.length > 0 ? mergedRequirements : undefined),
+          dependencies:
+            modLocalOvr && Array.isArray(modLocalOvr.requirements)
+              ? modLocalOvr.requirements
+              : (mergedRequirements.length > 0 ? mergedRequirements : undefined),
+          twins:
+            modLocalOvr && Array.isArray(modLocalOvr.twins)
+              ? modLocalOvr.twins
+              : (mergedTwins.length > 0 ? mergedTwins : undefined),
           interchangeableIds: [
             ...myParentRels.filter((r: any) => r.relationship_type === "beta" || r.relationship_type === "twin").map((r: any) => String(r.parent_id)),
             ...myChildRels.filter((r: any) => r.relationship_type === "beta" || r.relationship_type === "twin").map((r: any) => String(r.child_id)),
@@ -1585,64 +1679,68 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           is_paid: modLocalOvr?.is_paid !== undefined ? modLocalOvr.is_paid : (effectiveDbMod?.is_paid || false),
           is_early_access: modLocalOvr?.is_early_access !== undefined ? modLocalOvr.is_early_access : (effectiveDbMod?.is_early_access || false),
           compliance_tier: detectedComplianceTier,
-          mason_id: dbMod?.mason_id || null,
+          mason_id: isHashRestricted ? null : (dbMod?.mason_id || null),
           ...(isEdgeOutdated
             ? {
-                hasUpdate: true,
-                newVersion: modEdgeLogic?.version || "Update",
-                newGameVersion: modEdgeLogic?.game_version,
-                download_url: modEdgeLogic?.download_url || candidateStaticManifestUrl,
-              }
+              hasUpdate: true,
+              newVersion: modEdgeLogic?.version || "Update",
+              newGameVersion: modEdgeLogic?.game_version,
+              download_url: modEdgeLogic?.download_url || candidateStaticManifestUrl,
+            }
             : {}),
           status:
-            modLocalOvr?.status === "corrupted" || modLocalOvr?.status === "broken"
+            localStatusNorm === "corrupted" || localStatusNorm === "broken"
               ? "corrupted"
-              : modLocalOvr?.status === "unstable"
+              : localStatusNorm === "unstable"
                 ? "unstable"
-                : edgeStatusNorm === "broken" || edgeStatusNorm === "corrupted"
-                  ? "broken"
-                  : edgeStatusNorm === "obsolete"
-                    ? "obsolete"
-                    : edgeStatusNorm === "unstable"
-                      ? "unstable"
-                      : dbMod
-                        ? dbMod.status === "stable" || dbMod.status === "verified"
-                          ? t("status_stable", "STABLE")
-                          : dbMod.status === "unverified"
-                            ? (modEdgeLogic || candidateStaticManifestUrl)
-                              ? t("status_stable", "STABLE")
-                              : t("unverified", "Unverified")
-                            : dbMod.status
-                        : (modEdgeLogic || candidateStaticManifestUrl)
-                          ? t("status_stable", "STABLE")
-                          : (detectedComplianceTier >= 1 && detectedComplianceTier <= 4) || mod.status?.includes("EXPLICIT LOCAL")
-                            ? "🚫 EXPLICIT LOCAL"
+                : localStatusNorm && !localStatusNorm.includes("explicit local")
+                  ? modLocalOvr.status
+                  : edgeStatusNorm === "broken" || edgeStatusNorm === "corrupted"
+                    ? "broken"
+                    : edgeStatusNorm === "obsolete"
+                      ? "obsolete"
+                      : edgeStatusNorm === "unstable"
+                        ? "unstable"
+                        : dbMod
+                          ? dbMod.status === "stable" || dbMod.status === "verified"
+                            ? t("status_stable", "STABLE")
+                            : dbMod.status === "unverified"
+                              ? (modEdgeLogic || candidateStaticManifestUrl)
+                                ? t("status_stable", "STABLE")
+                                : t("unverified", "Unverified")
+                              : dbMod.status
+                          : (modEdgeLogic || candidateStaticManifestUrl)
+                            ? t("status_stable", "STABLE")
                             : t("badge_local", "Local"),
           status_reason: (() => {
             const cand =
               modLocalOvr?.status_reason !== undefined
                 ? modLocalOvr.status_reason
                 : effectiveDbMod?.status_reason ||
-                  dbMod?.status_reason ||
-                  modEdgeLogic?.status_reason ||
-                  mod.status_reason ||
-                  "";
+                dbMod?.status_reason ||
+                modEdgeLogic?.status_reason ||
+                mod.status_reason ||
+                "";
             const trimmed = String(cand || "").trim();
             if (!trimmed || /^\[ARCHITECT\b/i.test(trimmed)) return undefined;
             return trimmed;
           })(),
           color:
-            edgeStatusNorm === "broken" || edgeStatusNorm === "corrupted" || edgeStatusNorm === "obsolete"
+            localStatusNorm === "corrupted" || localStatusNorm === "broken" || localStatusNorm === "obsolete"
               ? "var(--danger)"
-              : edgeStatusNorm === "unstable"
+              : localStatusNorm === "unstable"
                 ? "var(--warning)"
-                : dbMod
+                : localStatusNorm && !localStatusNorm.includes("explicit local")
                   ? mod.color
-                  : (modEdgeLogic || candidateStaticManifestUrl)
-                    ? "var(--success)"
-                    : (detectedComplianceTier >= 1 && detectedComplianceTier <= 4) || mod.status?.includes("EXPLICIT LOCAL")
-                      ? mod.color
-                      : mod.color,
+                  : edgeStatusNorm === "broken" || edgeStatusNorm === "corrupted" || edgeStatusNorm === "obsolete"
+                    ? "var(--danger)"
+                    : edgeStatusNorm === "unstable"
+                      ? "var(--warning)"
+                      : dbMod
+                        ? mod.color
+                        : (modEdgeLogic || candidateStaticManifestUrl)
+                          ? "var(--success)"
+                          : mod.color,
           isSynced: !!(dbMod || modEdgeLogic || candidateStaticManifestUrl),
           isLocalOverride: !!modLocalOvr,
           isVirtual: false,
@@ -1653,7 +1751,11 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
 
       await yieldToMain();
 
-      const ignoredExtensions = (activeGameSchema?.extensions?.ignore_unidentified || [".cfg", ".ini", ".json", ".xml", ".log", ".txt", ".dat", ".tmbin"]).map((ext: string) => ext.toLowerCase());
+      const ignoredExtensions = Array.isArray(activeGameSchema?.extensions?.ignore_unidentified)
+        ? activeGameSchema.extensions.ignore_unidentified.map((ext: string) =>
+          String(ext || "").trim().toLowerCase()
+        ).filter(Boolean)
+        : [];
       const submittedHashesSet = new Set<string>(
         (() => {
           try {
@@ -1666,9 +1768,11 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       const unidentified = physicalMods.filter(
         (m: any) => {
           const lowerName = m.name.toLowerCase();
-          const isIgnored = ignoredExtensions.some((ext: string) => lowerName.endsWith(ext));
+          const isIgnored =
+            ignoredExtensions.some((ext: string) => lowerName.endsWith(ext)) ||
+            isConfigOrCompanionExtension(m.name, activeGameSchema);
           const hasEdgeBinding = !!(m.manifest_url || earlyLocalOvr[m.hash]?.manifest_url || edgeLogic[m.hash]);
-          return !m.isSynced && !hasEdgeBinding && !m.status?.includes("EXPLICIT LOCAL") && !lowerName.includes("customchallenge") && !lowerName.includes("sandbox") && !isIgnored && !submittedHashesSet.has(m.hash);
+          return !m.isSynced && !hasEdgeBinding && !restrictedHashesSet.has(String(m.hash || "").trim()) && !lowerName.includes("customchallenge") && !lowerName.includes("sandbox") && !isIgnored && !submittedHashesSet.has(m.hash);
         }
       );
       const isBanned = localStorage.getItem("sanctuary_blacklisted") === "true";
@@ -1678,11 +1782,11 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
       const virtualCards: any[] = [];
       const setMembersMap = new Map<string, any[]>();
       physicalMods.forEach(m => {
-          if (m.setId) {
-              const sid = String(m.setId);
-              if (!setMembersMap.has(sid)) setMembersMap.set(sid, []);
-              setMembersMap.get(sid)!.push(m);
-          }
+        if (m.setId) {
+          const sid = String(m.setId);
+          if (!setMembersMap.has(sid)) setMembersMap.set(sid, []);
+          setMembersMap.get(sid)!.push(m);
+        }
       });
       collectionsMetadata.forEach((set) => {
         const setMembers = setMembersMap.get(String(set.id)) || [];
@@ -1692,7 +1796,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           const stableCount = setMembers.filter((m) => m.status === (t("status_stable", "STABLE"))).length;
           const isAllStable = stableCount === setMembers.length;
           const isNoneStable = stableCount === 0;
-          
+
           let folderStatus = "";
           if (brokenCount > 0) {
             folderStatus = t("status_corrupted", "Corrupted");
@@ -1713,6 +1817,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             displayName: set.name.toUpperCase(),
             author: set.masons?.name || set.creator_name || "Unknown Architect",
             mason_id: set.mason_id || set.creator_id,
+            compliance_tier: Math.max(0, ...setMembers.map((m: any) => Number(m?.compliance_tier ?? 0))),
             status: folderStatus,
             color: "var(--accent)",
             isSynced: true,
@@ -1788,21 +1893,21 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
 
       const familyMembersMap = new Map<string, any[]>();
       physicalMods.forEach(m => {
-          if (m.familyId) {
-              const fid = String(m.familyId);
-              if (!familyMembersMap.has(fid)) familyMembersMap.set(fid, []);
-              familyMembersMap.get(fid)!.push(m);
-          }
+        if (m.familyId) {
+          const fid = String(m.familyId);
+          if (!familyMembersMap.has(fid)) familyMembersMap.set(fid, []);
+          familyMembersMap.get(fid)!.push(m);
+        }
       });
-      
+
       const uniqueFamilyGroups = Array.from(familyMembersMap.keys());
       uniqueFamilyGroups.forEach((fId) => {
         const familyMembers = familyMembersMap.get(String(fId)) || [];
         const baseFId = fId.split('@')[0];
         const isCommunityFolder = !!communityGroupNames[String(baseFId)] && !parentNameMap[String(baseFId)];
-        
+
         if (familyMembers.length <= 1 && !isCommunityFolder) return;
-        
+
         const pData = parentNameMap[String(baseFId)] || {
           name: isCommunityFolder
             ? communityGroupNames[String(baseFId)]
@@ -1813,145 +1918,146 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const dossierMember =
           familyMembers.find((fm: any) => fm.isLocalOverride && fm.is_user_dossier) ||
           familyMembers.find((fm: any) => fm.isLocalOverride);
-          const safeName = virtualOvr?.displayName || pData.name || t("status_unknown_folder", "Unknown Folder");
-          const brokenCount = familyMembers.filter((m) => {
-            const s = typeof m.status === "string" ? m.status.toLowerCase() : "";
-            return s.includes("broken") || s.includes("corrupted") || s.includes("obsolete");
-          }).length;
-          const unstableCount = familyMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
-          const stableCount = familyMembers.filter((m) => m.status === (t("status_stable", "STABLE"))).length;
-          const isAllStable = stableCount === familyMembers.length;
-          const isNoneStable = stableCount === 0;
-          
-          let folderStatus = "";
-          if (brokenCount > 0) {
-            folderStatus = t("status_corrupted", "Corrupted");
-          } else if (unstableCount > 0) {
-            folderStatus = t("label_unstable", "Unstable");
-          } else if (isAllStable) {
-            folderStatus = t("status_stable", "STABLE");
-          } else if (isNoneStable) {
-            folderStatus = t("unverified", "Unverified");
-          } else {
-            folderStatus = t("status_mixed", "Mixed Status");
-          }
+        const safeName = virtualOvr?.displayName || pData.name || t("status_unknown_folder", "Unknown Folder");
+        const brokenCount = familyMembers.filter((m) => {
+          const s = typeof m.status === "string" ? m.status.toLowerCase() : "";
+          return s.includes("broken") || s.includes("corrupted") || s.includes("obsolete");
+        }).length;
+        const unstableCount = familyMembers.filter((m) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
+        const stableCount = familyMembers.filter((m) => m.status === (t("status_stable", "STABLE"))).length;
+        const isAllStable = stableCount === familyMembers.length;
+        const isNoneStable = stableCount === 0;
 
-          const baseFIdKey = String(baseFId);
-          const myParentRels = parentRelMap.get(baseFIdKey) || [];
-          const myChildRels = childRelMap.get(baseFIdKey) || [];
-          const myDirectDeps = depsMap.get(baseFIdKey) || [];
-          const folderDeps = [
-            ...myDirectDeps.map((d: any) => ({
-              id: String(d.parent_id),
-              name: parentNameMap[String(d.parent_id)]?.name || String(d.parent_id),
-              url: parentNameMap[String(d.parent_id)]?.url || null
-            })),
-            ...myParentRels.filter((r: any) => r.relationship_type === "addon").map((r: any) => ({
+        let folderStatus = "";
+        if (brokenCount > 0) {
+          folderStatus = t("status_corrupted", "Corrupted");
+        } else if (unstableCount > 0) {
+          folderStatus = t("label_unstable", "Unstable");
+        } else if (isAllStable) {
+          folderStatus = t("status_stable", "STABLE");
+        } else if (isNoneStable) {
+          folderStatus = t("unverified", "Unverified");
+        } else {
+          folderStatus = t("status_mixed", "Mixed Status");
+        }
+
+        const baseFIdKey = String(baseFId);
+        const myParentRels = parentRelMap.get(baseFIdKey) || [];
+        const myChildRels = childRelMap.get(baseFIdKey) || [];
+        const myDirectDeps = depsMap.get(baseFIdKey) || [];
+        const folderDeps = [
+          ...myDirectDeps.map((d: any) => ({
+            id: String(d.parent_id),
+            name: parentNameMap[String(d.parent_id)]?.name || String(d.parent_id),
+            url: parentNameMap[String(d.parent_id)]?.url || null
+          })),
+          ...myParentRels.filter((r: any) => r.relationship_type === "addon").map((r: any) => ({
+            id: String(r.parent_id),
+            name: parentNameMap[String(r.parent_id)]?.name || String(r.parent_id),
+            url: parentNameMap[String(r.parent_id)]?.url || null
+          }))
+        ];
+
+        const folderTwins = myParentRels.some((r: any) => r.relationship_type === "twin") || myChildRels.some((r: any) => r.relationship_type === "twin")
+          ? [
+            ...myParentRels.filter((r: any) => r.relationship_type === "twin").map((r: any) => ({
               id: String(r.parent_id),
               name: parentNameMap[String(r.parent_id)]?.name || String(r.parent_id),
               url: parentNameMap[String(r.parent_id)]?.url || null
-            }))
-          ];
-            
-          const folderTwins = myParentRels.some((r: any) => r.relationship_type === "twin") || myChildRels.some((r: any) => r.relationship_type === "twin")
-            ? [
-                ...myParentRels.filter((r: any) => r.relationship_type === "twin").map((r: any) => ({
-                  id: String(r.parent_id),
-                  name: parentNameMap[String(r.parent_id)]?.name || String(r.parent_id),
-                  url: parentNameMap[String(r.parent_id)]?.url || null
-                })),
-                ...myChildRels.filter((r: any) => r.relationship_type === "twin").map((r: any) => ({
-                  id: String(r.child_id),
-                  name: parentNameMap[String(r.child_id)]?.name || String(r.child_id),
-                  url: parentNameMap[String(r.child_id)]?.url || null
-                })),
-              ]
-            : undefined;
+            })),
+            ...myChildRels.filter((r: any) => r.relationship_type === "twin").map((r: any) => ({
+              id: String(r.child_id),
+              name: parentNameMap[String(r.child_id)]?.name || String(r.child_id),
+              url: parentNameMap[String(r.child_id)]?.url || null
+            })),
+          ]
+          : undefined;
 
-          const validFolderAuthor = [
-            virtualOvr?.author,
-            dossierMember?.author,
-            pData.author,
-            ...familyMembers.map((fm: any) => fm.author),
-          ].find(
-            (a) =>
-              a &&
-              typeof a === "string" &&
-              a.trim() !== "" &&
-              a.trim().toLowerCase() !== "unknown" &&
-              a.trim().toLowerCase() !== "local" &&
-              a.trim().toLowerCase() !== "local node"
-          );
+        const validFolderAuthor = [
+          virtualOvr?.author,
+          dossierMember?.author,
+          pData.author,
+          ...familyMembers.map((fm: any) => fm.author),
+        ].find(
+          (a) =>
+            a &&
+            typeof a === "string" &&
+            a.trim() !== "" &&
+            a.trim().toLowerCase() !== "unknown" &&
+            a.trim().toLowerCase() !== "local" &&
+            a.trim().toLowerCase() !== "local node"
+        );
 
-          virtualCards.push({
-            hash: "virtual_" + fId,
-            name: "FOLDER_" + fId,
-            dbId: String(fId),
-            baseFamilyId: String(baseFId),
-            displayName: (virtualOvr?.displayName || safeName).toUpperCase(),
-            author: validFolderAuthor || pData.author || familyMembers[0]?.author || "Unknown",
-            url: virtualOvr?.url || dossierMember?.url || pData.url || familyMembers[0]?.url || null,
-            image_url: virtualOvr?.image_url ?? dossierMember?.image_url ?? pData.image_url ?? familyMembers[0]?.image_url,
-            description:
-              virtualOvr?.description ??
-              dossierMember?.description ??
-              pData.description ??
-              familyMembers.find((fm: any) => fm.description)?.description,
-            category_override: virtualOvr?.category_override || dossierMember?.category_override || pData.category_override || familyMembers[0]?.category_override,
-            compatible_versions: virtualOvr?.compatible_versions || dossierMember?.compatible_versions || pData.compatible_versions || familyMembers[0]?.compatible_versions,
-            requiredDLC: virtualOvr?.requiredDLC || dossierMember?.requiredDLC || familyMembers[0]?.requiredDLC,
-            created_at:
-              virtualOvr?.created_at ||
-              dossierMember?.created_at ||
-              pData.created_at ||
-              familyMembers.find((fm: any) => fm.created_at)?.created_at ||
-              null,
-            updated_at:
-              virtualOvr?.updated_at ||
-              dossierMember?.updated_at ||
-              familyMembers.find((fm: any) => fm.updated_at)?.updated_at ||
-              pData.created_at ||
-              familyMembers.find((fm: any) => fm.created_at)?.created_at ||
-              null,
-            version:
-              virtualOvr?.version ||
-              dossierMember?.version ||
-              familyMembers.find((fm: any) => fm.version && fm.version !== "v.Local")?.version ||
-              familyMembers[0]?.version ||
-              "v.Local",
-            mason_id: pData.mason_id || (familyMembers.length > 0 ? familyMembers[0].mason_id : null),
-            status: folderStatus,
-            status_reason: (() => {
-              const cand =
-                virtualOvr?.status_reason ??
-                dossierMember?.status_reason ??
-                pData.status_reason ??
-                familyMembers.find((fm: any) => fm.status_reason)?.status_reason ??
-                "";
-              const trimmed = String(cand || "").trim();
-              if (!trimmed || /^\[ARCHITECT\b/i.test(trimmed)) return undefined;
-              return trimmed;
-            })(),
-            color: "var(--accent)",
-            isSynced: true,
-            isLocalOverride: !!(virtualOvr || dossierMember),
-            isVirtual: true,
-            isParent: true,
-            isFlavorFolder: false,
-            highlanderGroupId:
-              familyMembers.find((fm: any) => fm.highlanderGroupId)?.highlanderGroupId || null,
-            highlanderSlotKey:
-              familyMembers.find((fm: any) => fm.highlanderSlotKey)?.highlanderSlotKey || null,
-            highlanderSlotName:
-              familyMembers.find((fm: any) => fm.highlanderSlotName)?.highlanderSlotName || null,
-            twins: folderTwins,
-            requirements: folderDeps.length > 0 ? folderDeps : undefined,
-            flavors: [...familyMembers].sort((a, b) => {
-              if (a.relationshipType === "beta" && b.relationshipType !== "beta") return 1;
-              if (a.relationshipType !== "beta" && b.relationshipType === "beta") return -1;
-              return 0;
-            }),
-          });
+        virtualCards.push({
+          hash: "virtual_" + fId,
+          name: "FOLDER_" + fId,
+          dbId: String(fId),
+          baseFamilyId: String(baseFId),
+          displayName: (virtualOvr?.displayName || safeName).toUpperCase(),
+          author: validFolderAuthor || pData.author || familyMembers[0]?.author || "Unknown",
+          url: virtualOvr?.url || dossierMember?.url || pData.url || familyMembers[0]?.url || null,
+          image_url: virtualOvr?.image_url ?? dossierMember?.image_url ?? pData.image_url ?? familyMembers[0]?.image_url,
+          description:
+            virtualOvr?.description ??
+            dossierMember?.description ??
+            pData.description ??
+            familyMembers.find((fm: any) => fm.description)?.description,
+          category_override: virtualOvr?.category_override || dossierMember?.category_override || pData.category_override || familyMembers[0]?.category_override,
+          compatible_versions: virtualOvr?.compatible_versions || dossierMember?.compatible_versions || pData.compatible_versions || familyMembers[0]?.compatible_versions,
+          requiredDLC: virtualOvr?.requiredDLC || dossierMember?.requiredDLC || familyMembers[0]?.requiredDLC,
+          created_at:
+            virtualOvr?.created_at ||
+            dossierMember?.created_at ||
+            pData.created_at ||
+            familyMembers.find((fm: any) => fm.created_at)?.created_at ||
+            null,
+          updated_at:
+            virtualOvr?.updated_at ||
+            dossierMember?.updated_at ||
+            familyMembers.find((fm: any) => fm.updated_at)?.updated_at ||
+            pData.created_at ||
+            familyMembers.find((fm: any) => fm.created_at)?.created_at ||
+            null,
+          version:
+            virtualOvr?.version ||
+            dossierMember?.version ||
+            familyMembers.find((fm: any) => fm.version && fm.version !== "v.Local")?.version ||
+            familyMembers[0]?.version ||
+            "v.Local",
+          mason_id: pData.mason_id || (familyMembers.length > 0 ? familyMembers[0].mason_id : null),
+          compliance_tier: Math.max(0, ...familyMembers.map((m: any) => Number(m?.compliance_tier ?? 0))),
+          status: folderStatus,
+          status_reason: (() => {
+            const cand =
+              virtualOvr?.status_reason ??
+              dossierMember?.status_reason ??
+              pData.status_reason ??
+              familyMembers.find((fm: any) => fm.status_reason)?.status_reason ??
+              "";
+            const trimmed = String(cand || "").trim();
+            if (!trimmed || /^\[ARCHITECT\b/i.test(trimmed)) return undefined;
+            return trimmed;
+          })(),
+          color: "var(--accent)",
+          isSynced: true,
+          isLocalOverride: !!(virtualOvr || dossierMember),
+          isVirtual: true,
+          isParent: true,
+          isFlavorFolder: false,
+          highlanderGroupId:
+            familyMembers.find((fm: any) => fm.highlanderGroupId)?.highlanderGroupId || null,
+          highlanderSlotKey:
+            familyMembers.find((fm: any) => fm.highlanderSlotKey)?.highlanderSlotKey || null,
+          highlanderSlotName:
+            familyMembers.find((fm: any) => fm.highlanderSlotName)?.highlanderSlotName || null,
+          twins: folderTwins,
+          requirements: folderDeps.length > 0 ? folderDeps : undefined,
+          flavors: [...familyMembers].sort((a, b) => {
+            if (a.relationshipType === "beta" && b.relationshipType !== "beta") return 1;
+            if (a.relationshipType !== "beta" && b.relationshipType === "beta") return -1;
+            return 0;
+          }),
+        });
       });
       const localOvr = JSON.parse(
         localStorage.getItem("sanctuary_local_overrides") || "{}",
@@ -1980,7 +2086,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const unstableCount = setMembers.filter((m: any) => typeof m.status === 'string' && m.status.toLowerCase().includes("unstable")).length;
         const stableCount = setMembers.filter((m) => m.status === (t("status_stable", "STABLE"))).length;
         const isAllStable = setMembers.length > 0 && stableCount === setMembers.length;
-        
+
         let folderStatus = "";
         if (brokenCount > 0) {
           folderStatus = t("status_corrupted", "Corrupted");
@@ -2081,23 +2187,23 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         if (matchedSet.size === 0) return m;
 
         const myConflicts = Array.from(matchedSet).map((c: any) => {
-           const isModA =
-             (m.dbId && c.mod_a_id === m.dbId) ||
-             (m.hash && c.mod_a_id === m.hash) ||
-             (c.mod_a && String(c.mod_a).toUpperCase() === cleanName) ||
-             (c.mod_a && String(c.mod_a).toUpperCase() === cleanDisplayName);
-           const enemyId = isModA ? c.mod_b_id : c.mod_a_id;
-           const enemyLegacyName = isModA ? c.mod_b : c.mod_a;
-           const matchedEnemy = enemyId
-             ? rawByHashOrDbId.get(String(enemyId))
-             : null;
-           return {
-              id: c.id,
-              enemy_id: enemyId,
-              enemy_name: matchedEnemy?.displayName || matchedEnemy?.name || enemyLegacyName,
-              severity_rank: c.severity_rank,
-              resolution_note: c.resolution_note
-           };
+          const isModA =
+            (m.dbId && c.mod_a_id === m.dbId) ||
+            (m.hash && c.mod_a_id === m.hash) ||
+            (c.mod_a && String(c.mod_a).toUpperCase() === cleanName) ||
+            (c.mod_a && String(c.mod_a).toUpperCase() === cleanDisplayName);
+          const enemyId = isModA ? c.mod_b_id : c.mod_a_id;
+          const enemyLegacyName = isModA ? c.mod_b : c.mod_a;
+          const matchedEnemy = enemyId
+            ? rawByHashOrDbId.get(String(enemyId))
+            : null;
+          return {
+            id: c.id,
+            enemy_id: enemyId,
+            enemy_name: matchedEnemy?.displayName || matchedEnemy?.name || enemyLegacyName,
+            severity_rank: c.severity_rank,
+            resolution_note: c.resolution_note
+          };
         });
         return { ...m, conflicts: myConflicts.length > 0 ? myConflicts : undefined };
       });
@@ -2116,7 +2222,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               if (volatileOrig) {
                 return { ...m, volatile_original_path: volatileOrig };
               }
-            } catch {}
+            } catch { }
             return m;
           })
         );
@@ -2184,6 +2290,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const netUpd = (m.hash && netUpdatedByHash.get(m.hash)) || (m.name && netUpdatedByName.get(m.name));
         const isNetBroken = Boolean((m.hash && netBrokenHashes.has(m.hash)) || (m.name && netBrokenNames.has(m.name)));
         const isNetObsolete = Boolean((m.hash && netObsoleteHashes.has(m.hash)) || (m.name && netObsoleteNames.has(m.name)));
+        const hasLocalStatusOvr = Boolean(earlyLocalOvr?.[m.hash]?.status);
 
         let nextFlavors = m.flavors;
         if (Array.isArray(m.flavors)) {
@@ -2198,8 +2305,10 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           const isStillOutdated = (isSameHash || !!netUpd) && (cleanMVer !== cleanNewVer && !!cleanNewVer);
 
           let resolvedStatus = m.status !== t("status_identifying", "Identifying...") ? m.status : (existing.status || m.status);
-          if (isNetBroken) resolvedStatus = 'broken';
-          else if (isNetObsolete) resolvedStatus = 'obsolete';
+          if (!hasLocalStatusOvr) {
+            if (isNetBroken) resolvedStatus = 'broken';
+            else if (isNetObsolete) resolvedStatus = 'obsolete';
+          }
 
           return {
             ...existing,
@@ -2218,7 +2327,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
           };
         }
 
-        if (netUpd || isNetBroken || isNetObsolete || nextFlavors !== m.flavors) {
+        if (netUpd || (!hasLocalStatusOvr && (isNetBroken || isNetObsolete)) || nextFlavors !== m.flavors) {
           return {
             ...m,
             ...(nextFlavors !== undefined ? { flavors: nextFlavors } : {}),
@@ -2228,7 +2337,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               newGameVersion: netUpd.newGameVersion,
               download_url: netUpd.download_url || m.download_url,
             } : {}),
-            ...(isNetBroken ? { status: 'broken' } : isNetObsolete ? { status: 'obsolete' } : {}),
+            ...(!hasLocalStatusOvr && isNetBroken ? { status: 'broken' } : !hasLocalStatusOvr && isNetObsolete ? { status: 'obsolete' } : {}),
           };
         }
         return m;
@@ -2252,7 +2361,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
             invoke("save_master_cache", {
               vaultPath: config.vault_path,
               content: serialized,
-            }).catch(() => {});
+            }).catch(() => { });
           }
         } catch (cacheErr) {
           console.warn("Cache save failed:", cacheErr);
@@ -2263,7 +2372,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
         const stateSnap = useStore.getState();
         const activeBpName = stateSnap.activeSetName || stateSnap.playSets?.[stateSnap.activePlaySetIndex]?.name || stateSnap.playSets?.[0]?.name;
         if (activeBpName) {
-          precomputeBlueprintConflicts(activeBpName, undefined, config?.vault_path).catch(() => {});
+          precomputeBlueprintConflicts(activeBpName, undefined, config?.vault_path).catch(() => { });
         }
         if (stateSnap.session?.user?.id) {
           syncDesktopCompanionRadarSnapshot(
@@ -2275,7 +2384,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               playSets: stateSnap.playSets,
               blueprintsCount: stateSnap.playSets?.length,
             }
-          ).catch(() => {});
+          ).catch(() => { });
         }
       }, 150);
     } catch (err) {
@@ -2309,7 +2418,7 @@ async function runRadarSweep(isSilent: boolean = false, quickScan: boolean = isS
               runRadarSweep(true, true);
             }
           }
-        } catch {}
+        } catch { }
       })();
     }
     prevSelectedVersionRef.current = cleanVer;

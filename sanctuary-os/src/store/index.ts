@@ -12,6 +12,11 @@ import {
 } from '../utils/bundledSchemas';
 import { postDevCoreAssetSync } from '../utils/devAssetSync';
 import { scrubLogUserData } from '../utils/logScrubber';
+import {
+  healAndMatchLocalWorkspaces,
+  findMatchingWorkspaceEntry,
+  isPlaceholderWorkspaceKey,
+} from '../utils/workspaceConfigMatch';
 import enDefaultLexicon from '../lexicons/en-default.json';
 import enSanctuaryLexicon from '../lexicons/en-sanctuary.json';
 import {
@@ -249,9 +254,16 @@ const loadActiveGameSchema = () => {
       const globalConfigRaw = localStorage.getItem('sanctuary_config');
       if (globalConfigRaw) {
         const cfg = JSON.parse(globalConfigRaw);
-        if (cfg.active_workspace_id && cfg.workspaces) {
-          const ws = cfg.workspaces.find((w: any) => w.id === cfg.active_workspace_id);
-          if (ws && ws.schema_id) activeSchemaId = ws.schema_id;
+        if (cfg.active_workspace_id && Array.isArray(cfg.workspaces)) {
+          const activeKey = String(cfg.active_workspace_id).trim().toLowerCase();
+          const ws = cfg.workspaces.find(
+            (w: any) =>
+              String(w?.id || '').trim().toLowerCase() === activeKey ||
+              String(w?.schema_id || '').trim().toLowerCase() === activeKey
+          );
+          if (ws && ws.schema_id && !isPlaceholderWorkspaceKey(ws.schema_id)) {
+            activeSchemaId = ws.schema_id;
+          }
         }
       }
       if (activeSchemaId === 'default') {
@@ -600,7 +612,7 @@ export interface StatusLogEntry {
   id: string;
   message: string;
   type: 'success' | 'error' | 'info' | 'warning' | 'loading';
-  category?: 'vault' | 'blueprint' | 'nexus' | 'radar' | 'workbench' | 'security' | 'system';
+  category?: 'vault' | 'blueprint' | 'nexus' | 'radar' | 'workbench' | 'lab' | 'security' | 'system';
   timestamp: number;
   repeatCount?: number;
   workspaceId?: string;
@@ -619,6 +631,8 @@ const inferStatusLogType = (
     lower.includes('revoked') ||
     lower.includes('corrupt') ||
     lower.includes('denied') ||
+    lower.includes('exception detected') ||
+    lower.includes('fatal') ||
     message.includes('❌') ||
     lower.startsWith('error ') ||
     lower.startsWith('bug_report ')
@@ -692,6 +706,23 @@ const inferStatusLogCategory = (
     return 'blueprint';
   }
   if (
+    lower.includes('homestead') ||
+    lower.includes('testing lab') ||
+    lower.includes('proving run') ||
+    lower.includes('simulation') ||
+    lower.includes('timed test') ||
+    lower.includes('verification passed') ||
+    lower.includes('save checkpoint') ||
+    lower.includes('rehydrating live save') ||
+    lower.includes('save archives restored') ||
+    lower.includes('igniting engines') ||
+    lower.includes('purging logs') ||
+    lower.includes('staging simulation') ||
+    lower.includes('exception detected')
+  ) {
+    return 'lab';
+  }
+  if (
     lower.includes('radar') ||
     lower.includes('conflict') ||
     lower.includes('scan') ||
@@ -728,7 +759,7 @@ const inferStatusLogCategory = (
     lower.includes('artifact') ||
     lower.includes('mod ') ||
     lower.includes('mods') ||
-    lower.includes('package') ||
+    lower.includes('module') ||
     lower.includes('archive') ||
     lower.includes('install') ||
     lower.includes('library')
@@ -761,6 +792,14 @@ const loadPersistedStatusLog = (): StatusLogEntry[] => {
   }
 };
 
+const normalizeStatusLogDedupeKey = (message: string): string => {
+  const lower = message.trim().toLowerCase();
+  if (lower.startsWith('offline cache loaded')) {
+    return lower.replace(/\d+/g, '#');
+  }
+  return lower.replace(/\b\d+\s+(artifacts?|modules?|mods?|items?)\s+in\s+your\s+vault\b/g, '# $1 in your vault');
+};
+
 const buildUpdatedStatusLog = (
   existingLog: StatusLogEntry[],
   cleanMessage: string,
@@ -769,6 +808,7 @@ const buildUpdatedStatusLog = (
 ): StatusLogEntry[] => {
   const now = Date.now();
   const normalized = cleanMessage.trim().toLowerCase();
+  const dedupeKey = normalizeStatusLogDedupeKey(cleanMessage);
   if (
     normalized === '' ||
     normalized === 'standing by' ||
@@ -780,16 +820,19 @@ const buildUpdatedStatusLog = (
 
   if (
     existingLog.length > 0 &&
-    existingLog[0].message.trim().toLowerCase() === normalized &&
+    normalizeStatusLogDedupeKey(existingLog[0].message) === dedupeKey &&
     now - existingLog[0].timestamp < 450
   ) {
     return existingLog;
   }
 
   const category = inferStatusLogCategory(cleanMessage);
-  const recentMatchIndex = existingLog
-    .slice(0, 6)
-    .findIndex((entry) => entry.message.trim().toLowerCase() === normalized);
+  const searchPool = dedupeKey.startsWith('offline cache loaded')
+    ? existingLog
+    : existingLog.slice(0, 15);
+  const recentMatchIndex = searchPool.findIndex(
+    (entry) => normalizeStatusLogDedupeKey(entry.message) === dedupeKey
+  );
 
   let nextLog: StatusLogEntry[];
   if (recentMatchIndex !== -1) {
@@ -842,14 +885,21 @@ const loadCachedGameDatabases = (isKeeperOverride?: boolean): any[] => {
 };
 
 const mergeGamesWithLocalWorkspaces = (games: any[], localWorkspaces: any[] = []): any[] => {
+  const { healedWorkspaces } = healAndMatchLocalWorkspaces(games, localWorkspaces);
   return games.map((g: any) => {
-    const existing = localWorkspaces.find((w: any) => w.schema_id === g.schema_id || w.id === g.schema_id);
+    const existing = findMatchingWorkspaceEntry(g, healedWorkspaces);
     const derivedId = existing ? existing.id : (g.schema_id || g.id);
-    const finalId = derivedId === 'default_workspace' ? g.schema_id : derivedId;
+    const finalId = isPlaceholderWorkspaceKey(derivedId) ? (g.schema_id || g.id) : derivedId;
     return {
       id: finalId,
       game_id: g.game_id || g.id,
-      name: existing && existing.name !== 'Default Game' ? existing.name : g.name,
+      name:
+        existing &&
+        existing.name &&
+        existing.name !== 'Default Game' &&
+        !isPlaceholderWorkspaceKey(existing.name)
+          ? existing.name
+          : g.name,
       schema_id: g.schema_id,
       supabase_url: g.supabase_url,
       supabase_anon_key: g.supabase_anon_key,
@@ -857,6 +907,7 @@ const mergeGamesWithLocalWorkspaces = (games: any[], localWorkspaces: any[] = []
       live_path: existing?.live_path ?? g.live_path,
       mods_path: existing?.mods_path ?? g.mods_path,
       vault_path: existing?.vault_path ?? g.vault_path,
+      master_vault_path: existing?.master_vault_path ?? g.master_vault_path,
       docs_path: existing?.docs_path ?? existing?.user_data_path ?? g.docs_path ?? g.user_data_path,
       user_data_path: existing?.user_data_path ?? existing?.docs_path ?? g.user_data_path ?? g.docs_path,
     };
@@ -873,6 +924,7 @@ interface GlobalState {
   statusLog: StatusLogEntry[];
   pushStatus: (message: string, type?: 'success' | 'error' | 'info' | 'warning' | 'loading') => void;
   removeStatusLogEntry: (id: string) => void;
+  pruneRoutineStatusLog: () => void;
   clearStatusLog: () => void;
   userRole: string;
   setUserRole: (role: string) => void;
@@ -882,6 +934,8 @@ interface GlobalState {
   setSession: (session: any | null) => void;
   isConfigured: boolean;
   setIsConfigured: (isConfigured: boolean) => void;
+  pendingWorkspaceSetupId: string | null;
+  setPendingWorkspaceSetupId: (id: string | null) => void;
   livePath: string;
   setLivePath: (livePath: string) => void;
   modsPath: string;
@@ -954,6 +1008,8 @@ interface GlobalState {
   setShowImages: (show: boolean) => void;
   showCommLinkImages: boolean;
   setShowCommLinkImages: (show: boolean) => void;
+  patchFireDrillEnabled: boolean;
+  setPatchFireDrillEnabled: (enabled: boolean) => void;
   dateFormat: SanctuaryDateFormat;
   setDateFormat: (fmt: SanctuaryDateFormat) => void;
   localOnly: boolean;
@@ -1143,6 +1199,16 @@ export const useStore = create<GlobalState>((set) => ({
     debouncedLocalStorageSetJson(STATUS_LOG_STORAGE_KEY, nextLog, 150);
     return { statusLog: nextLog };
   }),
+  pruneRoutineStatusLog: () => set((state) => {
+    const nextLog = state.statusLog.filter(
+      (entry) =>
+        entry.type === 'error' ||
+        entry.type === 'warning' ||
+        entry.category === 'security'
+    );
+    debouncedLocalStorageSetJson(STATUS_LOG_STORAGE_KEY, nextLog, 150);
+    return { statusLog: nextLog };
+  }),
   clearStatusLog: () => {
     try {
       localStorage.removeItem(STATUS_LOG_STORAGE_KEY);
@@ -1165,6 +1231,26 @@ export const useStore = create<GlobalState>((set) => ({
   setSession: (session) => set({ session }),
   isConfigured: false,
   setIsConfigured: (isConfigured) => set({ isConfigured }),
+  pendingWorkspaceSetupId: (() => {
+    if (!isDesktop()) return null;
+    try {
+      const raw = localStorage.getItem('sanctuary_pending_workspace_setup');
+      return raw && !isPlaceholderWorkspaceKey(raw) ? raw : null;
+    } catch {
+      return null;
+    }
+  })(),
+  setPendingWorkspaceSetupId: (id) => {
+    const clean = id && !isPlaceholderWorkspaceKey(id) ? id.trim() : null;
+    try {
+      if (clean) {
+        localStorage.setItem('sanctuary_pending_workspace_setup', clean);
+      } else {
+        localStorage.removeItem('sanctuary_pending_workspace_setup');
+      }
+    } catch {}
+    set({ pendingWorkspaceSetupId: clean });
+  },
   livePath: '',
   setLivePath: (livePath) => set({ livePath }),
   modsPath: "",
@@ -1403,6 +1489,8 @@ export const useStore = create<GlobalState>((set) => ({
   setShowImages: (showImages) => { safeLocalStorageSetItem("sanctuary_show_images", showImages.toString()); set({ showImages }); },
   showCommLinkImages: localStorage.getItem("sanctuary_show_commlink_images") !== "false",
   setShowCommLinkImages: (showCommLinkImages) => { safeLocalStorageSetItem("sanctuary_show_commlink_images", showCommLinkImages.toString()); set({ showCommLinkImages }); },
+  patchFireDrillEnabled: localStorage.getItem("sanctuary_patch_fire_drill_enabled") !== "false",
+  setPatchFireDrillEnabled: (patchFireDrillEnabled) => { safeLocalStorageSetItem("sanctuary_patch_fire_drill_enabled", patchFireDrillEnabled.toString()); set({ patchFireDrillEnabled }); },
   dateFormat: getStoredDateFormat(),
   setDateFormat: (dateFormat) => {
     const valid: SanctuaryDateFormat =
@@ -1651,7 +1739,11 @@ export const syncGameDatabases = async (preloadedLocalWorkspaces?: any[]) => {
   const isKeeperAtStart = useStore.getState().osRole === 'keeper';
   const cachedGames = loadCachedGameDatabases(isKeeperAtStart);
   if (cachedGames.length > 0) {
-    const hydratedCached = mergeGamesWithLocalWorkspaces(cachedGames, preloadedLocalWorkspaces || []);
+    const existingLocalFallback =
+      Array.isArray(preloadedLocalWorkspaces) && preloadedLocalWorkspaces.length > 0
+        ? preloadedLocalWorkspaces
+        : useStore.getState().workspaces || [];
+    const hydratedCached = mergeGamesWithLocalWorkspaces(cachedGames, existingLocalFallback);
     useStore.setState({ workspaces: hydratedCached, isGameDatabasesSynced: true });
   }
 
@@ -1682,16 +1774,45 @@ export const syncGameDatabases = async (preloadedLocalWorkspaces?: any[]) => {
             (isKeeperNow || g.is_keepers_only !== true)
         );
         safeLocalStorageSetItem(CACHED_GAME_DBS_KEY, JSON.stringify(activeGames));
+        let desktopGlobalConfig: any = null;
         let localWorkspaces: any[] = Array.isArray(preloadedLocalWorkspaces) ? preloadedLocalWorkspaces : [];
-        if (localWorkspaces.length === 0 && isDesktop()) {
+        if (isDesktop()) {
           try {
             const { invoke } = await import('@tauri-apps/api/core');
-            const gConf: any = await invoke('get_global_config');
-            if (gConf && gConf.workspaces) localWorkspaces = gConf.workspaces;
+            desktopGlobalConfig = await invoke('get_global_config');
+            if (desktopGlobalConfig && Array.isArray(desktopGlobalConfig.workspaces) && desktopGlobalConfig.workspaces.length > 0) {
+              localWorkspaces = desktopGlobalConfig.workspaces;
+            }
+          } catch (e) {}
+        }
+        if (localWorkspaces.length === 0) {
+          localWorkspaces = useStore.getState().workspaces || [];
+        }
+
+        const { healedWorkspaces, changed } = healAndMatchLocalWorkspaces(
+          activeGames,
+          localWorkspaces,
+          useStore.getState().activeGameSchema
+        );
+        if (isDesktop() && desktopGlobalConfig && changed) {
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            const nextGlobalConfig = {
+              ...desktopGlobalConfig,
+              workspaces: healedWorkspaces,
+            };
+            if (
+              isPlaceholderWorkspaceKey(nextGlobalConfig.active_workspace_id) &&
+              healedWorkspaces[0]?.id &&
+              !isPlaceholderWorkspaceKey(healedWorkspaces[0].id)
+            ) {
+              nextGlobalConfig.active_workspace_id = healedWorkspaces[0].id;
+            }
+            await invoke('save_coordinates', { config: nextGlobalConfig });
           } catch (e) {}
         }
 
-        const liveWorkspaces = mergeGamesWithLocalWorkspaces(activeGames, localWorkspaces);
+        const liveWorkspaces = mergeGamesWithLocalWorkspaces(activeGames, healedWorkspaces);
         useStore.setState({ workspaces: liveWorkspaces, isGameDatabasesSynced: true });
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('sanctuary-games-updated'));

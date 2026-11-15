@@ -20,7 +20,7 @@ import {
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import { useVirtualWindow } from "../hooks/useVirtualWindow";
 
-type LogFilterGroup = "all" | "vault" | "nexus" | "alerts";
+type LogFilterGroup = "all" | "vault" | "lab" | "nexus" | "alerts";
 type LogSeverityFilter = "all" | "success" | "warning" | "error";
 type LogSortOrder = "newest" | "oldest";
 
@@ -57,6 +57,7 @@ const KNOWN_ICON_PREFIXES = new Set([
   "shield_lock",
   "save",
   "cloud_done",
+  "science",
 ]);
 
 type CachedUnsavedFileItem = {
@@ -200,6 +201,100 @@ function resolveAllCachedUnsavedFiles(): CachedUnsavedFileItem[] {
   return results;
 }
 
+function decodeXmlEntities(input: string): string {
+  return input
+    .replace(/&#13;&#10;|&#xD;&#xA;|&#10;|&#xA;/gi, "\n")
+    .replace(/&#13;|&#xD;/gi, "")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;|&#39;/gi, "'")
+    .replace(/&amp;/gi, "&");
+}
+
+function parseStructuredExceptionPayload(
+  rawText: string,
+  t: any
+): {
+  titleOverride?: string;
+  summary: string;
+  traceDetails: string;
+  exceptionCategory?: string;
+} | null {
+  const hasXmlEnvelope =
+    rawText.includes("<?xml") ||
+    /<report[\s>]/i.test(rawText) ||
+    /<desyncdata[\s>]/i.test(rawText) ||
+    /<root[\s>]/i.test(rawText);
+
+  if (!hasXmlEnvelope && !rawText.toLowerCase().includes("exception detected")) {
+    return null;
+  }
+  if (!hasXmlEnvelope) return null;
+
+  const decoded = decodeXmlEntities(rawText);
+  const typeMatch = decoded.match(/<type>([\s\S]*?)<\/type>/i);
+  const catMatch = decoded.match(/<categoryid>([\s\S]*?)<\/categoryid>/i);
+  const dataMatch = decoded.match(/<desyncdata>([\s\S]*?)<\/desyncdata>/i);
+  const errMatch = decoded.match(/<(?:message|error)>([\s\S]*?)<\/(?:message|error)>/i);
+
+  const traceBodyRaw = (dataMatch?.[1] || errMatch?.[1] || decoded)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  const traceLines = traceBodyRaw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const headlineError =
+    traceLines.find((l) => /error|exception|traceback|fatal|typeerror|keyerror|attributeerror/i.test(l)) ||
+    traceLines[0] ||
+    t("sys_log_exception_detected", "Structured runtime exception captured.");
+
+  const catName = catMatch?.[1]?.trim();
+  const typeName = typeMatch?.[1]?.trim();
+  const isSimFail = rawText.toLowerCase().includes("simulation failed");
+
+  const titleOverride = isSimFail
+    ? t("sys_log_sim_failed", "Simulation Failed")
+    : typeName
+      ? `${t("sys_log_exception_title", "Exception Report")} (${typeName})`
+      : t("sys_log_exception_title", "Exception Report");
+
+  const compactSummary = catName
+    ? `${headlineError} — ${catName}`
+    : headlineError;
+
+  const metaHeader = [
+    typeName ? `Type: ${typeName}` : "",
+    catName ? `Module: ${catName}` : "",
+  ]
+    .filter(Boolean)
+    .join("  •  ");
+
+  const traceDetails = metaHeader
+    ? `${metaHeader}\n\n${traceLines.join("\n")}`
+    : traceLines.join("\n");
+
+  return {
+    titleOverride,
+    summary: compactSummary,
+    traceDetails,
+    exceptionCategory: catName,
+  };
+}
+
+function normalizeDisplayLogDedupeKey(logText: string): string {
+  const lower = logText.trim().toLowerCase();
+  if (lower.startsWith("offline cache loaded")) {
+    return lower.replace(/\d+/g, "#");
+  }
+  return lower.replace(/\b\d+\s+(artifacts?|modules?|mods?|items?)\s+in\s+your\s+vault\b/g, "# $1 in your vault");
+}
+
 function parseLogEntryPresentation(log: any, t: any) {
   const rawMessage = typeof log?.message === "string" ? log.message.trim() : "";
   const match = rawMessage.match(/^([a-z_0-9]+)\s+(.*)$/);
@@ -226,45 +321,61 @@ function parseLogEntryPresentation(log: any, t: any) {
     lower.includes("nexus") ||
     lower.includes("market")
       ? "nexus"
-      : lower.includes("blueprint") ||
-          lower.includes("playset") ||
-          lower.includes("play set") ||
-          lower.includes("deploy")
-        ? "blueprint"
-        : lower.includes("radar") ||
-            lower.includes("conflict") ||
-            lower.includes("scan")
-          ? "radar"
-          : lower.includes("quarantine") ||
-              lower.includes("shelter") ||
-              lower.includes("backup") ||
-              lower.includes("time capsule") ||
-              lower.includes("defcon") ||
-              lower.includes("lockdown")
-            ? "security"
-            : lower.includes("cached changes") ||
-                lower.includes("unsaved") ||
-                lower.includes("workbench") ||
-                lower.includes(".cfg") ||
-                lower.includes(".ini") ||
-                lower.includes(".json") ||
-                lower.includes(".wayfinder") ||
-                lower.includes(".masonhub")
-              ? "workbench"
-              : lower.includes("vault") ||
-                  lower.includes("artifact") ||
-                  lower.includes("mod") ||
-                  lower.includes("package") ||
-                  lower.includes("install")
-                ? "vault"
-                : "system");
+      : lower.includes("homestead") ||
+          lower.includes("testing lab") ||
+          lower.includes("proving run") ||
+          lower.includes("simulation") ||
+          lower.includes("timed test") ||
+          lower.includes("verification passed") ||
+          lower.includes("save checkpoint") ||
+          lower.includes("rehydrating live save") ||
+          lower.includes("save archives restored") ||
+          lower.includes("igniting engines") ||
+          lower.includes("purging logs") ||
+          lower.includes("staging simulation") ||
+          lower.includes("exception detected")
+        ? "lab"
+        : lower.includes("blueprint") ||
+            lower.includes("playset") ||
+            lower.includes("play set") ||
+            lower.includes("deploy")
+          ? "blueprint"
+          : lower.includes("radar") ||
+              lower.includes("conflict") ||
+              lower.includes("scan")
+            ? "radar"
+            : lower.includes("quarantine") ||
+                lower.includes("shelter") ||
+                lower.includes("backup") ||
+                lower.includes("time capsule") ||
+                lower.includes("defcon") ||
+                lower.includes("lockdown")
+              ? "security"
+              : lower.includes("cached changes") ||
+                  lower.includes("unsaved") ||
+                  lower.includes("workbench") ||
+                  lower.includes(".cfg") ||
+                  lower.includes(".ini") ||
+                  lower.includes(".json") ||
+                  lower.includes(".wayfinder") ||
+                  lower.includes(".masonhub")
+                ? "workbench"
+                : lower.includes("vault") ||
+                    lower.includes("artifact") ||
+                    lower.includes("mod") ||
+                    lower.includes("module") ||
+                    lower.includes("install")
+                  ? "vault"
+                  : "system");
 
   const isErr =
     log?.type === "error" ||
     logIcon === "error" ||
     logIcon === "bug_report" ||
     lower.includes("error") ||
-    lower.includes("failed");
+    lower.includes("failed") ||
+    lower.includes("exception detected") ||
+    lower.includes("fatal");
   const isWarn =
     !isErr &&
     (log?.type === "warning" ||
@@ -300,6 +411,7 @@ function parseLogEntryPresentation(log: any, t: any) {
       lower.includes("theme")
     )
       logIcon = "palette";
+    else if (category === "lab") logIcon = isErr ? "error" : "science";
     else if (category === "blueprint") logIcon = "map";
     else if (category === "vault") logIcon = "inventory_2";
     else if (category === "radar") logIcon = "radar";
@@ -320,27 +432,32 @@ function parseLogEntryPresentation(log: any, t: any) {
   const isPreviewEvent =
     lower.includes("live preview") || lower.includes("preview stopped");
 
+  const parsedException = parseStructuredExceptionPayload(logText, t);
+
   // Derive a clean card title + body description for 2-column card anatomy
   let cardTitle = "";
   let cardBody = logText;
 
-  if (lower.includes("cached changes from your last session")) {
+  if (parsedException) {
+    cardTitle =
+      parsedException.titleOverride ||
+      t("sys_log_exception_title", "Exception Report");
+    cardBody = parsedException.summary;
+  } else if (lower.includes("cached changes from your last session")) {
     cardTitle = t("cached_changes", "Unsaved Edits");
-  } else if (logText.includes(":")) {
-    const colonIdx = logText.indexOf(":");
-    const prefix = logText.slice(0, colonIdx).trim();
-    const rest = logText.slice(colonIdx + 1).trim();
-    if (prefix.length > 0 && prefix.length <= 34 && rest.length > 0) {
-      cardTitle = prefix;
-      cardBody = rest;
-    }
-  } else if (logText.includes("—")) {
-    const dashIdx = logText.indexOf("—");
-    const prefix = logText.slice(0, dashIdx).trim();
-    const rest = logText.slice(dashIdx + 1).trim();
-    if (prefix.length > 0 && prefix.length <= 36 && rest.length > 0) {
-      cardTitle = prefix;
-      cardBody = rest;
+  } else {
+    const colonMatch = logText.match(/^([^()\n]{1,34}):\s+([\s\S]+)$/);
+    if (colonMatch) {
+      cardTitle = colonMatch[1].trim();
+      cardBody = colonMatch[2].trim();
+    } else if (logText.includes("—")) {
+      const dashIdx = logText.indexOf("—");
+      const prefix = logText.slice(0, dashIdx).trim();
+      const rest = logText.slice(dashIdx + 1).trim();
+      if (prefix.length > 0 && prefix.length <= 36 && rest.length > 0) {
+        cardTitle = prefix;
+        cardBody = rest;
+      }
     }
   }
 
@@ -349,6 +466,8 @@ function parseLogEntryPresentation(log: any, t: any) {
       cardTitle = lower.includes("stopped") || lower.includes("terminated")
         ? t("preview_stopped", "Preview Ended")
         : t("live_preview", "Live Preview");
+    } else if (category === "lab") {
+      cardTitle = t("term_lab", "{Lab}");
     } else if (category === "vault") {
       cardTitle = t("vault_title", "Your {Vault}");
     } else if (category === "blueprint") {
@@ -371,6 +490,7 @@ function parseLogEntryPresentation(log: any, t: any) {
     logText,
     cardTitle,
     cardBody,
+    traceDetails: parsedException?.traceDetails || null,
     category,
     severity,
     isPreviewEvent,
@@ -447,6 +567,7 @@ export function SystemLogModal({
   const setView = useStore((s) => s.setView);
   const pushStatus = useStore((s) => s.pushStatus);
   const removeStatusLogEntry = useStore((s) => s.removeStatusLogEntry);
+  const pruneRoutineStatusLog = useStore((s) => s.pruneRoutineStatusLog);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const workspaces = useStore((s) => s.workspaces);
   const cwUnsavedEdits = useStore((s) => s.cwUnsavedEdits);
@@ -461,6 +582,18 @@ export function SystemLogModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [expandedTraceIds, setExpandedTraceIds] = useState<Set<string>>(
+    () => new Set()
+  );
+
+  const toggleTraceExpanded = (id: string) => {
+    setExpandedTraceIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const allLiveUnsavedFiles = useMemo(
     () => (isLogExpanded ? resolveAllCachedUnsavedFiles() : []),
@@ -478,14 +611,43 @@ export function SystemLogModal({
 
   const enrichedLogs = useMemo(() => {
     const safeList = Array.isArray(statusLog) ? statusLog : [];
-    return safeList.map((entry: any) => ({
-      ...entry,
-      ...parseLogEntryPresentation(entry, t),
-    }));
+    const deduped: any[] = [];
+    const volatileIndexByKey = new Map<string, number>();
+
+    for (const entry of safeList) {
+      const presented = parseLogEntryPresentation(entry, t);
+      const dedupeKey = normalizeDisplayLogDedupeKey(presented.logText);
+      const isVolatileCacheSummary =
+        dedupeKey.startsWith("offline cache loaded") ||
+        dedupeKey.includes("# artifacts in your vault");
+
+      if (isVolatileCacheSummary && volatileIndexByKey.has(dedupeKey)) {
+        const existingIdx = volatileIndexByKey.get(dedupeKey)!;
+        deduped[existingIdx] = {
+          ...deduped[existingIdx],
+          repeatCount:
+            (deduped[existingIdx].repeatCount || 1) +
+            (presented.repeatCount || 1),
+        };
+        continue;
+      }
+
+      const item = {
+        ...entry,
+        ...presented,
+      };
+      if (isVolatileCacheSummary) {
+        volatileIndexByKey.set(dedupeKey, deduped.length);
+      }
+      deduped.push(item);
+    }
+
+    return deduped;
   }, [statusLog, t]);
 
   const counts = useMemo(() => {
     let vault = 0;
+    let lab = 0;
     let nexus = 0;
     let alerts = 0;
     for (const item of enrichedLogs) {
@@ -495,6 +657,9 @@ export function SystemLogModal({
         item.category === "workbench"
       ) {
         vault++;
+      }
+      if (item.category === "lab") {
+        lab++;
       }
       if (item.category === "nexus") {
         nexus++;
@@ -511,6 +676,7 @@ export function SystemLogModal({
     return {
       all: enrichedLogs.length,
       vault,
+      lab,
       nexus,
       alerts,
     };
@@ -527,6 +693,8 @@ export function SystemLogModal({
         ) {
           return false;
         }
+      } else if (activeGroup === "lab") {
+        if (item.category !== "lab") return false;
       } else if (activeGroup === "nexus") {
         if (item.category !== "nexus") return false;
       } else if (activeGroup === "alerts") {
@@ -572,12 +740,20 @@ export function SystemLogModal({
 
   const getCategoryMeta = (category: string) => {
     switch (category) {
+      case "lab":
+        return {
+          label: t("term_lab", "{Lab}"),
+          icon: t("icon_science", "science"),
+          colorClass:
+            "text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
+          targetView: "lab",
+        };
       case "vault":
         return {
           label: t("term_vault", "{Vault}"),
           icon: t("icon_inventory_2", "inventory_2"),
           colorClass:
-            "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]",
+            "text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
           targetView: "vault",
         };
       case "blueprint":
@@ -585,7 +761,7 @@ export function SystemLogModal({
           label: t("tab_blueprints", "{Blueprints}"),
           icon: t("icon_map", "map"),
           colorClass:
-            "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]",
+            "text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
           targetView: "playsets",
         };
       case "nexus":
@@ -593,7 +769,7 @@ export function SystemLogModal({
           label: t("tab_nexus", "Nexus"),
           icon: t("icon_hub", "hub"),
           colorClass:
-            "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]",
+            "text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
           targetView: "nexus",
         };
       case "radar":
@@ -601,7 +777,7 @@ export function SystemLogModal({
           label: t("btn_radar", "Radar Sweep"),
           icon: t("icon_radar", "radar"),
           colorClass:
-            "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_40%,transparent)]",
+            "text-[var(--warning)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
           targetView: "ArtifactScout",
           onOpenPanel: () => setIsConflictRadarOpen(true),
         };
@@ -610,7 +786,7 @@ export function SystemLogModal({
           label: t("term_backups", "{Backups}"),
           icon: t("icon_shield_lock", "shield_lock"),
           colorClass:
-            "text-[var(--warning)] border-[color-mix(in_srgb,var(--warning)_40%,transparent)]",
+            "text-[var(--warning)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
           targetView: "backups",
         };
       case "workbench":
@@ -618,7 +794,7 @@ export function SystemLogModal({
           label: t("tab_workbench", "Workbench"),
           icon: t("icon_handyman", "handyman"),
           colorClass:
-            "text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_35%,transparent)]",
+            "text-[var(--accent)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
           targetView: "CitizensWorkbench",
         };
       default:
@@ -626,7 +802,7 @@ export function SystemLogModal({
           label: t("system_status", "System"),
           icon: t("icon_terminal", "terminal"),
           colorClass:
-            "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_18%,transparent)]",
+            "text-[var(--subtext)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
           targetView: null,
         };
     }
@@ -824,6 +1000,17 @@ export function SystemLogModal({
                     : t("copy_all_logs", "Copy All Logs")
                 }
                 onClick={handleCopyAll}
+              />
+              <PanelHeaderButton
+                icon={t("icon_cleaning_services", "cleaning_services")}
+                tooltip={t("sys_log_prune_routine", "Prune Routine")}
+                tooltipSubtitle={t(
+                  "sys_log_prune_sub",
+                  "Keep alerts & security events; clear routine info logs"
+                )}
+                onClick={() => {
+                  pruneRoutineStatusLog?.();
+                }}
               />
               <PanelHeaderButton
                 icon={t("icon_delete_sweep", "delete_sweep")}
@@ -1050,6 +1237,17 @@ export function SystemLogModal({
                       ),
                     },
                     {
+                      id: "lab",
+                      label: (
+                        <span className="flex items-center gap-2">
+                          <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
+                            {t("icon_science", "science")}
+                          </span>
+                          <span>{t("term_lab", "{Lab}")}</span>
+                        </span>
+                      ),
+                    },
+                    {
                       id: "nexus",
                       label: (
                         <span className="flex items-center gap-2">
@@ -1114,7 +1312,7 @@ export function SystemLogModal({
                       setSeverityFilter("all");
                       setSearchQuery("");
                     }}
-                    className="px-4 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-widest cursor-pointer"
+                    className="px-4 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[var(--accent)] text-[10px] font-black uppercase tracking-widest cursor-pointer transition-colors"
                   >
                     {t("clear", "Clear")}
                   </button>
@@ -1128,7 +1326,7 @@ export function SystemLogModal({
               )}
               <div
                 ref={logVirtual.gridRef}
-                className="grid grid-cols-1 sm:grid-cols-2 gap-3.5"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-start"
               >
                 {visibleLogs.map((log: any) => {
                 const catMeta = getCategoryMeta(log.category);
@@ -1145,11 +1343,8 @@ export function SystemLogModal({
                       ? "text-[var(--success)]"
                       : "text-[var(--accent)]";
 
-                const cardBorderClass = isErr
-                  ? "border-[color-mix(in_srgb,var(--danger)_28%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_48%,transparent)]"
-                  : isWarn
-                    ? "border-[color-mix(in_srgb,var(--warning)_28%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_48%,transparent)]"
-                    : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_38%,transparent)]";
+                const cardBorderClass =
+                  "border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]";
 
                 // Resolve all unsaved files when entry is a cached-changes notification
                 let bodyContent: React.ReactNode = log.cardBody;
@@ -1226,7 +1421,7 @@ export function SystemLogModal({
                                   fileObj.source
                                 );
                               }}
-                              className="relative px-2.5 py-1 glass-surface border border-[color-mix(in_srgb,var(--accent)_32%,transparent)] hover:border-[var(--accent)] text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] rounded-lg transition-all text-[10px] font-black tracking-wide flex items-center gap-1.5 cursor-pointer"
+                              className="relative px-2.5 py-1 glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)] hover:text-[var(--accent)] rounded-lg transition-all text-[10px] font-black tracking-wide flex items-center gap-1.5 cursor-pointer"
                             >
                               <span className="material-symbols-outlined !text-[12px]">
                                 {t("icon_edit_document", "edit_document")}
@@ -1431,7 +1626,7 @@ export function SystemLogModal({
 
                       {log.repeatCount > 1 && (
                         <span
-                          className={`relative ${VAULT_CHIP_CLASS} text-[var(--accent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shrink-0`}
+                          className={`relative ${VAULT_CHIP_CLASS} text-[var(--accent)] shrink-0`}
                         >
                           <span>×{log.repeatCount}</span>
                           <HoverTooltip
@@ -1442,8 +1637,39 @@ export function SystemLogModal({
                     </div>
 
                     {/* Card Body */}
-                    <div className="text-xs font-semibold text-[var(--text)] opacity-90 leading-relaxed break-words">
-                      {bodyContent}
+                    <div className="text-xs font-semibold text-[var(--text)] opacity-90 leading-relaxed break-words flex flex-col gap-2">
+                      <div>{bodyContent}</div>
+                      {log.traceDetails && (
+                        <div className="flex flex-col gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleTraceExpanded(log.id);
+                            }}
+                            className="self-start px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[10px] font-bold text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined !text-[13px] text-[var(--danger)]">
+                              {expandedTraceIds.has(log.id)
+                                ? t("icon_expand_less", "expand_less")
+                                : t("icon_bug_report", "bug_report")}
+                            </span>
+                            <span>
+                              {expandedTraceIds.has(log.id)
+                                ? t("sys_log_hide_trace", "Hide Trace")
+                                : t("sys_log_show_trace", "Inspect Trace")}
+                            </span>
+                          </button>
+                          {expandedTraceIds.has(log.id) && (
+                            <pre
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[10px] font-mono leading-relaxed text-[var(--text)] opacity-90 max-h-44 overflow-y-auto whitespace-pre-wrap break-all select-text"
+                            >
+                              {log.traceDetails}
+                            </pre>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Card Footer: Timestamp + HoverTooltip Action Buttons */}
@@ -1464,7 +1690,7 @@ export function SystemLogModal({
                               e.stopPropagation();
                               handleStopAllPreviews();
                             }}
-                            className="relative px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)] hover:bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] text-[9px] font-black uppercase tracking-widest flex items-center gap-1 transition-all cursor-pointer"
+                            className="relative px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--warning)] text-[9px] font-black uppercase tracking-widest flex items-center gap-1 transition-all cursor-pointer"
                           >
                             <span className="material-symbols-outlined !text-[12px]">
                               {t("icon_visibility_off", "visibility_off")}
@@ -1484,7 +1710,7 @@ export function SystemLogModal({
                                 e.stopPropagation();
                                 triggerEntryOpenAction();
                               }}
-                              className="relative w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
+                              className="relative w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
                             >
                               <span className="material-symbols-outlined !text-[14px]">
                                 {t("icon_open_in_new", "open_in_new")}
@@ -1501,7 +1727,7 @@ export function SystemLogModal({
                             e.stopPropagation();
                             handleCopyEntry(log);
                           }}
-                          className="relative w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
+                          className="relative w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
                         >
                           <span className="material-symbols-outlined !text-[14px]">
                             {isCopied
@@ -1523,7 +1749,7 @@ export function SystemLogModal({
                             e.stopPropagation();
                             removeStatusLogEntry?.(log.id);
                           }}
-                          className="relative w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
+                          className="relative w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer"
                         >
                           <span className="material-symbols-outlined !text-[14px]">
                             {t("icon_close", "close")}

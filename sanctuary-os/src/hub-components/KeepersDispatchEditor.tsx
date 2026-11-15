@@ -887,6 +887,7 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
         isOpen={isAssetPanelOpen}
         onClose={() => setIsAssetPanelOpen(false)}
         onAssetSelect={handleLinkAsset}
+        widthClass="w-[90vw] md:w-[800px]"
         backdropZ="z-[50000]"
         panelZ="z-[50001]"
       />
