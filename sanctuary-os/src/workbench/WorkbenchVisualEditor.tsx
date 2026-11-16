@@ -57,6 +57,37 @@ export const resolveSettingDataPath = (parentPath: string, setting: any, parentI
    return !localPath.startsWith(parentPath + ".") ? `${parentPath}.${localPath}` : localPath;
 };
 
+export const resolveCategoryIcon = (
+   cat: any,
+   _resolveText: (k?: string, fallback?: string) => string,
+   t: (k: string, fallback: string) => string
+): string => {
+   const key = `${cat?.id || ""} ${cat?.name_key || ""} ${cat?.name || ""}`.toLowerCase();
+   const rawIcon = (cat?.icon_key || cat?.icon || "").replace(/^workbench_icon_/, "").replace(/^icon_/, "").trim();
+   const isGenericIcon = !rawIcon || rawIcon === "tag" || rawIcon === "folder" || rawIcon === "#" || (rawIcon === "tune" && !key.includes("general") && !key.includes("tuner"));
+   if (!isGenericIcon) {
+      return t(`icon_${rawIcon}`, rawIcon);
+   }
+   if (key.includes("general") || key.includes("core") || key.includes("main")) return t("icon_tune", "tune");
+   if (key.includes("appear") || key.includes("character") || key.includes("avatar") || key.includes("body") || key.includes("face")) return t("icon_face", "face");
+   if (key.includes("autosave") || key.includes("save") || key.includes("backup")) return t("icon_save", "save");
+   if (key.includes("structure") || key.includes("housing") || key.includes("arch") || key.includes("zone")) return t("icon_home_work", "home_work");
+   if (key.includes("bill") || key.includes("money") || key.includes("finance") || key.includes("economy") || key.includes("pay")) return t("icon_receipt_long", "receipt_long");
+   if (key.includes("career") || key.includes("work") || key.includes("job") || key.includes("school")) return t("icon_work", "work");
+   if (key.includes("clean") || key.includes("maint")) return t("icon_cleaning_services", "cleaning_services");
+   if (key.includes("club") || key.includes("group") || key.includes("social") || key.includes("faction")) return t("icon_groups", "groups");
+   if (key.includes("dress") || key.includes("outfit") || key.includes("cloth") || key.includes("gear")) return t("icon_checkroom", "checkroom");
+   if (key.includes("marri") || key.includes("romance") || key.includes("love")) return t("icon_favorite", "favorite");
+   if (key.includes("magic") || key.includes("power") || key.includes("ability")) return t("icon_auto_fix_high", "auto_fix_high");
+   if (key.includes("populat") || key.includes("world") || key.includes("map") || key.includes("region")) return t("icon_public", "public");
+   if (key.includes("graphics") || key.includes("video") || key.includes("display") || key.includes("render")) return t("icon_display_settings", "display_settings");
+   if (key.includes("audio") || key.includes("sound") || key.includes("music")) return t("icon_volume_up", "volume_up");
+   if (key.includes("relation") || key.includes("friend") || key.includes("ally")) return t("icon_handshake", "handshake");
+   if (key.includes("notif") || key.includes("show") || key.includes("alert") || key.includes("ui")) return t("icon_notifications", "notifications");
+   if (key.includes("tuner") || key.includes("autonom") || key.includes("interac") || key.includes("gameplay")) return t("icon_build", "build");
+   return t("icon_category", "category");
+};
+
 export const countSettingsByCategory = (settings: any[]): Record<string, number> => {
    const counts: Record<string, number> = { ALL: 0 };
    if (!Array.isArray(settings)) return counts;
@@ -216,7 +247,7 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
          data-setting-key={setting.key}
          className={`h-full rounded-2xl border ${isNested ? 'px-3.5 py-2.5' : 'px-4 py-3'} flex flex-col justify-center group transition-colors duration-200 gap-2 relative ${
             isHighlighted
-               ? 'z-10 bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_24px_rgba(var(--accent-rgb),0.15)]'
+               ? 'z-10 sa-glass-pill-active !border-[color-mix(in_srgb,var(--text)_34%,transparent)]'
                : isNested
                   ? 'glass-surface border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_16%,transparent)]'
                   : 'glass-panel border-[color-mix(in_srgb,var(--text)_8%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_18%,transparent)]'
@@ -230,18 +261,18 @@ const SettingNode = React.memo(({ setting, val, savedVal, dataPath, isHighlighte
                      {label}
                   </span>
                   {setting.risk === "advanced" && (
-                     <span className="shrink-0 inline-flex items-center gap-1 h-[18px] px-1.5 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[var(--danger)] text-[9px] font-bold tracking-wide leading-none whitespace-nowrap">
+                     <span className="shrink-0 inline-flex items-center gap-1 h-[18px] px-1.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--danger)] text-[9px] font-bold tracking-wide leading-none whitespace-nowrap">
                         <span className="material-symbols-outlined !text-[10px] text-[var(--danger)]">{t("icon_warning", "warning")}</span>
                         <span>{t("advanced_badge", "Advanced")}</span>
                      </span>
                   )}
                   {isUnsavedEdit ? (
-                     <span className="shrink-0 inline-flex items-center gap-1 h-[18px] px-1.5 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] text-[var(--warning)] text-[9px] font-bold tracking-wide leading-none whitespace-nowrap">
+                     <span className="shrink-0 inline-flex items-center gap-1 h-[18px] px-1.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--warning)] text-[9px] font-bold tracking-wide leading-none whitespace-nowrap">
                         <span className="material-symbols-outlined !text-[10px] text-[var(--warning)]">{t("icon_edit_note", "edit_note")}</span>
                         <span>{t("unsaved", "Unsaved")}</span>
                      </span>
                   ) : isModified ? (
-                     <span className="shrink-0 inline-flex items-center gap-1 h-[18px] px-1.5 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] text-[9px] font-bold tracking-wide leading-none whitespace-nowrap">
+                     <span className="shrink-0 inline-flex items-center gap-1 h-[18px] px-1.5 rounded-full glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--accent)] text-[9px] font-bold tracking-wide leading-none whitespace-nowrap">
                         <span className="material-symbols-outlined !text-[10px] text-[var(--accent)]">{t("icon_track_changes", "track_changes")}</span>
                         <span>{t("modified", "Modified")}</span>
                      </span>

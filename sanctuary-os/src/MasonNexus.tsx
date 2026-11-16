@@ -18,6 +18,7 @@ import {
 } from "./shared";
 import pkg from "../package.json";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { LiquidGlassAlertCard } from "./components/BlueprintPatchReadiness";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 import {
   DynamicThemePreviewBanner,
@@ -778,6 +779,58 @@ export function MasonNexus({
     );
   };
 
+  const openNewUpload = (assetType: string) => {
+    setUploadState({
+      isOpen: true,
+      editId: null,
+      assetType,
+      isHidden: false,
+      name: "",
+      version: "1.0.0",
+      description: "",
+      releaseNotes: "",
+      fileContent: null,
+      fileName: "",
+      language: availableLanguages.length > 0 ? availableLanguages[0] : "English",
+      newLanguage: "",
+      lexiconType: "Theme",
+      themeMode: "Dark",
+    });
+  };
+
+  const getUploadLeadTitle = (assetType: string) => {
+    if (assetType === "lexicon") return t("upload_lexicon_title", "Upload {Lexicon}");
+    if (assetType === "workbench_template") return t("upload_template_title", "Upload Template");
+    return t("upload_chameleon_title", "Upload {Chameleon}");
+  };
+
+  const renderUploadLeadCard = (assetType: string, isOverview = false) => {
+    const title = isOverview
+      ? t("nexus_upload_lead_title", "Upload to {Nexus}")
+      : getUploadLeadTitle(assetType);
+    return (
+      <LiquidGlassAlertCard
+        isAlertCard={false}
+        icon={t("icon_cloud_upload", "cloud_upload")}
+        accentVar="var(--accent)"
+        iconColorClass="text-[var(--accent)]"
+        badgeIcon={t("icon_hub", "hub")}
+        badgeLabel={t("tab_nexus", "{Nexus}")}
+        overline={t("tab_nexus", "{Nexus}")}
+        title={title}
+        description={t(
+          "nexus_upload_lead_desc",
+          "Publish a new asset package to {Nexus} for {Citizens}."
+        )}
+        actionLabel={t("new", "New")}
+        actionIcon={t("icon_add", "add")}
+        actionVariant="glass"
+        onAction={() => openNewUpload(assetType)}
+        onClick={() => openNewUpload(assetType)}
+      />
+    );
+  };
+
   const renderLanding = () => {
     const recentAssets = [...assets]
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -789,7 +842,7 @@ export function MasonNexus({
     const recentCombined = [
       ...recentAssets.slice(0, 2).map((a) => ({ item: a, isBp: false })),
       ...recentBlueprints.slice(0, 2).map((a) => ({ item: a, isBp: true })),
-    ];
+    ].slice(0, isVerifiedMason ? 3 : 4);
     const anomalyItems = [
       ...assets
         .filter((a) => isAssetFlagged(a, false) || isAssetOutdated(a, false))
@@ -805,10 +858,11 @@ export function MasonNexus({
           icon={t("icon_schedule", "schedule")}
           iconColorClass="text-[var(--accent)]"
           title={t("chameleons_overview_recent", "Recent")}
-          isEmpty={recentCombined.length === 0}
+          isEmpty={!isVerifiedMason && recentCombined.length === 0}
           emptyIcon={t("icon_storefront", "storefront")}
           emptyTitle={t("market_no_assets", "No Assets Found")}
         >
+          {isVerifiedMason && !searchQuery.trim() && renderUploadLeadCard("chameleon", true)}
           {recentCombined.map(({ item, isBp }) => renderAssetCard(item, isBp))}
         </HubOverviewSection>
 
@@ -827,9 +881,11 @@ export function MasonNexus({
   };
 
   const renderList = () => {
+    const showUploadLead =
+      isVerifiedMason && activeTab !== "blueprint" && !searchQuery.trim();
     return (
       <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        {filteredAssets.length === 0 ? (
+        {!showUploadLead && filteredAssets.length === 0 ? (
           <EmptyState
             icon={t("icon_storefront", "storefront")}
             title={t("market_no_assets", "No Assets Found")}
@@ -837,6 +893,7 @@ export function MasonNexus({
           />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+            {showUploadLead && renderUploadLeadCard(activeTab)}
             {filteredAssets.map((asset) => {
               const isBp = activeTab === "blueprint";
               return renderAssetCard(asset, isBp);
@@ -868,38 +925,6 @@ export function MasonNexus({
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as any)}
       hideSearch={activeTab === "overview"}
-      actions={
-        isVerifiedMason && activeTab !== "overview" && activeTab !== "blueprint"
-          ? [
-              {
-                id: "add_new",
-                icon: (
-                  <span className="material-symbols-outlined !text-[20px]">
-                    {t("icon_add", "add")}
-                  </span>
-                ),
-                label: t("badge_new", "New"),
-                onClick: () =>
-                  setUploadState({
-                    isOpen: true,
-                    editId: null,
-                    assetType: activeTab,
-                    isHidden: false,
-                    name: "",
-                    version: "1.0.0",
-                    description: "",
-                    releaseNotes: "",
-                    fileContent: null,
-                    fileName: "",
-                    language: availableLanguages.length > 0 ? availableLanguages[0] : "English",
-                    newLanguage: "",
-                    lexiconType: "Theme",
-                    themeMode: "Dark",
-                  }),
-              },
-            ]
-          : undefined
-      }
     >
       {activeTab === "overview" ? renderLanding() : renderList()}
 
@@ -1142,7 +1167,7 @@ export function MasonNexus({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5 relative z-[60]">
                       <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest ml-1">
-                        {t("tab_lexicons", "Language")}
+                        {t("language", "Language")}
                       </label>
                       <CustomDropdown
                         disableTint={true}
@@ -1152,7 +1177,7 @@ export function MasonNexus({
                         }
                         options={[
                           ...availableLanguages.map((l) => ({ id: l, label: l })),
-                          { id: "add_new", label: t("upload_add_language", "Add New {Lexicon}...") },
+                          { id: "add_new", label: t("upload_add_language", "Add New Language...") },
                         ]}
                       />
                     </div>
@@ -1167,15 +1192,15 @@ export function MasonNexus({
                           setUploadState((s) => ({ ...s, lexiconType: val[0] }))
                         }
                         options={[
-                          { id: "Theme", label: t("chameleon", "Theme") },
-                          { id: "Default", label: t("type_default", "Default") },
+                          { id: "Theme", label: t("lexicon_type_thematic", "Thematic") },
+                          { id: "Default", label: t("lexicon_type_standard", "Standard") },
                         ]}
                       />
                     </div>
                     {uploadState.language === "add_new" && (
                       <div className="flex flex-col gap-1.5 sm:col-span-2">
                         <label className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest ml-1">
-                          {t("upload_new_language", "New {Lexicon} Name")}
+                          {t("upload_new_language", "New Language Name")}
                         </label>
                         <input
                           type="text"

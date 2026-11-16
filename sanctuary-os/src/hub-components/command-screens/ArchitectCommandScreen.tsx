@@ -38,6 +38,7 @@ import {
   claimOrReleaseHubTicket,
 } from "../../utils/hubCommandCache";
 import { auditBlueprintsTier0Compliance } from "../../side-panels/NexusSidePanels";
+import { isStrictTier0Value } from "../../utils/nexusCatalogStats";
 
 interface ArchitectCommandSnapshot {
   stats: {
@@ -169,7 +170,8 @@ export function ArchitectCommandScreen({
         .from("mods")
         .select("id", { count: "exact", head: true })
         .in("status", ["stable", "verified"])
-        .eq("compliance_tier", 0),
+        .eq("compliance_tier", 0)
+        .eq("has_pending_flag", false),
       supabase
         .from("sanctuary_tickets")
         .select("*")
@@ -203,7 +205,8 @@ export function ArchitectCommandScreen({
       supabase
         .from("collections")
         .select("id", { count: "exact", head: true })
-        .eq("compliance_tier", 0),
+        .eq("compliance_tier", 0)
+        .eq("has_pending_flag", false),
       supabase
         .from("logical_conflicts")
         .select("id", { count: "exact", head: true }),
@@ -235,7 +238,10 @@ export function ArchitectCommandScreen({
 
     // 1:1 Scout consensus grouping (matches ArchitectScoutQueue.tsx)
     const pendingScouts = (scoutRes?.data || []).filter(
-      (s: any) => Number(s?.compliance_tier || 0) === 0
+      (s: any) =>
+        s?.compliance_tier === null ||
+        s?.compliance_tier === undefined ||
+        isStrictTier0Value(s?.compliance_tier)
     );
     const scoutByHash = new Map<string, any[]>();
     pendingScouts.forEach((row: any) => {
@@ -272,7 +278,7 @@ export function ArchitectCommandScreen({
     const seenMasonSubNames = new Set<string>();
     const verifiedMasonSubs: any[] = [];
     (underReviewModsRes?.data || []).forEach((mod: any) => {
-      if (Number(mod?.compliance_tier || 0) > 0) return;
+      if (!isStrictTier0Value(mod?.compliance_tier) || mod?.has_pending_flag === true) return;
       if (!mod?.mason_id || !verifiedMasonMap.has(String(mod.mason_id))) return;
       const normName = String(mod.name || mod.id).trim().toLowerCase();
       if (seenMasonSubNames.has(normName)) return;
@@ -300,7 +306,7 @@ export function ArchitectCommandScreen({
     const pendingDiagMap = new Map<string, any>();
     (labLogsRes?.data || []).forEach((log: any) => {
       const mod = Array.isArray(log.mods) ? log.mods[0] : log.mods;
-      if (!mod || Number(mod?.compliance_tier || 0) > 0) return;
+      if (!mod || !isStrictTier0Value(mod?.compliance_tier) || mod?.has_pending_flag === true) return;
       if (mod.status === "stable" || mod.status === "verified" || mod.status === "broken") return;
       if (!pendingDiagMap.has(mod.id)) {
         pendingDiagMap.set(mod.id, {
@@ -415,6 +421,18 @@ export function ArchitectCommandScreen({
     if (cached) setSnapshot(cached);
     refreshArchitectDashboard();
   }, [cacheScope, refreshArchitectDashboard]);
+
+  useEffect(() => {
+    const handleCatalogRefresh = () => {
+      refreshArchitectDashboard();
+    };
+    window.addEventListener("sanctuary-compliance-updated", handleCatalogRefresh);
+    window.addEventListener("sanctuary-content-flagged", handleCatalogRefresh);
+    return () => {
+      window.removeEventListener("sanctuary-compliance-updated", handleCatalogRefresh);
+      window.removeEventListener("sanctuary-content-flagged", handleCatalogRefresh);
+    };
+  }, [refreshArchitectDashboard]);
 
   const {
     stats,

@@ -4,6 +4,7 @@ import { useLexicon } from "../LexiconContext";
 import { supabase } from "../supabase";
 import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import { UniversalGroup, UniversalInput, UniversalTextArea, UniversalToggle, SidePanelHeroCard, StatBox } from "../components/universal/UniversalLayout";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid, SidePanelTitleInput, SidePanelPillToggle } from "../components/layouts/ElevatedHubLayout";
@@ -241,6 +242,25 @@ export default function KeeperSupportSettings({
         </UniversalCard>
     );
 
+    const renderCategoryLeadCard = () => (
+        <LiquidGlassAlertCard
+            isAlertCard={false}
+            icon={t("icon_add_circle", "add_circle")}
+            accentVar="var(--accent)"
+            iconColorClass="text-[var(--accent)]"
+            badgeIcon={t("icon_category", "category")}
+            badgeLabel={t("recent_active_categories", "Recent Active Categories")}
+            overline={t("tab_support", "Support Settings")}
+            title={t("support_add_cat", "Add Category")}
+            description={t("support_settings_desc", "Manage ticket categories and custom fields.")}
+            actionLabel={t("support_add_cat", "Add Category")}
+            actionIcon={t("icon_add", "add")}
+            actionVariant="glass"
+            onAction={() => openEditor()}
+            onClick={() => openEditor()}
+        />
+    );
+
     const renderLanding = () => {
         const activeCats = categories.filter(c => c.is_active);
         const inactiveCats = categories.filter(c => !c.is_active);
@@ -251,10 +271,10 @@ export default function KeeperSupportSettings({
                     title={t("recent_active_categories", "Recent Active Categories") || "Recent Active"}
                     icon={t("icon_category", "category")}
                     iconColorClass="text-[var(--accent)]"
-                    isEmpty={activeCats.length === 0}
-                    emptyState={<EmptyState icon={t("icon_category", "category")} title={t("support_no_cats", "No categories found") || "No Active Categories"} className="py-8" />}
+                    isEmpty={false}
                 >
-                    {activeCats.slice(0, 4).map(renderCategoryCard)}
+                    {renderCategoryLeadCard()}
+                    {activeCats.slice(0, 3).map(renderCategoryCard)}
                 </HubOverviewSection>
 
                 <HubOverviewSection
@@ -331,24 +351,16 @@ export default function KeeperSupportSettings({
                     )
                 } : undefined
             }
-            actions={
-                filter !== 'overview' && filter !== 'ALL' ? [
-                    {
-                        id: "add",
-                        icon: t("icon_add", "add") || "add",
-                        label: t("support_add_cat", "Add Category") || "Add Category",
-                        onClick: () => openEditor()
-                    }
-                ] : undefined
-            }
         >
             {filter === 'overview' || filter === 'ALL' ? renderLanding() : (
                 <div className="flex flex-col gap-4">
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
-                        {filteredCategories.map(renderCategoryCard)}
-                    </div>
-                    {!loading && filteredCategories.length === 0 && (
+                    {!(filter === 'ACTIVE' && !searchQuery.trim()) && !loading && filteredCategories.length === 0 ? (
                         <EmptyState icon={t("icon_inventory_2", "inventory_2")} title={t("support_no_cats", "No categories found")} className="py-8" />
+                    ) : (
+                        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+                            {filter === 'ACTIVE' && !searchQuery.trim() && renderCategoryLeadCard()}
+                            {filteredCategories.map(renderCategoryCard)}
+                        </div>
                     )}
                 </div>
             )}

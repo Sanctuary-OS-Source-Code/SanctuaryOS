@@ -3,6 +3,66 @@ import { useStore } from "../store";
 
 export const AUDIT_DIFF_MARKER = "\n---AUDIT_DIFF---\n";
 
+export type AuditViewerScope = "public" | "oversight" | "wayfinder" | "keepers";
+
+export const PUBLIC_ALLOWED_AUDIT_TABLES = [
+  "mods",
+  "mod_versions",
+  "collections",
+  "blueprints",
+  "masons",
+  "game_versions",
+  "dlc_registry",
+  "global_network_status",
+  "system_broadcasts",
+  "sanctuary_schemas",
+] as const;
+
+const PRIVATE_KEY_AUDIT_TABLES = new Set([
+  "spoke_gateway_tokens",
+  "spoke_credentials",
+  "api_keys",
+]);
+
+const PRIVATE_KEY_AUDIT_PATTERN =
+  /gateway\s*token|spk_gw_|minted\s+scoped|revoked\s+all\s+spoke\s+gateway|service_key|secret_key|passkey|webauthn|relink\s+commitment|cryptographic\s+spoke\s+profile\s+relink/i;
+
+const PUBLIC_BLOCKED_AUDIT_PATTERN =
+  /support\s*ticket|support\s*category|log\s*source|telemetry\s*source|spokedonationconfig|keeperpipelineconfig|banned\s+user|updated\s+role|heuristic\s+signature|pruned\s+archived\s+audit/i;
+
+export function isKeyOrSecretAuditRow(log: any): boolean {
+  if (!log) return false;
+  const targetTable = String(log.target_table || "").trim().toLowerCase();
+  if (PRIVATE_KEY_AUDIT_TABLES.has(targetTable)) {
+    return true;
+  }
+  const combinedText = `${String(log.action || "")} ${String(log.reason || "")}`;
+  return PRIVATE_KEY_AUDIT_PATTERN.test(combinedText);
+}
+
+export function isAuditRowVisibleForScope(
+  log: any,
+  scope: AuditViewerScope
+): boolean {
+  if (!log) return false;
+  if (scope === "keepers") return true;
+  if (isCoreOnlyAuditRow(log)) return false;
+  if (scope === "wayfinder") return true;
+  if (scope === "oversight") return !isKeyOrSecretAuditRow(log);
+
+  // "public"
+  if (isKeyOrSecretAuditRow(log)) return false;
+  const tbl = String(log.target_table || "").trim().toLowerCase();
+  if (!tbl || !(PUBLIC_ALLOWED_AUDIT_TABLES as readonly string[]).includes(tbl)) {
+    return false;
+  }
+  const checkText = `${String(log.action || "")} ${String(log.reason || "")} ${String(log.target_name || "")}`;
+  if (PUBLIC_BLOCKED_AUDIT_PATTERN.test(checkText)) {
+    return false;
+  }
+  return true;
+}
+
 export const CORE_ONLY_AUDIT_TABLES = new Set([
   "keeper_system_broadcasts",
   "keeper_dispatch_poll_votes",
@@ -114,24 +174,150 @@ function truncateAuditVal(val: any, maxLen = 220): any {
   return String(val);
 }
 
-export function formatAuditFieldLabel(field: string): string {
-  return String(field || "")
+const AUDIT_FIELD_LABELS: Record<string, string> = {
+  is_pinned: "Pinned",
+  is_active: "Active",
+  is_banned: "Banned",
+  is_comm_banned: "Comms Restricted",
+  mason_id: "Creator ID",
+  master_author: "Creator",
+  category_override: "Category",
+  sub_type: "Subcategory",
+  compatible_versions: "Game Versions",
+  compliance_tier: "Compliance Tier",
+  defcon_level: "DEFCON Level",
+  status_message: "Status Message",
+  target_audience: "Target Audience",
+  version_label: "Version",
+  latest_version: "Version",
+  affected_artifacts: "Affected Items",
+  conflict_linked: "Linked Conflict",
+  dna_hash: "SHA-256 Hash",
+};
+
+const PURE_SNAKE_CASE_RE = /^[a-z0-9]+(?:_[a-z0-9]+)+$/;
+
+function humanizeSnakeCase(raw: string): string {
+  return String(raw || "")
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase())
     .trim();
+}
+
+export function formatAuditFieldLabel(field: string): string {
+  const key = String(field || "").trim();
+  const mapped = AUDIT_FIELD_LABELS[key.toLowerCase()];
+  if (mapped) return mapped;
+  return humanizeSnakeCase(key);
+}
+
+export function formatAuditTableLabel(
+  table: string | null | undefined,
+  t?: (k: string, fb: string) => string
+): string {
+  const clean = String(table || "").trim().toLowerCase();
+  if (!clean) return t ? t("system", "System") : "System";
+  switch (clean) {
+    case "mods":
+      return t ? t("term_mods", "{Mods}") : "Mods";
+    case "mod_versions":
+      return t
+        ? `${t("term_mod", "{Mod}")} ${t("versions", "Versions")}`
+        : "Mod Versions";
+    case "collections":
+      return t ? t("tab_cc", "Collections") : "Collections";
+    case "blueprints":
+      return t ? t("term_blueprints", "{Blueprints}") : "Blueprints";
+    case "masons":
+      return t ? t("term_masons", "{Masons}") : "Masons";
+    case "profiles":
+      return t ? t("tab_identities", "Identities") : "Identities";
+    case "system_broadcasts":
+    case "keeper_system_broadcasts":
+      return t ? t("term_dispatches", "{Dispatches}") : "Dispatches";
+    case "global_network_status":
+      return t
+        ? t("audit_table_network_status", "Network Status")
+        : "Network Status";
+    case "game_versions":
+      return t ? t("sa_game_versions", "Game Versions") : "Game Versions";
+    case "dlc_registry":
+      return t ? t("audit_table_dlc", "DLC Registry") : "DLC Registry";
+    case "scout_suggestions":
+      return t ? t("audit_table_scout", "Scout Queue") : "Scout Queue";
+    case "sanctuary_tickets":
+    case "keeper_tickets":
+      return t ? t("support_tickets", "Support Tickets") : "Support Tickets";
+    case "sanctuary_support_categories":
+    case "keeper_support_categories":
+      return t
+        ? t("audit_table_support_cats", "Support Categories")
+        : "Support Categories";
+    case "sanctuary_telemetry_sources":
+      return t
+        ? t("audit_table_log_sources", "Telemetry Sources")
+        : "Telemetry Sources";
+    case "malware_reports":
+      return t
+        ? t("malware_manifests", "Malware & Manifests")
+        : "Malware & Manifests";
+    case "heuristic_signatures":
+    case "keeper_heuristic_signatures":
+      return t ? t("heuristics_tab", "Heuristics") : "Heuristics";
+    case "sanctuary_schemas":
+      return t ? t("tab_schemas", "Master Schemas") : "Master Schemas";
+    case "sanctuary_games":
+      return t
+        ? t("keepers_tab_partner_spokes", "Partner Spokes")
+        : "Partner Spokes";
+    case "spoke_gateway_tokens":
+      return t
+        ? t("audit_table_gateway_tokens", "Gateway Tokens")
+        : "Gateway Tokens";
+    case "system_directives":
+      return t
+        ? t("audit_table_directives", "System Directives")
+        : "System Directives";
+    case "audit_logs":
+      return t ? t("audit_logs", "Audit Logs") : "Audit Logs";
+    default:
+      return humanizeSnakeCase(clean);
+  }
+}
+
+export function formatAuditTargetLabel(
+  raw: string | null | undefined
+): string {
+  const clean = String(raw || "").trim();
+  if (!clean) return "";
+  if (PURE_SNAKE_CASE_RE.test(clean)) {
+    return humanizeSnakeCase(clean);
+  }
+  return clean;
 }
 
 export function formatAuditValueDisplay(val: any): string {
   if (val === undefined || val === null || val === "") return "—";
   if (typeof val === "boolean") return val ? "True" : "False";
   if (typeof val === "object") {
+    if (!Array.isArray(val)) {
+      const displayProp =
+        (typeof val.name === "string" && val.name.trim()) ||
+        (typeof val.title === "string" && val.title.trim()) ||
+        (typeof val.label === "string" && val.label.trim());
+      if (displayProp) return displayProp;
+    }
     try {
       return JSON.stringify(val);
     } catch {
       return String(val);
     }
   }
-  return String(val);
+  const str = String(val);
+  if (PURE_SNAKE_CASE_RE.test(str.trim())) {
+    return humanizeSnakeCase(str.trim());
+  }
+  return str;
 }
 
 /**
@@ -279,6 +465,7 @@ export function parseAuditLogEntry(log: any): {
     const norm = normalizeAuditChanges(log.changes);
     if (norm) {
       for (const [k, v] of Object.entries(norm)) {
+        if (DEFAULT_IGNORED_DIFF_KEYS.has(k) || k.startsWith("_")) continue;
         addEdit(k, v.from, v.to);
       }
     }
@@ -293,6 +480,7 @@ export function parseAuditLogEntry(log: any): {
         const isDeleteAction = /delete|deprecate|remove|purge/i.test(String(log?.action || ""));
         for (const [k, v] of Object.entries(norm)) {
           if (k === "id" && v.to === undefined && !isDeleteAction) continue;
+          if (DEFAULT_IGNORED_DIFF_KEYS.has(k) || k.startsWith("_")) continue;
           addEdit(k, v.from, v.to);
         }
       }

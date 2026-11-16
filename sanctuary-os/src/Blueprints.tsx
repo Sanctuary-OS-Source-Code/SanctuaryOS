@@ -57,6 +57,7 @@ import { VAULT_CHIP_CLASS } from "./shared-components/constants";
 import {
   BlueprintPatchReadinessView,
   BlueprintPatchReadinessSidePanel,
+  LiquidGlassAlertCard,
   LiquidGlassReadinessBar,
   useBlueprintPatchReadiness,
   peekPendingBlueprintsNavigation,
@@ -1333,18 +1334,6 @@ export default function Blueprints({
               searchQuery={vaultSearchQuery}
               setSearchQuery={setVaultSearchQuery}
               searchPlaceholder={t("nav_search", "Search...") as string}
-              actions={[
-                {
-                  id: "draft_new",
-                  icon: (
-                    <span className="material-symbols-outlined !text-[20px]">
-                      {t("icon_add_circle", "add_circle")}
-                    </span>
-                  ),
-                  label: t("draft_new", "Draft New {Blueprint}"),
-                  onClick: () => setIsDraftingSet && setIsDraftingSet(true),
-                },
-              ]}
             />
           </div>
         )}
@@ -1741,8 +1730,37 @@ export default function Blueprints({
       )}
 
       {activeTab === "VAULT" && (
-        <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pb-12 pt-2">
+        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
+          <CommandScreenSectionHeading
+            title={t("playsets_all", "All Blueprints")}
+            icon={t("icon_map", "map")}
+            className="!mb-0"
+          />
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pb-12">
+            {!vaultSearchQuery.trim() && !isDraftingSet && (
+              <LiquidGlassAlertCard
+                isAlertCard={false}
+                icon={t("icon_add_circle", "add_circle")}
+                accentVar="var(--accent)"
+                iconColorClass="text-[var(--accent)]"
+                badgeIcon={t("icon_map", "map")}
+                badgeLabel={t("playsets_title", "{Blueprints}")}
+                overline={t("playsets_title", "{Blueprints}")}
+                title={t("draft_new", "Draft New {Blueprint}")}
+                description={t(
+                  "blueprint_lead_card_desc",
+                  "Create a new {blueprint} or import an exported JSON file."
+                )}
+                actionLabel={t("new", "New")}
+                actionIcon={t("icon_add", "add")}
+                actionVariant="glass"
+                onAction={() => setIsDraftingSet && setIsDraftingSet(true)}
+                secondaryActionLabel={t("btn_import", "Import")}
+                secondaryActionIcon={t("icon_upload", "upload")}
+                onSecondaryAction={handleImport}
+                onClick={() => setIsDraftingSet && setIsDraftingSet(true)}
+              />
+            )}
             {isDraftingSet && (
               <div className="glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] p-6 rounded-2xl flex flex-col gap-4 animate-in zoom-in-95 relative min-h-[14rem] justify-center">
                 <input
@@ -1837,7 +1855,7 @@ export default function Blueprints({
                 }
               />
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pt-1">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                 {cloudQueuesList
                   .map((qItem, qIdx) => ({ qItem, qIdx }))
                   .filter(({ qItem }) => {
@@ -1863,7 +1881,7 @@ export default function Blueprints({
                 title={`${t("pipeline_section_beam_local", "Beam Local {Blueprints} to Pipeline")} (${playSets.length})`}
                 icon={t("icon_devices", "devices")}
               />
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pt-1">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
                 {(playSets || [])
                   .filter(
                     (s: any) =>
@@ -1880,8 +1898,14 @@ export default function Blueprints({
       )}
 
       {activeTab === "NETWORK" && (
-        <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full pb-32">
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 h-full pt-2">
+        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full pb-32">
+          <CommandScreenSectionHeading
+            title={t("btn_my_cloud_blueprints", "My Cloud {Blueprints}")}
+            icon={t("icon_cloud", "cloud")}
+            iconColorClass="text-sky-500"
+            className="!mb-0"
+          />
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 h-full">
             {myCloudBlueprints.length === 0 ? (
               <EmptyState
                 icon={t("icon_cloud_off", "cloud_off")}

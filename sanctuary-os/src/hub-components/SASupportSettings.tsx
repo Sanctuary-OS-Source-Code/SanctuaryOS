@@ -6,6 +6,7 @@ import { supabase } from "../supabase";
 import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderButton, VAULT_CHIP_CLASS } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
 
@@ -424,6 +425,44 @@ export default function SASupportSettings({
         );
     }
 
+    const renderCategoryLeadCard = () => (
+        <LiquidGlassAlertCard
+            isAlertCard={false}
+            icon={t("icon_add_circle", "add_circle")}
+            accentVar="var(--accent)"
+            iconColorClass="text-[var(--accent)]"
+            badgeIcon={t("icon_category", "category")}
+            badgeLabel={t("active_categories", "Active Categories")}
+            overline={t("tab_support", "Support Settings")}
+            title={t("support_add_cat", "Add Category")}
+            description={t("support_settings_desc", "Manage ticket categories and custom fields.")}
+            actionLabel={t("support_add_cat", "Add Category")}
+            actionIcon={t("icon_add", "add")}
+            actionVariant="glass"
+            onAction={() => openEditor()}
+            onClick={() => openEditor()}
+        />
+    );
+
+    const renderSourceLeadCard = () => (
+        <LiquidGlassAlertCard
+            isAlertCard={false}
+            icon={t("icon_add_circle", "add_circle")}
+            accentVar="var(--success)"
+            iconColorClass="text-[var(--success)]"
+            badgeIcon={t("icon_description", "description")}
+            badgeLabel={t("active_log_sources", "Active Log Sources")}
+            overline={t("tab_support", "Support Settings")}
+            title={t("telemetry_add_source", "Add Source")}
+            description={t("support_subtitle", "Configure support categories and telemetry")}
+            actionLabel={t("telemetry_add_source", "Add Source")}
+            actionIcon={t("icon_add", "add")}
+            actionVariant="glass"
+            onAction={() => openSourceEditor()}
+            onClick={() => openSourceEditor()}
+        />
+    );
+
     return (
         <ElevatedHubLayout
             headerTitle={t("tab_support", "Support Settings") || "Support Settings"}
@@ -443,16 +482,6 @@ export default function SASupportSettings({
                 { id: 'inactive_categories', label: t("inactive_categories", "Inactive Categories") || "Inactive Categories", icon: t("icon_block", "block"), number: categories.filter(c => !c.is_active).length.toString() },
                 { id: 'inactive_log_sources', label: t("inactive_log_sources", "Inactive Log Sources") || "Inactive Log Sources", icon: t("icon_cancel", "cancel"), number: telemetrySources.filter(s => !s.is_active).length.toString() }
             ]}
-            actions={
-                activeTab !== 'overview' ? [
-                    {
-                        id: "add",
-                        icon: t("icon_add", "add") || "add",
-                        label: activeTab.includes('categories') ? (t("support_add_cat", "Add Category") || "Add Category") : (t("telemetry_add_source", "Add Source") || "Add Source"),
-                        onClick: () => activeTab.includes('categories') ? openEditor() : openSourceEditor()
-                    }
-                ] : undefined
-            }
         >
             {activeTab === 'overview' && (
                 <HubOverviewLanding>
@@ -460,43 +489,45 @@ export default function SASupportSettings({
                         icon={t("icon_category", "category")}
                         iconColorClass="text-[var(--accent)]"
                         title={t("active_categories", "Active Categories") || "Active Categories"}
-                        isEmpty={categories.filter(c => c.is_active).length === 0}
-                        emptyIcon={t("icon_category", "category")}
-                        emptyTitle={t("support_no_cats", "No categories found") || "No Active Categories"}
+                        isEmpty={false}
                     >
-                        {categories.filter(c => c.is_active).slice(0, 4).map(renderCategoryCard)}
+                        {renderCategoryLeadCard()}
+                        {categories.filter(c => c.is_active).slice(0, 3).map(renderCategoryCard)}
                     </HubOverviewSection>
                     <HubOverviewSection
                         icon={t("icon_description", "description")}
                         iconColorClass="text-[var(--success)]"
                         title={t("active_log_sources", "Active Log Sources") || "Active Log Sources"}
-                        isEmpty={telemetrySources.filter(s => s.is_active).length === 0}
-                        emptyIcon={t("icon_description", "description")}
-                        emptyTitle={t("telemetry_no_sources", "No log sources found") || "No Active Log Sources"}
+                        isEmpty={false}
                     >
-                        {telemetrySources.filter(s => s.is_active).slice(0, 4).map(renderSourceCard)}
+                        {renderSourceLeadCard()}
+                        {telemetrySources.filter(s => s.is_active).slice(0, 3).map(renderSourceCard)}
                     </HubOverviewSection>
                 </HubOverviewLanding>
             )}
 
             {activeTab.includes('categories') && (
                 <div className="flex flex-col gap-4">
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
-                        {filteredCategories.map(renderCategoryCard)}
-                    </div>
-                    {!loading && filteredCategories.length === 0 && (
+                    {!(activeTab === 'active_categories' && !searchQuery.trim()) && !loading && filteredCategories.length === 0 ? (
                         <EmptyState icon={t("icon_inventory_2", "inventory_2")} title={t("support_no_cats", "No categories found")} className="py-8" />
+                    ) : (
+                        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+                            {activeTab === 'active_categories' && !searchQuery.trim() && renderCategoryLeadCard()}
+                            {filteredCategories.map(renderCategoryCard)}
+                        </div>
                     )}
                 </div>
             )}
 
             {activeTab.includes('log_sources') && (
                 <div className="flex flex-col gap-4">
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 auto-rows-fr">
-                        {filteredSources.map(renderSourceCard)}
-                    </div>
-                    {!loading && filteredSources.length === 0 && (
+                    {!(activeTab === 'active_log_sources' && !searchQuery.trim()) && !loading && filteredSources.length === 0 ? (
                         <EmptyState icon={t("icon_inventory_2", "inventory_2")} title={t("telemetry_no_sources", "No log sources found")} className="py-8" />
+                    ) : (
+                        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 auto-rows-fr">
+                            {activeTab === 'active_log_sources' && !searchQuery.trim() && renderSourceLeadCard()}
+                            {filteredSources.map(renderSourceCard)}
+                        </div>
                     )}
                 </div>
             )}

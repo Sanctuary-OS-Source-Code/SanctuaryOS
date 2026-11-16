@@ -3,6 +3,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { EmptyState } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import { DynamicTemplatePreviewBanner } from "../chameleon-components/ThemeCard";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
 import { isSanctuaryTemplateFile, isSanctuaryTemplateFileName } from "./workbenchFormatUtils";
@@ -288,6 +289,7 @@ interface WorkbenchFileGridProps {
   handleDeleteTemplate: (path: string) => void;
   openFile: (file: any) => void;
   onNewTemplate?: () => void;
+  showCreateLead?: boolean;
 }
 
 export const WorkbenchFileGrid = React.memo(
@@ -304,6 +306,7 @@ export const WorkbenchFileGrid = React.memo(
     handleDeleteTemplate,
     openFile,
     onNewTemplate,
+    showCreateLead = false,
   }: WorkbenchFileGridProps) => {
     const { t } = useLexicon();
     const virtual = useVirtualWindow({
@@ -313,7 +316,9 @@ export const WorkbenchFileGrid = React.memo(
       threshold: 60,
     });
 
-    if (filteredMainFiles.length === 0) {
+    const renderLeadCard = Boolean(showCreateLead && onNewTemplate);
+
+    if (filteredMainFiles.length === 0 && !renderLeadCard) {
       return (
         <EmptyState
           icon={
@@ -353,6 +358,27 @@ export const WorkbenchFileGrid = React.memo(
           ref={virtual.gridRef}
           className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6"
         >
+          {renderLeadCard && onNewTemplate && (
+            <LiquidGlassAlertCard
+              isAlertCard={false}
+              icon={t("icon_add_circle", "add_circle")}
+              accentVar="var(--accent)"
+              iconColorClass="text-[var(--accent)]"
+              badgeIcon={t("icon_data_object", "data_object")}
+              badgeLabel={t("ql_templates", "Templates")}
+              overline={t("ql_templates", "Templates")}
+              title={t("btn_new_template", "New Template")}
+              description={t(
+                "workbench_lead_card_desc",
+                "Build a visual settings template for a {mod} configuration file."
+              )}
+              actionLabel={t("btn_new_template", "New Template")}
+              actionIcon={t("icon_add", "add")}
+              actionVariant="glass"
+              onAction={onNewTemplate}
+              onClick={onNewTemplate}
+            />
+          )}
           {visibleFiles.map((file) => (
             <WorkbenchFileCard
               key={file.path}

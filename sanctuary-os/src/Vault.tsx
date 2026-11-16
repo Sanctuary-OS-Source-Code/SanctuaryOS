@@ -35,7 +35,7 @@ const Vault = React.memo(function Vault(props: any) {
 
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const applyConflictOverride = useConflictOverride();
-  const { isBulkMode, setIsBulkMode, selectedMods, setSelectedMods, setStatus, runRadarSweep, setIsDropzoneOpen, setLocalFolderModal, playSets, setPlaySets, equipPlaySet, equipFilter, setEquipFilter, searchQuery, setSearchQuery, filterStatus, setFilterStatus, activeCategory, setActiveCategory, activeSubType, setActiveSubType, visibleMods, displayModList, activePlaySetIndex, toggleInActiveSet, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaUrlInput, setActiveDossier, setDrawerConfirmHash, ownedDLC, maskedDLC, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, expandedFolder, setExpandedFolder, drawerConfirmHash, modList, anarchyRules, setBulkModal } = props;
+  const { isBulkMode, setIsBulkMode, selectedMods, setSelectedMods, setStatus, runRadarSweep, setIsDropzoneOpen, setLocalFolderModal, playSets, setPlaySets, equipPlaySet, equipFilter, setEquipFilter, searchQuery, setSearchQuery, filterStatus, setFilterStatus, activeCategory, setActiveCategory, activeSubType, setActiveSubType, exclusiveSlotFilter, setExclusiveSlotFilter, visibleMods, displayModList, activePlaySetIndex, toggleInActiveSet, setMetaNameInput, setMetaAuthorInput, setMetaVersionInput, setMetaUrlInput, setActiveDossier, setDrawerConfirmHash, ownedDLC, maskedDLC, setMetaDescInput, setMetaImageInput, setMetaAllowWriteInput, expandedFolder, setExpandedFolder, drawerConfirmHash, modList, anarchyRules, setBulkModal } = props;
   const { t } = useLexicon();
   const activeWorkspaceId = useStore((state: any) => state.activeWorkspaceId);
   const localFolderCount = React.useMemo(() => {
@@ -759,6 +759,8 @@ const Vault = React.memo(function Vault(props: any) {
             setActiveCategory={setActiveCategory}
             activeSubType={activeSubType}
             setActiveSubType={setActiveSubType}
+            exclusiveSlotFilter={exclusiveSlotFilter}
+            setExclusiveSlotFilter={setExclusiveSlotFilter}
             activeGameSchema={activeGameSchema}
             filterStatus={filterStatus}
             setFilterStatus={setFilterStatus}

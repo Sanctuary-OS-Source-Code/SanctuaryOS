@@ -30,6 +30,7 @@ import {
   HubOverviewSection,
 } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import IconPicker from "../IconPicker";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
@@ -2809,6 +2810,7 @@ export default function KeepersWebDirectivesEditor({
       searchPlaceholder={t("mason_search_placeholder", "Search {dispatches}...")}
       tabs={tabs}
       activeTab={activeViewTab}
+      hideActiveTabHeading={activeViewTab === "news"}
       onTabChange={(id) => {
         setActiveViewTab(id as any);
         setFilterCategory("All");
@@ -2883,12 +2885,6 @@ export default function KeepersWebDirectivesEditor({
           : undefined
       }
       actions={[
-        {
-          id: "new_news_post",
-          icon: t("icon_add", "add"),
-          label: t("post_broadcast", "New {Dispatch}"),
-          onClick: () => openEditor(undefined, 0, "news"),
-        },
         {
           id: "refresh_hub",
           icon: t("icon_sync", "sync"),
@@ -2998,7 +2994,28 @@ export default function KeepersWebDirectivesEditor({
             title={t("sidebar_sanctuary_news", "Sanctuary Foundry News")}
             gridClassName="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
           >
-            {filteredNews.length === 0 ? (
+            {!searchTerm.trim() && filterCategory === "All" && (
+              <LiquidGlassAlertCard
+                isAlertCard={false}
+                icon={t("icon_add_circle", "add_circle")}
+                accentVar="var(--accent)"
+                iconColorClass="text-[var(--accent)]"
+                badgeIcon={t("icon_newspaper", "newspaper")}
+                badgeLabel={t("landing_news_short", "News")}
+                overline={t("sidebar_sanctuary_news", "Sanctuary Foundry News")}
+                title={t("post_broadcast", "New {Dispatch}")}
+                description={t(
+                  "dispatch_hub_desc",
+                  "Broadcast system updates, alerts, and telemetry across the network."
+                )}
+                actionLabel={t("post_broadcast", "New {Dispatch}")}
+                actionIcon={t("icon_add", "add")}
+                actionVariant="glass"
+                onAction={() => openEditor(undefined, 0, "news")}
+                onClick={() => openEditor(undefined, 0, "news")}
+              />
+            )}
+            {filteredNews.length === 0 && (Boolean(searchTerm.trim()) || filterCategory !== "All") ? (
               <EmptyState
                 icon={t("icon_newspaper", "newspaper")}
                 title={t("no_transmissions", "No {Dispatches} Found")}

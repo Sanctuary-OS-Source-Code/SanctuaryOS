@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { supabase } from "../../supabase";
@@ -10,11 +10,165 @@ import {
   HoverTooltip,
   ModSearchDropdown,
   openModDossier,
+  isScriptExtension,
   toHighlanderSlotSlug,
   formatHighlanderSlotLabel,
   resolveModHighlanderSlot,
+  VAULT_CHIP_CLASS,
 } from "../../shared";
 import { StaticPollingGuideSidePanel } from "../../side-panels/StaticPollingGuideSidePanel";
+
+function getStudioModStatusMeta(status: any, t: (k: string, f: string) => string) {
+  const s = String(status || "")
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .trim();
+  if (!s || s === "stable" || s === "verified" || s === "approved") return null;
+  if (s === "corrupted" || s === "broken") {
+    return {
+      label: t("status_corrupted", "Corrupted"),
+      icon: t("icon_error", "error"),
+      iconColor: "text-[var(--danger)]",
+    };
+  }
+  if (s === "rejected") {
+    return {
+      label: t("rejected", "Rejected"),
+      icon: t("icon_block", "block"),
+      iconColor: "text-[var(--danger)]",
+    };
+  }
+  if (s === "unstable") {
+    return {
+      label: t("label_unstable", "Unstable"),
+      icon: t("icon_warning", "warning"),
+      iconColor: "text-[var(--warning)]",
+    };
+  }
+  if (s === "under review" || s === "pending") {
+    return {
+      label: s === "pending" ? t("pending", "Pending") : t("status_dd_review", "Under Review"),
+      icon: t("icon_schedule", "schedule"),
+      iconColor: "text-[var(--accent)]",
+    };
+  }
+  if (s === "unverified" || s === "unknown") {
+    return {
+      label: t("unverified", "Unverified"),
+      icon: t("icon_help", "help"),
+      iconColor: "text-[var(--subtext)]",
+    };
+  }
+  return null;
+}
+
+function StudioModMiniCard({
+  item,
+  fallbackName,
+  onInspect,
+  onRemove,
+  removeTooltip,
+  leadingBadge,
+}: {
+  item: any;
+  fallbackName: string;
+  onInspect: () => void;
+  onRemove?: () => void;
+  removeTooltip?: string;
+  leadingBadge?: ReactNode;
+}) {
+  const { t } = useLexicon();
+  const activeGameSchema = useStore((s) => s.activeGameSchema);
+  const rawName = String(item?.name || fallbackName || "").trim();
+  const joinedAuthor = Array.isArray(item?.masons)
+    ? item.masons[0]?.name
+    : item?.masons?.name;
+  const author = String(joinedAuthor || item?.master_author || item?.author || "").trim();
+  const cleanAuthor = author && !author.toLowerCase().includes("unknown") ? author : "";
+  const category = String(item?.category_override || "").trim();
+  const cleanCategory = category && category.toLowerCase() !== "unknown" ? category : "";
+  const ext = item?.file_extension
+    ? String(item.file_extension).replace(/^\./, "").toLowerCase()
+    : "";
+  const isScript = isScriptExtension(
+    rawName || (ext ? `.${ext}` : ""),
+    activeGameSchema
+  );
+  const version = String(item?.latest_version || "").trim();
+  const cleanVersion =
+    version && !/^(v?\.?local|unknown)$/i.test(version)
+      ? version.startsWith("v")
+        ? version
+        : `v${version}`
+      : "";
+  const statusMeta = getStudioModStatusMeta(item?.status, t);
+  const subtitleText = [
+    cleanAuthor ? `${t("by_prefix", "By")} ${cleanAuthor}` : "",
+    cleanVersion,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+
+  return (
+    <div className="px-3 py-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] flex items-center justify-between gap-2.5 transition-all">
+      <button
+        type="button"
+        onClick={onInspect}
+        className="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer group/modcard"
+      >
+        <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0">
+          <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+            {isScript ? t("icon_terminal", "terminal") : t("icon_deployed_code", "deployed_code")}
+          </span>
+        </div>
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <span className="text-xs font-bold text-[var(--text)] group-hover/modcard:text-[var(--accent)] leading-snug break-words line-clamp-2 transition-colors">
+            {rawName}
+          </span>
+          {subtitleText && (
+            <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80 truncate">
+              {subtitleText}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {(leadingBadge || statusMeta || cleanCategory || onRemove) && (
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          {leadingBadge}
+          {statusMeta && (
+            <span className={`${VAULT_CHIP_CLASS} !px-2 !py-0.5 !text-[10px]`}>
+              <span className={`material-symbols-outlined !text-[11px] ${statusMeta.iconColor}`}>
+                {statusMeta.icon}
+              </span>
+              <span>{statusMeta.label}</span>
+            </span>
+          )}
+          {cleanCategory && (
+            <span className={`${VAULT_CHIP_CLASS} !px-2 !py-0.5 !text-[10px]`}>
+              <span className="material-symbols-outlined !text-[11px] text-[var(--accent)]">
+                {t("icon_deployed_code", "deployed_code")}
+              </span>
+              <span>{cleanCategory}</span>
+            </span>
+          )}
+          {onRemove && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0 relative group/btn"
+            >
+              <span className="material-symbols-outlined !text-[14px]">
+                {t("icon_close", "close")}
+              </span>
+              {removeTooltip && <HoverTooltip title={removeTooltip} variant="danger" />}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ArtifactRulesTab({
   mode,
@@ -89,12 +243,24 @@ export function ArtifactRulesTab({
 }) {
   const { t } = useLexicon();
   const activeGameSchema = useStore((s) => s.activeGameSchema);
+  const userRole = useStore((s) => s.userRole);
+  const osRole = useStore((s) => s.osRole);
+  const canManageSpokeSlots =
+    mode === "registry" &&
+    (["architect", "senior_architect", "oversight", "wayfinder", "admin"].includes(
+      String(userRole || "").toLowerCase()
+    ) ||
+      ["core_dev", "admin", "keeper"].includes(String(osRole || "").toLowerCase()));
 
   const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
   const [showPushToken, setShowPushToken] = useState<boolean>(false);
   const [isPushingManifest, setIsPushingManifest] = useState<boolean>(false);
   const [spokeHighlanderSlots, setSpokeHighlanderSlots] = useState<any[]>([]);
-  const [useCustomSlotInput, setUseCustomSlotInput] = useState<boolean>(false);
+  const [newSlotTagInput, setNewSlotTagInput] = useState<string>("");
+  const [isCreatingSlotTag, setIsCreatingSlotTag] = useState<boolean>(false);
+  const [isDeletingSlotTag, setIsDeletingSlotTag] = useState<boolean>(false);
+  const [slotSiblingMods, setSlotSiblingMods] = useState<any[]>([]);
+  const [isLoadingSlotSiblings, setIsLoadingSlotSiblings] = useState<boolean>(false);
 
   useEffect(() => {
     let active = true;
@@ -159,6 +325,121 @@ export function ArtifactRulesTab({
     }
     return { groupId: null, slug: "", name: "", isCustom: false };
   }, [mod, spokeHighlanderSlots]);
+
+  useEffect(() => {
+    const gid = currentHighlanderState.groupId;
+    if (!gid) {
+      setSlotSiblingMods([]);
+      setIsLoadingSlotSiblings(false);
+      return;
+    }
+    let active = true;
+    setIsLoadingSlotSiblings(true);
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("mods")
+          .select("id, name, master_author, category_override, file_extension, latest_version, status, compliance_tier, masons(name)")
+          .eq("highlander_group_id", gid)
+          .order("name");
+        if (!active) return;
+        const rows = (data || []).filter(
+          (m: any) =>
+            Number(m?.compliance_tier || 0) === 0 &&
+            (!mod?.id || String(m.id) !== String(mod.id))
+        );
+        setSlotSiblingMods(rows);
+      } catch {
+        if (active) setSlotSiblingMods([]);
+      } finally {
+        if (active) setIsLoadingSlotSiblings(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [currentHighlanderState.groupId, mod?.id]);
+
+  const handleCreateOrAssignSlotTag = async () => {
+    const trimmed = newSlotTagInput.trim();
+    const slug = toHighlanderSlotSlug(trimmed);
+    if (!trimmed || !slug || isCreatingSlotTag) return;
+
+    const existing = spokeHighlanderSlots.find(
+      (fg: any) =>
+        toHighlanderSlotSlug(fg.slug || fg.name) === slug ||
+        String(fg.name || "").trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (existing) {
+      onChangeHighlanderSlot?.({
+        groupId: String(existing.id),
+        slug: toHighlanderSlotSlug(existing.slug || existing.name) || slug,
+        name: existing.name || trimmed,
+      });
+      setNewSlotTagInput("");
+      return;
+    }
+
+    if (canManageSpokeSlots) {
+      setIsCreatingSlotTag(true);
+      try {
+        const { data, error } = await supabase
+          .from("flavor_groups")
+          .insert([{ name: trimmed, slug }])
+          .select("id, name, slug, description")
+          .single();
+        if (error) {
+          useStore.getState().pushStatus(error.message, "error");
+          return;
+        }
+        if (data) {
+          setSpokeHighlanderSlots((prev) =>
+            [...prev, data].sort((a, b) =>
+              String(a?.name || "").localeCompare(String(b?.name || ""))
+            )
+          );
+          onChangeHighlanderSlot?.({
+            groupId: String(data.id),
+            slug: toHighlanderSlotSlug(data.slug || data.name) || slug,
+            name: data.name || trimmed,
+          });
+          setNewSlotTagInput("");
+        }
+      } finally {
+        setIsCreatingSlotTag(false);
+      }
+      return;
+    }
+
+    if (!isCloudMod) {
+      onChangeHighlanderSlot?.({
+        groupId: null,
+        slug,
+        name: trimmed,
+      });
+      setNewSlotTagInput("");
+    }
+  };
+
+  const handleDeleteUnusedSlotTag = async () => {
+    const gid = currentHighlanderState.groupId;
+    if (!canManageSpokeSlots || !gid || slotSiblingMods.length > 0 || isDeletingSlotTag) {
+      return;
+    }
+    setIsDeletingSlotTag(true);
+    try {
+      onChangeHighlanderSlot?.({ groupId: null, slug: "", name: "" });
+      const { error } = await supabase.from("flavor_groups").delete().eq("id", gid);
+      if (error) {
+        useStore.getState().pushStatus(error.message, "error");
+        return;
+      }
+      setSpokeHighlanderSlots((prev) => prev.filter((fg: any) => String(fg.id) !== String(gid)));
+      useStore.getState().pushStatus(t("alert_deleted", "Deleted"), "success");
+    } finally {
+      setIsDeletingSlotTag(false);
+    }
+  };
 
   const [pushConfig, setPushConfig] = useState<{
     provider: string;
@@ -497,11 +778,11 @@ export function ArtifactRulesTab({
           </div>
 
           {activeDlcIds.length === 0 ? (
-            <div className="h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
+            <div className="min-h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
               {t("dlc_base_game_only", "Base Game Compatible — No Add-Ons / DLC Required")}
             </div>
           ) : (
-            <div className="h-[116px] overflow-y-auto custom-scrollbar p-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 sm:grid-cols-2 gap-1.5 content-start">
+            <div className="min-h-[116px] max-h-[240px] overflow-y-auto custom-scrollbar p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 gap-2 content-start">
               {activeDlcIds
                 .filter((id) => {
                   if (!dlcAssignedFilter.trim()) return true;
@@ -514,22 +795,38 @@ export function ArtifactRulesTab({
                   return (
                     <div
                       key={id}
-                      className="h-8 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5"
+                      className="px-3 py-2 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2.5"
                     >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="font-mono text-[10px] font-bold text-[var(--accent)] shrink-0">{id}</span>
-                        <span className="text-[11px] font-bold text-[var(--text)] truncate">
-                          {pack?.name || id}
-                        </span>
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                            {t("icon_extension", "extension")}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                          <span className="text-xs font-bold text-[var(--text)] leading-snug break-words line-clamp-2">
+                            {pack?.name || id}
+                          </span>
+                          {pack?.type && (
+                            <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80 truncate">
+                              {pack.type}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => onToggleDlc(id)}
-                        className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0 relative group/btn"
-                      >
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
-                        <HoverTooltip title={t("lineage_btn_delete", "Remove")} variant="danger" />
-                      </button>
+                      <div className="ml-auto flex items-center gap-1.5 shrink-0">
+                        <span className={`${VAULT_CHIP_CLASS} !px-2 !py-0.5 !text-[10px] font-mono !text-[var(--accent)]`}>
+                          {id}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onToggleDlc(id)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0 relative group/btn"
+                        >
+                          <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
+                          <HoverTooltip title={t("lineage_btn_delete", "Remove")} variant="danger" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -573,11 +870,11 @@ export function ArtifactRulesTab({
           </div>
 
           {dependencies.length === 0 ? (
-            <div className="h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
+            <div className="min-h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
               {t("studio_deps_empty", "No required {mods} assigned")}
             </div>
           ) : (
-            <div className="h-[116px] overflow-y-auto custom-scrollbar p-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 sm:grid-cols-2 gap-1.5 content-start">
+            <div className="min-h-[116px] max-h-[240px] overflow-y-auto custom-scrollbar p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 gap-2 content-start">
               {dependencies
                 .filter((dep) => {
                   if (!depsSearchFilter.trim()) return true;
@@ -585,40 +882,28 @@ export function ArtifactRulesTab({
                     .toLowerCase()
                     .includes(depsSearchFilter.toLowerCase());
                 })
-                .map((dep) => (
-                  <div
-                    key={dep.id}
-                    className="h-8 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const target =
-                          dep.mod ||
-                          (dep.dependency_mod_id || dep.dependency_name
-                            ? {
-                              id: dep.dependency_mod_id,
-                              name: dep.dependency_name,
-                            }
-                            : null);
-                        if (target) {
-                          openModDossier({ ...target, isNexusView: true });
-                        }
+                .map((dep) => {
+                  const target =
+                    dep.mod ||
+                    (dep.dependency_mod_id || dep.dependency_name
+                      ? {
+                        id: dep.dependency_mod_id,
+                        name: dep.dependency_name,
+                      }
+                      : null);
+                  return (
+                    <StudioModMiniCard
+                      key={dep.id}
+                      item={dep.mod || target}
+                      fallbackName={dep.dependency_name || ""}
+                      onInspect={() => {
+                        if (target) openModDossier({ ...target, isNexusView: true });
                       }}
-                      className="text-[11px] font-bold text-[var(--text)] hover:text-[var(--accent)] truncate transition-colors text-left flex-1 min-w-0 cursor-pointer"
-                    >
-                      {dep.mod?.name || dep.dependency_name}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveDependency(dep)}
-                      className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0 relative group/btn"
-                    >
-                      <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
-                      <HoverTooltip title={t("lineage_btn_delete", "Delete")} variant="danger" />
-                    </button>
-                  </div>
-                ))}
+                      onRemove={() => onRemoveDependency(dep)}
+                      removeTooltip={t("lineage_btn_delete", "Remove")}
+                    />
+                  );
+                })}
             </div>
           )}
         </div>
@@ -664,11 +949,11 @@ export function ArtifactRulesTab({
           </div>
 
           {conflicts.length === 0 ? (
-            <div className="h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
+            <div className="min-h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
               {t("studio_conflicts_empty", "No conflicting {mods} flagged")}
             </div>
           ) : (
-            <div className="h-[116px] overflow-y-auto custom-scrollbar p-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 sm:grid-cols-2 gap-1.5 content-start">
+            <div className="min-h-[116px] max-h-[240px] overflow-y-auto custom-scrollbar p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 gap-2 content-start">
               {conflicts
                 .filter((conf) => {
                   if (!conflictsSearchFilter.trim()) return true;
@@ -678,47 +963,34 @@ export function ArtifactRulesTab({
                 })
                 .map((conf) => {
                   const sev = conf.severity_rank || 4;
+                  const target =
+                    conf.enemyMod ||
+                    (conf.enemy_mod_id ? { id: conf.enemy_mod_id } : null);
                   return (
-                    <div
+                    <StudioModMiniCard
                       key={conf.id}
-                      className="h-8 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const target =
-                            conf.enemyMod ||
-                            (conf.enemy_mod_id ? { id: conf.enemy_mod_id } : null);
-                          if (target) {
-                            openModDossier({ ...target, isNexusView: true });
-                          }
-                        }}
-                        className="flex items-center gap-1.5 min-w-0 flex-1 text-left cursor-pointer group/conf"
-                      >
-                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] flex items-center gap-1 shrink-0">
+                      item={conf.enemyMod || target}
+                      fallbackName={t("conflict_mod_fallback", "Conflicting {Mod}")}
+                      onInspect={() => {
+                        if (target) openModDossier({ ...target, isNexusView: true });
+                      }}
+                      onRemove={() => onRemoveConflict(conf)}
+                      removeTooltip={t("lineage_btn_delete", "Remove")}
+                      leadingBadge={
+                        <span className={`${VAULT_CHIP_CLASS} !px-2 !py-0.5 !text-[10px] font-black`}>
                           <span
-                            className={`material-symbols-outlined !text-[11px] ${sev === 4 ? "text-[var(--danger)]" : "text-[var(--warning)]"
-                              }`}
+                            className={`material-symbols-outlined !text-[11px] ${
+                              sev === 4 ? "text-[var(--danger)]" : "text-[var(--warning)]"
+                            }`}
                           >
                             {sev === 4
                               ? t("icon_crisis_alert", "crisis_alert")
                               : t("icon_tune", "tune")}
                           </span>
-                          {sev === 4 ? "S4" : "S3"}
+                          <span>{sev === 4 ? "S4" : "S3"}</span>
                         </span>
-                        <span className="text-[11px] font-bold text-[var(--text)] group-hover/conf:text-[var(--accent)] transition-colors truncate">
-                          {conf.enemyMod?.name || t("conflict_mod_fallback", "Conflicting {Mod}")}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onRemoveConflict(conf)}
-                        className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0 relative group/btn"
-                      >
-                        <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
-                        <HoverTooltip title={t("lineage_btn_delete", "Delete")} variant="danger" />
-                      </button>
-                    </div>
+                      }
+                    />
                   );
                 })}
             </div>
@@ -776,44 +1048,71 @@ export function ArtifactRulesTab({
           </div>
 
           {(isCloudMod ? assignedCloudCollections.length : localCollectionNames.length) === 0 ? (
-            <div className="h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
+            <div className="min-h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
               {t("studio_collections_empty", "Not added to any collections")}
             </div>
           ) : (
-            <div className="h-[116px] overflow-y-auto custom-scrollbar p-2 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 sm:grid-cols-2 gap-1.5 content-start">
-              {isCloudMod
-                ? assignedCloudCollections.map((col) => (
-                  <div
-                    key={col.id}
-                    className="h-8 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5"
-                  >
-                    <span className="text-[11px] font-bold text-[var(--text)] truncate">{col.name}</span>
+            <div className="min-h-[116px] max-h-[240px] overflow-y-auto custom-scrollbar p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 gap-2 content-start">
+              {(isCloudMod
+                ? assignedCloudCollections.map((col) => ({
+                    key: col.id,
+                    name: col.name,
+                    creator:
+                      (Array.isArray(col?.masons) ? col.masons[0]?.name : col?.masons?.name) ||
+                      col?.creator_name ||
+                      "",
+                    url: col?.url || "",
+                    onRemove: () => onToggleCloudCollection(col.id),
+                  }))
+                : localCollectionNames.map((name) => ({
+                    key: name,
+                    name,
+                    creator: "",
+                    url: "",
+                    onRemove: () => onRemoveLocalCollection(name),
+                  }))
+              ).map((entry) => (
+                <div
+                  key={entry.key}
+                  className="px-3 py-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2.5"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                        {t("icon_collections_bookmark", "collections_bookmark")}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                      <span className="text-xs font-bold text-[var(--text)] leading-snug break-words line-clamp-2">
+                        {entry.name}
+                      </span>
+                      {entry.creator && (
+                        <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80 truncate">
+                          {t("by_prefix", "By")} {entry.creator}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="ml-auto flex items-center gap-1.5 shrink-0">
+                    {entry.url && (
+                      <span className={`${VAULT_CHIP_CLASS} !px-2 !py-0.5 !text-[10px]`}>
+                        <span className="material-symbols-outlined !text-[11px] text-[var(--subtext)]">
+                          {t("icon_public", "public")}
+                        </span>
+                        <span>{t("source", "Source")}</span>
+                      </span>
+                    )}
                     <button
                       type="button"
-                      onClick={() => onToggleCloudCollection(col.id)}
-                      className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0 relative group/btn"
+                      onClick={entry.onRemove}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0 relative group/btn"
                     >
                       <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
-                      <HoverTooltip title={t("lineage_btn_delete", "Delete")} variant="danger" />
+                      <HoverTooltip title={t("lineage_btn_delete", "Remove")} variant="danger" />
                     </button>
                   </div>
-                ))
-                : localCollectionNames.map((name) => (
-                  <div
-                    key={name}
-                    className="h-8 px-2.5 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-1.5"
-                  >
-                    <span className="text-[11px] font-bold text-[var(--text)] truncate">{name}</span>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveLocalCollection(name)}
-                      className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0 relative group/btn"
-                    >
-                      <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
-                      <HoverTooltip title={t("lineage_btn_delete", "Delete")} variant="danger" />
-                    </button>
-                  </div>
-                ))}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -827,25 +1126,25 @@ export function ArtifactRulesTab({
               </span>
               <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text)] truncate">
                 {t("highlander_exclusive_slot", "Exclusive Slot")}
+                {currentHighlanderState.groupId ? ` (${slotSiblingMods.length + 1})` : ""}
               </h4>
+            </div>
+            <div className="flex items-center gap-2 ml-auto shrink-0">
               {currentHighlanderState.slug && (
-                <span className="px-2 py-0.5 rounded-md bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)] font-mono text-[10px] font-bold">
+                <span className={`${VAULT_CHIP_CLASS} !text-[var(--accent)] font-mono`}>
                   {currentHighlanderState.slug}
                 </span>
               )}
+              {(currentHighlanderState.groupId || currentHighlanderState.slug) && (
+                <button
+                  type="button"
+                  onClick={() => onChangeHighlanderSlot?.({ groupId: null, slug: "", name: "" })}
+                  className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer"
+                >
+                  {t("clear", "Clear")}
+                </button>
+              )}
             </div>
-            {(currentHighlanderState.groupId || currentHighlanderState.slug || useCustomSlotInput) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setUseCustomSlotInput(false);
-                  onChangeHighlanderSlot?.({ groupId: null, slug: "", name: "" });
-                }}
-                className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer"
-              >
-                {t("clear", "Clear")}
-              </button>
-            )}
           </div>
 
           <p className="text-[11px] font-semibold text-[var(--subtext)] leading-relaxed">
@@ -865,9 +1164,11 @@ export function ArtifactRulesTab({
                 searchable={true}
                 searchPlaceholder={t("highlander_search_slots_ph", "Search Exclusive Slots...")}
                 value={
-                  useCustomSlotInput || currentHighlanderState.isCustom
-                    ? "__custom__"
-                    : currentHighlanderState.groupId || "__none__"
+                  currentHighlanderState.groupId
+                    ? currentHighlanderState.groupId
+                    : currentHighlanderState.isCustom && currentHighlanderState.slug
+                      ? "__custom__"
+                      : "__none__"
                 }
                 options={[
                   {
@@ -880,14 +1181,14 @@ export function ArtifactRulesTab({
                     badge: fg.slug || toHighlanderSlotSlug(fg.name),
                     searchText: `${fg.name || ""} ${fg.slug || ""} ${fg.description || ""}`,
                   })),
-                  ...(!isCloudMod
+                  ...(currentHighlanderState.isCustom && currentHighlanderState.slug
                     ? [
                       {
                         id: "__custom__",
-                        label: t(
-                          "highlander_slot_custom_edge",
-                          "Custom Static Edge Slot..."
-                        ),
+                        label:
+                          currentHighlanderState.name ||
+                          formatHighlanderSlotLabel(currentHighlanderState.slug),
+                        badge: currentHighlanderState.slug,
                       },
                     ]
                     : []),
@@ -895,12 +1196,8 @@ export function ArtifactRulesTab({
                 onChange={(val: string[]) => {
                   const picked = val[0] || "__none__";
                   if (picked === "__none__") {
-                    setUseCustomSlotInput(false);
                     onChangeHighlanderSlot?.({ groupId: null, slug: "", name: "" });
-                  } else if (picked === "__custom__") {
-                    setUseCustomSlotInput(true);
-                  } else {
-                    setUseCustomSlotInput(false);
+                  } else if (picked !== "__custom__") {
                     const fg = spokeHighlanderSlots.find(
                       (item: any) => String(item.id) === String(picked)
                     );
@@ -917,28 +1214,39 @@ export function ArtifactRulesTab({
               />
             </div>
 
-            {(!isCloudMod && (useCustomSlotInput || currentHighlanderState.isCustom)) ? (
+            {canManageSpokeSlots || !isCloudMod ? (
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-black uppercase tracking-wider text-[var(--subtext)] px-1">
-                  {t("studio_highlander_custom_name_label", "Custom Slot Name (Static Edge Manifest)")}
+                  {t("highlander_btn_new_slot", "New Exclusive Slot")}
                 </label>
-                <input
-                  value={currentHighlanderState.name}
-                  onChange={(e) => {
-                    const nextName = e.target.value;
-                    const nextSlug = toHighlanderSlotSlug(nextName);
-                    onChangeHighlanderSlot?.({
-                      groupId: null,
-                      slug: nextSlug,
-                      name: nextName,
-                    });
-                  }}
-                  placeholder={t(
-                    "studio_highlander_custom_ph",
-                    "e.g. Main Menu Replacements"
-                  )}
-                  className="h-11 glass-surface rounded-xl px-4 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] w-full outline-none focus:border-[var(--accent)]"
-                />
+                <div className="flex items-center gap-2 w-full">
+                  <input
+                    value={newSlotTagInput}
+                    onChange={(e) => setNewSlotTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void handleCreateOrAssignSlotTag();
+                      }
+                    }}
+                    placeholder={t(
+                      "studio_highlander_custom_ph",
+                      "e.g. Main Menu Replacements"
+                    )}
+                    className="h-11 glass-surface rounded-xl px-4 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex-1 min-w-0 outline-none focus:border-[var(--accent)]"
+                  />
+                  <button
+                    type="button"
+                    disabled={isCreatingSlotTag || !toHighlanderSlotSlug(newSlotTagInput)}
+                    onClick={() => void handleCreateOrAssignSlotTag()}
+                    className="h-11 px-4 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_16%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_30%,transparent)] disabled:opacity-40 text-[10px] font-black uppercase tracking-widest text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                  >
+                    <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                      {t("icon_add", "add")}
+                    </span>
+                    {t("ql_add", "Add")}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="h-11 md:mt-[22px] px-4 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-2">
@@ -962,6 +1270,52 @@ export function ArtifactRulesTab({
               </div>
             )}
           </div>
+
+          {!currentHighlanderState.slug ? (
+            <div className="h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
+              {t(
+                "studio_highlander_inactive_hint",
+                "Can be equipped alongside any other {mod} unless explicitly conflicted"
+              )}
+            </div>
+          ) : isLoadingSlotSiblings ? (
+            <div className="h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
+              {t("loading", "Loading...")}
+            </div>
+          ) : slotSiblingMods.length === 0 ? (
+            <div className="h-[116px] px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center justify-between gap-3">
+              <span className="text-[11px] font-semibold text-[var(--subtext)]">
+                {t(
+                  "highlander_no_mods_in_slot",
+                  "No {mods} assigned to this Exclusive Slot"
+                )}
+              </span>
+              {canManageSpokeSlots && currentHighlanderState.groupId && (
+                <button
+                  type="button"
+                  disabled={isDeletingSlotTag}
+                  onClick={() => void handleDeleteUnusedSlotTag()}
+                  className="h-8 px-3 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] disabled:opacity-40 text-[10px] font-black uppercase tracking-wider text-[var(--danger)] flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                >
+                  <span className="material-symbols-outlined !text-[14px]">
+                    {t("icon_delete", "delete")}
+                  </span>
+                  {t("highlander_delete_unused_slot", "Delete Unused Slot")}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="min-h-[116px] max-h-[240px] overflow-y-auto custom-scrollbar p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 md:grid-cols-2 gap-2 content-start">
+              {slotSiblingMods.map((sib) => (
+                <StudioModMiniCard
+                  key={sib.id}
+                  item={sib}
+                  fallbackName={sib.name || ""}
+                  onInspect={() => openModDossier({ ...sib, isNexusView: true })}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

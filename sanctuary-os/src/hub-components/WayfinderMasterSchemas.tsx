@@ -24,6 +24,7 @@ import {
   SidePanelTitleInput,
 } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import MasonEditorPanel from "./MasonEditorPanel";
 import { useMasonFiles, clearIdeCachedDraft } from "../hooks/useMasonFiles";
@@ -1779,26 +1780,6 @@ export default function WayfinderMasterSchemas({
           label: t("spoke_copy_uplink_bundle", "Copy Uplink Bundle") as string,
           onClick: handleCopyUplinkBundle,
         },
-        {
-          id: "create_schema",
-          icon: (
-            <span className="material-symbols-outlined !text-[20px]">
-              {t("icon_add", "add")}
-            </span>
-          ),
-          label: t("auto_create_file", "Create") as string,
-          onClick: () => setIsCreatePanelOpen(true),
-        },
-        {
-          id: "import_schema",
-          icon: (
-            <span className="material-symbols-outlined !text-[20px]">
-              {t("icon_upload", "upload")}
-            </span>
-          ),
-          label: t("import_file", "Import") as string,
-          onClick: handleImport,
-        },
       ];
     }
     if (activeTab === "audit_logs") {
@@ -2243,7 +2224,7 @@ export default function WayfinderMasterSchemas({
       {/* 2. SPOKE & SCHEMAS TAB (Spoke Setup, Cut the Cord, Donations, and Master Schema Files) */}
       {activeTab === "spoke_setup" && (
         <div className="flex flex-col gap-6 w-full pb-16 animate-in fade-in">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
             {showSpokeOps &&
               matchesQuery(
                 `${t("wf_card_spoke_setup_title", "Spoke Setup & Maintenance")} ${
@@ -2268,6 +2249,31 @@ export default function WayfinderMasterSchemas({
               ) &&
               renderDonationsCard()}
 
+            {!searchQuery.trim() && showSchemas && (
+              <LiquidGlassAlertCard
+                isAlertCard={false}
+                icon={t("icon_add_circle", "add_circle")}
+                accentVar="var(--accent)"
+                iconColorClass="text-[var(--accent)]"
+                badgeIcon={t("icon_data_object", "data_object")}
+                badgeLabel={t("tab_schemas", "Master Schemas")}
+                overline={t("tab_schemas", "Master Schemas")}
+                title={t("schema_create_lead_title", "New Master Schema")}
+                description={t(
+                  "schema_create_lead_desc",
+                  "Create a new game schema configuration or import a JSON schema file."
+                )}
+                actionLabel={t("auto_create_file", "Create")}
+                actionIcon={t("icon_add", "add")}
+                actionVariant="glass"
+                onAction={() => setIsCreatePanelOpen(true)}
+                secondaryActionLabel={t("import_file", "Import")}
+                secondaryActionIcon={t("icon_upload", "upload")}
+                onSecondaryAction={handleImport}
+                onClick={() => setIsCreatePanelOpen(true)}
+              />
+            )}
+
             {showSchemas && filteredSchemaFiles.map(renderSchemaFileCard)}
           </div>
 
@@ -2284,7 +2290,7 @@ export default function WayfinderMasterSchemas({
       {/* 3. GUIDES & LEGAL TAB (Forking Walkthrough, SQL Schemas, Partners Agreement, Compliance Protocol) */}
       {activeTab === "guides_legal" && (
         <div className="flex flex-col gap-6 w-full pb-16 animate-in fade-in">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
             {matchesQuery(
               `${t("wf_tab_forking_help", "Forking Help & Walkthrough")} ${
                 syncedForkingSchema.title
@@ -2319,6 +2325,7 @@ export default function WayfinderMasterSchemas({
       {activeTab === "audit_logs" && (
         <AuditLogViewer
           embedded={true}
+          viewerScope="wayfinder"
           externalSearch={searchQuery}
           externalFilterAction={auditFilterAction}
           externalTimeRange={auditTimeRange}

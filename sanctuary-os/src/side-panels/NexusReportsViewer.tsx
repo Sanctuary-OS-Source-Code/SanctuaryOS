@@ -26,6 +26,7 @@ import enDefault from "../lexicons/en-default.json";
 import { deepCompare } from "../lib/MasonValidation";
 import { useStore } from "../store";
 import { isComplianceEscalatedReport } from "../utils/hubCommandCache";
+import { invalidateNexusCatalogCache } from "../utils/nexusCatalogStats";
 
 
 export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
@@ -602,6 +603,7 @@ export function NexusReportsViewer({ onOpenDossier, setStatus, hubRole }: any) {
       }
 
       setReports(reports.map(r => r.id === selectedReport.id ? { ...r, status: action === 'dismiss' ? 'dismissed' : 'resolved' } : r));
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       setSelectedReport(null);
       setResolutionReason("");
       setFlagModId("");

@@ -14,6 +14,7 @@ import {
 import { ArtifactCard } from "./Cards";
 import { CustomMasonDropdown } from "./ArchitectHub";
 import { logArchitectAction, computeAuditDiff } from "./lib/audit";
+import { invalidateNexusCatalogCache } from "./utils/nexusCatalogStats";
 import {
   LabVerificationGate,
   checkDnaHashVerification,
@@ -162,6 +163,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
           );
       }
       setActiveMod(null);
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       fetchData();
     } else {
       if (setStatus) setStatus(`${t("icon_block", "block")} ${t("err_save_failed", "Save failed:")} ${t(error.message, error.message)}`);
@@ -192,6 +194,7 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
         computeAuditDiff(activeMod, rejectPayload)
       );
       setActiveMod(null);
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       fetchData();
     } else {
       if (setStatus) setStatus(`${t("icon_block", "block")} ${t("err_save_failed", "Save failed:")} ${t(error.message, error.message)}`);

@@ -3,6 +3,7 @@ import { useLexicon } from "../LexiconContext";
 import { supabase, supabaseAuth } from "../supabase";
 import { useStore } from "../store";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
+import { invalidateNexusCatalogCache } from "../utils/nexusCatalogStats";
 import {
   SidePanel,
   SidePanelHeroCard,
@@ -179,6 +180,7 @@ export function CommandScoutReviewSidePanel({
           .pushStatus(t("scout_rejected_toast", "Scanner submission rejected."), "info");
       }
 
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       onCompleted();
       onClose();
     } catch (err: any) {
@@ -383,6 +385,7 @@ export function CommandMasonSubmissionSidePanel({
             : t("mason_sub_approved_toast", "{Mason} submission verified."),
           targetTier >= 1 ? "warning" : "success"
         );
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       onCompleted();
       onClose();
     } catch (err: any) {
@@ -426,6 +429,7 @@ export function CommandMasonSubmissionSidePanel({
       useStore
         .getState()
         .pushStatus(t("mason_sub_rejected_toast", "Submission returned to {Mason}."), "info");
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       onCompleted();
       onClose();
     } catch (err: any) {
@@ -599,6 +603,7 @@ export function CommandDiagnosticDossierSidePanel({
       useStore
         .getState()
         .pushStatus(t("diagnostic_status_saved", "Diagnostic status updated."), "success");
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       onCompleted();
       onClose();
     } catch (err: any) {
@@ -793,6 +798,7 @@ export function CommandReportResolutionSidePanel({
       useStore
         .getState()
         .pushStatus(t("report_resolved_toast", "Report updated."), "success");
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       onCompleted();
       onClose();
     } catch (err: any) {
@@ -920,6 +926,7 @@ export function CommandMalwareManifestSidePanel({
       useStore
         .getState()
         .pushStatus(t("malware_manifest_updated", "Threat manifest updated."), "success");
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       onCompleted();
       onClose();
     } catch (err: any) {
@@ -1109,7 +1116,7 @@ export function CommandComplianceReviewSidePanel({
       useStore
         .getState()
         .pushStatus(t("identities_updated", "Success"), "success");
-      window.dispatchEvent(new CustomEvent("sanctuary-compliance-updated"));
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       onCompleted();
       onClose();
     } catch (err: any) {

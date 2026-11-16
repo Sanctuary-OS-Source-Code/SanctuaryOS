@@ -854,14 +854,20 @@ export default function AssetPreviewSidebar({
                     {assetType === "lexicon" && (
                       <>
                         <StatBox
-                          label={t("tab_lexicons", "Language")}
-                          value={data.language || "English"}
+                          label={t("language", "Language")}
+                          value={data.language || t("english", "English")}
                           icon={t("icon_translate", "translate")}
                           iconColorClass="text-[var(--accent)]"
                         />
                         <StatBox
                           label={t("filter_type", "Type")}
-                          value={data.lexicon_type || t("type_default", "Default")}
+                          value={
+                            data.lexicon_type === "Theme"
+                              ? t("lexicon_type_thematic", "Thematic")
+                              : data.lexicon_type === "Default" || !data.lexicon_type
+                                ? t("lexicon_type_standard", "Standard")
+                                : data.lexicon_type
+                          }
                           icon={t("icon_category", "category")}
                           iconColorClass="text-[var(--accent)]"
                         />

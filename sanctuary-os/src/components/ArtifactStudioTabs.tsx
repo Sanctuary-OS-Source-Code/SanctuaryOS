@@ -254,7 +254,7 @@ export function ArtifactWorkspace({
           fetchAllTableRows(
             supabase,
             "mods",
-            "id, name, master_author, mason_id, latest_version, sub_type, file_extension, image_url, category_override, description, url, is_paid, is_early_access, requiredDLC, folder_structure",
+            "id, name, master_author, mason_id, latest_version, sub_type, file_extension, image_url, category_override, description, url, is_paid, is_early_access, requiredDLC, folder_structure, status",
             "name"
           ),
         ]);
@@ -264,7 +264,7 @@ export function ArtifactWorkspace({
 
         let colQuery = supabase
           .from("collections")
-          .select("id, name, mason_id, is_official, set_type, compliance_tier, image_url, url")
+          .select("id, name, mason_id, masons(name), is_official, set_type, compliance_tier, image_url, url")
           .order("name");
         if (isUuid(masonId)) {
           colQuery = colQuery.eq("mason_id", masonId);
@@ -2249,6 +2249,7 @@ export function ArtifactWorkspace({
                 useStore
                   .getState()
                   .pushStatus(t("alert_saved", "Saved"), "success");
+                if (onRefreshParentList) onRefreshParentList();
               }
             } else {
               persistLocalSandboxConfig(patch);

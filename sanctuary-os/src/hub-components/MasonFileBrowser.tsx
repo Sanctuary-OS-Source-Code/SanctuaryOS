@@ -33,6 +33,7 @@ export default function MasonFileBrowser({
   internalCloudTarget,
   fetchError,
   layout,
+  leadCard,
 }: any) {
   const [templatePaths, setTemplatePaths] = useState<string[]>([]);
 
@@ -130,7 +131,7 @@ export default function MasonFileBrowser({
     );
   }
 
-  if (filteredFiles.length === 0) {
+  if (filteredFiles.length === 0 && !leadCard) {
     return (
       <EmptyState
         icon={t("icon_folder_off", "folder_off")}
@@ -143,10 +144,11 @@ export default function MasonFileBrowser({
   const gridClass =
     layout === "overview" || layout === "list"
       ? "col-span-full grid grid-cols-1 md:grid-cols-2 gap-6 w-full"
-      : "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full px-2 py-4";
+      : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full pb-16";
 
   return (
     <div className={gridClass}>
+      {leadCard}
       {filteredFiles.map((file: any) => {
         const isTmpl = file.name.toLowerCase().endsWith(".json");
         const isLexicon = isCloudMode

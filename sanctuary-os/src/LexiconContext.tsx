@@ -260,7 +260,7 @@ export const CORE_GLOSSARY_TERMS: GlossaryTermDefinition[] = [
     token: 'Nexus',
     labelKey: 'term_nexus_label',
     icon: 'hub',
-    defaults: { 'en-default': 'Marketplace', 'en-sanctuary': 'The Nexus', 'en-sims': 'The Gallery' },
+    defaults: { 'en-default': 'Marketplace', 'en-sanctuary': 'Nexus', 'en-sims': 'The Gallery' },
   },
   {
     key: 'term_chameleon',
@@ -474,7 +474,29 @@ export function interpolateGlossaryTokens(
     }
   );
 
-  return withDefiniteArticles.replace(/\{\{?\{?([A-Za-z_]+)\}?\}?\}/g, (full, tokName) => {
+  // Strip a leading "The " from glossary values (e.g. "The Gallery") when used attributively
+  // after modifiers or right before another noun/token (e.g. "{Nexus} {Lexicons}", "public {Nexus} listing")
+  const stripLeadingThe = (val: string) => val.replace(/^the\s+/i, '');
+
+  const withPrecedingDeterminers = withDefiniteArticles.replace(
+    /\b(public|global|official|community|local|shared|cloud|curated|your|our|this|that)(\s+)\{\{?\{?([A-Za-z_]+)\}?\}?\}/gi,
+    (full, modifier, space, tokName) => {
+      const resolved = resolveToken(tokName);
+      if (resolved === null) return full;
+      return `${modifier}${space}${stripLeadingThe(resolved)}`;
+    }
+  );
+
+  const withAttributiveModifiers = withPrecedingDeterminers.replace(
+    /\{\{?\{?([A-Za-z_]+)\}?\}?\}(?=\s+(?:\{\{?\{?[A-Za-z_]+\}?\}?\}|[A-Z][A-Za-z0-9-]+))/g,
+    (full, tokName) => {
+      const resolved = resolveToken(tokName);
+      if (resolved === null) return full;
+      return stripLeadingThe(resolved);
+    }
+  );
+
+  return withAttributiveModifiers.replace(/\{\{?\{?([A-Za-z_]+)\}?\}?\}/g, (full, tokName) => {
     const resolved = resolveToken(tokName);
     return resolved !== null ? resolved : full;
   });

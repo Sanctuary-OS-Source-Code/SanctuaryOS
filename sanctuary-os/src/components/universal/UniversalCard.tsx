@@ -415,9 +415,13 @@ export function UniversalCard({
 
                     <div
                       className={`absolute inset-x-3 ${
-                        isCompactBanner
-                          ? "top-[50px] h-11"
-                          : "top-[56px] h-12 sm:top-[52px] sm:h-14"
+                        !imageOverlay
+                          ? isCompactBanner
+                            ? "top-1/2 -translate-y-1/2 h-11"
+                            : "top-1/2 -translate-y-1/2 h-12 sm:h-14"
+                          : isCompactBanner
+                            ? "top-[52px] h-11"
+                            : "top-[58px] h-12 sm:top-[56px] sm:h-[52px]"
                       } flex items-stretch gap-2 pointer-events-none z-10`}
                     >
                       {/* Left Icon Tile (1:1 Square) */}

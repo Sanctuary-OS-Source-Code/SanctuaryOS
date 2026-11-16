@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActionPill } from "../../shared";
+import { ActionPill, resolveModHighlanderSlot } from "../../shared";
 
 function FilterSection({ title, options, value, onChange, t }: any) {
   if (!options || options.length === 0) return null;
@@ -44,6 +44,9 @@ export const VaultFilters = React.memo(function VaultFilters({
   setActiveCategory,
   activeSubType,
   setActiveSubType,
+  exclusiveSlotFilter = "ALL",
+  setExclusiveSlotFilter,
+  displayModList,
   activeGameSchema,
   filterStatus,
   setFilterStatus,
@@ -59,6 +62,26 @@ export const VaultFilters = React.memo(function VaultFilters({
   const FilterContent = React.useMemo(() => {
     const activeSchemaCategory = activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
     const subcats = activeSchemaCategory?.subcategories || [];
+    const slotMap = new Map<string, string>();
+    const list = Array.isArray(displayModList) ? displayModList : [];
+    for (const m of list) {
+      if (!m) continue;
+      const topSlot = resolveModHighlanderSlot(m);
+      if (topSlot?.key && !slotMap.has(topSlot.key)) {
+        slotMap.set(topSlot.key, topSlot.name);
+      }
+      if (Array.isArray(m.flavors)) {
+        for (const fl of m.flavors) {
+          const fSlot = resolveModHighlanderSlot(fl);
+          if (fSlot?.key && !slotMap.has(fSlot.key)) {
+            slotMap.set(fSlot.key, fSlot.name);
+          }
+        }
+      }
+    }
+    const availableSlots = Array.from(slotMap.entries())
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([id, label]) => ({ id, label }));
 
     return (
       <div className="flex flex-col w-[500px] p-4 max-w-[calc(100vw-40px)] text-left">
@@ -109,9 +132,23 @@ export const VaultFilters = React.memo(function VaultFilters({
             { id: "unknown", label: t("unknown", "Unknown") },
           ]}
         />
+
+        {setExclusiveSlotFilter && (availableSlots.length > 0 || exclusiveSlotFilter !== "ALL") && (
+          <FilterSection
+            t={t}
+            title={t("highlander_exclusive_slot", "Exclusive Slot")}
+            value={exclusiveSlotFilter}
+            onChange={(val: string) => setExclusiveSlotFilter(val)}
+            options={[
+              { id: "ALL", label: t("filter_all", "All") },
+              { id: "ANY_SLOT", label: t("highlander_exclusive_slots", "Exclusive Slots") },
+              ...availableSlots,
+            ]}
+          />
+        )}
       </div>
     );
-  }, [activeCategory, activeSubType, activeGameSchema, filterStatus, setActiveCategory, setActiveSubType, setFilterStatus, t]);
+  }, [activeCategory, activeSubType, activeGameSchema, filterStatus, exclusiveSlotFilter, displayModList, setActiveCategory, setActiveSubType, setFilterStatus, setExclusiveSlotFilter, t]);
 
   const actions = React.useMemo(() => {
     const list: any[] = [

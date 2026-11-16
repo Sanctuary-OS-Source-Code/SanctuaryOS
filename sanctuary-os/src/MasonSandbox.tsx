@@ -29,6 +29,7 @@ import {
 } from "./components/layouts/ElevatedHubLayout";
 import { ArtifactCard } from "./Cards";
 import { MasonStatusDropdown } from "./MasonHub";
+import { LiquidGlassAlertCard } from "./components/BlueprintPatchReadiness";
 import {
   LabVerificationGate,
   checkDnaHashVerification,
@@ -36,6 +37,10 @@ import {
   verifyKnownTier0CloudHashes,
 } from "./components/LabVerificationGate";
 import { buildFamilyHierarchy } from "./components/artifact-studio/artifactStudioUtils";
+import {
+  isStrictTier0Value,
+  invalidateNexusCatalogCache,
+} from "./utils/nexusCatalogStats";
 import {
   ArtifactWorkspace,
   StudioTabId,
@@ -118,10 +123,28 @@ export function MasonSandbox({
       .from("mods")
       .select("*, mod_versions(id, dna_hash, version_label, game_version)")
       .eq("mason_id", masonId)
+      .eq("compliance_tier", 0)
+      .eq("has_pending_flag", false)
       .order("name");
     if (data) {
+      const blockedSandboxCloudStatuses = new Set([
+        "unverified",
+        "unknown",
+        "local",
+        "obsolete",
+        "blacklisted",
+        "quarantined",
+        "rejected",
+        "malware_pending",
+      ]);
       setExistingMods(
-        data.filter((m: any) => Number(m?.compliance_tier || 0) === 0)
+        data.filter((m: any) => {
+          if (!isStrictTier0Value(m?.compliance_tier)) return false;
+          if (m?.has_pending_flag === true) return false;
+          const sLower = String(m?.status || "").toLowerCase().trim();
+          if (!sLower || blockedSandboxCloudStatuses.has(sLower)) return false;
+          return true;
+        })
       );
       const hashes = new Set<string>();
       const hMap = new Map<string, any>();
@@ -182,6 +205,18 @@ export function MasonSandbox({
 
   useEffect(() => {
     fetchExistingMods();
+  }, [masonId, isVerifiedMason]);
+
+  useEffect(() => {
+    const handleCatalogRefresh = () => {
+      fetchExistingMods();
+    };
+    window.addEventListener("sanctuary-compliance-updated", handleCatalogRefresh);
+    window.addEventListener("sanctuary-content-flagged", handleCatalogRefresh);
+    return () => {
+      window.removeEventListener("sanctuary-compliance-updated", handleCatalogRefresh);
+      window.removeEventListener("sanctuary-content-flagged", handleCatalogRefresh);
+    };
   }, [masonId, isVerifiedMason]);
 
   // Open a specific Cloud mod when navigated via initialActiveModId
@@ -665,6 +700,7 @@ export function MasonSandbox({
         computeAuditDiff(beforeMod, updatedPayload)
       );
       await fetchExistingMods();
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       useStore.getState().pushStatus(t("saved_success", "{Mod} Updated Successfully."), "success");
     } catch (err: any) {
       useStore.getState().pushStatus(`${t("alert_error", "Error: ")}${err.message}`, "error");
@@ -887,6 +923,7 @@ export function MasonSandbox({
       useStore.getState().pushStatus(t("auto_mod_synced_to_39", "{Mod} synced to network!"), "success");
       setIsEditorOpen(false);
       await fetchExistingMods();
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       if (onClear) onClear();
     } catch (err: any) {
       useStore.getState().pushStatus(`Error syncing to network: ${err.message}`, "error");
@@ -1260,9 +1297,38 @@ export function MasonSandbox({
     );
   };
 
+  const renderImportSandboxLeadCard = () => (
+    <LiquidGlassAlertCard
+      isAlertCard={false}
+      icon={isImporting ? t("icon_refresh", "refresh") : t("icon_add_circle", "add_circle")}
+      accentVar="var(--accent)"
+      iconColorClass="text-[var(--accent)]"
+      badgeIcon={t("icon_deployed_code", "deployed_code")}
+      badgeLabel={t("term_mods", "{Mods}")}
+      overline={t("term_mods", "{Mods}")}
+      title={isImporting ? t("btn_importing", "Importing...") : t("mason_import_sandbox_title", "Import {Mod}")}
+      description={t(
+        "mason_import_sandbox_desc",
+        "Import a local {mod} archive or package into your staging workspace."
+      )}
+      actionLabel={isImporting ? t("btn_importing", "Importing...") : t("btn_import", "Import")}
+      actionIcon={isImporting ? t("icon_sync", "sync") : t("icon_upload", "upload")}
+      actionVariant="glass"
+      onAction={() => {
+        if (!isImporting) handleImportToSandbox();
+      }}
+      onClick={() => {
+        if (!isImporting) handleImportToSandbox();
+      }}
+    />
+  );
+
   const renderLanding = () => {
-    const recentSandboxSlice = filteredSandboxMods.slice(0, isVerifiedMason ? 2 : 4);
-    const recentNexusSlice = isVerifiedMason ? filteredNexusMods.slice(0, 2) : [];
+    const maxTotalRecent = vaultPath ? 3 : 4;
+    const recentSandboxSlice = filteredSandboxMods.slice(0, isVerifiedMason ? (vaultPath ? 2 : 2) : maxTotalRecent);
+    const recentNexusSlice = isVerifiedMason
+      ? filteredNexusMods.slice(0, Math.max(0, maxTotalRecent - recentSandboxSlice.length))
+      : [];
     const hasRecent = recentSandboxSlice.length > 0 || recentNexusSlice.length > 0;
 
     return (
@@ -1271,11 +1337,12 @@ export function MasonSandbox({
           icon={t("icon_schedule", "schedule")}
           iconColorClass="text-[var(--accent)]"
           title={t("chameleons_overview_recent", "Recent")}
-          isEmpty={!hasRecent}
+          isEmpty={!vaultPath && !hasRecent}
           emptyIcon={t("icon_deployed_code", "deployed_code")}
           emptyTitle={t("registry_no_mods", "No {Mods} Found")}
           gridClassName="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
+          {vaultPath && renderImportSandboxLeadCard()}
           {recentSandboxSlice.map((mod) => renderSandboxCard(mod))}
           {recentNexusSlice.map((mod: any) => (
             <ArtifactCard
@@ -1323,7 +1390,7 @@ export function MasonSandbox({
     }
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500 pr-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {listToRender.slice(0, 80).map((mod: any) => (
           <ArtifactCard
             key={mod.id}
@@ -1362,26 +1429,6 @@ export function MasonSandbox({
             : t("studio_flat_list", "Flat List"),
           onClick: () => setGroupFamilies(!groupFamilies),
         },
-        ...(vaultPath
-          ? [
-            {
-              id: "import",
-              icon: (
-                <span
-                  className={`material-symbols-outlined !text-[20px] ${isImporting ? "animate-spin" : ""}`}
-                >
-                  {isImporting ? t("icon_refresh", "refresh") : t("icon_download", "download")}
-                </span>
-              ),
-              label: (isImporting
-                ? t("btn_importing", "Importing")
-                : t("btn_import", "Import")) as string,
-              onClick: () => {
-                if (!isImporting) handleImportToSandbox();
-              },
-            },
-          ]
-          : []),
       ]}
       primaryPopover={
         hubTab === "nexus" || hubTab === "flagged"
@@ -1447,14 +1494,15 @@ export function MasonSandbox({
         renderLanding()
       ) : hubTab === "sandbox" ? (
         <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {filteredSandboxMods.length === 0 ? (
+          {(!vaultPath || Boolean(searchTerm.trim())) && filteredSandboxMods.length === 0 ? (
             <EmptyState
               icon={t("icon_folder_off", "folder_off")}
               title={t("empty", "Empty")}
               className="col-span-full py-16"
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pr-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {vaultPath && !searchTerm.trim() && renderImportSandboxLeadCard()}
               {filteredSandboxMods.map((mod) => renderSandboxCard(mod))}
             </div>
           )}

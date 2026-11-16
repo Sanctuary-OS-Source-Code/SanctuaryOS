@@ -1,5 +1,5 @@
 import { useState, useMemo, useDeferredValue } from 'react';
-import { isVaultArtifactVisible } from '../shared';
+import { isVaultArtifactVisible, resolveModHighlanderSlot } from '../shared';
 
 export function useModFiltering(displayModList: any[], _playSets: any[], _activeSetName: string, activeGameSchema: any, t: any, isActive = true) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -8,6 +8,7 @@ export function useModFiltering(displayModList: any[], _playSets: any[], _active
   const [equipFilter, setEquipFilter] = useState("OVERVIEW");
   const [activeCategory, setActiveCategory] = useState("ALL");
   const [activeSubType, setActiveSubType] = useState("ALL");
+  const [exclusiveSlotFilter, setExclusiveSlotFilter] = useState("ALL");
   const [expandedFolder, setExpandedFolder] = useState<string | null>(null);
 
   const filteredMods = useMemo(() => {
@@ -50,6 +51,13 @@ export function useModFiltering(displayModList: any[], _playSets: any[], _active
         const subType = (m.sub_type || "").toUpperCase();
         const matchesSubType =
           activeSubType === "ALL" || subType === activeSubUpper;
+        const mSlot = resolveModHighlanderSlot(m);
+        const matchesExclusiveSlot =
+          exclusiveSlotFilter === "ALL"
+            ? true
+            : exclusiveSlotFilter === "ANY_SLOT"
+              ? Boolean(mSlot?.key)
+              : mSlot?.key === exclusiveSlotFilter;
         const rawStatus = (m.status || "").toLowerCase();
         
         let matchesStatus = false;
@@ -86,7 +94,8 @@ export function useModFiltering(displayModList: any[], _playSets: any[], _active
           matchesSearch &&
           matchesStatus &&
           matchesCategory &&
-          matchesSubType
+          matchesSubType &&
+          matchesExclusiveSlot
         );
       };
       if (mod.isVirtual) {
@@ -106,7 +115,7 @@ export function useModFiltering(displayModList: any[], _playSets: any[], _active
       return acc;
     }, []);
     return res;
-  }, [isActive, displayModList, deferredSearchQuery, filterStatus, activeCategory, activeSubType, activeGameSchema, t]);
+  }, [isActive, displayModList, deferredSearchQuery, filterStatus, activeCategory, activeSubType, exclusiveSlotFilter, activeGameSchema, t]);
 
   return {
     searchQuery, setSearchQuery,
@@ -114,6 +123,7 @@ export function useModFiltering(displayModList: any[], _playSets: any[], _active
     equipFilter, setEquipFilter,
     activeCategory, setActiveCategory,
     activeSubType, setActiveSubType,
+    exclusiveSlotFilter, setExclusiveSlotFilter,
     expandedFolder, setExpandedFolder,
     filteredMods
   };

@@ -4251,6 +4251,7 @@ function App() {
     equipFilter, setEquipFilter,
     activeCategory, setActiveCategory,
     activeSubType, setActiveSubType,
+    exclusiveSlotFilter, setExclusiveSlotFilter,
     expandedFolder, setExpandedFolder,
     filteredMods
   } = useModFiltering(displayModList, playSets, activeSetName || '', activeGameSchema, t, view === "vault");
@@ -4426,6 +4427,7 @@ function App() {
                             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
                             activeCategory={activeCategory} setActiveCategory={setActiveCategory}
                             activeSubType={activeSubType} setActiveSubType={setActiveSubType}
+                            exclusiveSlotFilter={exclusiveSlotFilter} setExclusiveSlotFilter={setExclusiveSlotFilter}
                             visibleMods={visibleMods} displayModList={displayModList}
                             activePlaySetIndex={activePlaySetIndex}
                             setActivePlaySetIndex={setActivePlaySetIndex}

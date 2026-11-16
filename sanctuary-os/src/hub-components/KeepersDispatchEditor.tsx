@@ -14,6 +14,7 @@ import {
   SidePanelHeroCard, UniversalGroup
 } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
+import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import MasonPostCard from "../MasonPostCard";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
@@ -555,6 +556,33 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
     }
   ];
 
+  const renderNewDispatchLeadCard = () => {
+    const label = wayfinderDrafts['new']
+      ? t("action_unsaved_draft", "Resume Draft")
+      : t("post_broadcast", "New {Dispatch}");
+    return (
+      <LiquidGlassAlertCard
+        isAlertCard={false}
+        icon={t("icon_add_circle", "add_circle")}
+        accentVar="var(--accent)"
+        iconColorClass="text-[var(--accent)]"
+        badgeIcon={t("icon_cell_tower", "cell_tower")}
+        badgeLabel={t("wf_tab_dispatch", "Dispatches")}
+        overline={t("wf_tab_dispatch", "Dispatches")}
+        title={label}
+        description={t(
+          "dispatch_hub_desc",
+          "Broadcast system updates, alerts, and telemetry across the network."
+        )}
+        actionLabel={label}
+        actionIcon={t("icon_add", "add")}
+        actionVariant="glass"
+        onAction={() => openEditor()}
+        onClick={() => openEditor()}
+      />
+    );
+  };
+
   const renderLanding = () => {
     const activePosts = posts.filter(p => p.is_active !== false);
     const inactivePosts = posts.filter(p => p.is_active === false);
@@ -565,11 +593,10 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
           icon={t("icon_cell_tower", "cell_tower")}
           iconColorClass="text-[var(--accent)]"
           title={t("recent_active_transmissions", "Recent Active {Dispatches}")}
-          isEmpty={activePosts.length === 0}
-          emptyIcon={t("icon_feed", "feed")}
-          emptyTitle={t("no_transmissions", "No {Dispatches} Found")}
+          isEmpty={false}
         >
-          {activePosts.slice(0, 4).map(renderPostCard)}
+          {renderNewDispatchLeadCard()}
+          {activePosts.slice(0, 3).map(renderPostCard)}
         </HubOverviewSection>
 
         <HubOverviewSection
@@ -630,28 +657,23 @@ export function KeepersDispatchEditor({ authorId, authorProfileId, isSidePanel, 
           )
         } : undefined
       }
-      actions={
-        filterStatus !== 'overview' ? [
-          {
-            id: "post",
-            icon: t("icon_cell_tower", "cell_tower"),
-            label: wayfinderDrafts['new'] ? t("action_unsaved_draft", "Resume Draft") : t("post_broadcast", "New {Dispatch}"),
-            onClick: () => openEditor()
-          }
-        ] : undefined
-      }
     >
-      {filterStatus === 'overview' ? renderLanding() : (
+      {filterStatus === 'overview' ? renderLanding() : (() => {
+        const showLead =
+          filterStatus === "Active" && !searchTerm.trim() && filterCategory === "All";
+        return (
           <div className="flex flex-col gap-4">
-            {filteredPosts.length === 0 ? (
+            {!showLead && filteredPosts.length === 0 ? (
               <EmptyState icon={t("icon_cell_tower", "cell_tower")} title={t("no_transmissions", "No {Dispatches} Found")} className="col-span-full py-16" />
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
+                {showLead && renderNewDispatchLeadCard()}
                 {filteredPosts.map(renderPostCard)}
               </div>
             )}
           </div>
-      )}
+        );
+      })()}
     </ElevatedHubLayout>
   );
 

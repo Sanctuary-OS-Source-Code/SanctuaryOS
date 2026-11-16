@@ -33,6 +33,8 @@ export function ArtifactCard({
   const activeGameSchema = useStore((state: any) => state.activeGameSchema);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  if (!mod) return null;
+
   const rawStatus = String(mod?.status || "")
     .toLowerCase()
     .replace(/_/g, " ")
@@ -131,18 +133,7 @@ export function ArtifactCard({
         iconColor: "text-[var(--accent)]",
       };
     }
-    if (rawStatus === "verified" || rawStatus === "approved") {
-      return {
-        label: t("status_stable", "Stable"),
-        icon: t("icon_verified", "verified"),
-        iconColor: "text-[var(--success)]",
-      };
-    }
-    return {
-      label: t("status_stable", "Stable"),
-      icon: t("icon_verified", "verified"),
-      iconColor: "text-[var(--success)]",
-    };
+    return null;
   })();
 
   const flagSummary = (() => {
@@ -228,16 +219,22 @@ export function ArtifactCard({
 
   const chipClass = VAULT_CHIP_CLASS;
 
-  const statusChip = (
+  const statusChip = statusMeta ? (
     <div className={chipClass}>
       <span className={`material-symbols-outlined !text-[12px] ${statusMeta.iconColor}`}>
         {statusMeta.icon}
       </span>
       <span>{statusMeta.label}</span>
     </div>
+  ) : null;
+
+  const hasVerticalBadges = Boolean(
+    layout !== "vertical"
+      ? statusChip || categoryLabel || roleBadgeLabel || versionCount > 1 || (extClean && String(categoryLabel).toLowerCase() !== extClean) || (typeof mod?.compliance_tier === "number" && mod.compliance_tier > 0)
+      : categoryLabel || roleBadgeLabel || versionCount > 1 || (typeof mod?.compliance_tier === "number" && mod.compliance_tier > 0)
   );
 
-  const cardBadges = (
+  const cardBadges = hasVerticalBadges ? (
     <>
       {layout !== "vertical" && statusChip}
 
@@ -261,7 +258,7 @@ export function ArtifactCard({
         </div>
       )}
 
-      {versionCount > 1 ? (
+      {versionCount > 1 && (
         <div className={chipClass}>
           <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
             {t("icon_history", "history")}
@@ -270,20 +267,9 @@ export function ArtifactCard({
             {versionCount} {t("badge_versions_count", "Versions")}
           </span>
         </div>
-      ) : mod?.latest_version || mod?.suggested_version ? (
-        <div className={chipClass}>
-          <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
-            {t("icon_history", "history")}
-          </span>
-          <span>
-            {String(mod.latest_version || mod.suggested_version).startsWith("v")
-              ? mod.latest_version || mod.suggested_version
-              : `${t("auto_v", "v")}${mod.latest_version || mod.suggested_version}`}
-          </span>
-        </div>
-      ) : null}
+      )}
 
-      {extClean && String(categoryLabel).toLowerCase() !== extClean && (
+      {layout !== "vertical" && extClean && String(categoryLabel).toLowerCase() !== extClean && (
         <div className={chipClass}>
           <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
             {isScriptMod
@@ -305,7 +291,7 @@ export function ArtifactCard({
         </div>
       )}
     </>
-  );
+  ) : undefined;
 
   const footer =
     layout === "vertical" ? (
@@ -360,7 +346,7 @@ export function ArtifactCard({
   return (
     <UniversalCard
       layout={layout}
-      isActive={activeModId === mod.id}
+      isActive={Boolean(mod?.id && activeModId === mod.id)}
       onClick={onClick}
       onContextMenu={(e) => {
         const menuItems: SanctuaryContextMenuItem[] = [
@@ -422,12 +408,13 @@ export function ArtifactCard({
           <DynamicArtifactPreviewBanner
             data={mod}
             icon={t("icon_deployed_code", "deployed_code")}
+            noTopOverlay={!statusChip && !onRemove}
             heightClass="h-full"
           />
         ) : undefined
       }
       imageOverlay={
-        layout === "vertical" ? (
+        layout === "vertical" && statusChip ? (
           <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
             {statusChip}
           </div>
@@ -476,82 +463,122 @@ export function VaultCard({
 }) {
   const { t } = useLexicon();
   const showImages = useStore((state: any) => state.showImages);
+
+  if (!setItem) return null;
+
+  const joinedMasonName = Array.isArray(setItem?.masons)
+    ? setItem.masons[0]?.name
+    : setItem?.masons?.name;
   const masonName =
+    joinedMasonName ||
     masonsList?.find((m: any) => m.id === setItem.mason_id)?.name ||
     setItem.creator_name ||
     masonNameFallback ||
     t("mason", "{Mason}");
 
-  const rawSetStatus = String(setItem?.status || "")
-    .toLowerCase()
-    .replace(/_/g, " ")
-    .trim();
-
-  const setStatusMeta = (() => {
-    if (rawSetStatus === "corrupted" || rawSetStatus === "broken") {
-      return {
-        label: t("status_corrupted", "Corrupted"),
-        icon: t("icon_error", "error"),
-        iconColor: "text-[var(--danger)]",
-      };
+  const members: any[] = Array.isArray(setItem?._members)
+    ? setItem._members
+    : Array.isArray(setItem?.flavors)
+      ? setItem.flavors
+      : [];
+  const totalCount =
+    typeof setItem?._memberCount === "number" ? setItem._memberCount : members.length;
+  const issueCount = members.filter((m) => {
+    const st = String(m?.status || "").toLowerCase().replace(/_/g, " ").trim();
+    return (
+      st === "corrupted" ||
+      st === "broken" ||
+      st === "unstable" ||
+      st === "under review" ||
+      st === "rejected"
+    );
+  }).length;
+  const topCategory = (() => {
+    const counts = new Map<string, number>();
+    for (const m of members) {
+      const cat = String(m?.category_override || "").trim();
+      if (cat && cat.toLowerCase() !== "unknown") {
+        counts.set(cat, (counts.get(cat) || 0) + 1);
+      }
     }
-    if (rawSetStatus === "under review") {
-      return {
-        label: t("status_dd_review", "Under Review"),
-        icon: t("icon_policy", "policy"),
-        iconColor: "text-[var(--accent)]",
-      };
+    let best = "";
+    let bestN = 0;
+    for (const [cat, n] of counts.entries()) {
+      if (n > bestN) {
+        best = cat;
+        bestN = n;
+      }
     }
-    if (rawSetStatus === "pending") {
-      return {
-        label: t("pending", "Pending"),
-        icon: t("icon_schedule", "schedule"),
-        iconColor: "text-[var(--warning)]",
-      };
-    }
-    if (
-      rawSetStatus === "unknown" ||
-      rawSetStatus === "unverified" ||
-      (!rawSetStatus && !setItem?.is_official)
-    ) {
-      return {
-        label: t("unknown", "Unknown"),
-        icon: t("icon_help", "help"),
-        iconColor: "text-[var(--subtext)]",
-      };
-    }
-    return {
-      label: t("status_stable", "Stable"),
-      icon: t("icon_verified", "verified"),
-      iconColor: "text-[var(--success)]",
-    };
+    return best;
   })();
 
-  const statusChip = (
-    <div className={VAULT_CHIP_CLASS}>
-      <span className={`material-symbols-outlined !text-[12px] ${setStatusMeta.iconColor}`}>
-        {setStatusMeta.icon}
-      </span>
-      <span>{setStatusMeta.label}</span>
-    </div>
-  );
+  const statusChip =
+    issueCount > 0 ? (
+      <div className={VAULT_CHIP_CLASS}>
+        <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+          {t("icon_warning", "warning")}
+        </span>
+        <span>
+          {issueCount} {t("title_issues", "Issues")}
+        </span>
+      </div>
+    ) : totalCount === 0 ? (
+      <div className={VAULT_CHIP_CLASS}>
+        <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+          {t("icon_inventory_2", "inventory_2")}
+        </span>
+        <span>{t("status_empty", "Empty")}</span>
+      </div>
+    ) : null;
 
-  const cardBadges = (
-    <div className={VAULT_CHIP_CLASS}>
-      <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
-        {t("icon_shield", "shield")}
-      </span>
-      <span>
-        {t("stat_tier", "Tier")} {setItem.compliance_tier || 0}
-      </span>
-    </div>
-  );
+  const hasBadges = issueCount > 0 || Boolean(setItem?.url);
+  const cardBadges = hasBadges ? (
+    <>
+      {issueCount > 0 && (
+        <div className={VAULT_CHIP_CLASS}>
+          <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+            {t("icon_flag", "flag")}
+          </span>
+          <span>
+            {issueCount} {t("flagged", "Flagged")}
+          </span>
+        </div>
+      )}
+
+      {setItem?.url && (
+        <div className={VAULT_CHIP_CLASS}>
+          <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+            {t("icon_public", "public")}
+          </span>
+          <span>{t("source", "Source")}</span>
+        </div>
+      )}
+    </>
+  ) : undefined;
 
   const footer = (
     <div className="flex items-center justify-between w-full text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-      <span className="flex items-center gap-1.5 font-mono truncate pr-2 opacity-75">
-        {String(setItem.id || "").slice(0, 8)}
-      </span>
+      <div className="flex items-center gap-2 min-w-0 pr-2 text-[var(--subtext)]">
+        <span className="flex items-center gap-1 font-bold text-[var(--text)] opacity-90 shrink-0">
+          <span className="material-symbols-outlined !text-[13px] text-[var(--accent)]">
+            {t("icon_inventory_2", "inventory_2")}
+          </span>
+          <span>
+            {totalCount} {totalCount === 1 ? t("term_mod", "{Mod}") : t("term_mods", "{Mods}")}
+          </span>
+        </span>
+        {(setItem?.updated_at || setItem?.created_at) && (
+          <>
+            <span className="opacity-40">&bull;</span>
+            <span className="truncate opacity-75">
+              {new Date(setItem.updated_at || setItem.created_at).toLocaleDateString([], {
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+          </>
+        )}
+      </div>
       <button className="text-[10px] font-black text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] uppercase tracking-widest transition-colors flex items-center gap-1 shrink-0">
         {t("edit", "Edit")} <span className="text-base leading-none">&rarr;</span>
       </button>
@@ -561,7 +588,7 @@ export function VaultCard({
   return (
     <UniversalCard
       layout="vertical"
-      isActive={activeSetId === setItem.id}
+      isActive={Boolean(setItem?.id && activeSetId === setItem.id)}
       onClick={onClick}
       onContextMenu={(e) => {
         const menuItems: SanctuaryContextMenuItem[] = [
@@ -595,15 +622,25 @@ export function VaultCard({
       icon={t("icon_collections_bookmark", "collections_bookmark")}
       customIcon={
         <DynamicArtifactPreviewBanner
-          data={{ ...setItem, isCollection: true }}
+          data={{
+            ...setItem,
+            isCollection: true,
+            category_override: topCategory || undefined,
+            author: masonName,
+            flavors: members,
+            familyCount: totalCount,
+          }}
+          noTopOverlay={!statusChip}
           icon={t("icon_collections_bookmark", "collections_bookmark")}
           heightClass="h-full"
         />
       }
       imageOverlay={
-        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
-          {statusChip}
-        </div>
+        statusChip ? (
+          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
+            {statusChip}
+          </div>
+        ) : undefined
       }
       badges={cardBadges}
       footer={footer}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
-import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, ActionButton, openModDossier } from "./shared";
+import { ViewHeader, CustomDropdown, HoverTabDrawer, VerticalTabButton, ActionButton, openModDossier, fetchAllPaginated } from "./shared";
+import { supabase } from "./supabase";
 import { useLexicon } from "./LexiconContext";
 import { SharedMetadataEditorSidePanel } from "./side-panels/SharedMetadataEditorSidePanel";
 import { ArchitectCommandScreen } from "./hub-components/command-screens/ArchitectCommandScreen";
@@ -278,7 +279,6 @@ export function CustomStatusDropdown({ value, onChange }: { value: string; onCha
     { id: "corrupted", label: t("status_corrupted", "Corrupted") || "Corrupted" },
     { id: "under_review", label: t("status_dd_review", "Under Review") || "Under Review" },
     { id: "pending", label: t("pending", "Pending") || "Pending" },
-    { id: "unknown", label: t("unknown", "Unknown") || "Unknown" },
   ];
   return (
     <CustomDropdown
@@ -291,6 +291,9 @@ export function CustomStatusDropdown({ value, onChange }: { value: string; onCha
   );
 }
 
+let cachedMasonsList: any[] | null = null;
+let masonsFetchPromise: Promise<any[]> | null = null;
+
 export function CustomMasonDropdown({
   value,
   options,
@@ -301,11 +304,70 @@ export function CustomMasonDropdown({
   onChange: (val: string) => void;
 }) {
   const { t } = useLexicon();
-  const dropdownOptions = (options || []).map((o) => ({
-    id: o.id,
-    label: o.name,
-    searchText: `${o.name || ""} ${o.id || ""}`,
-  }));
+  const hasNamedOptions = useMemo(
+    () => Array.isArray(options) && options.some((o) => Boolean(o?.name)),
+    [options]
+  );
+  const [fallbackOptions, setFallbackOptions] = useState<any[]>(
+    () => cachedMasonsList || []
+  );
+
+  useEffect(() => {
+    if (hasNamedOptions) return;
+    if (cachedMasonsList) {
+      setFallbackOptions(cachedMasonsList);
+      return;
+    }
+    let mounted = true;
+    if (!masonsFetchPromise) {
+      masonsFetchPromise = fetchAllPaginated(() =>
+        supabase.from("masons").select("id, name").order("name")
+      )
+        .then(({ data }) => {
+          const rows = Array.isArray(data) ? data : [];
+          if (rows.length > 0) cachedMasonsList = rows;
+          return rows;
+        })
+        .catch(() => [])
+        .finally(() => {
+          masonsFetchPromise = null;
+        });
+    }
+    masonsFetchPromise.then((rows) => {
+      if (mounted && rows.length > 0) {
+        setFallbackOptions(rows);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [hasNamedOptions]);
+
+  const dropdownOptions = useMemo(() => {
+    const source = hasNamedOptions
+      ? options
+      : fallbackOptions.length > 0
+        ? fallbackOptions
+        : options || [];
+    const seen = new Set<string>();
+    const list: Array<{ id: string; label: string; searchText: string }> = [];
+    for (const o of source) {
+      if (!o?.id) continue;
+      const key = String(o.id);
+      const label = String(o.name || o.username || "").trim();
+      if (!label || seen.has(key)) continue;
+      seen.add(key);
+      list.push({
+        id: o.id,
+        label,
+        searchText: `${label} ${key}`,
+      });
+    }
+    return list.sort((a, b) =>
+      a.label.localeCompare(b.label, undefined, { sensitivity: "base" })
+    );
+  }, [hasNamedOptions, options, fallbackOptions]);
+
   return (
     <CustomDropdown
       disableTint={true}

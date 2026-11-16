@@ -221,7 +221,7 @@ export function applyThematicGlossaryToProse(
   const termCitizens = resolveTerm('term_citizens', isSims ? 'Simmers' : isStandard ? 'Users' : 'Citizens');
   const termBackups = resolveTerm('term_backups', isSimlish ? 'Save-Capsules' : isStandard || isSims ? 'Backups' : 'Time Capsule');
   const termLab = resolveTerm('term_lab', isSimlish ? 'Testi Lab' : isStandard || isSims ? 'Testing Lab' : 'Homestead');
-  const termNexus = resolveTerm('term_nexus', isSims ? 'The Gallery' : isStandard ? 'Marketplace' : 'The Nexus');
+  const termNexus = resolveTerm('term_nexus', isSims ? 'The Gallery' : isStandard ? 'Marketplace' : 'Nexus');
   const termDispatch = resolveTerm('term_dispatch', isSimlish ? 'Posti' : isStandard || isSims ? 'Post' : 'Transmission');
   const termDispatches = resolveTerm('term_dispatches', isSimlish ? 'Postis' : isStandard || isSims ? 'Posts' : 'Transmissions');
 

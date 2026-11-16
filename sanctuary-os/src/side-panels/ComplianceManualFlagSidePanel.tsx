@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase, supabaseAuth, spokeOversightFrom } from "../supabase";
 import { useLexicon } from "../LexiconContext";
-import { SidePanel, ActionButton, CustomDropdown, CustomComplianceDropdown, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile, SidePanelFilterBar, SidePanelHeroCard, SidePanelPillToggle } from "../shared";
+import { SidePanel, ActionButton, CustomDropdown, CustomComplianceDropdown, PanelHeaderGroup, PanelHeaderButton, DashboardStatTile, SidePanelFilterBar, SidePanelHeroCard, SidePanelPillToggle, VAULT_CHIP_CLASS } from "../shared";
 import { UniversalGroup, UniversalInput, UniversalTextArea } from '../components/universal/UniversalLayout';
 import { useStore } from '../store';
 import { createPortal } from 'react-dom';
@@ -98,7 +98,16 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
       setConfirmDelete(false);
       loadSignatures();
       
-      if (initialHeuristicEdit) {
+      if (initialHeuristicEdit?.__newHeuristic) {
+        setActiveTab("heuristic");
+        setEditingId(null);
+        setNewSig("");
+        setMatchType("archive_entry_exact");
+        setSeverity("malware");
+        setNotes("");
+        setEnabled(true);
+        setConfirmDelete(false);
+      } else if (initialHeuristicEdit) {
         setActiveTab("heuristic");
         startEditHeuristic(initialHeuristicEdit);
       } else if (!initialQuery) {
@@ -534,6 +543,7 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
         )}
 
         {activeTab === 'registry' ? (
+          <>
           <UniversalGroup 
             title={t("comp_manual_title", "Manual Flag")} 
             icon={t("icon_flag", "flag")} 
@@ -610,179 +620,196 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
                   placeholder={t("comp_reason_ph", "Enter enforcement reason...")}
               />
             </div>
+          </UniversalGroup>
 
-            <div className="mt-4 pt-4 border-t border-[var(--border)]/40 flex flex-col gap-3 relative z-20">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest flex items-center gap-1.5">
-                  <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">
-                    {t("icon_account_tree", "account_tree")}
-                  </span>
-                  {t("comp_family_hashes_title", "Family & Companion Hashes")}
-                </span>
-                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[var(--accent)]">
-                  {extraHashes.length + linkedFamilyMods.length}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
-                <div className="sm:col-span-6">
-                  <UniversalInput
-                    label={t("comp_companion_hash_label", "Companion SHA-256 Hash")}
-                    value={newHashInput}
-                    onChange={setNewHashInput}
-                    placeholder={t("comp_companion_hash_ph", "64-character SHA-256 hash...")}
-                  />
-                </div>
-                <div className="sm:col-span-3">
-                  <UniversalInput
-                    label={t("version", "Version")}
-                    value={newHashLabel}
-                    onChange={setNewHashLabel}
-                    placeholder={t("comp_companion_ver_ph", "1.0 / addon")}
-                  />
-                </div>
-                <div className="sm:col-span-3">
-                  <ActionButton
-                    variant="glass"
-                    icon={t("icon_add", "add")}
-                    label={t("add", "Add")}
-                    className="!w-full !justify-center !h-12"
-                    disabled={!/^[0-9a-f]{64}$/i.test(newHashInput.trim())}
-                    onClick={() => {
-                      const cleanH = newHashInput.trim().toLowerCase();
-                      if (!/^[0-9a-f]{64}$/i.test(cleanH)) return;
-                      if (!extraHashes.some((h) => h.dna_hash === cleanH)) {
-                        setExtraHashes([...extraHashes, { dna_hash: cleanH, version_label: newHashLabel.trim() || "companion" }]);
-                      }
-                      setNewHashInput("");
-                      setNewHashLabel("");
-                    }}
-                  />
-                </div>
-              </div>
-
-              {extraHashes.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {extraHashes.map((eh) => (
-                    <span
+          <UniversalGroup
+            title={t("comp_tracked_hashes_count", "Tracked DNA Hashes")}
+            icon={t("icon_fingerprint", "fingerprint")}
+            count={extraHashes.length}
+          >
+            {extraHashes.length > 0 && (
+              <div className="flex flex-col gap-1.5 w-full">
+                {extraHashes.map((eh) => {
+                  const hashPreview = eh.dna_hash.length > 28
+                    ? `${eh.dna_hash.slice(0, 16)}...${eh.dna_hash.slice(-8)}`
+                    : eh.dna_hash;
+                  return (
+                    <div
                       key={eh.dna_hash}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[10px] font-mono text-[var(--text)]"
+                      className="glass-surface rounded-xl px-3 py-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2.5 min-w-0"
                     >
-                      <span>{eh.dna_hash.slice(0, 14)}... ({eh.version_label})</span>
-                      <button
-                        type="button"
-                        onClick={() => setExtraHashes(extraHashes.filter((h) => h.dna_hash !== eh.dna_hash))}
-                        className="text-[var(--danger)] hover:opacity-80 cursor-pointer flex items-center"
-                      >
-                        <span className="material-symbols-outlined !text-[13px]">{t("icon_close", "close")}</span>
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
-                <div className="sm:col-span-4 relative z-40">
-                  <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 block mb-1.5">
-                    {t("comp_family_rel_type", "Relationship")}
-                  </label>
-                  <CustomDropdown
-                    value={selectedFamilyRelType}
-                    options={[
-                      { id: "addon", label: t("rel_addon", "Addon") },
-                      { id: "twin", label: t("rel_twin", "Twin") },
-                      { id: "flavor", label: t("rel_flavor", "Flavor") },
-                      { id: "beta", label: t("rel_beta", "Beta") },
-                    ]}
-                    onChange={(v: any) => {
-                      const val = Array.isArray(v) ? v[0] : v;
-                      if (val) setSelectedFamilyRelType(val as any);
-                    }}
-                    disableTint={true}
-                  />
-                </div>
-                <div className="sm:col-span-8 relative">
-                  <UniversalInput
-                    label={t("comp_family_search_label", "Link Family {Mod} (Name or SHA-256)")}
-                    value={familySearchQuery}
-                    onChange={setFamilySearchQuery}
-                    placeholder={t("search_ph", "Search {mods}...")}
-                  />
-                  {familySearchResults.length > 0 && (
-                    <div className="mt-1 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_15%,transparent)] max-h-40 overflow-y-auto custom-scrollbar flex flex-col p-1 gap-0.5">
-                      {familySearchResults.map((fm) => (
-                        <button
-                          key={fm.id}
-                          type="button"
-                          onClick={() => {
-                            if (!linkedFamilyMods.some((x) => x.id === fm.id)) {
-                              setLinkedFamilyMods([
-                                ...linkedFamilyMods,
-                                { id: fm.id, name: fm.name || fm.id, relType: selectedFamilyRelType },
-                              ]);
-                            }
-                            setFamilySearchQuery("");
-                            setFamilySearchResults([]);
-                          }}
-                          className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] flex items-center justify-between gap-2 text-xs text-[var(--text)] cursor-pointer"
-                        >
-                          <span className="font-bold truncate">{fm.name}</span>
-                          <span className="text-[10px] font-black text-[var(--accent)] shrink-0">
-                            + {selectedFamilyRelType.toUpperCase()}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {linkedFamilyMods.length > 0 && (
-                <>
-                  <div className="flex flex-wrap gap-1.5">
-                    {linkedFamilyMods.map((fm) => (
-                      <span
-                        key={fm.id}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[10px] font-bold text-[var(--text)]"
-                      >
-                        <span className="text-[var(--accent)] uppercase">{fm.relType}</span>
-                        <span className="truncate max-w-[180px]">{fm.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => setLinkedFamilyMods(linkedFamilyMods.filter((x) => x.id !== fm.id))}
-                          className="text-[var(--danger)] hover:opacity-80 cursor-pointer flex items-center"
-                        >
-                          <span className="material-symbols-outlined !text-[13px]">{t("icon_close", "close")}</span>
-                        </button>
+                      <span className="text-[11px] font-mono text-[var(--text)] truncate min-w-0">
+                        {hashPreview}
                       </span>
-                    ))}
-                  </div>
-                  <SidePanelPillToggle
-                    label={t("comp_cascade_family_tier", "Cascade Tier & Active Enforcement to Linked Family")}
-                    icon={t("icon_hub", "hub")}
-                    checked={cascadeFamilyTier}
-                    onChange={setCascadeFamilyTier}
-                  />
-                </>
-              )}
-            </div>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                        <span className={VAULT_CHIP_CLASS}>
+                          <span className="text-[var(--accent)]">{eh.version_label}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setExtraHashes(extraHashes.filter((h) => h.dna_hash !== eh.dna_hash))}
+                          aria-label={t("remove", "Remove")}
+                          className="w-6 h-6 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-            <div className="flex flex-wrap items-center justify-end gap-2.5 pt-1 w-full">
-              <ActionButton
-                variant="glass"
-                label={t("cancel", "Cancel")}
-                onClick={onClose}
-                disabled={isSubmitting}
+            <UniversalInput
+              label={t("comp_companion_hash_label", "Companion SHA-256 Hash")}
+              value={newHashInput}
+              onChange={setNewHashInput}
+              placeholder={t("comp_companion_hash_ph", "64-character SHA-256 hash...")}
+              className="font-mono"
+            />
+
+            <div className="flex items-end gap-2.5 w-full">
+              <UniversalInput
+                wrapperClassName="flex-1 min-w-0"
+                label={t("version", "Version")}
+                value={newHashLabel}
+                onChange={setNewHashLabel}
+                placeholder={t("comp_companion_ver_ph", "1.0 / addon")}
               />
               <ActionButton
-                variant={isMalwareOnly || manualTier === 5 ? "danger" : "primary"}
-                icon={t("icon_flag", "flag")}
-                label={isSubmitting ? t("btn_submitting", "Submitting...") : t("comp_manual_btn_activate", "Enforce Active Flag")}
-                disabled={isSubmitting || ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim())}
-                onClick={handleManualFlag}
+                variant="glass"
+                icon={t("icon_add", "add")}
+                label={t("add", "Add")}
+                className="!h-11 !px-4 shrink-0"
+                disabled={!/^[0-9a-f]{64}$/i.test(newHashInput.trim())}
+                onClick={() => {
+                  const cleanH = newHashInput.trim().toLowerCase();
+                  if (!/^[0-9a-f]{64}$/i.test(cleanH)) return;
+                  if (!extraHashes.some((h) => h.dna_hash === cleanH)) {
+                    setExtraHashes([...extraHashes, { dna_hash: cleanH, version_label: newHashLabel.trim() || "companion" }]);
+                  }
+                  setNewHashInput("");
+                  setNewHashLabel("");
+                }}
               />
             </div>
           </UniversalGroup>
+
+          <UniversalGroup
+            title={t("comp_linked_family_count", "Linked Family")}
+            icon={t("icon_account_tree", "account_tree")}
+            count={linkedFamilyMods.length}
+          >
+            {linkedFamilyMods.length > 0 && (
+              <div className="flex flex-col gap-1.5 w-full">
+                {linkedFamilyMods.map((fm) => (
+                  <div
+                    key={fm.id}
+                    className="glass-surface rounded-xl px-3 py-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2.5 min-w-0"
+                  >
+                    <span className="text-xs font-bold text-[var(--text)] truncate min-w-0">
+                      {fm.name}
+                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                      <span className={VAULT_CHIP_CLASS}>
+                        <span className="text-[var(--accent)]">{fm.relType}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setLinkedFamilyMods(linkedFamilyMods.filter((x) => x.id !== fm.id))}
+                        aria-label={t("remove", "Remove")}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-start">
+              <div className="sm:col-span-4 flex flex-col gap-1.5 relative z-40">
+                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1 leading-tight">
+                  {t("comp_family_rel_type", "Relationship")}
+                </label>
+                <CustomDropdown
+                  value={selectedFamilyRelType}
+                  options={[
+                    { id: "addon", label: t("rel_addon", "Addon") },
+                    { id: "twin", label: t("rel_twin", "Twin") },
+                    { id: "flavor", label: t("rel_flavor", "Flavor") },
+                    { id: "beta", label: t("rel_beta", "Beta") },
+                  ]}
+                  onChange={(v: any) => {
+                    const val = Array.isArray(v) ? v[0] : v;
+                    if (val) setSelectedFamilyRelType(val as any);
+                  }}
+                  disableTint={true}
+                />
+              </div>
+              <div className="sm:col-span-8 relative">
+                <UniversalInput
+                  label={t("comp_family_search_label", "Link Family {Mod} (Name or SHA-256)")}
+                  value={familySearchQuery}
+                  onChange={setFamilySearchQuery}
+                  placeholder={t("search_ph", "Search {mods}...")}
+                />
+                {familySearchResults.length > 0 && (
+                  <div className="mt-1 glass-surface rounded-xl border border-[color-mix(in_srgb,var(--text)_15%,transparent)] max-h-40 overflow-y-auto custom-scrollbar flex flex-col p-1 gap-0.5">
+                    {familySearchResults.map((fm) => (
+                      <button
+                        key={fm.id}
+                        type="button"
+                        onClick={() => {
+                          if (!linkedFamilyMods.some((x) => x.id === fm.id)) {
+                            setLinkedFamilyMods([
+                              ...linkedFamilyMods,
+                              { id: fm.id, name: fm.name || fm.id, relType: selectedFamilyRelType },
+                            ]);
+                          }
+                          setFamilySearchQuery("");
+                          setFamilySearchResults([]);
+                        }}
+                        className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] flex items-center justify-between gap-2 text-xs text-[var(--text)] cursor-pointer"
+                      >
+                        <span className="font-bold truncate">{fm.name}</span>
+                        <span className="text-[10px] font-black text-[var(--accent)] shrink-0">
+                          + {selectedFamilyRelType.toUpperCase()}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {linkedFamilyMods.length > 0 && (
+              <SidePanelPillToggle
+                label={t("comp_cascade_family_tier", "Cascade Tier & Active Enforcement to Linked Family")}
+                icon={t("icon_hub", "hub")}
+                checked={cascadeFamilyTier}
+                onChange={setCascadeFamilyTier}
+              />
+            )}
+          </UniversalGroup>
+
+          <div className="flex flex-wrap items-center justify-end gap-2.5 pt-1 w-full">
+            <ActionButton
+              variant="glass"
+              label={t("cancel", "Cancel")}
+              onClick={onClose}
+              disabled={isSubmitting}
+            />
+            <ActionButton
+              variant={isMalwareOnly || manualTier === 5 ? "danger" : "primary"}
+              icon={t("icon_flag", "flag")}
+              label={isSubmitting ? t("btn_submitting", "Submitting...") : t("comp_manual_btn_activate", "Enforce Active Flag")}
+              disabled={isSubmitting || ((!manualSelectedMod && !manualSearchQuery.trim()) || !registryReason.trim())}
+              onClick={handleManualFlag}
+            />
+          </div>
+          </>
         ) : (
           <UniversalGroup 
             title={t("heuristics_tab", "Heuristics")} 

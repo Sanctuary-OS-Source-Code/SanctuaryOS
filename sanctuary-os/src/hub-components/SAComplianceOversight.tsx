@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase, spokeOversightFrom } from '../supabase';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
-import { CustomDropdown, CustomComplianceDropdown, SidePanel, SidePanelPillToggle, PanelHeaderGroup, PanelHeaderButton, ActionButton, SidePanelHeroCard, StatBox, EmptyState, VAULT_CHIP_CLASS } from '../shared';
+import { CustomDropdown, CustomComplianceDropdown, SidePanel, SidePanelPillToggle, PanelHeaderGroup, PanelHeaderButton, ActionButton, SidePanelHeroCard, StatBox, EmptyState, VAULT_CHIP_CLASS, fetchAllPaginated } from '../shared';
 import { UniversalCard } from '../components/universal/UniversalCard';
 import { UniversalInput } from '../components/universal/UniversalLayout';
 import { openSanctuaryContextMenu } from '../ContextMenu';
@@ -10,6 +10,7 @@ import { DynamicArtifactPreviewBanner } from '../chameleon-components/ThemeCard'
 import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEditorSidePanel';
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid, SidePanelTitleInput, UniversalGroup, UniversalTextArea } from '../components/layouts/ElevatedHubLayout';
 import { logArchitectAction } from '../lib/audit';
+import { invalidateNexusCatalogCache } from '../utils/nexusCatalogStats';
 
 export default function SAComplianceOversight({ initialFilter, setInitialFilter, onOpenManualFlag }: any) {
   const { t } = useLexicon();
@@ -23,7 +24,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     return null;
   });
   const [filterStatus, setFilterStatus] = useState<string>(() => {
-    if (initialFilter === "quarantined") return "inactive";
+    if (initialFilter === "quarantined") return "confirmed";
     return "overview";
   });
   const [search, setSearch] = useState("");
@@ -227,19 +228,20 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     setLoading(true);
     const { data } = await spokeOversightFrom('mods')
       .select('id, name, master_author, compliance_tier, status, status_reason, mason_id, image_url')
-      .or('compliance_tier.in.(1,2,3,4,5),status.in.(under_review,pending,blacklisted,quarantined)')
+      .in('compliance_tier', [1, 2, 3, 4])
       .order('compliance_tier', { ascending: false });
 
     if (data) {
       setMods(
-        data.filter(
-          (m: any) =>
-            Number(m?.compliance_tier || 0) >= 1 ||
-            ["blacklisted", "quarantined"].includes(String(m?.status || "").toLowerCase())
-        )
+        data.filter((m: any) => {
+          const tier = Number(m?.compliance_tier || 0);
+          return tier >= 1 && tier <= 4;
+        })
       );
     }
-    const { data: mData } = await supabase.from('profiles').select('id, username').eq('role', 'mason');
+    const { data: mData } = await fetchAllPaginated(() =>
+      supabase.from('masons').select('id, name').order('name')
+    );
     if (mData) setMasonsList(mData);
     setLoading(false);
   };
@@ -279,6 +281,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       );
       setEditReason("");
       setSelectedMod(null);
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       fetchMods();
     } catch (err: any) {
       console.error(err);
@@ -295,7 +298,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       setStatus(t("identities_req_reason", "Reason is required."));
       return;
     }
-    const confirmedTier = Math.max(1, Math.min(5, Number(editTier || mod.compliance_tier || 1)));
+    const confirmedTier = Math.max(0, Math.min(5, Number(editTier ?? mod.compliance_tier ?? 1)));
     const confirmedStatus = confirmedTier === 5 ? 'blacklisted' : 'verified';
     setIsSubmitting(true);
     setLoading(true);
@@ -313,7 +316,9 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       if (error) throw error;
       await cascadeFamilyComplianceUpdate(confirmedTier, confirmedStatus, editReason.trim());
       await logArchitectAction(
-        `Confirmed compliance classification for artifact: ${mod.name} (Tier ${confirmedTier})`,
+        confirmedTier === 0
+          ? `Cleared compliance flag for artifact: ${mod.name}`
+          : `Confirmed compliance classification for artifact: ${mod.name} (Tier ${confirmedTier})`,
         'mods',
         mod.name || mod.id,
         editReason.trim(),
@@ -326,6 +331,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       );
       setEditReason("");
       setSelectedMod(null);
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       fetchMods();
     } catch (err: any) {
       console.error(err);
@@ -355,7 +361,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     loadFamilyAndHashes(mod.id);
   };
 
-  const handleSaveTier = async (forceQuarantine = false) => {
+  const handleSaveTier = async () => {
     if (!selectedMod) return;
     if (!editReason.trim()) {
       setStatus(t("identities_req_reason", "Reason is required when changing compliance tier."));
@@ -366,35 +372,39 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     setStatus(t("identities_updating", "Updating..."));
 
     try {
-      const nextStatus = forceQuarantine || editTier === 5 ? 'blacklisted' : 'verified';
+      const targetTier = Math.max(0, Math.min(5, Number(editTier ?? 0)));
+      const nextStatus = targetTier === 5 ? 'blacklisted' : 'verified';
       const { error } = await supabase.rpc('secure_upsert_cloud_file', {
         p_token: useStore.getState().session?.access_token || '',
         p_target: 'mods',
         p_payload: {
           id: selectedMod.id,
-          compliance_tier: editTier,
+          compliance_tier: targetTier,
           status: nextStatus,
           status_reason: editReason.trim(),
         },
       });
       if (error) throw error;
-      await cascadeFamilyComplianceUpdate(editTier, nextStatus, editReason.trim());
+      await cascadeFamilyComplianceUpdate(targetTier, nextStatus, editReason.trim());
 
       await logArchitectAction(
-        `Changed compliance tier from ${selectedMod.compliance_tier} to ${editTier}`,
+        targetTier === 0
+          ? `Cleared compliance flag for artifact: ${selectedMod.name}`
+          : `Changed compliance tier from ${selectedMod.compliance_tier} to ${targetTier}`,
         'mods',
         selectedMod.name || selectedMod.id,
         editReason.trim() || "Compliance Update",
         'Oversight Compliance',
         false,
         {
-          compliance_tier: { from: selectedMod.compliance_tier, to: editTier },
+          compliance_tier: { from: selectedMod.compliance_tier, to: targetTier },
           status: { from: selectedMod.status, to: nextStatus },
         }
       );
 
       setStatus(t("identities_updated", "Success"));
       setSelectedMod(null);
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       fetchMods();
     } catch (err: any) {
       setStatus(`${t("identities_failed_prefix", "Failed:")} ${err.message}`);
@@ -403,22 +413,22 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     }
   };
 
+  const isModPending = (m: any) =>
+    ["under_review", "pending", "unverified"].includes(String(m?.status || "").toLowerCase());
+  const isModConfirmed = (m: any) => !isModPending(m);
+
   const filteredMods = mods.filter(m => {
-    const matchesSearch = m.name?.toLowerCase().includes(search.toLowerCase());
-    const matchesTier = filterTier ? m.compliance_tier === filterTier : true;
+    const q = search.trim().toLowerCase();
+    const matchesSearch = !q ||
+      String(m.name || "").toLowerCase().includes(q) ||
+      String(m.master_author || "").toLowerCase().includes(q);
+    const matchesTier = filterTier ? Number(m.compliance_tier) === filterTier : true;
 
     let matchesStatus = true;
-    const statusLower = m.status?.toLowerCase() || "";
-    const isPending = m.compliance_tier !== 5 && ["under_review", "pending", "unverified"].includes(statusLower);
-    const isInactive = m.compliance_tier === 5 || ["blacklisted", "quarantined"].includes(statusLower);
-    const isActive = !isPending && !isInactive && m.compliance_tier >= 1 && m.compliance_tier <= 4;
-
     if (filterStatus === "pending") {
-      matchesStatus = isPending;
-    } else if (filterStatus === "active") {
-      matchesStatus = isActive;
-    } else if (filterStatus === "inactive") {
-      matchesStatus = isInactive;
+      matchesStatus = isModPending(m);
+    } else if (filterStatus === "confirmed") {
+      matchesStatus = isModConfirmed(m);
     }
 
     return matchesSearch && matchesTier && matchesStatus;
@@ -435,30 +445,26 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     }
   };
 
-  const pendingCount = mods.filter(m => m.compliance_tier !== 5 && ["under_review", "pending", "unverified"].includes(m.status?.toLowerCase() || "")).length;
-  const activeCount = mods.filter(m => m.compliance_tier !== 5 && !["under_review", "pending", "unverified", "blacklisted", "quarantined"].includes(m.status?.toLowerCase() || "") && m.compliance_tier >= 1 && m.compliance_tier <= 4).length;
-  const inactiveCount = mods.filter(m => m.compliance_tier === 5 || ["blacklisted", "quarantined"].includes(m.status?.toLowerCase() || "")).length;
+  const pendingCount = mods.filter(isModPending).length;
+  const confirmedCount = mods.filter(isModConfirmed).length;
 
   const tabs = [
     {
       id: "overview",
       label: t("overview", "Overview"),
       icon: t("icon_dashboard", "dashboard"),
-      number: (pendingCount + activeCount + inactiveCount).toString(),
+      number: (pendingCount + confirmedCount).toString(),
     },
-    { id: 'pending', label: t("pending", "Pending"), icon: t("icon_policy", "policy"), number: pendingCount.toString(), colorClass: 'text-[var(--danger)]' },
-    { id: 'active', label: t("status_active", "Active"), icon: t("icon_verified", "verified"), number: activeCount.toString(), colorClass: 'text-[var(--success)]' },
-    { id: 'inactive', label: t("tab_inactive", "Inactive"), icon: t("icon_block", "block"), number: inactiveCount.toString(), colorClass: 'text-[var(--warning)]' }
+    { id: 'pending', label: t("pending", "Pending"), icon: t("icon_schedule", "schedule"), number: pendingCount.toString(), colorClass: 'text-[var(--warning)]' },
+    { id: 'confirmed', label: t("status_dd_confirmed", "Confirmed"), icon: t("icon_verified", "verified"), number: confirmedCount.toString(), colorClass: 'text-[var(--success)]' },
   ];
 
   const renderModCard = (mod: any) => {
     const td = getTierDetails(mod.compliance_tier);
-    const statusLower = (mod.status || "").toLowerCase();
-    const isPending = ["under_review", "pending", "unverified"].includes(statusLower);
-    const isInactive = mod.compliance_tier === 5 || ["blacklisted", "quarantined"].includes(statusLower);
-    const statusLabel = isPending ? t("pending", "Pending") : isInactive ? t("tab_inactive", "Inactive") : t("status_active", "Active");
-    const statusIcon = isPending ? t("icon_schedule", "schedule") : isInactive ? t("icon_block", "block") : t("icon_verified", "verified");
-    const statusIconColor = isPending ? "text-[var(--warning)]" : isInactive ? "text-[var(--danger)]" : "text-[var(--success)]";
+    const pending = isModPending(mod);
+    const statusLabel = pending ? t("pending", "Pending") : t("status_dd_confirmed", "Confirmed");
+    const statusIcon = pending ? t("icon_schedule", "schedule") : t("icon_verified", "verified");
+    const statusIconColor = pending ? "text-[var(--warning)]" : "text-[var(--success)]";
 
     return (
       <UniversalCard
@@ -530,16 +536,15 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
   };
 
   const renderLanding = () => {
-    const pendingMods = mods.filter(m => m.compliance_tier !== 5 && ["under_review", "pending", "unverified"].includes(m.status?.toLowerCase() || ""));
-    const activeMods = mods.filter(m => m.compliance_tier !== 5 && !["under_review", "pending", "unverified", "blacklisted", "quarantined"].includes(m.status?.toLowerCase() || "") && m.compliance_tier >= 1 && m.compliance_tier <= 4);
-    const inactiveMods = mods.filter(m => m.compliance_tier === 5 || ["blacklisted", "quarantined"].includes(m.status?.toLowerCase() || ""));
+    const pendingMods = mods.filter(isModPending);
+    const confirmedMods = mods.filter(isModConfirmed);
 
     return (
       <HubOverviewLanding>
         <HubOverviewSection
           title={t("recent_pending", "Recent Pending")}
-          icon={t("icon_policy", "policy")}
-          iconColorClass="text-[var(--danger)]"
+          icon={t("icon_schedule", "schedule")}
+          iconColorClass="text-[var(--warning)]"
           headerAction={
             <PanelHeaderButton
               icon={t("icon_arrow_forward", "arrow_forward")}
@@ -555,40 +560,21 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         </HubOverviewSection>
 
         <HubOverviewSection
-          title={t("recent_live", "Recent Active")}
+          title={t("status_dd_confirmed", "Confirmed")}
           icon={t("icon_verified", "verified")}
           iconColorClass="text-[var(--success)]"
           headerAction={
             <PanelHeaderButton
               icon={t("icon_arrow_forward", "arrow_forward")}
-              tooltip={t("status_active", "Active")}
-              onClick={() => setFilterStatus("active")}
+              tooltip={t("status_dd_confirmed", "Confirmed")}
+              onClick={() => setFilterStatus("confirmed")}
             />
           }
-          isEmpty={activeMods.length === 0}
+          isEmpty={confirmedMods.length === 0}
           emptyIcon={t("icon_verified", "verified")}
           emptyTitle={t("comp_no_alerts", "No Alerts")}
         >
-          {activeMods.slice(0, 6).map(renderModCard)}
-        </HubOverviewSection>
-
-        <HubOverviewSection
-          title={t("recent_inactive", "Recent Inactive")}
-          icon={t("icon_block", "block")}
-          iconColorClass="text-[var(--warning)]"
-          className="col-span-1 xl:col-span-2"
-          headerAction={
-            <PanelHeaderButton
-              icon={t("icon_arrow_forward", "arrow_forward")}
-              tooltip={t("tab_inactive", "Inactive")}
-              onClick={() => setFilterStatus("inactive")}
-            />
-          }
-          isEmpty={inactiveMods.length === 0}
-          emptyIcon={t("icon_block", "block")}
-          emptyTitle={t("comp_no_alerts", "No Alerts")}
-        >
-          {inactiveMods.slice(0, 6).map(renderModCard)}
+          {confirmedMods.slice(0, 6).map(renderModCard)}
         </HubOverviewSection>
       </HubOverviewLanding>
     );
@@ -667,7 +653,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         widthClass="w-[90vw] md:w-[680px]"
         headerActions={
           <PanelHeaderGroup>
-            {["pending", "under_review", "unverified"].includes(String(selectedMod?.status || "").toLowerCase()) ? (
+            {isModPending(selectedMod) ? (
               <>
                 <PanelHeaderButton
                   icon={t("icon_check_circle", "check_circle")}
@@ -690,7 +676,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
                 tooltip={isSubmitting ? t("identities_updating", "Updating...") : t("ui_btn_commit", "Commit")}
                 variant="accent"
                 disabled={isSubmitting || !editReason.trim()}
-                onClick={() => handleSaveTier(false)}
+                onClick={() => handleSaveTier()}
               />
             )}
           </PanelHeaderGroup>
@@ -715,9 +701,9 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
               />
               <StatBox
                 label={t("status", "Status")}
-                value={(selectedMod?.status || t("pending", "Pending")).replace(/_/g, " ")}
-                icon={t("icon_verified_user", "verified_user")}
-                iconColorClass="text-[var(--warning)]"
+                value={isModPending(selectedMod) ? t("pending", "Pending") : t("status_dd_confirmed", "Confirmed")}
+                icon={isModPending(selectedMod) ? t("icon_schedule", "schedule") : t("icon_verified", "verified")}
+                iconColorClass={isModPending(selectedMod) ? "text-[var(--warning)]" : "text-[var(--success)]"}
               />
             </div>
             <div className="flex items-center justify-end pt-1">
@@ -774,7 +760,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
             </div>
 
             {selectedMod && (
-              <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-[var(--border)]/40 w-full">
+              <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1 w-full">
                 <ActionButton
                   variant="glass"
                   icon={t("icon_check_circle", "check_circle")}
@@ -782,135 +768,140 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
                   disabled={isSubmitting || !editReason.trim()}
                   onClick={(e: React.MouseEvent) => handleClearFlag(e, selectedMod)}
                 />
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <ActionButton
-                    variant="danger"
-                    icon={t("icon_block", "block")}
-                    label={t("quarantine", "Quarantine")}
-                    disabled={isSubmitting || !editReason.trim()}
-                    onClick={() => handleSaveTier(true)}
-                  />
-                  <ActionButton
-                    variant="primary"
-                    icon={t("icon_verified", "verified")}
-                    label={
-                      ["pending", "under_review", "unverified"].includes(
-                        String(selectedMod?.status || "").toLowerCase()
-                      )
-                        ? t("btn_confirm_compliance", "Confirm Compliance Tier")
-                        : t("save", "Save")
-                    }
-                    disabled={isSubmitting || !editReason.trim()}
-                    onClick={(e: React.MouseEvent) =>
-                      ["pending", "under_review", "unverified"].includes(
-                        String(selectedMod?.status || "").toLowerCase()
-                      )
-                        ? handleSetFlag(e, selectedMod)
-                        : handleSaveTier(false)
-                    }
-                  />
-                </div>
+                <ActionButton
+                  variant="primary"
+                  icon={t("icon_verified", "verified")}
+                  label={
+                    isModPending(selectedMod)
+                      ? t("btn_confirm_compliance", "Confirm Compliance Tier")
+                      : t("save", "Save")
+                  }
+                  disabled={isSubmitting || !editReason.trim()}
+                  onClick={(e: React.MouseEvent) =>
+                    isModPending(selectedMod)
+                      ? handleSetFlag(e, selectedMod)
+                      : handleSaveTier()
+                  }
+                />
               </div>
             )}
           </UniversalGroup>
 
           {selectedMod && (
-            <UniversalGroup title={t("comp_family_hashes_title", "Family & Tracked Hashes")} icon={t("icon_account_tree", "account_tree")}>
-              <div className="flex flex-col gap-3 w-full">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
-                    {t("comp_tracked_hashes_count", "Tracked DNA Hashes")} ({trackedHashes.length})
-                  </span>
-                  <span className="text-[10px] font-black text-[var(--subtext)] uppercase tracking-widest">
-                    {t("comp_linked_family_count", "Linked Family")} ({familyRelations.length})
-                  </span>
-                </div>
-
+            <>
+              <UniversalGroup
+                title={t("comp_tracked_hashes_count", "Tracked DNA Hashes")}
+                icon={t("icon_fingerprint", "fingerprint")}
+                count={trackedHashes.length}
+              >
                 {trackedHashes.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {trackedHashes.map((ver: any) => (
-                      <span
-                        key={ver.id || ver.dna_hash}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--text)_18%,transparent)] text-[10px] font-mono text-[var(--text)]"
-                      >
-                        <span className="text-[var(--accent)] font-bold">{ver.version_label || "1.0"}</span>
-                        <span>{String(ver.dna_hash || "").slice(0, 14)}...</span>
-                        {ver.id && (
-                          <button
-                            type="button"
-                            disabled={isMutatingFamily}
-                            onClick={() => handleRemoveTrackedHash(ver.id)}
-                            className="text-[var(--danger)] hover:opacity-80 cursor-pointer flex items-center disabled:opacity-40"
-                          >
-                            <span className="material-symbols-outlined !text-[13px]">{t("icon_close", "close")}</span>
-                          </button>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
-                  <div className="sm:col-span-6">
-                    <UniversalInput
-                      label={t("comp_companion_hash_label", "Companion SHA-256 Hash")}
-                      value={newTrackedHash}
-                      onChange={setNewTrackedHash}
-                      placeholder={t("comp_companion_hash_ph", "64-character SHA-256 hash...")}
-                    />
-                  </div>
-                  <div className="sm:col-span-3">
-                    <UniversalInput
-                      label={t("version", "Version")}
-                      value={newTrackedLabel}
-                      onChange={setNewTrackedLabel}
-                      placeholder={t("comp_companion_ver_ph", "1.0 / addon")}
-                    />
-                  </div>
-                  <div className="sm:col-span-3">
-                    <ActionButton
-                      variant="glass"
-                      icon={t("icon_add", "add")}
-                      label={t("add", "Add")}
-                      className="!w-full !justify-center !h-12"
-                      disabled={isMutatingFamily || !/^[0-9a-f]{64}$/i.test(newTrackedHash.trim())}
-                      onClick={handleAddTrackedHash}
-                    />
-                  </div>
-                </div>
-
-                {familyRelations.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[var(--border)]/30">
-                    {familyRelations.map((rel: any) => (
-                      <span
-                        key={rel.id || rel.peerId}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-transparent border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] text-[10px] font-bold text-[var(--text)]"
-                      >
-                        <span className="text-[var(--accent)] uppercase">{rel.relationship_type || "addon"}</span>
-                        <span className="truncate max-w-[160px]">{rel.peer?.name || rel.peerId}</span>
-                        {rel.peer?.compliance_tier !== undefined && (
-                          <span className="text-[9px] font-black opacity-75">
-                            ({t("stat_tier", "Tier")} {rel.peer.compliance_tier})
+                  <div className="flex flex-col gap-1.5 w-full">
+                    {trackedHashes.map((ver: any) => {
+                      const hashStr = String(ver.dna_hash || "");
+                      const hashPreview = hashStr.length > 28
+                        ? `${hashStr.slice(0, 16)}...${hashStr.slice(-8)}`
+                        : hashStr;
+                      return (
+                        <div
+                          key={ver.id || ver.dna_hash}
+                          className="glass-surface rounded-xl px-3 py-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2.5 min-w-0"
+                        >
+                          <span className="text-[11px] font-mono text-[var(--text)] truncate min-w-0">
+                            {hashPreview}
                           </span>
-                        )}
-                        {rel.id && (
-                          <button
-                            type="button"
-                            disabled={isMutatingFamily}
-                            onClick={() => handleUnlinkFamilyRel(rel.id)}
-                            className="text-[var(--danger)] hover:opacity-80 cursor-pointer flex items-center disabled:opacity-40"
-                          >
-                            <span className="material-symbols-outlined !text-[13px]">{t("icon_close", "close")}</span>
-                          </button>
-                        )}
-                      </span>
+                          <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                            <span className={VAULT_CHIP_CLASS}>
+                              <span className="text-[var(--accent)]">{ver.version_label || "1.0"}</span>
+                            </span>
+                            {ver.id && (
+                              <button
+                                type="button"
+                                disabled={isMutatingFamily}
+                                onClick={() => handleRemoveTrackedHash(ver.id)}
+                                aria-label={t("remove", "Remove")}
+                                className="w-6 h-6 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer disabled:opacity-40"
+                              >
+                                <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <UniversalInput
+                  label={t("comp_companion_hash_label", "Companion SHA-256 Hash")}
+                  value={newTrackedHash}
+                  onChange={setNewTrackedHash}
+                  placeholder={t("comp_companion_hash_ph", "64-character SHA-256 hash...")}
+                  className="font-mono"
+                />
+
+                <div className="flex items-end gap-2.5 w-full">
+                  <UniversalInput
+                    wrapperClassName="flex-1 min-w-0"
+                    label={t("version", "Version")}
+                    value={newTrackedLabel}
+                    onChange={setNewTrackedLabel}
+                    placeholder={t("comp_companion_ver_ph", "1.0 / addon")}
+                  />
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_add", "add")}
+                    label={t("add", "Add")}
+                    className="!h-11 !px-4 shrink-0"
+                    disabled={isMutatingFamily || !/^[0-9a-f]{64}$/i.test(newTrackedHash.trim())}
+                    onClick={handleAddTrackedHash}
+                  />
+                </div>
+              </UniversalGroup>
+
+              <UniversalGroup
+                title={t("comp_linked_family_count", "Linked Family")}
+                icon={t("icon_account_tree", "account_tree")}
+                count={familyRelations.length}
+              >
+                {familyRelations.length > 0 && (
+                  <div className="flex flex-col gap-1.5 w-full">
+                    {familyRelations.map((rel: any) => (
+                      <div
+                        key={rel.id || rel.peerId}
+                        className="glass-surface rounded-xl px-3 py-2 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-between gap-2.5 min-w-0"
+                      >
+                        <span className="text-xs font-bold text-[var(--text)] truncate min-w-0">
+                          {rel.peer?.name || rel.peerId}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span className="text-[var(--accent)]">{rel.relationship_type || "addon"}</span>
+                          </span>
+                          {rel.peer?.compliance_tier !== undefined && (
+                            <span className={VAULT_CHIP_CLASS}>
+                              <span>{t("stat_tier", "Tier")} {rel.peer.compliance_tier}</span>
+                            </span>
+                          )}
+                          {rel.id && (
+                            <button
+                              type="button"
+                              disabled={isMutatingFamily}
+                              onClick={() => handleUnlinkFamilyRel(rel.id)}
+                              aria-label={t("remove", "Remove")}
+                              className="w-6 h-6 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer disabled:opacity-40"
+                            >
+                              <span className="material-symbols-outlined !text-[14px]">{t("icon_close", "close")}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end pt-1">
-                  <div className="sm:col-span-4 relative z-40">
-                    <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2 block mb-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-start">
+                  <div className="sm:col-span-4 flex flex-col gap-1.5 relative z-40">
+                    <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1 leading-tight">
                       {t("comp_family_rel_type", "Relationship")}
                     </label>
                     <CustomDropdown
@@ -964,8 +955,8 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
                     onChange={setCascadeFamily}
                   />
                 )}
-              </div>
-            </UniversalGroup>
+              </UniversalGroup>
+            </>
           )}
         </div>
       </SidePanel>

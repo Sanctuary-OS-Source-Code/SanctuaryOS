@@ -78,7 +78,7 @@ const GLOSSARY_TOKEN_REFERENCE: Array<{
   { token: "{Backups}", keyId: "term_backups", casingHint: "{backups}", standard: "Backups", sanctuary: "Time Capsule", communityExample: "Save Snapshots" },
   { token: "{Lab}", keyId: "term_lab", casingHint: "{lab}", standard: "Testing Lab", sanctuary: "Homestead", communityExample: "Sandbox" },
   { token: "{Settings}", keyId: "term_settings", casingHint: "{settings}", standard: "Settings", sanctuary: "System Preferences", communityExample: "Options" },
-  { token: "{Nexus}", keyId: "term_nexus", casingHint: "{nexus}", standard: "Marketplace", sanctuary: "The Nexus", communityExample: "Workshop" },
+  { token: "{Nexus}", keyId: "term_nexus", casingHint: "{nexus}", standard: "Marketplace", sanctuary: "Nexus", communityExample: "Workshop" },
   { token: "{Chameleon} / {Chameleons}", keyId: "term_chameleon / term_chameleons", casingHint: "{chameleon}", standard: "Theme / Themes", sanctuary: "Chameleon / Chameleons", communityExample: "Skin / Skins" },
   { token: "{Lexicon} / {Lexicons}", keyId: "term_lexicon / term_lexicons", casingHint: "{lexicon}", standard: "Language / Languages", sanctuary: "Lexicon / Lexicons", communityExample: "Word Pack / Packs" },
   { token: "{Dispatch} / {Dispatches}", keyId: "term_dispatch / term_dispatches", casingHint: "{dispatch}", standard: "Post / Posts", sanctuary: "Transmission / Transmissions", communityExample: "Announcement / Posts" },

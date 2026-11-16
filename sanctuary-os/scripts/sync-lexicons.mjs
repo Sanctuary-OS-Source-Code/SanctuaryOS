@@ -20,7 +20,7 @@ const GLOSSARY_DEFAULTS = {
   term_vault: { 'en-default': 'Library', 'en-sanctuary': 'Vault', 'en-sims': 'Library', Simlish: 'Stashi' },
   term_blueprint: { 'en-default': 'Play Set', 'en-sanctuary': 'Blueprint', 'en-sims': 'Modpack', Simlish: 'Playset' },
   term_blueprints: { 'en-default': 'Play Sets', 'en-sanctuary': 'Blueprints', 'en-sims': 'Modpacks', Simlish: 'Playsets' },
-  term_nexus: { 'en-default': 'Marketplace', 'en-sanctuary': 'The Nexus', 'en-sims': 'The Gallery', Simlish: 'Galleri' },
+  term_nexus: { 'en-default': 'Marketplace', 'en-sanctuary': 'Nexus', 'en-sims': 'The Gallery', Simlish: 'Galleri' },
   term_citizen: { 'en-default': 'User', 'en-sanctuary': 'Citizen', 'en-sims': 'Simmer', Simlish: 'Simma' },
   term_citizens: { 'en-default': 'Users', 'en-sanctuary': 'Citizens', 'en-sims': 'Simmers', Simlish: 'Simmas' },
   term_mason: { 'en-default': 'Creator', 'en-sanctuary': 'Mason', 'en-sims': 'Creator', Simlish: 'Maker' },

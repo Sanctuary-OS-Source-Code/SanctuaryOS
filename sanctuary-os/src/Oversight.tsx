@@ -128,19 +128,19 @@ export default function Oversight({ userRole: _userRole, activeGameSchema: _acti
                     {(activeTab === "identities" || activeTab === "linker") && <IdentityMatrix initialFilterRole={activeTab === "linker" ? "verified_masons" : "overview"} />}
                     {activeTab === "compliance" && <SAComplianceOversight initialFilter={complianceFilter} setInitialFilter={setComplianceFilter} onOpenManualFlag={(query: string, sig?: any) => {
                         setInitialManualFlagQuery(query);
-                        if (sig) setInitialHeuristicEdit(sig);
+                        setInitialHeuristicEdit(sig || null);
                         setShowManualFlagModal(true);
                     }} />}
                     {(activeTab === "malware_oversight" || activeTab === "oversight_reports") && <SAMalwareOversight initialFilter={activeTab === "oversight_reports" ? "manifests" : complianceFilter} setInitialFilter={setComplianceFilter} onOpenManualFlag={(query: string, sig?: any) => {
                         setInitialManualFlagQuery(query);
-                        if (sig) setInitialHeuristicEdit(sig);
+                        setInitialHeuristicEdit(sig || null);
                         setShowManualFlagModal(true);
                     }} />}
                     {activeTab === "mass_update" && <MassUpdateOversight />}
                     {activeTab === "reports" && <NexusReportsViewer hubRole="oversight" />}
                     {activeTab === "game_versions" && <GameManagementOversight />}
                     {activeTab === "oversight_comms" && <WayfinderPostsEditor authorId="system" authorProfileId="system" isOversight={true} />}
-                    {activeTab === "audit_logs" && <AuditLogViewer />}
+                    {activeTab === "audit_logs" && <AuditLogViewer viewerScope="oversight" />}
                     {(activeTab === "sanctuary_tickets" || activeTab === "support_settings") && <ArchitectSupportTickets userRole="oversight" initialTab={activeTab === "support_settings" ? "settings" : undefined} onEditMetadata={(hash) => {
                         setMetadataEditorInitialId(hash);
                         setIsMetadataEditorOpen(true);

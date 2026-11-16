@@ -998,7 +998,7 @@ export function MarketUploadPanel({
               <>
                 <div className="flex flex-col gap-1.5 relative z-[60]">
                   <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
-                    {t("tab_lexicons", "Language")}
+                    {t("language", "Language")}
                   </label>
                   <CustomDropdown
                     disableTint={true}
@@ -1023,7 +1023,7 @@ export function MarketUploadPanel({
                       })),
                       {
                         id: "add_new",
-                        label: t("upload_add_language", "Add New {Lexicon}..."),
+                        label: t("upload_add_language", "Add New Language..."),
                       },
                     ]}
                   />
@@ -1031,7 +1031,7 @@ export function MarketUploadPanel({
                 {uploadState.language === "add_new" && (
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
-                      {t("upload_new_language", "New {Lexicon} Name")}
+                      {t("upload_new_language", "New Language Name")}
                     </label>
                     <input
                       type="text"
@@ -1061,8 +1061,8 @@ export function MarketUploadPanel({
                       }))
                     }
                     options={[
-                      { id: "Theme", label: t("chameleon", "Theme") },
-                      { id: "Default", label: t("type_default", "Default") },
+                      { id: "Theme", label: t("lexicon_type_thematic", "Thematic") },
+                      { id: "Default", label: t("lexicon_type_standard", "Standard") },
                     ]}
                   />
                 </div>
@@ -2568,7 +2568,7 @@ export function MarketBlueprintPanel({
             colPromises.push(
               supabase
                 .from("collection_members")
-                .select("mod_id, set_id, collections(id, name, creator_name, image_url, url)")
+                .select("mod_id, set_id, collections(id, name, mason_id, masons(name), image_url, url, compliance_tier, has_pending_flag)")
                 .in("mod_id", idChunk)
             );
           }
@@ -2596,8 +2596,17 @@ export function MarketBlueprintPanel({
             if (Array.isArray(data)) {
               data.forEach((c: any) => {
                 const col = Array.isArray(c.collections) ? c.collections[0] : c.collections;
-                if (c.mod_id && col) {
-                  modToCollection.set(String(c.mod_id), col);
+                if (
+                  c.mod_id &&
+                  col &&
+                  Number(col.compliance_tier ?? 0) === 0 &&
+                  col.has_pending_flag !== true
+                ) {
+                  const colMason = Array.isArray(col.masons) ? col.masons[0]?.name : col.masons?.name;
+                  modToCollection.set(String(c.mod_id), {
+                    ...col,
+                    creator_name: colMason || undefined,
+                  });
                 }
               });
             }

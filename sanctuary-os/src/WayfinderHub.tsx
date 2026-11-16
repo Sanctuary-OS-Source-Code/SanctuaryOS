@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useLexicon } from './LexiconContext';
 import { useStore } from './store';
 import { WayfinderCommandScreen } from "./hub-components/command-screens/WayfinderCommandScreen";
@@ -25,9 +25,6 @@ const WayfinderChameleons = React.lazy(() =>
 const NexusReportsViewer = React.lazy(() =>
   import('./side-panels/NexusReportsViewer').then((m) => ({ default: m.NexusReportsViewer }))
 );
-const MassUpdateOversight = React.lazy(() =>
-  import('./hub-components/SAMassUpdateOversight').then((m) => ({ default: m.MassUpdateOversight }))
-);
 const GameManagementOversight = React.lazy(() =>
   import('./hub-components/SAGameManagementOversight').then((m) => ({ default: m.GameManagementOversight }))
 );
@@ -38,6 +35,13 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
   const setNexusPreviewAsset = useModalStore((state) => state.setNexusPreviewAsset);
   const activeTab = useStore(state => state.wayfinderActiveTab);
   const setActiveTab = useStore(state => state.setWayfinderActiveTab);
+
+  useEffect(() => {
+    if (activeTab === "mass_update") {
+      setActiveTab("command_center");
+    }
+  }, [activeTab, setActiveTab]);
+
   const [complianceFilter, setComplianceFilter] = useState("overview");
   const [showManualFlagModal, setShowManualFlagModal] = useState(false);
   const [initialManualFlagQuery, setInitialManualFlagQuery] = useState("");
@@ -58,7 +62,6 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
     malware_oversight: t("rating_malware", "Malware"),
     oversight_reports: t("tab_malware_logs", "Manifests"),
     reports: t("stat_bugs", "Reports"),
-    mass_update: t("tab_mass_update", "Mass Update"),
     game_versions: t("tab_game_versions", "Management"),
     support_settings: t("term_settings", "Settings"),
     ide: t("wf_tab_spoke_control", "Spoke Control"),
@@ -132,7 +135,6 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
           <VerticalTabButton id="compliance" icon={t("icon_policy", "policy")} label={t("tab_compliance", "Compliance")} activeTab={activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="malware_oversight" icon={t("icon_coronavirus", "coronavirus")} label={t("rating_malware", "Malware")} activeTab={activeTab === "oversight_reports" ? "malware_oversight" : activeTab} setTab={(id: string) => { setComplianceFilter('overview'); setActiveTab(id); }} />
           <VerticalTabButton id="reports" icon={t("icon_flag", "flag")} label={t("stat_bugs", "Reports")} activeTab={activeTab} setTab={setActiveTab} />
-          <VerticalTabButton id="mass_update" icon={t("icon_dynamic_feed", "dynamic_feed")} label={t("tab_mass_update", "Mass Update")} activeTab={activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="game_versions" icon={t("icon_settings", "settings")} label={t("tab_game_versions", "Management")} activeTab={activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="ide" icon={t("icon_data_object", "data_object")} label={t("wf_tab_spoke_control", "Spoke Control")} activeTab={["ide", "schemas", "audit_logs", "spoke_setup", "spoke_sever", "forking_help", "donations", "keepers_support"].includes(activeTab) ? "ide" : activeTab} setTab={setActiveTab} />
           <VerticalTabButton id="chameleons" icon={t("icon_palette", "palette")} label={t("wf_tab_spoke_aesthetics", "Spoke Aesthetics")} activeTab={activeTab} setTab={setActiveTab} />
@@ -162,12 +164,12 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
           {(activeTab === "identities" || activeTab === "linker") && <IdentityMatrix isWayfinder={true} initialFilterRole={activeTab === "linker" ? "verified_masons" : "overview"} />}
           {activeTab === "compliance" && <SAComplianceOversight initialFilter={complianceFilter} setInitialFilter={setComplianceFilter} onOpenManualFlag={(query: string, sig?: any) => {
             setInitialManualFlagQuery(query);
-            if (sig) setInitialHeuristicEdit(sig);
+            setInitialHeuristicEdit(sig || null);
             setShowManualFlagModal(true);
           }} />}
           {(activeTab === "malware_oversight" || activeTab === "oversight_reports") && <SAMalwareOversight initialFilter={activeTab === "oversight_reports" ? "manifests" : complianceFilter} setInitialFilter={setComplianceFilter} onOpenManualFlag={(query: string, sig?: any) => {
             setInitialManualFlagQuery(query);
-            if (sig) setInitialHeuristicEdit(sig);
+            setInitialHeuristicEdit(sig || null);
             setShowManualFlagModal(true);
           }} />}
           {activeTab === "reports" && (
@@ -218,11 +220,10 @@ export default function WayfinderHub({ onOpenMasonProfile }: { onOpenMasonProfil
               }
             />
           )}
-          {activeTab === "mass_update" && <MassUpdateOversight />}
           {activeTab === "game_versions" && <GameManagementOversight />}
           {activeTab === "chameleons" && <WayfinderChameleons />}
         </Suspense>
-        {activeTab !== "command_center" && activeTab !== "wf_comms_title" && activeTab !== "identities" && activeTab !== "linker" && activeTab !== "compliance" && activeTab !== "malware_oversight" && activeTab !== "reports" && activeTab !== "oversight_reports" && activeTab !== "sanctuary_tickets" && activeTab !== "support_settings" && activeTab !== "mass_update" && activeTab !== "game_versions" && !["ide", "schemas", "audit_logs", "spoke_setup", "spoke_sever", "forking_help", "donations", "keepers_support"].includes(activeTab) && activeTab !== "chameleons" && (
+        {activeTab !== "command_center" && activeTab !== "wf_comms_title" && activeTab !== "identities" && activeTab !== "linker" && activeTab !== "compliance" && activeTab !== "malware_oversight" && activeTab !== "reports" && activeTab !== "oversight_reports" && activeTab !== "sanctuary_tickets" && activeTab !== "support_settings" && activeTab !== "game_versions" && !["ide", "schemas", "audit_logs", "spoke_setup", "spoke_sever", "forking_help", "donations", "keepers_support"].includes(activeTab) && activeTab !== "chameleons" && (
           <EmptyState icon={t("icon_construction", "construction")} title={t("wf_under_construction", "Section Under Construction")} className="col-span-full py-16" />
         )}
       </div>

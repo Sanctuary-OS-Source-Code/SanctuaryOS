@@ -1585,6 +1585,105 @@ serve(async (req) => {
       })
     }
 
+    // Keeper-only action: auto-pull opt-in malware manifests from all active linked Partner Spokes
+    if (action === 'keeper_fetch_ecosystem_malware_manifests') {
+      if (hubRole !== 'keeper' || hubIsBanned) {
+        throw new Error('Forbidden: Only Keepers can inspect ecosystem Spoke malware manifests')
+      }
+
+      const [{ data: allGames, error: gamesErr }, { data: allSecrets, error: secErr }] = await Promise.all([
+        supabaseAdmin
+          .from('sanctuary_games')
+          .select('id, name, schema_id, supabase_url, supabase_anon_key, is_active')
+          .eq('is_active', true)
+          .order('name', { ascending: true }),
+        supabaseAdmin.rpc('internal_list_spoke_credentials'),
+      ])
+      if (gamesErr) throw gamesErr
+      if (secErr) throw secErr
+
+      const secretMap = new Map<string, string>()
+      for (const s of (allSecrets || [])) {
+        if (s?.game_id && s?.envelope_ciphertext) {
+          secretMap.set(String(s.game_id), String(s.envelope_ciphertext))
+        }
+      }
+
+      const spokeResults = await Promise.all(
+        (allGames || []).map(async (g: any) => {
+          const spokeMeta = {
+            game_id: String(g.id),
+            schema_id: String(g.schema_id || g.id),
+            name: String(g.name || g.schema_id || g.id),
+          }
+          const envCipher = secretMap.get(String(g.id))
+          if (!g?.supabase_url || !envCipher) {
+            return {
+              ...spokeMeta,
+              count: 0,
+              status: 'unlinked' as const,
+              rows: [] as any[],
+            }
+          }
+          try {
+            const plainCred = await openSpokeEnvelope(envCipher, {
+              gameId: String(g.id),
+              schemaId: String(g.schema_id || ''),
+              supabaseUrl: String(g.supabase_url || ''),
+            })
+            const spokeClient = createSpokeClient(
+              g.supabase_url,
+              g.supabase_anon_key || '',
+              plainCred
+            )
+            const { data: rows, error: rowsErr } = await spokeClient
+              .from('malware_reports')
+              .select('*')
+              .order('created_at', { ascending: false })
+              .limit(250)
+            if (rowsErr) throw rowsErr
+
+            const mapped = (rows || []).map((row: any) => ({
+              ...row,
+              spoke_game_id: spokeMeta.game_id,
+              spoke_schema_id: spokeMeta.schema_id,
+              spoke_name: spokeMeta.name,
+            }))
+
+            return {
+              ...spokeMeta,
+              count: mapped.length,
+              status: 'ok' as const,
+              rows: mapped,
+            }
+          } catch (err: any) {
+            console.error('Failed to pull malware manifests from spoke:', spokeMeta.name, err)
+            return {
+              ...spokeMeta,
+              count: 0,
+              status: 'error' as const,
+              error: String(err?.message || 'Query failed'),
+              rows: [] as any[],
+            }
+          }
+        })
+      )
+
+      const manifests = spokeResults
+        .flatMap((r) => r.rows)
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.detected_at || b.created_at || 0).getTime() -
+            new Date(a.detected_at || a.created_at || 0).getTime()
+        )
+      const spokes = spokeResults.map(({ rows: _rows, ...meta }) => meta)
+
+      return new Response(JSON.stringify({ success: true, manifests, spokes }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
     // Special Hub-wide action: propagate a user's Hub username / global ban to all active Spokes
     if (action === 'sync_hub_ban_to_spokes') {
       if (hubRole !== 'keeper' && payload?.target_user_id !== v_user_id) {
@@ -3232,7 +3331,7 @@ serve(async (req) => {
               ? payload.selectOpts
               : undefined
 
-            if (cleanTable === 'malware_reports' && !isCallerStaff) {
+            if (cleanTable === 'malware_reports' && !isCallerStaff && hubRole !== 'keeper') {
               throw new Error('Forbidden: Staff clearance required to view malware reports')
             }
 

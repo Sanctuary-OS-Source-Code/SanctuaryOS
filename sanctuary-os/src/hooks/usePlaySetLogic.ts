@@ -1628,8 +1628,11 @@ export function usePlaySetLogic() {
             const matchedSlotLabels: string[] = [];
 
             for (const { modObj, parentMod } of equippingPairs) {
+              const allowParentSlotFallback =
+                modObj.relationshipType !== "addon" && modObj.relationshipType !== "flavor";
               const modSlot =
-                resolveModHighlanderSlot(modObj) || resolveModHighlanderSlot(parentMod);
+                resolveModHighlanderSlot(modObj) ||
+                (allowParentSlotFallback ? resolveModHighlanderSlot(parentMod) : null);
               const modBaseFam = getPreBaseFamilyKey(modObj);
               const rivalCandidates = new Set<any>();
 
@@ -1659,11 +1662,25 @@ export function usePlaySetLogic() {
                 }
                 const mSlot = resolveModHighlanderSlot(m);
                 const mBaseFam = getPreBaseFamilyKey(m);
+                const mCleanId = String(m.dbId || m.id || "").trim();
+                const isExplicitTwin =
+                  modObj.relationshipType === "twin" ||
+                  m.relationshipType === "twin" ||
+                  (Array.isArray(modObj.interchangeableIds) &&
+                    mCleanId &&
+                    modObj.interchangeableIds.map(String).includes(mCleanId)) ||
+                  Boolean(
+                    precomputedBaseNames.get(modObj.name) &&
+                      precomputedBaseNames.get(modObj.name) === precomputedBaseNames.get(m.name)
+                  );
+                const areSameModTwins = Boolean(
+                  modBaseFam && mBaseFam === modBaseFam && isExplicitTwin
+                );
                 const isHighlanderSlotRival = Boolean(
                   modSlot &&
                   mSlot &&
                   mSlot.key === modSlot.key &&
-                  mBaseFam !== modBaseFam
+                  !areSameModTwins
                 );
                 const isIntraFamilyFlavorRival = Boolean(
                   modObj.relationshipType === "flavor" &&
@@ -1689,14 +1706,19 @@ export function usePlaySetLogic() {
                   isCommunityRival ||
                   isBetaRival
                 ) {
-                  const dedupKey = isHighlanderSlotRival
-                    ? mBaseFam || m.name
-                    : m.name;
+                  const isModuleScoped =
+                    m.relationshipType === "addon" ||
+                    m.relationshipType === "flavor" ||
+                    (modBaseFam && mBaseFam === modBaseFam);
+                  const dedupKey =
+                    isHighlanderSlotRival && !isModuleScoped
+                      ? mBaseFam || m.name
+                      : m.name;
                   if (seenRivalKeys.has(dedupKey)) return;
                   seenRivalKeys.add(dedupKey);
 
                   let rivalTitle = formatDisplayName(m.displayName || m.name);
-                  if (isHighlanderSlotRival && (m.familyId || m.dbId)) {
+                  if (isHighlanderSlotRival && !isModuleScoped && (m.familyId || m.dbId)) {
                     const parentFolder = modList.find(
                       (vm: any) =>
                         vm?.isVirtual &&
@@ -2071,11 +2093,25 @@ export function usePlaySetLogic() {
               if (!hasInNewMods(m.name)) return;
               const mSlot = resolveModHighlanderSlot(m);
               const mBaseFam = getModBaseFamilyKey(m);
+              const mCleanId = String(m.dbId || m.id || "").trim();
+              const isExplicitTwin =
+                modObj.relationshipType === "twin" ||
+                m.relationshipType === "twin" ||
+                (Array.isArray(modObj.interchangeableIds) &&
+                  mCleanId &&
+                  modObj.interchangeableIds.map(String).includes(mCleanId)) ||
+                Boolean(
+                  precomputedBaseNames.get(modObj.name) &&
+                    precomputedBaseNames.get(modObj.name) === precomputedBaseNames.get(m.name)
+                );
+              const areSameModTwins = Boolean(
+                modBaseFam && mBaseFam === modBaseFam && isExplicitTwin
+              );
               const isHighlanderSlotRival = Boolean(
                 modSlot &&
                 mSlot &&
                 mSlot.key === modSlot.key &&
-                mBaseFam !== modBaseFam
+                !areSameModTwins
               );
               const isIntraFamilyFlavorRival = Boolean(
                 modObj.relationshipType === "flavor" &&
@@ -2100,16 +2136,25 @@ export function usePlaySetLogic() {
                 isBetaRival
               ) {
                 deepDelete(m.name, true);
-                if (isHighlanderSlotRival && (m.familyId || m.dbId)) {
+                if (
+                  isHighlanderSlotRival &&
+                  mBaseFam !== modBaseFam &&
+                  m.relationshipType !== "addon" &&
+                  m.relationshipType !== "flavor" &&
+                  (m.familyId || m.dbId)
+                ) {
                   const rivalFam = byFamilyOrDbId.get(String(m.familyId || m.dbId));
                   if (rivalFam) {
                     rivalFam.forEach((sib: any) => {
+                      const sibIsCoreOrCompanion =
+                        sib.relationshipType !== "addon" && sib.relationshipType !== "flavor";
                       if (
                         sib &&
                         !sib.isVirtual &&
                         sib.name &&
                         hasInNewMods(sib.name) &&
-                        getModBaseFamilyKey(sib) === mBaseFam
+                        getModBaseFamilyKey(sib) === mBaseFam &&
+                        (sibIsCoreOrCompanion || !m.relationshipType || m.relationshipType === "core")
                       ) {
                         deepDelete(sib.name, true);
                       }

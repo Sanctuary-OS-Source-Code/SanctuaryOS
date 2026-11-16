@@ -142,10 +142,12 @@ export interface LiquidGlassAlertCardProps {
   ignoreIcon?: string;
   onIgnore?: () => void;
   secondaryActionIcon?: string;
+  secondaryActionLabel?: string;
   secondaryActionTooltip?: string;
   onSecondaryAction?: () => void;
   onClick?: () => void;
   children?: React.ReactNode;
+  footer?: React.ReactNode;
 }
 
 export function LiquidGlassAlertCard({
@@ -166,10 +168,12 @@ export function LiquidGlassAlertCard({
   ignoreIcon,
   onIgnore,
   secondaryActionIcon,
+  secondaryActionLabel,
   secondaryActionTooltip,
   onSecondaryAction,
   onClick,
   children,
+  footer,
 }: LiquidGlassAlertCardProps) {
   const { t } = useLexicon();
 
@@ -253,11 +257,18 @@ export function LiquidGlassAlertCard({
 
       {children && <div className="relative z-10">{children}</div>}
 
-      {actionLabel && onAction && (
+      {footer ? (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="pt-3.5 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative z-10 w-full"
+        >
+          {footer}
+        </div>
+      ) : actionLabel && onAction ? (
         <div
           onClick={(e) => e.stopPropagation()}
           className={`pt-3.5 mt-auto border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)] relative z-10 w-full ${
-            onIgnore
+            onIgnore || (secondaryActionLabel && onSecondaryAction)
               ? "grid grid-cols-2 gap-2.5"
               : "flex items-center gap-2.5"
           }`}
@@ -276,6 +287,23 @@ export function LiquidGlassAlertCard({
                 icon={actionIcon}
                 label={actionLabel}
                 onClick={onAction}
+                className={`w-full !px-3 !py-2.5 ${actionIconColorClass}`}
+              />
+            </>
+          ) : secondaryActionLabel && onSecondaryAction ? (
+            <>
+              <ActionButton
+                variant="glass"
+                icon={actionIcon}
+                label={actionLabel}
+                onClick={onAction}
+                className={`w-full !px-3 !py-2.5 ${actionIconColorClass}`}
+              />
+              <ActionButton
+                variant="glass"
+                icon={secondaryActionIcon}
+                label={secondaryActionLabel}
+                onClick={onSecondaryAction}
                 className={`w-full !px-3 !py-2.5 ${actionIconColorClass}`}
               />
             </>
@@ -307,7 +335,7 @@ export function LiquidGlassAlertCard({
             </>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
 } from "../shared";
 import { ChameleonEditorPanel } from "../side-panels/ChameleonEditorPanel";
 import { ThemeCard } from "../chameleon-components/ThemeCard";
+import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import {
   getLuminance,
   exportThemeWithAssets,
@@ -209,19 +210,6 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
               onClose();
             }}
           />
-          <PanelHeaderButton
-            icon={t("icon_download", "download")}
-            tooltip={t("btn_import", "Import")}
-            onClick={handleImportTheme}
-          />
-          <PanelHeaderButton
-            icon={t("icon_add", "add")}
-            tooltip={t("btn_create_theme", "Create Theme")}
-            onClick={() => {
-              createNewTheme();
-              setIsEditorOpen(true);
-            }}
-          />
         </PanelHeaderGroup>
       }
     >
@@ -264,15 +252,6 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
                 icon={t("icon_tune", "tune")}
                 label={t("btn_open_theme_forge", "Open Theme Forge")}
                 onClick={() => setIsEditorOpen(true)}
-              />
-              <ActionButton
-                variant="glass"
-                icon={t("icon_add", "add")}
-                label={t("btn_create_theme", "Create Theme")}
-                onClick={() => {
-                  createNewTheme();
-                  setIsEditorOpen(true);
-                }}
               />
             </div>
           </div>
@@ -374,6 +353,36 @@ export default function ChameleonSidePanel({ config, isOpen, onClose }: any) {
           icon={t("icon_grid_view", "grid_view")}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full">
+            {!themeSearch.trim() && !selectedCommunity && !selectedMode && (
+              <LiquidGlassAlertCard
+                isAlertCard={false}
+                icon={t("icon_add_circle", "add_circle")}
+                accentVar="var(--accent)"
+                iconColorClass="text-[var(--accent)]"
+                badgeIcon={t("icon_palette", "palette")}
+                badgeLabel={t("term_chameleons", "{Chameleons}")}
+                overline={t("chameleon_title", "{Chameleon} Library")}
+                title={t("btn_create_theme", "Create {Chameleon}")}
+                description={t(
+                  "chameleon_lead_card_desc",
+                  "Design a custom {chameleon} in Theme Forge or import a theme file."
+                )}
+                actionLabel={t("auto_create_file", "Create")}
+                actionIcon={t("icon_add", "add")}
+                actionVariant="glass"
+                onAction={() => {
+                  createNewTheme();
+                  setIsEditorOpen(true);
+                }}
+                secondaryActionLabel={t("btn_import", "Import")}
+                secondaryActionIcon={t("icon_upload", "upload")}
+                onSecondaryAction={handleImportTheme}
+                onClick={() => {
+                  createNewTheme();
+                  setIsEditorOpen(true);
+                }}
+              />
+            )}
             {filteredVaultIds.map(renderThemeCard)}
           </div>
         </UniversalGroup>

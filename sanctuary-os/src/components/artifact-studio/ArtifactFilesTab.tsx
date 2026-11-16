@@ -1,6 +1,162 @@
 import { useLexicon } from "../../LexiconContext";
-import { CustomDropdown, HoverTooltip, ModSearchDropdown, openModDossier } from "../../shared";
+import { useStore } from "../../store";
+import {
+  CustomDropdown,
+  HoverTooltip,
+  ModSearchDropdown,
+  openModDossier,
+  isScriptExtension,
+  VAULT_CHIP_CLASS,
+} from "../../shared";
 import ModStructureBuilder, { StructureNode } from "../../ModStructureBuilder";
+
+function getFamilyStatusMeta(status: any, t: (k: string, f: string) => string) {
+  const s = String(status || "")
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .trim();
+  if (!s || s === "stable" || s === "verified" || s === "approved") return null;
+  if (s === "corrupted" || s === "broken") {
+    return {
+      label: t("status_corrupted", "Corrupted"),
+      icon: t("icon_error", "error"),
+      iconColor: "text-[var(--danger)]",
+    };
+  }
+  if (s === "unstable") {
+    return {
+      label: t("label_unstable", "Unstable"),
+      icon: t("icon_warning", "warning"),
+      iconColor: "text-[var(--warning)]",
+    };
+  }
+  if (s === "under review" || s === "pending") {
+    return {
+      label: s === "pending" ? t("pending", "Pending") : t("status_dd_review", "Under Review"),
+      icon: t("icon_schedule", "schedule"),
+      iconColor: "text-[var(--accent)]",
+    };
+  }
+  return null;
+}
+
+function FamilyModuleCard({
+  item,
+  displayName,
+  roleValue,
+  onInspect,
+  onChangeRole,
+  onUnlink,
+  leadingBadge,
+}: {
+  item: any;
+  displayName: string;
+  roleValue: string;
+  onInspect: () => void;
+  onChangeRole: (newRole: "twin" | "addon" | "flavor" | "beta") => void;
+  onUnlink: () => void;
+  leadingBadge?: string;
+}) {
+  const { t } = useLexicon();
+  const activeGameSchema = useStore((s) => s.activeGameSchema);
+  const ext = item?.file_extension
+    ? String(item.file_extension).replace(/^\./, "").toLowerCase()
+    : "";
+  const isScript = isScriptExtension(
+    displayName || (ext ? `.${ext}` : ""),
+    activeGameSchema
+  );
+  const joinedAuthor = Array.isArray(item?.masons)
+    ? item.masons[0]?.name
+    : item?.masons?.name;
+  const rawAuthor = String(joinedAuthor || item?.master_author || item?.author || "").trim();
+  const cleanAuthor =
+    rawAuthor && !rawAuthor.toLowerCase().includes("unknown") ? rawAuthor : "";
+  const rawCat = String(item?.category_override || "").trim();
+  const cleanCat = rawCat && rawCat.toLowerCase() !== "unknown" ? rawCat : "";
+  const rawVer = String(item?.latest_version || "").trim();
+  const cleanVer =
+    rawVer && !/^(v?\.?local|unknown)$/i.test(rawVer)
+      ? rawVer.startsWith("v")
+        ? rawVer
+        : `v${rawVer}`
+      : "";
+  const statusMeta = getFamilyStatusMeta(item?.status, t);
+  const subtitleParts = [
+    leadingBadge || "",
+    cleanAuthor ? `${t("by_prefix", "By")} ${cleanAuthor}` : "",
+    cleanCat,
+    cleanVer,
+  ].filter(Boolean);
+
+  return (
+    <div className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)] flex items-center justify-between gap-2.5 transition-all">
+      <button
+        type="button"
+        onClick={onInspect}
+        className="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer group/famcard"
+      >
+        <div className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex items-center justify-center shrink-0">
+          <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+            {leadingBadge
+              ? t("icon_account_tree", "account_tree")
+              : isScript
+                ? t("icon_terminal", "terminal")
+                : t("icon_deployed_code", "deployed_code")}
+          </span>
+        </div>
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <span className="text-xs font-bold text-[var(--text)] group-hover/famcard:text-[var(--accent)] leading-snug break-words line-clamp-2 transition-colors">
+            {displayName}
+          </span>
+          {subtitleParts.length > 0 && (
+            <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80 truncate">
+              {subtitleParts.join(" • ")}
+            </span>
+          )}
+        </div>
+      </button>
+
+      <div className="ml-auto flex items-center gap-1.5 shrink-0">
+        {statusMeta && (
+          <span className={`${VAULT_CHIP_CLASS} !px-2 !py-0.5 !text-[10px]`}>
+            <span className={`material-symbols-outlined !text-[11px] ${statusMeta.iconColor}`}>
+              {statusMeta.icon}
+            </span>
+            <span>{statusMeta.label}</span>
+          </span>
+        )}
+        <div className="w-28 min-w-0">
+          <CustomDropdown
+            disableTint={true}
+            className="h-7"
+            buttonClassName="!h-7 !px-2 !text-[10px] !rounded-lg"
+            value={roleValue || "addon"}
+            onChange={(val: string[]) => {
+              if (val[0]) onChangeRole(val[0] as any);
+            }}
+            options={[
+              { id: "twin", label: t("editor_twin", "Twin") },
+              { id: "addon", label: t("editor_addon", "Add-on") },
+              { id: "flavor", label: t("studio_badge_flavor", "Flavor") },
+              { id: "beta", label: t("badge_beta", "Beta") },
+            ]}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onUnlink}
+          className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer shrink-0 relative group/btn"
+        >
+          <span className="material-symbols-outlined !text-[15px]">
+            {t("icon_link_off", "link_off")}
+          </span>
+          <HoverTooltip title={t("nav_unlink", "Unlink")} variant="danger" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function ArtifactFilesTab({
   mode = "sandbox",
@@ -82,10 +238,15 @@ export function ArtifactFilesTab({
   const { t } = useLexicon();
 
   const filteredFamily = childRels.filter((rel) => {
-    if (familyRoleFilter !== "ALL" && rel.relationship_type !== familyRoleFilter) return false;
+    const role = String(rel.relationship_type || "addon").toLowerCase();
+    if (familyRoleFilter !== "ALL" && role !== familyRoleFilter) return false;
     if (familySearchFilter.trim()) {
       const q = familySearchFilter.toLowerCase();
-      return (rel.mod?.name || "").toLowerCase().includes(q);
+      return (
+        (rel.mod?.name || "").toLowerCase().includes(q) ||
+        (rel.mod?.master_author || "").toLowerCase().includes(q) ||
+        (rel.mod?.category_override || "").toLowerCase().includes(q)
+      );
     }
     return true;
   });
@@ -124,26 +285,26 @@ export function ArtifactFilesTab({
 
             {(
               [
-                { id: "ALL", label: t("radar_tab_all", "All"), count: childRels.length },
+                { id: "ALL", label: t("all", "All"), count: childRels.length },
                 {
                   id: "twin",
                   label: t("editor_twin", "Twin"),
-                  count: childRels.filter((r) => r.relationship_type === "twin").length,
+                  count: childRels.filter((r) => String(r.relationship_type || "").toLowerCase() === "twin").length,
                 },
                 {
                   id: "addon",
                   label: t("editor_addon", "Add-on"),
-                  count: childRels.filter((r) => r.relationship_type === "addon").length,
+                  count: childRels.filter((r) => String(r.relationship_type || "addon").toLowerCase() === "addon").length,
                 },
                 {
                   id: "flavor",
                   label: t("studio_badge_flavor", "Flavor"),
-                  count: childRels.filter((r) => r.relationship_type === "flavor").length,
+                  count: childRels.filter((r) => String(r.relationship_type || "").toLowerCase() === "flavor").length,
                 },
                 {
                   id: "beta",
                   label: t("badge_beta", "Beta"),
-                  count: childRels.filter((r) => r.relationship_type === "beta").length,
+                  count: childRels.filter((r) => String(r.relationship_type || "").toLowerCase() === "beta").length,
                 },
               ] as const
             ).map((pill) => {
@@ -180,61 +341,22 @@ export function ArtifactFilesTab({
         </div>
 
         {/* Parent / Core Mod Banner */}
-        {parentRel && (
-          <div className="px-3.5 py-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="px-2 py-0.5 rounded-md glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--accent)] shrink-0">
-                {t("studio_parent_mod_title", "Parent / Main {Mod}")}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  const target =
-                    parentRel.mod ||
-                    (parentRel.parent_id ? { id: parentRel.parent_id } : null);
-                  if (target) openModDossier({ ...target, isNexusView: true });
-                }}
-                className="text-xs font-bold text-[var(--text)] hover:text-[var(--accent)] truncate transition-colors cursor-pointer text-left flex items-center gap-2"
-              >
-                <span className="truncate">{parentRel.mod?.name || parentRel.parent_id}</span>
-                {parentRel.mod?.file_extension && (
-                  <span className="px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--text)_6%,transparent)] border border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[9px] font-mono font-bold text-[var(--subtext)] shrink-0">
-                    {String(parentRel.mod.file_extension).startsWith(".")
-                      ? String(parentRel.mod.file_extension).toLowerCase()
-                      : `.${String(parentRel.mod.file_extension).toLowerCase()}`}
-                  </span>
-                )}
-              </button>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="w-36">
-                <CustomDropdown
-                  disableTint={true}
-                  className="h-8"
-                  buttonClassName="!h-8 !px-2.5 !text-[11px] !rounded-lg"
-                  value={parentRel.relationship_type || "addon"}
-                  onChange={(val: string[]) => {
-                    if (val[0]) onChangeParentRole(val[0] as any);
-                  }}
-                  options={[
-                    { id: "twin", label: t("editor_twin", "Twin") },
-                    { id: "addon", label: t("editor_addon", "Add-on") },
-                    { id: "flavor", label: t("studio_badge_flavor", "Flavor") },
-                    { id: "beta", label: t("badge_beta", "Beta") },
-                  ]}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={onUnlinkParentMod}
-                className="w-8 h-8 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center transition-all cursor-pointer relative group/btn"
-              >
-                <span className="material-symbols-outlined !text-[15px]">{t("icon_link_off", "link_off")}</span>
-                <HoverTooltip title={t("nav_unlink", "Unlink")} variant="danger" />
-              </button>
-            </div>
-          </div>
-        )}
+        {parentRel && (() => {
+          const pMod = parentRel.mod || (parentRel.parent_id ? { id: parentRel.parent_id } : null);
+          return (
+            <FamilyModuleCard
+              item={parentRel.mod || pMod}
+              displayName={parentRel.mod?.name || parentRel.parent_id}
+              roleValue={parentRel.relationship_type || "addon"}
+              leadingBadge={t("studio_parent_mod_title", "Parent / Main {Mod}")}
+              onInspect={() => {
+                if (pMod) openModDossier({ ...pMod, isNexusView: true });
+              }}
+              onChangeRole={(newRole) => onChangeParentRole(newRole)}
+              onUnlink={onUnlinkParentMod}
+            />
+          );
+        })()}
 
         {!parentRel && showParentLinkPicker && (
           <div className="p-3 rounded-xl bg-[color-mix(in_srgb,var(--text)_4%,transparent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] grid grid-cols-1 md:grid-cols-3 gap-2.5 items-center">
@@ -297,70 +419,29 @@ export function ArtifactFilesTab({
           </div>
         </div>
 
-        {/* Bounded 2-Column Family List (4 full rows fit cleanly without slicing items) */}
+        {/* Bounded 2-Column Family List */}
         {filteredFamily.length === 0 ? (
           <div className="h-11 px-3.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] flex items-center text-[11px] font-semibold text-[var(--subtext)]">
             {t("studio_standalone_section_desc", "{Mods} without linked addons, twins, or flavors.")}
           </div>
         ) : (
-          <div className="md:max-h-[240px] md:overflow-y-auto custom-scrollbar p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 md:grid-cols-2 gap-2 content-start">
-            {filteredFamily.map((rel) => (
-              <div
-                key={rel.id}
-                className="min-h-[40px] py-2 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    const target =
-                      rel.mod || (rel.child_id ? { id: rel.child_id } : null);
+          <div className="md:max-h-[280px] md:overflow-y-auto custom-scrollbar p-2.5 rounded-xl bg-[color-mix(in_srgb,var(--text)_3%,transparent)] border border-[color-mix(in_srgb,var(--text)_8%,transparent)] grid grid-cols-1 md:grid-cols-2 gap-2.5 content-start">
+            {filteredFamily.map((rel) => {
+              const target = rel.mod || (rel.child_id ? { id: rel.child_id } : null);
+              return (
+                <FamilyModuleCard
+                  key={rel.id}
+                  item={rel.mod || target}
+                  displayName={(rel.mod?.name || t("module", "Module")).split(/[\\/]/).pop() || ""}
+                  roleValue={rel.relationship_type || "addon"}
+                  onInspect={() => {
                     if (target) openModDossier({ ...target, isNexusView: true });
                   }}
-                  className="text-xs font-bold text-[var(--text)] hover:text-[var(--accent)] transition-colors text-left flex-1 min-w-0 cursor-pointer flex items-center gap-1.5"
-                >
-                  <span className="break-all sm:truncate">
-                    {(rel.mod?.name || t("module", "Module")).split(/[\\/]/).pop()}
-                  </span>
-                  {rel.mod?.file_extension && (
-                    <span className="px-1.5 py-0.5 rounded bg-transparent border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-mono font-bold text-[var(--subtext)] shrink-0">
-                      {String(rel.mod.file_extension).startsWith(".")
-                        ? String(rel.mod.file_extension).toLowerCase()
-                        : `.${String(rel.mod.file_extension).toLowerCase()}`}
-                    </span>
-                  )}
-                </button>
-
-                <div className="flex items-center justify-end gap-1.5 shrink-0 w-full sm:w-auto">
-                  <div className="flex-1 sm:flex-none sm:w-28 min-w-0">
-                    <CustomDropdown
-                      disableTint={true}
-                      className="h-7"
-                      buttonClassName="!h-7 !px-2 !text-[10px] !rounded-lg"
-                      value={rel.relationship_type || "addon"}
-                      onChange={(val: string[]) => {
-                        if (val[0]) onChangeChildRole(rel, val[0] as any);
-                      }}
-                      options={[
-                        { id: "twin", label: t("editor_twin", "Twin") },
-                        { id: "addon", label: t("editor_addon", "Add-on") },
-                        { id: "flavor", label: t("studio_badge_flavor", "Flavor") },
-                        { id: "beta", label: t("badge_beta", "Beta") },
-                      ]}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onUnlinkChildModule(rel)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] transition-colors cursor-pointer shrink-0 relative group/btn"
-                  >
-                    <span className="material-symbols-outlined !text-[15px]">
-                      {t("icon_link_off", "link_off")}
-                    </span>
-                    <HoverTooltip title={t("nav_unlink", "Unlink")} variant="danger" />
-                  </button>
-                </div>
-              </div>
-            ))}
+                  onChangeRole={(newRole) => onChangeChildRole(rel, newRole)}
+                  onUnlink={() => onUnlinkChildModule(rel)}
+                />
+              );
+            })}
           </div>
         )}
       </div>

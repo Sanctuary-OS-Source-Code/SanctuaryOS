@@ -21,6 +21,7 @@ import {
   VAULT_CHIP_CLASS,
 } from "./shared";
 import { UniversalCard } from "./components/universal/UniversalCard";
+import { LiquidGlassAlertCard } from "./components/BlueprintPatchReadiness";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "./ContextMenu";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
 import { useStore } from "./store";
@@ -1683,10 +1684,32 @@ export function IdentityMatrix({
       );
     }
 
+    const renderLinkMasonLeadCard = () => (
+      <LiquidGlassAlertCard
+        isAlertCard={false}
+        icon={t("icon_person_add", "person_add")}
+        accentVar="var(--accent)"
+        iconColorClass="text-[var(--accent)]"
+        badgeIcon={t("icon_group", "group")}
+        badgeLabel={t("term_masons", "{Masons}")}
+        overline={t("term_masons", "{Masons}")}
+        title={t("identity_link_mason_title", "Link {Mason}")}
+        description={t(
+          "identity_link_mason_desc",
+          "Create or link a creator {Mason} profile to a verified {Citizen} account."
+        )}
+        actionLabel={t("identity_link_mason_title", "Link {Mason}")}
+        actionIcon={t("icon_add", "add")}
+        actionVariant="glass"
+        onAction={handleOpenCreateMason}
+        onClick={handleOpenCreateMason}
+      />
+    );
+
     const recentCards = [
-      ...verifiedMasons.slice(0, 3).map((m: any) => renderMasonCard(m)),
-      ...profiles.slice(0, 3).map((p: any) => renderIdentityCard(p)),
-    ];
+      ...verifiedMasons.slice(0, 2).map((m: any) => renderMasonCard(m)),
+      ...profiles.slice(0, 2).map((p: any) => renderIdentityCard(p)),
+    ].slice(0, 3);
 
     const anomalyCards = [
       ...blacklistedProfiles.slice(0, 3).map((p: any) => renderIdentityCard(p)),
@@ -1700,10 +1723,9 @@ export function IdentityMatrix({
           iconColorClass="text-[var(--accent)]"
           title={t("overview_recent", "Recent")}
           badgeCount={profiles.length + verifiedMasons.length}
-          isEmpty={recentCards.length === 0}
-          emptyIcon={t("ui_icon_person_off", "person_off")}
-          emptyTitle={t("no_profiles", "No active profiles")}
+          isEmpty={false}
         >
+          {renderLinkMasonLeadCard()}
           {recentCards}
         </HubOverviewSection>
 
@@ -1891,9 +1913,31 @@ export function IdentityMatrix({
 
     if (activeTab === "verified_masons") {
       const list = verifiedMasons.filter(matchesMasonFilters);
+      const showLead = !isKeepers && !search.trim() && !hasActiveFilters;
       return (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pb-16">
-          {list.length === 0 ? (
+          {showLead && (
+            <LiquidGlassAlertCard
+              isAlertCard={false}
+              icon={t("icon_person_add", "person_add")}
+              accentVar="var(--accent)"
+              iconColorClass="text-[var(--accent)]"
+              badgeIcon={t("icon_group", "group")}
+              badgeLabel={t("term_masons", "{Masons}")}
+              overline={t("term_masons", "{Masons}")}
+              title={t("identity_link_mason_title", "Link {Mason}")}
+              description={t(
+                "identity_link_mason_desc",
+                "Create or link a creator {Mason} profile to a verified {Citizen} account."
+              )}
+              actionLabel={t("identity_link_mason_title", "Link {Mason}")}
+              actionIcon={t("icon_add", "add")}
+              actionVariant="glass"
+              onAction={handleOpenCreateMason}
+              onClick={handleOpenCreateMason}
+            />
+          )}
+          {!showLead && list.length === 0 ? (
             <EmptyState
               icon={t("icon_verified", "verified")}
               title={t("no_masons_found", "No {Masons} found")}
@@ -1949,18 +1993,6 @@ export function IdentityMatrix({
       onSearchChange={setSearch}
       searchPlaceholder={t("identities_search", "Search identities...") as string}
       primaryPopover={filterPopover}
-      actions={
-        !isKeepers
-          ? [
-              {
-                id: "link_new_mason",
-                icon: t("icon_person_add", "person_add"),
-                label: t("btn_link_new_mason", "+ Link {Mason}"),
-                onClick: handleOpenCreateMason,
-              },
-            ]
-          : undefined
-      }
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as string)}

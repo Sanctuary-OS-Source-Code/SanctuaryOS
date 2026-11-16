@@ -72,11 +72,12 @@ export async function fetchAllTableRows(
   table: string,
   selectCols: string,
   orderBy?: string,
-  onFirstBatch?: (rows: any[], totalCount: number) => void
+  onFirstBatch?: (rows: any[], totalCount: number) => void,
+  applyFilters?: (query: any) => any
 ): Promise<any[]> {
   const PAGE_SIZE = 1000;
   const applyOrdering = (q: any) => {
-    let ordered = q;
+    let ordered = applyFilters ? applyFilters(q) : q;
     if (orderBy) {
       ordered = ordered.order(orderBy, { ascending: true });
     }

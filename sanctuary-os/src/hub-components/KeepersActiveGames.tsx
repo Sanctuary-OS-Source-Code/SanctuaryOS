@@ -14,6 +14,7 @@ import {
 import { useLexicon } from "../LexiconContext";
 import { logArchitectAction } from "../lib/audit";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import {
   UniversalGroup,
@@ -1087,32 +1088,46 @@ export default function KeepersActiveGames({
     { id: "profiles", label: t("citizen_oversight", "{Citizen} Management") },
   ];
 
+  const openRegisterGamePanel = () => {
+    setHandshakeStatus(null);
+    setFormData({
+      id: "",
+      name: "",
+      schema_id: "",
+      supabase_url: "",
+      supabase_anon_key: "",
+      spoke_gateway_token: "",
+      icon: "",
+      is_active: true,
+      is_keepers_only: false,
+      founder_identifier: "",
+    });
+    setSidePanelMode("add");
+  };
+
+  const renderRegisterGameLeadCard = () => (
+    <LiquidGlassAlertCard
+      isAlertCard={false}
+      icon={t("icon_add_circle", "add_circle")}
+      accentVar="var(--accent)"
+      iconColorClass="text-[var(--accent)]"
+      badgeIcon={t("icon_dns", "dns")}
+      badgeLabel={t("ui_add_network_node", "Add Network Node")}
+      overline={t("keepers_tab_partner_spokes", "Partner Spokes")}
+      title={t("ui_register_game_db", "Register New Game DB")}
+      description={t(
+        "ui_active_games_subtitle",
+        "Manage Sanctuary game databases and FDW connections."
+      )}
+      actionLabel={t("ui_register_game_db", "Register New Game DB")}
+      actionIcon={t("icon_add", "add")}
+      actionVariant="glass"
+      onAction={openRegisterGamePanel}
+      onClick={openRegisterGamePanel}
+    />
+  );
+
   const getHeaderActions = () => {
-    if (activeTab === "workspaces") {
-      return [
-        {
-          id: "add",
-          icon: t("icon_add", "add"),
-          label: t("ui_register_game_db", "Register Game Database"),
-          onClick: () => {
-            setHandshakeStatus(null);
-            setFormData({
-              id: "",
-              name: "",
-              schema_id: "",
-              supabase_url: "",
-              supabase_anon_key: "",
-              spoke_gateway_token: "",
-              icon: "",
-              is_active: true,
-              is_keepers_only: false,
-              founder_identifier: "",
-            });
-            setSidePanelMode("add");
-          },
-        },
-      ];
-    }
     if (activeTab === "schemas") {
       return undefined;
     }
@@ -1761,11 +1776,10 @@ export default function KeepersActiveGames({
             icon={t("icon_schedule", "schedule")}
             iconColorClass="text-[var(--accent)]"
             title={t("chameleons_overview_recent", "Recent")}
-            isEmpty={games.length === 0 && (schemaFiles?.length || 0) === 0 && !loading}
-            emptyIcon={t("icon_dns", "dns")}
-            emptyTitle={t("ui_no_games_registered", "No Active Schema Engines")}
+            isEmpty={false}
             gridClassName="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
+            {renderRegisterGameLeadCard()}
             {games.slice(0, 2).map(renderGameCard)}
             {[...(schemaFiles || [])]
               .sort((a: any, b: any) => {
@@ -1773,7 +1787,7 @@ export default function KeepersActiveGames({
                 const tB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
                 return tB - tA;
               })
-              .slice(0, 2)
+              .slice(0, games.length === 0 ? 3 : games.length === 1 ? 2 : 1)
               .map((file: any) => {
                 const updatedDateStr = file.updated_at
                   ? new Date(file.updated_at).toLocaleDateString()
@@ -2031,16 +2045,25 @@ export default function KeepersActiveGames({
               title={t("ui_fetching_nodes", "Fetching Nodes...")}
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredGames.map(renderGameCard)}
-              {filteredGames.length === 0 && sidePanelMode === null && (
-                <EmptyState
-                  icon={t("icon_dns", "dns")}
-                  title={t("ui_no_games_registered", "No Active Schema Engines")}
-                  className="col-span-full py-16"
-                />
-              )}
-            </div>
+            (() => {
+              const showRegisterLead =
+                !searchQuery.trim() && workspaceStatusFilter === "all";
+              if (!showRegisterLead && filteredGames.length === 0 && sidePanelMode === null) {
+                return (
+                  <EmptyState
+                    icon={t("icon_dns", "dns")}
+                    title={t("ui_no_games_registered", "No Active Schema Engines")}
+                    className="col-span-full py-16"
+                  />
+                );
+              }
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {showRegisterLead && renderRegisterGameLeadCard()}
+                  {filteredGames.map(renderGameCard)}
+                </div>
+              );
+            })()
           )}
         </div>
       ) : activeTab === "applications" ? (
@@ -2056,7 +2079,7 @@ export default function KeepersActiveGames({
               className="py-16"
             />
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {partnerApps
                 .filter((app) => {
                   if (!searchQuery.trim()) return true;

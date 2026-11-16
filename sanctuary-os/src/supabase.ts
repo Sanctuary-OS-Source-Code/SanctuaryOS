@@ -317,6 +317,40 @@ export function getActiveGameClient(): SupabaseClient {
     return currentGameClient as SupabaseClient;
 }
 
+const NEXUS_CATALOG_MUTATION_TABLES = new Set([
+    'mods',
+    'mod_versions',
+    'mod_relationships',
+    'collections',
+    'collection_members',
+    'blueprints',
+    'nexus_assets',
+]);
+
+let nexusMutationDispatchTimer: ReturnType<typeof setTimeout> | null = null;
+
+function notifyNexusCatalogMutated(table?: string) {
+    if (table && !NEXUS_CATALOG_MUTATION_TABLES.has(String(table).trim())) return;
+    if (typeof window === 'undefined') return;
+    const cache = (window as any).__sanctuaryCache;
+    if (cache?.nexus) {
+        cache.nexus.homeStats = null;
+        cache.nexus.nexusItems = null;
+        cache.nexus.recentFeed = [];
+        cache.nexus.assetResultsMap = {};
+        cache.nexus.lastHomeFetch = 0;
+        cache.nexus.lastNexusFetch = 0;
+        cache.nexus.lastAssetFetch = 0;
+    }
+    if (nexusMutationDispatchTimer !== null) {
+        clearTimeout(nexusMutationDispatchTimer);
+    }
+    nexusMutationDispatchTimer = setTimeout(() => {
+        nexusMutationDispatchTimer = null;
+        window.dispatchEvent(new CustomEvent('sanctuary-compliance-updated'));
+    }, 50);
+}
+
 /**
  * Direct Database RPC Execution for Standalone Fork Mode
  * Executes all `secure_*` operations directly against the single community Supabase database
@@ -462,6 +496,7 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
                 .from(args.p_target)
                 .upsert(args.p_payload)
                 .select();
+            if (!error) notifyNexusCatalogMutated(args?.p_target);
             return { data, error };
         }
 
@@ -470,6 +505,7 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
                 .from(args.p_target)
                 .delete()
                 .eq('id', args.p_id);
+            if (!error) notifyNexusCatalogMutated(args?.p_target);
             return { data, error };
         }
 
@@ -556,9 +592,11 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
         }
 
         if (fnName === 'bulk_ingest_vault_mods') {
-            return await rawAuthClient.rpc('bulk_ingest_vault_mods', {
+            const res = await rawAuthClient.rpc('bulk_ingest_vault_mods', {
                 p_items: args?.p_items || args?.items || [],
             });
+            if (!res?.error) notifyNexusCatalogMutated('mods');
+            return res;
         }
 
         if (fnName === 'dispatch_follower_notifications') {
@@ -638,6 +676,7 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
                 await rawAuthClient
                     .from('mod_versions')
                     .upsert({ mod_id: created.id, dna_hash: dnaHash, version_label: '1.0' }, { onConflict: 'mod_id,dna_hash' });
+                notifyNexusCatalogMutated('mods');
                 return { data: { success: true, queued_pending: true, created_unindexed: true, mod_id: created.id, mod: created }, error: null };
             }
 
@@ -664,6 +703,7 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
                 .select()
                 .maybeSingle();
             if (updErr) return { data: null, error: updErr };
+            notifyNexusCatalogMutated('mods');
             return { data: { success: true, queued_pending: nextStatus === 'pending', mod_id: modId, mod: updated }, error: null };
         }
 
@@ -961,6 +1001,7 @@ function createSpokeGatewayQuery(
                 };
             }
             if (res.data && res.data.__spoke_query_v1) {
+                notifyNexusCatalogMutated(table);
                 return {
                     data: res.data.data ?? null,
                     error: null,
@@ -969,6 +1010,7 @@ function createSpokeGatewayQuery(
                     statusText: 'OK',
                 };
             }
+            notifyNexusCatalogMutated(table);
             return {
                 data: res.data ?? null,
                 error: null,
@@ -1303,6 +1345,12 @@ export const supabase = new Proxy({} as SupabaseClient, {
                         }
                         console.error('Magic Proxy Edge Function Error:', res.data.error, 'Game ID sent:', targetGameId);
                         res.error = new Error(res.data.error) as any;
+                    } else if (!res.error) {
+                        if (fnName === 'secure_upsert_cloud_file' || fnName === 'secure_delete_cloud_file') {
+                            notifyNexusCatalogMutated(args?.p_target);
+                        } else if (fnName === 'flag_mod_for_compliance' || fnName === 'bulk_ingest_vault_mods') {
+                            notifyNexusCatalogMutated('mods');
+                        }
                     }
                     return res;
                 }

@@ -3429,7 +3429,11 @@ export default function ModDossier({
     resolvedTargets.forEach((tm) => {
       if (!tm) return;
       if (anarchyRules?.highlander !== false) {
-        const tmSlot = resolveModHighlanderSlot(tm) || resolveModHighlanderSlot(mod);
+        const allowParentSlotFallback =
+          tm.relationshipType !== "addon" && tm.relationshipType !== "flavor";
+        const tmSlot =
+          resolveModHighlanderSlot(tm) ||
+          (allowParentSlotFallback ? resolveModHighlanderSlot(mod) : null);
         const tmBaseFam = getModBaseFamilyKey(tm);
         if (
           tmSlot != null ||
@@ -3442,11 +3446,21 @@ export default function ModDossier({
             if (eq.name === tm.name) return;
             const eqSlot = resolveModHighlanderSlot(eq);
             const eqBaseFam = getModBaseFamilyKey(eq);
+            const eqCleanId = String(eq.dbId || eq.id || "").trim();
+            const isExplicitTwin =
+              tm.relationshipType === "twin" ||
+              eq.relationshipType === "twin" ||
+              (Array.isArray(tm.interchangeableIds) &&
+                eqCleanId &&
+                tm.interchangeableIds.map(String).includes(eqCleanId));
+            const areSameModTwins = Boolean(
+              tmBaseFam && eqBaseFam === tmBaseFam && isExplicitTwin
+            );
             const isHighlanderSlotRival = Boolean(
               tmSlot &&
               eqSlot &&
               tmSlot.key === eqSlot.key &&
-              eqBaseFam !== tmBaseFam
+              !areSameModTwins
             );
             const isIntraFamilyFlavorRival = Boolean(
               tm.relationshipType === "flavor" &&
@@ -3472,11 +3486,16 @@ export default function ModDossier({
               isCommunityRival ||
               isBetaRival
             ) {
-              const rivalKey = isHighlanderSlotRival ? eqBaseFam || eq.name : eq.name;
+              const isModuleScoped =
+                eq.relationshipType === "addon" ||
+                eq.relationshipType === "flavor" ||
+                (tmBaseFam && eqBaseFam === tmBaseFam);
+              const rivalKey =
+                isHighlanderSlotRival && !isModuleScoped ? eqBaseFam || eq.name : eq.name;
               if (!seenRivals.has(rivalKey)) {
                 seenRivals.add(rivalKey);
                 let displayTitle = eq.displayName || eq.name || "";
-                if (isHighlanderSlotRival && (eq.familyId || eq.dbId)) {
+                if (isHighlanderSlotRival && !isModuleScoped && (eq.familyId || eq.dbId)) {
                   const parentCandidates =
                     vaultIndex.byUuid.get(
                       extractCleanUuid(eq.baseFamilyId, eq.familyId, eq.dbId).toLowerCase()

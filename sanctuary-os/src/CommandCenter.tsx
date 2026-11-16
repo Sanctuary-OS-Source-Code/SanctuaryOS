@@ -36,7 +36,7 @@ import {
 
 import { fetchEncryptedVaultCompanionSnapshots, syncDesktopCompanionRadarSnapshot, VaultCompanionSnapshot, VaultCompanionArtifact } from "./utils/stagingCrypto";
 import { groupUpdateMods } from './side-panels/CommandCenterSidePanels';
-import { fetchNexusTier0CatalogSummary } from "./utils/nexusCatalogStats";
+import { fetchNexusTier0CatalogSummary, NEXUS_CACHE_SCHEMA_REV } from "./utils/nexusCatalogStats";
 import {
   extractQueueTokens,
   isSystemCardIgnored,
@@ -161,8 +161,13 @@ export default function CommandCenter({
     };
   }, []);
   const [nexusCount, setNexusCount] = useState<number | "-">(() => {
-    const hs = (window as any).__sanctuaryCache?.nexus?.homeStats;
-    if (hs && typeof hs.artifacts === "number") {
+    const nexusCache = (window as any).__sanctuaryCache?.nexus;
+    const hs = nexusCache?.homeStats;
+    if (
+      hs &&
+      nexusCache?.schemaRev === NEXUS_CACHE_SCHEMA_REV &&
+      typeof hs.artifacts === "number"
+    ) {
       return (hs.artifacts || 0) + (hs.blueprints || 0) + (hs.lexicons || 0) + (hs.chameleons || 0) + (hs.templates || 0);
     }
     return "-";
@@ -350,7 +355,7 @@ export default function CommandCenter({
 
     let cancelled = false;
 
-    const refreshCommandStats = () => {
+    const refreshCommandStats = (forceRefresh = false) => {
       import('./supabase').then(async ({ supabase, supabaseAuth }) => {
         if (cancelled || !navigator.onLine || localStorage.getItem("sanctuary_local_only") === "true") return;
 
@@ -382,7 +387,7 @@ export default function CommandCenter({
         };
 
         try {
-          const summary = await fetchNexusTier0CatalogSummary(supabase);
+          const summary = await fetchNexusTier0CatalogSummary(supabase, { forceRefresh });
           if (!cancelled) {
             setNexusCount(summary.total);
           }
@@ -491,17 +496,20 @@ export default function CommandCenter({
       });
     };
 
-    refreshCommandStats();
-    window.addEventListener('sanctuary-games-updated', refreshCommandStats);
-    window.addEventListener('sanctuary-tickets-updated', refreshCommandStats);
-    window.addEventListener('sanctuary-compliance-updated', refreshCommandStats);
-    window.addEventListener('sanctuary-content-flagged', refreshCommandStats);
+    const handleTicketRefresh = () => refreshCommandStats(false);
+    const handleCatalogForceRefresh = () => refreshCommandStats(true);
+
+    refreshCommandStats(false);
+    window.addEventListener('sanctuary-games-updated', handleCatalogForceRefresh);
+    window.addEventListener('sanctuary-tickets-updated', handleTicketRefresh);
+    window.addEventListener('sanctuary-compliance-updated', handleCatalogForceRefresh);
+    window.addEventListener('sanctuary-content-flagged', handleCatalogForceRefresh);
     return () => {
       cancelled = true;
-      window.removeEventListener('sanctuary-games-updated', refreshCommandStats);
-      window.removeEventListener('sanctuary-tickets-updated', refreshCommandStats);
-      window.removeEventListener('sanctuary-compliance-updated', refreshCommandStats);
-      window.removeEventListener('sanctuary-content-flagged', refreshCommandStats);
+      window.removeEventListener('sanctuary-games-updated', handleCatalogForceRefresh);
+      window.removeEventListener('sanctuary-tickets-updated', handleTicketRefresh);
+      window.removeEventListener('sanctuary-compliance-updated', handleCatalogForceRefresh);
+      window.removeEventListener('sanctuary-content-flagged', handleCatalogForceRefresh);
     };
   }, [activeWorkspaceId, workspaces, session?.user?.id]);
 
@@ -2056,6 +2064,7 @@ export default function CommandCenter({
             isOpen={isAuditLogsOpen}
             onClose={() => setIsAuditLogsOpen(false)}
             hideEditIdentity={true}
+            viewerScope="public"
           />
         )}
 

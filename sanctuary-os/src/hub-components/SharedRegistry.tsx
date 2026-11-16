@@ -12,6 +12,7 @@ import {
   ActionButton,
   PanelHeaderGroup,
   PanelHeaderButton,
+  VAULT_CHIP_CLASS,
 } from "../shared";
 import { ArtifactCard } from "../Cards";
 import { CustomMasonDropdown, CustomStatusDropdown } from "../ArchitectHub";
@@ -25,18 +26,26 @@ import {
 import { ArtifactWorkspace, StudioTabId } from "../components/ArtifactStudioTabs";
 import { fetchAllTableRows, buildFamilyHierarchy } from "../components/artifact-studio/artifactStudioUtils";
 import { importIssueCauseFromLabReports } from "../components/KnownExceptionRules";
+import {
+  isStrictTier0Value,
+  isUnknownOrUnverifiedModStatus,
+  pruneModsWithIneligibleAncestors,
+  invalidateNexusCatalogCache,
+} from "../utils/nexusCatalogStats";
 
 const REGISTRY_CACHE_TTL = 1000 * 60 * 10;
 let registryCache: {
   cloudMods: any[] | null;
   modRelationships: any[] | null;
   masonsList: any[] | null;
+  highlanderSlots: any[] | null;
   lastFetch: number;
   isComplete: boolean;
 } = {
   cloudMods: null,
   modRelationships: null,
   masonsList: null,
+  highlanderSlots: null,
   lastFetch: 0,
   isComplete: false,
 };
@@ -54,7 +63,54 @@ const isUnderReviewModStatus = (status?: string | null) =>
 const isPendingModStatus = (status?: string | null) =>
   status === "pending";
 const isUnknownModStatus = (status?: string | null) =>
-  !status || status === "unknown" || status === "unverified";
+  isUnknownOrUnverifiedModStatus(status);
+const ARCHITECT_EXCLUDED_STATUSES = new Set([
+  "obsolete",
+  "blacklisted",
+  "quarantined",
+  "rejected",
+  "malware_pending",
+]);
+const UUID_NAME_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UNKNOWN_AUTHOR_VALUES = new Set([
+  "",
+  "unknown",
+  "unknown creator",
+  "unidentified",
+  "local",
+  "local node",
+]);
+const isArchitectTier0Mod = (m: any): boolean => {
+  if (!m || typeof m !== "object") return false;
+  if (!isStrictTier0Value(m.compliance_tier)) return false;
+  if (m.has_pending_flag === true) return false;
+  if (isUnknownOrUnverifiedModStatus(m.status)) return false;
+  const st = String(m.status || "").toLowerCase().trim();
+  if (ARCHITECT_EXCLUDED_STATUSES.has(st)) return false;
+  const rawName = String(m.name || "").trim();
+  if (!rawName || UUID_NAME_REGEX.test(rawName)) return false;
+  const lowerName = rawName.toLowerCase();
+  if (lowerName.includes("manual flag") || lowerName.includes("unindexed flagged")) {
+    return false;
+  }
+  if (
+    !m.mason_id &&
+    UNKNOWN_AUTHOR_VALUES.has(String(m.master_author || "").trim().toLowerCase())
+  ) {
+    return false;
+  }
+  return true;
+};
+
+export function invalidateArchitectRegistryCache(): void {
+  registryCache.cloudMods = null;
+  registryCache.modRelationships = null;
+  registryCache.lastFetch = 0;
+  registryCache.isComplete = false;
+  registryFetchPromise = null;
+}
+
 const isAnomalyModStatus = (status?: string | null) =>
   !isStableModStatus(status) &&
   !isUnderReviewModStatus(status) &&
@@ -69,11 +125,15 @@ export function prefetchArchitectRegistry(forceRefresh = false): Promise<void> {
     registryCache.cloudMods.length > 0 &&
     performance.now() - registryCache.lastFetch < REGISTRY_CACHE_TTL;
   if (isFresh) return Promise.resolve();
-  if (registryFetchPromise && !forceRefresh) return registryFetchPromise;
+  if (forceRefresh) {
+    registryFetchPromise = null;
+  } else if (registryFetchPromise) {
+    return registryFetchPromise;
+  }
 
   registryFetchPromise = (async () => {
     try {
-      const [modsData, relsData, masonsRes] = await Promise.all([
+      const [modsData, relsData, masonsRes, slotsRes] = await Promise.all([
         fetchAllTableRows(
           supabase,
           "mods",
@@ -81,13 +141,12 @@ export function prefetchArchitectRegistry(forceRefresh = false): Promise<void> {
           "name",
           (firstBatch) => {
             if (!registryCache.cloudMods || registryCache.cloudMods.length === 0) {
-              registryCache.cloudMods = (firstBatch || []).filter(
-                (m: any) => Number(m?.compliance_tier || 0) === 0
-              );
+              registryCache.cloudMods = (firstBatch || []).filter(isArchitectTier0Mod);
               registryCache.isComplete = false;
               notifyRegistryListeners();
             }
-          }
+          },
+          (q) => q.eq("compliance_tier", 0).eq("has_pending_flag", false)
         ),
         fetchAllTableRows(
           supabase,
@@ -95,15 +154,22 @@ export function prefetchArchitectRegistry(forceRefresh = false): Promise<void> {
           "id, parent_id, child_id, relationship_type"
         ),
         supabase.from("masons").select("id, name").order("name"),
+        supabase.from("flavor_groups").select("id, name, slug").order("name"),
       ]);
       if (modsData) {
-        registryCache.cloudMods = modsData.filter(
-          (m: any) => Number(m?.compliance_tier || 0) === 0
-        );
+        const modsById = new Map<string, any>();
+        for (const m of modsData) {
+          if (!isArchitectTier0Mod(m)) continue;
+          const sid = String(m.id || "").trim();
+          if (sid) modsById.set(sid, m);
+        }
+        pruneModsWithIneligibleAncestors(modsById, relsData || []);
+        registryCache.cloudMods = Array.from(modsById.values());
         registryCache.isComplete = true;
       }
       if (relsData) registryCache.modRelationships = relsData;
       if (masonsRes?.data) registryCache.masonsList = masonsRes.data;
+      if (slotsRes?.data) registryCache.highlanderSlots = slotsRes.data;
       registryCache.lastFetch = performance.now();
       notifyRegistryListeners();
     } catch (err) {
@@ -138,13 +204,17 @@ export function ArchitectRegistry({
   const [originalMod, setOriginalMod] = useState<any | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
   const [masonsList, setMasonsList] = useState<any[]>(() => registryCache.masonsList || []);
+  const [highlanderSlots, setHighlanderSlots] = useState<any[]>(
+    () => registryCache.highlanderSlots || []
+  );
 
   const [activeTab, setActiveTab] = useState<
-    "overview" | "stable" | "under_review" | "pending" | "unknown" | "unstable_corrupted"
+    "overview" | "stable" | "under_review" | "pending" | "unstable_corrupted"
   >("overview");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [activeCategory, setActiveCategory] = useState("ALL");
   const [activeSubType, setActiveSubType] = useState("ALL");
+  const [exclusiveSlotFilter, setExclusiveSlotFilter] = useState("ALL");
 
   const [page, setPage] = useState(0);
   const [isLoading, setIsLoading] = useState<boolean>(() => !registryCache.cloudMods);
@@ -165,7 +235,7 @@ export function ArchitectRegistry({
   useEffect(() => {
     if (initialActiveMod) {
       const full = cloudMods.find((cm) => cm.id === initialActiveMod?.id) || initialActiveMod;
-      if (Number(full?.compliance_tier || 0) === 0) {
+      if (isStrictTier0Value(full?.compliance_tier)) {
         setStudioTab("overview");
         setOriginalMod(JSON.parse(JSON.stringify(full)));
         setActiveMod(JSON.parse(JSON.stringify(full)));
@@ -188,16 +258,17 @@ export function ArchitectRegistry({
 
   const fetchData = async (forceRefresh = false) => {
     const hasWarmCache =
-      Array.isArray(registryCache.cloudMods) && registryCache.cloudMods.length > 0;
+      !forceRefresh &&
+      Array.isArray(registryCache.cloudMods) &&
+      registryCache.cloudMods.length > 0;
 
     if (hasWarmCache) {
-      const tier0Mods = registryCache.cloudMods!.filter(
-        (m: any) => Number(m?.compliance_tier || 0) === 0
-      );
+      const tier0Mods = registryCache.cloudMods!.filter(isArchitectTier0Mod);
       setCloudMods(tier0Mods);
       setTotalCount(tier0Mods.length);
       if (registryCache.modRelationships) setModRelationships(registryCache.modRelationships);
       if (registryCache.masonsList) setMasonsList(registryCache.masonsList);
+      if (registryCache.highlanderSlots) setHighlanderSlots(registryCache.highlanderSlots);
       setIsLoading(false);
     } else {
       setIsLoading(true);
@@ -206,14 +277,13 @@ export function ArchitectRegistry({
     try {
       await prefetchArchitectRegistry(forceRefresh);
       if (registryCache.cloudMods) {
-        const tier0Mods = registryCache.cloudMods.filter(
-          (m: any) => Number(m?.compliance_tier || 0) === 0
-        );
+        const tier0Mods = registryCache.cloudMods.filter(isArchitectTier0Mod);
         setCloudMods(tier0Mods);
         setTotalCount(tier0Mods.length);
       }
       if (registryCache.modRelationships) setModRelationships(registryCache.modRelationships);
       if (registryCache.masonsList) setMasonsList(registryCache.masonsList);
+      if (registryCache.highlanderSlots) setHighlanderSlots(registryCache.highlanderSlots);
     } finally {
       setIsLoading(false);
     }
@@ -222,9 +292,7 @@ export function ArchitectRegistry({
   useEffect(() => {
     const syncFromCache = () => {
       if (registryCache.cloudMods) {
-        const tier0Mods = registryCache.cloudMods.filter(
-          (m: any) => Number(m?.compliance_tier || 0) === 0
-        );
+        const tier0Mods = registryCache.cloudMods.filter(isArchitectTier0Mod);
         setCloudMods(tier0Mods);
         setTotalCount(tier0Mods.length);
         setIsLoading(false);
@@ -235,17 +303,28 @@ export function ArchitectRegistry({
       if (registryCache.masonsList) {
         setMasonsList(registryCache.masonsList);
       }
+      if (registryCache.highlanderSlots) {
+        setHighlanderSlots(registryCache.highlanderSlots);
+      }
+    };
+    const handleComplianceUpdated = () => {
+      invalidateArchitectRegistryCache();
+      fetchData(true);
     };
     registryListeners.add(syncFromCache);
+    window.addEventListener("sanctuary-compliance-updated", handleComplianceUpdated);
+    window.addEventListener("sanctuary-content-flagged", handleComplianceUpdated);
     fetchData(false);
     return () => {
       registryListeners.delete(syncFromCache);
+      window.removeEventListener("sanctuary-compliance-updated", handleComplianceUpdated);
+      window.removeEventListener("sanctuary-content-flagged", handleComplianceUpdated);
     };
   }, []);
 
   useEffect(() => {
     setPage(0);
-  }, [activeTab, activeCategory, activeSubType, statusFilter, searchTerm, groupFamilies]);
+  }, [activeTab, activeCategory, activeSubType, statusFilter, exclusiveSlotFilter, searchTerm, groupFamilies]);
 
   useEffect(() => {
     if (registryCache.masonsList && registryCache.masonsList.length > 0) {
@@ -275,7 +354,7 @@ export function ArchitectRegistry({
 
     return cloudMods
       .filter((mod) => {
-        if (Number(mod?.compliance_tier || 0) > 0) return false;
+        if (!isArchitectTier0Mod(mod)) return false;
         const childInfo = childToRootMap.get(mod.id);
         if (groupFamilies && childInfo && modById.has(childInfo.rootId)) {
           return false;
@@ -301,13 +380,46 @@ export function ArchitectRegistry({
     const modById = new Map(cloudMods.map((m) => [m.id, m]));
     const q = searchTerm.trim().toLowerCase();
 
-    return baseGroupedMods.filter((mod) => {
-      if (Number(mod?.compliance_tier || 0) > 0) return false;
-      if (activeCategory !== "ALL") {
-        if (mod.category_override !== activeCategory) return false;
-        if (activeCategory === "CAS" && activeSubType !== "ALL" && mod.sub_type !== activeSubType) {
-          return false;
+    const matchesSelfOrFamilyChild = (predicate: (m: any) => boolean) => (mod: any) => {
+      if (predicate(mod)) return true;
+      if (!groupFamilies) return false;
+      const childIds = childrenByRootId.get(mod.id);
+      if (!childIds) return false;
+      for (const cid of childIds) {
+        const cm = modById.get(cid);
+        if (cm && isArchitectTier0Mod(cm) && predicate(cm)) {
+          return true;
         }
+      }
+      return false;
+    };
+
+    const matchesCategoryAndSub = (m: any) => {
+      if (activeCategory === "ALL") return true;
+      if (String(m?.category_override || "").toLowerCase() !== activeCategory.toLowerCase()) {
+        return false;
+      }
+      if (
+        activeSubType !== "ALL" &&
+        String(m?.sub_type || "").toLowerCase() !== activeSubType.toLowerCase()
+      ) {
+        return false;
+      }
+      return true;
+    };
+
+    return baseGroupedMods.filter((mod) => {
+      if (!isArchitectTier0Mod(mod)) return false;
+      if (activeCategory !== "ALL" && !matchesSelfOrFamilyChild(matchesCategoryAndSub)(mod)) {
+        return false;
+      }
+
+      if (exclusiveSlotFilter !== "ALL") {
+        const matchesSlot = (m: any) =>
+          exclusiveSlotFilter === "ANY_SLOT"
+            ? Boolean(m?.highlander_group_id)
+            : String(m?.highlander_group_id || "") === exclusiveSlotFilter;
+        if (!matchesSelfOrFamilyChild(matchesSlot)(mod)) return false;
       }
 
       if (activeTab !== "overview") {
@@ -317,44 +429,36 @@ export function ArchitectRegistry({
           if (!isUnderReviewModStatus(mod.status)) return false;
         } else if (activeTab === "pending") {
           if (!isPendingModStatus(mod.status)) return false;
-        } else if (activeTab === "unknown") {
-          if (!isUnknownModStatus(mod.status)) return false;
         } else if (activeTab === "unstable_corrupted") {
           if (!isAnomalyModStatus(mod.status)) return false;
         } else if (mod.status !== activeTab) {
           return false;
         }
-      } else if (statusFilter !== "ALL") {
+      }
+
+      if (statusFilter !== "ALL") {
         if (statusFilter === "paid") {
-          if (!mod.is_paid) return false;
+          if (!matchesSelfOrFamilyChild((m) => Boolean(m?.is_paid))(mod)) return false;
+        } else if (statusFilter === "free") {
+          if (mod.is_paid) return false;
         } else if (statusFilter === "early_access") {
-          if (!mod.is_early_access) return false;
+          if (!matchesSelfOrFamilyChild((m) => Boolean(m?.is_early_access))(mod)) return false;
         } else if (statusFilter === "stable") {
           if (!isStableModStatus(mod.status)) return false;
-        } else if (mod.status !== statusFilter) {
+        } else if (statusFilter === "under_review") {
+          if (!isUnderReviewModStatus(mod.status)) return false;
+        } else if (statusFilter === "pending") {
+          if (!isPendingModStatus(mod.status)) return false;
+        } else if (String(mod.status || "").toLowerCase() !== statusFilter.toLowerCase()) {
           return false;
         }
       }
 
       if (q) {
-        const selfMatches =
-          (mod.name || "").toLowerCase().includes(q) ||
-          (mod.master_author || "").toLowerCase().includes(q);
-        if (selfMatches) return true;
-
-        // If family grouping is enabled, also match if any transitive child module matches the search!
-        if (groupFamilies) {
-          const childIds = childrenByRootId.get(mod.id);
-          if (childIds) {
-            for (const cid of childIds) {
-              const cm = modById.get(cid);
-              if (cm && Number(cm?.compliance_tier || 0) === 0 && (cm.name || "").toLowerCase().includes(q)) {
-                return true;
-              }
-            }
-          }
-        }
-        return false;
+        const matchesSearchQuery = (m: any) =>
+          (m.name || "").toLowerCase().includes(q) ||
+          (m.master_author || "").toLowerCase().includes(q);
+        if (!matchesSelfOrFamilyChild(matchesSearchQuery)(mod)) return false;
       }
 
       return true;
@@ -367,6 +471,7 @@ export function ArchitectRegistry({
     activeSubType,
     activeTab,
     statusFilter,
+    exclusiveSlotFilter,
     searchTerm,
     groupFamilies,
   ]);
@@ -441,6 +546,7 @@ export function ArchitectRegistry({
         compliance_tier: targetTier,
         is_paid: activeMod.is_paid || false,
         is_early_access: activeMod.is_early_access || false,
+        highlander_group_id: activeMod.highlander_group_id ?? null,
         requiredDLC: activeMod.requiredDLC || [],
         folder_structure: activeMod.folder_structure || [],
         updated_at: new Date().toISOString(),
@@ -481,6 +587,8 @@ export function ArchitectRegistry({
             isComplianceFlagged ? "warning" : "success"
           );
         setPage(0);
+        invalidateArchitectRegistryCache();
+        invalidateNexusCatalogCache({ dispatchEvent: true });
         fetchData(true);
         fetchRelationships();
       } else {
@@ -496,7 +604,7 @@ export function ArchitectRegistry({
 
   const openArchitectMod = (mod: any) => {
     const full = cloudMods.find((cm) => cm.id === mod?.id) || mod;
-    if (Number(full?.compliance_tier || 0) > 0) return;
+    if (!isStrictTier0Value(full?.compliance_tier)) return;
     setStudioTab("overview");
     setOriginalMod(JSON.parse(JSON.stringify(full)));
     setActiveMod(JSON.parse(JSON.stringify(full)));
@@ -551,7 +659,7 @@ export function ArchitectRegistry({
 
   const renderList = () => (
     <div className="flex flex-col gap-10 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 pr-2">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
         {visibleCloudMods.length === 0 ? (
           <EmptyState
             icon={searchTerm ? t("icon_search_off", "search_off") : t("icon_inventory_2", "inventory_2")}
@@ -631,12 +739,6 @@ export function ArchitectRegistry({
             number: baseGroupedMods.filter((m) => isPendingModStatus(m.status)).length.toString(),
           },
           {
-            id: "unknown",
-            label: t("unknown", "Unknown"),
-            icon: t("icon_help", "help"),
-            number: baseGroupedMods.filter((m) => isUnknownModStatus(m.status)).length.toString(),
-          },
-          {
             id: "unstable_corrupted",
             label: t("label_unstable", "Unstable"),
             icon: t("icon_warning", "warning"),
@@ -661,104 +763,154 @@ export function ArchitectRegistry({
             ? {
               icon: t("icon_tune", "tune"),
               label: t("filters", "Filters"),
-              content: (
-                <div className="flex flex-col w-[300px] p-4 max-w-[calc(100vw-40px)] gap-4">
+              isActive:
+                activeCategory !== "ALL" ||
+                activeSubType !== "ALL" ||
+                statusFilter !== "ALL" ||
+                exclusiveSlotFilter !== "ALL",
+              content: (() => {
+                const schemaCategories = activeGameSchema?.mod_categories || [];
+                const activeSchemaCategory = schemaCategories.find(
+                  (c: any) => String(c.id).toLowerCase() === activeCategory.toLowerCase()
+                );
+                const subcats = activeSchemaCategory?.subcategories || [];
+
+                const renderFilterGrid = (
+                  title: string,
+                  currentValue: string,
+                  onPick: (id: string) => void,
+                  options: Array<{ id: string; label: string }>
+                ) => (
                   <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                      {t("category", "Category")}
-                    </span>
-                    <CustomDropdown
-                      flat={true}
-                      variant="pill"
-                      disableTint={true}
-                      value={activeCategory}
-                      onChange={(val: string[]) => {
-                        setActiveCategory(val[0]);
-                        setActiveSubType("ALL");
-                      }}
-                      options={[
-                        { id: "ALL", label: t("filter_all", "All") },
-                        ...(useStore.getState().activeGameSchema?.mod_categories || []).map((c: any) => ({
-                          id: c.id,
-                          label: t(c.lexicon_key, c.id),
-                        })),
-                      ]}
-                    />
+                    <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-90 px-1 flex items-center gap-2">
+                      <span className="text-[var(--text)] opacity-90">{title}</span>
+                      <div className="h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_30%,transparent)] via-[color-mix(in_srgb,var(--text)_12%,transparent)] to-transparent flex-1" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {options.map((opt) => {
+                        const active = currentValue === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => onPick(opt.id)}
+                            className={`sa-dropdown-item flex items-center justify-between gap-2 px-3 py-2 text-[11px] capitalize tracking-wide text-left cursor-pointer ${
+                              active ? "is-selected font-bold" : "font-semibold"
+                            }`}
+                          >
+                            <span className="truncate">{opt.label}</span>
+                            {active && (
+                              <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">
+                                {t("icon_check", "check")}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+                );
 
-                  {(() => {
-                    const activeSchemaCategory = useStore
-                      .getState()
-                      .activeGameSchema?.mod_categories?.find((c: any) => c.id === activeCategory);
-                    const subcats = activeSchemaCategory?.subcategories || [];
-                    if (subcats.length === 0) return null;
+                return (
+                  <div className="flex flex-col w-[420px] p-4 max-w-[calc(100vw-40px)] gap-4 text-left">
+                    {renderFilterGrid(
+                      t("filter_category", "Filter Category"),
+                      activeCategory,
+                      (val) => {
+                        setActiveCategory(val);
+                        setActiveSubType("ALL");
+                      },
+                      [
+                        { id: "ALL", label: t("filter_all", "All") },
+                        ...schemaCategories.map((c: any) => ({
+                          id: c.id,
+                          label: c.lexicon_key
+                            ? t(c.lexicon_key, c.label || c.name || c.id)
+                            : c.label || c.name || c.id,
+                        })),
+                      ]
+                    )}
 
-                    return (
-                      <>
-                        <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
-                        <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                            {t("registry_col_subcat", "Sub-category")}
-                          </span>
-                          <CustomDropdown
-                            flat={true}
-                            variant="pill"
-                            disableTint={true}
-                            value={activeSubType}
-                            onChange={(val: string[]) => setActiveSubType(val[0])}
-                            options={[
-                              { id: "ALL", label: t("filter_all", "All") },
-                              ...subcats.map((sub: any) => ({
-                                id: sub.id,
-                                label: t(sub.lexicon_key, sub.id),
-                              })),
-                            ]}
-                          />
-                        </div>
-                      </>
-                    );
-                  })()}
+                    {subcats.length > 0 &&
+                      renderFilterGrid(
+                        t("registry_col_subcat", "Sub-category"),
+                        activeSubType,
+                        (val) => setActiveSubType(val),
+                        [
+                          { id: "ALL", label: t("filter_all", "All") },
+                          ...subcats.map((sub: any) => ({
+                            id: sub.id,
+                            label: sub.lexicon_key
+                              ? t(sub.lexicon_key, sub.label || sub.name || sub.id)
+                              : sub.label || sub.name || sub.id,
+                          })),
+                        ]
+                      )}
 
-                  <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                      {t("registry_label_status", "Global Status")}
-                    </span>
-                    <CustomDropdown
-                      flat={true}
-                      variant="pill"
-                      disableTint={true}
-                      value={statusFilter}
-                      onChange={(v: string[]) => setStatusFilter(v[0])}
-                      options={[
+                    {renderFilterGrid(
+                      t("filter_status", "Filter Status"),
+                      statusFilter,
+                      (val) => setStatusFilter(val),
+                      [
                         { id: "ALL", label: t("status_dd_all", "All Statuses") },
-                        { id: "stable", label: t("status_stable", "STABLE") },
+                        { id: "stable", label: t("status_stable", "Stable") },
                         { id: "unstable", label: t("label_unstable", "Unstable") },
                         { id: "corrupted", label: t("status_corrupted", "Corrupted") },
                         { id: "under_review", label: t("status_dd_review", "Under Review") },
                         { id: "pending", label: t("pending", "Pending") },
-                        { id: "unverified", label: t("unverified", "Unverified") },
                         { id: "paid", label: t("label_is_paid", "Paid {Mod}") },
                         { id: "early_access", label: t("badge_early_access", "Early Access") },
-                      ]}
-                    />
-                  </div>
+                      ]
+                    )}
 
-                  {(activeCategory !== "ALL" || activeSubType !== "ALL" || statusFilter !== "ALL") && (
-                    <ActionButton
-                      icon={t("icon_close", "close")}
-                      label={t("btn_clear", "Clear Filters")}
-                      onClick={() => {
-                        setActiveCategory("ALL");
-                        setActiveSubType("ALL");
-                        setStatusFilter("ALL");
-                      }}
-                      className="w-full mt-2"
-                      variant="danger"
-                    />
-                  )}
-                </div>
-              ),
+                    {highlanderSlots.length > 0 && (
+                      <div className="flex flex-col gap-2">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-90 px-1 flex items-center gap-2">
+                          <span className="text-[var(--text)] opacity-90">
+                            {t("highlander_exclusive_slot", "Exclusive Slot")}
+                          </span>
+                          <div className="h-px bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_30%,transparent)] via-[color-mix(in_srgb,var(--text)_12%,transparent)] to-transparent flex-1" />
+                        </div>
+                        <CustomDropdown
+                          flat={true}
+                          variant="pill"
+                          disableTint={true}
+                          searchable={true}
+                          searchPlaceholder={t("highlander_search_slots_ph", "Search Exclusive Slots...")}
+                          value={exclusiveSlotFilter}
+                          onChange={(v: string[]) => setExclusiveSlotFilter(v[0] || "ALL")}
+                          options={[
+                            { id: "ALL", label: t("filter_all", "All") },
+                            { id: "ANY_SLOT", label: t("highlander_exclusive_slots", "Exclusive Slots") },
+                            ...highlanderSlots.map((slot: any) => ({
+                              id: String(slot.id),
+                              label: slot.name,
+                            })),
+                          ]}
+                        />
+                      </div>
+                    )}
+
+                    {(activeCategory !== "ALL" ||
+                      activeSubType !== "ALL" ||
+                      statusFilter !== "ALL" ||
+                      exclusiveSlotFilter !== "ALL") && (
+                      <ActionButton
+                        icon={t("icon_close", "close")}
+                        label={t("btn_clear", "Clear Filters")}
+                        onClick={() => {
+                          setActiveCategory("ALL");
+                          setActiveSubType("ALL");
+                          setStatusFilter("ALL");
+                          setExclusiveSlotFilter("ALL");
+                        }}
+                        className="w-full"
+                        variant="danger"
+                      />
+                    )}
+                  </div>
+                );
+              })(),
             }
             : undefined
         }
@@ -1017,12 +1169,12 @@ export function ArchitectRegistry({
                           },
                         })
                       }
-                      className="px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] transition-colors flex items-center gap-1 cursor-pointer"
+                      className={`${VAULT_CHIP_CLASS} sa-glass-pill-hover cursor-pointer`}
                     >
-                      <span className="material-symbols-outlined !text-[12px]">
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                         {t("icon_science", "science")}
                       </span>
-                      {t("import_from_lab_reports", "Import from {Lab} Reports")}
+                      <span>{t("import_from_lab_reports", "Import from {Lab} Reports")}</span>
                     </button>
                   )}
                 </div>

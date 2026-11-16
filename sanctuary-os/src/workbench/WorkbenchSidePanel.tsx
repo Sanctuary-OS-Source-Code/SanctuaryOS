@@ -4,7 +4,7 @@ import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
 import { SidePanel, CustomDropdown, ActionPill, PanelHeaderGroup, PanelHeaderButton, HoverTooltip, VAULT_CHIP_CLASS } from '../shared';
 import { WorkbenchRawEditor } from './WorkbenchRawEditor';
-import { WorkbenchVisualEditor, countModifiedSettings, countEditedFromSavedSettings, countSettingsByCategory, resolveSettingDataPath } from './WorkbenchVisualEditor';
+import { WorkbenchVisualEditor, countModifiedSettings, countEditedFromSavedSettings, countSettingsByCategory, resolveSettingDataPath, resolveCategoryIcon } from './WorkbenchVisualEditor';
 import { WorkbenchEmptyVisualState } from './WorkbenchEmptyVisualState';
 import { WorkbenchTemplateTools } from './WorkbenchTemplateTools';
 import { WorkbenchTemplateBuilder } from './WorkbenchTemplateBuilder';
@@ -12,37 +12,6 @@ import { useTheme } from '../ThemeContext';
 import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from '../utils/monacoTheme';
 import { isSanctuaryTemplateFile, detectMonacoLanguage, writeDataPathValue } from './workbenchFormatUtils';
 import { useVerifiedMasonOrStaff } from '../utils/hubCommandCache';
-
-const resolveCategoryIcon = (
-   cat: any,
-   _resolveText: (k?: string, fallback?: string) => string,
-   t: (k: string, fallback: string) => string
-): string => {
-   const key = `${cat?.id || ""} ${cat?.name_key || ""} ${cat?.name || ""}`.toLowerCase();
-   const rawIcon = (cat?.icon_key || cat?.icon || "").replace(/^workbench_icon_/, "").replace(/^icon_/, "").trim();
-   const isGenericIcon = !rawIcon || rawIcon === "tag" || rawIcon === "folder" || rawIcon === "#" || (rawIcon === "tune" && !key.includes("general") && !key.includes("tuner"));
-   if (!isGenericIcon) {
-      return t(`icon_${rawIcon}`, rawIcon);
-   }
-   if (key.includes("general") || key.includes("core") || key.includes("main")) return t("icon_tune", "tune");
-   if (key.includes("appear") || key.includes("character") || key.includes("avatar") || key.includes("body") || key.includes("face")) return t("icon_face", "face");
-   if (key.includes("autosave") || key.includes("save") || key.includes("backup")) return t("icon_save", "save");
-   if (key.includes("structure") || key.includes("housing") || key.includes("arch") || key.includes("zone")) return t("icon_home_work", "home_work");
-   if (key.includes("bill") || key.includes("money") || key.includes("finance") || key.includes("economy") || key.includes("pay")) return t("icon_receipt_long", "receipt_long");
-   if (key.includes("career") || key.includes("work") || key.includes("job") || key.includes("school")) return t("icon_work", "work");
-   if (key.includes("clean") || key.includes("maint")) return t("icon_cleaning_services", "cleaning_services");
-   if (key.includes("club") || key.includes("group") || key.includes("social") || key.includes("faction")) return t("icon_groups", "groups");
-   if (key.includes("dress") || key.includes("outfit") || key.includes("cloth") || key.includes("gear")) return t("icon_checkroom", "checkroom");
-   if (key.includes("marri") || key.includes("romance") || key.includes("love")) return t("icon_favorite", "favorite");
-   if (key.includes("magic") || key.includes("power") || key.includes("ability")) return t("icon_auto_fix_high", "auto_fix_high");
-   if (key.includes("populat") || key.includes("world") || key.includes("map") || key.includes("region")) return t("icon_public", "public");
-   if (key.includes("graphics") || key.includes("video") || key.includes("display") || key.includes("render")) return t("icon_display_settings", "display_settings");
-   if (key.includes("audio") || key.includes("sound") || key.includes("music")) return t("icon_volume_up", "volume_up");
-   if (key.includes("relation") || key.includes("friend") || key.includes("ally")) return t("icon_handshake", "handshake");
-   if (key.includes("notif") || key.includes("show") || key.includes("alert") || key.includes("ui")) return t("icon_notifications", "notifications");
-   if (key.includes("tuner") || key.includes("autonom") || key.includes("interac") || key.includes("gameplay")) return t("icon_build", "build");
-   return t("icon_category", "category");
-};
 
 export const WorkbenchCategoryBar = ({
    categories,
@@ -64,25 +33,26 @@ export const WorkbenchCategoryBar = ({
    const [isExpanded, setIsExpanded] = useState(false);
    const counts = React.useMemo(() => countSettingsByCategory(settings), [settings]);
 
-   if (!Array.isArray(categories) || categories.length === 0) return null;
+   const pillItems = React.useMemo(() => {
+      if (!Array.isArray(categories) || categories.length === 0) return [];
+      return [
+         {
+            id: "ALL",
+            label: t("cat_all", "All Settings"),
+            icon: t("icon_grid_view", "grid_view"),
+            count: counts.ALL || 0
+         },
+         ...categories.map((cat: any) => ({
+            id: cat.id,
+            label: resolveText(cat.name_key, cat.name || cat.id),
+            icon: resolveCategoryIcon(cat, resolveText, t),
+            count: counts[cat.id] || 0
+         }))
+      ];
+   }, [categories, counts, resolveText, t]);
 
-   const pillItems = [
-      {
-         id: "ALL",
-         label: t("cat_all", "All Settings"),
-         icon: t("icon_grid_view", "grid_view"),
-         count: counts.ALL || 0
-      },
-      ...categories.map((cat: any) => ({
-         id: cat.id,
-         label: resolveText(cat.name_key, cat.name || cat.id),
-         icon: resolveCategoryIcon(cat, resolveText, t),
-         count: counts[cat.id] || 0
-      }))
-   ];
-
-   const COLLAPSED_LIMIT = compact ? 5 : 7;
-   const canCollapse = pillItems.length > (compact ? 6 : 8);
+   const COLLAPSED_LIMIT = compact ? 4 : 8;
+   const canCollapse = pillItems.length > COLLAPSED_LIMIT;
    const visibleItems = React.useMemo(() => {
       if (!canCollapse || isExpanded) return pillItems;
       const baseSlice = pillItems.slice(0, COLLAPSED_LIMIT);
@@ -96,71 +66,89 @@ export const WorkbenchCategoryBar = ({
       return baseSlice;
    }, [pillItems, canCollapse, isExpanded, selectedCategory, COLLAPSED_LIMIT]);
 
+   if (!Array.isArray(categories) || categories.length === 0) return null;
+
    const hiddenCount = Math.max(0, pillItems.length - visibleItems.length);
 
    return (
-      <div className={`grid gap-2 w-full ${compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'}`}>
-         {visibleItems.map((item) => {
-            const isActive = selectedCategory === item.id;
-            return (
+      <div className="flex flex-col gap-2 w-full">
+         <div className="flex items-center justify-between gap-2 px-0.5">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80">
+               {t("categories", "Categories")} ({categories.length})
+            </span>
+            {canCollapse && (
                <button
-                  key={item.id}
                   type="button"
-                  onClick={() => onSelectCategory(item.id)}
-                  className={`h-9 px-3 rounded-xl text-[11px] font-bold tracking-wide transition-all flex items-center justify-between gap-2 min-w-0 cursor-pointer border ${
-                     isActive
-                        ? 'sa-glass-pill-active text-[var(--text)]'
-                        : 'glass-surface border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)] hover:text-[var(--text)] hover:border-[color-mix(in_srgb,var(--text)_20%,transparent)]'
-                  }`}
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="sa-dropdown-action-chip px-2.5 h-6 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer shrink-0"
                >
-                  <div className="flex items-center gap-2 min-w-0">
-                     <span
-                        className={`material-symbols-outlined !text-[15px] shrink-0 ${
-                           isActive ? 'text-[var(--accent)]' : 'text-[var(--subtext)] opacity-75'
-                        }`}
-                     >
-                        {item.icon}
-                     </span>
-                     <span className="truncate">{item.label}</span>
-                  </div>
-                  <span
-                     className={`text-[10px] font-extrabold tabular-nums shrink-0 ${
-                        isActive
-                           ? 'text-[var(--accent)]'
-                           : 'text-[var(--subtext)] opacity-55'
-                     }`}
-                  >
-                     {item.count}
+                  <span>
+                     {isExpanded
+                        ? t("workbench_categories_compact", "Show Less")
+                        : `${t("workbench_categories_show_all", "Show All")} (+${hiddenCount})`}
+                  </span>
+                  <span className="material-symbols-outlined !text-[14px]">
+                     {isExpanded ? t("icon_expand_less", "expand_less") : t("icon_expand_more", "expand_more")}
                   </span>
                </button>
-            );
-         })}
+            )}
+         </div>
 
-         {canCollapse && (
-            <button
-               type="button"
-               onClick={() => setIsExpanded(!isExpanded)}
-               className="h-9 px-3 rounded-xl text-[11px] font-bold tracking-wide transition-all flex items-center justify-between gap-2 min-w-0 cursor-pointer glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
-            >
-               <div className="flex items-center gap-2 min-w-0">
-                  <span className="material-symbols-outlined !text-[16px] text-[var(--accent)] shrink-0">
-                     {isExpanded
-                        ? t("icon_unfold_less", "unfold_less")
-                        : t("icon_unfold_more", "unfold_more")}
-                  </span>
-                  <span className="truncate">
-                     {isExpanded
-                        ? t("workbench_categories_compact", "Compact Row")
-                        : t("workbench_categories_show_all", "Show All Categories")}
-                  </span>
-               </div>
-               {!isExpanded && hiddenCount > 0 && (
-                  <span className="text-[10px] font-extrabold tabular-nums text-[var(--accent)] shrink-0">
-                     +{hiddenCount}
-                  </span>
-               )}
-            </button>
-         )}
+         <div className={`grid gap-2 w-full ${compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'}`}>
+            {visibleItems.map((item) => {
+               const isActive = selectedCategory === item.id;
+               return (
+                  <button
+                     key={item.id}
+                     type="button"
+                     onClick={() => onSelectCategory(item.id)}
+                     style={
+                        isActive
+                           ? {
+                                boxShadow:
+                                   "var(--glass-surface-inset-highlight, inset 0 1px 0 rgba(255,255,255,0.22))"
+                             }
+                           : undefined
+                     }
+                     className={`relative h-10 px-2.5 rounded-xl glass-surface border transition-all flex items-center justify-between gap-2 min-w-0 cursor-pointer ${
+                        isActive
+                           ? 'sa-glass-pill-active !opacity-100 !border-[color-mix(in_srgb,var(--text)_42%,transparent)] text-[var(--text)] z-10'
+                           : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] opacity-65 hover:opacity-100 hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
+                     }`}
+                  >
+                     <div className="flex items-center gap-2 min-w-0">
+                        <span
+                           className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-colors ${
+                              isActive
+                                 ? 'bg-[color-mix(in_srgb,var(--accent)_20%,rgba(255,255,255,0.1))] border-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.4))] text-[var(--accent)]'
+                                 : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]'
+                           }`}
+                        >
+                           <span className="material-symbols-outlined !text-[14px]">
+                              {item.icon}
+                           </span>
+                        </span>
+                        <span className={`text-[11px] truncate ${isActive ? 'font-black text-[var(--text)]' : 'font-semibold'}`}>
+                           {item.label}
+                        </span>
+                     </div>
+                     <span
+                        className={`shrink-0 tabular-nums ${
+                           isActive
+                              ? 'px-1.5 py-0.5 rounded-md bg-[color-mix(in_srgb,var(--text)_14%,transparent)] border border-[color-mix(in_srgb,var(--text)_22%,transparent)] text-[10px] font-black text-[var(--text)]'
+                              : 'text-[10px] font-bold text-[var(--subtext)] opacity-75 px-1'
+                        }`}
+                     >
+                        {item.count}
+                     </span>
+                     <HoverTooltip
+                        onlyWhenTruncated={true}
+                        title={`${item.label} (${item.count})`}
+                     />
+                  </button>
+               );
+            })}
+         </div>
       </div>
    );
 };
@@ -577,106 +565,180 @@ export function WorkbenchSidePanel({
                            ) : (
                               <div ref={layoutState.visualScrollRef} className="absolute inset-0 rounded-[inherit] overflow-y-scroll overflow-x-hidden custom-scrollbar pr-2 z-10 pb-20">
                                  <div className="flex flex-col gap-3 min-h-[300px] px-1 pt-1">
-                                    <div className="flex flex-col gap-2.5">
-                                       <div className="flex flex-row items-center gap-2 w-full">
-                                          <ActionPill
-                                             className="w-full"
-                                             searchQuery={searchQuery}
-                                             setSearchQuery={setSearchQuery}
-                                             searchPlaceholder={t("diff_search_settings", "Search settings...")}
-                                             rightContent={
-                                                <div className="flex items-center gap-1.5 px-2.5 h-full py-1.5">
-                                                   {(unsavedEditCount > 0 || onlyUnsaved || hasUnsavedChanges) && (
-                                                      <>
-                                                         <div className="relative flex">
-                                                            <button
-                                                               type="button"
-                                                               onClick={() => setOnlyUnsaved(!onlyUnsaved)}
-                                                               className={`h-9 px-3 rounded-xl text-[11px] font-bold tracking-wide glass-surface border transition-all flex items-center gap-1.5 cursor-pointer ${
-                                                                  onlyUnsaved
-                                                                     ? 'sa-glass-pill-active text-[var(--text)]'
-                                                                     : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
-                                                               }`}
-                                                            >
-                                                               <span className="material-symbols-outlined !text-[15px] text-[var(--warning)]">{t("icon_edit_note", "edit_note")}</span>
-                                                               <span className="hidden sm:inline">{t("unsaved", "Unsaved")}</span>
-                                                               <span className="text-[10px] font-extrabold tabular-nums text-[var(--warning)]">{unsavedEditCount}</span>
-                                                            </button>
-                                                            <HoverTooltip title={t("workbench_filter_unsaved_only", "Unsaved Edits Only")} />
-                                                         </div>
-                                                         <div className="relative flex">
-                                                            <button
-                                                               type="button"
-                                                               onClick={() => editorState.handleUndoAllUnsaved()}
-                                                               className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] flex items-center justify-center transition-all cursor-pointer"
-                                                            >
-                                                               <span className="material-symbols-outlined !text-[16px] text-[var(--warning)]">{t("icon_undo", "undo")}</span>
-                                                            </button>
-                                                            <HoverTooltip title={t("workbench_undo_all_unsaved", "Revert Edits")} />
-                                                         </div>
-                                                      </>
-                                                   )}
-
-                                                   {(modifiedCount > 0 || onlyModified) && (
-                                                      <>
-                                                         <div className="relative flex">
-                                                            <button
-                                                               type="button"
-                                                               onClick={() => setOnlyModified(!onlyModified)}
-                                                               className={`h-9 px-3 rounded-xl text-[11px] font-bold tracking-wide glass-surface border transition-all flex items-center gap-1.5 cursor-pointer ${
-                                                                  onlyModified
-                                                                     ? 'sa-glass-pill-active text-[var(--text)]'
-                                                                     : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]'
-                                                               }`}
-                                                            >
-                                                               <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">{t("icon_track_changes", "track_changes")}</span>
-                                                               <span className="hidden sm:inline">{t("badge_modified", "Modified")}</span>
-                                                               <span className="text-[10px] font-extrabold tabular-nums text-[var(--accent)]">{modifiedCount}</span>
-                                                            </button>
-                                                            <HoverTooltip title={t("workbench_filter_modified_only", "Modified Only")} />
-                                                         </div>
-                                                         <div className="relative flex">
-                                                            <button
-                                                               type="button"
-                                                               onClick={handleResetAllModified}
-                                                               className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
-                                                            >
-                                                               <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">{t("icon_restart_alt", "restart_alt")}</span>
-                                                            </button>
-                                                            <HoverTooltip title={t("workbench_reset_all_modified", "Reset Modified")} />
-                                                         </div>
-                                                      </>
-                                                   )}
-
-                                                   {!isTemplateMode && availableTemplates.length > 0 && (
-                                                      <CustomDropdown
-                                                         disableTint={true}
-                                                         menuMinWidth={240}
-                                                         className="h-9"
-                                                         buttonClassName="!h-9 !px-3.5 !rounded-xl glass-surface !border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)] !text-[11px] font-bold"
-                                                         value={selectedTemplatePath}
-                                                         options={availableTemplates.map((tmpl: any) => ({
-                                                            ...tmpl,
-                                                            icon: tmpl.icon || t("icon_data_object", "data_object")
-                                                         }))}
-                                                         onChange={(val: string[]) => {
-                                                            const newPath = val[0];
-                                                            setSelectedTemplatePath(newPath);
-                                                            const tmpl = availableTemplates.find((tItem: any) => tItem.id === newPath);
-                                                            if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
-                                                               setActiveTemplate(tmpl.data);
-                                                               setCustomAppliedTemplate(null);
-                                                            } else if (tmpl) {
-                                                               setCustomAppliedTemplate(tmpl.data);
-                                                               setActiveTemplate(null);
-                                                            }
-                                                         }}
-                                                      />
-                                                   )}
+                                    <div className="flex flex-col gap-3">
+                                       {!isTemplateMode && availableTemplates.length > 0 && (
+                                          <div className="glass-panel rounded-2xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-wrap items-center justify-between gap-3">
+                                             <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className="w-9 h-9 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] text-[var(--accent)] flex items-center justify-center shrink-0">
+                                                   <span className="material-symbols-outlined !text-[18px]">
+                                                      {t("icon_data_object", "data_object")}
+                                                   </span>
                                                 </div>
-                                             }
-                                          />
-                                       </div>
+                                                <div className="flex flex-col min-w-0">
+                                                   <span className="text-xs font-black text-[var(--text)] leading-tight truncate">
+                                                      {t("workbench_visual_schema", "Visual Schema")}
+                                                   </span>
+                                                   <span className="text-[10.5px] font-medium text-[var(--subtext)] truncate">
+                                                      {`${countSettingsByCategory(currentVisualTemplate?.settings || []).ALL || 0} ${t("workbench_settings_count", "Settings")} • ${(currentVisualTemplate?.categories || []).length} ${t("categories", "Categories")}`}
+                                                   </span>
+                                                </div>
+                                             </div>
+                                             <div className="w-full sm:w-[280px] shrink-0">
+                                                <CustomDropdown
+                                                   disableTint={true}
+                                                   menuMinWidth={260}
+                                                   className="h-10"
+                                                   buttonClassName="!h-10 !px-3.5 !rounded-xl glass-surface !border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)] !text-xs font-bold"
+                                                   value={selectedTemplatePath}
+                                                   options={availableTemplates.map((tmpl: any) => ({
+                                                      ...tmpl,
+                                                      icon: tmpl.icon || t("icon_data_object", "data_object")
+                                                   }))}
+                                                   onChange={(val: string[]) => {
+                                                      const newPath = val[0];
+                                                      setSelectedTemplatePath(newPath);
+                                                      const tmpl = availableTemplates.find((tItem: any) => tItem.id === newPath);
+                                                      if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
+                                                         setActiveTemplate(tmpl.data);
+                                                         setCustomAppliedTemplate(null);
+                                                      } else if (tmpl) {
+                                                         setCustomAppliedTemplate(tmpl.data);
+                                                         setActiveTemplate(null);
+                                                      }
+                                                   }}
+                                                />
+                                             </div>
+                                          </div>
+                                       )}
+
+                                       <ActionPill
+                                          className="!max-w-none w-full"
+                                          searchQuery={searchQuery}
+                                          setSearchQuery={setSearchQuery}
+                                          searchPlaceholder={t("diff_search_settings", "Search settings...")}
+                                          primaryPopover={{
+                                             icon: t("icon_tune", "tune"),
+                                             label: t("filters", "Filters"),
+                                             isActive: Boolean(selectedCategory !== "ALL" || onlyModified || onlyUnsaved),
+                                             content: (
+                                                <div className="flex flex-col w-[320px] p-4 max-w-[calc(100vw-40px)] gap-4">
+                                                   <div className="flex items-center justify-between gap-2 pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                                                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                                                         {t("filters", "Filters")}
+                                                      </span>
+                                                      {(selectedCategory !== "ALL" || onlyModified || onlyUnsaved) && (
+                                                         <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                               setSelectedCategory("ALL");
+                                                               setOnlyModified(false);
+                                                               setOnlyUnsaved(false);
+                                                            }}
+                                                            className="sa-dropdown-action-chip px-2.5 h-6 text-[9px] font-bold uppercase tracking-wider cursor-pointer shrink-0"
+                                                         >
+                                                            {t("reset", "Reset")}
+                                                         </button>
+                                                      )}
+                                                   </div>
+
+                                                   <div className="flex flex-col gap-2">
+                                                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                                         {t("status", "Status")}
+                                                      </span>
+                                                      <div className="grid grid-cols-3 gap-1.5">
+                                                         <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                               setOnlyModified(false);
+                                                               setOnlyUnsaved(false);
+                                                            }}
+                                                            className={`sa-dropdown-filter-tab px-2 h-8 rounded-lg text-[10px] font-black uppercase tracking-wider cursor-pointer truncate ${
+                                                               !onlyModified && !onlyUnsaved ? "is-active" : ""
+                                                            }`}
+                                                         >
+                                                            {t("all", "All")}
+                                                         </button>
+                                                         <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                               setOnlyModified(true);
+                                                               setOnlyUnsaved(false);
+                                                            }}
+                                                            className={`sa-dropdown-filter-tab px-2 h-8 rounded-lg text-[10px] font-black uppercase tracking-wider cursor-pointer truncate ${
+                                                               onlyModified ? "is-active" : ""
+                                                            }`}
+                                                         >
+                                                            {t("badge_modified", "Modified")} ({modifiedCount})
+                                                         </button>
+                                                         <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                               setOnlyUnsaved(true);
+                                                               setOnlyModified(false);
+                                                            }}
+                                                            className={`sa-dropdown-filter-tab px-2 h-8 rounded-lg text-[10px] font-black uppercase tracking-wider cursor-pointer truncate ${
+                                                               onlyUnsaved ? "is-active" : ""
+                                                            }`}
+                                                         >
+                                                            {t("unsaved", "Unsaved")} ({unsavedEditCount})
+                                                         </button>
+                                                      </div>
+                                                   </div>
+
+                                                   {currentVisualTemplate?.categories && currentVisualTemplate.categories.length > 0 && (() => {
+                                                      const counts = countSettingsByCategory(currentVisualTemplate.settings || []);
+                                                      return (
+                                                         <>
+                                                            <div className="w-full h-px bg-[color-mix(in_srgb,var(--text)_10%,transparent)]" />
+                                                            <div className="flex flex-col gap-2">
+                                                               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                                                  {t("category", "Category")}
+                                                               </span>
+                                                               <CustomDropdown
+                                                                  disableTint={true}
+                                                                  searchable={true}
+                                                                  searchPlaceholder={t("btn_search", "Search...")}
+                                                                  value={selectedCategory}
+                                                                  onChange={(val: string[]) => setSelectedCategory(val[0] || "ALL")}
+                                                                  options={[
+                                                                     {
+                                                                        id: "ALL",
+                                                                        label: `${t("cat_all", "All Settings")} (${counts.ALL || 0})`,
+                                                                        icon: t("icon_grid_view", "grid_view")
+                                                                     },
+                                                                     ...currentVisualTemplate.categories.map((cat: any) => {
+                                                                        const label = resolveText(cat.name_key, cat.name || cat.id);
+                                                                        return {
+                                                                           id: cat.id,
+                                                                           label: `${label} (${counts[cat.id] || 0})`,
+                                                                           searchText: label,
+                                                                           icon: resolveCategoryIcon(cat, resolveText, t)
+                                                                        };
+                                                                     })
+                                                                  ]}
+                                                               />
+                                                            </div>
+                                                         </>
+                                                      );
+                                                   })()}
+                                                </div>
+                                             )
+                                          }}
+                                          actions={[
+                                             ...((unsavedEditCount > 0 || hasUnsavedChanges) ? [{
+                                                id: "undo_unsaved",
+                                                icon: t("icon_undo", "undo"),
+                                                label: t("workbench_undo_all_unsaved", "Revert Edits"),
+                                                onClick: () => editorState.handleUndoAllUnsaved()
+                                             }] : []),
+                                             ...(modifiedCount > 0 ? [{
+                                                id: "reset_modified",
+                                                icon: t("icon_restart_alt", "restart_alt"),
+                                                label: t("workbench_reset_all_modified", "Reset Modified"),
+                                                onClick: handleResetAllModified
+                                             }] : [])
+                                          ]}
+                                       />
 
                                        {currentVisualTemplate?.categories && currentVisualTemplate.categories.length > 0 && (
                                           <WorkbenchCategoryBar

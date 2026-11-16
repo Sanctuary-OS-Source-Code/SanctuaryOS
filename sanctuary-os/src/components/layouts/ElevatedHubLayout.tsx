@@ -1,7 +1,7 @@
 import React from 'react';
 import { ActionPill } from '../../shared-components/alerts';
 import { DashboardStatTile, HeaderActionPortal, SidePanelContext } from '../../shared-components/layout';
-import { StatTileCarousel } from '../../hub-components/SharedCommandScreenLayout';
+import { CommandScreenSectionHeading, StatTileCarousel } from '../../hub-components/SharedCommandScreenLayout';
 import { useLexicon } from '../../LexiconContext';
 export {
   HubOverviewLanding,
@@ -78,6 +78,7 @@ interface ElevatedHubLayoutProps {
   // Customization
   className?: string;
   isHiddenTab?: boolean;
+  hideActiveTabHeading?: boolean;
 }
 
 export function ElevatedHubLayout({
@@ -108,6 +109,7 @@ export function ElevatedHubLayout({
   children,
   className = "",
   isHiddenTab = false,
+  hideActiveTabHeading = false,
   actions
 }: ElevatedHubLayoutProps) {
   const { t } = useLexicon();
@@ -126,6 +128,9 @@ export function ElevatedHubLayout({
   }, []);
 
   const isOverviewTab = activeTab === 'overview' || activeTab === 'LANDING';
+  const activeTabObj = !isOverviewTab && !hideActiveTabHeading
+    ? tabs.find((tab) => tab.id === activeTab)
+    : undefined;
   const hasActionPillContent = (!hideSearch && !!onSearchChange) || !!leftContent || !!headerActions || !!primaryPopover || Boolean(actions && actions.length > 0);
   const resolvedHideTitleBlock = hideTitleBlock ?? hasAncestorViewHeader;
   const shouldRenderTitleBlock = !hideHeader && !resolvedHideTitleBlock && Boolean(headerTitle);
@@ -306,7 +311,15 @@ export function ElevatedHubLayout({
         )}
 
         {/* Global Content Wrapper */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6 pb-12 md:pb-32">
+        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-4 pb-12 md:pb-32">
+          {activeTabObj && (
+            <CommandScreenSectionHeading
+              title={activeTabObj.label}
+              icon={activeTabObj.icon || headerIcon || t("icon_dashboard", "dashboard")}
+              iconColorClass={activeTabObj.colorClass || "text-[var(--accent)]"}
+              className="!mb-0"
+            />
+          )}
           {children}
         </div>
       </div>

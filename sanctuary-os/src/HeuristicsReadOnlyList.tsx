@@ -6,16 +6,59 @@ import { SidePanelHeroCard, SidePanelTitleInput } from './components/layouts/Ele
 import { UniversalGroup, UniversalInput, UniversalTextArea } from './components/universal/UniversalLayout';
 import { UniversalCard } from './components/universal/UniversalCard';
 
+export function formatHeuristicMatchType(
+  matchType: string | undefined,
+  t: (k: string, fb: string) => string
+): string {
+  const clean = String(matchType || "").trim().toLowerCase();
+  switch (clean) {
+    case "file_content_contains":
+      return t("comp_match_type_content_contains", "File Content (Contains)");
+    case "archive_entry_exact":
+      return t("comp_match_type_archive_exact", "Archive Entry (Exact)");
+    case "archive_entry_contains":
+      return t("comp_match_type_archive_contains", "Archive Entry (Contains)");
+    case "file_name_exact":
+      return t("comp_match_type_file_exact", "File Name (Exact)");
+    case "file_name_contains":
+      return t("comp_match_type_file_contains", "File Name (Contains)");
+    default:
+      return clean
+        ? clean
+            .replace(/[_-]+/g, " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase())
+            .trim()
+        : t("heuristics_pattern_label", "Pattern Match");
+  }
+}
+
+export function formatHeuristicSeverity(
+  severity: string | undefined,
+  t: (k: string, fb: string) => string
+): string {
+  const clean = String(severity || "").trim().toLowerCase();
+  if (clean === "malware") return t("rating_malware", "Malware");
+  if (clean === "explicit") return t("tier_1_label", "Adult / NSFW (T1)");
+  return clean
+    ? clean
+        .replace(/[_-]+/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+        .trim()
+    : t("rating_malware", "Malware");
+}
+
 export function HeuristicsReadOnlyList({
   onEditClick,
   search,
   scope = "spoke",
-  readOnly = false
+  readOnly = false,
+  leadCard,
 }: {
   onEditClick?: (sig: any) => void;
   search: string;
   scope?: "spoke" | "core";
   readOnly?: boolean;
+  leadCard?: React.ReactNode;
 }) {
   const { t } = useLexicon();
   const [signatures, setSignatures] = useState<any[]>([]);
@@ -56,36 +99,28 @@ export function HeuristicsReadOnlyList({
 
   return (
     <>
-      {readOnly && scope === "core" && (
-        <div className="glass-surface px-5 py-3.5 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] flex items-center gap-3 mb-2">
-          <span className="material-symbols-outlined !text-[18px] text-[var(--accent)] shrink-0">
-            {t("icon_shield_lock", "shield_lock")}
-          </span>
-          <span className="text-[11px] font-bold text-[var(--subtext)] tracking-wide">
-            {t("core_heuristics_readonly_notice", "Core OS heuristic definitions are governed globally by Keepers Core and are read-only at the Spoke level.")}
-          </span>
-        </div>
-      )}
-
       {loading ? (
         <EmptyState
           icon={t("icon_sync", "sync")}
           title={t("auto_loading_signatures", "Loading Signatures...")}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {leadCard}
           {filteredSignatures.map(sig => {
+            const matchTypeLabel = formatHeuristicMatchType(sig.match_type, t);
+            const severityLabel = formatHeuristicSeverity(sig.severity, t);
             return (
               <UniversalCard
                 key={sig.id}
                 layout="vertical"
                 className={!sig.enabled ? 'opacity-55' : ''}
                 icon={scope === "core" ? t("icon_shield_lock", "shield_lock") : t("icon_bug_report", "bug_report")}
-                subtitle={`${sig.severity || "rule"} • ${sig.match_type || "pattern"}`}
-                title={sig.signature}
+                subtitle={`${severityLabel} • ${matchTypeLabel}`}
+                title={<span className="font-mono normal-case">{sig.signature}</span>}
                 description={sig.notes || undefined}
                 bannerTopLabel={scope === "core" ? t("core_os_badge", "Core OS") : t("spoke_badge", "Spoke")}
-                bannerBottomLabel={sig.match_type || sig.severity}
+                bannerBottomLabel={matchTypeLabel}
                 badges={
                   <div className="flex items-center gap-1.5">
                     <span className={VAULT_CHIP_CLASS}>
@@ -119,14 +154,15 @@ export function HeuristicsReadOnlyList({
                       <span className="material-symbols-outlined !text-[14px]">
                         {readOnly ? t("icon_visibility", "visibility") : t("icon_edit", "edit")}
                       </span>
-                      {t("btn_inspect", "Inspect {Mod}")}
+                      <span>{readOnly || !onEditClick ? t("details", "Details") : t("edit", "Edit")}</span>
+                      <span className="text-base leading-none">&rarr;</span>
                     </span>
                   </div>
                 }
               />
             );
           })}
-          {filteredSignatures.length === 0 && (
+          {filteredSignatures.length === 0 && !leadCard && (
             <EmptyState icon={t("ui_icon_find_in_page", "find_in_page")} title={t("comp_no_heuristics", "No Heuristics Found")} className="col-span-full py-16" />
           )}
         </div>
@@ -180,13 +216,13 @@ export function HeuristicsReadOnlyList({
               <div className="grid grid-cols-2 gap-3 w-full">
                 <StatBox
                   label={t("comp_match_type", "Match Type")}
-                  value={inspectingSig.match_type || "--"}
+                  value={formatHeuristicMatchType(inspectingSig.match_type, t)}
                   icon={t("icon_account_tree", "account_tree")}
                   iconColorClass="text-[var(--accent)]"
                 />
                 <StatBox
                   label={t("label_severity", "Severity")}
-                  value={inspectingSig.severity || "--"}
+                  value={formatHeuristicSeverity(inspectingSig.severity, t)}
                   icon={t("icon_shield_lock", "shield_lock")}
                   iconColorClass={
                     inspectingSig.severity === "malware"
@@ -213,7 +249,7 @@ export function HeuristicsReadOnlyList({
               />
               <UniversalInput
                 label={t("comp_match_type", "Match Type")}
-                value={inspectingSig.match_type || ""}
+                value={formatHeuristicMatchType(inspectingSig.match_type, t)}
                 onChange={() => {}}
                 readOnly={true}
               />

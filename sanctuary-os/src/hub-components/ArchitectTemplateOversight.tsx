@@ -4,6 +4,7 @@ import { useLexicon } from "../LexiconContext";
 import { SidePanel, CustomDropdown, EmptyState, PanelHeaderGroup, PanelHeaderButton, StatBox, VAULT_CHIP_CLASS } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelHeroCard, SidePanelTitleInput, UniversalGroup } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../ContextMenu";
 import { DynamicTemplatePreviewBanner } from "../chameleon-components/ThemeCard";
 import TemplatePreviewer from "../TemplatePreviewer";
@@ -243,17 +244,38 @@ export default function ArchitectTemplateOversight() {
         );
     };
 
+    const renderTrackFileLeadCard = () => (
+        <LiquidGlassAlertCard
+            isAlertCard={false}
+            icon={t("icon_add_circle", "add_circle")}
+            accentVar="var(--accent)"
+            iconColorClass="text-[var(--accent)]"
+            badgeIcon={t("icon_description", "description")}
+            badgeLabel={t("ql_templates", "Templates")}
+            overline={t("architect_templates", "Template Oversight")}
+            title={t("template_track_file_title", "Track Config File")}
+            description={t(
+                "template_track_file_desc",
+                "Register a configuration filename for community Workbench templates."
+            )}
+            actionLabel={t("auto_create", "Add")}
+            actionIcon={t("icon_add", "add")}
+            actionVariant="glass"
+            onAction={() => setIsAddPanelOpen(true)}
+            onClick={() => setIsAddPanelOpen(true)}
+        />
+    );
+
     const renderLanding = () => (
         <HubOverviewLanding>
             <HubOverviewSection
                 icon={t("icon_description", "description")}
                 iconColorClass="text-[var(--accent)]"
                 title={t("recent_active_files", "Recent Active")}
-                isEmpty={trackedFiles.length === 0}
-                emptyIcon={t("icon_description", "description")}
-                emptyTitle={t("no_tracked_files", "No Active Files")}
+                isEmpty={false}
             >
-                {trackedFiles.slice(0, 4).map(renderTrackedFileCard)}
+                {renderTrackFileLeadCard()}
+                {trackedFiles.slice(0, 3).map(renderTrackedFileCard)}
             </HubOverviewSection>
 
             <HubOverviewSection
@@ -304,14 +326,6 @@ export default function ArchitectTemplateOversight() {
                         </div>
                     )
                 } : undefined}
-                actions={activeFilterTab !== 'overview' ? [
-                    {
-                        id: "add",
-                        icon: t("icon_add", "add"),
-                        label: t("auto_create", "Add"),
-                        onClick: () => setIsAddPanelOpen(true)
-                    }
-                ] : undefined}
             >
                 {activeFilterTab === 'overview' ? renderLanding() : (
                     <div className="flex flex-col gap-4 pb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -320,10 +334,11 @@ export default function ArchitectTemplateOversight() {
                                 icon={t("icon_sync", "sync")}
                                 title={t("intercepting", "Intercepting {Dispatches}...")}
                             />
-                        ) : processedFiles.length === 0 ? (
+                        ) : (activeFilterTab !== 'active' || Boolean(fileSearch.trim())) && processedFiles.length === 0 ? (
                             <EmptyState icon={t("icon_architecture", "architecture")} title={t("no_tracked_files", "No tracked files")} className="col-span-full py-16" />
                         ) : (
                             <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+                                {activeFilterTab === 'active' && !fileSearch.trim() && renderTrackFileLeadCard()}
                                 {processedFiles.map(renderTrackedFileCard)}
                             </div>
                         )}

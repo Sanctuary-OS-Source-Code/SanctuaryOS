@@ -31,6 +31,7 @@ import {
   executeHubTicketAction,
   claimOrReleaseHubTicket,
 } from "../../utils/hubCommandCache";
+import { NEXUS_ELIGIBLE_MOD_STATUSES } from "../../utils/nexusCatalogStats";
 
 interface MasonCommandSnapshot {
   stats: {
@@ -154,6 +155,8 @@ export function MasonCommandScreen({
             .from("blueprints")
             .select("id, name, game_version, created_at, downloads, is_public", { count: "exact" })
             .in("mason_id", ownerIds)
+            .eq("compliance_tier", 0)
+            .eq("has_pending_flag", false)
             .order("created_at", { ascending: false })
             .limit(4)
         : Promise.resolve({ data: [], count: 0 } as any),
@@ -169,6 +172,9 @@ export function MasonCommandScreen({
             .from("mods")
             .select("id, name, description, latest_version, status, sub_type, category_override, updated_at, created_at", { count: "exact" })
             .eq("mason_id", masonId)
+            .eq("compliance_tier", 0)
+            .eq("has_pending_flag", false)
+            .in("status", [...NEXUS_ELIGIBLE_MOD_STATUSES])
             .order("updated_at", { ascending: false })
         : Promise.resolve({ data: [], count: 0 } as any),
       isVerifiedMason && masonId
@@ -176,6 +182,8 @@ export function MasonCommandScreen({
             .from("collections")
             .select("id, name, set_type, status, created_at", { count: "exact" })
             .eq("mason_id", masonId)
+            .eq("compliance_tier", 0)
+            .eq("has_pending_flag", false)
             .order("created_at", { ascending: false })
             .limit(3)
         : Promise.resolve({ data: [], count: 0 } as any),
@@ -354,6 +362,18 @@ export function MasonCommandScreen({
     if (cached) setSnapshot(cached);
     refreshMasonDashboard();
   }, [cacheScope, refreshMasonDashboard]);
+
+  useEffect(() => {
+    const handleCatalogRefresh = () => {
+      refreshMasonDashboard();
+    };
+    window.addEventListener("sanctuary-compliance-updated", handleCatalogRefresh);
+    window.addEventListener("sanctuary-content-flagged", handleCatalogRefresh);
+    return () => {
+      window.removeEventListener("sanctuary-compliance-updated", handleCatalogRefresh);
+      window.removeEventListener("sanctuary-content-flagged", handleCatalogRefresh);
+    };
+  }, [refreshMasonDashboard]);
 
   const handleOpenReplyInPostViewer = async (rep: any) => {
     if (!rep?.post_id || !setViewingPost) return;

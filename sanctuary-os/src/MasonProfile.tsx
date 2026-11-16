@@ -41,6 +41,11 @@ import {
   LocalMasonSupporter,
 } from "./utils/supporterManager";
 import { UniversalGroup, UniversalInput } from "./components/universal/UniversalLayout";
+import {
+  isStrictTier0Value,
+  isNexusTier0EligibleMod,
+  pruneModsWithIneligibleAncestors,
+} from "./utils/nexusCatalogStats";
 
 const cleanModName = (raw: string) => {
   if (!raw) return { name: "Unknown Mod", ext: "UNKNOWN" };
@@ -202,6 +207,7 @@ export default function MasonProfile({
 
   const [selectedBlueprint, setSelectedBlueprint] = useState<any>(null);
   const [gameVersions, setGameVersions] = useState<string[]>([]);
+  const [complianceTick, setComplianceTick] = useState(0);
 
   const [masonAlerts, setMasonAlerts] = useState<Record<string, boolean>>(() =>
     JSON.parse(localStorage.getItem("sanctuary_mason_alerts") || "{}")
@@ -269,6 +275,8 @@ export default function MasonProfile({
         .from("mods")
         .select("*, mod_versions(dna_hash, version_label)")
         .eq("mason_id", masonId)
+        .eq("compliance_tier", 0)
+        .eq("has_pending_flag", false)
         .order("name");
 
       const [
@@ -289,22 +297,22 @@ export default function MasonProfile({
       ]);
 
       if (modsDataRaw) {
-        const blockedStatuses = new Set(["unverified", "under_review", "pending", "rejected", "unknown"]);
-        const filteredModsRaw = modsDataRaw.filter((m: any) => {
-          if (Number(m?.compliance_tier || 0) > 0) return false;
-          if (m?.has_pending_flag === true) return false;
-          const sLower = String(m?.status || "").toLowerCase().trim();
-          if (blockedStatuses.has(sLower)) return false;
+        const eligibleById = new Map<string, any>();
+        for (const m of modsDataRaw) {
+          if (!isNexusTier0EligibleMod(m)) continue;
           if (
             m.hash?.startsWith("dev_sandbox_") ||
-            m.status?.toLowerCase().includes("sandbox")
-          )
-            return false;
-          return true;
-        });
+            String(m.status || "").toLowerCase().includes("sandbox")
+          ) {
+            continue;
+          }
+          eligibleById.set(String(m.id), m);
+        }
+        pruneModsWithIneligibleAncestors(eligibleById, relationshipsRes?.data || []);
+        const filteredModsRaw = Array.from(eligibleById.values());
 
         const safeCollections = (collectionsRes?.data || []).filter(
-          (c: any) => Number(c?.compliance_tier || 0) === 0 && c?.has_pending_flag !== true
+          (c: any) => isStrictTier0Value(c?.compliance_tier) && c?.has_pending_flag !== true
         );
         const groupedMods = processModsIntoCollections(
           filteredModsRaw,
@@ -360,7 +368,7 @@ export default function MasonProfile({
 
         let newAssets = (assetsData || []).filter((a: any) => a?.has_pending_flag !== true);
         const visibleBlueprints = (blueprintsData || []).filter(
-          (b: any) => Number(b?.compliance_tier || 0) === 0 && b?.has_pending_flag !== true
+          (b: any) => isStrictTier0Value(b?.compliance_tier) && b?.has_pending_flag !== true
         );
         if (visibleBlueprints.length > 0) {
           const premiumMap = await enrichBlueprintsWithPremiumStatus(supabase, visibleBlueprints);
@@ -414,9 +422,12 @@ export default function MasonProfile({
       setLoading(false);
     }
     if (masonId) loadProfile();
-  }, [masonId]);
+  }, [masonId, complianceTick]);
 
   useEffect(() => {
+    const onComplianceUpdated = () => {
+      setComplianceTick((prev) => prev + 1);
+    };
     const onFlagged = (e: any) => {
       const targetType = String(e?.detail?.targetType || "").toLowerCase();
       const targetId = e?.detail?.targetId;
@@ -430,8 +441,12 @@ export default function MasonProfile({
         setMarketAssets((prev) => prev.filter((a: any) => String(a?.id) !== idStr));
       }
     };
+    window.addEventListener("sanctuary-compliance-updated", onComplianceUpdated);
     window.addEventListener("sanctuary-content-flagged", onFlagged);
-    return () => window.removeEventListener("sanctuary-content-flagged", onFlagged);
+    return () => {
+      window.removeEventListener("sanctuary-compliance-updated", onComplianceUpdated);
+      window.removeEventListener("sanctuary-content-flagged", onFlagged);
+    };
   }, []);
 
   const isOwner = userId === mason?.profile_id;

@@ -13,6 +13,7 @@ import {
   HubOverviewSection,
 } from "../components/layouts/ElevatedHubLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import { useLexicon, CORE_LEXICONS_CACHE_KEY } from "../LexiconContext";
 import { useStore } from "../store";
@@ -319,7 +320,7 @@ export function WayfinderChameleons({
           };
           try {
             localStorage.setItem(CORE_THEMES_CACHE_KEY, JSON.stringify(nextCore));
-          } catch {}
+          } catch { }
           return nextCore;
         });
 
@@ -346,7 +347,7 @@ export function WayfinderChameleons({
           const parsedCached = rawCached ? JSON.parse(rawCached) : {};
           parsedCached[editingThemeId] = { ...syncedThemeData, id: editingThemeId };
           localStorage.setItem(SPOKE_THEMES_CACHE_KEY, JSON.stringify(parsedCached));
-        } catch {}
+        } catch { }
       }
     } catch (err: any) {
       console.error(err);
@@ -554,7 +555,7 @@ export function WayfinderChameleons({
           const parsedCore = rawCore ? JSON.parse(rawCore) : {};
           parsedCore[fileId] = finalLexData;
           localStorage.setItem(CORE_LEXICONS_CACHE_KEY, JSON.stringify(parsedCore));
-        } catch {}
+        } catch { }
 
         if (import.meta.env.DEV) {
           const diskPayload: Record<string, any> = { ...finalLexData };
@@ -609,7 +610,7 @@ export function WayfinderChameleons({
         const stats = deepCompare(reference, parsed, true);
         validationStats = { total, ...stats };
       }
-    } catch {}
+    } catch { }
   }
 
   const addMissingStrings = () => {
@@ -748,20 +749,109 @@ export function WayfinderChameleons({
     },
     ...(canManageTitleArea
       ? [
-          {
-            id: "title_area",
-            label: t("keepers_tab_title_area", "Title Area"),
-            icon: t("icon_branding_watermark", "branding_watermark"),
-            number: "2",
-          },
-        ]
+        {
+          id: "title_area",
+          label: t("keepers_tab_title_area", "Title Area"),
+          icon: t("icon_branding_watermark", "branding_watermark"),
+          number: "2",
+        },
+      ]
       : []),
   ];
 
+  const handleImportThemeCard = async () => {
+    const res = await importThemeWithAssets({ t, pushStatus });
+    if (res?.theme) {
+      const id = `theme_${Date.now()}`;
+      const newTheme = { ...res.theme, id, is_active: true };
+      setCloudThemes((prev) => ({ ...prev, [id]: newTheme }));
+      setEditingThemeId(id);
+      setActiveEditingTheme(newTheme);
+      setOriginalThemeId(activeThemeId);
+      setHasChanges(true);
+    }
+  };
+
+  const renderOverviewLeadCard = () => (
+    <LiquidGlassAlertCard
+      isAlertCard={false}
+      icon={t("icon_add_circle", "add_circle")}
+      accentVar="var(--accent)"
+      iconColorClass="text-[var(--accent)]"
+      badgeIcon={t("icon_palette", "palette")}
+      badgeLabel={t("new", "New")}
+      overline={isKeepers ? t("keepers_tab_core_aesthetics", "Core Aesthetics") : t("wf_tab_spoke_aesthetics", "Spoke Aesthetics")}
+      title={t("tab_aesthetics", "Aesthetics")}
+      description={t(
+        "aesthetics_overview_lead_desc",
+        "Create a new {chameleon} theme or {lexicon} language pack."
+      )}
+      actionLabel={t("term_chameleon", "{Chameleon}")}
+      actionIcon={t("icon_palette", "palette")}
+      actionVariant="glass"
+      onAction={createNewTheme}
+      secondaryActionLabel={t("term_lexicon", "{Lexicon}")}
+      secondaryActionIcon={t("icon_translate", "translate")}
+      onSecondaryAction={() => setIsCreateLexiconOpen(true)}
+      onClick={createNewTheme}
+    />
+  );
+
+  const renderThemeLeadCard = () => (
+    <LiquidGlassAlertCard
+      isAlertCard={false}
+      icon={t("icon_add_circle", "add_circle")}
+      accentVar="var(--accent)"
+      iconColorClass="text-[var(--accent)]"
+      badgeIcon={t("icon_palette", "palette")}
+      badgeLabel={t("term_chameleons", "{Chameleons}")}
+      overline={t("term_chameleons", "{Chameleons}")}
+      title={t("chameleons_btn_new_theme", "New {Chameleon}")}
+      description={t(
+        "chameleon_lead_card_desc",
+        "Design a custom {chameleon} in Theme Forge or import a theme file."
+      )}
+      actionLabel={t("auto_create_file", "Create")}
+      actionIcon={t("icon_add", "add")}
+      actionVariant="glass"
+      onAction={createNewTheme}
+      secondaryActionLabel={t("btn_import", "Import")}
+      secondaryActionIcon={t("icon_upload", "upload")}
+      onSecondaryAction={handleImportThemeCard}
+      onClick={createNewTheme}
+    />
+  );
+
+  const renderLexiconLeadCard = () => (
+    <LiquidGlassAlertCard
+      isAlertCard={false}
+      icon={t("icon_add_circle", "add_circle")}
+      accentVar="var(--accent)"
+      iconColorClass="text-[var(--accent)]"
+      badgeIcon={t("icon_translate", "translate")}
+      badgeLabel={t("term_lexicons", "{Lexicons}")}
+      overline={t("term_lexicons", "{Lexicons}")}
+      title={t("chameleons_btn_new_lexicon", "New {Lexicon}")}
+      description={t(
+        "lexicon_create_lead_desc",
+        "Author a new {lexicon} pack or import an existing JSON dictionary."
+      )}
+      actionLabel={t("auto_create_file", "Create")}
+      actionIcon={t("icon_add", "add")}
+      actionVariant="glass"
+      onAction={() => setIsCreateLexiconOpen(true)}
+      secondaryActionLabel={t("btn_import", "Import")}
+      secondaryActionIcon={t("icon_upload", "upload")}
+      onSecondaryAction={handleImport}
+      onClick={() => setIsCreateLexiconOpen(true)}
+    />
+  );
+
   const renderOverview = () => {
     const recentThemes = allThemeEntries.slice(0, 2);
-    const recentLexicons = (lexiconFiles || []).slice(0, 2);
-    const hasRecent = recentThemes.length > 0 || recentLexicons.length > 0;
+    const lexiconSliceLimit =
+      recentThemes.length === 0 ? 3 : recentThemes.length === 1 ? 2 : 1;
+    const recentLexicons = (lexiconFiles || []).slice(0, lexiconSliceLimit);
     const hasAnomalies =
       unsavedLexicons.length > 0 ||
       inactiveThemeEntries.length > 0 ||
@@ -773,11 +863,10 @@ export function WayfinderChameleons({
           icon={t("icon_schedule", "schedule")}
           iconColorClass="text-[var(--accent)]"
           title={t("chameleons_overview_recent", "Recent")}
-          isEmpty={!hasRecent}
-          emptyIcon={t("icon_palette", "palette")}
-          emptyTitle={t("no_themes", "No {Chameleons} Found")}
+          isEmpty={false}
           gridClassName="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
+          {renderOverviewLeadCard()}
           {recentThemes.map(([id, theme]: any) => (
             <ThemeCard
               key={id}
@@ -835,9 +924,8 @@ export function WayfinderChameleons({
                   <div className="absolute top-2.5 left-3 flex flex-wrap gap-1.5 max-w-[75%] z-30 pointer-events-none">
                     <div className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
                       <span
-                        className={`material-symbols-outlined !text-[12px] ${
-                          isUnsaved ? "text-[var(--warning)]" : "text-[var(--accent)]"
-                        }`}
+                        className={`material-symbols-outlined !text-[12px] ${isUnsaved ? "text-[var(--warning)]" : "text-[var(--accent)]"
+                          }`}
                       >
                         {isUnsaved
                           ? t("icon_warning", "warning")
@@ -1003,152 +1091,107 @@ export function WayfinderChameleons({
       primaryPopover={
         activeTab === "chameleons"
           ? {
+            icon: t("icon_tune", "tune"),
+            label: t("filters", "Filters"),
+            content: (
+              <div className="flex flex-col w-[260px] p-4 max-w-[calc(100vw-40px)] gap-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                  {t("status", "Status")}
+                </span>
+                <CustomDropdown
+                  flat={true}
+                  variant="pill"
+                  disableTint={true}
+                  value={themeStatusFilter}
+                  onChange={(val: string[]) => setThemeStatusFilter(val[0] || "all")}
+                  options={[
+                    { id: "all", label: t("filter_all", "All") },
+                    { id: "active", label: t("status_active", "Active") },
+                    { id: "inactive", label: t("tab_inactive", "Inactive") },
+                  ]}
+                />
+              </div>
+            ),
+          }
+          : activeTab === "lexicons"
+            ? {
               icon: t("icon_tune", "tune"),
               label: t("filters", "Filters"),
               content: (
-                <div className="flex flex-col w-[260px] p-4 max-w-[calc(100vw-40px)] gap-3">
+                <div className="flex flex-col w-[270px] p-3 max-w-[calc(100vw-40px)] gap-3">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                    {t("status", "Status")}
+                    {t("scope", "Scope")}
                   </span>
                   <CustomDropdown
                     flat={true}
                     variant="pill"
                     disableTint={true}
-                    value={themeStatusFilter}
-                    onChange={(val: string[]) => setThemeStatusFilter(val[0] || "all")}
+                    value={lexiconScopeFilter}
+                    onChange={(val: string[]) =>
+                      setLexiconScopeFilter((val?.[0] as any) || "all")
+                    }
                     options={[
                       { id: "all", label: t("filter_all", "All") },
-                      { id: "active", label: t("status_active", "Active") },
-                      { id: "inactive", label: t("tab_inactive", "Inactive") },
+                      { id: "core", label: t("lex_studio_filter_core", "Official Core") },
+                      {
+                        id: "community",
+                        label: t("lex_studio_filter_community", "Community Packs"),
+                      },
+                      { id: "unsaved", label: t("unsaved_changes", "Unsaved") },
                     ]}
                   />
+                  {uniqueLexiconLanguages.length > 0 && (
+                    <>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mt-1">
+                        {t("language", "Language")}
+                      </span>
+                      <CustomDropdown
+                        flat={true}
+                        variant="pill"
+                        disableTint={true}
+                        value={lexiconLanguageFilter}
+                        onChange={(val: string[]) =>
+                          setLexiconLanguageFilter(val?.[0] || "all")
+                        }
+                        options={[
+                          { id: "all", label: t("all_languages", "All Languages") },
+                          ...uniqueLexiconLanguages.map((lang) => ({
+                            id: lang,
+                            label: lang,
+                          })),
+                        ]}
+                      />
+                    </>
+                  )}
+                  {uniqueLexiconCommunities.length > 0 && (
+                    <>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mt-1">
+                        {t("community", "Community")}
+                      </span>
+                      <CustomDropdown
+                        flat={true}
+                        variant="pill"
+                        disableTint={true}
+                        value={lexiconCommunityFilter}
+                        onChange={(val: string[]) =>
+                          setLexiconCommunityFilter(val?.[0] || "all")
+                        }
+                        options={[
+                          { id: "all", label: t("filter_all", "All") },
+                          ...uniqueLexiconCommunities.map((comm) => ({
+                            id: comm,
+                            label: comm,
+                          })),
+                        ]}
+                      />
+                    </>
+                  )}
                 </div>
               ),
             }
-          : activeTab === "lexicons"
-            ? {
-                icon: t("icon_tune", "tune"),
-                label: t("filters", "Filters"),
-                content: (
-                  <div className="flex flex-col w-[270px] p-3 max-w-[calc(100vw-40px)] gap-3">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
-                      {t("scope", "Scope")}
-                    </span>
-                    <CustomDropdown
-                      flat={true}
-                      variant="pill"
-                      disableTint={true}
-                      value={lexiconScopeFilter}
-                      onChange={(val: string[]) =>
-                        setLexiconScopeFilter((val?.[0] as any) || "all")
-                      }
-                      options={[
-                        { id: "all", label: t("filter_all", "All") },
-                        { id: "core", label: t("lex_studio_filter_core", "Official Core") },
-                        {
-                          id: "community",
-                          label: t("lex_studio_filter_community", "Community Packs"),
-                        },
-                        { id: "unsaved", label: t("unsaved_changes", "Unsaved") },
-                      ]}
-                    />
-                    {uniqueLexiconLanguages.length > 0 && (
-                      <>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mt-1">
-                          {t("language", "Language")}
-                        </span>
-                        <CustomDropdown
-                          flat={true}
-                          variant="pill"
-                          disableTint={true}
-                          value={lexiconLanguageFilter}
-                          onChange={(val: string[]) =>
-                            setLexiconLanguageFilter(val?.[0] || "all")
-                          }
-                          options={[
-                            { id: "all", label: t("all_languages", "All Languages") },
-                            ...uniqueLexiconLanguages.map((lang) => ({
-                              id: lang,
-                              label: lang,
-                            })),
-                          ]}
-                        />
-                      </>
-                    )}
-                    {uniqueLexiconCommunities.length > 0 && (
-                      <>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] mt-1">
-                          {t("community", "Community")}
-                        </span>
-                        <CustomDropdown
-                          flat={true}
-                          variant="pill"
-                          disableTint={true}
-                          value={lexiconCommunityFilter}
-                          onChange={(val: string[]) =>
-                            setLexiconCommunityFilter(val?.[0] || "all")
-                          }
-                          options={[
-                            { id: "all", label: t("filter_all", "All") },
-                            ...uniqueLexiconCommunities.map((comm) => ({
-                              id: comm,
-                              label: comm,
-                            })),
-                          ]}
-                        />
-                      </>
-                    )}
-                  </div>
-                ),
-              }
             : undefined
       }
       actions={[
-        {
-          id: "create_theme",
-          icon: (
-            <span className="material-symbols-outlined !text-[20px]">
-              {t("icon_palette", "palette")}
-            </span>
-          ),
-          label: t("chameleons_btn_new_theme", "New Theme") as string,
-          onClick: createNewTheme,
-        },
-        {
-          id: "create_lexicon",
-          icon: (
-            <span className="material-symbols-outlined !text-[20px]">
-              {t("icon_translate", "translate")}
-            </span>
-          ),
-          label: t("chameleons_btn_new_lexicon", "New Lexicon") as string,
-          onClick: () => setIsCreateLexiconOpen(true),
-        },
-        {
-          id: "import_lexicon",
-          icon: (
-            <span className="material-symbols-outlined !text-[20px]">
-              {t("icon_upload", "upload")}
-            </span>
-          ),
-          label: t("chameleons_btn_import_lexicon", "Import JSON") as string,
-          onClick: async () => {
-            if (activeTab === "themes") {
-              const res = await importThemeWithAssets({ t, pushStatus });
-              if (res?.theme) {
-                const id = `theme_${Date.now()}`;
-                const newTheme = { ...res.theme, id, is_active: true };
-                setCloudThemes((prev) => ({ ...prev, [id]: newTheme }));
-                setEditingThemeId(id);
-                setActiveEditingTheme(newTheme);
-                setOriginalThemeId(activeThemeId);
-                setHasChanges(true);
-              }
-            } else {
-              handleImport();
-            }
-          },
-        },
         {
           id: "refresh",
           icon: (
@@ -1171,7 +1214,7 @@ export function WayfinderChameleons({
       ) : activeTab === "overview" ? (
         renderOverview()
       ) : activeTab === "title_area" && canManageTitleArea ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full pb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full pb-16">
           {(() => {
             const hasTitleDraft = hasIdeCachedDraft("cloud://core-title-area");
 
@@ -1331,27 +1374,40 @@ export function WayfinderChameleons({
           setDeleteConfirmPath={setDeleteConfirmPath}
           handleDeleteFile={handleDeleteFile}
           openFiles={openFiles}
+          leadCard={
+            !searchQuery.trim() &&
+              lexiconScopeFilter === "all" &&
+              lexiconLanguageFilter === "all" &&
+              lexiconCommunityFilter === "all"
+              ? renderLexiconLeadCard()
+              : undefined
+          }
         />
-      ) : allThemeEntries.length === 0 ? (
-        <EmptyState
-          icon={t("icon_palette", "palette")}
-          title={t("no_themes", "No Cloud Themes")}
-          className="py-20"
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full pb-16">
-          {allThemeEntries
-            .filter(([, theme]: any) => {
-              if (
-                searchQuery &&
-                !(theme.name || "").toLowerCase().includes(searchQuery.toLowerCase())
-              )
-                return false;
-              if (themeStatusFilter === "active" && theme.is_active === false) return false;
-              if (themeStatusFilter === "inactive" && theme.is_active !== false) return false;
-              return true;
-            })
-            .map(([id, theme]: any) => (
+      ) : (() => {
+        const showThemeLead = !searchQuery.trim() && themeStatusFilter === "all";
+        const filteredThemeEntries = allThemeEntries.filter(([, theme]: any) => {
+          if (
+            searchQuery &&
+            !(theme.name || "").toLowerCase().includes(searchQuery.toLowerCase())
+          )
+            return false;
+          if (themeStatusFilter === "active" && theme.is_active === false) return false;
+          if (themeStatusFilter === "inactive" && theme.is_active !== false) return false;
+          return true;
+        });
+        if (!showThemeLead && filteredThemeEntries.length === 0) {
+          return (
+            <EmptyState
+              icon={t("icon_palette", "palette")}
+              title={t("no_themes", "No Cloud Themes")}
+              className="py-20"
+            />
+          );
+        }
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full pb-16">
+            {showThemeLead && renderThemeLeadCard()}
+            {filteredThemeEntries.map(([id, theme]: any) => (
               <ThemeCard
                 key={id}
                 id={id}
@@ -1367,8 +1423,9 @@ export function WayfinderChameleons({
                 setConfirmDelete={setConfirmDelete}
               />
             ))}
-        </div>
-      )}
+          </div>
+        );
+      })()}
 
       {/* Lexicon Editor Drawer */}
       <MasonEditorPanel

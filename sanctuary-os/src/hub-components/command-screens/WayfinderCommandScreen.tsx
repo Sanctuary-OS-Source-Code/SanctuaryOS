@@ -900,6 +900,7 @@ export function WayfinderCommandScreen({
             isSidePanel={true}
             isOpen={isAuditDrawerOpen}
             onClose={() => setIsAuditDrawerOpen(false)}
+            viewerScope="wayfinder"
           />
         )}
         {viewingPost && (

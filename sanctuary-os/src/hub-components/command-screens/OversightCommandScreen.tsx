@@ -225,7 +225,11 @@ export function OversightCommandScreen({
         .from("heuristic_signatures")
         .select("id", { count: "exact", head: true })
         .eq("enabled", true),
-      supabase.from("audit_logs").select("id", { count: "exact", head: true }),
+      supabase
+        .from("audit_logs")
+        .select("id", { count: "exact", head: true })
+        .or("target_table.is.null,target_table.not.in.(spoke_gateway_tokens,spoke_credentials,api_keys)")
+        .not("action", "ilike", "%Gateway Token%"),
       supabase
         .from("game_versions")
         .select("version")
@@ -891,6 +895,7 @@ export function OversightCommandScreen({
             isSidePanel={true}
             isOpen={isAuditDrawerOpen}
             onClose={() => setIsAuditDrawerOpen(false)}
+            viewerScope="oversight"
           />
         )}
       </Suspense>

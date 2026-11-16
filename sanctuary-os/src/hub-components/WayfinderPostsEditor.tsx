@@ -13,6 +13,7 @@ import {
   SidePanelHeroCard, UniversalGroup
 } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
+import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import MasonPostCard from "../MasonPostCard";
 import AssetPreviewSidebar from "../AssetPreviewSidebar";
 import MasonPostViewer from "../side-panels/MasonPostViewer";
@@ -593,6 +594,33 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
     return filteredPosts.map(renderPostCard);
   }, [filteredPosts, draftKeysStr, t]);
 
+  const renderNewDispatchLeadCard = () => {
+    const label = wayfinderDrafts['new']
+      ? t("action_unsaved_draft", "Resume Draft")
+      : t("post_broadcast", "New {Dispatch}");
+    return (
+      <LiquidGlassAlertCard
+        isAlertCard={false}
+        icon={t("icon_add_circle", "add_circle")}
+        accentVar="var(--accent)"
+        iconColorClass="text-[var(--accent)]"
+        badgeIcon={t("icon_cell_tower", "cell_tower")}
+        badgeLabel={t("wf_tab_dispatch", "Dispatches")}
+        overline={t("wf_tab_dispatch", "Dispatches")}
+        title={label}
+        description={t(
+          "dispatch_hub_desc",
+          "Broadcast system updates, alerts, and telemetry across the network."
+        )}
+        actionLabel={label}
+        actionIcon={t("icon_add", "add")}
+        actionVariant="glass"
+        onAction={() => openEditor()}
+        onClick={() => openEditor()}
+      />
+    );
+  };
+
   const renderLanding = () => {
     const activePosts = posts.filter(p => p.is_active !== false);
     const inactivePosts = posts.filter(p => p.is_active === false);
@@ -602,11 +630,10 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           icon={t("icon_check_circle", "check_circle")}
           iconColorClass="text-[var(--success)]"
           title={t("status_active", "Active Dispatches")}
-          isEmpty={activePosts.length === 0}
-          emptyIcon={t("icon_cell_tower", "cell_tower")}
-          emptyTitle={t("no_transmissions", "No {Dispatches} Found")}
+          isEmpty={false}
         >
-          {activePosts.slice(0, 4).map(renderPostCard)}
+          {renderNewDispatchLeadCard()}
+          {activePosts.slice(0, 3).map(renderPostCard)}
         </HubOverviewSection>
         <HubOverviewSection
           icon={t("icon_cancel", "cancel")}
@@ -678,27 +705,24 @@ export function WayfinderPostsEditor({ authorId, authorProfileId, handleOpenWayf
           )
         } : undefined
       }
-      actions={
-        filterStatus !== 'overview' ? [
-          {
-            id: "post",
-            icon: t("icon_cell_tower", "cell_tower"),
-            label: wayfinderDrafts['new'] ? t("action_unsaved_draft", "Resume Draft") : t("post_broadcast", "New {Dispatch}"),
-            onClick: () => openEditor()
-          }
-        ] : undefined
-      }
     >
-      {filterStatus === 'overview' ? renderLanding() : (
-        <>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
-            {postCards}
-          </div>
-          {filteredPosts.length === 0 && (
-            <EmptyState icon={t("icon_cell_tower", "cell_tower")} title={t("no_transmissions", "No {Dispatches} Found")} className="py-16" />
-          )}
-        </>
-      )}
+      {filterStatus === 'overview' ? renderLanding() : (() => {
+        const showLead =
+          filterStatus === "Active" && !searchTerm.trim() && filterCategory === "All";
+        return (
+          <>
+            {(showLead || filteredPosts.length > 0) && (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
+                {showLead && renderNewDispatchLeadCard()}
+                {postCards}
+              </div>
+            )}
+            {!showLead && filteredPosts.length === 0 && (
+              <EmptyState icon={t("icon_cell_tower", "cell_tower")} title={t("no_transmissions", "No {Dispatches} Found")} className="py-16" />
+            )}
+          </>
+        );
+      })()}
     </ElevatedHubLayout>
   );
 

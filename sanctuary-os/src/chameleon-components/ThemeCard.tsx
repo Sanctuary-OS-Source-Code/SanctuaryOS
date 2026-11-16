@@ -562,7 +562,7 @@ export function DynamicLexiconPreviewBanner({
         background: `radial-gradient(circle at 82% 22%, ${accentColor}2e 0%, transparent 62%), var(--glass-card-banner-bg)`,
       }}
     >
-      <div className="absolute inset-x-3 top-12 bottom-2.5 flex gap-2 pointer-events-none z-10">
+      <div className="absolute inset-x-3 top-[54px] bottom-2.5 flex gap-2 pointer-events-none z-10">
         {/* Mini Language Identity Tile */}
         <div className="w-16 h-full rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1.5 gap-1 shrink-0">
           <span
@@ -677,7 +677,7 @@ export const DynamicBlueprintPreviewBanner = React.memo(function DynamicBlueprin
           'radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--accent) 22%, transparent) 0%, transparent 62%), var(--glass-card-banner-bg)',
       }}
     >
-      <div className="absolute inset-x-3 top-12 bottom-3 flex gap-2 pointer-events-none z-10">
+      <div className="absolute inset-x-3 top-[54px] bottom-3 flex gap-2 pointer-events-none z-10">
         {/* Mini Blueprint Node Summary */}
         <div className="w-16 h-full rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1.5 gap-0.5 shrink-0">
           <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
@@ -764,7 +764,7 @@ export function DynamicTemplatePreviewBanner({
           'radial-gradient(circle at 80% 20%, rgba(245, 158, 11, 0.20) 0%, transparent 62%), var(--glass-card-banner-bg)',
       }}
     >
-      <div className="absolute inset-x-3 top-12 bottom-2.5 flex gap-2 pointer-events-none z-10">
+      <div className="absolute inset-x-3 top-[54px] bottom-2.5 flex gap-2 pointer-events-none z-10">
         {/* Mini Workbench Parser Tile */}
         <div className="w-16 h-full rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex flex-col items-center justify-center p-1.5 gap-0.5 shrink-0">
           <span className="material-symbols-outlined !text-[16px] text-[var(--warning)]">
@@ -817,12 +817,14 @@ export function DynamicArtifactPreviewBanner({
   icon,
   compact = false,
   heightClass = 'h-32',
+  noTopOverlay = false,
   children,
 }: {
   data: any;
   icon?: string;
   compact?: boolean;
   heightClass?: string;
+  noTopOverlay?: boolean;
   children?: React.ReactNode;
 }) {
   const { t } = useLexicon();
@@ -840,8 +842,9 @@ export function DynamicArtifactPreviewBanner({
   const moduleCount = Number(
     data?.familyCount || data?._familyChildrenCount || flavors.length || 0
   );
+  const isCollection = Boolean(data?.isCollection);
   const isSuite = Boolean(
-    data?.isVirtual || data?.isParent || data?.isCollection || moduleCount > 1
+    data?.isVirtual || data?.isParent || isCollection || moduleCount > 1
   );
   const isScript =
     !isSuite &&
@@ -874,11 +877,13 @@ export function DynamicArtifactPreviewBanner({
 
   const cleanVer = rawVer
     ? formatVerBadge(rawVer)
-    : isSuite && moduleCount > 1
-      ? `${moduleCount} ${t('pkg_short', 'MOD')}`
-      : isScript
-        ? t('scr_short_label', 'Script').toUpperCase()
-        : (useStore.getState().activeGameSchema?.extensions?.supported?.[0] || t('module', 'Module')).toUpperCase();
+    : isCollection
+      ? `${moduleCount} ${moduleCount === 1 ? t('term_mod', '{Mod}').toUpperCase() : t('term_mods', '{Mods}').toUpperCase()}`
+      : isSuite && moduleCount > 1
+        ? `${moduleCount} ${t('pkg_short', 'MOD')}`
+        : isScript
+          ? t('scr_short_label', 'Script').toUpperCase()
+          : (useStore.getState().activeGameSchema?.extensions?.supported?.[0] || t('module', 'Module')).toUpperCase();
 
   // Category / Role pill
   const categoryLabel = (() => {
@@ -929,6 +934,13 @@ export function DynamicArtifactPreviewBanner({
   const depCount = parseArrLen(data?.required_mods || data?.dependencies);
 
   const scopePill = (() => {
+    if (isCollection) {
+      return {
+        icon: t('icon_inventory_2', 'inventory_2'),
+        label: `${moduleCount}`,
+        color: moduleCount > 0 ? 'var(--accent)' : 'var(--subtext)',
+      };
+    }
     if (isSuite && moduleCount >= 1) {
       return {
         icon: t('icon_account_tree', 'account_tree'),
@@ -976,6 +988,9 @@ export function DynamicArtifactPreviewBanner({
         .filter(Boolean)
         .join(' • ');
     }
+    if (isCollection) {
+      return t('cc_no_assets_in_set', 'No assets in collection');
+    }
     const folderStr = String(data?.subfolder || data?.folder || '').trim();
     if (folderStr && folderStr !== '/' && folderStr !== '.') {
       return folderStr.replace(/^[\\/]+/, '');
@@ -987,9 +1002,12 @@ export function DynamicArtifactPreviewBanner({
     if (isSuite && moduleCount > 2) {
       return `+${moduleCount - 2}`;
     }
-    const creator = String(data?.author || data?.master_author || '').trim();
+    const creator = String(data?.author || data?.master_author || data?.creator_name || '').trim();
     if (creator && !creator.toLowerCase().includes('unknown')) {
-      return creator.slice(0, 12);
+      return creator.slice(0, 14);
+    }
+    if (isCollection) {
+      return t('collection', 'Collection').slice(0, 14);
     }
     return isScript ? t('scr_short', 'SCR') : t('pkg_short', 'PKG');
   })();
@@ -1017,8 +1035,15 @@ export function DynamicArtifactPreviewBanner({
       </span>
 
       <div
-        className={`absolute inset-x-3 ${compact ? 'top-[50px] h-11' : 'top-[52px] h-14'
-          } flex items-stretch gap-2 pointer-events-none z-10`}
+        className={`absolute inset-x-3 ${
+          noTopOverlay
+            ? compact
+              ? 'top-1/2 -translate-y-1/2 h-11'
+              : 'top-1/2 -translate-y-1/2 h-14'
+            : compact
+              ? 'top-[52px] h-11'
+              : 'top-[56px] h-[52px]'
+        } flex items-stretch gap-2 pointer-events-none z-10`}
       >
         {/* Left Artifact Identity Tile (1:1 Square) */}
         <div

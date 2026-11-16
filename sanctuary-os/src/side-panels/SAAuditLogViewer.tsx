@@ -25,7 +25,14 @@ import {
   HubOverviewLanding,
   HubOverviewSection,
 } from "../components/layouts/ElevatedHubLayout";
-import { parseAuditLogEntry, isCoreOnlyAuditRow } from "../lib/audit";
+import {
+  parseAuditLogEntry,
+  AuditViewerScope,
+  PUBLIC_ALLOWED_AUDIT_TABLES,
+  isAuditRowVisibleForScope,
+  formatAuditTableLabel,
+  formatAuditTargetLabel,
+} from "../lib/audit";
 
 const PAGE_SIZE = 24;
 
@@ -37,6 +44,7 @@ export function AuditLogViewer({
   isKeepers = false,
   forceHubLogs = false,
   embedded = false,
+  viewerScope,
   externalSearch,
   externalFilterAction,
   externalScopeFilter,
@@ -52,6 +60,7 @@ export function AuditLogViewer({
   isKeepers?: boolean;
   forceHubLogs?: boolean;
   embedded?: boolean;
+  viewerScope?: AuditViewerScope;
   externalSearch?: string;
   externalFilterAction?: string;
   externalScopeFilter?: string;
@@ -76,10 +85,38 @@ export function AuditLogViewer({
         osRole === "core_dev" ||
         osRole === "admin")
   );
+  const roleLower = String(userRole || "").toLowerCase();
+  const isSpokeWayfinderRole = ["wayfinder", "admin"].includes(roleLower);
+  const isSpokeStaffRole = [
+    "wayfinder",
+    "oversight",
+    "architect",
+    "senior_architect",
+    "admin",
+  ].includes(roleLower);
+
+  const effectiveViewerScope: AuditViewerScope = effectiveIsKeepers
+    ? "keepers"
+    : viewerScope
+      ? viewerScope === "wayfinder" && !isSpokeWayfinderRole
+        ? isSpokeStaffRole
+          ? "oversight"
+          : "public"
+        : viewerScope === "oversight" && !isSpokeStaffRole
+          ? "public"
+          : viewerScope
+      : hideEditIdentity
+        ? "public"
+        : isSpokeWayfinderRole
+          ? "wayfinder"
+          : isSpokeStaffRole
+            ? "oversight"
+            : "public";
+
   // Oversight are strictly Audit Log reviewers/exporters; destructive retention pruning belongs to Wayfinders (Spoke) or Keepers (Core Hub)
   const canManageRetention = Boolean(
     effectiveIsKeepers ||
-      ["wayfinder", "admin"].includes(String(userRole || "").toLowerCase())
+      (effectiveViewerScope === "wayfinder" && isSpokeWayfinderRole)
   );
 
   const [logs, setLogs] = useState<any[]>([]);
@@ -183,6 +220,19 @@ export function AuditLogViewer({
         } else if (effectiveScope !== "ALL") {
           query = query.eq("game_name", effectiveScope);
         }
+      } else if (effectiveViewerScope === "public") {
+        query = query
+          .in("target_table", [...PUBLIC_ALLOWED_AUDIT_TABLES])
+          .not("action", "ilike", "%Gateway Token%")
+          .not("action", "ilike", "%Support Ticket%")
+          .not("action", "ilike", "%Support Category%")
+          .not("action", "ilike", "%Log Source%");
+      } else if (effectiveViewerScope === "oversight") {
+        query = query
+          .or(
+            "target_table.is.null,target_table.not.in.(spoke_gateway_tokens,spoke_credentials,api_keys)"
+          )
+          .not("action", "ilike", "%Gateway Token%");
       }
 
       // Time window filter
@@ -233,12 +283,12 @@ export function AuditLogViewer({
       }
 
       // Client-side strict isolation guard:
-      // If not Keepers Core, strip any Core OS / Keeper-only rows (in case dev DB is shared)
+      // Strip Core OS / private key / internal rows depending on effectiveViewerScope
       const activeWs = workspaces?.find((w: any) => w.id === activeWorkspaceId);
       const isolatedLogs = effectiveIsKeepers
         ? rawLogs
         : rawLogs.filter((row: any) => {
-            if (isCoreOnlyAuditRow(row)) return false;
+            if (!isAuditRowVisibleForScope(row, effectiveViewerScope)) return false;
             if (
               row.game_name &&
               activeWs?.name &&
@@ -398,6 +448,7 @@ export function AuditLogViewer({
   }, [
     resolveTargetClient,
     effectiveIsKeepers,
+    effectiveViewerScope,
     effectiveScope,
     effectiveTimeRange,
     debouncedSearch,
@@ -467,6 +518,7 @@ export function AuditLogViewer({
   }, [isOpen, isInline, resolveTargetClient, effectiveIsKeepers, activeWorkspaceId]);
 
   const handleExportArchive = async (format: "json" | "csv") => {
+    if (effectiveViewerScope === "public") return;
     const client = resolveTargetClient();
     if (!client) return;
     setIsExporting(true);
@@ -478,7 +530,7 @@ export function AuditLogViewer({
         .limit(5000);
 
       const rows = (data || [])
-        .filter((r: any) => (effectiveIsKeepers ? true : !isCoreOnlyAuditRow(r)))
+        .filter((r: any) => isAuditRowVisibleForScope(r, effectiveViewerScope))
         .map((r: any) => {
           const parsed = parseAuditLogEntry(r);
           return {
@@ -806,7 +858,7 @@ export function AuditLogViewer({
                 cleanReason ||
                 t("audit_logs_desc", "System and user activity logs")
               }
-              badge={selectedLog.target_table || "system"}
+              badge={formatAuditTableLabel(selectedLog.target_table, t)}
               badgeIcon={t("icon_database", "database")}
               variant="accent"
             >
@@ -837,9 +889,8 @@ export function AuditLogViewer({
                 <StatBox
                   label={t("target", "Target")}
                   value={normalizeAllCapsForThemeCase(
-                    selectedLog.target_name ||
-                      selectedLog.target_table ||
-                      t("system", "System")
+                    formatAuditTargetLabel(selectedLog.target_name) ||
+                      formatAuditTableLabel(selectedLog.target_table, t)
                   )}
                   icon={t("icon_target", "my_location")}
                 />
@@ -868,11 +919,22 @@ export function AuditLogViewer({
                           </span>
                           <span>{chg.label}</span>
                         </span>
-                        <span className={`${VAULT_CHIP_CLASS} font-mono text-[var(--subtext)]`}>
-                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
-                            {t("icon_code", "code")}
+                        <span
+                          className={`${VAULT_CHIP_CLASS} ml-auto ${
+                            chg.from === undefined && chg.to !== undefined
+                              ? "!text-[var(--success)]"
+                              : chg.from !== undefined && chg.to === undefined
+                                ? "!text-[var(--danger)]"
+                                : "!text-[var(--accent)]"
+                          }`}
+                        >
+                          <span>
+                            {chg.from === undefined && chg.to !== undefined
+                              ? t("add", "Added")
+                              : chg.from !== undefined && chg.to === undefined
+                                ? t("remove", "Removed")
+                                : t("audit_new_value", "Updated")}
                           </span>
-                          <span>{chg.field}</span>
                         </span>
                       </div>
 
@@ -1053,9 +1115,8 @@ export function AuditLogViewer({
         layout="vertical"
         title={log.action || t("action", "Action")}
         subtitle={normalizeAllCapsForThemeCase(
-          log.target_name ||
-            log.target_table ||
-            t("system_event", "System Event")
+          formatAuditTargetLabel(log.target_name) ||
+            formatAuditTableLabel(log.target_table, t)
         )}
         icon={statusIcon}
         statusColor={statusBorderClass}
@@ -1105,7 +1166,7 @@ export function AuditLogViewer({
                 <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                   {t("icon_database", "database")}
                 </span>
-                <span className="font-mono">{log.target_table}</span>
+                <span>{formatAuditTableLabel(log.target_table, t)}</span>
               </div>
             )}
             <div className={VAULT_CHIP_CLASS}>
@@ -1279,10 +1340,9 @@ export function AuditLogViewer({
           <div className="flex flex-col gap-1 w-full">
             <span className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-85 truncate">
               {log.target_name && log.target_table
-                ? `${normalizeAllCapsForThemeCase(log.target_name)} • ${log.target_table}`
-                : normalizeAllCapsForThemeCase(log.target_name || "") ||
-                  log.target_table ||
-                  t("system_event", "System Event")}
+                ? `${normalizeAllCapsForThemeCase(formatAuditTargetLabel(log.target_name))} • ${formatAuditTableLabel(log.target_table, t)}`
+                : normalizeAllCapsForThemeCase(formatAuditTargetLabel(log.target_name)) ||
+                  formatAuditTableLabel(log.target_table, t)}
             </span>
             <h4 className="text-sm font-black text-[var(--text)] tracking-tight leading-snug m-0">
               {log.action || t("action", "Action")}
@@ -1372,21 +1432,25 @@ export function AuditLogViewer({
           iconColorClass="theme-text-accent"
           widthClass="w-[90vw] md:w-[860px]"
           headerActions={
-            <PanelHeaderGroup>
-              <PanelHeaderButton
-                icon={t("icon_download", "download")}
-                tooltip={t("audit_export_json", "Export Archive (JSON)")}
-                disabled={isExporting}
-                onClick={() => handleExportArchive("json")}
-              />
-              {canManageRetention && (
-                <PanelHeaderButton
-                  icon={t("icon_auto_delete", "auto_delete")}
-                  tooltip={t("audit_retention_btn", "Storage & Retention")}
-                  onClick={() => setIsRetentionOpen(true)}
-                />
-              )}
-            </PanelHeaderGroup>
+            effectiveViewerScope !== "public" || canManageRetention ? (
+              <PanelHeaderGroup>
+                {effectiveViewerScope !== "public" && (
+                  <PanelHeaderButton
+                    icon={t("icon_download", "download")}
+                    tooltip={t("audit_export_json", "Export Archive (JSON)")}
+                    disabled={isExporting}
+                    onClick={() => handleExportArchive("json")}
+                  />
+                )}
+                {canManageRetention && (
+                  <PanelHeaderButton
+                    icon={t("icon_auto_delete", "auto_delete")}
+                    tooltip={t("audit_retention_btn", "Storage & Retention")}
+                    onClick={() => setIsRetentionOpen(true)}
+                  />
+                )}
+              </PanelHeaderGroup>
+            ) : undefined
           }
         >
           <div className="flex flex-col gap-4 mt-2 relative z-10 w-full pb-8">
@@ -1591,24 +1655,32 @@ export function AuditLogViewer({
           number: totalCount.toString(),
         },
       ]}
-      actions={[
-        {
-          id: "audit_export",
-          icon: t("icon_download", "download"),
-          label: t("audit_export_json", "Export JSON"),
-          onClick: () => handleExportArchive("json"),
-        },
-        ...(canManageRetention
+      actions={
+        effectiveViewerScope !== "public" || canManageRetention
           ? [
-              {
-                id: "audit_retention",
-                icon: t("icon_auto_delete", "auto_delete"),
-                label: t("audit_retention_btn", "Storage & Retention"),
-                onClick: () => setIsRetentionOpen(true),
-              },
+              ...(effectiveViewerScope !== "public"
+                ? [
+                    {
+                      id: "audit_export",
+                      icon: t("icon_download", "download"),
+                      label: t("audit_export_json", "Export JSON"),
+                      onClick: () => handleExportArchive("json"),
+                    },
+                  ]
+                : []),
+              ...(canManageRetention
+                ? [
+                    {
+                      id: "audit_retention",
+                      icon: t("icon_auto_delete", "auto_delete"),
+                      label: t("audit_retention_btn", "Storage & Retention"),
+                      onClick: () => setIsRetentionOpen(true),
+                    },
+                  ]
+                : []),
             ]
-          : []),
-      ]}
+          : undefined
+      }
       primaryPopover={
         filterAction !== "overview"
           ? {
@@ -1673,7 +1745,7 @@ export function AuditLogViewer({
             title={t("chameleons_overview_recent", "Recent")}
             isEmpty={logs.length === 0 && !loading}
             emptyIcon={t("icon_history", "history")}
-            emptyTitle={t("no_logs", "No Activity Logs")}
+            emptyTitle={t("audit_no_logs", "No Audit Logs")}
             gridClassName="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
             {logs.slice(0, 4).map(renderAuditCard)}

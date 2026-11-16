@@ -8,6 +8,7 @@ import {
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import { UniversalGroup, UniversalTextArea, SidePanelHeroCard } from "../components/universal/UniversalLayout";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import { openSanctuaryContextMenu } from "../ContextMenu";
 import { logArchitectAction } from "../lib/audit";
 
@@ -180,6 +181,50 @@ export function GameManagementOversight() {
     ((sidePanelMode === 'add_version' || sidePanelMode === 'edit_version') && !panelInput1.trim()) ||
     ((sidePanelMode === 'add_dlc' || sidePanelMode === 'edit_dlc') && (!panelInput1.trim() || !panelInput2.trim()));
 
+  const renderVersionLeadCard = () => (
+    <LiquidGlassAlertCard
+      isAlertCard={false}
+      icon={t("icon_add_circle", "add_circle")}
+      accentVar="var(--accent)"
+      iconColorClass="text-[var(--accent)]"
+      badgeIcon={t("icon_gamepad", "gamepad")}
+      badgeLabel={t("sa_game_versions", "Game Versions")}
+      overline={t("sa_game_versions", "Game Versions")}
+      title={t("btn_register_patch_naked", "Register Patch")}
+      description={t(
+        "version_lead_card_desc",
+        "Register a new game version or build identifier in the catalog."
+      )}
+      actionLabel={t("btn_register_patch_naked", "Register Patch")}
+      actionIcon={t("icon_add", "add")}
+      actionVariant="glass"
+      onAction={() => openPanel("add_version")}
+      onClick={() => openPanel("add_version")}
+    />
+  );
+
+  const renderDlcLeadCard = () => (
+    <LiquidGlassAlertCard
+      isAlertCard={false}
+      icon={t("icon_add_circle", "add_circle")}
+      accentVar="var(--success)"
+      iconColorClass="text-[var(--success)]"
+      badgeIcon={t("icon_extension", "extension")}
+      badgeLabel={t("dlc_registry", "DLC Registry")}
+      overline={t("dlc_registry", "DLC Registry")}
+      title={t("panel_add_dlc", "Register DLC")}
+      description={t(
+        "dlc_lead_card_desc",
+        "Register an expansion pack or downloadable content identifier."
+      )}
+      actionLabel={t("panel_add_dlc", "Register DLC")}
+      actionIcon={t("icon_add", "add")}
+      actionVariant="glass"
+      onAction={() => openPanel("add_dlc")}
+      onClick={() => openPanel("add_dlc")}
+    />
+  );
+
   const renderVersionCard = (v: any) => (
     <UniversalCard
       key={v.version}
@@ -329,16 +374,6 @@ export function GameManagementOversight() {
           )
         } : undefined
       }
-      actions={
-        activeTab !== 'overview' ? [
-          {
-            id: "register",
-            icon: t("icon_add", "add"),
-            label: activeTab === 'versions' ? t("btn_register_patch_naked", "Register Patch") : t("panel_add_dlc", "Register DLC"),
-            onClick: () => openPanel(activeTab === 'versions' ? 'add_version' : 'add_dlc')
-          }
-        ] : undefined
-      }
     >
       <div className="flex flex-col gap-8">
 
@@ -348,37 +383,43 @@ export function GameManagementOversight() {
               icon={t("icon_gamepad", "gamepad")}
               iconColorClass="text-[var(--accent)]"
               title={t("sa_game_versions", "Game Versions")}
-              isEmpty={versions.length === 0}
-              emptyIcon={t("icon_gamepad", "gamepad")}
-              emptyTitle={t("no_versions", "No Game Versions")}
+              isEmpty={false}
             >
-              {versions.slice(0, 4).map(renderVersionCard)}
+              {renderVersionLeadCard()}
+              {versions.slice(0, 3).map(renderVersionCard)}
             </HubOverviewSection>
             <HubOverviewSection
               icon={t("icon_extension", "extension")}
               iconColorClass="text-[var(--success)]"
               title={t("dlc_registry", "DLC Registry")}
-              isEmpty={dlcs.length === 0}
-              emptyIcon={t("icon_extension", "extension")}
-              emptyTitle={t("no_dlc", "No DLC Packs")}
+              isEmpty={false}
             >
-              {dlcs.slice(0, 4).map(renderDlcCard)}
+              {renderDlcLeadCard()}
+              {dlcs.slice(0, 3).map(renderDlcCard)}
             </HubOverviewSection>
           </HubOverviewLanding>
         )}
 
         {activeTab === 'versions' && (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
-            {filteredVersions.map(renderVersionCard)}
-            {filteredVersions.length === 0 && <EmptyState icon={t("icon_gamepad", "gamepad")} title={t("no_versions", "No Game Versions")} className="col-span-full py-16" />}
-          </div>
+          !versionSearch.trim() || filteredVersions.length > 0 ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
+              {!versionSearch.trim() && renderVersionLeadCard()}
+              {filteredVersions.map(renderVersionCard)}
+            </div>
+          ) : (
+            <EmptyState icon={t("icon_gamepad", "gamepad")} title={t("no_versions", "No Game Versions")} className="col-span-full py-16" />
+          )
         )}
 
         {activeTab === 'dlc' && (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
-            {filteredDlcs.map(renderDlcCard)}
-            {filteredDlcs.length === 0 && <EmptyState icon={t("icon_extension_off", "extension_off")} title={t("no_dlc", "No DLC Packs")} className="col-span-full py-16" />}
-          </div>
+          (!dlcSearch.trim() && dlcTypeFilter === 'ALL') || filteredDlcs.length > 0 ? (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6 w-full">
+              {!dlcSearch.trim() && dlcTypeFilter === 'ALL' && renderDlcLeadCard()}
+              {filteredDlcs.map(renderDlcCard)}
+            </div>
+          ) : (
+            <EmptyState icon={t("icon_extension_off", "extension_off")} title={t("no_dlc", "No DLC Packs")} className="col-span-full py-16" />
+          )
         )}
 
       </div>

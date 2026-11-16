@@ -9,6 +9,7 @@ import {
 } from "./shared";
 import { HubOverviewSection } from "./components/universal/UniversalLayout";
 import { ElevatedHubLayout } from "./components/layouts/ElevatedHubLayout";
+import { LiquidGlassAlertCard } from "./components/BlueprintPatchReadiness";
 import MasonPostCard from "./MasonPostCard";
 import MasonPostViewer from "./side-panels/MasonPostViewer";
 import { PostEditorMode, UnifiedPostBodyEditor, PostAttachmentsManager } from "./components/universal/UnifiedPostEditor";
@@ -443,8 +444,30 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     });
   }, [filteredPosts, draftKeysStr, confirmDelete, t, setPreviewPost]);
 
+  const renderNewDispatchLeadCard = () => (
+    <LiquidGlassAlertCard
+      isAlertCard={false}
+      icon={t("icon_add_circle", "add_circle")}
+      accentVar="var(--accent)"
+      iconColorClass="text-[var(--accent)]"
+      badgeIcon={t("icon_cell_tower", "cell_tower")}
+      badgeLabel={t("tab_posts", "{Dispatches}")}
+      overline={t("tab_posts", "{Dispatches}")}
+      title={t("post_broadcast", "New {Dispatch}")}
+      description={t(
+        "mason_dispatch_lead_desc",
+        "Publish an update, release note, or announcement to your subscribers."
+      )}
+      actionLabel={t("post_broadcast", "New {Dispatch}")}
+      actionIcon={t("icon_add", "add")}
+      actionVariant="glass"
+      onAction={() => openEditor()}
+      onClick={() => openEditor()}
+    />
+  );
+
   const renderLanding = () => {
-    const recentPosts = posts.slice(0, 4);
+    const recentPosts = posts.slice(0, 3);
     const draftSet = new Set(draftKeysStr.split(','));
 
     return (
@@ -452,11 +475,10 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
         <HubOverviewSection
           title={t("title_recent_posts", "Recent {Dispatches}")}
           icon={t("icon_history", "history")}
-          isEmpty={recentPosts.length === 0}
-          emptyIcon={t("icon_cell_tower", "cell_tower")}
-          emptyTitle={t("no_transmissions", "No {Dispatches} Found")}
+          isEmpty={false}
           gridClassName="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-6"
         >
+          {renderNewDispatchLeadCard()}
           {recentPosts.map((post, index) => (
             <div key={post.id} className="w-full">
               <MasonPostCard layout="vertical"
@@ -513,24 +535,15 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={(id) => setActiveTab(id as string)}
-      actions={
-        activeTab !== 'overview' ? [
-          {
-            id: "post",
-            icon: t("icon_cell_tower", "cell_tower"),
-            label: t("post_broadcast", "New {Dispatch}"),
-            onClick: () => openEditor()
-          }
-        ] : undefined
-      }
     >
       <div className="w-full flex flex-col gap-10 pb-32">
         {activeTab === 'overview' ? (
           renderLanding()
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-8">
+            {activeTab === "active" && !searchTerm.trim() && renderNewDispatchLeadCard()}
             {postCards}
-            {filteredPosts.length === 0 && (
+            {(activeTab !== "active" || Boolean(searchTerm.trim())) && filteredPosts.length === 0 && (
               <EmptyState icon={t("icon_cell_tower", "cell_tower")} title={t("no_transmissions", "No {Dispatches} Found")} className="col-span-full py-16" />
             )}
           </div>

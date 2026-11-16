@@ -16,6 +16,7 @@ import {
   HoverTooltip,
 } from "../shared";
 import { UniversalCard } from "../components/universal/UniversalCard";
+import { LiquidGlassAlertCard } from "../components/BlueprintPatchReadiness";
 import { DynamicLexiconPreviewBanner } from "../chameleon-components/ThemeCard";
 
 export default function LexiconSidePanel({
@@ -351,11 +352,6 @@ export default function LexiconSidePanel({
               onClose();
             }}
           />
-          <PanelHeaderButton
-            icon={t("icon_download", "download")}
-            tooltip={t("btn_import", "Import")}
-            onClick={handleImportLexicon}
-          />
         </PanelHeaderGroup>
       }
     >
@@ -493,6 +489,27 @@ export default function LexiconSidePanel({
           icon={t("icon_grid_view", "grid_view")}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+            {!lexiconSearch.trim() && !selectedLibraryLang && !selectedLibraryCommunity && (
+              <LiquidGlassAlertCard
+                isAlertCard={false}
+                icon={t("icon_upload", "upload")}
+                accentVar="var(--accent)"
+                iconColorClass="text-[var(--accent)]"
+                badgeIcon={t("icon_translate", "translate")}
+                badgeLabel={t("term_lexicons", "{Lexicons}")}
+                overline={t("lexicon_title", "{Lexicon} Library")}
+                title={t("lexicon_import_card_title", "Import {Lexicon}")}
+                description={t(
+                  "lexicon_lead_card_desc",
+                  "Load a custom {lexicon} JSON pack from disk into your local library."
+                )}
+                actionLabel={t("btn_import", "Import")}
+                actionIcon={t("icon_upload", "upload")}
+                actionVariant="glass"
+                onAction={handleImportLexicon}
+                onClick={handleImportLexicon}
+              />
+            )}
             {allLexiconCodes
               .filter((code) => !favoriteLexicons.includes(code))
               .filter(

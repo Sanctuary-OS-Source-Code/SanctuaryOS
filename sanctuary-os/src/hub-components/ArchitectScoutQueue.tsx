@@ -14,6 +14,7 @@ import {
 import { ArtifactCard, VAULT_CHIP_CLASS } from "../Cards";
 import { CustomMasonDropdown } from "../ArchitectHub";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
+import { invalidateNexusCatalogCache } from "../utils/nexusCatalogStats";
 import {
   LabVerificationGate,
   checkDnaHashVerification,
@@ -515,6 +516,7 @@ export function ScoutQueue({ modList = [], setStatus }: { modList?: any[]; setSt
     }
 
     setActiveScout(null);
+    invalidateNexusCatalogCache({ dispatchEvent: true });
     await fetchSubmissions();
     setIsProcessing(false);
   };

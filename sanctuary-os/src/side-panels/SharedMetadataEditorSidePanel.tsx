@@ -18,10 +18,13 @@ import {
   HoverTooltip,
   openModDossier,
   toHighlanderSlotSlug,
+  VAULT_CHIP_CLASS,
+  fetchAllPaginated,
 } from "../shared";
 import ModStructureBuilder, { StructureNode } from "../ModStructureBuilder";
 import { CustomStatusDropdown, CustomMasonDropdown } from "../ArchitectHub";
 import { logArchitectAction, computeAuditDiff } from "../lib/audit";
+import { invalidateNexusCatalogCache } from "../utils/nexusCatalogStats";
 import { importIssueCauseFromLabReports } from "../components/KnownExceptionRules";
 
 export function SharedMetadataEditorSidePanel({
@@ -184,15 +187,18 @@ export function SharedMetadataEditorSidePanel({
   }, [modForm?.folder_structure]);
 
   useEffect(() => {
-    if (!masonsList && isOpen) {
-      supabase
-        .from("masons")
-        .select("id, name")
-        .then(({ data }) => {
-          if (data) setLocalMasonsList(data);
-        });
-    } else if (masonsList) {
+    const hasValidMasons =
+      Array.isArray(masonsList) &&
+      masonsList.length > 0 &&
+      masonsList.some((m: any) => Boolean(m?.name));
+    if (hasValidMasons) {
       setLocalMasonsList(masonsList);
+    } else if (isOpen) {
+      fetchAllPaginated(() =>
+        supabase.from("masons").select("id, name").order("name")
+      ).then(({ data }) => {
+        if (data) setLocalMasonsList(data);
+      });
     }
     if (isOpen) {
       supabase
@@ -248,10 +254,11 @@ export function SharedMetadataEditorSidePanel({
         highlander_group_id: modForm.highlander_group_id || null,
         updated_at: new Date().toISOString(),
       };
-      await supabase
+      const { error: modUpdateError } = await supabase
         .from("mods")
         .update(updatedPayload)
         .eq("id", modForm.id);
+      if (modUpdateError) throw modUpdateError;
       await logArchitectAction(
         shouldRoutePending ? "Flagged Mod for Oversight Compliance" : "Updated Mod Metadata",
         "mods",
@@ -272,12 +279,7 @@ export function SharedMetadataEditorSidePanel({
             "warning"
           );
       }
-      if (
-        shouldRoutePending ||
-        Number(originalMod?.compliance_tier ?? activeMod?.compliance_tier ?? 0) !== targetTier
-      ) {
-        window.dispatchEvent(new CustomEvent("sanctuary-compliance-updated"));
-      }
+      invalidateNexusCatalogCache({ dispatchEvent: true });
       if (onModUpdated) onModUpdated();
     } catch (err) {
       console.error(err);
@@ -603,12 +605,12 @@ export function SharedMetadataEditorSidePanel({
                           },
                         })
                       }
-                      className="px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase tracking-wider bg-transparent border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--accent)] hover:border-[var(--accent)] transition-colors flex items-center gap-1 cursor-pointer"
+                      className={`${VAULT_CHIP_CLASS} sa-glass-pill-hover cursor-pointer`}
                     >
-                      <span className="material-symbols-outlined !text-[12px]">
+                      <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
                         {t("icon_science", "science")}
                       </span>
-                      {t("import_from_lab_reports", "Import from {Lab} Reports")}
+                      <span>{t("import_from_lab_reports", "Import from {Lab} Reports")}</span>
                     </button>
                   )}
                 </div>
@@ -684,7 +686,7 @@ export function SharedMetadataEditorSidePanel({
                     <button
                       type="button"
                       onClick={() => openModDossier({ ...parentRel.mod, isNexusView: true })}
-                      className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:border-[var(--accent)] text-[11px] font-bold text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer relative group/fam"
+                      className="h-8 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_28%,transparent)] text-[11px] font-bold text-[var(--text)] flex items-center gap-1.5 transition-all cursor-pointer relative group/fam"
                     >
                       <span className="text-[9px] font-black uppercase tracking-wider text-[var(--accent)]">
                         {t("studio_parent_mod_title", "Parent / Main {Mod}")}:

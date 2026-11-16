@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLexicon } from '../LexiconContext';
 import { CustomDropdown, ActionPill, EmptyState, VAULT_CHIP_CLASS, HoverTooltip } from '../shared';
 import IconPicker from '../IconPicker';
-import { humanizeConfigLabel } from './WorkbenchVisualEditor';
+import { humanizeConfigLabel, resolveCategoryIcon } from './WorkbenchVisualEditor';
 
 interface WorkbenchTemplateBuilderProps {
    parsedData: any;
@@ -825,10 +825,10 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
 
                   {/* Group Nested Settings Builder */}
                   {setting.type === "group" && !isChild && (
-                     <div className="flex flex-col gap-3 glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                     <div className="flex flex-col gap-3 glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_12%,transparent)]">
                         <div className="flex flex-col gap-2">
-                           <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] flex items-center gap-1.5">
-                              <span className="material-symbols-outlined !text-[15px]">{t("icon_account_tree", "account_tree")}</span>
+                           <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] flex items-center gap-1.5">
+                              <span className="material-symbols-outlined !text-[15px] text-[var(--accent)]">{t("icon_account_tree", "account_tree")}</span>
                               {t("workbench_group_children", "Grouped Settings")} ({(setting.settings || []).length})
                            </span>
                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full">
@@ -837,7 +837,7 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                                     key={ct.id}
                                     type="button"
                                     onClick={() => handleAddSetting(ct.id, idx)}
-                                    className="h-9 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-between gap-2 text-[11px] font-bold tracking-wide transition-all cursor-pointer min-w-0"
+                                    className="h-9 px-3 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_26%,transparent)] text-[var(--text)] flex items-center justify-between gap-2 text-[11px] font-bold tracking-wide transition-all cursor-pointer min-w-0"
                                  >
                                     <div className="flex items-center gap-2 min-w-0">
                                        <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">{ct.icon}</span>
@@ -950,58 +950,78 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                      </button>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                      {categories.map((cat: any, cIdx: number) => {
                         const count = settingsList.filter((s) => s.category === cat.id).length;
-                        const iconName = resolveIconGlyph(cat.icon_key, cat.icon || "folder");
+                        const iconName = resolveCategoryIcon(cat, resolveText, t);
                         const labelName = resolveText(cat.name_key, cat.name || cat.id);
+                        const isCatEditing = editingCategoryIndex === cIdx;
 
                         return (
                            <div
                               key={cat.id || cIdx}
-                              className={`h-8 pl-2.5 pr-1.5 rounded-xl border glass-surface text-[var(--text)] flex items-center gap-1.5 transition-colors ${
-                                 editingCategoryIndex === cIdx
-                                    ? 'sa-glass-pill-active'
-                                    : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)]'
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
+                                 setEditingCategoryIndex(isCatEditing ? null : cIdx);
+                                 setShowCategoryIconPicker(false);
+                              }}
+                              onKeyDown={(e) => {
+                                 if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    setEditingCategoryIndex(isCatEditing ? null : cIdx);
+                                    setShowCategoryIconPicker(false);
+                                 }
+                              }}
+                              className={`h-10 px-2.5 rounded-xl border glass-surface flex items-center justify-between gap-2 min-w-0 cursor-pointer transition-all ${
+                                 isCatEditing
+                                    ? 'sa-glass-pill-active !opacity-100 !border-[color-mix(in_srgb,var(--text)_42%,transparent)] text-[var(--text)]'
+                                    : 'opacity-75 hover:opacity-100 border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[var(--text)]'
                               }`}
                            >
-                              <span className="material-symbols-outlined !text-[14px] text-[var(--accent)]">{iconName}</span>
-                              <span className="text-[10px] font-black tracking-wider">{labelName}</span>
-                              <span className="text-[9px] opacity-60 tabular-nums">{count}</span>
-                              <button
-                                 type="button"
-                                 onClick={() => {
-                                    setEditingCategoryIndex(editingCategoryIndex === cIdx ? null : cIdx);
-                                    setShowCategoryIconPicker(false);
-                                 }}
-                                 className="w-5 h-5 rounded-md hover:bg-[color-mix(in_srgb,var(--text)_10%,transparent)] flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer ml-0.5"
-                              >
-                                 <span className="material-symbols-outlined !text-[12px]">{t("icon_edit", "edit")}</span>
-                              </button>
-                              {categories.length > 1 && (
-                                 <button
-                                    type="button"
-                                    onClick={() => {
-                                       commitTemplate((draft) => {
-                                          const removed = draft.categories.splice(cIdx, 1)[0];
-                                          const fallbackCat = draft.categories[0]?.id || "general";
-                                          if (removed && Array.isArray(draft.settings)) {
-                                             draft.settings.forEach((s: any) => {
-                                                if (s.category === removed.id) s.category = fallbackCat;
-                                             });
-                                          }
-                                       });
-                                       if (activeCategoryFilter === cat.id) setActiveCategoryFilter("ALL");
-                                       if (editingCategoryIndex === cIdx) {
-                                          setEditingCategoryIndex(null);
-                                          setShowCategoryIconPicker(false);
-                                       }
-                                    }}
-                                    className="w-5 h-5 rounded-md hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] flex items-center justify-center opacity-70 hover:opacity-100 cursor-pointer"
+                              <div className="flex items-center gap-2 min-w-0">
+                                 <span
+                                    className={`w-6 h-6 rounded-lg border flex items-center justify-center shrink-0 transition-colors ${
+                                       isCatEditing
+                                          ? 'bg-[color-mix(in_srgb,var(--accent)_20%,rgba(255,255,255,0.1))] border-[color-mix(in_srgb,var(--accent)_55%,rgba(255,255,255,0.4))] text-[var(--accent)]'
+                                          : 'bg-[color-mix(in_srgb,var(--text)_5%,transparent)] border-[color-mix(in_srgb,var(--text)_10%,transparent)] text-[var(--subtext)]'
+                                    }`}
                                  >
-                                    <span className="material-symbols-outlined !text-[12px]">{t("icon_close", "close")}</span>
-                                 </button>
-                              )}
+                                    <span className="material-symbols-outlined !text-[14px]">{iconName}</span>
+                                 </span>
+                                 <span className={`text-[11px] truncate ${isCatEditing ? 'font-black' : 'font-semibold'}`}>
+                                    {labelName}
+                                 </span>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                 <span className="text-[10px] font-bold opacity-65 tabular-nums px-1">{count}</span>
+                                 <span className="material-symbols-outlined !text-[13px] opacity-65">{t("icon_edit", "edit")}</span>
+                                 {categories.length > 1 && (
+                                    <button
+                                       type="button"
+                                       onClick={(e) => {
+                                          e.stopPropagation();
+                                          commitTemplate((draft) => {
+                                             const removed = draft.categories.splice(cIdx, 1)[0];
+                                             const fallbackCat = draft.categories[0]?.id || "general";
+                                             if (removed && Array.isArray(draft.settings)) {
+                                                draft.settings.forEach((s: any) => {
+                                                   if (s.category === removed.id) s.category = fallbackCat;
+                                                });
+                                             }
+                                          });
+                                          if (activeCategoryFilter === cat.id) setActiveCategoryFilter("ALL");
+                                          if (editingCategoryIndex === cIdx) {
+                                             setEditingCategoryIndex(null);
+                                             setShowCategoryIconPicker(false);
+                                          }
+                                       }}
+                                       className="w-5 h-5 rounded-md hover:bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)] flex items-center justify-center opacity-75 hover:opacity-100 cursor-pointer"
+                                    >
+                                       <span className="material-symbols-outlined !text-[13px]">{t("icon_close", "close")}</span>
+                                    </button>
+                                 )}
+                              </div>
                            </div>
                         );
                      })}
@@ -1056,10 +1076,10 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
                            <button
                               type="button"
                               onClick={() => setShowCategoryIconPicker(!showCategoryIconPicker)}
-                              className={`h-8 w-full glass-surface rounded-lg px-2.5 border flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                              className={`h-8 w-full glass-surface rounded-lg px-2.5 border flex items-center justify-between gap-2 transition-all cursor-pointer text-[var(--text)] ${
                                  showCategoryIconPicker
-                                    ? '!border-[color-mix(in_srgb,var(--accent)_50%,transparent)] text-[var(--accent)]'
-                                    : 'border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_35%,transparent)] text-[var(--text)]'
+                                    ? 'sa-glass-pill-active'
+                                    : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]'
                               }`}
                            >
                               <div className="flex items-center gap-2 min-w-0">
@@ -1173,71 +1193,135 @@ export const WorkbenchTemplateBuilder: React.FC<WorkbenchTemplateBuilderProps> =
          </div>
 
          {/* 2. Search & Filter ActionPill + Symmetrical 2x4 Insert Grid */}
-         <div className="flex flex-col gap-2.5">
+         <div className="flex flex-col gap-3">
             <ActionPill
-               className="w-full"
+               className="!max-w-none w-full"
                searchQuery={builderSearch}
                setSearchQuery={setBuilderSearch}
                searchPlaceholder={t("workbench_search_builder", "Search template fields...")}
-               rightContent={
-                  <div className="flex items-center gap-2 px-2.5 h-full py-1.5">
-                     <CustomDropdown
-                        disableTint={true}
-                        className="h-9"
-                        buttonClassName="!h-9 !px-3.5 !rounded-xl glass-surface !border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)] !text-[11px] font-bold"
-                        value={activeCategoryFilter}
-                        options={[
-                           { id: "ALL", label: `${t("cat_all", "All")} (${settingsList.length})`, icon: t("icon_grid_view", "grid_view") },
-                           ...categories.map((cat: any) => ({
-                              id: cat.id,
-                              label: `${resolveText(cat.name_key, cat.name || cat.id)} (${settingsList.filter(s => s.category === cat.id).length})`,
-                              icon: resolveText(cat.icon_key, cat.icon || "folder")
-                           }))
-                        ]}
-                        onChange={(val: string[]) => setActiveCategoryFilter(val[0])}
-                     />
-                  </div>
-               }
+               primaryPopover={{
+                  icon: t("icon_tune", "tune"),
+                  label: t("filters", "Filters"),
+                  isActive: activeCategoryFilter !== "ALL",
+                  content: (
+                     <div className="flex flex-col w-[320px] p-4 max-w-[calc(100vw-40px)] gap-3">
+                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+                           <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)]">
+                              {t("filters", "Filters")}
+                           </span>
+                           {activeCategoryFilter !== "ALL" && (
+                              <button
+                                 type="button"
+                                 onClick={() => setActiveCategoryFilter("ALL")}
+                                 className="sa-dropdown-action-chip px-2.5 h-6 text-[9px] font-bold uppercase tracking-wider cursor-pointer shrink-0"
+                              >
+                                 {t("reset", "Reset")}
+                              </button>
+                           )}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                           <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                              {t("category", "Category")}
+                           </span>
+                           <CustomDropdown
+                              disableTint={true}
+                              searchable={true}
+                              searchPlaceholder={t("btn_search", "Search...")}
+                              value={activeCategoryFilter}
+                              onChange={(val: string[]) => setActiveCategoryFilter(val[0] || "ALL")}
+                              options={[
+                                 {
+                                    id: "ALL",
+                                    label: `${t("cat_all", "All Settings")} (${settingsList.length})`,
+                                    icon: t("icon_grid_view", "grid_view")
+                                 },
+                                 ...categories.map((cat: any) => {
+                                    const label = resolveText(cat.name_key, cat.name || cat.id);
+                                    return {
+                                       id: cat.id,
+                                       label: `${label} (${settingsList.filter(s => s.category === cat.id).length})`,
+                                       searchText: label,
+                                       icon: resolveCategoryIcon(cat, resolveText, t)
+                                    };
+                                 })
+                              ]}
+                           />
+                        </div>
+                     </div>
+                  )
+               }}
             />
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-               {typeOptions.map((opt) => (
+            {activeCategoryFilter !== "ALL" && (() => {
+               const activeCatObj = categories.find((c: any) => c.id === activeCategoryFilter);
+               const activeCatLabel = activeCatObj
+                  ? resolveText(activeCatObj.name_key, activeCatObj.name || activeCatObj.id)
+                  : activeCategoryFilter;
+               const activeCatIcon = activeCatObj
+                  ? resolveCategoryIcon(activeCatObj, resolveText, t)
+                  : t("icon_category", "category");
+               return (
+                  <div className="flex items-center justify-between gap-2 px-1">
+                     <span className={VAULT_CHIP_CLASS}>
+                        <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                           {activeCatIcon}
+                        </span>
+                        <span>{activeCatLabel}</span>
+                     </span>
+                     <button
+                        type="button"
+                        onClick={() => setActiveCategoryFilter("ALL")}
+                        className="sa-dropdown-action-chip px-2.5 h-6 text-[10px] font-bold uppercase tracking-wider cursor-pointer shrink-0"
+                     >
+                        {t("clear", "Clear")}
+                     </button>
+                  </div>
+               );
+            })()}
+
+            <div className="flex flex-col gap-2">
+               <span className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)] opacity-80 px-0.5">
+                  {t("workbench_add_parameter", "Add Parameter")}
+               </span>
+               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {typeOptions.map((opt) => (
+                     <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleAddSetting(opt.id, null)}
+                        className="h-9 px-3 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_26%,transparent)] text-[var(--text)] flex items-center justify-between gap-2 text-[11px] font-bold tracking-wide transition-all cursor-pointer min-w-0"
+                     >
+                        <div className="flex items-center gap-2 min-w-0">
+                           <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">{opt.icon}</span>
+                           <span className="truncate">{opt.label}</span>
+                        </div>
+                        <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)] opacity-60 shrink-0">{t("icon_add", "add")}</span>
+                     </button>
+                  ))}
                   <button
-                     key={opt.id}
                      type="button"
-                     onClick={() => handleAddSetting(opt.id, null)}
-                     className="h-9 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-between gap-2 text-[11px] font-bold tracking-wide transition-all cursor-pointer min-w-0"
+                     onClick={() => {
+                        setShowCategoriesDrawer(true);
+                        commitTemplate((draft) => {
+                           const nextNum = draft.categories.length + 1;
+                           draft.categories.push({
+                              id: `category_${nextNum}`,
+                              name_key: `Category ${nextNum}`,
+                              icon_key: "folder"
+                           });
+                           setEditingCategoryIndex(draft.categories.length - 1);
+                           setShowCategoryIconPicker(false);
+                        });
+                     }}
+                     className="h-9 px-3 rounded-xl glass-surface sa-glass-pill-hover border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--text)_26%,transparent)] text-[var(--text)] flex items-center justify-between gap-2 text-[11px] font-bold tracking-wide transition-all cursor-pointer min-w-0"
                   >
                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">{opt.icon}</span>
-                        <span className="truncate">{opt.label}</span>
+                        <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">{t("icon_create_new_folder", "create_new_folder")}</span>
+                        <span className="truncate">{t("category", "Category")}</span>
                      </div>
                      <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)] opacity-60 shrink-0">{t("icon_add", "add")}</span>
                   </button>
-               ))}
-               <button
-                  type="button"
-                  onClick={() => {
-                     setShowCategoriesDrawer(true);
-                     commitTemplate((draft) => {
-                        const nextNum = draft.categories.length + 1;
-                        draft.categories.push({
-                           id: `category_${nextNum}`,
-                           name_key: `Category ${nextNum}`,
-                           icon_key: "folder"
-                        });
-                        setEditingCategoryIndex(draft.categories.length - 1);
-                        setShowCategoryIconPicker(false);
-                     });
-                  }}
-                  className="h-9 px-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:!border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--text)] hover:text-[var(--accent)] flex items-center justify-between gap-2 text-[11px] font-bold tracking-wide transition-all cursor-pointer min-w-0"
-               >
-                  <div className="flex items-center gap-2 min-w-0">
-                     <span className="material-symbols-outlined !text-[15px] text-[var(--accent)] shrink-0">{t("icon_create_new_folder", "create_new_folder")}</span>
-                     <span className="truncate">{t("category", "Category")}</span>
-                  </div>
-                  <span className="material-symbols-outlined !text-[14px] text-[var(--subtext)] opacity-60 shrink-0">{t("icon_add", "add")}</span>
-               </button>
+               </div>
             </div>
          </div>
 

@@ -1569,11 +1569,12 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
             }
           }
           const baseFamKey = myBossId ? String(myBossId).split("@")[0] : "";
+          const canInheritParentSlot = myRelType === "twin" || myRelType === "beta";
           const dbGroupId =
             (!isRestrictedCloud && effectiveDbMod?.highlander_group_id
               ? String(effectiveDbMod.highlander_group_id)
               : "") ||
-            (baseFamKey && parentNameMap[baseFamKey]?.highlander_group_id
+            (canInheritParentSlot && baseFamKey && parentNameMap[baseFamKey]?.highlander_group_id
               ? String(parentNameMap[baseFamKey].highlander_group_id)
               : "") ||
             (myFlavor?.group_id ? String(myFlavor.group_id) : "");

@@ -124,14 +124,6 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
 
    const headerPillActions = React.useMemo(() => {
       const list: any[] = [];
-      if (mainTab === "TEMPLATES") {
-         list.push({
-            id: "new_template",
-            icon: t("icon_add", "add"),
-            label: t("btn_new_template", "New Template"),
-            onClick: () => fileState.handleNewTemplate(true)
-         });
-      }
       if (
          (mainTab === "CONFIGS" && unsavedConfigsCount > 0) ||
          (mainTab === "TEMPLATES" && unsavedTemplatesCount > 0) ||
@@ -343,11 +335,17 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
             )}
 
             {mainTab !== "COMMAND" && (
-               <div className="flex flex-col gap-0 min-h-max w-full">
+               <div className="flex flex-col gap-4 min-h-max w-full">
+                  <CommandScreenSectionHeading
+                     title={mainTab === "CONFIGS" ? t("configs", "Configs") : t("ql_templates", "Templates")}
+                     icon={mainTab === "CONFIGS" ? t("icon_settings", "settings") : t("icon_data_object", "data_object")}
+                     className="!mb-0"
+                  />
                   <div className="flex-1 pb-10">
                      <WorkbenchFileGrid
                         filteredMainFiles={gridFilter === "ALL" ? fileState.filteredMainFiles : fileState.filteredMainFiles.filter((f: any) => unsavedEdits && unsavedEdits[f.path] !== undefined)}
                         mainTab={mainTab}
+                        showCreateLead={mainTab === "TEMPLATES" && !mainSearchQuery.trim() && gridFilter === "ALL"}
                         renamingFile={fileState.renamingFile}
                         renameInput={fileState.renameInput}
                         deleteConfirmPath={fileState.deleteConfirmPath}
