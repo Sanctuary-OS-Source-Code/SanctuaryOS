@@ -1,5 +1,7 @@
 import ReactDOM from "react-dom/client";
 import "material-symbols/outlined.css";
+import "material-symbols/rounded.css";
+import "./fonts.css";
 import "./index.css";
 import "./theme-radius.css";
 import App from "./App";

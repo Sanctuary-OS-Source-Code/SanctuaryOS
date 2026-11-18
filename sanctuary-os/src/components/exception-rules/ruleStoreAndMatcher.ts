@@ -250,48 +250,62 @@ export function extractSuggestedPatternFromLog(
     return { pattern: "", title: "", fileHint: defaultHint };
   }
 
-  const catMatch = logText.match(/<categoryid>([^<]+)<\/categoryid>/i);
-  const desyncMatch = logText.match(/<desyncdata>([\s\S]*?)<\/desyncdata>/i);
-  const decodedDesync = (desyncMatch?.[1] || logText)
+  const decodedLog = logText
     .replace(/&#13;/g, "\r")
     .replace(/&#10;/g, "\n")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
 
-  const firstErrorLine = decodedDesync
+  // Generic XML/structured category or exception node capture without hardcoding engine tags
+  const genericTagMatch = decodedLog.match(/<(?:[a-z0-9_.-]*(?:category|module|source|fault)[a-z0-9_.-]*)>\s*([^<\r\n]+)\s*<\//i);
+  const bracketModuleMatch = decodedLog.match(/^\s*\[(?:[a-z0-9_.:-]+)\]\s*(?:ERROR|EXCEPTION|FATAL|CRITICAL|WARN)[:\s]+(.+)$/im);
+
+  const firstErrorLine = decodedLog
     .split(/\r?\n/)
     .map((l) => l.trim())
     .find(
       (l) =>
-        l.includes("Error") ||
-        l.includes("Exception") ||
-        l.startsWith("TypeError") ||
-        l.startsWith("AttributeError") ||
-        l.startsWith("KeyError") ||
-        l.startsWith("ValueError")
+        /^(?:Unhandled|Fatal|Critical|[A-Za-z0-9_.]*(?:Error|Exception|Panic|Fault))\b/i.test(l) ||
+        l.includes("Error:") ||
+        l.includes("Exception:") ||
+        l.includes("ERROR ") ||
+        l.includes("FATAL ")
     );
-
-  const isUiException =
-    logText.includes("widgets.") ||
-    logText.includes("olympus.") ||
-    logText.includes("(AS)");
 
   const uiLogEntry = schema?.exception_logs?.find((e: any) =>
     String(e?.starts_with || e?.exact || "").toLowerCase().includes("ui")
   );
-  const resolvedUiHint = uiLogEntry
-    ? uiLogEntry.exact || `${uiLogEntry.starts_with || "ui_exception"}${uiLogEntry.ends_with || ".log"}`
-    : defaultHint;
+  const uiMarkers: string[] = Array.isArray(uiLogEntry?.content_markers)
+    ? uiLogEntry.content_markers.map((m: any) => String(m).toLowerCase()).filter(Boolean)
+    : [];
+  const lowerDecoded = decodedLog.toLowerCase();
+  const isUiException =
+    Boolean(uiLogEntry) &&
+    uiMarkers.length > 0 &&
+    uiMarkers.some((marker) => lowerDecoded.includes(marker));
 
-  if (catMatch && catMatch[1]) {
-    const cleanCat = catMatch[1].replace(/^\(AS\)/i, "").trim();
+  if (genericTagMatch && genericTagMatch[1]) {
+    const cleanTag = genericTagMatch[1].replace(/^\([^)]+\)\s*/, "").trim();
     return {
-      pattern: cleanCat,
+      pattern: cleanTag,
       title: firstErrorLine
-        ? `${cleanCat.split("::").pop() || cleanCat} (${firstErrorLine.slice(0, 48)})`
-        : cleanCat,
-      fileHint: isUiException ? resolvedUiHint : defaultHint,
+        ? `${cleanTag.split("::").pop() || cleanTag} (${firstErrorLine.slice(0, 48)})`
+        : cleanTag,
+      fileHint: isUiException && uiLogEntry
+        ? uiLogEntry.exact || `${uiLogEntry.starts_with || ""}${uiLogEntry.ends_with || ""}` || defaultHint
+        : defaultHint,
+    };
+  }
+
+  if (bracketModuleMatch && bracketModuleMatch[1]) {
+    const cleanLine = bracketModuleMatch[1].trim();
+    return {
+      pattern: cleanLine.slice(0, 80),
+      title: cleanLine.slice(0, 60),
+      fileHint: isUiException && uiLogEntry
+        ? uiLogEntry.exact || `${uiLogEntry.starts_with || ""}${uiLogEntry.ends_with || ""}` || defaultHint
+        : defaultHint,
     };
   }
 
@@ -299,14 +313,18 @@ export function extractSuggestedPatternFromLog(
     return {
       pattern: firstErrorLine.slice(0, 80),
       title: firstErrorLine.slice(0, 60),
-      fileHint: isUiException ? resolvedUiHint : defaultHint,
+      fileHint: isUiException && uiLogEntry
+        ? uiLogEntry.exact || `${uiLogEntry.starts_with || ""}${uiLogEntry.ends_with || ""}` || defaultHint
+        : defaultHint,
     };
   }
 
   return {
     pattern: "",
     title: "",
-    fileHint: isUiException ? resolvedUiHint : defaultHint,
+    fileHint: isUiException && uiLogEntry
+      ? uiLogEntry.exact || `${uiLogEntry.starts_with || ""}${uiLogEntry.ends_with || ""}` || defaultHint
+      : defaultHint,
   };
 }
 

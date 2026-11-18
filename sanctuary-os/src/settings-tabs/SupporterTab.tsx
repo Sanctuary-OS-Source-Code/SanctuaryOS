@@ -367,19 +367,7 @@ export default function SupporterTab() {
         );
       return;
     }
-    const nonce = extractCheckoutReceiptNonce(webReceiptInput);
-    if (!nonce || nonce.length < 4) {
-      useStore
-        .getState()
-        .pushStatus(
-          t(
-            "supporter_web_receipt_ph",
-            "Paste checkout URL (checkout.stripe.com/c/pay/cs_...) or receipt ID...",
-          ),
-          "warning",
-        );
-      return;
-    }
+    const nonce = extractCheckoutReceiptNonce(webReceiptInput) || "webhook_sync";
     setIsVerifyingWebReceipt(true);
     try {
       const res = await stackGlobalDevBuildDonation({
@@ -1364,7 +1352,7 @@ export default function SupporterTab() {
                 "Verify & Unlock Dev Builds",
               )}
               variant="accent"
-              disabled={isVerifyingWebReceipt || !webReceiptInput.trim()}
+              disabled={isVerifyingWebReceipt}
               onClick={handleVerifyWebReceipt}
             />
           </PanelHeaderGroup>

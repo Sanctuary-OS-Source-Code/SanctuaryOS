@@ -216,6 +216,13 @@ pub fn get_global_config() -> SolderConfig {
                         mods_path: None,
                         docs_path,
                         vault_path: Some(vault_path),
+                        malware_protocol_overridden: v["malware_protocol_overridden"]
+                            .as_bool()
+                            .unwrap_or(false),
+                        external_protocol_handlers: serde_json::from_value(
+                            v["external_protocol_handlers"].clone(),
+                        )
+                        .ok(),
                     };
                 }
             }
@@ -361,7 +368,104 @@ fn validate_solder_config_paths(config: &SolderConfig) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn get_malware_protocol_override(state: tauri::State<'_, SecurityState>) -> bool {
+    state
+        .malware_protocol_overridden
+        .load(std::sync::atomic::Ordering::SeqCst)
+}
+
+#[tauri::command]
+pub fn set_malware_protocol_override(
+    enabled: bool,
+    state: tauri::State<'_, SecurityState>,
+) -> Result<bool, String> {
+    state
+        .malware_protocol_overridden
+        .store(enabled, std::sync::atomic::Ordering::SeqCst);
+
+    let config_path = get_config_path();
+    let mut cfg = get_global_config();
+    cfg.malware_protocol_overridden = enabled;
+
+    let mut json_val = fs::read_to_string(&config_path)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .filter(|v| v.is_object())
+        .unwrap_or_else(|| serde_json::to_value(&cfg).unwrap_or_else(|_| serde_json::json!({})));
+    if let Some(obj) = json_val.as_object_mut() {
+        obj.insert(
+            "malware_protocol_overridden".to_string(),
+            serde_json::Value::Bool(enabled),
+        );
+    }
+    let json = serde_json::to_string_pretty(&json_val).map_err(|e| e.to_string())?;
+    if let Ok(mut guard) = global_config_cache().write() {
+        *guard = None;
+    }
+    crate::utils::atomic_write_bytes(&config_path, json.as_bytes())?;
+    let new_mtime = fs::metadata(&config_path).ok().and_then(|m| m.modified().ok());
+    if let Ok(mut guard) = global_config_cache().write() {
+        *guard = Some((config_path, new_mtime, cfg));
+    }
+    Ok(enabled)
+}
+
+#[tauri::command]
+pub fn get_protocol_handler_preferences() -> ProtocolHandlerPreferences {
+    get_global_config()
+        .external_protocol_handlers
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn set_protocol_handler_preferences(
+    prefs: ProtocolHandlerPreferences,
+) -> Result<ProtocolHandlerPreferences, String> {
+    let config_path = get_config_path();
+    let mut cfg = get_global_config();
+    cfg.external_protocol_handlers = Some(prefs.clone());
+
+    let mut json_val = fs::read_to_string(&config_path)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .filter(|v| v.is_object())
+        .unwrap_or_else(|| serde_json::to_value(&cfg).unwrap_or_else(|_| serde_json::json!({})));
+    if let Some(obj) = json_val.as_object_mut() {
+        obj.insert(
+            "external_protocol_handlers".to_string(),
+            serde_json::to_value(&prefs).map_err(|e| e.to_string())?,
+        );
+    }
+    let json = serde_json::to_string_pretty(&json_val).map_err(|e| e.to_string())?;
+    if let Ok(mut guard) = global_config_cache().write() {
+        *guard = None;
+    }
+    crate::utils::atomic_write_bytes(&config_path, json.as_bytes())?;
+    let new_mtime = fs::metadata(&config_path).ok().and_then(|m| m.modified().ok());
+    if let Ok(mut guard) = global_config_cache().write() {
+        *guard = Some((config_path, new_mtime, cfg));
+    }
+    crate::commands::system::sync_os_url_protocol_handlers(&prefs);
+    Ok(prefs)
+}
+
+#[tauri::command]
+pub fn consume_startup_deep_links(state: tauri::State<'_, SecurityState>) -> Vec<String> {
+    state
+        .deep_link_listener_ready
+        .store(true, std::sync::atomic::Ordering::SeqCst);
+    if let Ok(mut guard) = state.startup_deep_links.lock() {
+        std::mem::take(&mut *guard)
+    } else {
+        Vec::new()
+    }
+}
+
+#[tauri::command]
 pub fn save_coordinates(mut config: SolderConfig) -> Result<String, String> {
+    if config.external_protocol_handlers.is_none() {
+        config.external_protocol_handlers = get_global_config().external_protocol_handlers;
+    }
     validate_solder_config_paths(&config)?;
     normalize_solder_config(&mut config, true);
     validate_solder_config_paths(&config)?;

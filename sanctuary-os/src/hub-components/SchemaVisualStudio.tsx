@@ -230,37 +230,12 @@ export default function SchemaVisualStudio({
       id: "universal",
       label: t("schema_studio_preset_universal", "Universal Game Engine (Agnostic)"),
     },
-    {
-      id: "sims4",
-      label: t("schema_studio_preset_sims4", "Life Simulation Engine (Binary Index + Script)"),
-    },
-    {
-      id: "gtav",
-      label: t("schema_studio_preset_gtav", "Open-World Action Engine (Container / Native Plugin)"),
-    },
-    {
-      id: "wwe2k",
-      label: t("schema_studio_preset_wwe2k", "Sports Simulation Engine (Baked Container)"),
-    },
-    {
-      id: "skyrim",
-      label: t("schema_studio_preset_skyrim", "Creation RPG Engine (Plugin Load Order + Extender)"),
-    },
-    {
-      id: "cyberpunk2077",
-      label: t(
-        "schema_studio_preset_cyberpunk",
-        "Cyberpunk Action Engine (Archive Container + Script)"
-      ),
-    },
-    {
-      id: "bg3",
-      label: t("schema_studio_preset_bg3", "Isometric CRPG Engine (Container + Script Extender)"),
-    },
-    {
-      id: "stardew",
-      label: t("schema_studio_preset_stardew", "Indie Simulation Engine (Folder Manifests)"),
-    },
+    ...Object.entries(GAME_ARCHITECTURE_PRESETS)
+      .filter(([id]) => id !== "universal")
+      .map(([id, preset]) => ({
+        id,
+        label: String(preset?.display_name || preset?.name || id),
+      })),
   ];
 
   return (

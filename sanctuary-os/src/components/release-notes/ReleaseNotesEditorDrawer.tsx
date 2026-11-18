@@ -83,6 +83,7 @@ interface ReleaseNotesEditorDrawerProps {
   handleImportLocalReleaseMd: () => void;
   handleSaveKeepersPost: (publishLive?: boolean, forceOverwrite?: boolean) => void;
   handleLoadLatestReleaseFromHub: () => void;
+  handleStartNewVersionDraft: () => void;
   handleLinkAsset: (asset: any) => void;
 }
 
@@ -131,6 +132,7 @@ export default function ReleaseNotesEditorDrawer({
   handleImportLocalReleaseMd,
   handleSaveKeepersPost,
   handleLoadLatestReleaseFromHub,
+  handleStartNewVersionDraft,
   handleLinkAsset,
 }: ReleaseNotesEditorDrawerProps) {
   const { t } = useLexicon();
@@ -198,6 +200,18 @@ export default function ReleaseNotesEditorDrawer({
         }
         headerActions={
           <PanelHeaderGroup>
+            {editorDocType === "post" && (
+              <PanelHeaderButton
+                onClick={handleStartNewVersionDraft}
+                disabled={isSaving || isPublishing}
+                tooltip={t(
+                  "release_notes_archive_new_version_btn",
+                  "Archive Current & Start New Version"
+                )}
+                icon={t("icon_inventory_2", "inventory_2")}
+                variant="default"
+              />
+            )}
             {(isDesktop() || import.meta.env.DEV) &&
               Boolean(
                 localMdBySlot[`${editorChannel}:${editorDocType}`]?.localContent

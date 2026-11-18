@@ -100,6 +100,9 @@ Deno.serve(async (req: Request) => {
     });
 
     const reqUrl = new URL(req.url);
+    const contentType = req.headers.get("content-type") || "";
+    const rawBody = await req.text();
+
     let targetId = (
       reqUrl.searchParams.get("target") ||
       reqUrl.searchParams.get("spoke") ||
@@ -108,8 +111,70 @@ Deno.serve(async (req: Request) => {
       .trim()
       .toLowerCase();
 
-    const contentType = req.headers.get("content-type") || "";
-    const rawBody = await req.text();
+    let parsedForm: URLSearchParams | null = null;
+    let parsedJson: any = null;
+    if (contentType.includes("application/x-www-form-urlencoded")) {
+      parsedForm = new URLSearchParams(rawBody);
+      const rawData = parsedForm.get("data");
+      if (rawData) {
+        try {
+          parsedJson = JSON.parse(rawData);
+        } catch {}
+      }
+    } else if (rawBody.trim().startsWith("{")) {
+      try {
+        parsedJson = JSON.parse(rawBody);
+      } catch {}
+    }
+
+    if (targetId === "keepers_core" && parsedJson && typeof parsedJson === "object") {
+      const candidateTarget = String(
+        parsedJson?.target_id ||
+          parsedJson?.spoke ||
+          parsedJson?.target ||
+          parsedJson?.data?.object?.metadata?.sanctuary_target_id ||
+          parsedJson?.data?.object?.client_reference_id?.split?.("__")?.[0] ||
+          "",
+      )
+        .trim()
+        .toLowerCase();
+      if (candidateTarget && candidateTarget !== "keepers_core") {
+        targetId = candidateTarget;
+      }
+    }
+
+    const normPreTarget =
+      (targetId || "keepers_core")
+        .replace(/[^a-z0-9_-]/gi, "")
+        .toLowerCase() || "keepers_core";
+
+    let activeStripeSecret = stripeWebhookSecret;
+    let activeKofiToken = kofiVerificationToken;
+    let activePartnerSecret = partnerSharedSecret;
+
+    if (normPreTarget !== "keepers_core") {
+      try {
+        const { data: spokeRows } = await supabase.rpc(
+          "get_spoke_webhook_secrets",
+          { p_spoke_id: normPreTarget },
+        );
+        const spokeSecretRow = Array.isArray(spokeRows) ? spokeRows[0] : spokeRows;
+
+        if (spokeSecretRow) {
+          if (spokeSecretRow.stripe_webhook_secret) {
+            activeStripeSecret = String(spokeSecretRow.stripe_webhook_secret).trim();
+          }
+          if (spokeSecretRow.kofi_verification_token) {
+            activeKofiToken = String(spokeSecretRow.kofi_verification_token).trim();
+          }
+          if (spokeSecretRow.partner_shared_secret) {
+            activePartnerSecret = String(spokeSecretRow.partner_shared_secret).trim();
+          }
+        }
+      } catch {
+        // Fallback to Hub environment secrets if per-Spoke secrets RPC is unavailable
+      }
+    }
 
     let userId = "";
     let email = "";
@@ -117,7 +182,7 @@ Deno.serve(async (req: Request) => {
     let txNonce = "";
 
     if (contentType.includes("application/x-www-form-urlencoded")) {
-      if (!kofiVerificationToken) {
+      if (!activeKofiToken) {
         return new Response(
           JSON.stringify({ ok: false, error: "Ko-fi webhook verification is not configured" }),
           {
@@ -126,7 +191,7 @@ Deno.serve(async (req: Request) => {
           },
         );
       }
-      const params = new URLSearchParams(rawBody);
+      const params = parsedForm || new URLSearchParams(rawBody);
       const rawData = params.get("data");
       if (!rawData) {
         return new Response(
@@ -137,10 +202,10 @@ Deno.serve(async (req: Request) => {
           },
         );
       }
-      const kofi = JSON.parse(rawData);
+      const kofi = parsedJson || JSON.parse(rawData);
       if (
         !kofi?.verification_token ||
-        !timingSafeEqualString(String(kofi.verification_token), kofiVerificationToken)
+        !timingSafeEqualString(String(kofi.verification_token), activeKofiToken)
       ) {
         return new Response(
           JSON.stringify({ ok: false, error: "Invalid Ko-fi verification token" }),
@@ -168,14 +233,14 @@ Deno.serve(async (req: Request) => {
       const headerSecret = req.headers.get("x-partner-secret") || "";
 
       let isAuthenticatedWebhook = false;
-      if (stripeSig && stripeWebhookSecret) {
+      if (stripeSig && activeStripeSecret) {
         isAuthenticatedWebhook = await verifyStripeSignature(
           rawBody,
           stripeSig,
-          stripeWebhookSecret,
+          activeStripeSecret,
         );
-      } else if (headerSecret && partnerSharedSecret) {
-        isAuthenticatedWebhook = timingSafeEqualString(headerSecret, partnerSharedSecret);
+      } else if (headerSecret && activePartnerSecret) {
+        isAuthenticatedWebhook = timingSafeEqualString(headerSecret, activePartnerSecret);
       }
 
       if (!isAuthenticatedWebhook) {
@@ -188,7 +253,7 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      const body = JSON.parse(rawBody);
+      const body = parsedJson || JSON.parse(rawBody);
 
       if (body.type === "checkout.session.completed" && body.data?.object) {
         const session = body.data.object;

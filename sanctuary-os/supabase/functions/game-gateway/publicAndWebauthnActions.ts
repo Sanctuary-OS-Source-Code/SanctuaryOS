@@ -1,7 +1,9 @@
-// @ts-nocheck
+/// <reference path="../deno.d.ts" />
 import {
+  UUID_REGEX,
   b64UrlToBytes,
   bytesToB64,
+  createSpokeClient,
 } from './cryptoEnvelope.ts'
 import {
   decodeCborItem,
@@ -13,18 +15,21 @@ import {
 import {
   resolveGameWithServiceKey,
 } from './spokeAccessAndOwnership.ts'
+import { handleSubmitDmcaOrLegalNotice } from './dmcaComplianceActions.ts'
 
 export async function handlePreAuthGatewayActions(ctx: {
   req: Request;
   action: string;
   payload: any;
   game_id: any;
+  user: any;
+  supabaseClient: any;
   supabaseUrl: string;
   supabaseAnonKey: string;
   supabaseAdmin: any;
   corsHeaders: Record<string, string>;
 }): Promise<Response | null> {
-  const { req, action, payload, game_id, supabaseUrl, supabaseAnonKey, supabaseAdmin, corsHeaders } = ctx;
+  const { req: _req, action, payload, game_id, user, supabaseClient, supabaseUrl, supabaseAnonKey, supabaseAdmin, corsHeaders } = ctx;
 
     if (action === 'verify_webauthn_assertion') {
       const { challenge_id, credential } = payload || {}
@@ -137,7 +142,9 @@ export async function handlePreAuthGatewayActions(ctx: {
         throw new Error('Passkey signature counter anomaly detected (possible cloned authenticator).')
       }
 
-      const clientDataHash = new Uint8Array(await crypto.subtle.digest('SHA-256', clientDataBytes))
+      const clientDataHash = new Uint8Array(
+        await crypto.subtle.digest('SHA-256', clientDataBytes as BufferSource)
+      )
       const signedData = new Uint8Array(authDataBytes.length + clientDataHash.length)
       signedData.set(authDataBytes, 0)
       signedData.set(clientDataHash, authDataBytes.length)
@@ -218,8 +225,8 @@ export async function handlePreAuthGatewayActions(ctx: {
       if (!game_id || !UUID_REGEX.test(postId)) {
         throw new Error('Invalid game_id or post_id')
       }
-      const { game, gameServiceKey } = await resolveGameWithServiceKey(supabaseAdmin, game_id)
-      if (!gameServiceKey) {
+      const { game, serviceKey: gameServiceKey } = await resolveGameWithServiceKey(supabaseAdmin, String(game_id))
+      if (!game || !gameServiceKey) {
         throw new Error('Game DB gateway credential not configured')
       }
       const gameDb = createSpokeClient(game.supabase_url, game.supabase_anon_key || '', gameServiceKey)
@@ -260,8 +267,8 @@ export async function handlePreAuthGatewayActions(ctx: {
           .slice(0, 200)
           .trim() || 'Unknown'
       const cleanSig = String(payload?.signature || 'Known Malware Hash Match').trim().slice(0, 200)
-      const { game, gameServiceKey } = await resolveGameWithServiceKey(supabaseAdmin, game_id)
-      if (!gameServiceKey) {
+      const { game, serviceKey: gameServiceKey } = await resolveGameWithServiceKey(supabaseAdmin, String(game_id))
+      if (!game || !gameServiceKey) {
         throw new Error('Game DB gateway credential not configured')
       }
       const gameDb = createSpokeClient(game.supabase_url, game.supabase_anon_key || '', gameServiceKey)
@@ -308,6 +315,15 @@ export async function handlePreAuthGatewayActions(ctx: {
       })
     }
 
+    if (action === 'submit_dmca_or_legal_notice') {
+      return await handleSubmitDmcaOrLegalNotice({
+        payload,
+        user,
+        supabaseAdmin,
+        corsHeaders,
+      })
+    }
+
   return null;
 }
 
@@ -316,13 +332,14 @@ export async function handleWebAuthnRegistration(ctx: {
   action: string;
   payload: any;
   token: string;
+  user: any;
   v_user_id: string;
   supabaseUrl: string;
   supabaseAnonKey: string;
   supabaseAdmin: any;
   corsHeaders: Record<string, string>;
 }): Promise<Response | null> {
-  const { req, action, payload, token, v_user_id, supabaseUrl, supabaseAnonKey, supabaseAdmin, corsHeaders } = ctx;
+  const { req: _req, action, payload, token, user, v_user_id, supabaseUrl, supabaseAnonKey, supabaseAdmin, corsHeaders } = ctx;
 
     if (action === 'verify_webauthn_registration') {
       const { challenge_id, credential, friendly_name } = payload || {}

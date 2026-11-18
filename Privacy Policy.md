@@ -1,7 +1,7 @@
 # Sanctuary OS — Privacy Policy
 
-**Document Version:** V6.2 (v0.6.0-Dev.14)  
-**Effective Date:** November 14, 2026  
+**Document Version:** V6.3 (v0.6.0-Dev.15)  
+**Effective Date:** November 18, 2026  
 
 ---
 
@@ -23,7 +23,7 @@ Sanctuary OS strictly isolates your authentication credentials from independent 
 ---
 
 ## 3. FIDO2 Passkeys, Touch ID, Companion Handshake & 12-Hour Device Seal
-For users enabling Citizen 2FA or holding Elevated Clearances (`Verified Mason` through `Keeper`), the **Security Vault (`user_passkeys`)** stores only standard WebAuthn/FIDO2 public keys, credential IDs, and monotonic signature counters (`signCount`), while local desktop passkey metadata is encrypted via **`AES-256-GCM`**. Biometric data (Windows Hello, macOS Touch ID, or hardware key secrets) never leaves your device's Secure Enclave / TPM. Successful verification issues a local **12-hour Device-Bound Cryptographic Passkey Seal (`sanctuary_passkey_seal_v2`)** or completes an ephemeral **Live Companion Passkey Handshake** (via W3C Web Push) without storing biometric or hardware identifiers in the cloud.
+For users enabling Citizen 2FA or holding Elevated Clearances (`Verified Mason` through `Keeper`), the **Security Vault (`auth.webauthn_credentials` paired with the AES-256-GCM local desktop passkey vault)** stores only standard WebAuthn/FIDO2 public keys, credential IDs, and monotonic signature counters (`signCount`), while local desktop passkey and Mason Edge Push API credentials are sealed with DPAPI/`0600` + **`AES-256-GCM`**. Biometric data (Windows Hello, macOS Touch ID, or hardware key secrets) never leaves your device's Secure Enclave / TPM. Successful verification issues a local **12-hour Device-Bound Cryptographic Passkey Seal (`sanctuary_passkey_seal_v2`)** or completes an ephemeral **Live Companion Passkey Handshake** (via W3C Web Push) without storing biometric or hardware identifiers in the cloud.
 
 ---
 
@@ -36,11 +36,12 @@ Sanctuary OS does **not** collect, log, or attach Hardware IDs (HWIDs) to standa
 
 ---
 
-## 5. Automatic Zero-PII Scrubbing Across Windows, macOS, Linux & SteamOS/Proton
-When you use the **Homestead Lab** exception analyzer, share diagnostic snippets, or attach crash logs to a **Citizen Support Desk** ticket:
-* Sanctuary OS's proactive **Zero-PII Scrubber (`scrubLogUserData` / `obscure_username`)** automatically redacts local operating system file paths containing your account username across **Windows (`C:\Users\<Username>\`)**, **macOS (`/Users/<Username>/`)**, **Linux (`/home/<Username>/`, `/var/home/<Username>/`, `/run/media/<Username>/`, `/media/<Username>/`)**, and **SteamOS / Valve Proton prefixes (`drive_c/users/<Username>/`)** to `[REDACTED_USER]` before displaying or transmitting the log snippet.
-* The scrubber also redacts XML `<user>`, `<username>`, `<account>`, `<computername>`, and `<hostname>` tags, explicit `HWID` / `MachineId` / `DeviceId` / `Hostname` / `LocalIP` / `PublicIP` headers, MAC addresses (`[REDACTED_MAC]`), IPv4 and IPv6 addresses (`[REDACTED_IP]`), Windows Security Identifiers (`[REDACTED_SID]`), and email addresses (`[REDACTED_EMAIL]`).
-* If you trigger a **Citizen-Signed Secure Shred** on a Tier 5 Malware file and leave **Share Malware Reports** enabled, only the file name, cryptographic SHA-256 DNA hash, and matched heuristic rule ID are transmitted to `quarantine_manifests`—zero personal identifiers are attached.
+## 5. Automatic Zero-PII Scrubbing, Zero-Identity Reports & Opt-In Translation
+When you use the **Homestead Lab** exception analyzer, share diagnostic snippets, view community posts, or attach crash logs to a **Support Desk** ticket:
+* Sanctuary OS's proactive **Zero-PII Scrubber (`scrubLogUserData` / `obscure_username`)** automatically redacts local operating system file paths containing your account username across **Windows (`C:\Users\<Username>\`)**, **macOS (`/Users/<Username>/`)**, **Linux (`/home/<Username>/`, `/var/home/<Username>/`, `/run/media/<Username>/`, `/media/<Username>/`)**, and **SteamOS / Valve Proton prefixes (`drive_c/users/<Username>/`)** to `[REDACTED BY SANCTUARY]` before displaying or transmitting the log snippet.
+* The scrubber also redacts XML `<user>`, `<username>`, `<account>`, `<computername>`, and `<hostname>` tags, explicit `HWID` / `MachineId` / `DeviceId` / `Hostname` / `LocalIP` / `PublicIP` headers, MAC addresses, IPv4 and IPv6 addresses, Windows Security Identifiers (`S-1-5-21-...`), and email addresses to `[REDACTED BY SANCTUARY]` (and hex session tokens to `000000000000000000000000`). Diagnostic/Vault context attachment is **opt-in OFF by default**, and unauthenticated / anonymous Citizen tickets (`author_id = null`) never expose user email prefixes.
+* **Zero-Identity Community Telemetry:** Comm-Link views track strictly anonymous session-deduped aggregate counters (`increment_mason_post_view`), Nexus content flags/reports strip reporter identities, and clicking **Share Malware Manifest** (opt-in on **Citizen-Signed Secure Shred**) transmits only the leaf file name, cryptographic SHA-256 DNA hash, and matched rule ID to `public.malware_reports`—zero personal identifiers or user IDs are attached.
+* **Opt-In Lexicon Studio Auto-Translate:** Standard Sanctuary usage sends zero UI strings to third-party translators. Only when a creator or Citizen explicitly clicks **Auto-Translate** inside **Lexicon Visual Studio** are abstract UI dictionary strings (with `{Glossary}` placeholders masked and zero user data) sent to Google Translate (`translate.googleapis.com` `gtx` endpoint) to populate draft translations.
 
 ---
 

@@ -1,9 +1,9 @@
-// @ts-nocheck
+/// <reference path="../deno.d.ts" />
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { SERVER_AUTH_OPTS } from './corsAndSanitization.ts'
 import {
   UUID_REGEX,
-  SUPABASE_URL_REGEX,
+  isValidSpokeSupabaseUrl,
   normalizeSpokeUrl,
   detectCredentialKind,
   maskCredentialFingerprint,
@@ -16,6 +16,10 @@ import {
   invalidateSpokeGameConfigCache,
   resolveGameWithServiceKey,
 } from './spokeAccessAndOwnership.ts'
+import {
+  handleExecuteDmcaTriageAction,
+  handleListSpokeDmcaNotices,
+} from './dmcaComplianceActions.ts'
 
 export async function handleKeeperHubActions(ctx: {
   action: string;
@@ -56,8 +60,8 @@ export async function handleKeeperHubActions(ctx: {
       if (!cleanName || !cleanSchemaId || !cleanUrl || !cleanAnon) {
         throw new Error('Missing required Spoke Game fields (name, schema_id, supabase_url, supabase_anon_key)')
       }
-      if (!SUPABASE_URL_REGEX.test(cleanUrl)) {
-        throw new Error('Invalid Spoke Supabase URL: must be a valid https://<project>.supabase.co endpoint')
+      if (!isValidSpokeSupabaseUrl(cleanUrl)) {
+        throw new Error('Invalid Spoke Supabase URL: must be a valid https://<project>.supabase.co or custom HTTPS Supabase domain')
       }
 
       let existingGameRow: any = null
@@ -405,8 +409,8 @@ export async function handleKeeperHubActions(ctx: {
       if (!resolvedUrl || (!resolvedServiceKey && !resolvedAnonKey)) {
         throw new Error('Missing Spoke Supabase URL or Key')
       }
-      if (!SUPABASE_URL_REGEX.test(resolvedUrl)) {
-        throw new Error('Invalid Spoke Supabase URL: must be a valid https://<project>.supabase.co endpoint')
+      if (!isValidSpokeSupabaseUrl(resolvedUrl)) {
+        throw new Error('Invalid Spoke Supabase URL: must be a valid https://<project>.supabase.co or custom HTTPS Supabase domain')
       }
 
       const startPing = Date.now()
@@ -534,7 +538,7 @@ export async function handlePreClientSpokeAdminActions(ctx: {
 
     if (action === 'sever_spoke_cord' && hubRole === 'keeper') {
       const severReason = payload?.reason?.trim() || 'Keeper Severance Protocol (Cut the Cord)'
-      if (gameServiceKey && SUPABASE_URL_REGEX.test(String(game.supabase_url || '').trim())) {
+      if (gameServiceKey && isValidSpokeSupabaseUrl(String(game.supabase_url || '').trim())) {
         try {
           const bestEffortSpokeDb = createSpokeClient(game.supabase_url, game.supabase_anon_key || '', gameServiceKey)
           await bestEffortSpokeDb.from('audit_logs').insert({
@@ -564,6 +568,31 @@ export async function handlePreClientSpokeAdminActions(ctx: {
       })
       invalidateSpokeGameConfigCache();
       return new Response(JSON.stringify({ success: true, severed_by: 'keeper', schema_id: game.schema_id }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
+    if (action === 'list_spoke_dmca_notices' && hubRole === 'keeper') {
+      const data = await handleListSpokeDmcaNotices({
+        payload,
+        hubRole,
+        supabaseAdmin,
+      })
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
+    if (action === 'execute_dmca_triage_action' && hubRole === 'keeper') {
+      const data = await handleExecuteDmcaTriageAction({
+        payload,
+        v_user_id,
+        hubRole,
+        supabaseAdmin,
+      })
+      return new Response(JSON.stringify(data), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       })

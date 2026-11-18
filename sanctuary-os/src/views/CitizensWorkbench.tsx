@@ -8,7 +8,6 @@ import { PushTemplateSidePanel } from '../side-panels/PushTemplateSidePanel';
 import { WorkbenchTemplateGuide } from '../workbench/WorkbenchTemplateGuide';
 import VersionTimeline from "../shared-components/VersionTimeline";
 import { invoke } from '@tauri-apps/api/core';
-import { supabase } from '../supabase';
 import { supabaseServices } from '../lib/supabase-services';
 import { joinLocalPath } from '../utils/localTemplateInspector';
 import { CommandScreenLayout, CommandScreenBody, CommandScreenMain, CommandScreenSidebar, CommandScreenQuickLink, DashboardStatTile, CommandScreenSectionHeading, StatTileCarousel } from "../hub-components/SharedCommandScreenLayout";
@@ -382,6 +381,11 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                setShowTimeline={setShowTimeline}
                setTimelineInitialSelection={setTimelineInitialSelection}
                setIsPushModalOpen={setIsPushModalOpen}
+               onFlagTemplate={() => {
+                  setFlagReason("");
+                  setFlagSuccess(false);
+                  setIsFlagPanelOpen(true);
+               }}
             />
          )}
 
@@ -438,11 +442,21 @@ export default function CitizensWorkbench({ onOpenMasonProfile }: { onOpenMasonP
                         onClick={async () => {
                            if (!flagReason.trim()) return;
                            setIsFlagging(true);
-                           const { data: { session } } = await supabase.auth.getSession();
-                           const userId = session?.user?.id || "system";
-                           await supabaseServices.flagTemplate(selectedTemplatePath, flagReason, userId);
-                           setIsFlagging(false);
-                           setFlagSuccess(true);
+                           try {
+                              const { error } = await supabaseServices.flagTemplate(selectedTemplatePath, flagReason);
+                              if (error) {
+                                 useStore.getState().pushStatus(`${t("flag_error", "Failed to submit flag")}: ${error.message}`, "error");
+                                 return;
+                              }
+                              window.dispatchEvent(
+                                 new CustomEvent("sanctuary-content-flagged", {
+                                    detail: { targetType: "workbench_template", targetId: selectedTemplatePath },
+                                 })
+                              );
+                              setFlagSuccess(true);
+                           } finally {
+                              setIsFlagging(false);
+                           }
                         }}
                      />
                   </PanelHeaderGroup>

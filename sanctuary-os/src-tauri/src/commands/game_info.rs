@@ -658,12 +658,64 @@ pub async fn scan_installed_dlc(
     .map_err(|e| e.to_string())?
 }
 
+fn sanitize_heuristic_signatures(sigs: Vec<HeuristicSignature>) -> (Vec<HeuristicSignature>, bool) {
+    let mut changed = false;
+    let mut sanitized = Vec::with_capacity(sigs.len());
+
+    for mut sig in sigs {
+        let mt = sig.match_type.trim().to_lowercase();
+        let id_lower = sig.id.trim().to_lowercase();
+        let sig_lower = sig.signature.trim().to_lowercase();
+        let is_content = mt == "file_content_contains" || mt.is_empty() || mt.starts_with("content");
+
+        if is_content {
+            if sig_lower == "iwr + iex" || id_lower == "powershell_iwr_iex_cradle" {
+                changed = true;
+                continue;
+            }
+            if sig_lower == "downloadstring( + iex" {
+                sig.signature = "DownloadString( + Invoke-Expression".to_string();
+                changed = true;
+            }
+
+            let updated_lower = sig.signature.trim().to_lowercase();
+            let parts: Vec<&str> = updated_lower
+                .split(" + ")
+                .flat_map(|p| p.split(" && "))
+                .map(|p| p.trim())
+                .filter(|p| !p.is_empty())
+                .collect();
+
+            let has_tiny_clause = parts.iter().any(|p| p.len() < 4);
+            let single_too_short = parts.len() == 1 && parts[0].len() < 6;
+            let all_short_weak_compound = !parts.is_empty()
+                && parts.iter().all(|p| p.len() < 6)
+                && parts.iter().map(|p| p.len()).sum::<usize>() < 9;
+
+            if parts.is_empty() || has_tiny_clause || single_too_short || all_short_weak_compound {
+                changed = true;
+                continue;
+            }
+        }
+
+        sanitized.push(sig);
+    }
+
+    (sanitized, changed)
+}
+
 #[tauri::command]
 pub fn get_heuristic_signatures(vault_path: String) -> Result<Vec<HeuristicSignature>, String> {
     if let Some((content, _)) = crate::utils::get_vault_kv(&vault_path, "malware_signatures") {
         if let Ok(sigs) = serde_json::from_str::<Vec<HeuristicSignature>>(&content) {
-            if !sigs.is_empty() {
-                return Ok(sigs);
+            let (sanitized, changed) = sanitize_heuristic_signatures(sigs);
+            if !sanitized.is_empty() {
+                if changed {
+                    if let Ok(updated) = serde_json::to_string_pretty(&sanitized) {
+                        crate::utils::set_vault_kv(&vault_path, "malware_signatures", &updated);
+                    }
+                }
+                return Ok(sanitized);
             }
         }
     }
@@ -684,7 +736,7 @@ pub fn get_heuristic_signatures(vault_path: String) -> Result<Vec<HeuristicSigna
         ),
         (
             "telegram_bot_exfil",
-            "api.telegram.org/bot",
+            "api.telegram.org/bot + /send",
             "file_content_contains",
             "Telegram Bot API credential exfiltration.",
         ),
@@ -711,6 +763,30 @@ pub fn get_heuristic_signatures(vault_path: String) -> Result<Vec<HeuristicSigna
             "powershell -w hidden",
             "file_content_contains",
             "Hidden PowerShell execution.",
+        ),
+        (
+            "powershell_webclient_downloadstring",
+            "Net.WebClient + DownloadString(",
+            "file_content_contains",
+            "Compound: .NET WebClient instantiated to download remote payload.",
+        ),
+        (
+            "powershell_downloadstring_invoke",
+            "DownloadString( + Invoke-Expression",
+            "file_content_contains",
+            "Compound: .NET WebClient DownloadString piped to Invoke-Expression.",
+        ),
+        (
+            "mshta_remote_dropper",
+            "mshta + http",
+            "file_content_contains",
+            "Compound: Remote HTA execution via mshta.",
+        ),
+        (
+            "regsvr32_scrobj_squiblydoo",
+            "regsvr32 + scrobj.dll",
+            "file_content_contains",
+            "Compound: Regsvr32 remote scriptlet proxy execution.",
         ),
         (
             "subprocess_popen_powershell",
@@ -744,7 +820,14 @@ pub fn get_heuristic_signatures(vault_path: String) -> Result<Vec<HeuristicSigna
         ),
         ("grabber_py", "grabber.py", "file_name_exact", ""),
         ("stealer_exe", "stealer.exe", "file_name_exact", ""),
-        ("_vbs", ".vbs", "file_name_contains", ""),
+        ("_vbs", ".vbs", "file_extension", "VBScript executable payload inside mod archive."),
+        ("_vbe", ".vbe", "file_extension", "Encoded VBScript executable payload inside mod archive."),
+        ("_hta", ".hta", "file_extension", "HTML Application executable payload inside mod archive."),
+        ("_scr", ".scr", "file_extension", "Screensaver executable binary inside mod archive."),
+        ("_pif", ".pif", "file_extension", "Program Information File executable dropper inside mod archive."),
+        ("_cpl", ".cpl", "file_extension", "Windows Control Panel DLL executable dropper inside mod archive."),
+        ("_jse", ".jse", "file_extension", "Encoded JScript executable payload inside mod archive."),
+        ("_wsf", ".wsf", "file_extension", "Windows Script File executable payload inside mod archive."),
     ];
 
     let defaults: Vec<HeuristicSignature> = default_specs
@@ -772,17 +855,18 @@ pub fn save_heuristic_signatures(
     vault_path: String,
     signatures: Vec<HeuristicSignature>,
 ) -> Result<(), String> {
+    let (clean_sigs, _) = sanitize_heuristic_signatures(signatures);
     if let Some((existing_str, _)) = crate::utils::get_vault_kv(&vault_path, "malware_signatures") {
         if let Ok(existing_sigs) = serde_json::from_str::<Vec<HeuristicSignature>>(&existing_str) {
-            if existing_sigs.len() == signatures.len()
+            if existing_sigs.len() == clean_sigs.len()
                 && compute_signatures_version(&existing_sigs)
-                    == compute_signatures_version(&signatures)
+                    == compute_signatures_version(&clean_sigs)
             {
                 return Ok(());
             }
         }
     }
-    if let Ok(content) = serde_json::to_string_pretty(&signatures) {
+    if let Ok(content) = serde_json::to_string_pretty(&clean_sigs) {
         crate::utils::set_vault_kv(&vault_path, "malware_signatures", &content);
         return Ok(());
     }

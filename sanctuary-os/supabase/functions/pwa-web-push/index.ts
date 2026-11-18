@@ -12,6 +12,9 @@ const SERVER_AUTH_OPTS = {
 };
 
 const STATIC_ALLOWED_ORIGINS = new Set([
+  "https://sanctuaryos.net",
+  "https://www.sanctuaryos.net",
+  "https://app.sanctuaryos.net",
   "https://sanctuaryos.gg",
   "https://www.sanctuaryos.gg",
   "https://app.sanctuaryos.gg",
@@ -39,7 +42,7 @@ function getCorsHeaders(req: Request): Record<string, string> {
   const reqOrigin = req.headers.get("origin") || "";
   const allowOrigin = isAllowedCorsOrigin(reqOrigin)
     ? reqOrigin
-    : "https://sanctuaryos.gg";
+    : "https://sanctuaryos.net";
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Headers":

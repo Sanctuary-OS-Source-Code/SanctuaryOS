@@ -155,7 +155,7 @@ export function buildForkingGuideSchema(
                   icon: t("icon_memory", "memory"),
                   title: g("1. Provision Core Hub Database (schema_os.sql)"),
                   desc: g(
-                    "Create your central Hub Supabase project and run schema_os.sql in the SQL Editor. This provisions global SSO profiles, FIDO2 user_passkeys, sanctuary_games, sanctuary_schemas, system_directives, and keeper_heuristic_signatures."
+                    "Create your central Hub Supabase project and run schema_os.sql in the SQL Editor. This provisions global SSO profiles, auth.webauthn_credentials FIDO2 passkeys, sanctuary_games, sanctuary_schemas, system_directives, and keeper_heuristic_signatures."
                   ),
                 },
                 {

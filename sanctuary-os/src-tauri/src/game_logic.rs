@@ -288,16 +288,57 @@ pub fn is_dlc_folder(schema: &Option<GameSchema>, folder_name: &str) -> bool {
 }
 
 pub fn get_archive_extensions(schema: &Option<GameSchema>) -> Vec<String> {
-    if let Some(s) = schema {
+    let supported = get_supported_extensions(schema);
+    let raw = if let Some(s) = schema {
         if let Some(containers) = &s.extensions.archive_containers {
-            return containers
+            containers
                 .iter()
                 .map(|e| e.trim_start_matches('.').to_lowercase())
                 .filter(|e| !e.is_empty())
-                .collect();
+                .collect::<Vec<_>>()
+        } else {
+            vec!["zip".to_string(), "7z".to_string(), "rar".to_string()]
+        }
+    } else {
+        vec!["zip".to_string(), "7z".to_string(), "rar".to_string()]
+    };
+    if supported.is_empty() {
+        raw
+    } else {
+        raw.into_iter()
+            .filter(|ext| !supported.contains(ext))
+            .collect()
+    }
+}
+
+/// Determines whether an extension represents an extractable archive container rather than a native mod file.
+/// `.7z`/`.rar` and any extension declared in `extensions.archive_containers` always unpack; `.zip` unpacks unless
+/// declared solely as a native module format in `extensions.supported` (e.g., Factorio/Minecraft).
+pub fn is_archive_container_extension(
+    ext_lower_no_dot: &str,
+    schema: &Option<GameSchema>,
+) -> bool {
+    let ext = ext_lower_no_dot.trim().trim_start_matches('.').to_ascii_lowercase();
+    if ext.is_empty() {
+        return false;
+    }
+    if let Some(s) = schema {
+        if let Some(containers) = &s.extensions.archive_containers {
+            if containers
+                .iter()
+                .any(|c| c.trim().trim_start_matches('.').eq_ignore_ascii_case(&ext))
+            {
+                return true;
+            }
         }
     }
-    vec!["zip".to_string()]
+    if matches!(ext.as_str(), "7z" | "rar") {
+        return true;
+    }
+    if ext == "zip" {
+        return !get_supported_extensions(schema).contains(&ext);
+    }
+    false
 }
 
 pub fn get_config_extensions(schema: &Option<GameSchema>) -> Vec<String> {
@@ -1799,4 +1840,63 @@ pub fn resolve_user_data_root(docs_or_mods_path: &str, schema: &Option<GameSchem
 
 pub fn expand_env_vars(path: &str) -> String {
     crate::utils::expand_env_vars(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_archive_container_extension_handles_schema_overrides_and_native_zips() {
+        // Legacy cached schema with `.zip` mistakenly in BOTH `supported` and `archive_containers` must still extract
+        let legacy_conflict_schema: Option<GameSchema> = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "legacy_cached",
+                "game_id": "legacy_cached",
+                "display_name": "Legacy Cached",
+                "extensions": {
+                    "supported": [".pkg", ".zip", ".rar", ".7z"],
+                    "archive_containers": [".zip", ".rar", ".7z"]
+                }
+            }))
+            .unwrap(),
+        );
+        assert!(is_archive_container_extension("zip", &legacy_conflict_schema));
+        assert!(is_archive_container_extension("rar", &legacy_conflict_schema));
+        assert!(is_archive_container_extension("7z", &legacy_conflict_schema));
+        assert!(!is_archive_container_extension("pkg", &legacy_conflict_schema));
+
+        // Standard engine with no `archive_containers` key: `.zip`/`.7z`/`.rar` all extract
+        let standard_schema: Option<GameSchema> = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "standard_engine",
+                "game_id": "standard_engine",
+                "display_name": "Standard Engine",
+                "extensions": {
+                    "supported": [".esp", ".esm", ".ba2"]
+                }
+            }))
+            .unwrap(),
+        );
+        assert!(is_archive_container_extension("zip", &standard_schema));
+        assert!(is_archive_container_extension(".7Z", &standard_schema));
+        assert!(is_archive_container_extension("rar", &standard_schema));
+        assert!(!is_archive_container_extension("esp", &standard_schema));
+
+        // Native `.zip` engine (e.g., Factorio/resourcepacks): `.zip` in `supported` and NOT in `archive_containers` stays intact
+        let native_zip_schema: Option<GameSchema> = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "native_zip_engine",
+                "game_id": "native_zip_engine",
+                "display_name": "Native Zip Engine",
+                "extensions": {
+                    "supported": [".zip", ".json", ".lua"]
+                }
+            }))
+            .unwrap(),
+        );
+        assert!(!is_archive_container_extension("zip", &native_zip_schema));
+        assert!(is_archive_container_extension("7z", &native_zip_schema));
+        assert!(is_archive_container_extension("rar", &native_zip_schema));
+    }
 }

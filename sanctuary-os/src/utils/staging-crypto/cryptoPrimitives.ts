@@ -66,6 +66,10 @@ export function base64ToBytes(b64: string): Uint8Array {
 const STAGING_SECRET_STORAGE_PREFIX = "sanctuary_staging_secret_v2_";
 const inMemoryStagingSecrets = new Map<string, string>();
 const inFlightSecretSyncs = new Set<string>();
+const inFlightSecretResolutions = new Map<string, Promise<string>>();
+const syncedKeyringSecrets = new Map<string, string>();
+let keyringTableUnavailable = false;
+const derivedAesKeyCache = new Map<string, Promise<CryptoKey>>();
 
 function generateRandom256BitHex(): string {
   const bytes = new Uint8Array(32);
@@ -134,70 +138,104 @@ export async function resolveStagingVaultSecret(
     return cachedMem;
   }
 
-  let keyringSecret = "";
-  let legacyJwtSecret = "";
-  try {
-    const storeSession = useStore.getState()?.session;
-    if (storeSession?.user?.id === userId) {
-      const candidate = storeSession.user?.user_metadata?.staging_vault_secret_v2;
-      if (typeof candidate === "string" && candidate.trim().length >= 32) {
-        legacyJwtSecret = candidate.trim();
-      }
-    }
+  const existingResolution = inFlightSecretResolutions.get(userId);
+  if (existingResolution) {
+    return existingResolution;
+  }
 
-    const { data: krRow } = await supabaseAuth
-      .from("user_encrypted_keyrings")
-      .select("staging_secret_v2")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (
-      krRow &&
-      typeof (krRow as any).staging_secret_v2 === "string" &&
-      (krRow as any).staging_secret_v2.trim().length >= 32
-    ) {
-      keyringSecret = (krRow as any).staging_secret_v2.trim();
-    }
+  const resolutionPromise = (async (): Promise<string> => {
+    const canSyncCloud =
+      (typeof navigator === "undefined" || navigator.onLine) &&
+      (typeof localStorage === "undefined" ||
+        localStorage.getItem("sanctuary_local_only") !== "true") &&
+      !keyringTableUnavailable;
 
-    if (!keyringSecret && !legacyJwtSecret) {
-      const { data } = await supabaseAuth.auth.getSession();
-      if (data?.session?.user?.id === userId) {
-        const candidate = data.session.user?.user_metadata?.staging_vault_secret_v2;
+    let keyringSecret = "";
+    let legacyJwtSecret = "";
+    try {
+      const storeSession = useStore.getState()?.session;
+      if (storeSession?.user?.id === userId) {
+        const candidate = storeSession.user?.user_metadata?.staging_vault_secret_v2;
         if (typeof candidate === "string" && candidate.trim().length >= 32) {
           legacyJwtSecret = candidate.trim();
         }
       }
-    }
-  } catch {}
 
-  const cloudSecret = keyringSecret || legacyJwtSecret;
-  if (cloudSecret) {
-    inMemoryStagingSecrets.set(userId, cloudSecret);
-    try {
-      localStorage.setItem(`${STAGING_SECRET_STORAGE_PREFIX}${userId}`, cloudSecret);
+      if (canSyncCloud) {
+        const { data: krRow, error: krErr } = await supabaseAuth
+          .from("user_encrypted_keyrings")
+          .select("staging_secret_v2")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (krErr) {
+          const msg = String(krErr.message || "");
+          if (
+            krErr.code === "PGRST205" ||
+            krErr.code === "42P01" ||
+            (krErr as any).status === 404 ||
+            msg.includes("404")
+          ) {
+            keyringTableUnavailable = true;
+          }
+        } else if (
+          krRow &&
+          typeof (krRow as any).staging_secret_v2 === "string" &&
+          (krRow as any).staging_secret_v2.trim().length >= 32
+        ) {
+          keyringSecret = (krRow as any).staging_secret_v2.trim();
+          syncedKeyringSecrets.set(userId, keyringSecret);
+        }
+      }
+
+      if (!keyringSecret && !legacyJwtSecret) {
+        const { data } = await supabaseAuth.auth.getSession();
+        if (data?.session?.user?.id === userId) {
+          const candidate = data.session.user?.user_metadata?.staging_vault_secret_v2;
+          if (typeof candidate === "string" && candidate.trim().length >= 32) {
+            legacyJwtSecret = candidate.trim();
+          }
+        }
+      }
     } catch {}
-    // Migrate legacy JWT user_metadata secret into isolated RLS table and scrub it from JWT tokens
-    if (legacyJwtSecret) {
-      syncStagingSecretToKeyring(userId, cloudSecret, true);
+
+    const cloudSecret = keyringSecret || legacyJwtSecret;
+    if (cloudSecret) {
+      inMemoryStagingSecrets.set(userId, cloudSecret);
+      try {
+        localStorage.setItem(`${STAGING_SECRET_STORAGE_PREFIX}${userId}`, cloudSecret);
+      } catch {}
+      // Migrate legacy JWT user_metadata secret into isolated RLS table and scrub it from JWT tokens
+      if (legacyJwtSecret || !keyringSecret) {
+        syncStagingSecretToKeyring(userId, cloudSecret, Boolean(legacyJwtSecret));
+      }
+      return cloudSecret;
     }
-    return cloudSecret;
+
+    try {
+      const localSecret = (localStorage.getItem(`${STAGING_SECRET_STORAGE_PREFIX}${userId}`) || "").trim();
+      if (localSecret.length >= 32) {
+        inMemoryStagingSecrets.set(userId, localSecret);
+        syncStagingSecretToKeyring(userId, localSecret);
+        return localSecret;
+      }
+    } catch {}
+
+    const generated = generateRandom256BitHex();
+    inMemoryStagingSecrets.set(userId, generated);
+    try {
+      localStorage.setItem(`${STAGING_SECRET_STORAGE_PREFIX}${userId}`, generated);
+    } catch {}
+    syncStagingSecretToKeyring(userId, generated);
+    return generated;
+  })();
+
+  inFlightSecretResolutions.set(userId, resolutionPromise);
+  try {
+    return await resolutionPromise;
+  } finally {
+    inFlightSecretResolutions.delete(userId);
   }
-
-  try {
-    const localSecret = (localStorage.getItem(`${STAGING_SECRET_STORAGE_PREFIX}${userId}`) || "").trim();
-    if (localSecret.length >= 32) {
-      inMemoryStagingSecrets.set(userId, localSecret);
-      syncStagingSecretToKeyring(userId, localSecret);
-      return localSecret;
-    }
-  } catch {}
-
-  const generated = generateRandom256BitHex();
-  inMemoryStagingSecrets.set(userId, generated);
-  try {
-    localStorage.setItem(`${STAGING_SECRET_STORAGE_PREFIX}${userId}`, generated);
-  } catch {}
-  syncStagingSecretToKeyring(userId, generated);
-  return generated;
 }
 
 function syncStagingSecretToKeyring(
@@ -206,15 +244,42 @@ function syncStagingSecretToKeyring(
   scrubLegacyJwtMetadata = false
 ): void {
   if (!userId || !secret || inFlightSecretSyncs.has(userId)) return;
+  if (keyringTableUnavailable) return;
   if (typeof navigator !== "undefined" && !navigator.onLine) return;
+  if (
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("sanctuary_local_only") === "true"
+  ) {
+    return;
+  }
+  if (syncedKeyringSecrets.get(userId) === secret && !scrubLegacyJwtMetadata) {
+    return;
+  }
   inFlightSecretSyncs.add(userId);
   (async () => {
     try {
-      await supabaseAuth.from("user_encrypted_keyrings").upsert({
-        user_id: userId,
-        staging_secret_v2: secret,
-        updated_at: new Date().toISOString(),
-      });
+      if (syncedKeyringSecrets.get(userId) !== secret) {
+        const { error: upsertErr } = await supabaseAuth
+          .from("user_encrypted_keyrings")
+          .upsert({
+            user_id: userId,
+            staging_secret_v2: secret,
+            updated_at: new Date().toISOString(),
+          });
+        if (upsertErr) {
+          const msg = String(upsertErr.message || "");
+          if (
+            upsertErr.code === "PGRST205" ||
+            upsertErr.code === "42P01" ||
+            (upsertErr as any).status === 404 ||
+            msg.includes("404")
+          ) {
+            keyringTableUnavailable = true;
+          }
+        } else {
+          syncedKeyringSecrets.set(userId, secret);
+        }
+      }
       const { data } = await supabaseAuth.auth.getSession();
       if (
         (scrubLegacyJwtMetadata ||
@@ -590,27 +655,45 @@ export async function deriveAesGcmKey(
   explicitSecret?: string
 ): Promise<CryptoKey> {
   const secret = await resolveStagingVaultSecret(userId, explicitSecret);
-  const passphrase = `${userId}::${(email || "").trim().toLowerCase()}::${secret}::sanctuary_signature_queue_v2`;
-  const keyMaterial = await window.crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(passphrase),
-    { name: "PBKDF2" },
-    false,
-    ["deriveKey"]
-  );
+  const cacheKey = `${userId}|${(email || "").trim().toLowerCase()}|${bytesToBase64(salt)}|${secret.slice(0, 16)}`;
+  const existingKeyPromise = derivedAesKeyCache.get(cacheKey);
+  if (existingKeyPromise) {
+    return existingKeyPromise;
+  }
 
-  return window.crypto.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      salt: salt as unknown as BufferSource,
-      iterations: 100000,
-      hash: "SHA-256",
-    },
-    keyMaterial,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"]
-  );
+  const keyPromise = (async (): Promise<CryptoKey> => {
+    const passphrase = `${userId}::${(email || "").trim().toLowerCase()}::${secret}::sanctuary_signature_queue_v2`;
+    const keyMaterial = await window.crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(passphrase),
+      { name: "PBKDF2" },
+      false,
+      ["deriveKey"]
+    );
+
+    return window.crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: salt as unknown as BufferSource,
+        iterations: 100000,
+        hash: "SHA-256",
+      },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  })().catch((err) => {
+    derivedAesKeyCache.delete(cacheKey);
+    throw err;
+  });
+
+  if (derivedAesKeyCache.size >= 24) {
+    const oldestKey = derivedAesKeyCache.keys().next().value;
+    if (oldestKey) derivedAesKeyCache.delete(oldestKey);
+  }
+  derivedAesKeyCache.set(cacheKey, keyPromise);
+  return keyPromise;
 }
 
 export async function encryptStagingPayload(

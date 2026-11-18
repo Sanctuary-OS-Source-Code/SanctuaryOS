@@ -956,19 +956,23 @@ export function MasonSandbox({
       setConfirmPurge(false);
       fetchSandboxMods();
     } catch (e: any) {
-      useStore.getState().pushStatus(`Failed to delete: ${e}`, "error");
+      useStore.getState().pushStatus(`${t("alert_deletion_failed", "Deletion failed: ")}${e}`, "error");
     }
   };
 
   const searchFilter = (m: any) => {
     if (searchTerm && !m.name?.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     const nameLower = m.name?.toLowerCase() || "";
-    return (
-      !nameLower.endsWith(".ini") &&
-      !nameLower.endsWith(".cfg") &&
-      !nameLower.endsWith(".json") &&
-      !nameLower.endsWith(".txt")
-    );
+    const schemaExts = useStore.getState().activeGameSchema?.extensions;
+    const cfgExts: string[] = [
+      ...(Array.isArray(schemaExts?.config) ? schemaExts.config : []),
+      ...(Array.isArray(schemaExts?.editable_configs) ? schemaExts.editable_configs : []),
+    ]
+      .map((e: any) => String(e || "").trim().toLowerCase())
+      .filter(Boolean)
+      .map((e: string) => (e.startsWith(".") ? e : `.${e}`));
+    const nonModConfigExts = cfgExts.length > 0 ? cfgExts : [".ini", ".cfg", ".json", ".txt", ".toml", ".yaml"];
+    return !nonModConfigExts.some((ext) => nameLower.endsWith(ext));
   };
 
   const buildSandboxFamilies = (rawList: any[]) => {
@@ -1021,7 +1025,7 @@ export function MasonSandbox({
       return fileName
         .replace(/\.[^/.]+$/, "")
         .replace(/[_\-\s]+v?\d+(\.\d+)+[a-z]?$/i, "")
-        .replace(/(_scripts|_script|_addon|_part\d+|_hq|_nonhq)$/i, "")
+        .replace(/(_scripts|_script|_addon|_part\d+)$/i, "")
         .toLowerCase();
     };
 

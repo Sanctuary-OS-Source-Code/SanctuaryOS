@@ -55,7 +55,7 @@ pub async fn start_lab_verification_session(
             .as_ref()
             .and_then(|l| l.max_idle_seconds)
             .unwrap_or(10)
-            .clamp(8, 12);
+            .clamp(3, 600);
         let require_focus = lv.as_ref().and_then(|l| l.require_focus).unwrap_or(true);
         let require_save_checkpoint = lv
             .as_ref()
@@ -82,7 +82,7 @@ pub async fn start_lab_verification_session(
             .as_ref()
             .and_then(|w| w.stabilize_boot_seconds)
             .unwrap_or(10)
-            .max(8);
+            .clamp(1, 300);
         let min_disk_read_mb = wls.as_ref().and_then(|w| w.min_disk_read_mb).unwrap_or(75);
         let min_ram_step_percent = wls
             .as_ref()
@@ -443,8 +443,8 @@ pub(super) fn tick_lab_verification_session_sync(
         }
     }
 
-    // 1. Check for crash/exception logs first
-    if let Some(err_msg) = scan_logs_sync(&session.docs_dir, game_schema) {
+    // 1. Check for crash/exception logs modified during this Lab session (ignore stale pre-session logs)
+    if let Some(err_msg) = scan_logs_sync(&session.docs_dir, game_schema, Some(session.started_at_epoch)) {
         session.stage = "FAILED".to_string();
         session.error_log = Some(err_msg.clone());
         if !session.notified_failed {
@@ -656,7 +656,7 @@ pub(super) fn tick_lab_verification_session_sync(
                 let boot_epoch = *session.boot_detected_epoch.get_or_insert(now);
                 let boot_elapsed = now.saturating_sub(boot_epoch);
 
-                if boot_elapsed >= session.stabilize_boot_seconds.max(8) as u64 {
+                if boot_elapsed >= session.stabilize_boot_seconds.max(1) as u64 {
                     let plateau_ram_tol = (session.current_ram_bytes / 100)
                         .clamp(2 * 1024 * 1024, 14 * 1024 * 1024);
                     let quiet_disk = disk_io_bytes_this_tick <= 2 * 1024 * 1024;
@@ -909,19 +909,25 @@ pub(super) fn tick_lab_verification_session_sync(
                             );
                         }
                     } else {
-                        let cert = LabVerificationCertificate {
+                        let baseline_ram_mb = session.baseline_ram_bytes / (1024 * 1024);
+                        let peak_ram_mb = (session.peak_ram_bytes / (1024 * 1024)).max(baseline_ram_mb);
+                        let mut cert = LabVerificationCertificate {
                             dna_hash: session.dna_hash.clone(),
                             mod_name: session.mod_name.clone(),
                             verified_at: now,
                             active_seconds: session.elapsed_active_seconds,
-                            baseline_ram_mb: session.baseline_ram_bytes / (1024 * 1024),
-                            peak_ram_mb: session.peak_ram_bytes / (1024 * 1024),
+                            baseline_ram_mb,
+                            peak_ram_mb,
                             disk_read_mb: session
                                 .cumulative_disk_read_bytes
                                 .saturating_sub(session.baseline_disk_read_bytes)
                                 / (1024 * 1024),
                             save_file_verified: "no_save_targets_in_schema".to_string(),
+                            seal_pubkey: String::new(),
+                            seal_sig: String::new(),
+                            local_seal_sig: String::new(),
                         };
+                        seal_lab_certificate(&mut cert);
                         persist_certificate_to_vault(&session.vault_path, &cert);
                         session.certificate = Some(cert);
                         session.stage = "VERIFIED".to_string();
@@ -1036,7 +1042,7 @@ pub(super) fn tick_lab_verification_session_sync(
                         {
                             // Final crash/exception sweep + deployed payload check + save corruption audit
                             if let Some(err_msg) =
-                                scan_logs_sync(&session.docs_dir, game_schema)
+                                scan_logs_sync(&session.docs_dir, game_schema, Some(session.started_at_epoch))
                             {
                                 session.stage = "FAILED".to_string();
                                 session.error_log = Some(err_msg.clone());
@@ -1115,20 +1121,25 @@ pub(super) fn tick_lab_verification_session_sync(
                                             save_sandbox_state_meta(&storage.sandbox_root, &sb_meta);
                                     }
 
-                                    let cert = LabVerificationCertificate {
+                                    let baseline_ram_mb = session.baseline_ram_bytes / (1024 * 1024);
+                                    let peak_ram_mb = (session.peak_ram_bytes / (1024 * 1024)).max(baseline_ram_mb);
+                                    let mut cert = LabVerificationCertificate {
                                         dna_hash: session.dna_hash.clone(),
                                         mod_name: session.mod_name.clone(),
                                         verified_at: now,
                                         active_seconds: session.elapsed_active_seconds,
-                                        baseline_ram_mb: session.baseline_ram_bytes
-                                            / (1024 * 1024),
-                                        peak_ram_mb: session.peak_ram_bytes / (1024 * 1024),
+                                        baseline_ram_mb,
+                                        peak_ram_mb,
                                         disk_read_mb: session
                                             .cumulative_disk_read_bytes
                                             .saturating_sub(session.baseline_disk_read_bytes)
                                             / (1024 * 1024),
                                         save_file_verified: cand.display_name.clone(),
+                                        seal_pubkey: String::new(),
+                                        seal_sig: String::new(),
+                                        local_seal_sig: String::new(),
                                     };
+                                    seal_lab_certificate(&mut cert);
                                     persist_certificate_to_vault(&session.vault_path, &cert);
                                     session.verified_save_name = Some(cand.display_name);
                                     session.certificate = Some(cert);
@@ -1445,7 +1456,9 @@ pub async fn get_lab_certificates(vault_path: String) -> Result<Vec<LabVerificat
             if let Ok(rows) = stmt.query_map([], |row| row.get::<_, String>(0)) {
                 for r in rows.flatten() {
                     if let Ok(cert) = serde_json::from_str::<LabVerificationCertificate>(&r) {
-                        certs.push(cert);
+                        if has_valid_lab_cert_seal(&cert) {
+                            certs.push(cert);
+                        }
                     }
                 }
             }
@@ -1454,6 +1467,11 @@ pub async fn get_lab_certificates(vault_path: String) -> Result<Vec<LabVerificat
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub fn verify_lab_certificate_seal(certificate: LabVerificationCertificate) -> bool {
+    has_valid_lab_cert_seal(&certificate)
 }
 
 #[tauri::command]
@@ -1476,7 +1494,7 @@ pub async fn verify_lab_certificate_exists(vault_path: String, dna_hash: String)
             .ok();
         if let Some(raw) = cert_json {
             if let Ok(cert) = serde_json::from_str::<LabVerificationCertificate>(&raw) {
-                return Ok(cert.active_seconds >= 15 && !cert.save_file_verified.trim().is_empty());
+                return Ok(has_valid_lab_cert_seal(&cert));
             }
         }
         Ok(false)
@@ -1506,6 +1524,9 @@ pub fn record_lab_certificate(
     let Some(signed_cert) = authorized else {
         return Err("Refused to record unsigned Lab certificate.".to_string());
     };
+    if !has_valid_lab_cert_seal(&signed_cert) {
+        return Err("Refused to record Lab certificate with invalid cryptographic seal.".to_string());
+    }
     persist_certificate_to_vault(&vault_path, &signed_cert);
     Ok(())
 }

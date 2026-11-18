@@ -20,6 +20,11 @@ import bundledRoadmapDoc from "../../../Phase Roadmap.md?raw";
 import bundledForkingGuide from "../../../Sanctuary OS Forking & Architecture Guide.md?raw";
 import bundledArchitectureDoc from "../../../Master Architecture & Feature Document.md?raw";
 import bundledProtocolList from "../../../Master Protocol List.md?raw";
+import docPartnerSpokePitch from "../../../Docs/executive_partner_spoke_pitch_matrix.md?raw";
+import docCompetitorComparison from "../../../Docs/modding_ecosystem_competitor_comparison.md?raw";
+import docWhySwitch from "../../../Docs/public_comparison_page_why_switch_to_sanctuary_os.md?raw";
+import docTechnicalDeepDive from "../../../Docs/technical_deep_dive_formats_malware_cloud_traps.md?raw";
+import docMigrationGuide from "../../../Docs/zero_reinstall_player_creator_migration_guide.md?raw";
 import {
   syncDirectivesBidirectional,
   SystemDirectiveRecord,
@@ -59,6 +64,7 @@ export default function WebDocumentFeed({
   // Active Interactive Directive SidePanel State
   const [activeModule, setActiveModule] = useState<DirectiveModuleId | null>(null);
   const [showRawDoc, setShowRawDoc] = useState(false);
+  const [activeWhitepaperId, setActiveWhitepaperId] = useState<string | null>(null);
 
   // 1. Citizen Guide & Neural Walkthrough State (3 Static Top Tiles + 2-Column Cards with Inline Drawer)
   const [guideMode, setGuideMode] = useState<"walkthrough" | "modules" | "roles">("walkthrough");
@@ -550,6 +556,83 @@ export default function WebDocumentFeed({
     "protocol clearance matrix governance security compliance"
   );
 
+  const ecosystemWhitepapers = useMemo(
+    () => [
+      {
+        id: "why_switch",
+        title: t("sd_wp_why_switch_title", "Why Switch to Sanctuary OS"),
+        badge: t("sd_wp_badge_comparison", "COMPARISON"),
+        subtitle: t("sd_wp_why_switch_sub", "Overview & Ecosystem Fit"),
+        summary: t(
+          "sd_wp_why_switch_desc",
+          "Plain-language comparison covering non-destructive VFS links, universal engine schemas, ByteHound security, and community sovereignty."
+        ),
+        icon: t("icon_compare_arrows", "compare_arrows"),
+        content: docWhySwitch,
+      },
+      {
+        id: "zero_reinstall_migration",
+        title: t("sd_wp_migration_title", "Zero-Reinstall {Citizen} & {Mason} Migration Guide"),
+        badge: t("sd_wp_badge_migration", "MIGRATION"),
+        subtitle: t("sd_wp_migration_sub", "MO2, Vortex, BG3MM & r2modman"),
+        summary: t(
+          "sd_wp_migration_desc",
+          "Step-by-step zero-copy hardlink Exodus migration guide and static edge catalog publishing for creators leaving legacy platforms."
+        ),
+        icon: t("icon_move_to_inbox", "move_to_inbox"),
+        content: docMigrationGuide,
+      },
+      {
+        id: "competitor_comparison",
+        title: t("sd_wp_competitor_title", "Modding Ecosystem Competitor Matrix"),
+        badge: t("sd_wp_badge_matrix", "MATRIX"),
+        subtitle: t("sd_wp_competitor_sub", "Feature & Protocol Parity"),
+        summary: t(
+          "sd_wp_competitor_desc",
+          "Side-by-side breakdown comparing Sanctuary OS against Vortex, MO2, r2modman, BG3MM, and centralized mod networks."
+        ),
+        icon: t("icon_table_chart", "table_chart"),
+        content: docCompetitorComparison,
+      },
+      {
+        id: "technical_deep_dive",
+        title: t("sd_wp_tech_deep_title", "Technical Deep Dive: Formats, Malware & Cloud Traps"),
+        badge: t("sd_wp_badge_engineering", "ENGINEERING"),
+        subtitle: t("sd_wp_tech_deep_sub", "Binary TOCs & Zero-PII"),
+        summary: t(
+          "sd_wp_tech_deep_desc",
+          "Architectural deep dive into binary container TOCs, ByteHound malware heuristics, symlink atomicity, and local-first privacy."
+        ),
+        icon: t("icon_memory", "memory"),
+        content: docTechnicalDeepDive,
+      },
+      {
+        id: "partner_spoke_pitch",
+        title: t("sd_wp_partner_pitch_title", "Executive Partner Spoke Pitch Matrix"),
+        badge: t("sd_wp_badge_partners", "PARTNERS"),
+        subtitle: t("sd_wp_partner_pitch_sub", "Sovereign Hub Federation"),
+        summary: t(
+          "sd_wp_partner_pitch_desc",
+          "Executive brief for game studios, community leaders, and Spoke hosts adopting sovereign federation with SANCTUARY-UPLINK://."
+        ),
+        icon: t("icon_hub", "hub"),
+        content: docPartnerSpokePitch,
+      },
+    ],
+    [t]
+  );
+
+  const filteredWhitepapers = ecosystemWhitepapers.filter((wp) => {
+    if (moduleFilter && moduleFilter !== "ALL" && moduleFilter !== "whitepapers") return false;
+    if (!normalizedSearch) return true;
+    return `${wp.title} ${wp.subtitle} ${wp.summary} ${wp.badge}`
+      .toLowerCase()
+      .includes(normalizedSearch);
+  });
+
+  const activeWhitepaper =
+    ecosystemWhitepapers.find((wp) => wp.id === activeWhitepaperId) || null;
+
   const filteredExtraDirectives = extraCustomDirectives.filter((p) => {
     if (moduleFilter && moduleFilter !== "ALL") return false;
     if (!normalizedSearch) return true;
@@ -564,6 +647,7 @@ export default function WebDocumentFeed({
     showForkCard ||
     showArchCard ||
     showProtoCard ||
+    filteredWhitepapers.length > 0 ||
     filteredExtraDirectives.length > 0;
 
   return (
@@ -888,7 +972,56 @@ export default function WebDocumentFeed({
       </div>
       )}
 
-      {/* Optional Row 3: Any extra custom public broadcasts added by Keepers */}
+      {/* Row 3: Ecosystem Whitepapers & Migration Guides (/Docs/*.md) */}
+      {filteredWhitepapers.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+          {filteredWhitepapers.map((wp) => (
+            <UniversalCard
+              key={wp.id}
+              layout="vertical"
+              icon={wp.icon}
+              title={wp.title}
+              subtitle={buildDirectiveSubtitle(wp.subtitle)}
+              bannerTopLabel={wp.badge}
+              bannerBottomLabel={wp.subtitle}
+              onClick={() => setActiveWhitepaperId(wp.id)}
+              className="w-full h-full"
+              imageOverlay={
+                <div className="absolute top-3 left-3 flex flex-wrap gap-2 z-30">
+                  <span className="px-2.5 py-1 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[9px] font-black uppercase tracking-wider text-[var(--text)] flex items-center gap-1.5 shrink-0">
+                    <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                      {wp.icon}
+                    </span>
+                    {wp.badge}
+                  </span>
+                </div>
+              }
+              footer={
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-[10px] font-black capitalize tracking-widest opacity-60 text-[var(--subtext)] flex items-center gap-2">
+                    <span className="material-symbols-outlined !text-[12px]">
+                      {t("icon_menu_book", "menu_book")}
+                    </span>
+                    {t("sd_wp_card_tag", "Ecosystem Brief")}
+                  </span>
+                  <span className="text-[10px] font-black capitalize tracking-widest text-[var(--text)] opacity-80 group-hover/card:opacity-100 group-hover/card:text-[var(--accent)] transition-colors flex items-center gap-1 shrink-0">
+                    {t("btn_view", "View")}{" "}
+                    <span className="material-symbols-outlined !text-sm">
+                      {t("icon_arrow_forward", "arrow_forward")}
+                    </span>
+                  </span>
+                </div>
+              }
+            >
+              <p className="text-xs text-[var(--subtext)] leading-relaxed font-medium opacity-85 line-clamp-3 mt-1">
+                {wp.summary}
+              </p>
+            </UniversalCard>
+          ))}
+        </div>
+      )}
+
+      {/* Optional Row 4: Any extra custom public broadcasts added by Keepers */}
       {filteredExtraDirectives.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
           {filteredExtraDirectives.map((p) => {
@@ -1007,6 +1140,34 @@ export default function WebDocumentFeed({
           )}
         </div>
       </SidePanel>
+
+      {activeWhitepaper && (
+        <SidePanel
+          isOpen={true}
+          onClose={() => setActiveWhitepaperId(null)}
+          title={activeWhitepaper.title}
+          subtitle={activeWhitepaper.subtitle}
+          icon={activeWhitepaper.icon}
+          widthClass="w-[94vw] sm:w-[88vw] lg:w-[74vw] xl:w-[64vw] max-w-5xl"
+          panelZ="z-[50001]"
+          backdropZ="z-[50000]"
+          panelClass="!border-l-[color-mix(in_srgb,var(--text)_15%,transparent)]"
+        >
+          <div className="flex flex-col gap-6 pb-24 w-full">
+            <SidePanelHeroCard
+              title={activeWhitepaper.title}
+              subtitle={activeWhitepaper.subtitle}
+              description={activeWhitepaper.summary}
+              label={t("author_sanctuary_team", "Sanctuary Foundry")}
+              icon={activeWhitepaper.icon}
+              variant="accent"
+            />
+            <UniversalGroup title={activeWhitepaper.title} icon={t("icon_menu_book", "menu_book")}>
+              <StructuredReleaseNotesView content={activeWhitepaper.content} />
+            </UniversalGroup>
+          </div>
+        </SidePanel>
+      )}
 
       {selectedPost && (
         <MasonPostViewer

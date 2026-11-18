@@ -33,7 +33,7 @@ export function KeeperReleasePipelineSidePanel({
   >("pipeline");
   const [keepersProcessor, setKeepersProcessor] = useState("STRIPE");
   const [keepersUrl, setKeepersUrl] = useState("");
-  const [supportEmail, setSupportEmail] = useState("support@sanctuaryos.gg");
+  const [supportEmail, setSupportEmail] = useState("support@sanctuaryos.net");
 
   // Foundry cost breakdown inputs ($ USD)
   const [domainAnnualDollars, setDomainAnnualDollars] = useState("24");
@@ -67,7 +67,7 @@ export function KeeperReleasePipelineSidePanel({
       const proc = (cfg.keepers_payment_processor || "STRIPE").toUpperCase();
       setKeepersProcessor(proc === "SANDBOX" ? "STRIPE" : proc);
       setKeepersUrl(cfg.keepers_donation_url || "");
-      setSupportEmail(cfg.support_contact_email || "support@sanctuaryos.gg");
+      setSupportEmail(cfg.support_contact_email || "support@sanctuaryos.net");
 
       const status = getMonthlyServerGoalStatus(cfg);
       const fb = status.foundryBreakdown;
@@ -213,7 +213,7 @@ export function KeeperReleasePipelineSidePanel({
       await saveKeepersPipelineConfig({
         keepers_payment_processor: keepersProcessor,
         keepers_donation_url: keepersUrl.trim(),
-        support_contact_email: supportEmail.trim() || "support@sanctuaryos.gg",
+        support_contact_email: supportEmail.trim() || "support@sanctuaryos.net",
         monthly_server_goal_cents: previewFoundryGoal.totalOperatingCostCents,
         monthly_server_covered_cents: previewFoundryGoal.netReceivedCents,
         foundry_cost_breakdown: draftFoundryBreakdown,
@@ -730,7 +730,7 @@ export function KeeperReleasePipelineSidePanel({
                   inputMode="email"
                   value={supportEmail}
                   onChange={(e) => setSupportEmail(e.target.value)}
-                  placeholder="support@sanctuaryos.gg"
+                  placeholder="support@sanctuaryos.net"
                   className="w-full glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] rounded-xl p-3 text-xs font-mono text-[var(--text)] focus:outline-none focus:border-[var(--accent)]"
                 />
               </div>

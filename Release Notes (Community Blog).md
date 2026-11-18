@@ -1,6 +1,6 @@
 # State of the Sanctuary — Version 0.6.0
 ### Liquid Glass Surface Unification, Multi-Game Support, Native Mac App & Deep Mod Protection
-**Release Date:** October 28, 2026 | **Version:** 0.6.0 | **Platform:** Windows & macOS
+**Release Date:** October 28, 2026 | **Version:** 0.6.0 | **Platform:** Windows, macOS, Linux & SteamOS
 
 ## Welcome to Sanctuary OS 0.6.0!
 
@@ -9,10 +9,10 @@ This is our biggest update yet—touching almost every corner of the app on Desk
 ### TL;DR — The 60-Second Summary
 
 - **3D Liquid Glass & True Glass Mode:** We rebuilt the visual interface with real-time 3D glass refraction that bends light around every card and panel, plus a 1-click **True Glass** mode and **Auto-Tune** button in the Theme Editor.
-- **Built for Any Moddable Game:** Sanctuary OS now supports any game out of the box—with built-in setups for *The Sims 4*, *GTA V*, *Skyrim SE*, *Cyberpunk 2077*, *Baldur's Gate 3*, *Stardew Valley*, *WWE 2K*, and custom games.
-- **Native Mac App & 1-Click Updates:** Sanctuary OS is now available natively on both **Windows** and **Mac**, complete with a silent in-app updater that downloads and installs updates without opening your browser.
+- **Built for Any Moddable Game:** Sanctuary OS now supports any game out of the box—with built-in setups for *The Sims 4*, *GTA V*, *WWE 2K*, *Skyrim SE*, *Cyberpunk 2077*, *Baldur's Gate 3*, *Stardew Valley*, and custom games.
+- **Cross-Platform Native Apps & 1-Click Updates:** Sanctuary OS runs natively on **Windows**, **macOS**, **Linux**, and **SteamOS / Steam Deck**, complete with a silent in-app updater that downloads and installs updates without opening your browser.
 - **Smarter Mod Security Scanner:** Every downloaded archive, script, and package file is now scanned inside and out before it touches your mod folder—catching hidden threats while never falsely flagging popular script mods.
-- **1-Click Creator Publishing:** Every registered user can now open the Creator Workshop to package mods, build settings templates, and publish updates directly to GitHub, Cloudflare, S3, Nexus Mods, or a local zip file.
+- **1-Click Creator Publishing:** Every registered user can now open the Creator Workshop to package mods, build settings templates, and publish static update manifests directly to GitHub, GitHub Gist, GitLab / Codeberg, Neocities, WebDAV / HTTP PUT endpoints, a Local Synced Folder, or a ready-to-share zip file.
 - **Cleaner Cards & Floating Mobile Dock:** Mod titles now have the full width of every card without getting cut off, and phone users get a smooth floating glass bottom bar with swipeable top tabs.
 
 ### Visual Overhaul: 3D Liquid Glass & Easier-to-Read Cards
@@ -26,9 +26,9 @@ This is our biggest update yet—touching almost every corner of the app on Desk
 
 ### Multi-Game Support, Native Mac App & Faster Mod Management
 
-- **Ready for 8+ Game Engines:** Switch between *The Sims 4*, *Grand Theft Auto V*, *Skyrim Special Edition*, *Cyberpunk 2077*, *Baldur's Gate 3*, *Stardew Valley*, *WWE 2K*, or any custom game from the top bar—each with its own folders, categories, and load rules.
+- **Ready for Any Game Engine:** Switch between *The Sims 4*, *Grand Theft Auto V*, *WWE 2K Series*, *Skyrim Special Edition*, *Cyberpunk 2077*, *Baldur's Gate 3*, *Stardew Valley*, or any custom Universal schema from the top bar—each with its own folders, categories, and load rules.
 - **Safe Vanilla Game Folders:** For games where mods go directly into the main game folder (like *Skyrim* or *GTA V*), Sanctuary OS tracks every file it places and backs up original files automatically—so disabling mods never breaks your clean game install.
-- **Native Mac App (.dmg) & Silent Updates:** Mac players on Apple Silicon and Intel can now download Sanctuary OS natively. When a new version drops, clicking **Install & Restart** updates the app right inside the window on both Windows and Mac.
+- **Native Mac (.dmg), Linux & SteamOS Support + Silent Updates:** Mac players on Apple Silicon and Intel—plus Linux and Steam Deck players via `.AppImage` / `.deb`—can run Sanctuary OS natively. When a new version drops, clicking **Install & Restart** updates the app right inside the window.
 - **Instant Library & Nexus Loading:** Opening huge mod libraries, switching between games, and browsing **The Nexus** or **Conflict Radar** is now dramatically faster thanks to background loading and smarter caching.
 - **4-Tab Phone-to-PC Modpack Queue:** Browse mods on your phone or browser and send them straight to your home PC. Our updated 4-tab Modpack Builder automatically grabs required parent mods (like adding *MC Command Center* when you pick *MC Woohoo*).
 - **No More Duplicate Settings Files:** Fixed an issue where live mod config files could create a duplicate copy in your main Mods folder when updated while the game was running.
@@ -45,7 +45,7 @@ This is our biggest update yet—touching almost every corner of the app on Desk
 ### For Creators & Community Leaders: Open Workshop, Guides & Direct Support
 
 - **Creator Workshop Open to Everyone:** Every registered player can now open the **Mason Workshop** to package mods, link add-ons and script files together, design custom themes, and build visual settings screens for their mods.
-- **1-Click Cloud Publishing (Zero Lock-In):** Creators can push mod updates directly to **GitHub Releases**, **Cloudflare R2**, **Amazon S3 / Backblaze**, **Supabase**, or **Nexus Mods** with one click—or export a ready-to-share zip file for Patreon, itch.io, or CurseForge.
+- **1-Click Cloud Publishing (Zero Lock-In):** Creators can push static `.sanctuary.manifest.json` or `catalog.json` updates directly to **GitHub Repo / Cloudflare Pages**, **GitHub Gist**, **GitLab / Codeberg**, **Neocities**, **Personal WebDAV / HTTP PUT**, or a **Local Synced Folder** with one click—or export a ready-to-share zip file for Patreon, itch.io, Nexus, or CurseForge.
 - **Interactive Visual Settings & Diff Timeline:** Players and creators can tweak mod settings with simple sliders and toggles in the **Citizen's Workbench**, and compare current changes side-by-side against saved backups before applying them.
 - **Built-In Schema & Language Guides + Icon Picker:** Customizing a game workspace or language pack now includes an interactive field-by-field guide explaining every setting in plain English, plus a visual searchable **Icon Picker** so you never have to guess icon names.
 - **0%-Cut Community Donations & Daily Dev Builds:** Supporting Sanctuary OS or any Partner Community gives 100% of your donation directly to that community, and every **$5 adds +30 days** of early **Daily Dev Build** access across Desktop, Web, and Mobile.

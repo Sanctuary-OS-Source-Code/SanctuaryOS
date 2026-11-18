@@ -1594,3 +1594,122 @@ pub async fn push_static_edge_manifest(
     execute_edge_manifest_push(&mut manifest, &push_config, &effective_url).await
 }
 
+fn edge_push_vault_path() -> Result<PathBuf, String> {
+    Ok(crate::commands::webauthn::local_passkey_vault::secure_passkey_dir()?.join("edge_push_tokens_v1.json"))
+}
+
+fn seal_token_in_map(
+    map: &mut HashMap<String, (String, String)>,
+    master_key: &[u8; 32],
+    scope_key: &str,
+    token: &str,
+) -> Result<(), String> {
+    let clean_scope = scope_key.trim();
+    if clean_scope.is_empty() {
+        return Err("Invalid empty push token scope.".to_string());
+    }
+    let clean_token = token.trim();
+    if clean_token.is_empty() {
+        map.remove(clean_scope);
+        return Ok(());
+    }
+    let (nonce_b64, sealed_b64) = crate::commands::webauthn::local_passkey_vault::seal_private_key_with_key(
+        master_key,
+        "edge_push_token",
+        clean_scope,
+        clean_token.as_bytes(),
+    )?;
+    map.insert(clean_scope.to_string(), (nonce_b64, sealed_b64));
+    Ok(())
+}
+
+fn unseal_token_from_map(
+    map: &HashMap<String, (String, String)>,
+    master_key: &[u8; 32],
+    scope_key: &str,
+) -> Result<String, String> {
+    let clean_scope = scope_key.trim();
+    if clean_scope.is_empty() {
+        return Ok(String::new());
+    }
+    let Some((nonce_b64, sealed_b64)) = map.get(clean_scope) else {
+        return Ok(String::new());
+    };
+    let plain = crate::commands::webauthn::local_passkey_vault::unseal_private_key_with_key(
+        master_key,
+        "edge_push_token",
+        clean_scope,
+        nonce_b64,
+        sealed_b64,
+    )?;
+    String::from_utf8(plain).map_err(|_| "Corrupted UTF-8 data in sealed push token.".to_string())
+}
+
+#[tauri::command]
+pub fn get_edge_push_token(scope_key: String) -> Result<String, String> {
+    let clean_scope = scope_key.trim();
+    if clean_scope.is_empty() {
+        return Ok(String::new());
+    }
+    let path = edge_push_vault_path()?;
+    if !path.exists() {
+        return Ok(String::new());
+    }
+    let raw = fs::read_to_string(&path).unwrap_or_default();
+    let map: HashMap<String, (String, String)> = serde_json::from_str(&raw).unwrap_or_default();
+    if !map.contains_key(clean_scope) {
+        return Ok(String::new());
+    }
+    let master_key = crate::commands::webauthn::local_passkey_vault::load_or_create_master_key()?;
+    unseal_token_from_map(&map, &master_key, clean_scope)
+}
+
+#[tauri::command]
+pub fn set_edge_push_token(scope_key: String, token: String) -> Result<(), String> {
+    let clean_scope = scope_key.trim();
+    if clean_scope.is_empty() {
+        return Err("Invalid empty push token scope.".to_string());
+    }
+    let path = edge_push_vault_path()?;
+    let mut map: HashMap<String, (String, String)> = if path.exists() {
+        fs::read_to_string(&path)
+            .ok()
+            .and_then(|raw| serde_json::from_str(&raw).ok())
+            .unwrap_or_default()
+    } else {
+        HashMap::new()
+    };
+    let master_key = crate::commands::webauthn::local_passkey_vault::load_or_create_master_key()?;
+    seal_token_in_map(&mut map, &master_key, clean_scope, &token)?;
+    let serialized = serde_json::to_string_pretty(&map)
+        .map_err(|e| format!("Failed serializing sealed push token store: {}", e))?;
+    crate::commands::webauthn::local_passkey_vault::write_restricted_file(
+        &path,
+        serialized.as_bytes(),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn edge_push_token_roundtrips_encrypted_with_scope_aad() {
+        let master_key = [0x42u8; 32];
+        let mut map = HashMap::new();
+        seal_token_in_map(&mut map, &master_key, "mod_1", "ghp_super_secret_token").unwrap();
+        assert_ne!(map["mod_1"].1, "ghp_super_secret_token");
+        let recovered = unseal_token_from_map(&map, &master_key, "mod_1").unwrap();
+        assert_eq!(recovered, "ghp_super_secret_token");
+
+        // Swapping sealed tuple into a different scope fails AAD verification.
+        let mut tampered = HashMap::new();
+        tampered.insert("mod_2".to_string(), map["mod_1"].clone());
+        assert!(unseal_token_from_map(&tampered, &master_key, "mod_2").is_err());
+
+        // Clearing with empty string removes entry.
+        seal_token_in_map(&mut map, &master_key, "mod_1", "  ").unwrap();
+        assert!(!map.contains_key("mod_1"));
+    }
+}
+

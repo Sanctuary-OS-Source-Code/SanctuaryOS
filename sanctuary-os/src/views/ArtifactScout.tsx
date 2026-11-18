@@ -24,6 +24,7 @@ import { StatTileCarousel } from "../hub-components/SharedCommandScreenLayout";
 import { ScoutCommandAndConflictTabs } from "../components/scout/ScoutCommandAndConflictTabs";
 import { ScoutOverridesAndLoadOrderTabs } from "../components/scout/ScoutOverridesAndLoadOrderTabs";
 import { ScoutSidePanels } from "../components/scout/ScoutSidePanels";
+import { isDesktop } from "../utils/envUtils";
 const isCloneConflict = (modA: string, modB: string) => {
     if (!modA || !modB) return false;
     const clean = (s: string) => {
@@ -98,6 +99,7 @@ export const ArtifactScout = () => {
     const [softConflicts, setSoftConflicts] = useState<any[]>([]);
 
     const [activeTab, setActiveTab] = useState<string>("COMMAND");
+    const [loadOrderDiagnostics, setLoadOrderDiagnostics] = useState<any>(null);
     const [overrideTab, setOverrideTab] = useState<"ACTIVE" | "IGNORED" | "ALL">("ALL");
     const [conflictSearch, setConflictSearch] = useState("");
     const [overrideSearch, setOverrideSearch] = useState("");
@@ -204,9 +206,33 @@ export const ArtifactScout = () => {
             activeGameSchema,
             modList
         );
-    }, [activeBlueprintObj, activeGameSchema, modList.length]);
+    }, [activeBlueprintObj, activeGameSchema, modList]);
 
     const activeBlueprintRules: LoadOrderRule[] = activeBlueprintObj?.loadRules || [];
+
+    useEffect(() => {
+        if (!isDesktop() || activeTab !== "LOAD_ORDER" || compiledOrder.items.length === 0) {
+            setLoadOrderDiagnostics(null);
+            return;
+        }
+        let cancelled = false;
+        const paths = compiledOrder.items
+            .map((it) => it.rawMod || it.cleanName)
+            .filter(Boolean);
+        invoke("evaluate_blueprint_load_order_diagnostics", {
+            paths,
+            modsPath: useStore.getState().modsPath || "",
+        })
+            .then((res) => {
+                if (!cancelled) setLoadOrderDiagnostics(res);
+            })
+            .catch(() => {
+                if (!cancelled) setLoadOrderDiagnostics(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [activeTab, activeBlueprintObj?.name, compiledOrder.items, activeGameSchema]);
     const ruleLinkedSet = useMemo(() => {
         const set = new Set<string>();
         for (const r of activeBlueprintRules) {
@@ -640,6 +666,7 @@ export const ArtifactScout = () => {
             const report = await invoke<any>("run_conflict_radar", {
                 modsPath: targetPath,
                 targetFiles,
+                hiddenOverrides: set?.hiddenFiles || null,
                 gameSchema: activeGameSchema,
             });
 
@@ -1580,6 +1607,7 @@ export const ArtifactScout = () => {
                         selectedLoadOrderMod={selectedLoadOrderMod}
                         t={t}
                         setModPriorityTier={setModPriorityTier}
+                        addLoadOrderRule={addLoadOrderRule}
                         removeLoadOrderRule={removeLoadOrderRule}
                         flipLoadOrderRule={flipLoadOrderRule}
                         activeGameSchema={activeGameSchema}
@@ -1625,6 +1653,7 @@ export const ArtifactScout = () => {
                         modOverlapMap={modOverlapMap}
                         filteredQueue={filteredQueue}
                         queueVirtual={queueVirtual}
+                        loadOrderDiagnostics={loadOrderDiagnostics}
                     />
                 </div>
             </div>

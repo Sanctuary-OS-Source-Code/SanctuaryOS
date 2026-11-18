@@ -2,6 +2,12 @@ import { supabaseAuth, getBrandConfig } from '../../supabase';
 import { isDesktop } from '../../utils/envUtils';
 import packageJson from '../../../package.json';
 import { isClientOnDevBuildStream } from '../../utils/supporterManager';
+import {
+  BLINDED_EMAIL_REGEX,
+  DEFAULT_LEGAL_COMPLIANCE_DRAFT,
+  isLegalComplianceDraftValid,
+  parseLegalTargetIdentifiers,
+} from '../../landing/DmcaAndLegalFlowSteps';
 
 export function useWebLandingSubmissionFlows({
   t,
@@ -40,6 +46,8 @@ export function useWebLandingSubmissionFlows({
   setActiveContactStep,
   setMaxContactStep,
   setIsSubmittingContact,
+  legalDraft,
+  setLegalDraft,
   setIsPartnerDrawerOpen,
   setPartnerGate1,
   partnerGate1,
@@ -144,6 +152,7 @@ export function useWebLandingSubmissionFlows({
     setContactChannel('Direct Contact - General');
     setContactSubject('');
     setContactBody('');
+    setLegalDraft(DEFAULT_LEGAL_COMPLIANCE_DRAFT);
     setActiveContactStep(0);
     setMaxContactStep(0);
   };
@@ -250,6 +259,117 @@ export function useWebLandingSubmissionFlows({
   };
 
   const handleSubmitDirectContact = async () => {
+    if (contactChannel === 'Direct Contact - Legal & Compliance') {
+      const rawSessionEmail = String(session?.user?.email || '');
+      const unblinded = !BLINDED_EMAIL_REGEX.test(rawSessionEmail)
+        ? rawSessionEmail
+        : '';
+      const resolvedReply =
+        legalDraft?.subType === 'privacy_general'
+          ? contactReplyTo.trim() || rawSessionEmail
+          : contactReplyTo.trim() || unblinded;
+
+      if (
+        !legalDraft ||
+        !isLegalComplianceDraftValid(
+          legalDraft,
+          resolvedReply,
+          contactSubject,
+          contactBody
+        )
+      ) {
+        pushToast(
+          t(
+            'dmca_incomplete_notice_err',
+            'Please complete all required statutory elements and attestations before submitting.'
+          ),
+          'warning'
+        );
+        return;
+      }
+
+      setIsSubmittingContact(true);
+      try {
+        const { data, error } = await supabaseAuth.functions.invoke('game-gateway', {
+          body: {
+            action: 'submit_dmca_or_legal_notice',
+            payload: {
+              notice_type: legalDraft.subType,
+              target_scope: legalDraft.targetScope,
+              target_spoke_id:
+                legalDraft.targetScope === 'spoke' ? legalDraft.targetSpokeId : null,
+              target_identifiers: parseLegalTargetIdentifiers(
+                legalDraft.targetIdentifiersRaw
+              ),
+              original_notice_id: legalDraft.originalNoticeId.trim() || null,
+              work_description:
+                legalDraft.subType === 'privacy_general'
+                  ? contactBody.trim()
+                  : legalDraft.workDescription.trim(),
+              work_url: legalDraft.workUrl.trim() || null,
+              subject: contactSubject.trim() || undefined,
+              description: contactBody.trim() || undefined,
+              legal_contact: {
+                full_legal_name: legalDraft.fullLegalName.trim(),
+                company_or_agent: legalDraft.companyOrAgent.trim(),
+                physical_address: legalDraft.physicalAddress.trim(),
+                phone: legalDraft.phone.trim(),
+                email: resolvedReply,
+              },
+              good_faith_attested: legalDraft.goodFaithAttested,
+              perjury_authority_attested: legalDraft.perjuryAuthorityAttested,
+              jurisdiction_attested: legalDraft.jurisdictionAttested,
+              forwarding_acknowledged: legalDraft.forwardingAcknowledged,
+              electronic_signature:
+                legalDraft.electronicSignature.trim() ||
+                legalDraft.fullLegalName.trim(),
+            },
+          },
+        });
+        if (error || data?.error || data?.ok === false) {
+          throw new Error(
+            error?.message ||
+              data?.error ||
+              'Failed to submit statutory legal/DMCA notice'
+          );
+        }
+        if (data?.hub_ticket_id) {
+          void supabaseAuth.functions
+            .invoke('keeper-email-dispatch', {
+              body: { mode: 'ticket_ack', ticket_id: data.hub_ticket_id },
+            })
+            .catch(() => {});
+        }
+        pushToast(
+          data?.relay_status === 'SPOKE_PENDING_SLA'
+            ? t(
+                'dmca_spoke_relay_toast',
+                'DMCA Notice sealed and routed directly to Partner Spoke Wayfinder & Oversight queue (48h SLA).'
+              )
+            : t(
+                'landing_contact_toast_success',
+                'Direct inquiry dispatched to the Keepers human review queue.'
+              ),
+          'success'
+        );
+        resetContactFlow();
+        setIsContactDrawerOpen(false);
+        fetchMyPlatformTickets();
+      } catch (err: any) {
+        pushToast(
+          err?.message ||
+            t(
+              'landing_feedback_toast_err',
+              'Failed to dispatch feedback. Please try again.'
+            ),
+          'error'
+        );
+      } finally {
+        setIsSubmittingContact(false);
+      }
+      return;
+    }
+
     const replyContact = contactReplyTo.trim() || session?.user?.email || '';
     if (!replyContact || !contactSubject.trim() || !contactBody.trim()) {
       pushToast(
@@ -264,7 +384,9 @@ export function useWebLandingSubmissionFlows({
         session?.user?.id && session.user.id !== 'local_citizen'
           ? session.user.id
           : null;
+      const ticketId = crypto.randomUUID();
       const { error } = await supabaseAuth.from('keeper_tickets').insert({
+        id: ticketId,
         author_id: uid,
         ticket_type: contactChannel,
         title: `[${contactChannel.replace('Direct Contact - ', 'Contact • ')}] ${contactSubject.trim()}`,
@@ -279,6 +401,11 @@ export function useWebLandingSubmissionFlows({
         },
       });
       if (error) throw error;
+      void supabaseAuth.functions
+        .invoke('keeper-email-dispatch', {
+          body: { mode: 'ticket_ack', ticket_id: ticketId },
+        })
+        .catch(() => {});
       pushToast(
         t(
           'landing_contact_toast_success',
@@ -355,7 +482,9 @@ export function useWebLandingSubmissionFlows({
         partnerVision.trim(),
       ].join('\n');
 
+      const ticketId = crypto.randomUUID();
       const { error } = await supabaseAuth.from('keeper_tickets').insert({
+        id: ticketId,
         author_id: uid,
         ticket_type: 'Partner Spoke Application',
         title: `[Partner Spoke] ${partnerGameTitle.trim()}`,
@@ -376,6 +505,11 @@ export function useWebLandingSubmissionFlows({
         },
       });
       if (error) throw error;
+      void supabaseAuth.functions
+        .invoke('keeper-email-dispatch', {
+          body: { mode: 'ticket_ack', ticket_id: ticketId },
+        })
+        .catch(() => {});
       localStorage.setItem('sanctuary_partner_app_last_ts', String(Date.now()));
       pushToast(
         t(
@@ -486,7 +620,9 @@ export function useWebLandingSubmissionFlows({
           : []),
       ].join('\n');
 
+      const ticketId = crypto.randomUUID();
       const { error } = await supabaseAuth.from('keeper_tickets').insert({
+        id: ticketId,
         author_id: uid,
         ticket_type: 'Keeper Application',
         title: `[${orgTitle} Application] ${finalHandle} — ${keeperFocus}`,
@@ -511,6 +647,11 @@ export function useWebLandingSubmissionFlows({
         },
       });
       if (error) throw error;
+      void supabaseAuth.functions
+        .invoke('keeper-email-dispatch', {
+          body: { mode: 'ticket_ack', ticket_id: ticketId },
+        })
+        .catch(() => {});
       localStorage.setItem('sanctuary_keeper_app_last_ts', String(Date.now()));
       pushToast(
         t(

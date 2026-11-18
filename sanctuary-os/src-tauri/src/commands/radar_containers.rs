@@ -312,7 +312,169 @@ fn extract_unreal_pak_toc(file: &mut BufReader<File>, file_len: u64) -> Vec<Stri
     Vec::new()
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct LspkFileEntry {
+    pub name: String,
+    pub offset: u64,
+    pub archive_part: u8,
+    pub flags: u8,
+    pub size_on_disk: u64,
+    pub uncompressed_size: u64,
+}
+
+fn read_lspk_entry_name(slice: &[u8]) -> String {
+    let end = slice.iter().position(|&b| b == 0).unwrap_or(slice.len());
+    String::from_utf8_lossy(&slice[..end])
+        .trim()
+        .replace('\\', "/")
+}
+
+pub(crate) fn parse_lspk_index(
+    file: &mut BufReader<File>,
+    file_len: u64,
+) -> Vec<LspkFileEntry> {
+    if file_len < 24 || file.seek(SeekFrom::Start(0)).is_err() {
+        return Vec::new();
+    }
+    let mut hdr = [0u8; 32];
+    let to_read = (file_len as usize).min(32);
+    if file.read_exact(&mut hdr[..to_read]).is_err() || &hdr[0..4] != b"LSPK" {
+        return Vec::new();
+    }
+    let version = read_le_u32(&hdr[4..8]);
+    let (list_offset, list_size) = if version >= 15 {
+        (read_le_u64(&hdr[8..16]), read_le_u32(&hdr[16..20]) as u64)
+    } else {
+        (0u64, 0u64)
+    };
+    if list_offset == 0 || list_offset >= file_len || list_size < 8 || list_size > 16 * 1024 * 1024 {
+        return Vec::new();
+    }
+    if file.seek(SeekFrom::Start(list_offset)).is_err() {
+        return Vec::new();
+    }
+    let mut header_meta = [0u8; 8];
+    if file.read_exact(&mut header_meta).is_err() {
+        return Vec::new();
+    }
+    let num_files = (read_le_u32(&header_meta[0..4]) as usize).min(100_000);
+    let compressed_size = read_le_u32(&header_meta[4..8]) as usize;
+    let entry_size = if version >= 18 { 272usize } else { 296usize };
+    let expected_uncompressed = num_files.saturating_mul(entry_size);
+    if num_files == 0 || expected_uncompressed > 32 * 1024 * 1024 || compressed_size > 16 * 1024 * 1024 {
+        return Vec::new();
+    }
+
+    let remaining = (file_len - list_offset - 8) as usize;
+    let read_len = compressed_size.min(remaining);
+    let mut comp_buf = vec![0u8; read_len];
+    if file.read_exact(&mut comp_buf).is_err() {
+        return Vec::new();
+    }
+
+    let raw_table = if read_len == expected_uncompressed {
+        comp_buf
+    } else {
+        match lz4_flex::block::decompress(&comp_buf, expected_uncompressed) {
+            Ok(decompressed) => decompressed,
+            Err(_) => {
+                // Fallback for zlib-compressed or edge-padded tables
+                let mut z_out = Vec::new();
+                if comp_buf.starts_with(&[0x78]) {
+                    let z = ZlibDecoder::new(comp_buf.as_slice());
+                    let _ = z.take(expected_uncompressed as u64).read_to_end(&mut z_out);
+                }
+                z_out
+            }
+        }
+    };
+
+    let mut out = Vec::with_capacity(num_files.min(MAX_TOC_ENTRIES));
+    for chunk in raw_table.chunks_exact(entry_size) {
+        let name = read_lspk_entry_name(&chunk[0..256]);
+        if name.is_empty() {
+            continue;
+        }
+        if version >= 18 {
+            let off_lo = read_le_u32(&chunk[256..260]) as u64;
+            let off_hi = read_le_u16(&chunk[260..262]) as u64;
+            let offset = off_lo | (off_hi << 32);
+            let archive_part = chunk[262];
+            let flags = chunk[263];
+            let size_on_disk = read_le_u32(&chunk[264..268]) as u64;
+            let uncompressed_size = read_le_u32(&chunk[268..272]) as u64;
+            out.push(LspkFileEntry {
+                name,
+                offset,
+                archive_part,
+                flags,
+                size_on_disk,
+                uncompressed_size,
+            });
+        } else {
+            let offset = read_le_u64(&chunk[256..264]);
+            let size_on_disk = read_le_u64(&chunk[264..272]);
+            let uncompressed_size = read_le_u64(&chunk[272..280]);
+            let archive_part = chunk[280];
+            let flags = chunk[284];
+            out.push(LspkFileEntry {
+                name,
+                offset,
+                archive_part,
+                flags,
+                size_on_disk,
+                uncompressed_size,
+            });
+        }
+    }
+    out
+}
+
+pub(crate) fn read_lspk_entry_bytes(
+    file: &mut BufReader<File>,
+    file_len: u64,
+    entry: &LspkFileEntry,
+) -> Option<Vec<u8>> {
+    if entry.archive_part != 0
+        || entry.size_on_disk == 0
+        || entry.size_on_disk > 4 * 1024 * 1024
+        || entry.uncompressed_size > 8 * 1024 * 1024
+        || entry.offset.saturating_add(entry.size_on_disk) > file_len
+    {
+        return None;
+    }
+    file.seek(SeekFrom::Start(entry.offset)).ok()?;
+    let mut buf = vec![0u8; entry.size_on_disk as usize];
+    file.read_exact(&mut buf).ok()?;
+    match entry.flags & 0x0F {
+        0 => Some(buf),
+        1 => {
+            let mut out = Vec::new();
+            let z = ZlibDecoder::new(buf.as_slice());
+            z.take(8 * 1024 * 1024).read_to_end(&mut out).ok()?;
+            Some(out)
+        }
+        2 => {
+            if entry.uncompressed_size == 0 {
+                return Some(buf);
+            }
+            lz4_flex::block::decompress(&buf, entry.uncompressed_size as usize).ok()
+        }
+        _ => None,
+    }
+}
+
 fn extract_lspk_toc(file: &mut BufReader<File>, file_len: u64) -> Vec<String> {
+    let entries = parse_lspk_index(file, file_len);
+    if !entries.is_empty() {
+        return entries
+            .into_iter()
+            .take(MAX_TOC_ENTRIES)
+            .map(|e| format!("lspk:{}", e.name.to_lowercase()))
+            .collect();
+    }
+
+    // Legacy / pre-v15 printable-path scan fallback
     if file_len < 32 || file.seek(SeekFrom::Start(0)).is_err() {
         return Vec::new();
     }
@@ -347,7 +509,6 @@ fn extract_lspk_toc(file: &mut BufReader<File>, file_len: u64) -> Vec<String> {
         decoded_text_bytes.as_slice()
     };
 
-    // Extract printable asset paths inside LSPK table (`Public/`, `Mods/`, `.lsx`, `.lsf`, `.dds`, etc.)
     let mut keys = Vec::new();
     let mut cur = Vec::new();
     for &b in scan_slice {
@@ -369,9 +530,220 @@ fn extract_lspk_toc(file: &mut BufReader<File>, file_len: u64) -> Vec<String> {
     keys
 }
 
+fn extract_ue_iostore_utoc_toc(file: &mut BufReader<File>, file_len: u64) -> Vec<String> {
+    if file_len < 60 || file.seek(SeekFrom::Start(0)).is_err() {
+        return Vec::new();
+    }
+    let mut hdr = [0u8; 60];
+    if file.read_exact(&mut hdr).is_err() || &hdr[0..16] != b"-==--==--==--==-" {
+        return Vec::new();
+    }
+    let header_size = read_le_u32(&hdr[20..24]) as u64;
+    let toc_entry_count = (read_le_u32(&hdr[24..28]) as usize).min(MAX_TOC_ENTRIES);
+    if toc_entry_count == 0
+        || header_size < 60
+        || header_size.saturating_add((toc_entry_count as u64).saturating_mul(12)) > file_len
+    {
+        return Vec::new();
+    }
+    if file.seek(SeekFrom::Start(header_size)).is_err() {
+        return Vec::new();
+    }
+    let mut ids_buf = vec![0u8; toc_entry_count * 12];
+    if file.read_exact(&mut ids_buf).is_err() {
+        return Vec::new();
+    }
+    let mut keys = Vec::with_capacity(toc_entry_count.min(512));
+    for chunk in ids_buf.chunks_exact(12) {
+        if chunk.iter().any(|&b| b != 0) {
+            keys.push(format!("utoc:{}", hex::encode(chunk)));
+        }
+    }
+    keys
+}
+
+fn extract_redengine_rdar_toc(file: &mut BufReader<File>, file_len: u64) -> Vec<String> {
+    if file_len < 28 || file.seek(SeekFrom::Start(0)).is_err() {
+        return Vec::new();
+    }
+    let mut hdr = [0u8; 28];
+    if file.read_exact(&mut hdr).is_err() || &hdr[0..4] != b"RDAR" {
+        return Vec::new();
+    }
+    let index_offset = read_le_u64(&hdr[8..16]);
+    let index_size = read_le_u32(&hdr[16..20]) as u64;
+    if index_offset == 0 || index_size < 28 || index_offset.saturating_add(28) > file_len {
+        return Vec::new();
+    }
+    if file.seek(SeekFrom::Start(index_offset)).is_err() {
+        return Vec::new();
+    }
+    let mut toc_hdr = [0u8; 28];
+    if file.read_exact(&mut toc_hdr).is_err() {
+        return Vec::new();
+    }
+    let file_table_offset = read_le_u32(&toc_hdr[0..4]);
+    let file_entry_count = (read_le_u32(&toc_hdr[16..20]) as usize).min(MAX_TOC_ENTRIES);
+    if file_entry_count == 0 {
+        return Vec::new();
+    }
+    let entries_start = if file_table_offset >= 28 && (file_table_offset as u64) < index_size {
+        index_offset.saturating_add(file_table_offset as u64)
+    } else {
+        index_offset.saturating_add(28)
+    };
+    let stride = if entries_start.saturating_add((file_entry_count as u64).saturating_mul(56)) <= file_len {
+        56usize
+    } else if entries_start.saturating_add((file_entry_count as u64).saturating_mul(40)) <= file_len {
+        40usize
+    } else {
+        return Vec::new();
+    };
+    if file.seek(SeekFrom::Start(entries_start)).is_err() {
+        return Vec::new();
+    }
+    let mut entries_buf = vec![0u8; file_entry_count * stride];
+    if file.read_exact(&mut entries_buf).is_err() {
+        return Vec::new();
+    }
+    let mut keys = Vec::with_capacity(file_entry_count.min(512));
+    for rec in entries_buf.chunks_exact(stride) {
+        let name_hash = read_le_u64(&rec[0..8]);
+        if name_hash != 0 {
+            keys.push(format!("rdar:{:016x}", name_hash));
+        }
+    }
+    keys
+}
+
+fn read_c_string_from_table(names_buf: &[u8], off: usize) -> String {
+    if off >= names_buf.len() {
+        return String::new();
+    }
+    let end = names_buf[off..]
+        .iter()
+        .position(|&b| b == 0)
+        .map(|rel| off + rel)
+        .unwrap_or(names_buf.len());
+    String::from_utf8_lossy(&names_buf[off..end])
+        .trim()
+        .replace('\\', "/")
+        .to_lowercase()
+}
+
+fn walk_rpf7_directory(
+    entries_buf: &[u8],
+    entry_count: usize,
+    names_buf: &[u8],
+    dir_idx: usize,
+    prefix: &str,
+    visited_dirs: &mut Vec<bool>,
+    depth: usize,
+    out_keys: &mut Vec<String>,
+) {
+    if depth > 16 || dir_idx >= entry_count || visited_dirs[dir_idx] || out_keys.len() >= MAX_TOC_ENTRIES {
+        return;
+    }
+    visited_dirs[dir_idx] = true;
+    let base = dir_idx * 16;
+    if base + 16 > entries_buf.len() {
+        return;
+    }
+    let marker = read_le_u32(&entries_buf[base + 4..base + 8]);
+    if marker != 0x7FFF_FF00 {
+        return;
+    }
+    let children_idx = read_le_u32(&entries_buf[base + 8..base + 12]) as usize;
+    let children_cnt = (read_le_u32(&entries_buf[base + 12..base + 16]) as usize).min(MAX_TOC_ENTRIES);
+    if children_idx >= entry_count {
+        return;
+    }
+    let end_idx = children_idx.saturating_add(children_cnt).min(entry_count);
+
+    for child_i in children_idx..end_idx {
+        if out_keys.len() >= MAX_TOC_ENTRIES {
+            break;
+        }
+        let cbase = child_i * 16;
+        if cbase + 16 > entries_buf.len() {
+            break;
+        }
+        let name_off = read_le_u16(&entries_buf[cbase..cbase + 2]) as usize;
+        let child_name = read_c_string_from_table(names_buf, name_off);
+        let child_vpath = if prefix.is_empty() {
+            child_name.clone()
+        } else if child_name.is_empty() {
+            prefix.to_string()
+        } else {
+            format!("{}/{}", prefix, child_name)
+        };
+        let c_marker = read_le_u32(&entries_buf[cbase + 4..cbase + 8]);
+        if c_marker == 0x7FFF_FF00 {
+            walk_rpf7_directory(
+                entries_buf,
+                entry_count,
+                names_buf,
+                child_i,
+                &child_vpath,
+                visited_dirs,
+                depth + 1,
+                out_keys,
+            );
+        } else if !child_vpath.is_empty() {
+            out_keys.push(format!("rpf7:{}", child_vpath));
+        }
+    }
+}
+
+fn extract_rage_rpf7_toc(file: &mut BufReader<File>, file_len: u64) -> Vec<String> {
+    if file_len < 32 || file.seek(SeekFrom::Start(0)).is_err() {
+        return Vec::new();
+    }
+    let mut hdr = [0u8; 16];
+    if file.read_exact(&mut hdr).is_err() {
+        return Vec::new();
+    }
+    let magic_u32 = read_le_u32(&hdr[0..4]);
+    if &hdr[0..4] != b"RPF7" && magic_u32 != 0x5250_4637 {
+        return Vec::new();
+    }
+    let entry_count = (read_le_u32(&hdr[4..8]) as usize).min(MAX_TOC_ENTRIES);
+    let names_len = (read_le_u32(&hdr[8..12]) as usize).min(4 * 1024 * 1024);
+    let enc_flag = read_le_u32(&hdr[12..16]);
+    // Only parse OPEN/unencrypted RPF7 tables directly without guessing proprietary keys
+    if enc_flag != 0 && enc_flag != 0x4E45_504F {
+        return Vec::new();
+    }
+    let table_bytes = (entry_count as u64).saturating_mul(16);
+    if entry_count == 0
+        || names_len == 0
+        || 16u64.saturating_add(table_bytes).saturating_add(names_len as u64) > file_len
+    {
+        return Vec::new();
+    }
+    let mut entries_buf = vec![0u8; table_bytes as usize];
+    let mut names_buf = vec![0u8; names_len];
+    if file.read_exact(&mut entries_buf).is_err() || file.read_exact(&mut names_buf).is_err() {
+        return Vec::new();
+    }
+    let mut keys = Vec::new();
+    let mut visited_dirs = vec![false; entry_count];
+    walk_rpf7_directory(
+        &entries_buf,
+        entry_count,
+        &names_buf,
+        0,
+        "",
+        &mut visited_dirs,
+        0,
+        &mut keys,
+    );
+    keys
+}
+
 pub fn extract_container_toc_keys(
     path: &Path,
-    _analyzer: &SchemaConflictAnalyzer,
+    analyzer: &SchemaConflictAnalyzer,
 ) -> Vec<String> {
     let Ok(raw_file) = File::open(path) else {
         return Vec::new();
@@ -384,18 +756,46 @@ pub fn extract_container_toc_keys(
         return Vec::new();
     }
     let mut file = BufReader::with_capacity(64 * 1024, raw_file);
-    let mut magic = [0u8; 4];
-    if file.read_exact(&mut magic).is_err() {
+
+    let explicit_fmt = analyzer
+        .container_format
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    match explicit_fmt.as_str() {
+        "utoc" => return extract_ue_iostore_utoc_toc(&mut file, file_len),
+        "rdar" => return extract_redengine_rdar_toc(&mut file, file_len),
+        "rpf7" => return extract_rage_rpf7_toc(&mut file, file_len),
+        "bsa" => return extract_bsa_toc(&mut file, file_len),
+        "ba2" => return extract_ba2_toc(&mut file, file_len),
+        "lspk" => return extract_lspk_toc(&mut file, file_len),
+        "pak" => return extract_unreal_pak_toc(&mut file, file_len),
+        _ => {}
+    }
+
+    let mut magic = [0u8; 16];
+    let magic_read = file.read(&mut magic).unwrap_or(0);
+    if magic_read < 4 {
         return Vec::new();
     }
 
-    if &magic == b"BSA\0" {
+    if magic_read == 16 && &magic[0..16] == b"-==--==--==--==-" {
+        return extract_ue_iostore_utoc_toc(&mut file, file_len);
+    }
+    if &magic[0..4] == b"RDAR" {
+        return extract_redengine_rdar_toc(&mut file, file_len);
+    }
+    if &magic[0..4] == b"RPF7" || read_le_u32(&magic[0..4]) == 0x5250_4637 {
+        return extract_rage_rpf7_toc(&mut file, file_len);
+    }
+    if &magic[0..4] == b"BSA\0" {
         return extract_bsa_toc(&mut file, file_len);
     }
-    if &magic == b"BTDX" {
+    if &magic[0..4] == b"BTDX" {
         return extract_ba2_toc(&mut file, file_len);
     }
-    if &magic == b"LSPK" {
+    if &magic[0..4] == b"LSPK" {
         return extract_lspk_toc(&mut file, file_len);
     }
     if &magic[0..2] == b"PK" {
@@ -624,15 +1024,8 @@ mod tests {
             id: "tes".into(),
             analyzer_type: "chunked_record_stream".into(),
             extensions: vec![".esp".into()],
-            magic_bytes: None,
-            header_offset: None,
-            index_count_offset: None,
-            index_offset_pos: None,
-            entry_size: None,
-            key_size: None,
-            endian: None,
-            bitmask_constant_header: None,
             selector_path: Some("WEAP".into()),
+            ..Default::default()
         };
         let rec_keys = extract_chunked_record_keys(&esp_path, &esp_analyzer);
         assert_eq!(rec_keys, vec!["rec:master.esm:WEAP:001234".to_string()]);
@@ -643,18 +1036,74 @@ mod tests {
             id: "cp".into(),
             analyzer_type: "selector_path".into(),
             extensions: vec![".json".into()],
-            magic_bytes: None,
-            header_offset: None,
-            index_count_offset: None,
-            index_offset_pos: None,
-            entry_size: None,
-            key_size: None,
-            endian: None,
-            bitmask_constant_header: None,
             selector_path: Some("Changes".into()),
+            ..Default::default()
         };
         let sel_keys = extract_selector_path_keys(&json_path, &json_analyzer);
         assert_eq!(sel_keys, vec!["json:changes:data/maps/farm".to_string()]);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_utoc_rdar_and_rpf7_container_toc_extraction() {
+        let root = std::env::temp_dir().join(format!("sanctuary_radar_v2_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+
+        // 1. Unreal IoStore .utoc minimal container
+        let utoc_path = root.join("ModChunk.utoc");
+        let mut utoc = vec![0u8; 60];
+        utoc[0..16].copy_from_slice(b"-==--==--==--==-");
+        utoc[20..24].copy_from_slice(&60u32.to_le_bytes()); // header_size
+        utoc[24..28].copy_from_slice(&2u32.to_le_bytes()); // toc_entry_count
+        utoc.extend_from_slice(&[0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x01, 0x00, 0x00, 0x05]);
+        utoc.extend_from_slice(&[0xAA, 0xBB, 0xCC, 0xDD, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x05]);
+        std::fs::write(&utoc_path, &utoc).unwrap();
+        let utoc_keys = extract_container_toc_keys(&utoc_path, &SchemaConflictAnalyzer::default());
+        assert_eq!(utoc_keys.len(), 2);
+        assert_eq!(utoc_keys[0], "utoc:112233445566778801000005");
+
+        // 2. REDengine .archive (RDAR) container
+        let rdar_path = root.join("NightCityPatch.archive");
+        let mut rdar = vec![0u8; 28 + 28 + 56];
+        rdar[0..4].copy_from_slice(b"RDAR");
+        rdar[8..16].copy_from_slice(&28u64.to_le_bytes()); // index_offset
+        rdar[16..20].copy_from_slice(&(28u32 + 56u32).to_le_bytes()); // index_size
+        // TOC header at offset 28
+        rdar[28..32].copy_from_slice(&28u32.to_le_bytes()); // file_table_offset relative to index_offset
+        rdar[28 + 16..28 + 20].copy_from_slice(&1u32.to_le_bytes()); // file_entry_count
+        // Record at offset 56 (stride 56)
+        rdar[56..64].copy_from_slice(&0xCAFE_BABE_1234_5678u64.to_le_bytes());
+        std::fs::write(&rdar_path, &rdar).unwrap();
+        let rdar_keys = extract_container_toc_keys(&rdar_path, &SchemaConflictAnalyzer::default());
+        assert_eq!(rdar_keys, vec!["rdar:cafebabe12345678".to_string()]);
+
+        // 3. RAGE OPEN .rpf (RPF7) container
+        let rpf_path = root.join("dlc.rpf");
+        let names = b"\0common\0handling.meta\0";
+        let mut rpf = Vec::new();
+        rpf.extend_from_slice(b"RPF7");
+        rpf.extend_from_slice(&3u32.to_le_bytes()); // entry_count: root dir(0), subdir common(1), file handling.meta(2)
+        rpf.extend_from_slice(&(names.len() as u32).to_le_bytes());
+        rpf.extend_from_slice(&0x4E45_504Fu32.to_le_bytes()); // OPEN unencrypted
+        // Entry 0: root dir (children 1..2)
+        rpf.extend_from_slice(&[0, 0, 0, 0]);
+        rpf.extend_from_slice(&0x7FFF_FF00u32.to_le_bytes());
+        rpf.extend_from_slice(&1u32.to_le_bytes());
+        rpf.extend_from_slice(&1u32.to_le_bytes());
+        // Entry 1: common dir (name_off = 1, children 2..3)
+        rpf.extend_from_slice(&1u16.to_le_bytes());
+        rpf.extend_from_slice(&[0, 0]);
+        rpf.extend_from_slice(&0x7FFF_FF00u32.to_le_bytes());
+        rpf.extend_from_slice(&2u32.to_le_bytes());
+        rpf.extend_from_slice(&1u32.to_le_bytes());
+        // Entry 2: handling.meta file (name_off = 8)
+        rpf.extend_from_slice(&8u16.to_le_bytes());
+        rpf.extend_from_slice(&[0; 14]);
+        rpf.extend_from_slice(names);
+        std::fs::write(&rpf_path, &rpf).unwrap();
+        let rpf_keys = extract_container_toc_keys(&rpf_path, &SchemaConflictAnalyzer::default());
+        assert_eq!(rpf_keys, vec!["rpf7:common/handling.meta".to_string()]);
 
         let _ = std::fs::remove_dir_all(&root);
     }

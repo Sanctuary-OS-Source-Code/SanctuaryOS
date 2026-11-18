@@ -1173,7 +1173,13 @@ export default function Nexus({ ownedHashes, onSetStatus, onOpenMasonProfile, on
           fetchAllPaginated(() => supabase.from("flavor_groups").select("*").order('id', { ascending: true })),
           fetchAllPaginated(() => supabase.from("collections").select("*, masons(id, name)").order('id', { ascending: true })),
           fetchAllPaginated(() => supabase.from("mod_relationships").select("id, parent_id, child_id, relationship_type").in("relationship_type", ["twin", "addon", "flavor", "set_item", "beta"]).order('id', { ascending: true })),
-          fetchAllPaginated(() => supabase.from("flavor_group_members").select("id, group_id, mod_hash").order('id', { ascending: true })),
+          fetchAllPaginated(() =>
+            supabase
+              .from("flavor_group_members")
+              .select("group_id, mod_hash")
+              .order("group_id", { ascending: true })
+              .order("mod_hash", { ascending: true })
+          ),
           fetchAllPaginated(() => supabase.from("collection_members").select("id, set_id, mod_id").order('id', { ascending: true }))
         ]);
 

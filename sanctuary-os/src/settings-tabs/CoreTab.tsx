@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useShallow } from "zustand/react/shallow";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
@@ -9,6 +10,9 @@ import {
   supabaseAuth,
   getActiveGameClient,
   getBrandConfig,
+  getRuntimeUplinkBundle,
+  parseUplinkBundle,
+  setRuntimeUplinkBundle,
 } from "../supabase";
 import { buildSpokeRelinkToken, parseSpokeRelinkToken } from "../utils/stagingCrypto";
 import { TabContainer, SettingsGrid, SettingsToggle } from "./shared";
@@ -58,6 +62,12 @@ export default function CoreTab() {
   );
   const useInternalBrowser = useModalStore((state) => state.useInternalBrowser);
   const setUseInternalBrowser = useModalStore((state) => state.setUseInternalBrowser);
+  const [protocolPrefs, setProtocolPrefs] = useState<{
+    nxm: boolean;
+    ror2mm: boolean;
+    curseforge: boolean;
+  }>({ nxm: false, ror2mm: false, curseforge: false });
+  const [savingProtocolPrefs, setSavingProtocolPrefs] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
   const [banReason, setBanReason] = useState("");
   const [emailInput, setEmailInput] = useState("");
@@ -71,6 +81,8 @@ export default function CoreTab() {
   const [authLoading, setAuthLoading] = useState(false);
   const [relinkTokenInput, setRelinkTokenInput] = useState("");
   const [claimingRelink, setClaimingRelink] = useState(false);
+  const [uplinkInput, setUplinkInput] = useState("");
+  const activeRuntimeUplink = parseUplinkBundle(getRuntimeUplinkBundle());
   const [activePanel, setActivePanel] = useState<"email" | "password" | "system_id" | "2fa" | null>(() => {
     if (typeof window !== "undefined" && localStorage.getItem("sanctuary_open_2fa_panel") === "true") {
       localStorage.removeItem("sanctuary_open_2fa_panel");
@@ -185,6 +197,62 @@ export default function CoreTab() {
     window.addEventListener("sanctuary-mfa-updated", handleMfaUpdated);
     return () => window.removeEventListener("sanctuary-mfa-updated", handleMfaUpdated);
   }, []);
+
+  useEffect(() => {
+    if (!isDesktop()) return;
+    invoke<{ nxm?: boolean; ror2mm?: boolean; curseforge?: boolean }>(
+      "get_protocol_handler_preferences"
+    )
+      .then((prefs) => {
+        if (prefs) {
+          setProtocolPrefs({
+            nxm: Boolean(prefs.nxm),
+            ror2mm: Boolean(prefs.ror2mm),
+            curseforge: Boolean(prefs.curseforge),
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleToggleProtocolPref = async (key: "nxm" | "ror2mm" | "curseforge") => {
+    if (!isDesktop() || savingProtocolPrefs) return;
+    const prev = protocolPrefs;
+    const next = { ...prev, [key]: !prev[key] };
+    setProtocolPrefs(next);
+    setSavingProtocolPrefs(true);
+    try {
+      const saved = await invoke<{ nxm: boolean; ror2mm: boolean; curseforge: boolean }>(
+        "set_protocol_handler_preferences",
+        { prefs: next }
+      );
+      setProtocolPrefs(saved);
+      useStore
+        .getState()
+        .pushStatus(
+          saved[key]
+            ? t(
+                "settings_proto_handler_enabled",
+                "Registered {scheme}:// links with Sanctuary OS."
+              ).replace("{scheme}", key)
+            : t(
+                "settings_proto_handler_disabled",
+                "Released Sanctuary OS registration for {scheme}:// links."
+              ).replace("{scheme}", key),
+          "success"
+        );
+    } catch (err) {
+      setProtocolPrefs(prev);
+      useStore
+        .getState()
+        .pushStatus(
+          t("alert_error", "Error saving:") + " " + String(err || ""),
+          "error"
+        );
+    } finally {
+      setSavingProtocolPrefs(false);
+    }
+  };
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -970,6 +1038,86 @@ export default function CoreTab() {
                 />
               )}
             </div>
+
+            <div className="md:col-span-2 glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] flex items-center justify-center text-[var(--accent)] shrink-0">
+                    <span className="material-symbols-outlined !text-[18px]">
+                      {t("icon_hub", "hub")}
+                    </span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-black text-[var(--text)]">
+                      {t("uplink_runtime_title", "Sovereign Spoke Runtime Uplink")}
+                    </span>
+                    <span className="text-[11px] font-medium text-[var(--subtext)] truncate">
+                      {activeRuntimeUplink?.supabase_url
+                        ? `${t("uplink_active_host_prefix", "Connected:")} ${activeRuntimeUplink.supabase_url}`
+                        : t(
+                            "uplink_runtime_desc",
+                            "Paste a SANCTUARY-UPLINK:// invite bundle to connect this client to an independent Partner Spoke Hub."
+                          )}
+                    </span>
+                  </div>
+                </div>
+                {activeRuntimeUplink?.supabase_url && (
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_link_off", "link_off")}
+                    label={t("uplink_disconnect_btn", "Disconnect Uplink")}
+                    onClick={() => {
+                      setRuntimeUplinkBundle(null);
+                      useStore
+                        .getState()
+                        .pushStatus(
+                          t("uplink_disconnected_toast", "Disconnected runtime Spoke Uplink. Reloading..."),
+                          "info"
+                        );
+                      window.location.reload();
+                    }}
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="text"
+                  value={uplinkInput}
+                  onChange={(e) => setUplinkInput(e.target.value)}
+                  placeholder={t("uplink_input_placeholder", "SANCTUARY-UPLINK://...")}
+                  className="flex-1 min-w-[220px] glass-surface rounded-xl px-3.5 py-2 text-xs font-mono text-[var(--text)] outline-none border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
+                />
+                <ActionButton
+                  variant="accent"
+                  icon={t("icon_hub", "hub")}
+                  label={t("btn_connect", "Connect")}
+                  disabled={!uplinkInput.trim()}
+                  onClick={() => {
+                    const parsed = parseUplinkBundle(uplinkInput);
+                    if (!parsed) {
+                      useStore
+                        .getState()
+                        .pushStatus(
+                          t("uplink_invalid_bundle_err", "Invalid SANCTUARY-UPLINK:// bundle."),
+                          "error"
+                        );
+                      return;
+                    }
+                    if (setRuntimeUplinkBundle(uplinkInput)) {
+                      setUplinkInput("");
+                      useStore
+                        .getState()
+                        .pushStatus(
+                          t("uplink_connected_toast", "Runtime Spoke Uplink saved. Reloading..."),
+                          "success"
+                        );
+                      window.location.reload();
+                    }
+                  }}
+                />
+              </div>
+            </div>
           </SettingsGrid>
         </TabContainer>
 
@@ -995,18 +1143,59 @@ export default function CoreTab() {
             />
 
             {isDesktop() && (
-              <UniversalCard
-                headerStyle="inline"
-                title={t("settings_use_internal_browser", "Use the Sanctuary Browser")}
-                subtitle={t(
-                  "use_internal_browser_on_off_desc",
-                  "ON: Opens supported {Mod} download pages in Sanctuary's built-in browser.\nOFF: Opens links in your default browser with your extensions and adblockers."
-                )}
-                icon={t("icon_language", "language")}
-                isActive={Boolean(useInternalBrowser)}
-                onClick={() => setUseInternalBrowser(!useInternalBrowser)}
-                actions={<SettingsToggle checked={useInternalBrowser} />}
-              />
+              <>
+                <UniversalCard
+                  headerStyle="inline"
+                  title={t("settings_use_internal_browser", "Use the Sanctuary Browser")}
+                  subtitle={t(
+                    "use_internal_browser_on_off_desc",
+                    "ON: Opens supported {Mod} download pages in Sanctuary's built-in browser.\nOFF: Opens links in your default browser with your extensions and adblockers."
+                  )}
+                  icon={t("icon_language", "language")}
+                  isActive={Boolean(useInternalBrowser)}
+                  onClick={() => setUseInternalBrowser(!useInternalBrowser)}
+                  actions={<SettingsToggle checked={useInternalBrowser} />}
+                />
+                {(
+                  [
+                    {
+                      key: "nxm" as const,
+                      title: t("settings_proto_nxm_title", "Capture nxm:// Manager Links"),
+                      subtitle: t(
+                        "settings_proto_nxm_desc",
+                        "Opt in to intercept external nxm:// {Mod} manager links directly in Sanctuary OS instead of leaving them unassigned."
+                      ),
+                    },
+                    {
+                      key: "ror2mm" as const,
+                      title: t("settings_proto_ror2mm_title", "Capture ror2mm:// Manager Links"),
+                      subtitle: t(
+                        "settings_proto_ror2mm_desc",
+                        "Opt in to intercept ror2mm:// package install links directly into your Sanctuary {Vault}."
+                      ),
+                    },
+                    {
+                      key: "curseforge" as const,
+                      title: t("settings_proto_curseforge_title", "Capture curseforge:// Manager Links"),
+                      subtitle: t(
+                        "settings_proto_curseforge_desc",
+                        "Opt in to route curseforge:// manager links cleanly into Sanctuary Guided Browser."
+                      ),
+                    },
+                  ] as const
+                ).map((item) => (
+                  <UniversalCard
+                    key={item.key}
+                    headerStyle="inline"
+                    title={item.title}
+                    subtitle={item.subtitle}
+                    icon={t("icon_link", "link")}
+                    isActive={protocolPrefs[item.key]}
+                    onClick={() => void handleToggleProtocolPref(item.key)}
+                    actions={<SettingsToggle checked={protocolPrefs[item.key]} />}
+                  />
+                ))}
+              </>
             )}
 
             <UniversalCard

@@ -292,6 +292,20 @@ export function AppMainViewportRouter({
   visibleMods,
   isGlobalConfigLoaded,
 }: any) {
+  React.useEffect(() => {
+    if (!isDesktop() || !isGlobalConfigLoaded) return;
+    const warm = () => {
+      void import("../../views/Blueprints");
+    };
+    const w = window as any;
+    if (typeof w.requestIdleCallback === "function") {
+      const id = w.requestIdleCallback(warm, { timeout: 1200 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const timer = window.setTimeout(warm, 800);
+    return () => window.clearTimeout(timer);
+  }, [isGlobalConfigLoaded]);
+
   return (
     <>
           <main
@@ -905,6 +919,7 @@ export function AppGlobalOverlays({
   t,
   currentTheme,
 }: any) {
+  const status = useStore((s) => s.status);
   return (
     <>
       {!isDesktop() && <MobileBottomNav view={view} setView={setView} subtitleIndex={subtitleIndex} />}

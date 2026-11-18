@@ -40,6 +40,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect project directory
+        id: paths
+        shell: bash
+        run: |
+          if [ -f "./sanctuary-os/package.json" ]; then
+            echo "dir=./sanctuary-os" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          fi
+
       - name: install Linux WebKitGTK & AppImage dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -60,12 +70,15 @@ jobs:
       - name: Sync version metadata from tag
         shell: bash
         env:
+          PROJECT_DIR: ${{ steps.paths.outputs.dir }}
           INPUT_TAG_NAME: ${{ github.event.inputs.tag_name }}
           REF_NAME: ${{ github.ref_name }}
         run: |
           node << 'EOF'
           const fs = require("fs");
-          const pkgPath = "./sanctuary-os/package.json";
+          const path = require("path");
+          const proj = process.env.PROJECT_DIR || "./sanctuary-os";
+          const pkgPath = path.join(proj, "package.json");
           const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
           let raw = (process.env.INPUT_TAG_NAME || process.env.REF_NAME || "").trim();
           let tag = raw;
@@ -79,27 +92,47 @@ jobs:
           const msiMatch = cleanVer.match(/^\d+\.\d+\.\d+/);
           const msiVer = msiMatch ? msiMatch[0] : "0.6.0";
 
-          console.log(`Syncing Stable build version: package=${cleanVer}, msi=${msiVer} (tag=${tag})`);
+          console.log(`Syncing Stable build version (${proj}): package=${cleanVer}, msi=${msiVer} (tag=${tag})`);
 
           pkg.version = cleanVer;
           fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
 
-          const tauriPath = "./sanctuary-os/src-tauri/tauri.conf.json";
+          const tauriPath = path.join(proj, "src-tauri/tauri.conf.json");
           const tauri = JSON.parse(fs.readFileSync(tauriPath, "utf8"));
-          tauri.version = msiVer;
+          tauri.version = cleanVer;
+          tauri.bundle = tauri.bundle || {};
+          tauri.bundle.windows = tauri.bundle.windows || {};
+          tauri.bundle.windows.wix = {
+            ...(tauri.bundle.windows.wix || {}),
+            version: msiVer,
+          };
           fs.writeFileSync(tauriPath, JSON.stringify(tauri, null, 2) + "\n");
 
-          const cargoPath = "./sanctuary-os/src-tauri/Cargo.toml";
+          const cargoPath = path.join(proj, "src-tauri/Cargo.toml");
           let cargo = fs.readFileSync(cargoPath, "utf8");
-          cargo = cargo.replace(/^version\s*=\s*"[^"]*"/m, `version = "${msiVer}"`);
+          cargo = cargo.replace(/^version\s*=\s*"[^"]*"/m, `version = "${cleanVer}"`);
           fs.writeFileSync(cargoPath, cargo);
           EOF
 
+      - name: Run Rust unit tests
+        run: cargo test
+        working-directory: ${{ steps.paths.outputs.dir }}/src-tauri
+
       - name: install dependencies
         run: npm install
-        working-directory: ./sanctuary-os
+        working-directory: ${{ steps.paths.outputs.dir }}
 
-      - name: Ensure GitHub Stable release exists before parallel upload
+      - name: Edge Functions TypeScript check
+        if: matrix.platform == 'ubuntu-22.04'
+        run: npx tsc -p supabase/functions/tsconfig.json --noEmit
+        working-directory: ${{ steps.paths.outputs.dir }}
+
+      - name: Run Ironclad Gauntlet unit tests
+        if: matrix.platform == 'ubuntu-22.04'
+        run: npm test
+        working-directory: ${{ steps.paths.outputs.dir }}
+
+      - name: Ensure draft Stable GitHub release exists before parallel upload
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -109,48 +142,128 @@ jobs:
           if [ -z "$TAG" ] || [ "$TAG" = "main" ] || [ "$TAG" = "master" ]; then
             TAG="v0.6.0"
           fi
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Sanctuary OS $TAG" --notes "See the assets to download this version and install." || true
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Sanctuary OS $TAG" --notes "See the assets to download this version and install." --draft || true
 
-      - name: build and publish
+      - name: build and upload Stable binaries
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets[format('{0}CERTIFICATE', runner.os == 'macOS' && 'APPLE_' || '')] }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets[format('{0}CERTIFICATE_PASSWORD', runner.os == 'macOS' && 'APPLE_' || '')] }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets[format('{0}SIGNING_IDENTITY', runner.os == 'macOS' && 'APPLE_' || '')] || (matrix.platform == 'macos-latest' && '-' || '') }}
+          APPLE_ID: ${{ secrets[format('{0}ID', runner.os == 'macOS' && 'APPLE_' || '')] }}
+          APPLE_PASSWORD: ${{ secrets[format('{0}PASSWORD', runner.os == 'macOS' && 'APPLE_' || '')] }}
+          APPLE_TEAM_ID: ${{ secrets[format('{0}TEAM_ID', runner.os == 'macOS' && 'APPLE_' || '')] }}
+          SANCTUARY_SKIP_SPOKE_PULL: "1"
           NO_STRIP: true
           NODE_OPTIONS: "--max-old-space-size=4096"
         with:
-          projectPath: ./sanctuary-os
+          projectPath: ${{ steps.paths.outputs.dir }}
           tagName: ${{ github.event.inputs.tag_name || github.ref_name }}
           releaseName: 'Sanctuary OS ${{ github.event.inputs.tag_name || github.ref_name }}'
           releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
-          includeUpdaterJson: true
+          includeUpdaterJson: false
           args: ${{ matrix.args }}
 
-      - name: Ensure Stable release is marked Latest and Dev releases are Pre-release
-        if: always() && matrix.platform == 'windows-latest'
-        shell: pwsh
+  finalize-stable-release:
+    needs: [release]
+    if: always() && needs.release.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Generate unified latest.json & publish Latest Stable release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.CUSTOM_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           INPUT_TAG_NAME: ${{ github.event.inputs.tag_name }}
           REF_NAME: ${{ github.ref_name }}
         run: |
-          $raw = if ($env:INPUT_TAG_NAME) { $env:INPUT_TAG_NAME } else { $env:REF_NAME }
-          $tag = "$raw".Trim()
-          try {
-            $rels = gh release list --limit 15 --json tagName,isPrerelease | ConvertFrom-Json
-            foreach ($r in $rels) {
-              if ($r.tagName -match '(?i)dev' -and -not $r.isPrerelease) {
-                Write-Host "Marking dev release $($r.tagName) as pre-release..."
-                gh release edit $r.tagName --prerelease 2>$null
+          TAG="${INPUT_TAG_NAME:-$REF_NAME}"
+          TAG="$(echo "$TAG" | xargs)"
+          if [ -z "$TAG" ] || [ "$TAG" = "main" ] || [ "$TAG" = "master" ]; then
+            TAG="v0.6.0"
+          fi
+          mkdir -p ./sigs
+          gh release download "$TAG" --pattern "*.sig" -D ./sigs || true
+          gh release view "$TAG" --json assets,body,publishedAt > ./release.json
+
+          export RESOLVED_TAG="$TAG"
+          node << 'EOF'
+          const fs = require("fs");
+          const path = require("path");
+          const tag = process.env.RESOLVED_TAG || "v0.6.0";
+          let cleanVer = tag.replace(/^[vV]/, "");
+          if (!/^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/.test(cleanVer)) {
+            cleanVer = "0.6.0";
+          }
+
+          const rel = JSON.parse(fs.readFileSync("./release.json", "utf8"));
+          const assets = Array.isArray(rel.assets) ? rel.assets : [];
+          const byName = new Map(assets.map((a) => [a.name, a]));
+          const platforms = {};
+
+          const sigFiles = fs.existsSync("./sigs") ? fs.readdirSync("./sigs").filter((f) => f.endsWith(".sig")) : [];
+          for (const sigFile of sigFiles) {
+            const targetName = sigFile.slice(0, -4);
+            const asset = byName.get(targetName);
+            if (!asset) continue;
+            const signature = fs.readFileSync(path.join("./sigs", sigFile), "utf8").trim();
+            if (!signature) continue;
+            const downloadUrl =
+              asset && typeof asset.url === "string" && asset.url.includes("/releases/download/")
+                ? asset.url
+                : `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(targetName)}`;
+
+            const lower = targetName.toLowerCase();
+            if (lower.endsWith(".nsis.zip") || lower.endsWith("-setup.exe") || lower.endsWith(".exe") || lower.endsWith(".msi")) {
+              const key = lower.includes("arm64") || lower.includes("aarch64") ? "windows-aarch64" : "windows-x86_64";
+              if (!platforms[key] || !lower.endsWith(".msi")) {
+                platforms[key] = { signature, url: downloadUrl };
+              }
+            } else if (lower.endsWith(".app.tar.gz")) {
+              if (lower.includes("universal")) {
+                platforms["darwin-universal"] = { signature, url: downloadUrl };
+                platforms["darwin-aarch64"] = platforms["darwin-aarch64"] || { signature, url: downloadUrl };
+                platforms["darwin-x86_64"] = platforms["darwin-x86_64"] || { signature, url: downloadUrl };
+              } else if (lower.includes("aarch64") || lower.includes("arm64")) {
+                platforms["darwin-aarch64"] = { signature, url: downloadUrl };
+              } else {
+                platforms["darwin-x86_64"] = { signature, url: downloadUrl };
+              }
+            } else if (lower.endsWith(".appimage.tar.gz") || lower.endsWith(".appimage")) {
+              const key = lower.includes("aarch64") || lower.includes("arm64") ? "linux-aarch64" : "linux-x86_64";
+              if (!platforms[key] || lower.endsWith(".appimage.tar.gz")) {
+                platforms[key] = { signature, url: downloadUrl };
               }
             }
-            if ($tag -and ($tag -match '^[vV]?\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$') -and $tag -notmatch '(?i)dev') {
-              Write-Host "Marking $tag as Latest Stable release..."
-              gh release edit $tag --prerelease=false --latest 2>$null
-            }
-          } catch {
-            Write-Host "Notice: Could not update release flags via gh CLI: $_"
           }
+
+          const manifest = {
+            version: cleanVer,
+            notes: rel.body || "See the assets to download this version and install.",
+            pub_date: rel.publishedAt || new Date().toISOString(),
+            platforms,
+          };
+          fs.writeFileSync("./latest.json", JSON.stringify(manifest, null, 2) + "\n");
+          console.log("Generated stable latest.json platforms:", Object.keys(platforms));
+          EOF
+
+          gh release upload "$TAG" ./latest.json --clobber
+          gh release edit "$TAG" --draft=false --prerelease=false --latest
+
+          gh release list --limit 25 --json tagName,isPrerelease -q '.[] | select(.isPrerelease == false and (.tagName | test("dev"; "i"))) | .tagName' | while read -r devTag; do
+            if [ -n "$devTag" ]; then
+              gh release edit "$devTag" --prerelease || true
+            fi
+          done

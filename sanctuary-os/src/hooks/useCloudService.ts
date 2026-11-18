@@ -126,7 +126,7 @@ export function useCloudService(activeMasonProfileId: string | null, tier2Hashes
         if (m.isVirtual || m.name.startsWith("FOLDER_") || m.name.startsWith("SET_") || m.name.startsWith("LOCAL_SET_")) return false;
         if (!m.isSynced || m.compliance_tier !== 0) return false;
         const lower = m.name.toLowerCase();
-        return !lower.includes("merged") && !lower.includes("simmatticly") && !lower.includes("batch fix") && !lower.includes("batch_fix");
+        return !lower.includes("merged") && !lower.includes("batch fix") && !lower.includes("batch_fix");
       }).map((m: any) => ({ name: m.name, hash: m.hash, url: m.url, author: m.author }));
     })();
 

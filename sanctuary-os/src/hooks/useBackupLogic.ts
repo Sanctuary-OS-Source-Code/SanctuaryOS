@@ -101,7 +101,9 @@ export function useBackupLogic(detectGameVersion: () => void) {
       setTimeout(() => fetchBackups(), 500);
     } catch (err) {
       fetchBackups();
-      alert(`${t("alert_deletion_failed", "Deletion failed: ")}${err}`);
+      const errMsg = `${t("alert_deletion_failed", "Deletion failed: ")}${err}`;
+      setStatus(errMsg);
+      useStore.getState().pushStatus?.(errMsg, "error");
     }
   };
 

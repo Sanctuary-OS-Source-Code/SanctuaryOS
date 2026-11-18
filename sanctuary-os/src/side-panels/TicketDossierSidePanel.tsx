@@ -16,18 +16,30 @@ import {
 } from "../shared";
 import { UniversalInput, UniversalTextArea, SidePanelPillToggle } from "../components/universal/UniversalLayout";
 import {
+  DEFAULT_KEEPER_EMAIL_RESPONSE_TEMPLATES,
   dispatchKeeperCustomEmail,
   getKeepersPipelineConfig,
+  KeeperEmailResponseTemplate,
+  normalizeLegacySenderName,
+  resolveKeeperEmailResponseTemplates,
   getSupporterState,
   findAnyActiveMasonSupporterPasses,
   isSpokeSupporter,
   isFoundryPatron,
 } from "../utils/supporterManager";
+import { UniversalCard } from "../components/universal/UniversalCard";
 import {
   getTicketSupporterFlags,
   TicketSupporterFallback,
 } from "../components/universal/SupportTicketCard";
+import {
+  maskEmailAddress,
+  maskEmailsInText,
+  getEmailDispatchStatusMeta,
+  formatEmailProviderLabel,
+} from "../utils/sanctuaryEmailTemplates";
 import TicketLogViewer from "./TicketLogViewer";
+import EmailConversationSidePanel from "../hub-components/keepers-email/EmailConversationSidePanel";
 
 interface TicketDossierProps {
   isOpen: boolean;
@@ -77,14 +89,21 @@ export default function TicketDossierSidePanel({
   const [selectedAction, setSelectedAction] = useState<string>("");
   const [sendEmailCopy, setSendEmailCopy] = useState(false);
   const [emailRecipient, setEmailRecipient] = useState("");
+  const [revealContactEmail, setRevealContactEmail] = useState(false);
   const brand = getBrandConfig();
-  const defaultSenderName = `${brand.appTitle || "Sanctuary OS"} Keepers Core`;
-  const defaultSupportEmail = brand.supportEmail || "support@sanctuaryos.gg";
-  const [senderIdentityLabel, setSenderIdentityLabel] = useState(
-    `${defaultSenderName} <${defaultSupportEmail}>`
+  const defaultSenderName = brand.appTitle || "Sanctuary OS";
+  const [senderIdentityLabel, setSenderIdentityLabel] = useState(defaultSenderName);
+  const [responseTemplates, setResponseTemplates] = useState<KeeperEmailResponseTemplate[]>(
+    () => DEFAULT_KEEPER_EMAIL_RESPONSE_TEMPLATES.map((tpl) => ({ ...tpl }))
   );
+  const [activeDispatchThread, setActiveDispatchThread] = useState<{
+    threadId?: string | null;
+    dispatchId?: string | null;
+    subject?: string;
+  } | null>(null);
 
   useEffect(() => {
+    setRevealContactEmail(false);
     const isKeepersTicket = (ticket?.table_name || tableName) === "keeper_tickets";
     if (!isKeepersTicket || !ticket) {
       setSendEmailCopy(false);
@@ -94,14 +113,17 @@ export default function TicketDossierSidePanel({
 
     getKeepersPipelineConfig().then((cfg) => {
       const b = getBrandConfig();
+      const fallbackBrand = b.appTitle || "Sanctuary OS";
       setSenderIdentityLabel(
-        `${cfg.support_sender_name || `${b.appTitle} Keepers Core`} <${cfg.support_contact_email || b.supportEmail}>`
+        normalizeLegacySenderName(cfg.support_sender_name, fallbackBrand)
       );
+      setResponseTemplates(resolveKeeperEmailResponseTemplates(cfg));
     });
 
     const rawContact =
       ticket.metadata?.contact_meta?.reply_contact ||
       ticket.metadata?.partner_application?.lead_contact ||
+      ticket.metadata?.keeper_application?.applicant_contact ||
       "";
     const emailMatch = String(rawContact).match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
     if (emailMatch) {
@@ -259,12 +281,14 @@ export default function TicketDossierSidePanel({
           );
         }
       } else {
-        const fallbackAuthor =
+        const rawFallbackAuthor =
+          ticket.metadata?.keeper_application?.applicant_handle ||
+          ticket.metadata?.keeper_application?.applicant_contact ||
           ticket.metadata?.partner_application?.lead_contact ||
           ticket.metadata?.contact_meta?.reply_contact ||
           ticket.metadata?.feedback_meta?.author_label ||
           "VISITOR";
-        if (isMounted) setAuthorName(fallbackAuthor);
+        if (isMounted) setAuthorName(maskEmailsInText(rawFallbackAuthor));
       }
     };
 
@@ -325,17 +349,20 @@ export default function TicketDossierSidePanel({
         sendEmailCopy &&
         emailRecipient.trim().includes("@")
       ) {
+        const replySubject = `Re: ${ticket.title || `${brand.appTitle} Support Inquiry`}`;
         const emailResult = await dispatchKeeperCustomEmail({
           to_email: emailRecipient.trim(),
-          subject: `Re: ${ticket.title || `${brand.appTitle} Support Inquiry`}`,
+          subject: replySubject,
           body_text: replyText.trim(),
           ticket_id: ticket.id,
         });
 
         const dispatchBadge = {
           id: emailResult.dispatch_id || crypto.randomUUID(),
-          to_email: emailRecipient.trim(),
+          to_email: maskEmailAddress(emailRecipient.trim()),
           from_identity: senderIdentityLabel,
+          subject: replySubject,
+          provider: emailResult.provider,
           status: emailResult.status,
           sent_at: new Date().toISOString(),
         };
@@ -356,7 +383,7 @@ export default function TicketDossierSidePanel({
       if (onReplyAdded) onReplyAdded(updatedMeta);
       useStore.getState().pushStatus(
         targetTable === "keeper_tickets" && sendEmailCopy && emailRecipient.trim().includes("@")
-          ? t("keeper_email_reply_dispatched", "Reply saved & custom email dispatched from Keepers Core")
+          ? t("keeper_email_reply_dispatched", "Reply saved & official email dispatched!")
           : t("support_success", "Reply sent"),
         "success"
       );
@@ -410,6 +437,7 @@ export default function TicketDossierSidePanel({
         : "accent";
 
   return (
+    <>
     <SidePanel
       isOpen={isOpen}
       onClose={onClose}
@@ -672,6 +700,25 @@ export default function TicketDossierSidePanel({
           <UniversalGroup
             title={t("landing_contact_card_title", "Direct Human Contact")}
             icon={t("icon_support_agent", "support_agent")}
+            headerAction={
+              String(ticket.metadata.contact_meta.reply_contact || "").includes("@") ? (
+                <PanelHeaderGroup>
+                  <PanelHeaderButton
+                    icon={
+                      revealContactEmail
+                        ? t("icon_visibility_off", "visibility_off")
+                        : t("icon_visibility", "visibility")
+                    }
+                    tooltip={
+                      revealContactEmail
+                        ? t("keepers_email_mask_recipient", "Hide Recipient Email")
+                        : t("keepers_email_reveal_recipient", "Reveal Recipient Email")
+                    }
+                    onClick={() => setRevealContactEmail((prev) => !prev)}
+                  />
+                </PanelHeaderGroup>
+              ) : undefined
+            }
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <StatBox
@@ -682,7 +729,13 @@ export default function TicketDossierSidePanel({
               />
               <StatBox
                 label={t("landing_contact_form_reply_to", "Reply Contact")}
-                value={ticket.metadata.contact_meta.reply_contact || "Account Profile"}
+                value={
+                  ticket.metadata.contact_meta.reply_contact
+                    ? revealContactEmail
+                      ? ticket.metadata.contact_meta.reply_contact
+                      : maskEmailsInText(ticket.metadata.contact_meta.reply_contact)
+                    : "Account Profile"
+                }
                 icon={t("icon_alternate_email", "alternate_email")}
                 iconColorClass="text-[var(--accent)]"
               />
@@ -694,6 +747,25 @@ export default function TicketDossierSidePanel({
           <UniversalGroup
             title={t("landing_partner_drawer_title", "Partner Game Spoke Application")}
             icon={t("icon_handshake", "handshake")}
+            headerAction={
+              String(ticket.metadata.partner_application.lead_contact || "").includes("@") ? (
+                <PanelHeaderGroup>
+                  <PanelHeaderButton
+                    icon={
+                      revealContactEmail
+                        ? t("icon_visibility_off", "visibility_off")
+                        : t("icon_visibility", "visibility")
+                    }
+                    tooltip={
+                      revealContactEmail
+                        ? t("keepers_email_mask_recipient", "Hide Recipient Email")
+                        : t("keepers_email_reveal_recipient", "Reveal Recipient Email")
+                    }
+                    onClick={() => setRevealContactEmail((prev) => !prev)}
+                  />
+                </PanelHeaderGroup>
+              ) : undefined
+            }
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <StatBox
@@ -710,7 +782,13 @@ export default function TicketDossierSidePanel({
               />
               <StatBox
                 label={t("landing_partner_lead_contact", "Lead Wayfinder Contact")}
-                value={ticket.metadata.partner_application.lead_contact || "N/A"}
+                value={
+                  ticket.metadata.partner_application.lead_contact
+                    ? revealContactEmail
+                      ? ticket.metadata.partner_application.lead_contact
+                      : maskEmailsInText(ticket.metadata.partner_application.lead_contact)
+                    : "N/A"
+                }
                 icon={t("icon_person", "person")}
                 iconColorClass="text-[var(--accent)]"
               />
@@ -792,41 +870,75 @@ export default function TicketDossierSidePanel({
             <UniversalGroup
               title={t("keeper_email_dispatches_title", "Outbound Custom Email Dispatches")}
               icon={t("icon_outgoing_mail", "outgoing_mail")}
+              count={ticket.metadata.email_dispatches.length}
             >
-              <div className="flex flex-col gap-2">
-                {ticket.metadata.email_dispatches.map((ed: any, idx: number) => (
-                  <div
-                    key={ed.id || idx}
-                    className="glass-surface px-4 py-2.5 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-wrap items-center justify-between gap-2"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="material-symbols-rounded !text-[16px] text-[var(--accent)] shrink-0">
-                        {t("icon_mark_email_read", "mark_email_read")}
-                      </span>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-bold text-[var(--text)] truncate">
-                          {ed.to_email}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {ticket.metadata.email_dispatches.map((ed: any, idx: number) => {
+                  const rawSender = String(
+                    ed.from_name || ed.from_identity || senderIdentityLabel
+                  )
+                    .replace(/\s*<[^>]+>/g, "")
+                    .trim();
+                  const cleanSender = normalizeLegacySenderName(
+                    rawSender,
+                    senderIdentityLabel
+                  );
+                  const statusMeta = getEmailDispatchStatusMeta(ed.status, t);
+                  const providerLabel = formatEmailProviderLabel(ed.provider);
+                  const maskedTo = maskEmailsInText(ed.to_email || "");
+                  return (
+                    <UniversalCard
+                      key={ed.id || idx}
+                      layout="vertical"
+                      statusColor={statusMeta.cardStatusColor}
+                      icon={t("icon_mark_email_read", "mark_email_read")}
+                      bannerTopLabel={statusMeta.label}
+                      bannerTopRightLabel={providerLabel}
+                      bannerBottomLabel={maskedTo || cleanSender}
+                      title={
+                        <span className="no-text-case font-mono">
+                          {maskedTo || cleanSender || senderIdentityLabel}
                         </span>
-                        <span className="text-[10px] font-mono text-[var(--subtext)] truncate">
-                          {ed.from_identity || senderIdentityLabel}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={VAULT_CHIP_CLASS}>
-                        <span className="material-symbols-rounded !text-[12px] text-[var(--success)]">
-                          {t("icon_verified", "verified")}
-                        </span>
-                        <span>{ed.status || "DISPATCHED"}</span>
-                      </span>
-                      {ed.sent_at && (
-                        <span className="text-[10px] font-mono text-[var(--subtext)]">
-                          {new Date(ed.sent_at).toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                      }
+                      subtitle={
+                        ed.subject
+                          ? `${ed.subject} • ${cleanSender}`
+                          : cleanSender || senderIdentityLabel
+                      }
+                      imageOverlay={
+                        <div className="absolute top-2.5 left-3 flex flex-nowrap items-center gap-1.5 max-w-[calc(100%-6.5rem)] z-30 pointer-events-none">
+                          <span className={VAULT_CHIP_CLASS}>
+                            <span
+                              className={`material-symbols-outlined !text-[12px] ${statusMeta.iconColorClass}`}
+                            >
+                              {statusMeta.iconName}
+                            </span>
+                            <span>{statusMeta.label}</span>
+                          </span>
+                        </div>
+                      }
+                      onClick={() =>
+                        setActiveDispatchThread({
+                          threadId: ed.thread_id || null,
+                          dispatchId: ed.id || null,
+                          subject: ed.subject || ticket.title || undefined,
+                        })
+                      }
+                      footer={
+                        <div className="flex items-center justify-between gap-2 w-full">
+                          <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">
+                            {providerLabel}
+                            {ed.sent_at ? ` • ${new Date(ed.sent_at).toLocaleDateString()}` : ""}
+                          </span>
+                          <span className="text-[10px] font-black text-[var(--text)] group-hover/card:text-[var(--accent)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover/card:opacity-100 group-hover:opacity-100 translate-x-2 group-hover/card:translate-x-0 group-hover:translate-x-0 shrink-0">
+                            <span>{t("keepers_email_open_thread", "Open Thread")}</span>
+                            <span className="text-base leading-none">&rarr;</span>
+                          </span>
+                        </div>
+                      }
+                    />
+                  );
+                })}
               </div>
             </UniversalGroup>
           )}
@@ -837,7 +949,53 @@ export default function TicketDossierSidePanel({
             <UniversalGroup
               title={t("dossier_add_reply", "Add Reply")}
               icon={t("icon_reply", "reply")}
+              headerAction={
+                (ticket.table_name || tableName) === "keeper_tickets" && sendEmailCopy ? (
+                  <PanelHeaderGroup>
+                    <PanelHeaderButton
+                      icon={
+                        revealContactEmail
+                          ? t("icon_visibility_off", "visibility_off")
+                          : t("icon_visibility", "visibility")
+                      }
+                      tooltip={
+                        revealContactEmail
+                          ? t("keepers_email_mask_recipient", "Hide Recipient Email")
+                          : t("keepers_email_reveal_recipient", "Reveal Recipient Email")
+                      }
+                      onClick={() => setRevealContactEmail((prev) => !prev)}
+                    />
+                  </PanelHeaderGroup>
+                ) : undefined
+              }
             >
+              {(ticket.table_name || tableName) === "keeper_tickets" &&
+                responseTemplates.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                      {t("keepers_email_load_tpl_label", "Load Response Template")}
+                    </label>
+                    <CustomDropdown
+                      disableTint={true}
+                      value=""
+                      placeholder={t(
+                        "keepers_email_load_tpl_ph",
+                        "Choose a Human Response Template..."
+                      )}
+                      onChange={(vals: string[]) => {
+                        const chosen = responseTemplates.find((tpl) => tpl.id === vals[0]);
+                        if (chosen) {
+                          setReplyText(chosen.body);
+                        }
+                      }}
+                      options={responseTemplates.map((tpl) => ({
+                        id: tpl.id,
+                        label: `${tpl.name} (${tpl.category || t("keepers_email_tpl_default_cat", "Support")})`,
+                      }))}
+                    />
+                  </div>
+                )}
+
               <UniversalTextArea
                 value={replyText}
                 onChange={setReplyText}
@@ -852,9 +1010,11 @@ export default function TicketDossierSidePanel({
                   <SidePanelPillToggle
                     label={t(
                       "keeper_email_toggle_label",
-                      "Also Dispatch Custom Email From Keepers Core"
+                      "Also Dispatch Official Email Reply"
                     )}
-                    description={senderIdentityLabel}
+                    description={
+                      <span className="font-mono">{senderIdentityLabel}</span>
+                    }
                     icon={t("icon_outgoing_mail", "outgoing_mail")}
                     checked={sendEmailCopy}
                     onChange={setSendEmailCopy}
@@ -862,6 +1022,8 @@ export default function TicketDossierSidePanel({
                   {sendEmailCopy && (
                     <UniversalInput
                       label={t("keeper_email_recipient_label", "Recipient Email Address")}
+                      type={revealContactEmail ? "email" : "password"}
+                      className="no-text-case"
                       value={emailRecipient}
                       onChange={setEmailRecipient}
                       placeholder={t(
@@ -943,5 +1105,18 @@ export default function TicketDossierSidePanel({
           )}
       </div>
     </SidePanel>
+
+    <EmailConversationSidePanel
+      isOpen={Boolean(activeDispatchThread)}
+      onClose={() => setActiveDispatchThread(null)}
+      threadId={activeDispatchThread?.threadId}
+      dispatchId={activeDispatchThread?.dispatchId}
+      ticketId={ticket?.id || null}
+      initialSubject={activeDispatchThread?.subject || ticket?.title || undefined}
+      templates={responseTemplates}
+      fromName={senderIdentityLabel}
+      onThreadUpdated={() => onReplyAdded?.(ticket?.metadata)}
+    />
+  </>
   );
 }

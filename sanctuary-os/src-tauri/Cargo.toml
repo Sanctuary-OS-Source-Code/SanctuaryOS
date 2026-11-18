@@ -46,6 +46,9 @@ tokio = { version = "1", features = ["sync", "rt"] }
 url = "2"
 regex = "1"
 ring = "0.17"
+lz4_flex = "0.11"
+sevenz-rust2 = { version = "0.25", features = ["compress", "bzip2", "ppmd", "deflate", "lz4", "zstd", "aes256", "util"] }
+roxmltree = "0.21"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62.2", features = [
@@ -61,6 +64,7 @@ tauri-winrt-notification = "0.7"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
+tauri-plugin-single-instance = "2"
 
 [profile.dev.package."*"]
 opt-level = 3

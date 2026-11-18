@@ -65,6 +65,9 @@ const ScreenshotTourSidePanel = React.lazy(() =>
 const CloudSyncGuardSidePanel = React.lazy(() =>
   import("./side-panels/CloudSyncGuardSidePanel").then((m) => ({ default: m.CloudSyncGuardSidePanel }))
 );
+const FomodInstallerSidePanel = React.lazy(() =>
+  import("./app-modals/FomodInstallerSidePanel").then((m) => ({ default: m.FomodInstallerSidePanel }))
+);
 
 export const AppModals = React.memo(function AppModals(props: any) {
   const { t } = useLexicon();
@@ -122,6 +125,7 @@ export const AppModals = React.memo(function AppModals(props: any) {
     isScoutPanelOpen,
     isCloudSyncGuardOpen,
     closeCloudSyncGuard,
+    hasInstallerWizard,
   } = useModalStore(
     useShallow((s) => ({
       backupType: s.backupType,
@@ -148,6 +152,7 @@ export const AppModals = React.memo(function AppModals(props: any) {
       isScoutPanelOpen: s.isScoutPanelOpen,
       isCloudSyncGuardOpen: s.isCloudSyncGuardOpen,
       closeCloudSyncGuard: s.closeCloudSyncGuard,
+      hasInstallerWizard: s.installerWizardQueue.length > 0,
     }))
   );
 
@@ -300,6 +305,9 @@ export const AppModals = React.memo(function AppModals(props: any) {
         )}
         {isDesktop() && isCloudSyncGuardOpen && (
           <CloudSyncGuardSidePanel isOpen={isCloudSyncGuardOpen} onClose={closeCloudSyncGuard} />
+        )}
+        {isDesktop() && hasInstallerWizard && (
+          <FomodInstallerSidePanel runRadarSweep={runRadarSweep} />
         )}
       </Suspense>
 

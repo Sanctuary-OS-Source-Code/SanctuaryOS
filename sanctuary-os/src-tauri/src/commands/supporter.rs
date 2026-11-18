@@ -629,10 +629,11 @@ pub async fn download_and_install_update(
     download_url: String,
     version: Option<String>,
     is_dev: Option<bool>,
+    release_repo: Option<String>,
 ) -> Result<String, String> {
     #[cfg(any(target_os = "android", target_os = "ios"))]
     {
-        let _ = (app_handle, download_url, version, is_dev);
+        let _ = (app_handle, download_url, version, is_dev, release_repo);
         return Err("Signed desktop updater is not supported on mobile targets.".to_string());
     }
 
@@ -649,15 +650,68 @@ pub async fn download_and_install_update(
             .to_string();
         let want_dev = is_dev.unwrap_or_else(|| clean_ver.to_ascii_lowercase().contains("dev"));
 
+        let repo_slug = match release_repo {
+            Some(raw) => {
+                let trimmed = raw.trim().to_string();
+                if trimmed.is_empty() {
+                    return Err(
+                        "No signed update repository is configured for this standalone fork."
+                            .to_string(),
+                    );
+                }
+                let valid = trimmed.split('/').count() == 2
+                    && trimmed.split('/').all(|seg| {
+                        !seg.is_empty()
+                            && seg
+                                .chars()
+                                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+                    });
+                if !valid {
+                    return Err("Invalid GitHub release repository slug.".to_string());
+                }
+                trimmed
+            }
+            None => "Sanctuary-OS-Source-Code/SanctuaryOS".to_string(),
+        };
+
         let updater = if want_dev {
-            let dev_manifest_endpoint = url::Url::parse(
-                "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/dev-latest/latest.json",
-            )
+            let mut endpoints = Vec::new();
+            if !clean_ver.is_empty() {
+                if let Ok(tag_url) = url::Url::parse(&format!(
+                    "https://github.com/{}/releases/download/v{}/latest.json",
+                    repo_slug, clean_ver
+                )) {
+                    endpoints.push(tag_url);
+                }
+            }
+            let dev_manifest_endpoint = url::Url::parse(&format!(
+                "https://github.com/{}/releases/download/dev-latest/latest.json",
+                repo_slug
+            ))
             .map_err(|e| format!("Invalid signed dev update endpoint: {}", e))?;
+            endpoints.push(dev_manifest_endpoint);
+
             app_handle
                 .updater_builder()
-                .endpoints(vec![dev_manifest_endpoint])
+                .endpoints(endpoints)
                 .map_err(|e| format!("Failed to configure signed dev update endpoint: {}", e))?
+                .build()
+                .map_err(|e| {
+                    format!(
+                        "Signed updater is not configured in tauri.conf.json (missing Minisign public key or endpoint): {}",
+                        e
+                    )
+                })?
+        } else if repo_slug != "Sanctuary-OS-Source-Code/SanctuaryOS" {
+            let stable_manifest_endpoint = url::Url::parse(&format!(
+                "https://github.com/{}/releases/latest/download/latest.json",
+                repo_slug
+            ))
+            .map_err(|e| format!("Invalid signed release update endpoint: {}", e))?;
+            app_handle
+                .updater_builder()
+                .endpoints(vec![stable_manifest_endpoint])
+                .map_err(|e| format!("Failed to configure signed release update endpoint: {}", e))?
                 .build()
                 .map_err(|e| {
                     format!(

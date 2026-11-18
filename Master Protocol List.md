@@ -6,9 +6,9 @@
 
 Sanctuary OS decouples **Core OS Hub Clearances (`osRole`)** from **Game Spoke Clearances (`userRole`)** across 6 distinct operational tiers with sub-second landing-page Command Hubs:
 
-* **Tier 1 — Citizen (`userRole = 'citizen'` • Inherits Creator Airlock):**
+* **Tier 1 — Citizen (`userRole = 'citizen'` • Inherits Open Mason Workshop + Creator Airlock):**
   * **9 Core Citizen Sectors & Symlink Airgap:** Full access to `Command Center`, `Your Vault`, `The Nexus` (Tier-0 catalog), `Blueprints` + **Patch Fire Drill**, `Comm-Link Feed`, `Conflict Radar 2.0`, **Groundhog Sandbox**, **Live-Wire Workbench**, `Time Capsule`, and 7-domain `Settings`.
-  * **Inherited Creator Airlock & Edge Direct Push:** Full local access to `Dev Sandbox`, `Mason IDE`, `Unified 3-Tile Artifact Studio`, `Theme Forge`, `Lexicon Visual Studio`, `Notepad`, local JSON export/import, and **Edge Direct Push** (`.sanctuary.manifest.json`, `.sanctuary.override.json` & `catalog.json` across 6 providers).
+  * **Inherited Open Mason Workshop, Creator Airlock & Edge Direct Push:** Full local access to `Dev Sandbox`, `Mason IDE`, `Unified 3-Tile Artifact Studio`, `Theme Forge`, `Lexicon Visual Studio`, `Notepad`, local JSON export/import, save-airgapped **Creator Airlock** external tool launches (automatic post-exit save restoration), and DPAPI/AES-256-GCM sealed **Edge Direct Push** (`.sanctuary.manifest.json`, `.sanctuary.override.json` & `catalog.json` across 6 providers).
   * **Scout Queue Discoveries:** Share Blueprints (`Public`, `Unlisted`, or `Private`) and submit passing Tier-0 discoveries (`_lab_cert_proof`) to the crowd-sourced **Scout Queue**.
   * **Tier-0 Blueprint Support & Unrestricted OS Bug Reports:** Submit Community Mod Support when the **active Blueprint** contains only verified Tier-0 mods (never deleting Vault files), or file **OS Bug Reports** (`keeper_tickets`) directly to Keepers with zero mod telemetry.
 * **Tier 2 — Verified Mason (`userRole = 'mason'` / `isVerifiedMason = true` • Verified Creator Tier):**
@@ -52,7 +52,7 @@ Sanctuary OS decouples **Core OS Hub Clearances (`osRole`)** from **Game Spoke C
 * **Gatekeeper Clearance:** Native Apple Touch ID WebAuthn Passkeys, macOS Full Disk Access TCC diagnostics, System Settings deep-linking, and `com.apple.quarantine` stripping on verified Vault projections.
 * **Liquid Glass Optics:** 1:1 physical-pixel WebGL2 refraction (`layer2` floating menus & hovertips), `SHA-256` content-addressed `<= 250 KB` WebP Chameleon wallpapers (`{Vault}/Data/Themes/` offline cache + external HTTPS URLs), 6 live Theme Forge sliders, Per-Space Aesthetics Matrix, and responsive mobile filter drawers.
 * **Universal Master Schema:** 100% game-agnostic declarative engine (`sanctuary_schemas` v12) with 7 Engine Presets, multi-folder asset trees, `archive_containers`, secondary `install_routes`, structured `load_order` templates, and declarative `conflict_analyzers`.
-* **Code-Switch:** Auto-extracts `6,166` Standard English keys into `en-default.json`, stores non-default packs as lightweight Sparse Delta Overrides with 21 Dynamic `{Glossary}` Tokens, and translates packs across 28+ languages in 1 click.
+* **Code-Switch:** Auto-extracts `6,800+` Standard English keys into `en-default.json`, stores non-default packs as lightweight Sparse Delta Overrides with 21 Dynamic `{Glossary}` Tokens, and translates packs across 28+ languages in 1 click.
 * **Cut the Cord:** Seals Scoped Spoke Gateway Tokens (`spk_gw_*`, verified via per-token HMAC-SHA256 hashes inside `sanctuary_internal.spoke_gateway_tokens`) using Split-Custody Double-Envelope encryption (`HKDF-SHA256` + `AES-256-GCM` bound AAD + Supabase Vault) inside `sanctuary_internal.spoke_credentials`, guards irreversible Hub/Spoke severance behind `"CUT THE CORD"` phrase verification (revoking tokens & purging Vault credentials atomically), and binds returning Spin-Off Spoke Citizens via `SRK1.<hub_uuid>.<relink_secret>` commitments alongside 1-file Standalone Forking in `src/supabase.ts`.
 * **Mirror Uplink:** Bilateral codebase-to-Keepers-Core asset, directive, schema, and legal sync between repository Markdown/JSON files and Keepers Core—enabling zero-rebuild OS updates while guaranteeing full offline resilience.
 
@@ -72,12 +72,12 @@ Sanctuary OS decouples **Core OS Hub Clearances (`osRole`)** from **Game Spoke C
 
 ## 4. Load Order, Atomic Logic & Sandbox Protocols (7 Protocols)
 
-* **Priority Compiler:** Compiles deployment priority across `folder_priority`, `manifest_list`, `numeric_prefix`, and `timestamp` strategies with topological sorting, strategy-aware tiers, scoped scans, and 1-click DFS cycle resolution.
-* **Conflict Radar 2.0:** Executes declarative `virtual_fs_path`, `archive_member`, `binary_chunk_index`, and `json_xml_key` analyzers across a 5-Tier Severity Matrix (`S1–S5`), unified 1:1 across Command Center tiles and resolution drawers.
+* **Priority Compiler:** Compiles topological Master/Dependency DAG ordering and `slot_buckets` capacity limits across `folder_priority`, `manifest_list`, `numeric_prefix`, and `timestamp` strategies with strategy-aware tiers, scoped scans, and 1-click DFS cycle resolution.
+* **Conflict Radar 2.0:** Executes declarative `virtual_fs_path`, `archive_member` / container TOC (`TES4`, `BSA`/`BA2`, `LSPK`, `.pak`/`.utoc`, `RDAR`, `RPF7`), `binary_chunk_index`, and `json_xml_key` analyzers + per-file `.sanctuary_hidden.json` VFS masking across a 5-Tier Severity Matrix (`S1–S5`), unified 1:1 across Command Center tiles and resolution drawers.
 * **The Highlander Rule:** Enforces mutually exclusive slots (`highlander_group_id` & `atomic_logic.highlander_group`) with explicit **Swap / Keep Both / Cancel** prompts—never silently evicting equipped `{Mods}`—and routes intentional co-equips to Conflict Radar at Severity 3.
 * **Nuclear Family Cohesion:** Automatically couples multi-module sibling files across the same suite folder so enabling, disabling, hot-swapping, or cloning never splits critical frameworks from their runtime companions.
 * **Deep Yeet:** Performs complete lifecycle teardown across active symlinks, secondary `install_routes`, isolated `Vault/Mods/` archives, override rules, and active Blueprints without stranding orphaned files.
-* **Groundhog Sandbox:** Pairs `SanctuarySaveVault` externalized **Save Doctor** Golden Baselines with **Homestead Save Airgap** isolation, Stage 4 magic-byte corruption auditing, 1v1 conflict pairing, passive 4-stage launch timing, **Crash Autopsy** log matching, and automatic post-test save rewind.
+* **Groundhog Sandbox:** Pairs externalized `SanctuarySaveVault` **Golden Baseline** save rewind, Stage 4 magic-byte corruption auditing, 1v1 conflict pairing, passive 4-stage launch timing, multi-root **Crash Autopsy** suspect scoring, **Save Doctor** pre-launch missing-mod manifest checking (`.sanctuary-save-manifest.json`), and **Creator Airlock** external tool post-exit restore.
 * **Time Capsule:** Multi-threaded `rayon` Copy-on-Write snapshots across World State (purple), Engine Core (pink), and `{Mods}` history with delta-aware cap pruning and strictly additive save slot restoration.
 
 ---
@@ -86,7 +86,7 @@ Sanctuary OS decouples **Core OS Hub Clearances (`osRole`)** from **Game Spoke C
 
 * **Zero-Knowledge Seal:** Hardware-bound FIDO2 Passkey & TOTP Vault (`12-Hour Device Seal`, Apple Touch ID, Windows Hello, and Live Companion Passkey Handshake via W3C Web Push) guarding Tier 2–6 clearances without storing biometric PII on remote servers.
 * **Echo Suppressor:** Suppresses repetitive startup banners, already-read announcement popups, and redundant system alerts across multi-rig desktop and PWA sessions via Zero-PII state hashing.
-* **Ghost Scrubber:** Multi-OS Zero-PII sanitizer stripping usernames, filesystem home paths, hardware IDs, IP addresses, and machine tokens before crash reports or Threat Manifests leave your rig.
+* **Ghost Scrubber:** Multi-OS Zero-PII sanitizer replacing OS usernames, home paths, hardware IDs, IPv4/IPv6/MAC addresses, SIDs, and emails with `[REDACTED BY SANCTUARY]` before crash reports or opt-in Threat Manifests (`public.malware_reports`) leave your rig.
 * **Zero-Choice Lockdown:** Enforces instant OS workspace lock and isolated Move-mode Quarantine whenever Tier 5 Malware triggers **Bytecode Hound** or SHA-256 blacklists, requiring explicit Citizen confirmation for zero-fill Secure Shred.
 * **Tiered Surface Isolation & Active Blueprint Support Lock:** Isolates **Public Verified** (Tier 0 — only tier permitted across The Nexus, Comm-Link, Architect Console, and Community Mod Support) from **Unknown / Unverified** (Scout & Mason queues only) and **Tiers 1–4 & Pending Flags** (`has_pending_flag`, hidden publicly and restricted to Oversight & Wayfinder hubs), purging confirmed flagged hashes from cloud Blueprints and enforcing a non-destructive **Active Blueprint Support Lock** (1-click active-Blueprint unequip without deleting Vault files; Keeper OS Bug Reports stay open with zero mod telemetry).
 * **DEFCON 1 Shield:** Engages pre-patch community-wide launch lockdowns and automatic Pre-Patch Time Capsule prompts when breaking engine updates ship—blocking unsafe launches across online and offline boot states until cleared.
@@ -466,7 +466,7 @@ Sanctuary OS decouples **Core OS Hub Clearances (`osRole`)** from **Game Spoke C
               "id": "proto_d1_r7",
               "icon": "translate",
               "title": "Code-Switch",
-              "desc": "Auto-synced 6,166-key Standard English baseline, lightweight Sparse Delta Override packs with 21 Dynamic {Glossary} Tokens and smart article grammar, Guided Icon Overrides, and 1-click auto-translation across 28+ languages."
+              "desc": "Auto-synced 6,800+-key Standard English baseline, lightweight Sparse Delta Override packs with 21 Dynamic {Glossary} Tokens and smart article grammar, Guided Icon Overrides, and 1-click auto-translation across 28+ languages."
             },
             {
               "id": "proto_d1_r8",
@@ -613,7 +613,7 @@ Sanctuary OS decouples **Core OS Hub Clearances (`osRole`)** from **Game Spoke C
               "id": "proto_d4_r3",
               "icon": "cleaning_services",
               "title": "Ghost Scrubber",
-              "desc": "Proactively scrubs OS paths, local usernames ([USER_REDACTED]), IPs, MACs, SIDs, and HWIDs before diagnostics leave the rig while gating Architect telemetry strictly to verified Tier 0 hashes."
+              "desc": "Proactively scrubs OS paths, local usernames, IPs, MACs, SIDs, emails, and HWIDs ([REDACTED BY SANCTUARY]) before diagnostics leave the rig while gating Architect telemetry strictly to verified Tier 0 hashes."
             },
             {
               "id": "proto_d4_r4",

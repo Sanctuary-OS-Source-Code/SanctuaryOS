@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-import { useLexicon } from "../LexiconContext";
+import { useLexicon, getLoadedBuiltinLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { supabase } from "../supabase";
 import {
+  ActionButton,
   SidePanel,
   SidePanelHeroCard,
   UniversalGroup,
@@ -57,6 +58,10 @@ export default function LexiconSidePanel({
     )
   );
   const [confirmDelete, setConfirmDelete] = useState<string | false>(false);
+  const [pendingImportedLexicon, setPendingImportedLexicon] = useState<{
+    data: Record<string, any>;
+    codeInput: string;
+  } | null>(null);
 
   useEffect(() => {
     async function fetchLanguages() {
@@ -78,11 +83,11 @@ export default function LexiconSidePanel({
   }, []);
 
   const activeGameSchema = useStore((state) => state.activeGameSchema);
-  const isSimsGame = `${activeGameSchema?.id || ""} ${
-    activeGameSchema?.name || ""
-  } ${activeGameSchema?.display_name || ""}`
-    .toLowerCase()
-    .includes("sims");
+  const activeSchemaNameLower = String(
+    activeGameSchema?.display_name || activeGameSchema?.name || ""
+  )
+    .trim()
+    .toLowerCase();
 
   const getLexiconMetadata = (code: string) => {
     const cleanName = (val: string) =>
@@ -100,17 +105,6 @@ export default function LexiconSidePanel({
         language: "English",
         name: cleanName(t("lang_standard", "Standard English")),
       };
-    if (code === "en-sims" || code === "Simlish") {
-      const simsMeta = lexiconMeta?.find((m: any) => m.id === code);
-      return {
-        community:
-          simsMeta?.badge && simsMeta.badge !== "Sanctuary"
-            ? simsMeta.badge
-            : activeGameSchema?.display_name || t("badge_community", "Community"),
-        language: simsMeta?.lang || "English",
-        name: simsMeta?.name || cleanName(t("lang_sims", "Simlish")),
-      };
-    }
 
     const meta = lexiconMeta?.find((m: any) => m.id === code);
     if (meta) {
@@ -141,21 +135,24 @@ export default function LexiconSidePanel({
     };
   };
 
-  const coreCodes = isSimsGame
-    ? ["en-sanctuary", "en-default", "en-sims"]
-    : ["en-sanctuary", "en-default"];
+  const coreCodes = ["en-sanctuary", "en-default"];
   const dbCodes =
     lexiconMeta && lexiconMeta.length > 0
       ? lexiconMeta.map((m: any) => m.id)
       : [];
   const allLexiconCodes = Array.from(
     new Set([...coreCodes, ...dbCodes, ...Object.keys(registry || {})])
-  ).filter(
-    (code) =>
-      isSimsGame ||
-      activeLang === code ||
-      (code !== "en-sims" && code !== "Simlish")
-  );
+  ).filter((code) => {
+    if (coreCodes.includes(code) || activeLang === code) return true;
+    if (dbCodes.includes(code)) return true;
+    if (getLoadedBuiltinLexicon(code)) {
+      const regBadge = String(registry?.[code]?._meta_badge || "")
+        .trim()
+        .toLowerCase();
+      return Boolean(activeSchemaNameLower && regBadge && regBadge === activeSchemaNameLower);
+    }
+    return true;
+  });
   const uniqueLanguages = Array.from(
     new Set(allLexiconCodes.map((code) => getLexiconMetadata(code).language))
   );
@@ -185,13 +182,31 @@ export default function LexiconSidePanel({
       });
       if (!selected) return;
       const content = await readTextFile(selected as string);
-      const langCode = prompt(t("prompt_lang_code", "Language code:")) || "custom";
-      importLexicon(JSON.parse(content), langCode);
+      const parsed = JSON.parse(content);
+      const fileStem = String(selected)
+        .split(/[\\/]/)
+        .pop()
+        ?.replace(/\.json$/i, "")
+        ?.trim();
+      const suggestedCode = String(
+        parsed?._meta_code || parsed?._meta_lang || fileStem || "custom"
+      ).trim();
+      setPendingImportedLexicon({
+        data: parsed,
+        codeInput: suggestedCode || "custom",
+      });
     } catch (err) {
       useStore
         .getState()
         .pushStatus(`${t("alert_lexicon_failed", "{Lexicon} Import Failed:")}${err}`);
     }
+  };
+
+  const confirmPendingLexiconImport = () => {
+    if (!pendingImportedLexicon) return;
+    const cleanCode = pendingImportedLexicon.codeInput.trim() || "custom";
+    importLexicon(pendingImportedLexicon.data, cleanCode);
+    setPendingImportedLexicon(null);
   };
 
   const renderLexiconCard = (code: string) => {
@@ -201,7 +216,8 @@ export default function LexiconSidePanel({
     const canDelete =
       lexiconMeta &&
       lexiconMeta.find((m: any) => m.id === code) === undefined &&
-      !["en-sanctuary", "en-default", "en-sims", "Simlish"].includes(code);
+      !coreCodes.includes(code) &&
+      !getLoadedBuiltinLexicon(code);
 
     return (
       <UniversalCard
@@ -472,6 +488,43 @@ export default function LexiconSidePanel({
             ),
           }}
         />
+
+        {pendingImportedLexicon && (
+          <UniversalGroup
+            title={t("lexicon_import_card_title", "Import {Lexicon}")}
+            icon={t("icon_upload", "upload")}
+          >
+            <div className="flex flex-col gap-3">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                {t("prompt_lang_code", "Language code:")}
+              </label>
+              <input
+                value={pendingImportedLexicon.codeInput}
+                onChange={(e) =>
+                  setPendingImportedLexicon((prev) =>
+                    prev ? { ...prev, codeInput: e.target.value } : prev
+                  )
+                }
+                placeholder={t("lexicon_code_placeholder", "e.g. en-custom")}
+                className="w-full glass-surface rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] focus:outline-none focus:border-[var(--accent)]"
+              />
+              <div className="flex items-center justify-end gap-2">
+                <ActionButton
+                  variant="glass"
+                  icon={t("icon_close", "close")}
+                  label={t("cancel", "Cancel")}
+                  onClick={() => setPendingImportedLexicon(null)}
+                />
+                <ActionButton
+                  variant="primary"
+                  icon={t("icon_upload", "upload")}
+                  label={t("btn_import", "Import")}
+                  onClick={confirmPendingLexiconImport}
+                />
+              </div>
+            </div>
+          </UniversalGroup>
+        )}
 
         {favoriteLexicons.length > 0 && (
           <UniversalGroup

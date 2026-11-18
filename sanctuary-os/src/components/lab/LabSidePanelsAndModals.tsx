@@ -81,6 +81,7 @@ export function LabSidePanelsAndModals({
   handleConcludeTest,
   reportsToList,
   isModKnownCloudTier0ForLabReport,
+  crashAutopsy,
 }: any) {
   return (
     <>
@@ -336,6 +337,63 @@ export function LabSidePanelsAndModals({
                     />
                   </div>
                 </SidePanelHeroCard>
+                {Array.isArray(crashAutopsy?.suspects) && crashAutopsy.suspects.length > 0 && (
+                  <UniversalGroup
+                    title={t("lab_crash_autopsy_title", "Crash Autopsy — Suspected {Mods}")}
+                    icon={t("icon_troubleshoot", "troubleshoot")}
+                    headerColorClass="text-[var(--danger)]"
+                  >
+                    <div className="flex flex-col gap-2">
+                      {crashAutopsy.suspects.map((suspect: any, sIdx: number) => (
+                        <div
+                          key={`${suspect.mod_name}_${sIdx}`}
+                          className="glass-surface rounded-xl p-3 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2"
+                        >
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="text-xs font-black text-[var(--text)] truncate">
+                              {suspect.mod_name}
+                            </span>
+                            <div className="flex items-center gap-1.5 ml-auto shrink-0">
+                              <span className={`${VAULT_CHIP_CLASS} font-mono`}>
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                                  {t("icon_radar", "radar")}
+                                </span>
+                                <span className="text-[var(--danger)]">
+                                  {suspect.confidence_score}%
+                                </span>
+                              </span>
+                              {onOpenDossier && (
+                                <button
+                                  type="button"
+                                  onClick={() => onOpenDossier(suspect.mod_name)}
+                                  className="w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[var(--accent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined !text-[14px]">
+                                    {t("icon_open_in_new", "open_in_new")}
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {Array.isArray(suspect.matched_tokens) && suspect.matched_tokens.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {suspect.matched_tokens.map((tok: string) => (
+                                <span key={tok} className={`${VAULT_CHIP_CLASS} font-mono`}>
+                                  <span className="text-[var(--subtext)]">{tok}</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {suspect.line_excerpt && (
+                            <p className="text-[11px] font-mono text-[var(--subtext)] opacity-85 truncate m-0">
+                              {suspect.line_excerpt}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </UniversalGroup>
+                )}
                 {canSecureReport && (
                   <button
                     type="button"

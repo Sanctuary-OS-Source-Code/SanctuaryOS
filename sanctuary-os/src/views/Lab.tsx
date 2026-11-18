@@ -204,6 +204,7 @@ export default function Lab({
   const [downloadCardState, setDownloadCardState] = useState<"idle" | "done">("idle");
   const [reportLogViewTab, setReportLogViewTab] = useState<"LAB_REPORT" | "REAL_LOG">("LAB_REPORT");
   const [liveRealLogs, setLiveRealLogs] = useState<ScrubbedRealLogFile[]>([]);
+  const [crashAutopsy, setCrashAutopsy] = useState<any>(null);
   const exceptionRules = useExceptionRules(activeGameSchema);
 
   useEffect(() => {
@@ -211,6 +212,7 @@ export default function Lab({
     setSubmitCardState("idle");
     setDownloadCardState("idle");
     setReportLogViewTab("LAB_REPORT");
+    setCrashAutopsy(null);
     if (selectedReport && (docsPath || modsPath)) {
       invoke<ScrubbedRealLogFile[]>("get_scrubbed_game_logs", {
         docsPath: docsPath || modsPath || "",
@@ -229,6 +231,13 @@ export default function Lab({
           }
         })
         .catch(() => { });
+    }
+    if (selectedReport && (selectedReport.errorFound || selectedReport.logSnippet || docsPath || modsPath)) {
+      invoke<any>("analyze_crash_autopsy", {
+        docsPath: docsPath || modsPath || null,
+      })
+        .then((res) => setCrashAutopsy(res || null))
+        .catch(() => setCrashAutopsy(null));
     }
   }, [selectedReport?.id, selectedReport?.sessionKey, docsPath, modsPath, activeGameSchema]);
 
@@ -1805,6 +1814,7 @@ export default function Lab({
         handleConcludeTest={handleConcludeTest}
         reportsToList={reportsToList}
         isModKnownCloudTier0ForLabReport={isModKnownCloudTier0ForLabReport}
+        crashAutopsy={crashAutopsy}
       />
     </div>
   );

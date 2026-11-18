@@ -23,16 +23,25 @@
     {
       "source": "/(.*)",
       "headers": [
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' https: data: blob:; connect-src 'self' https: wss: data: blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
+        }
       ]
     }
   ],
   "rewrites": [
     {
-      "source": "/((?!manifest\\.webmanifest|sw\\.js|\\.well-known/.*|pwa-.*\\.png|apple-touch-icon\\.png|icon\\.png|themes/.*|assets/.*).*)",
+      "source": "/email/:path*",
+      "destination": "https://tpsbtaqxlczrysqqmanp.supabase.co/functions/v1/keeper-email-dispatch/email/:path*"
+    },
+    {
+      "source": "/((?!manifest\\.webmanifest|sw\\.js|boot-theme\\.js|favicon\\.png|email/.*|dict/.*|\\.well-known/.*|pwa-.*\\.png|apple-touch-icon\\.png|icon\\.png|themes/.*|assets/.*).*)",
       "destination": "/index.html"
     }
   ]

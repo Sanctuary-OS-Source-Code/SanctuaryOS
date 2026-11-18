@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLexicon } from '../LexiconContext';
 import { useStore } from '../store';
@@ -13,16 +13,94 @@ export function SidePanelBrowserDownloads({
   setDownloadsQueue: React.Dispatch<React.SetStateAction<string[]>>;
 }) {
   const { t } = useLexicon();
+  const guidedQueueLength = useModalStore((s) => s.guidedBrowserQueue?.length || 0);
+  const autoImportedRef = useRef<Set<string>>(new Set());
+  const [autoImportEnabled, setAutoImportEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('sanctuary_guided_auto_import') !== 'false';
+    } catch {
+      return true;
+    }
+  });
 
-  if (downloadsQueue.length === 0) return null;
-
-  const markDownloadProcessed = (filePath: string) => {
+  const markDownloadProcessed = useCallback((filePath: string) => {
     const w: any = window;
     if (!w.__processedDownloads || typeof w.__processedDownloads.set !== 'function') {
       w.__processedDownloads = new Map();
     }
     w.__processedDownloads.set(filePath, Date.now());
-  };
+  }, []);
+
+  const importDownloadedFile = useCallback(
+    async (filePath: string) => {
+      try {
+        markDownloadProcessed(filePath);
+        setDownloadsQueue((prev) => prev.filter((p) => p !== filePath));
+        const moveOriginal =
+          (localStorage.getItem('sanctuary_ingest_file_mode') || 'copy') === 'move';
+        const resStr = await invoke<string>('ingest_dropped_file', {
+          path: filePath,
+          forceReplace: false,
+          targetFolder: null,
+          moveOriginal,
+        });
+        if (typeof resStr === 'string' && resStr.trim().startsWith('{')) {
+          try {
+            const parsed = JSON.parse(resStr);
+            if (parsed?.__fomod_wizard && parsed?.plan?.session_id) {
+              useModalStore.getState().enqueueInstallerWizard(parsed.plan);
+            }
+          } catch {}
+        }
+        const mState = useModalStore.getState();
+        if (mState.guidedBrowserQueue.length > 0) {
+          const res = mState.advanceGuidedBrowserQueue('completed');
+          if (res.done) {
+            useStore
+              .getState()
+              .pushStatus(
+                t(
+                  'guided_queue_completed_toast',
+                  'Guided Update Queue complete! All {0} {mods} processed.'
+                ).replace('{0}', String(mState.guidedBrowserQueue.length)),
+                'success'
+              );
+            mState.clearGuidedBrowserQueue();
+          } else if (res.nextItem) {
+            useStore
+              .getState()
+              .pushStatus(
+                t(
+                  'guided_queue_advanced_toast',
+                  'Verified archive! Advancing to {0} ({1} of {2})...'
+                )
+                  .replace('{0}', res.nextItem.name || '')
+                  .replace('{1}', String((res.nextIndex || 0) + 1))
+                  .replace('{2}', String(mState.guidedBrowserQueue.length)),
+                'info'
+              );
+          }
+        }
+      } catch (err) {
+        console.error('Failed to ingest file', err);
+      }
+    },
+    [markDownloadProcessed, setDownloadsQueue, t]
+  );
+
+  // Hands-free auto-import when Guided Browser queue is active
+  useEffect(() => {
+    if (!autoImportEnabled || guidedQueueLength <= 0 || downloadsQueue.length === 0) {
+      return;
+    }
+    for (const filePath of downloadsQueue) {
+      if (!filePath || autoImportedRef.current.has(filePath)) continue;
+      autoImportedRef.current.add(filePath);
+      void importDownloadedFile(filePath);
+    }
+  }, [autoImportEnabled, guidedQueueLength, downloadsQueue, importDownloadedFile]);
+
+  if (downloadsQueue.length === 0) return null;
 
   return (
     <div className="shrink-0 mx-4 mb-4 sm:mx-5 sm:mb-5 mt-0 glass-panel rounded-2xl p-4 flex flex-col gap-3 z-50 relative">
@@ -39,6 +117,30 @@ export function SidePanelBrowserDownloads({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {guidedQueueLength > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = !autoImportEnabled;
+                setAutoImportEnabled(next);
+                try {
+                  localStorage.setItem('sanctuary_guided_auto_import', String(next));
+                } catch {}
+              }}
+              className={`glass-surface border px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all ${
+                autoImportEnabled
+                  ? 'border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--accent)]'
+                  : 'border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)]'
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[12px]">
+                {autoImportEnabled ? t('icon_bolt', 'bolt') : t('icon_pause', 'pause')}
+              </span>
+              {autoImportEnabled
+                ? t('guided_auto_import_on', 'Auto-Import ON')
+                : t('guided_auto_import_off', 'Auto-Import OFF')}
+            </button>
+          )}
           <span className="glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--text)] px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5">
             <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
               {t("icon_inventory_2", "inventory_2")}
@@ -97,51 +199,7 @@ export function SidePanelBrowserDownloads({
                     icon={t("icon_download", "download")}
                     label={t("btn_import", "Import")}
                     className="!w-full !py-2 !px-3 !rounded-xl !text-[10px]"
-                    onClick={async () => {
-                      try {
-                        markDownloadProcessed(filePath);
-                        setDownloadsQueue((prev) => prev.filter((p) => p !== filePath));
-                        const moveOriginal =
-                          (localStorage.getItem("sanctuary_ingest_file_mode") || "copy") === "move";
-                        await invoke("ingest_dropped_file", {
-                          path: filePath,
-                          forceReplace: false,
-                          targetFolder: null,
-                          moveOriginal,
-                        });
-                        const mState = useModalStore.getState();
-                        if (mState.guidedBrowserQueue.length > 0) {
-                          const res = mState.advanceGuidedBrowserQueue("completed");
-                          if (res.done) {
-                            useStore
-                              .getState()
-                              .pushStatus(
-                                t(
-                                  "guided_queue_completed_toast",
-                                  "Guided Update Queue complete! All {0} {mods} processed."
-                                ).replace("{0}", String(mState.guidedBrowserQueue.length)),
-                                "success"
-                              );
-                            mState.clearGuidedBrowserQueue();
-                          } else if (res.nextItem) {
-                            useStore
-                              .getState()
-                              .pushStatus(
-                                t(
-                                  "guided_queue_advanced_toast",
-                                  "Verified archive! Advancing to {0} ({1} of {2})..."
-                                )
-                                  .replace("{0}", res.nextItem.name || "")
-                                  .replace("{1}", String((res.nextIndex || 0) + 1))
-                                  .replace("{2}", String(mState.guidedBrowserQueue.length)),
-                                "info"
-                              );
-                          }
-                        }
-                      } catch (err) {
-                        console.error("Failed to ingest file", err);
-                      }
-                    }}
+                    onClick={() => void importDownloadedFile(filePath)}
                   />
                 </div>
               </div>

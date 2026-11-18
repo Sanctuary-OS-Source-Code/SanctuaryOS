@@ -58,7 +58,7 @@ pub fn delete_local_file(
             if let Some(fname) = p.file_name().and_then(|n| n.to_str()) {
                 deleted_file_names.push(fname.to_string());
             }
-            if std::fs::remove_file(p).is_err() {
+            if crate::utils::remove_file_clearing_readonly(p).is_err() {
                 std::fs::remove_dir(p).map_err(|e| e.to_string())?;
             }
         } else if p.is_dir() {
@@ -73,7 +73,7 @@ pub fn delete_local_file(
                     }
                 }
             }
-            std::fs::remove_dir_all(p).map_err(|e| e.to_string())?;
+            crate::utils::remove_dir_all_clearing_readonly(p).map_err(|e| e.to_string())?;
         } else {
             if let Some(fname) = p.file_name().and_then(|n| n.to_str()) {
                 deleted_file_names.push(fname.to_string());
@@ -85,10 +85,10 @@ pub fn delete_local_file(
                     if let Some(cf) = companion.file_name().and_then(|n| n.to_str()) {
                         deleted_file_names.push(cf.to_string());
                     }
-                    let _ = std::fs::remove_file(&companion);
+                    let _ = crate::utils::remove_file_clearing_readonly(&companion);
                 }
             }
-            std::fs::remove_file(p).map_err(|e| e.to_string())?;
+            crate::utils::remove_file_clearing_readonly(p).map_err(|e| e.to_string())?;
         }
 
         let mods_root = PathBuf::from(saved_coords.mods_path.trim());
@@ -500,6 +500,332 @@ pub fn ensure_windows_aumid_registered() {
 
             Some(icon_path)
         });
+    }
+}
+
+fn resolve_protocol_target_executable() -> Option<PathBuf> {
+    #[cfg(target_os = "linux")]
+    {
+        for env_key in ["SANCTUARY_REAL_APPIMAGE", "APPIMAGE"] {
+            if let Ok(val) = std::env::var(env_key) {
+                let trimmed = val.trim();
+                if !trimmed.is_empty() {
+                    let p = PathBuf::from(trimmed);
+                    if p.exists() {
+                        return Some(p);
+                    }
+                }
+            }
+        }
+    }
+    let exe = std::env::current_exe().ok()?;
+    let in_cargo_deps = exe
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .map_or(false, |n| n.eq_ignore_ascii_case("deps"));
+    if in_cargo_deps || !exe.exists() {
+        return None;
+    }
+    Some(exe)
+}
+
+#[cfg(target_os = "windows")]
+fn register_windows_url_scheme(scheme: &str, label: &str, exe_str: &str) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    let base_key = format!(r"HKCU\Software\Classes\{}", scheme);
+    let url_desc = format!("URL:{}", label);
+    let default_icon_val = format!("\"{}\",0", exe_str);
+    let command_val = format!("\"{}\" \"%1\"", exe_str);
+
+    let _ = std::process::Command::new("reg")
+        .args(["add", &base_key, "/ve", "/t", "REG_SZ", "/d", &url_desc, "/f"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+    let _ = std::process::Command::new("reg")
+        .args(["add", &base_key, "/v", "URL Protocol", "/t", "REG_SZ", "/d", "", "/f"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+    let _ = std::process::Command::new("reg")
+        .args(["add", &base_key, "/v", "SanctuaryOwned", "/t", "REG_SZ", "/d", "1", "/f"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+    let _ = std::process::Command::new("reg")
+        .args([
+            "add",
+            &format!(r"{}\DefaultIcon", base_key),
+            "/ve",
+            "/t",
+            "REG_SZ",
+            "/d",
+            &default_icon_val,
+            "/f",
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+    let _ = std::process::Command::new("reg")
+        .args([
+            "add",
+            &format!(r"{}\shell\open\command", base_key),
+            "/ve",
+            "/t",
+            "REG_SZ",
+            "/d",
+            &command_val,
+            "/f",
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+}
+
+#[cfg(target_os = "windows")]
+fn unregister_windows_url_scheme_if_owned(scheme: &str) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    let base_key = format!(r"HKCU\Software\Classes\{}", scheme);
+    let owned_out = std::process::Command::new("reg")
+        .args(["query", &base_key, "/v", "SanctuaryOwned"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+    let mut is_owned = owned_out
+        .as_ref()
+        .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).contains("1"))
+        .unwrap_or(false);
+
+    if !is_owned {
+        if let Ok(cmd_out) = std::process::Command::new("reg")
+            .args(["query", &format!(r"{}\shell\open\command", base_key), "/ve"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+        {
+            if cmd_out.status.success() {
+                let text = String::from_utf8_lossy(&cmd_out.stdout).to_lowercase();
+                if text.contains("sanctuaryos") || text.contains("sanctuary-os") {
+                    is_owned = true;
+                }
+            }
+        }
+    }
+
+    if is_owned {
+        let _ = std::process::Command::new("reg")
+            .args(["delete", &base_key, "/f"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output();
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub fn sync_linux_desktop_integration(
+    prefs: &crate::state::ProtocolHandlerPreferences,
+    install_icons: bool,
+) {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = match std::env::var("HOME") {
+        Ok(h) if !h.trim().is_empty() => h,
+        _ => return,
+    };
+    let Some(exe_pb) = resolve_protocol_target_executable() else {
+        return;
+    };
+    let exec_path = exe_pb.to_string_lossy().to_string();
+    let primary_icon_path = format!(
+        "{}/.local/share/icons/hicolor/256x256/apps/sanctuary-os.png",
+        home
+    );
+
+    if install_icons {
+        let icon_bytes = include_bytes!("../../../icons/128x128@2x.png");
+        let app_icon_dirs = [
+            format!("{}/.local/share/icons/hicolor/256x256/apps", home),
+            format!("{}/.local/share/icons/hicolor/128x128/apps", home),
+            format!("{}/.local/share/icons/breeze/apps/64", home),
+            format!("{}/.local/share/icons/breeze-dark/apps/64", home),
+            format!("{}/.local/share/pixmaps", home),
+        ];
+        let mime_icon_dirs = [
+            format!("{}/.local/share/icons/hicolor/256x256/mimetypes", home),
+            format!("{}/.local/share/icons/hicolor/128x128/mimetypes", home),
+            format!("{}/.local/share/icons/breeze/mimetypes/64", home),
+            format!("{}/.local/share/icons/breeze-dark/mimetypes/64", home),
+        ];
+
+        for dir in &app_icon_dirs {
+            let _ = std::fs::create_dir_all(dir);
+            let _ = std::fs::write(format!("{}/sanctuary-os.png", dir), icon_bytes);
+            let _ = std::fs::write(format!("{}/SanctuaryOS.png", dir), icon_bytes);
+        }
+        for dir in &mime_icon_dirs {
+            let _ = std::fs::create_dir_all(dir);
+            let _ = std::fs::write(format!("{}/sanctuary-os.png", dir), icon_bytes);
+            let _ = std::fs::write(
+                format!("{}/application-x-sanctuary-appimage.png", dir),
+                icon_bytes,
+            );
+        }
+
+        // Register high-priority XDG MIME rule so KDE Dolphin / Plasma displays the Sanctuary OS crest
+        // directly on Sanctuary*.AppImage files in ~/Downloads and ~/Desktop instead of the generic .AppImage gear icon
+        let mime_base_dir = format!("{}/.local/share/mime", home);
+        let mime_pkg_dir = format!("{}/packages", mime_base_dir);
+        let _ = std::fs::create_dir_all(&mime_pkg_dir);
+        let mime_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-sanctuary-appimage">
+    <sub-class-of type="application/vnd.appimage"/>
+    <sub-class-of type="application/x-iso9660-appimage"/>
+    <sub-class-of type="application/x-executable"/>
+    <comment>Sanctuary OS AppImage</comment>
+    <icon name="sanctuary-os"/>
+    <generic-icon name="sanctuary-os"/>
+    <glob pattern="Sanctuary*.AppImage" weight="80"/>
+    <glob pattern="sanctuary*.AppImage" weight="80"/>
+    <glob pattern="*SanctuaryOS*.AppImage" weight="80"/>
+    <glob pattern="Sanctuary*.appimage" weight="80"/>
+    <glob pattern="sanctuary*.appimage" weight="80"/>
+  </mime-type>
+</mime-info>
+"#;
+        let _ = std::fs::write(format!("{}/sanctuary-os.xml", mime_pkg_dir), mime_xml);
+        let _ = std::process::Command::new("update-mime-database")
+            .arg(&mime_base_dir)
+            .output();
+
+        if let Ok(meta) = std::fs::metadata(&exec_path) {
+            let mut perms = meta.permissions();
+            perms.set_mode(0o755);
+            let _ = std::fs::set_permissions(&exec_path, perms);
+        }
+        let icon_file_uri = format!("file://{}", primary_icon_path);
+        let _ = std::process::Command::new("gio")
+            .args(["set", &exec_path, "metadata::custom-icon", &icon_file_uri])
+            .output();
+        let _ = std::process::Command::new("gio")
+            .args(["set", &exec_path, "metadata::trusted", "true"])
+            .output();
+    }
+
+    let mut scheme_mimes = vec![
+        "x-scheme-handler/sanctuary".to_string(),
+        "x-scheme-handler/sanctuary-uplink".to_string(),
+    ];
+    if prefs.nxm {
+        scheme_mimes.push("x-scheme-handler/nxm".to_string());
+    }
+    if prefs.ror2mm {
+        scheme_mimes.push("x-scheme-handler/ror2mm".to_string());
+    }
+    if prefs.curseforge {
+        scheme_mimes.push("x-scheme-handler/curseforge".to_string());
+    }
+    let mime_type_line = format!("{};", scheme_mimes.join(";"));
+
+    // Note: Do NOT include TryExec= here because KDE's KDesktopFile::tryExec() does not support spaces
+    // in filenames (e.g. "Sanctuary OS_0.6.0_amd64.AppImage") and falls back to a broken gear icon.
+    let desktop_entry = format!(
+        "[Desktop Entry]\nVersion=1.0\nType=Application\nName=Sanctuary OS\nComment=Sovereign Mod & Blueprint Operating System\nExec=\"{}\" %U\nIcon={}\nTerminal=false\nCategories=Game;Utility;\nMimeType={}\nStartupWMClass=SanctuaryOS\nStartupNotify=true\nX-KDE-SubstituteUID=false\n",
+        exec_path, primary_icon_path, mime_type_line
+    );
+
+    let apps_dir = format!("{}/.local/share/applications", home);
+    let _ = std::fs::create_dir_all(&apps_dir);
+    let app_desktop_path = format!("{}/sanctuary-os.desktop", apps_dir);
+    if std::fs::write(&app_desktop_path, &desktop_entry).is_ok() {
+        if let Ok(meta) = std::fs::metadata(&app_desktop_path) {
+            let mut perms = meta.permissions();
+            perms.set_mode(0o755);
+            let _ = std::fs::set_permissions(&app_desktop_path, perms);
+        }
+    }
+
+    if install_icons {
+        let icon_file_uri = format!("file://{}", primary_icon_path);
+        let user_desktop_dir = format!("{}/Desktop", home);
+        if std::path::Path::new(&user_desktop_dir).is_dir() {
+            let desktop_shortcut = format!("{}/Sanctuary OS.desktop", user_desktop_dir);
+            if std::fs::write(&desktop_shortcut, &desktop_entry).is_ok() {
+                if let Ok(meta) = std::fs::metadata(&desktop_shortcut) {
+                    let mut perms = meta.permissions();
+                    perms.set_mode(0o755);
+                    let _ = std::fs::set_permissions(&desktop_shortcut, perms);
+                }
+                let _ = std::process::Command::new("gio")
+                    .args(["set", &desktop_shortcut, "metadata::trusted", "true"])
+                    .output();
+                let _ = std::process::Command::new("gio")
+                    .args([
+                        "set",
+                        &desktop_shortcut,
+                        "metadata::custom-icon",
+                        &icon_file_uri,
+                    ])
+                    .output();
+            }
+        }
+    }
+
+    let _ = std::process::Command::new("update-desktop-database")
+        .arg(&apps_dir)
+        .output();
+    for mime in &scheme_mimes {
+        let _ = std::process::Command::new("xdg-mime")
+            .args(["default", "sanctuary-os.desktop", mime])
+            .output();
+    }
+    if install_icons {
+        let _ = std::process::Command::new("kbuildsycoca5")
+            .arg("--noincremental")
+            .output();
+        let _ = std::process::Command::new("kbuildsycoca6")
+            .arg("--noincremental")
+            .output();
+    }
+}
+
+pub fn sync_os_url_protocol_handlers(prefs: &crate::state::ProtocolHandlerPreferences) {
+    #[cfg(target_os = "windows")]
+    {
+        let Some(exe) = resolve_protocol_target_executable() else {
+            return;
+        };
+        let Some(exe_str) = exe.to_str() else {
+            return;
+        };
+        register_windows_url_scheme("sanctuary", "Sanctuary OS Protocol", exe_str);
+        register_windows_url_scheme("sanctuary-uplink", "Sanctuary OS Spoke Uplink", exe_str);
+
+        for (scheme, label, enabled) in [
+            ("nxm", "Sanctuary External Mod Link (NXM)", prefs.nxm),
+            (
+                "ror2mm",
+                "Sanctuary External Mod Link (Thunderstore)",
+                prefs.ror2mm,
+            ),
+            (
+                "curseforge",
+                "Sanctuary External Mod Link (CurseForge)",
+                prefs.curseforge,
+            ),
+        ] {
+            if enabled {
+                register_windows_url_scheme(scheme, label, exe_str);
+            } else {
+                unregister_windows_url_scheme_if_owned(scheme);
+            }
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        sync_linux_desktop_integration(prefs, false);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        // macOS URL schemes are declared statically in Info.plist CFBundleURLTypes.
+        let _ = prefs;
     }
 }
 

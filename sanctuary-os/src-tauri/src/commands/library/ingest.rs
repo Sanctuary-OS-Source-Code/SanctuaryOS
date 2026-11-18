@@ -45,10 +45,16 @@ pub(super) fn quarantine_detected_threat(
     crate::utils::mark_path_hidden(&q_dir);
 
     let file_size_bytes = fs::metadata(offending_file).map(|m| m.len()).ok();
-    let safe_q_name = Path::new(artifact_name)
+    let orig_artifact_name = Path::new(artifact_name)
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "quarantined_artifact".to_string());
+    let safe_q_name = crate::utils::resolve_unique_quarantine_filename(
+        &q_dir,
+        &reports_dir,
+        &orig_artifact_name,
+        detected_hash,
+    );
     let q_target = q_dir.join(&safe_q_name);
     let _ = fs::copy(offending_file, &q_target);
 
@@ -78,7 +84,7 @@ pub(super) fn quarantine_detected_threat(
     };
 
     let manifest = QuarantineManifest {
-        artifact_name: safe_q_name.clone(),
+        artifact_name: orig_artifact_name,
         detected_hash: detected_hash.to_string(),
         signature: matched_sig,
         quarantine_path: obscure_username(&q_target.to_string_lossy()),
@@ -141,6 +147,9 @@ pub async fn ingest_dropped_file(
     move_original: Option<bool>,
 ) -> Result<String, String> {
     let game_schema = app_state.active_schema.lock().unwrap().clone();
+    let malware_override = state
+        .malware_protocol_overridden
+        .load(std::sync::atomic::Ordering::SeqCst);
     let malware_hashes_set: HashSet<String> = if let Ok(m) = state.malware_hashes.lock() {
         m.iter().cloned().collect()
     } else {
@@ -212,7 +221,6 @@ pub async fn ingest_dropped_file(
             .to_lowercase();
 
         let supported = crate::game_logic::get_supported_extensions(&game_schema);
-        let archive_exts = crate::game_logic::get_archive_extensions(&game_schema);
         let twin_exts: Vec<String> = game_schema
             .as_ref()
             .and_then(|s| s.extensions.twin_extensions.as_ref())
@@ -232,7 +240,7 @@ pub async fn ingest_dropped_file(
             .to_lowercase();
         let is_edge_sidecar = is_edge_sidecar_filename(&fname_lower);
         let is_archive_ext =
-            archive_exts.contains(&ext) || (!supported.contains(&ext) && matches!(ext.as_str(), "zip" | "7z" | "rar"));
+            crate::game_logic::is_archive_container_extension(&ext, &game_schema);
 
         if !source.is_dir()
             && !is_archive_ext
@@ -242,6 +250,24 @@ pub async fn ingest_dropped_file(
         {
             return Err("UNSUPPORTED_ARTIFACT_TYPE".into());
         }
+
+        // Validate optional `target_folder` so `..` or absolute paths cannot escape `vault_mods_lane`
+        let sanitized_target_subfolder: Option<PathBuf> = target_folder
+            .as_deref()
+            .map(|tf| tf.trim().trim_matches(&['/', '\\'][..]))
+            .filter(|tf| !tf.is_empty())
+            .map(|tf| {
+                let rel = Path::new(tf);
+                if rel
+                    .components()
+                    .any(|c| !matches!(c, std::path::Component::Normal(_)))
+                {
+                    Err("Blocked: invalid target_folder traversal.".to_string())
+                } else {
+                    Ok(rel.to_path_buf())
+                }
+            })
+            .transpose()?;
 
         // Direct drop of a `.sanctuary.manifest.json` or `.sanctuary.override.json` sidecar
         if is_edge_sidecar && source.is_file() {
@@ -290,7 +316,7 @@ pub async fn ingest_dropped_file(
 
             // Pre-scan the dropped file itself (including outer archive containers) BEFORE duplicate/extraction work
             let file_hash = calculate_hash(source).unwrap_or_default();
-            if supported.contains(&ext) {
+            if !is_archive_ext && supported.contains(&ext) {
                 hash = file_hash.clone();
             }
             record_volatile_origin(&file_hash, &source_file_name_str, &source_full_str);
@@ -298,9 +324,11 @@ pub async fn ingest_dropped_file(
             let mut matched_sig = "NO SIGNATURE MATCH".to_string();
             let mut matched_entry_opt: Option<String> = None;
             let mut detection_type_str = "hash_blacklist".to_string();
-            let mut is_malware = !file_hash.is_empty() && malware_hashes_set.contains(&file_hash);
+            let mut is_malware = !malware_override
+                && !file_hash.is_empty()
+                && malware_hashes_set.contains(&file_hash);
             let is_verified = !file_hash.is_empty() && tier2_hashes_set.contains(&file_hash);
-            if !is_malware && !is_verified {
+            if !malware_override && !is_malware && !is_verified {
                 if let Some(detail) = check_heuristic_malware_detailed(source, &compiled_sigs) {
                     is_malware = true;
                     matched_sig = detail.signature;
@@ -335,17 +363,34 @@ pub async fn ingest_dropped_file(
             if !is_archive_ext {
                 let cache = load_cache(&config.vault_path);
                 let mut needs_hash = true;
+                let source_file_stem = source
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
+                let desired_rel_lower = if let Some(ref sub) = sanitized_target_subfolder {
+                    format!(
+                        "{}/{}",
+                        sub.to_string_lossy().replace('\\', "/").trim_matches('/'),
+                        source_file_name_str
+                    )
+                    .to_lowercase()
+                } else {
+                    format!("{}/{}", source_file_stem, source_file_name_str).to_lowercase()
+                };
+                let flat_leaf_lower = source_file_name_str.to_lowercase();
 
                 for (k, v) in cache.iter() {
                     if v.quarantined || k.contains(".sanctuary_quarantine") {
                         continue;
                     }
-                    if let Some(cached_name) = Path::new(k).file_name() {
-                        if cached_name
-                            .to_string_lossy()
-                            .eq_ignore_ascii_case(&source_file_name_str)
-                            && Path::new(k).exists()
-                        {
+                    let k_path = Path::new(k);
+                    if let Ok(k_rel) = k_path.strip_prefix(&vault_mods_lane) {
+                        let k_rel_lower = k_rel.to_string_lossy().replace('\\', "/").to_lowercase();
+                        let matches_rel = k_rel_lower == desired_rel_lower
+                            || (sanitized_target_subfolder.is_none()
+                                && k_rel_lower == flat_leaf_lower);
+                        if matches_rel && k_path.exists() {
                             exists = true;
                             existing_name = k.clone();
                             match_reason = "NAME_MATCH".to_string();
@@ -413,24 +458,6 @@ pub async fn ingest_dropped_file(
         let file_name = source.file_name().ok_or("INVALID_FILENAME")?;
         let _ = std::fs::create_dir_all(&vault_mods_lane);
 
-        // Validate optional `target_folder` so `..` or absolute paths cannot escape `vault_mods_lane`
-        let sanitized_target_subfolder: Option<PathBuf> = target_folder
-            .as_deref()
-            .map(|tf| tf.trim().trim_matches(&['/', '\\'][..]))
-            .filter(|tf| !tf.is_empty())
-            .map(|tf| {
-                let rel = Path::new(tf);
-                if rel
-                    .components()
-                    .any(|c| !matches!(c, std::path::Component::Normal(_)))
-                {
-                    Err("Blocked: invalid target_folder traversal.".to_string())
-                } else {
-                    Ok(rel.to_path_buf())
-                }
-            })
-            .transpose()?;
-
         // Branch 1: Dropped Directory (full-tree scan first, then copy preserving all auxiliary assets)
         if source.is_dir() {
             let target_dir = if let Some(ref sub) = sanitized_target_subfolder {
@@ -480,10 +507,11 @@ pub async fn ingest_dropped_file(
                     let mut matched_sig = "NO SIGNATURE MATCH".to_string();
                     let mut matched_entry_opt: Option<String> = None;
                     let mut detection_type_str = "hash_blacklist".to_string();
-                    let mut is_malware =
-                        !sp_hash.is_empty() && malware_hashes_set.contains(&sp_hash);
+                    let mut is_malware = !malware_override
+                        && !sp_hash.is_empty()
+                        && malware_hashes_set.contains(&sp_hash);
                     let is_verified = !sp_hash.is_empty() && tier2_hashes_set.contains(&sp_hash);
-                    if !is_malware && !is_verified {
+                    if !malware_override && !is_malware && !is_verified {
                         if let Some(detail) = check_heuristic_malware_detailed(sp, &compiled_sigs) {
                             is_malware = true;
                             matched_sig = detail.signature;
@@ -582,14 +610,17 @@ pub async fn ingest_dropped_file(
                     let _ = std::fs::create_dir_all(parent);
                 }
                 if dst_final.exists() {
-                    let _ = std::fs::remove_file(&dst_final);
+                    let _ = crate::utils::remove_file_clearing_readonly(&dst_final);
                 }
                 std::fs::rename(&src_staged, &dst_final)
                     .or_else(|_| std::fs::copy(&src_staged, &dst_final).map(|_| ()))
                     .map_err(|e| e.to_string())?;
 
                 if let Some(e_str) = dst_final.extension().and_then(|s| s.to_str()) {
-                    if supported.contains(&e_str.to_lowercase()) {
+                    let e_low = e_str.to_lowercase();
+                    if supported.contains(&e_low)
+                        && !crate::game_logic::is_archive_container_extension(&e_low, &game_schema)
+                    {
                         if let Ok(h) = calculate_hash(&dst_final) {
                             let _ = crate::utils::archive_mod_binary_version(
                                 &config.vault_path,
@@ -639,8 +670,11 @@ pub async fn ingest_dropped_file(
             );
         }
 
-        // Branch 2: Pure-Rust Bounded Archive Extraction into Staging First (respects native .zip/.jar mods)
-        if is_archive_ext && (ext == "zip" || ext == "jar") {
+        // Branch 2: Pure-Rust / Audited Bounded Archive Extraction into Staging First (.zip, .7z, .rar; respects native .jar/.zip mods)
+        if is_archive_ext && matches!(ext.as_str(), "zip" | "7z" | "rar") {
+            let source_len = std::fs::metadata(source).map(|m| m.len()).unwrap_or(0);
+            crate::utils::check_available_disk_space(&vault_root, source_len.saturating_mul(2))?;
+
             let zip_stem = source
                 .file_stem()
                 .unwrap_or_default()
@@ -654,9 +688,9 @@ pub async fn ingest_dropped_file(
                 ".tmp_sanctuary_stage_{}",
                 uuid::Uuid::new_v4()
             ));
-            let _stage_guard = TempStagingGuard(stage_dir.clone());
+            let mut stage_guard = TempStagingGuard(stage_dir.clone());
 
-            let extraction = crate::utils::extract_zip_bounded_to_dir(
+            let extraction = crate::utils::extract_archive_bounded_to_dir(
                 source,
                 &stage_dir,
                 Some(&zip_stem),
@@ -665,7 +699,7 @@ pub async fn ingest_dropped_file(
                 MAX_ARCHIVE_TOTAL_BYTES,
             )?;
 
-            // Step A: Scan EVERY staged file for malware/heuristics BEFORE touching Vault/Mods
+            // Step A: Scan EVERY staged file for malware/heuristics BEFORE FOMOD or touching Vault/Mods
             let mut staged_hashes: Vec<(ExtractedZipEntry, String)> =
                 Vec::with_capacity(extraction.files.len());
             for entry in extraction.files {
@@ -686,10 +720,11 @@ pub async fn ingest_dropped_file(
                 let mut matched_sig = "NO SIGNATURE MATCH".to_string();
                 let mut matched_entry_opt: Option<String> = None;
                 let mut detection_type_str = "hash_blacklist".to_string();
-                let mut is_malware =
-                    !entry_hash.is_empty() && malware_hashes_set.contains(&entry_hash);
+                let mut is_malware = !malware_override
+                    && !entry_hash.is_empty()
+                    && malware_hashes_set.contains(&entry_hash);
                 let is_verified = !entry_hash.is_empty() && tier2_hashes_set.contains(&entry_hash);
-                if !is_malware && !is_verified {
+                if !malware_override && !is_malware && !is_verified {
                     if let Some(detail) =
                         check_heuristic_malware_detailed(&entry.staged_path, &compiled_sigs)
                     {
@@ -718,12 +753,82 @@ pub async fn ingest_dropped_file(
                         is_external_source,
                         should_move_original,
                     );
-                    // `_stage_guard` drops automatically here, wiping `stage_dir` without touching `Vault/Mods`!
+                    // `stage_guard` drops automatically here, wiping `stage_dir` without touching `Vault/Mods`!
                     return Err("MALWARE".into());
                 }
 
                 staged_hashes.push((entry, entry_hash));
             }
+
+            // Detect FOMOD (ModuleConfig.xml) or BAIN numbered subpackages after full malware clearance
+            let mods_dir_opt = (!config.mods_path.trim().is_empty())
+                .then(|| PathBuf::from(&config.mods_path));
+            let live_root_opt = (!config.live_path.trim().is_empty())
+                .then(|| crate::game_logic::resolve_game_engine_root(&config.live_path, &game_schema));
+            if let Ok(Some(mut wizard_plan)) = super::fomod_installer::parse_fomod_or_bain_plan(
+                &stage_dir,
+                &zip_stem,
+                mods_dir_opt.as_deref(),
+                live_root_opt.as_deref(),
+                &vault_mods_lane,
+            ) {
+                if let Some(ref sub) = sanitized_target_subfolder {
+                    wizard_plan.suggested_target_folder = sub.to_string_lossy().replace('\\', "/");
+                    if wizard_plan.saved_selections.is_empty() {
+                        wizard_plan.saved_selections =
+                            super::fomod_installer::load_saved_fomod_choices(
+                                &vault_mods_lane,
+                                &wizard_plan.suggested_target_folder,
+                            );
+                    }
+                }
+                let extracted_mod_hashes_only: Vec<String> = staged_hashes
+                    .iter()
+                    .filter(|(e, h)| {
+                        !h.is_empty()
+                            && e.rel_path
+                                .extension()
+                                .and_then(|ex| ex.to_str())
+                                .map(|ex| ex.to_lowercase())
+                                .map_or(false, |el| supported.contains(&el) || twin_exts.contains(&el))
+                    })
+                    .map(|(_, h)| h.clone())
+                    .collect();
+
+                stage_guard.0 = PathBuf::new();
+                let emitted_plan = super::fomod_installer::register_pending_wizard_session(
+                    super::fomod_installer::PendingInstallerSession {
+                        created_at_epoch: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_secs())
+                            .unwrap_or(0),
+                        stage_dir,
+                        source_path: source.to_path_buf(),
+                        should_move_original,
+                        vault_path: config.vault_path.clone(),
+                        zip_stem: zip_stem.clone(),
+                        sanctuary_manifest_json: extraction.sanctuary_manifest_json,
+                        sanctuary_override_json: extraction.sanctuary_override_json,
+                        extracted_hashes: extracted_mod_hashes_only,
+                        plan: wizard_plan,
+                    },
+                );
+                let _ = app.emit("installer_wizard_requested", &emitted_plan);
+                return Ok(serde_json::json!({
+                    "__fomod_wizard": true,
+                    "plan": emitted_plan,
+                })
+                .to_string());
+            }
+
+            // Strip any inert `fomod/` metadata folder for non-FOMOD archives before normal Vault placement
+            let staged_hashes: Vec<(ExtractedZipEntry, String)> = staged_hashes
+                .into_iter()
+                .filter(|(entry, _)| {
+                    let rel_low = entry.rel_path.to_string_lossy().replace('\\', "/").to_lowercase();
+                    !rel_low.starts_with("fomod/")
+                })
+                .collect();
 
             // Step B: Parse optional `.sanctuary.manifest.json` / `.sanctuary.override.json` lineage claims
             let zip_manifest_json = extraction.sanctuary_manifest_json;
@@ -821,7 +926,7 @@ pub async fn ingest_dropped_file(
                         let _ = std::fs::create_dir_all(parent);
                     }
                     if default_dest.exists() {
-                        let _ = std::fs::remove_file(&default_dest);
+                        let _ = crate::utils::remove_file_clearing_readonly(&default_dest);
                     }
                     if std::fs::rename(&entry.staged_path, &default_dest)
                         .or_else(|_| std::fs::copy(&entry.staged_path, &default_dest).map(|_| ()))
@@ -920,7 +1025,7 @@ pub async fn ingest_dropped_file(
                     new_name.push(".tmp_sanctuary_conflict");
                     extract_target = final_path.with_file_name(new_name);
                 } else if !is_setting_file && extract_target.exists() {
-                    let _ = std::fs::remove_file(&extract_target);
+                    let _ = crate::utils::remove_file_clearing_readonly(&extract_target);
                 }
 
                 crate::utils::ensure_strict_descendant_of_roots(
@@ -1081,16 +1186,10 @@ pub async fn ingest_dropped_file(
             return Ok(
                 serde_json::to_string(&extracted_files).unwrap_or_else(|_| "[]".to_string()),
             );
-        } else if ext == "rar" || ext == "7z" {
-            // Never shell out to `tar -xf` or external OS binaries on untrusted archives.
-            return Err(format!(
-                "External shell extraction for .{} archives is disabled for security. Please repack as .zip or unpack into a folder first.",
-                ext
-            ));
         }
 
         // Branch 3: Single supported file
-        if supported.contains(&ext) {
+        if !is_archive_ext && supported.contains(&ext) {
             let file_stem = source
                 .file_stem()
                 .unwrap_or_default()
@@ -1265,11 +1364,25 @@ pub fn import_to_sandbox(
     files: Vec<String>,
     vault_path: String,
     state: tauri::State<'_, AppState>,
+    sec_state: tauri::State<'_, SecurityState>,
 ) -> Result<usize, String> {
     if vault_path.trim().is_empty() {
         return Err("VAULT_NOT_CONFIGURED".into());
     }
     let game_schema = state.active_schema.lock().unwrap().clone();
+    let malware_override = sec_state
+        .malware_protocol_overridden
+        .load(std::sync::atomic::Ordering::SeqCst);
+    let malware_hashes_set: HashSet<String> = if let Ok(m) = sec_state.malware_hashes.lock() {
+        m.iter().map(|h| h.trim().to_lowercase()).collect()
+    } else {
+        HashSet::new()
+    };
+    let tier2_hashes_set: HashSet<String> = if let Ok(v) = sec_state.tier2_hashes.lock() {
+        v.iter().map(|h| h.trim().to_lowercase()).collect()
+    } else {
+        HashSet::new()
+    };
 
     let vault_root = crate::utils::get_vault_root_dir(&vault_path);
     let dev_lane = vault_root.join("Dev").join("Sandbox");
@@ -1277,22 +1390,65 @@ pub fn import_to_sandbox(
         let _ = fs::create_dir_all(&dev_lane);
     }
 
+    let heuristic_sigs = get_heuristic_signatures(vault_path).unwrap_or_default();
+    let compiled_sigs = CompiledSignatures::new(&heuristic_sigs);
+
+    let scan_file_threat = |target_file: &Path| -> bool {
+        if malware_override {
+            return false;
+        }
+        let file_hash = calculate_hash(target_file).unwrap_or_default().to_lowercase();
+        if !file_hash.is_empty() && malware_hashes_set.contains(&file_hash) {
+            return true;
+        }
+        if !file_hash.is_empty() && tier2_hashes_set.contains(&file_hash) {
+            return false;
+        }
+        check_heuristic_malware_detailed(target_file, &compiled_sigs).is_some()
+    };
+
     let mut imported = 0;
     for file in files {
         let source = PathBuf::from(&file);
-        if !crate::utils::is_safe_user_file_path(&source) {
+        if !source.exists() || !crate::utils::is_safe_user_file_path(&source) {
             continue;
         }
+        if source.is_dir() {
+            for entry in walkdir::WalkDir::new(&source)
+                .follow_links(false)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let ep = entry.path();
+                if entry.file_type().is_symlink() || crate::utils::is_symlink_or_reparse_point(ep) {
+                    return Err("Directory rejected: contains unsafe symlink.".into());
+                }
+                if entry.file_type().is_file()
+                    && !crate::utils::is_macos_or_os_metadata_path(ep)
+                    && scan_file_threat(ep)
+                {
+                    return Err("MALWARE".into());
+                }
+            }
+        } else if scan_file_threat(&source) {
+            return Err("MALWARE".into());
+        }
+
         if let Some(name) = source.file_name() {
             let stem = source
                 .file_stem()
                 .unwrap_or_default()
                 .to_string_lossy()
                 .to_string();
-            if !crate::utils::is_safe_single_filename(&stem) {
+            let folder_key = if stem.is_empty() {
+                name.to_string_lossy().to_string()
+            } else {
+                stem.clone()
+            };
+            if !crate::utils::is_safe_single_filename(&folder_key) {
                 continue;
             }
-            let mod_folder = dev_lane.join(&stem);
+            let mod_folder = dev_lane.join(&folder_key);
             if crate::utils::ensure_strict_descendant_of_roots(&mod_folder, &[dev_lane.clone()])
                 .is_err()
             {
@@ -1302,15 +1458,74 @@ pub fn import_to_sandbox(
                 let _ = fs::create_dir_all(&mod_folder);
             }
 
+            if source.is_dir() {
+                for entry in walkdir::WalkDir::new(&source)
+                    .follow_links(false)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
+                    if !entry.file_type().is_file() {
+                        continue;
+                    }
+                    let ep = entry.path();
+                    if crate::utils::is_macos_or_os_metadata_path(ep) {
+                        continue;
+                    }
+                    let Ok(rel) = ep.strip_prefix(&source) else {
+                        continue;
+                    };
+                    if rel.as_os_str().is_empty() {
+                        continue;
+                    }
+                    let dest = mod_folder.join(rel);
+                    if crate::utils::ensure_strict_descendant_of_roots(&dest, &[dev_lane.clone()])
+                        .is_err()
+                    {
+                        continue;
+                    }
+                    if let Some(parent) = dest.parent() {
+                        let _ = fs::create_dir_all(parent);
+                    }
+                    if fs::copy(ep, &dest).is_ok() {
+                        imported += 1;
+                    }
+                }
+                continue;
+            }
+
             let ext = source
                 .extension()
                 .unwrap_or_default()
                 .to_string_lossy()
                 .to_lowercase();
-            if ext == "zip" {
-                let count = extract_sandbox_zip_in_place(&source, &mod_folder, &game_schema);
-                if count > 0 {
-                    imported += count;
+            let is_archive =
+                crate::game_logic::is_archive_container_extension(&ext, &game_schema);
+            if is_archive {
+                let extracted_count = if let Ok(extraction) =
+                    crate::utils::extract_archive_bounded_to_dir(
+                        &source,
+                        &mod_folder,
+                        Some(&folder_key),
+                        &game_schema,
+                        MAX_ARCHIVE_ENTRY_BYTES,
+                        MAX_ARCHIVE_TOTAL_BYTES,
+                    ) {
+                    extraction.files.len()
+                } else {
+                    extract_sandbox_zip_in_place(&source, &mod_folder, &game_schema)
+                };
+                if extracted_count > 0 {
+                    for entry in walkdir::WalkDir::new(&mod_folder)
+                        .follow_links(false)
+                        .into_iter()
+                        .filter_map(|e| e.ok())
+                    {
+                        if entry.file_type().is_file() && scan_file_threat(entry.path()) {
+                            let _ = fs::remove_dir_all(&mod_folder);
+                            return Err("MALWARE".into());
+                        }
+                    }
+                    imported += extracted_count;
                 }
             } else {
                 let dest = mod_folder.join(name);

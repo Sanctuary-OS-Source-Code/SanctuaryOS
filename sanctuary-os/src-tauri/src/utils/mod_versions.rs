@@ -753,6 +753,34 @@ pub fn is_mod_version_archiving_enabled(vault_path: &str) -> bool {
     true
 }
 
+pub fn normalize_mod_version_key(rel_path: &str) -> String {
+    rel_path.replace('\\', "/").trim_matches('/').to_lowercase()
+}
+
+pub fn is_mod_version_pinned(
+    pins: &std::collections::HashMap<String, String>,
+    rel_path: &str,
+) -> bool {
+    let key = normalize_mod_version_key(rel_path);
+    if key.is_empty() {
+        return false;
+    }
+    if pins.contains_key(&key) {
+        return true;
+    }
+    if !key.contains('/') {
+        let leaf = Path::new(&key)
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_lowercase();
+        if !leaf.is_empty() && pins.contains_key(&leaf) {
+            return true;
+        }
+    }
+    false
+}
+
 pub fn load_pinned_mod_versions(vault_path: &str) -> std::collections::HashMap<String, String> {
     if vault_path.trim().is_empty() {
         return std::collections::HashMap::new();
@@ -1068,12 +1096,7 @@ pub fn sync_vault_mod_versions_for_game(
             continue;
         }
         let rel_norm = &entries[0].rel_path;
-        let f_name_lower = Path::new(rel_norm)
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_lowercase();
-        if !f_name_lower.is_empty() && pinned_map.contains_key(&f_name_lower) {
+        if is_mod_version_pinned(&pinned_map, rel_norm) {
             // Respect manual power-user version pin until reset to Auto-Swap
             continue;
         }
@@ -1143,7 +1166,7 @@ pub fn sync_vault_mod_versions_for_game(
                 let _ = std::fs::create_dir_all(ap);
             }
             if active_full.exists() {
-                let _ = std::fs::remove_file(&active_full);
+                let _ = crate::utils::remove_file_clearing_readonly(&active_full);
             }
             let linked = std::fs::hard_link(&b_full, &active_full)
                 .or_else(|_| create_symlink_file(&b_full, &active_full))
@@ -1226,6 +1249,24 @@ mod tests {
         assert_eq!(std::fs::read(&file_b).unwrap(), b"keep-b");
 
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_mod_version_keys_isolate_identical_leaf_filenames_across_folders() {
+        let key_a = normalize_mod_version_key("ModA\\manifest.json");
+        let key_b = normalize_mod_version_key("ModB/manifest.json");
+        assert_ne!(key_a, key_b);
+        assert_eq!(key_a, "moda/manifest.json");
+        assert_eq!(key_b, "modb/manifest.json");
+
+        let mut pins = std::collections::HashMap::new();
+        pins.insert(key_a.clone(), "abc123".to_string());
+
+        assert!(is_mod_version_pinned(&pins, "ModA/manifest.json"));
+        assert!(
+            !is_mod_version_pinned(&pins, "ModB/manifest.json"),
+            "Pinning ModA/manifest.json must never leak onto sibling ModB/manifest.json"
+        );
     }
 }
 

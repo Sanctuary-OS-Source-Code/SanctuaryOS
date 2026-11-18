@@ -1,7 +1,7 @@
 # Sanctuary OS: Community Partners Agreement & Sovereignty Covenant
 
-> **Document Version:** V6.2 (v0.6.0-Dev.14)  
-> **Last Updated:** November 14, 2026  
+> **Document Version:** V6.3 (v0.6.0-Dev.15)  
+> **Last Updated:** November 18, 2026  
 > **Classification:** Legal & Operational Governance Covenant  
 > **Scope:** Keepers Core (Sanctuary OS Hub) & Sovereign Community Spokes (Wayfinders)
 
@@ -39,7 +39,7 @@ Both the Community (Wayfinder) and the Sanctuary OS Core Team (Keepers) hold an 
 ### A. Community-Initiated Severance (Wayfinder Self-Service)
 - A Spoke's Wayfinder can execute **Cut the Cord** directly inside **Wayfinder Operations -> Spoke Control -> Spoke Sever (Cut the Cord)** via a high-friction `<SidePanel>` safeguard (`"CUT THE CORD"` phrase verification lock + 2-step 6-second armed confirmation + pre-severance `Copy Uplink Bundle` backup).
 - **Immediate Technical Effect:**
-  1. An immutable audit record (`Community Executed Cut the Cord (Severed Uplink)`) is written to both the Spoke's `audit_logs` and the Hub's `audit_logs`.
+  1. An append-only audit record (`Community Executed Cut the Cord (Severed Uplink)`) is written to both the Spoke's `audit_logs` and the Hub's `audit_logs`.
   2. The Spoke's entry in `public.sanctuary_games` is immediately set to `is_active = false`.
   3. All active Spoke Gateway Tokens are **immediately revoked** on the Spoke (`revoke_spoke_gateway_tokens`) and the Hub's sealed envelope credential is **permanently purged** from `sanctuary_internal.spoke_credentials` + Supabase Vault, revoking Hub administrative access instantly.
   4. The Community retains 100% of its Supabase database, tables, and community records intact, may paste its `SANCTUARY-UPLINK://` bundle into `src/supabase.ts` to run as an independent Standalone Fork, and allows returning Citizens, Masons, and Staff to safely claim their historical profiles using **Cryptographic `SRK1` Spoke Relink Tokens** (`SRK1.<hub_uuid>.<relink_secret>`) without username hijacking.
@@ -62,4 +62,4 @@ While Communities enjoy broad autonomy over their Spoke's taxonomy, Master Schem
    - **Nexus Asset Uploads Locked to Verified Masons (Minus Blueprints):** All cloud **Nexus Asset uploads** (`nexus_assets` — Chameleons, Sparse Delta Lexicons, Workbench Templates — alongside Collections and Cloud Mod Registry records) remain strictly hard-locked to FIDO2-authenticated **Verified Masons** and authorized Spoke Staff (`is_verified_mason_or_staff()` + Core `game-gateway`). **Partner Spokes cannot override or bypass this Verified Mason hardgate.** Only non-media JSON **Cloud Blueprints (`SNCXXX`)** (containing solely cryptographic DNA hashes and compatibility version strings) remain open to Citizens.
    - **No Storefront, Binary Host, or Social Repurposing:** Partners shall never repurpose Sanctuary Spoke tables, RPCs, or branding to operate an unverified user social media network, binary mod-file hosting repository, or custodial storefront, and must enforce `18+` adult majority for Verified Creator and Staff clearances alongside `13+` (or jurisdictional minimum) Citizen eligibility and strict Tier-0 minor safety.
 4. **Append-Only Audit Integrity:**
-   - Spoke `audit_logs` must remain append-only and un-prunable across governance operations so moderation, patch, and compliance actions maintain a verifiable community record.
+   - Spoke `audit_logs` must remain append-only for Oversight and general governance (with Wayfinders permitted to run retention pruning exclusively on historical entries older than 30 days) so moderation, patch, and compliance actions maintain a verifiable community record.

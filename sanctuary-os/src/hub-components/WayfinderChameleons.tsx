@@ -210,9 +210,14 @@ export function WayfinderChameleons({
 
       const { data, error } = await client.from("sanctuary_themes").select("*");
       if (!error && Array.isArray(data)) {
+        const spokeFallbackIds = new Set(
+          Object.values(spokeThemesFallbackJson as Record<string, any>).flatMap((pack: any) =>
+            pack && typeof pack === "object" ? Object.keys(pack) : []
+          )
+        );
         data.forEach((row: any) => {
           if (!row?.id || row.id === "theme_1788994757269") return;
-          if (isKeepers && (row.id === "sims4" || row.id === "sims4_dark")) return;
+          if (isKeepers && spokeFallbackIds.has(row.id)) return;
           const parsedData =
             typeof row.theme_data === "string"
               ? JSON.parse(row.theme_data)

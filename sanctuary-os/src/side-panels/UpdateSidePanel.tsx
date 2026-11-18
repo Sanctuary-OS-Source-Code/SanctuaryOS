@@ -17,7 +17,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useModalStore } from "../store/modalStore";
 import { useStore } from "../store";
 import { useLexicon } from "../LexiconContext";
-import { supabaseAuth } from "../supabase";
+import { supabaseAuth, getReleaseApiBaseUrl, getReleaseBaseUrl } from "../supabase";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { DispatchPollViewer } from "../components/universal/DispatchPollAndMeta";
 import {
@@ -47,12 +47,11 @@ import packageJson from "../../package.json";
 import bundledCommunityBlog from "../../../Release Notes (Community Blog).md?raw";
 import bundledDevBlog from "../../../Release Notes (Dev).md?raw";
 import bundledNerdChangelog from "../../../changelog.md?raw";
-import bundledRunningChangelog from "../../../changelog (running).md?raw";
 
-const GITHUB_RELEASES_WEB_URL =
-  "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases";
-const GITHUB_WEB_DEV_RELEASE_URL =
-  "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
+const GITHUB_RELEASES_WEB_URL = getReleaseBaseUrl();
+const GITHUB_WEB_DEV_RELEASE_URL = GITHUB_RELEASES_WEB_URL
+  ? `${GITHUB_RELEASES_WEB_URL}/tag/dev-latest`
+  : "";
 
 export function UpdateSidePanel() {
   const { t } = useLexicon();
@@ -179,12 +178,26 @@ export function UpdateSidePanel() {
     id: null,
     ...defaultDevPost,
   });
-  const [stableChangelog, setStableChangelog] = useState<string>(
-    bundledRunningChangelog || bundledNerdChangelog
-  );
+  const [stableChangelog, setStableChangelog] = useState<string>(bundledNerdChangelog);
   const [devChangelog, setDevChangelog] = useState<string>(
     bundledNerdChangelog || seedChangelog.markdown
   );
+  const [lazyRunningChangelog, setLazyRunningChangelog] = useState<string>("");
+
+  useEffect(() => {
+    if (!isUpdatePanelOpen || lazyRunningChangelog) return;
+    import("../../../changelog (running).md?raw")
+      .then((mod: any) => {
+        const raw = typeof mod?.default === "string" ? mod.default : "";
+        if (raw) {
+          setLazyRunningChangelog(raw);
+          setStableChangelog((prev) =>
+            !prev || prev === bundledNerdChangelog ? raw : prev
+          );
+        }
+      })
+      .catch(() => {});
+  }, [isUpdatePanelOpen, lazyRunningChangelog]);
 
   const loadPostsAndReleases = useCallback(
     async (forceRefreshGitHub = false) => {
@@ -260,7 +273,7 @@ export function UpdateSidePanel() {
           );
           const resolvedStableChangelog = deserializeChangelogRow(
             publicChangelogRow,
-            bundledRunningChangelog || bundledNerdChangelog,
+            lazyRunningChangelog || bundledNerdChangelog,
             true
           );
           const resolvedDevChangelog = deserializeChangelogRow(
@@ -278,7 +291,7 @@ export function UpdateSidePanel() {
         // Keep cached / fallback post data when offline
       }
     },
-    [defaultPublicPost, defaultDevPost, seedChangelog.markdown]
+    [defaultPublicPost, defaultDevPost, seedChangelog.markdown, lazyRunningChangelog]
   );
 
   useEffect(() => {
@@ -299,17 +312,19 @@ export function UpdateSidePanel() {
 
   useEffect(() => {
     if (updatePayload && isUpdatePanelOpen) {
+      const apiBase = getReleaseApiBaseUrl();
+      if (!apiBase) return;
       const version = String(updatePayload.version || "").trim();
       if (!version) return;
       const rawTag =
         version.startsWith("v") || version.startsWith("V") ? version : `v${version}`;
       setLiveReleaseNotes(null);
-      const primaryUrl = `https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tags/${rawTag}`;
+      const primaryUrl = `${apiBase}/tags/${rawTag}`;
       const fallbackUrl =
         rawTag !== rawTag.toLowerCase()
-          ? `https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tags/${rawTag.toLowerCase()}`
+          ? `${apiBase}/tags/${rawTag.toLowerCase()}`
           : isDevUpdate
-            ? "https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tags/dev-latest"
+            ? `${apiBase}/tags/dev-latest`
             : primaryUrl;
       fetch(primaryUrl)
         .then((res) => (res.ok ? res : fetch(fallbackUrl)))
@@ -471,12 +486,13 @@ export function UpdateSidePanel() {
     ? t("release_notes_dev_channel_badge", "Dev Build")
     : t("release_notes_stable_channel_badge", "Stable Release");
 
+  const releaseBase = getReleaseBaseUrl();
   const activeGitHubUrl = isDevUpdate
-    ? pipelineConfig.dev_release_url || GITHUB_WEB_DEV_RELEASE_URL
+    ? pipelineConfig.dev_release_url || (releaseBase ? `${releaseBase}/tag/dev-latest` : "")
     : pipelineConfig.stable_release_url ||
-    (cleanTargetVersion
-      ? `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${cleanTargetVersion}`
-      : GITHUB_RELEASES_WEB_URL);
+    (cleanTargetVersion && releaseBase
+      ? `${releaseBase}/tag/v${cleanTargetVersion}`
+      : releaseBase);
 
   const isDetailedChangelog = (raw?: string | null): boolean => {
     const trimmed = String(raw || "").trim();
@@ -643,18 +659,20 @@ export function UpdateSidePanel() {
                 "Inspect the full technical commit and architecture changelog.",
               )}
             />
-            <DashboardStatTile
-              variant="filter"
-              className="!w-full"
-              icon={t("icon_open_in_new", "open_in_new")}
-              value={t("release_notes_tile_github", "On GitHub")}
-              label={t("btn_view", "View")}
-              colorClass="text-[var(--text)]"
-              isActive={false}
-              onClick={() => handleOpenUrl(activeGitHubUrl)}
-              tooltipTitle={t("update_panel_view_github", "View on GitHub")}
-              tooltipSubtitle={activeGitHubUrl}
-            />
+            {activeGitHubUrl && (
+              <DashboardStatTile
+                variant="filter"
+                className="!w-full"
+                icon={t("icon_open_in_new", "open_in_new")}
+                value={t("release_notes_tile_github", "On GitHub")}
+                label={t("btn_view", "View")}
+                colorClass="text-[var(--text)]"
+                isActive={false}
+                onClick={() => handleOpenUrl(activeGitHubUrl)}
+                tooltipTitle={t("update_panel_view_github", "View on GitHub")}
+                tooltipSubtitle={activeGitHubUrl}
+              />
+            )}
           </SidePanelFilterBar>
 
           <SidePanelHeroCard

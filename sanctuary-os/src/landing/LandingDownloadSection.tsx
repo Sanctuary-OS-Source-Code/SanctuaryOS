@@ -1,5 +1,6 @@
 import { useLexicon } from '../LexiconContext';
 import { EmptyState, sanitizeExternalHttpsUrl } from '../shared';
+import { getReleaseBaseUrl } from '../supabase';
 import { KeepersPipelineConfig } from '../utils/supporterManager';
 import { isDesktop } from '../utils/envUtils';
 import { isMobileDevice } from '../utils/pwaManager';
@@ -36,6 +37,8 @@ export function LandingDownloadSection({
   if (isDesktop()) return null;
 
   const showDesktopDownloadCards = !isStandalone && !isMobileDevice();
+  const releaseBaseUrl = getReleaseBaseUrl();
+  const devFallbackUrl = releaseBaseUrl ? `${releaseBaseUrl}/tag/dev-latest` : '';
   const q = searchQuery.trim().toLowerCase();
   const matchesFilter = (platformKey: 'web' | 'windows' | 'mac' | 'linux', text: string) => {
     if (platformFilter !== 'ALL' && platformFilter !== platformKey) return false;
@@ -133,7 +136,7 @@ export function LandingDownloadSection({
                 href={
                   sanitizeExternalHttpsUrl(
                     keepersConfig.stable_exe_url ||
-                      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_x64-setup.exe`
+                      (releaseBaseUrl ? `${releaseBaseUrl}/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_x64-setup.exe` : '')
                   ) || '#'
                 }
                 rel="noopener noreferrer"
@@ -186,7 +189,7 @@ export function LandingDownloadSection({
                 href={
                   sanitizeExternalHttpsUrl(
                     keepersConfig.stable_dmg_url ||
-                      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_aarch64.dmg`
+                      (releaseBaseUrl ? `${releaseBaseUrl}/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_aarch64.dmg` : '')
                   ) || '#'
                 }
                 rel="noopener noreferrer"
@@ -242,7 +245,7 @@ export function LandingDownloadSection({
                 href={
                   sanitizeExternalHttpsUrl(
                     keepersConfig.stable_linux_url ||
-                      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_amd64.AppImage`
+                      (releaseBaseUrl ? `${releaseBaseUrl}/download/v${stableVersion}/Sanctuary.OS_${stableVersion}_amd64.AppImage` : '')
                   ) || '#'
                 }
                 rel="noopener noreferrer"
@@ -299,8 +302,7 @@ export function LandingDownloadSection({
                   <a
                     href={
                       sanitizeExternalHttpsUrl(
-                        keepersConfig.dev_build_download_url ||
-                          'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                        keepersConfig.dev_build_download_url || devFallbackUrl
                       ) || '#'
                     }
                     target="_blank"
@@ -365,7 +367,7 @@ export function LandingDownloadSection({
                       sanitizeExternalHttpsUrl(
                         keepersConfig.dev_build_dmg_url ||
                           keepersConfig.dev_release_url ||
-                          'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                          devFallbackUrl
                       ) || '#'
                     }
                     target="_blank"
@@ -430,7 +432,7 @@ export function LandingDownloadSection({
                       sanitizeExternalHttpsUrl(
                         keepersConfig.dev_build_linux_url ||
                           keepersConfig.dev_release_url ||
-                          'https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest'
+                          devFallbackUrl
                       ) || '#'
                     }
                     target="_blank"

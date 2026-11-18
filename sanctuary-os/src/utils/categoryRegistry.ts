@@ -17,6 +17,7 @@ export interface ModCategoryDescriptor {
   sort_order?: number;
   subcategories: ModSubcategoryDescriptor[];
   _db_id?: string;
+  _db_ids?: string[];
 }
 
 let categoryStoreAccessor: {
@@ -132,14 +133,24 @@ export function normalizeTaxonomyRows(rows: any[]): ModCategoryDescriptor[] {
           sort_order: typeof attrs.sort_order === "number" ? attrs.sort_order : idx,
           subcategories: [],
           _db_id: row.id ? String(row.id) : undefined,
+          _db_ids: row.id ? [String(row.id)] : [],
         },
         subMap: new Map<string, ModSubcategoryDescriptor>(),
       });
     }
 
     const bucket = grouped.get(key)!;
-    if (!bucket.cat._db_id && row.id) {
-      bucket.cat._db_id = String(row.id);
+    if (row.id) {
+      const rid = String(row.id);
+      if (!bucket.cat._db_id) {
+        bucket.cat._db_id = rid;
+      }
+      if (!bucket.cat._db_ids) {
+        bucket.cat._db_ids = [];
+      }
+      if (!bucket.cat._db_ids.includes(rid)) {
+        bucket.cat._db_ids.push(rid);
+      }
     }
 
     if (Array.isArray(attrs.subcategories)) {

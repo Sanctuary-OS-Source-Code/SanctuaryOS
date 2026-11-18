@@ -15,6 +15,7 @@ fn is_non_conflicting_doc_or_meta_file(file_name_lower: &str, manifest_lower: &s
     if file_name_lower == SANCTUARY_EDGE_MANIFEST_FILE
         || file_name_lower == SANCTUARY_EDGE_OVERRIDE_FILE
         || file_name_lower == ".sanctuary_deployed_links.json"
+        || file_name_lower == ".sanctuary_hidden.json"
         || (!manifest_lower.is_empty() && file_name_lower == manifest_lower)
     {
         return true;
@@ -430,6 +431,7 @@ fn record_resource_collisions(
 pub async fn run_conflict_radar(
     mods_path: String,
     target_files: Option<Vec<String>>,
+    hidden_overrides: Option<HashMap<String, Vec<String>>>,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let game_schema = state
@@ -662,6 +664,38 @@ pub async fn run_conflict_radar(
             &game_schema,
         ));
 
+        let mut override_hidden_by_owner: HashMap<String, HashSet<String>> = HashMap::new();
+        if let Some(ov_map) = hidden_overrides {
+            for (raw_owner, files) in ov_map {
+                let owner_norm = raw_owner.trim().replace('\\', "/").to_ascii_lowercase();
+                if owner_norm.is_empty() {
+                    continue;
+                }
+                let leaf = owner_norm.rsplit('/').next().unwrap_or(&owner_norm).to_string();
+                for f in files {
+                    let f_norm = f
+                        .trim()
+                        .replace('\\', "/")
+                        .trim_matches('/')
+                        .to_ascii_lowercase();
+                    if f_norm.is_empty() {
+                        continue;
+                    }
+                    override_hidden_by_owner
+                        .entry(owner_norm.clone())
+                        .or_default()
+                        .insert(f_norm.clone());
+                    if leaf != owner_norm {
+                        override_hidden_by_owner
+                            .entry(leaf.clone())
+                            .or_default()
+                            .insert(f_norm);
+                    }
+                }
+            }
+        }
+        let mut sidecar_hidden_cache: HashMap<String, HashSet<String>> = HashMap::new();
+
         let mut vfs_owners: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
         let mut route_owners: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
         let mut archive_owners: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
@@ -675,6 +709,41 @@ pub async fn run_conflict_radar(
                 resolve_mod_owner_and_virtual_path(rel_path, &tier_folders_lower);
             if mod_owner.is_empty() {
                 continue;
+            }
+
+            if let Some(ref vpath) = opt_vpath {
+                let owner_low = mod_owner.to_ascii_lowercase();
+                let owner_leaf = owner_low.rsplit('/').next().unwrap_or(&owner_low);
+                if let Some(ovr_set) = override_hidden_by_owner
+                    .get(&owner_low)
+                    .or_else(|| override_hidden_by_owner.get(owner_leaf))
+                {
+                    if ovr_set.contains(vpath) {
+                        continue;
+                    }
+                }
+                let sidecar_set = sidecar_hidden_cache.entry(owner_low.clone()).or_insert_with(|| {
+                    let mut merged = HashSet::new();
+                    let in_mods = mods_dir.join(&mod_owner);
+                    if in_mods.is_dir() {
+                        merged.extend(crate::commands::library::read_mod_hidden_sidecar(&in_mods));
+                    }
+                    if !vault_mods_lane.as_os_str().is_empty() {
+                        let in_vault = vault_mods_lane.join(&mod_owner);
+                        if in_vault.is_dir() {
+                            merged.extend(crate::commands::library::read_mod_hidden_sidecar(&in_vault));
+                        } else if owner_leaf != owner_low {
+                            let in_vault_leaf = vault_mods_lane.join(owner_leaf);
+                            if in_vault_leaf.is_dir() {
+                                merged.extend(crate::commands::library::read_mod_hidden_sidecar(&in_vault_leaf));
+                            }
+                        }
+                    }
+                    merged
+                });
+                if sidecar_set.contains(vpath) {
+                    continue;
+                }
             }
 
             let ext_lower = full_path

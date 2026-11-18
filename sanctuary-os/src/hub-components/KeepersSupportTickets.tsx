@@ -1,20 +1,23 @@
 import { useState, useEffect, useRef } from "react";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from '../store';
-import { supabase, supabaseAuth, getBrandConfig, isStandaloneFork } from "../supabase";
+import { supabase, supabaseAuth, getBrandConfig, isStandaloneFork, SANCTUARY_CONFIG } from "../supabase";
 import TicketDossierSidePanel from '../side-panels/TicketDossierSidePanel';
 import { logArchitectAction } from "../lib/audit";
 import {
   CustomDropdown,
   EmptyState,
   SidePanel,
-  SidePanelHeroCard,
   PanelHeaderGroup,
   PanelHeaderButton,
   ActionButton,
   HoverTooltip,
+  DashboardStatTile,
+  SidePanelFilterBar,
+  SidePanelHeroCard,
   VAULT_CHIP_CLASS,
 } from "../shared";
+import { UniversalCard } from "../components/universal/UniversalCard";
 import {
   SupportTicketCard,
   sortTicketsPriorityFirst,
@@ -24,7 +27,12 @@ import { UniversalGroup, UniversalInput, UniversalTextArea } from "../components
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection } from "../components/layouts/ElevatedHubLayout";
 import KeeperSupportSettings from "./KeeperSupportSettings";
 import {
+  DEFAULT_KEEPER_EMAIL_RESPONSE_TEMPLATES,
   getKeepersPipelineConfig,
+  KeeperEmailResponseTemplate,
+  normalizeLegacySenderName,
+  normalizeLegacySupportEmail,
+  resolveKeeperEmailResponseTemplates,
   saveKeepersPipelineConfig,
   dispatchKeeperCustomEmail,
 } from "../utils/supporterManager";
@@ -33,6 +41,16 @@ import {
   isTicketVisibleToStaff,
   invalidateHubCommandCache,
 } from "../utils/hubCommandCache";
+import {
+  maskEmailsInText,
+  getEmailDispatchStatusMeta,
+  formatEmailProviderLabel,
+} from "../utils/sanctuaryEmailTemplates";
+import EmailTemplatePreviewAndAuthSection from "./keepers-email/EmailTemplatePreviewAndAuthSection";
+import EmailResponseTemplatesSection from "./keepers-email/EmailResponseTemplatesSection";
+import EmailConversationSidePanel from "./keepers-email/EmailConversationSidePanel";
+
+const DMARC_RECORD_VALUE = "v=DMARC1; p=none; rua=mailto:support@sanctuaryos.net;";
 
 interface Ticket {
   id: string;
@@ -126,14 +144,17 @@ export default function KeepersSupportTickets({
   const [settingsStatusFilter, setSettingsStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const openCatRef = useRef<(() => void) | null>(null);
   const currentUserId = useStore(state => state.session?.user?.id);
+  const currentUserEmail = useStore(state => state.session?.user?.email || "");
 
   // Keepers Core In-App Email Center & Custom Sender State
   const [isEmailDrawerOpen, setIsEmailDrawerOpen] = useState(false);
   const brandConfig = getBrandConfig();
   const defaultSenderDisplayName = isStandaloneFork
     ? `${brandConfig.orgName || brandConfig.appTitle || "Community"} Support`
-    : `${brandConfig.appTitle || "Sanctuary OS"} Keepers Core`;
-  const defaultSupportEmail = brandConfig.supportEmail || "support@sanctuaryos.gg";
+    : brandConfig.appTitle || "Sanctuary OS";
+  const defaultSupportEmail = normalizeLegacySupportEmail(
+    brandConfig.supportEmail || "support@sanctuaryos.net"
+  );
 
   const [supportSenderNameInput, setSupportSenderNameInput] = useState(defaultSenderDisplayName);
   const [supportEmailInput, setSupportEmailInput] = useState(defaultSupportEmail);
@@ -141,22 +162,47 @@ export default function KeepersSupportTickets({
   const [supportEmailProvider, setSupportEmailProvider] = useState<"resend" | "webhook">("resend");
   const [supportEmailApiKey, setSupportEmailApiKey] = useState("");
   const [hasSavedEmailSecret, setHasSavedEmailSecret] = useState(false);
+  const [hasSavedWebhookRelay, setHasSavedWebhookRelay] = useState(false);
+  const [hasSavedInboundSecret, setHasSavedInboundSecret] = useState(false);
+  const [inboundWebhookSecretInput, setInboundWebhookSecretInput] = useState("");
   const [supportEmailWebhookUrl, setSupportEmailWebhookUrl] = useState("");
   const [isSavingEmail, setIsSavingEmail] = useState(false);
 
-  // Direct Custom Email Compose State
+  // Direct Custom Email Compose & Templates State
   const [emailComposeTo, setEmailComposeTo] = useState("");
   const [emailComposeSubject, setEmailComposeSubject] = useState("");
   const [emailComposeBody, setEmailComposeBody] = useState("");
   const [isDispatchingEmail, setIsDispatchingEmail] = useState(false);
   const [recentDispatches, setRecentDispatches] = useState<any[]>([]);
+  const [activeEmailThread, setActiveEmailThread] = useState<{
+    threadId?: string | null;
+    dispatchId?: string | null;
+    ticketId?: string | null;
+    subject?: string;
+  } | null>(null);
+  const [emailDrawerTab, setEmailDrawerTab] = useState<"compose" | "templates" | "config" | "activity">("compose");
+  const [showComposePreview, setShowComposePreview] = useState(false);
+  const [revealComposeRecipient, setRevealComposeRecipient] = useState(true);
+  const [isClearingDispatches, setIsClearingDispatches] = useState(false);
+  const [responseTemplates, setResponseTemplates] = useState<KeeperEmailResponseTemplate[]>(
+    () => DEFAULT_KEEPER_EMAIL_RESPONSE_TEMPLATES.map((tpl) => ({ ...tpl }))
+  );
+  const [isSavingTemplates, setIsSavingTemplates] = useState(false);
 
   const loadEmailCenterData = async () => {
     try {
       const cfg = await getKeepersPipelineConfig();
-      if (cfg?.support_sender_name) setSupportSenderNameInput(cfg.support_sender_name);
-      if (cfg?.support_contact_email) setSupportEmailInput(cfg.support_contact_email);
-      if (cfg?.support_reply_to_email) setSupportReplyToInput(cfg.support_reply_to_email);
+      if (cfg?.support_sender_name) {
+        setSupportSenderNameInput(
+          normalizeLegacySenderName(cfg.support_sender_name, defaultSenderDisplayName)
+        );
+      }
+      if (cfg?.support_contact_email) {
+        setSupportEmailInput(normalizeLegacySupportEmail(cfg.support_contact_email));
+      }
+      if (cfg?.support_reply_to_email) {
+        setSupportReplyToInput(normalizeLegacySupportEmail(cfg.support_reply_to_email));
+      }
       if (cfg?.support_email_provider) {
         setSupportEmailProvider(
           cfg.support_email_provider.toLowerCase() === "webhook"
@@ -165,17 +211,30 @@ export default function KeepersSupportTickets({
         );
       }
       if (cfg?.support_email_webhook_url) setSupportEmailWebhookUrl(cfg.support_email_webhook_url);
+      setResponseTemplates(resolveKeeperEmailResponseTemplates(cfg));
     } catch {
       // ignore
     }
 
     try {
-      const { data: logs } = await supabaseAuth
-        .from("keeper_email_dispatches")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(8);
+      const [{ data: logs }, { data: statusData }] = await Promise.all([
+        supabaseAuth
+          .from("keeper_email_dispatches")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(40),
+        supabaseAuth.functions
+          .invoke("keeper-email-dispatch", {
+            body: { action: "check_email_status" },
+          })
+          .catch(() => ({ data: null })),
+      ]);
       if (logs) setRecentDispatches(logs);
+      if (statusData?.ok) {
+        setHasSavedEmailSecret(Boolean(statusData.resend_configured));
+        setHasSavedWebhookRelay(Boolean(statusData.webhook_configured));
+        setHasSavedInboundSecret(Boolean(statusData.inbound_configured));
+      }
     } catch {
       // ignore
     }
@@ -189,27 +248,52 @@ export default function KeepersSupportTickets({
     if (isSavingEmail) return;
     setIsSavingEmail(true);
     try {
-      const cleanedSender = supportSenderNameInput.trim() || defaultSenderDisplayName;
-      const cleanedEmail = supportEmailInput.trim() || defaultSupportEmail;
-      const cleanedReply = supportReplyToInput.trim() || cleanedEmail;
+      const cleanedSender = normalizeLegacySenderName(
+        supportSenderNameInput,
+        defaultSenderDisplayName
+      );
+      const cleanedEmail = normalizeLegacySupportEmail(
+        supportEmailInput.trim() || defaultSupportEmail
+      );
+      const cleanedReply = normalizeLegacySupportEmail(
+        supportReplyToInput.trim() || cleanedEmail
+      );
       const trimmedApiKey = supportEmailApiKey.trim();
+      const trimmedWebhook = supportEmailWebhookUrl.trim();
+      const trimmedInboundSecret = inboundWebhookSecretInput.trim();
 
-      if (trimmedApiKey) {
+      if (trimmedApiKey || trimmedInboundSecret || (supportEmailProvider === "webhook" && trimmedWebhook)) {
+        const secretPayload: Record<string, string> = {
+          action: "save_email_secrets",
+        };
+        if (trimmedApiKey) {
+          secretPayload.api_key = trimmedApiKey;
+          secretPayload.support_email_api_key = trimmedApiKey;
+        }
+        if (supportEmailProvider === "webhook" && trimmedWebhook) {
+          secretPayload.support_email_webhook_url = trimmedWebhook;
+        }
+        if (trimmedInboundSecret) {
+          secretPayload.inbound_webhook_secret = trimmedInboundSecret;
+        }
         const { data: secretRes, error: secretErr } = await supabaseAuth.functions.invoke(
           "keeper-email-dispatch",
-          {
-            body: {
-              action: "save_email_secrets",
-              api_key: trimmedApiKey,
-              support_email_api_key: trimmedApiKey,
-            },
-          }
+          { body: secretPayload }
         );
         if (secretErr || secretRes?.ok === false) {
           throw new Error(secretErr?.message || secretRes?.error || "Failed to save email secret");
         }
-        setSupportEmailApiKey("");
-        setHasSavedEmailSecret(true);
+        if (trimmedApiKey) {
+          setSupportEmailApiKey("");
+          setHasSavedEmailSecret(true);
+        }
+        if (trimmedInboundSecret) {
+          setInboundWebhookSecretInput("");
+          setHasSavedInboundSecret(true);
+        }
+        if (trimmedWebhook) {
+          setHasSavedWebhookRelay(true);
+        }
       }
 
       await saveKeepersPipelineConfig({
@@ -218,7 +302,7 @@ export default function KeepersSupportTickets({
         support_reply_to_email: cleanedReply,
         support_email_provider: supportEmailProvider,
         support_email_api_key: undefined,
-        support_email_webhook_url: supportEmailWebhookUrl.trim(),
+        support_email_webhook_url: trimmedWebhook,
       });
       setSupportSenderNameInput(cleanedSender);
       setSupportEmailInput(cleanedEmail);
@@ -226,7 +310,7 @@ export default function KeepersSupportTickets({
       useStore
         .getState()
         .pushStatus(
-          t("keepers_support_email_saved", "Keepers Core Custom Email Sender configuration saved!"),
+          t("keepers_support_email_saved", "Custom Email Sender configuration saved!"),
           "success"
         );
     } catch (err: any) {
@@ -251,7 +335,7 @@ export default function KeepersSupportTickets({
         to_email: emailComposeTo.trim(),
         subject: emailComposeSubject.trim(),
         body_text: emailComposeBody.trim(),
-        from_name: supportSenderNameInput.trim() || defaultSenderDisplayName,
+        from_name: normalizeLegacySenderName(supportSenderNameInput, defaultSenderDisplayName),
         from_email: supportEmailInput.trim() || defaultSupportEmail,
         reply_to: supportReplyToInput.trim() || supportEmailInput.trim() || defaultSupportEmail,
       });
@@ -259,7 +343,7 @@ export default function KeepersSupportTickets({
         useStore
           .getState()
           .pushStatus(
-            t("keeper_email_compose_sent", "Custom email dispatched from Keepers Core!"),
+            t("keeper_email_compose_sent", "Custom email dispatched!"),
             "success"
           );
         setEmailComposeTo("");
@@ -276,6 +360,49 @@ export default function KeepersSupportTickets({
       }
     } finally {
       setIsDispatchingEmail(false);
+    }
+  };
+
+  const handleSaveResponseTemplates = async (
+    nextTemplates: KeeperEmailResponseTemplate[]
+  ) => {
+    if (isSavingTemplates) return;
+    setIsSavingTemplates(true);
+    try {
+      await saveKeepersPipelineConfig({ email_response_templates: nextTemplates });
+      setResponseTemplates(nextTemplates);
+      useStore
+        .getState()
+        .pushStatus(
+          t("keepers_email_tpl_saved", "Saved Human Response templates!"),
+          "success"
+        );
+    } catch (err: any) {
+      useStore.getState().pushStatus(err?.message || String(err), "error");
+    } finally {
+      setIsSavingTemplates(false);
+    }
+  };
+
+  const handleClearEmailDispatches = async () => {
+    if (isClearingDispatches) return;
+    setIsClearingDispatches(true);
+    try {
+      const { data: clearRes, error: clearErr } = await supabaseAuth.functions.invoke(
+        "keeper-email-dispatch",
+        { body: { action: "clear_email_dispatches" } }
+      );
+      if (clearErr || clearRes?.ok === false) {
+        throw new Error(clearErr?.message || clearRes?.error || "Failed to clear email logs");
+      }
+      setRecentDispatches([]);
+      useStore
+        .getState()
+        .pushStatus(t("keepers_email_logs_cleared", "Cleared outbound email history."), "success");
+    } catch (err: any) {
+      useStore.getState().pushStatus(err?.message || String(err), "error");
+    } finally {
+      setIsClearingDispatches(false);
     }
   };
 
@@ -964,9 +1091,9 @@ export default function KeepersSupportTickets({
         isOpen={isEmailDrawerOpen}
         onClose={() => setIsEmailDrawerOpen(false)}
         title={t("keepers_email_center_title", "In-App Email Center & Custom Sender")}
-        subtitle={t("keepers_title", "Keepers Core")}
+        subtitle={t("keepers_foundry_label", "Sanctuary Foundry")}
         icon={t("icon_outgoing_mail", "outgoing_mail")}
-        widthClass="w-[90vw] md:w-[680px]"
+        widthClass="w-[92vw] md:w-[920px]"
         headerActions={
           <PanelHeaderGroup>
             <PanelHeaderButton
@@ -978,183 +1105,681 @@ export default function KeepersSupportTickets({
         }
       >
         <div className="flex flex-col gap-4 pb-6">
-          <SidePanelHeroCard
-            icon={t("icon_outgoing_mail", "outgoing_mail")}
-            overline={t("keepers_email_center_overline", "Keepers Core • Direct Mail Relay")}
-            title={t("keepers_email_center_hero_title", "Custom Sender Identity & In-App Dispatch")}
-            description={t(
-              "keepers_email_center_hero_desc",
-              "Dispatch outbound emails directly from Keepers Core using your custom sender identity, or configure your mail relay credentials (Resend API / Custom SMTP Webhook) for automated ticket correspondence."
-            )}
-            variant="accent"
-          />
-
-          <UniversalGroup
-            title={t("keepers_email_compose_group", "Compose & Dispatch Custom Email")}
-            icon={t("icon_send", "send")}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <UniversalInput
-                label={t("keeper_email_recipient_label", "Recipient Email Address")}
-                value={emailComposeTo}
-                onChange={setEmailComposeTo}
-                placeholder={t("keeper_email_recipient_placeholder", "citizen@domain.com")}
-              />
-              <UniversalInput
-                label={t("keepers_email_subject_label", "Subject Line")}
-                value={emailComposeSubject}
-                onChange={setEmailComposeSubject}
-                placeholder={t("keepers_email_subject_placeholder", "Official Sanctuary OS Correspondence")}
-              />
-            </div>
-            <UniversalTextArea
-              label={t("keepers_email_body_label", "Message Body")}
-              value={emailComposeBody}
-              onChange={setEmailComposeBody}
-              placeholder={t(
-                "keepers_email_body_placeholder",
-                "Write your message to be formatted and dispatched from Keepers Core..."
-              )}
-              className="min-h-[120px]"
+          <SidePanelFilterBar className="grid-cols-2 lg:grid-cols-4 gap-3">
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={emailDrawerTab === "compose"}
+              icon={t("icon_send", "send")}
+              label={t("keepers_email_tab_compose", "Compose")}
+              value={t("keepers_email_tab_direct", "Direct")}
+              onClick={() => setEmailDrawerTab("compose")}
             />
-            <ActionButton
-              onClick={handleDispatchCustomEmail}
-              disabled={
-                isDispatchingEmail ||
-                !emailComposeTo.trim().includes("@") ||
-                !emailComposeSubject.trim() ||
-                !emailComposeBody.trim()
-              }
-              className="w-full"
-              icon={t("icon_outgoing_mail", "outgoing_mail")}
-              variant="accent"
-              label={
-                isDispatchingEmail
-                  ? t("btn_submitting", "Submitting...")
-                  : t("keepers_email_btn_dispatch_now", "Dispatch From Keepers Core")
-              }
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={emailDrawerTab === "templates"}
+              icon={t("icon_quickreply", "quickreply")}
+              label={t("tab_templates", "Templates")}
+              value={responseTemplates.length}
+              onClick={() => setEmailDrawerTab("templates")}
             />
-          </UniversalGroup>
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={emailDrawerTab === "config"}
+              icon={t("icon_tune", "tune")}
+              label={t("config", "Config")}
+              value={
+                hasSavedEmailSecret || hasSavedWebhookRelay
+                  ? t("active", "Active")
+                  : t("keepers_email_status_setup", "Setup")
+              }
+              onClick={() => setEmailDrawerTab("config")}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              isActive={emailDrawerTab === "activity"}
+              icon={t("icon_history", "history")}
+              label={t("keepers_email_tab_activity", "Activity")}
+              value={recentDispatches.length}
+              onClick={() => setEmailDrawerTab("activity")}
+            />
+          </SidePanelFilterBar>
 
-          <UniversalGroup
-            title={t("keepers_email_sender_group", "Custom Sender Identity & Mail Relay")}
-            icon={t("icon_alternate_email", "alternate_email")}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <UniversalInput
-                label={t("keepers_email_sender_name_label", "Custom Sender Display Name")}
-                value={supportSenderNameInput}
-                onChange={setSupportSenderNameInput}
-                placeholder={defaultSenderDisplayName}
-              />
-              <UniversalInput
-                label={t("keepers_email_sender_addr_label", "Custom Sender Email (From)")}
-                value={supportEmailInput}
-                onChange={setSupportEmailInput}
-                placeholder={defaultSupportEmail}
-              />
-              <UniversalInput
-                label={t("keepers_email_reply_to_label", "Reply-To Address")}
-                value={supportReplyToInput}
-                onChange={setSupportReplyToInput}
-                placeholder={defaultSupportEmail}
-              />
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
-                  {t("keepers_email_provider_label", "Mail Relay Transport")}
-                </label>
-                <CustomDropdown
-                  disableTint={true}
-                  value={supportEmailProvider}
-                  onChange={(v: string[]) =>
-                    setSupportEmailProvider((v[0] as "resend" | "webhook") || "resend")
-                  }
-                  options={[
-                    {
-                      id: "resend",
-                      label: t("keepers_email_provider_resend", "Resend API (Custom Domain)"),
-                    },
-                    {
-                      id: "webhook",
-                      label: t("keepers_email_provider_webhook", "Custom SMTP / Webhook Relay"),
-                    },
-                  ]}
+          {emailDrawerTab === "compose" && (
+            <>
+              <UniversalGroup
+                title={t("keepers_email_compose_group", "Compose & Dispatch Custom Email")}
+                icon={t("icon_send", "send")}
+                headerAction={
+                  <PanelHeaderGroup>
+                    <PanelHeaderButton
+                      icon={
+                        revealComposeRecipient
+                          ? t("icon_visibility_off", "visibility_off")
+                          : t("icon_visibility", "visibility")
+                      }
+                      tooltip={
+                        revealComposeRecipient
+                          ? t("keepers_email_mask_recipient", "Hide Recipient Email")
+                          : t("keepers_email_reveal_recipient", "Reveal Recipient Email")
+                      }
+                      onClick={() => setRevealComposeRecipient((prev) => !prev)}
+                    />
+                  </PanelHeaderGroup>
+                }
+              >
+                {responseTemplates.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                      {t("keepers_email_load_tpl_label", "Load Response Template")}
+                    </label>
+                    <CustomDropdown
+                      disableTint={true}
+                      value=""
+                      placeholder={t(
+                        "keepers_email_load_tpl_ph",
+                        "Choose a Human Response Template..."
+                      )}
+                      onChange={(vals: string[]) => {
+                        const chosen = responseTemplates.find((tpl) => tpl.id === vals[0]);
+                        if (chosen) {
+                          setEmailComposeSubject(chosen.subject);
+                          setEmailComposeBody(chosen.body);
+                          useStore
+                            .getState()
+                            .pushStatus(
+                              t(
+                                "keepers_email_tpl_applied",
+                                "Applied Human Response template!"
+                              ),
+                              "success"
+                            );
+                        }
+                      }}
+                      options={responseTemplates.map((tpl) => ({
+                        id: tpl.id,
+                        label: `${tpl.name} (${tpl.category || t("keepers_email_tpl_default_cat", "Support")})`,
+                      }))}
+                    />
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <UniversalInput
+                    label={t("keeper_email_recipient_label", "Recipient Email Address")}
+                    type={revealComposeRecipient ? "email" : "password"}
+                    className="no-text-case"
+                    value={emailComposeTo}
+                    onChange={setEmailComposeTo}
+                    placeholder={t("keeper_email_recipient_placeholder", "citizen@domain.com")}
+                  />
+                  <UniversalInput
+                    label={t("keepers_email_subject_label", "Subject Line")}
+                    value={emailComposeSubject}
+                    onChange={setEmailComposeSubject}
+                    placeholder={t("keepers_email_subject_placeholder", "Official Sanctuary OS Correspondence")}
+                  />
+                </div>
+                <UniversalTextArea
+                  label={t("keepers_email_body_label", "Message Body")}
+                  value={emailComposeBody}
+                  onChange={setEmailComposeBody}
+                  placeholder={t(
+                    "keepers_email_body_placeholder",
+                    "Write your message to be formatted and dispatched..."
+                  )}
+                  className="min-h-[120px]"
                 />
-              </div>
-            </div>
+                <div className="flex flex-wrap gap-2">
+                  <ActionButton
+                    onClick={() => {
+                      const usableEmail =
+                        currentUserEmail &&
+                        !/@blind\.sanctuaryos\.(net|local)$/i.test(currentUserEmail)
+                          ? currentUserEmail
+                          : "";
+                      if (usableEmail) {
+                        setEmailComposeTo(usableEmail);
+                        setRevealComposeRecipient(false);
+                      }
+                      setEmailComposeSubject(
+                        t(
+                          "keepers_email_test_subject",
+                          "Sanctuary OS — Official Channel Check"
+                        )
+                      );
+                      setEmailComposeBody(
+                        t(
+                          "keepers_email_test_body",
+                          "Greetings from Sanctuary Foundry.\n\nThis message confirms that outbound mail relay and support notifications are active for sanctuaryos.net."
+                        )
+                      );
+                    }}
+                    className="w-auto shrink-0"
+                    icon={t("icon_science", "science")}
+                    variant="glass"
+                    label={t("keepers_email_btn_prefill_test", "Prefill Test")}
+                  />
+                  <ActionButton
+                    onClick={() => setShowComposePreview((prev) => !prev)}
+                    className="w-auto shrink-0"
+                    icon={
+                      showComposePreview
+                        ? t("icon_visibility_off", "visibility_off")
+                        : t("icon_visibility", "visibility")
+                    }
+                    variant="glass"
+                    label={
+                      showComposePreview
+                        ? t("hide", "Hide")
+                        : t("preview", "Preview")
+                    }
+                  />
+                  <ActionButton
+                    onClick={handleDispatchCustomEmail}
+                    disabled={
+                      isDispatchingEmail ||
+                      !emailComposeTo.trim().includes("@") ||
+                      !emailComposeSubject.trim() ||
+                      !emailComposeBody.trim()
+                    }
+                    className="flex-1"
+                    icon={t("icon_outgoing_mail", "outgoing_mail")}
+                    variant="accent"
+                    label={
+                      isDispatchingEmail
+                        ? t("btn_submitting", "Submitting...")
+                        : t("keepers_email_btn_dispatch_now", "Dispatch Official Email")
+                    }
+                  />
+                </div>
+              </UniversalGroup>
 
-            {supportEmailProvider === "resend" ? (
+              {showComposePreview && (
+                <EmailTemplatePreviewAndAuthSection
+                  mode="compose_preview"
+                  fromName={normalizeLegacySenderName(supportSenderNameInput, defaultSenderDisplayName)}
+                  subject={emailComposeSubject}
+                  bodyText={emailComposeBody}
+                />
+              )}
+            </>
+          )}
+
+          {emailDrawerTab === "templates" && (
+            <EmailResponseTemplatesSection
+              templates={responseTemplates}
+              isSaving={isSavingTemplates}
+              onSaveTemplates={handleSaveResponseTemplates}
+              onUseTemplate={(tpl) => {
+                setEmailComposeSubject(tpl.subject);
+                setEmailComposeBody(tpl.body);
+                setEmailDrawerTab("compose");
+                useStore
+                  .getState()
+                  .pushStatus(
+                    t("keepers_email_tpl_applied", "Applied Human Response template!"),
+                    "success"
+                  );
+              }}
+            />
+          )}
+
+          {emailDrawerTab === "config" && (
+            <div className="flex flex-col gap-4">
+              <UniversalGroup
+              title={t("keepers_email_sender_group", "Custom Sender Identity & Mail Relay")}
+              icon={t("icon_alternate_email", "alternate_email")}
+              headerAction={
+                <span className={VAULT_CHIP_CLASS}>
+                  <span
+                    className={`material-symbols-outlined !text-[12px] ${
+                      hasSavedEmailSecret || hasSavedWebhookRelay
+                        ? "text-[var(--success)]"
+                        : "text-[var(--warning)]"
+                    }`}
+                  >
+                    {hasSavedEmailSecret || hasSavedWebhookRelay
+                      ? t("icon_verified", "verified")
+                      : t("icon_info", "info")}
+                  </span>
+                  <span>
+                    {hasSavedEmailSecret
+                      ? t("keepers_email_status_resend_ready", "Resend API Sealed")
+                      : hasSavedWebhookRelay
+                        ? t("keepers_email_status_webhook_ready", "Webhook Relay Sealed")
+                        : t(
+                            "keepers_email_status_fallback",
+                            "In-App Fallback (Add Resend Key Above)"
+                          )}
+                  </span>
+                </span>
+              }
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <UniversalInput
+                  label={t("keepers_email_sender_name_label", "Custom Sender Display Name")}
+                  value={supportSenderNameInput}
+                  onChange={setSupportSenderNameInput}
+                  placeholder={defaultSenderDisplayName}
+                />
+                <UniversalInput
+                  label={t("keepers_email_sender_addr_label", "Custom Sender Email (From)")}
+                  className="no-text-case"
+                  value={supportEmailInput}
+                  onChange={setSupportEmailInput}
+                  placeholder={defaultSupportEmail}
+                />
+                <UniversalInput
+                  label={t("keepers_email_reply_to_label", "Reply-To Address")}
+                  className="no-text-case"
+                  value={supportReplyToInput}
+                  onChange={setSupportReplyToInput}
+                  placeholder={defaultSupportEmail}
+                />
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black text-[var(--subtext)] opacity-75 uppercase tracking-widest px-1">
+                    {t("keepers_email_provider_label", "Mail Relay Transport")}
+                  </label>
+                  <CustomDropdown
+                    disableTint={true}
+                    value={supportEmailProvider}
+                    onChange={(v: string[]) =>
+                      setSupportEmailProvider((v[0] as "resend" | "webhook") || "resend")
+                    }
+                    options={[
+                      {
+                        id: "resend",
+                        label: t("keepers_email_provider_resend", "Resend API (Custom Domain)"),
+                      },
+                      {
+                        id: "webhook",
+                        label: t("keepers_email_provider_webhook", "Custom SMTP / Webhook Relay"),
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
+
+              {supportEmailProvider === "resend" ? (
+                <UniversalInput
+                  label={t("keepers_email_api_key_label", "Resend API Key (re_...)")}
+                  type="password"
+                  className="no-text-case"
+                  value={supportEmailApiKey}
+                  onChange={setSupportEmailApiKey}
+                  placeholder={
+                    hasSavedEmailSecret
+                      ? `•••••••• (${t("keepers_email_api_key_placeholder", "re_... (or configured in Edge Function Secrets)")})`
+                      : t(
+                          "keepers_email_api_key_placeholder",
+                          "re_... (or configured in Edge Function Secrets)"
+                        )
+                  }
+                />
+              ) : (
+                <UniversalInput
+                  label={t("keepers_email_webhook_label", "Custom SMTP / Webhook Relay URL")}
+                  className="no-text-case"
+                  value={supportEmailWebhookUrl}
+                  onChange={setSupportEmailWebhookUrl}
+                  placeholder="https://mail-relay.sanctuaryos.net/dispatch"
+                />
+              )}
+
               <UniversalInput
-                label={t("keepers_email_api_key_label", "Resend API Key (re_...)")}
-                value={supportEmailApiKey}
-                onChange={setSupportEmailApiKey}
+                label={t("keepers_email_inbound_secret_label", "Inbound Replies Webhook Secret (whsec_... or shared secret)")}
+                type="password"
+                className="no-text-case"
+                value={inboundWebhookSecretInput}
+                onChange={setInboundWebhookSecretInput}
                 placeholder={
-                  hasSavedEmailSecret
-                    ? `•••••••• (${t("keepers_email_api_key_placeholder", "re_... (or configured in Edge Function Secrets)")})`
-                    : t(
-                        "keepers_email_api_key_placeholder",
-                        "re_... (or configured in Edge Function Secrets)"
-                      )
+                  hasSavedInboundSecret
+                    ? `•••••••• (${t("keepers_email_inbound_secret_configured", "Inbound webhook secret sealed")})`
+                    : t("keepers_email_inbound_secret_ph", "whsec_... (Svix Resend secret or x-sanctuary-inbound-secret)")
                 }
               />
-            ) : (
-              <UniversalInput
-                label={t("keepers_email_webhook_label", "Custom SMTP / Webhook Relay URL")}
-                value={supportEmailWebhookUrl}
-                onChange={setSupportEmailWebhookUrl}
-                placeholder="https://mail-relay.sanctuaryos.gg/dispatch"
+
+              <ActionButton
+                onClick={handleSaveSupportEmail}
+                disabled={isSavingEmail}
+                className="w-full"
+                icon={t("icon_save", "save")}
+                variant="glass"
+                label={t("keepers_email_btn_save_sender", "Save Custom Sender Configuration")}
               />
-            )}
 
-            <ActionButton
-              onClick={handleSaveSupportEmail}
-              disabled={isSavingEmail}
-              className="w-full"
-              icon={t("icon_save", "save")}
-              variant="glass"
-              label={t("keepers_email_btn_save_sender", "Save Custom Sender Configuration")}
-            />
-          </UniversalGroup>
-
-          {recentDispatches.length > 0 && (
-            <UniversalGroup
-              title={t("keeper_email_dispatches_title", "Outbound Custom Email Dispatches")}
-              icon={t("icon_history", "history")}
-            >
-              <div className="flex flex-col gap-2">
-                {recentDispatches.map((item) => (
-                  <div
-                    key={item.id}
-                    className="glass-surface px-4 py-2.5 rounded-xl border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-wrap items-center justify-between gap-2"
-                  >
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-bold text-[var(--text)] truncate">
-                        {item.subject}
+              <div className="flex flex-col gap-2.5 pt-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent)] px-1">
+                  {t("keepers_email_quick_ref_title", "Quick Reference (SMTP & DNS)")}
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <UniversalCard
+                    layout="vertical"
+                    statusColor="accent"
+                    icon={t("icon_dns", "dns")}
+                    bannerTopLabel={t("keepers_email_tls_badge", "TLS / 465")}
+                    bannerTopRightLabel="smtp.resend.com"
+                    bannerBottomLabel="noreply@sanctuaryos.net"
+                    title={t("keepers_email_smtp_short_label", "Supabase Auth SMTP")}
+                    subtitle={
+                      <span className="no-text-case">
+                        {t("keepers_email_smtp_short_val", "smtp.resend.com • Port 465 • User: resend")}
                       </span>
-                      <span className="text-[10px] font-mono text-[var(--subtext)] truncate">
-                        {item.from_email} {"->"} {item.to_email}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={VAULT_CHIP_CLASS}>
-                        <span className="material-symbols-rounded !text-[12px] text-[var(--accent)]">
-                          {t("icon_mark_email_read", "mark_email_read")}
+                    }
+                    imageOverlay={
+                      <div className="absolute top-2.5 left-3 flex flex-nowrap items-center gap-1.5 max-w-[calc(100%-6.5rem)] z-30 pointer-events-none">
+                        <span className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                            {t("icon_lock", "lock")}
+                          </span>
+                          <span>{t("keepers_email_tls_badge", "TLS / 465")}</span>
                         </span>
-                        <span>{item.status || "DISPATCHED"}</span>
-                      </span>
-                      {item.created_at && (
-                        <span className="text-[10px] font-mono text-[var(--subtext)]">
-                          {new Date(item.created_at).toLocaleDateString()}
+                      </div>
+                    }
+                    onClick={() => {
+                      navigator.clipboard?.writeText(
+                        "Host: smtp.resend.com\nPort: 465\nUsername: resend\nSender: noreply@sanctuaryos.net"
+                      );
+                      useStore
+                        .getState()
+                        .pushStatus(
+                          t("keepers_email_smtp_copied", "Copied Auth SMTP settings!"),
+                          "success"
+                        );
+                    }}
+                    footer={
+                      <div className="flex items-center justify-between gap-2 w-full">
+                        <span className="no-text-case font-mono text-[10px] text-[var(--subtext)] truncate">
+                          noreply@sanctuaryos.net
                         </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] group-hover/card:text-[var(--accent)] group-hover:text-[var(--accent)] transition-all flex items-center gap-1 opacity-80 group-hover/card:opacity-100 shrink-0">
+                          <span>{t("copy", "Copy")}</span>
+                          <span className="material-symbols-outlined !text-[13px]">
+                            {t("icon_content_copy", "content_copy")}
+                          </span>
+                        </span>
+                      </div>
+                    }
+                  />
+                  <UniversalCard
+                    layout="vertical"
+                    statusColor="accent"
+                    icon={t("icon_shield", "shield")}
+                    bannerTopLabel={t("keepers_email_dns_txt_badge", "DNS TXT")}
+                    bannerTopRightLabel="_dmarc"
+                    bannerBottomLabel={DMARC_RECORD_VALUE}
+                    title={t("keepers_email_dmarc_short_label", "Cloudflare DMARC TXT")}
+                    subtitle={<span className="no-text-case">_dmarc</span>}
+                    description={
+                      <span className="no-text-case font-mono text-[11px] text-[var(--subtext)] break-all">
+                        {DMARC_RECORD_VALUE}
+                      </span>
+                    }
+                    imageOverlay={
+                      <div className="absolute top-2.5 left-3 flex flex-nowrap items-center gap-1.5 max-w-[calc(100%-6.5rem)] z-30 pointer-events-none">
+                        <span className={VAULT_CHIP_CLASS}>
+                          <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                            {t("icon_dns", "dns")}
+                          </span>
+                          <span>{t("keepers_email_txt_badge", "TXT")}</span>
+                        </span>
+                      </div>
+                    }
+                    onClick={() => {
+                      navigator.clipboard?.writeText(DMARC_RECORD_VALUE);
+                      useStore
+                        .getState()
+                        .pushStatus(
+                          t("keepers_email_dmarc_copied", "Copied DMARC TXT record value!"),
+                          "success"
+                        );
+                    }}
+                    footer={
+                      <div className="flex items-center justify-between gap-2 w-full">
+                        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80">
+                          {t("keepers_email_dns_txt_badge", "DNS TXT")}
+                        </span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] group-hover/card:text-[var(--accent)] group-hover:text-[var(--accent)] transition-all flex items-center gap-1 opacity-80 group-hover/card:opacity-100 shrink-0">
+                          <span>{t("copy", "Copy")}</span>
+                          <span className="material-symbols-outlined !text-[13px]">
+                            {t("icon_content_copy", "content_copy")}
+                          </span>
+                        </span>
+                      </div>
+                    }
+                  />
+                  <UniversalCard
+                    layout="vertical"
+                    className="sm:col-span-2"
+                    statusColor={hasSavedInboundSecret ? "success" : "warning"}
+                    icon={t("icon_webhook", "webhook")}
+                    bannerTopLabel={t("keepers_email_inbound_url_label", "Inbound Webhook URL")}
+                    bannerTopRightLabel={
+                      hasSavedInboundSecret
+                        ? t("active", "Active")
+                        : t("keepers_email_status_setup", "Setup")
+                    }
+                    bannerBottomLabel="email.received • POST ?inbound=1"
+                    title={t("keepers_email_inbound_card_title", "Inbound Replies Webhook (Resend / Relay)")}
+                    subtitle={<span className="no-text-case">POST email.received &bull; ?inbound=1</span>}
+                    description={
+                      <span className="no-text-case font-mono text-[11px] text-[var(--subtext)] break-all">
+                        {`${String(SANCTUARY_CONFIG.supabaseUrl || "").replace(/\/+$/, "")}/functions/v1/keeper-email-dispatch?inbound=1`}
+                      </span>
+                    }
+                    imageOverlay={
+                      <div className="absolute top-2.5 left-3 flex flex-nowrap items-center gap-1.5 max-w-[calc(100%-6.5rem)] z-30 pointer-events-none">
+                        <span className={VAULT_CHIP_CLASS}>
+                          <span
+                            className={`material-symbols-outlined !text-[12px] ${
+                              hasSavedInboundSecret ? "text-[var(--success)]" : "text-[var(--warning)]"
+                            }`}
+                          >
+                            {hasSavedInboundSecret ? t("icon_verified", "verified") : t("icon_key", "key")}
+                          </span>
+                          <span>
+                            {hasSavedInboundSecret
+                              ? t("keepers_email_inbound_secret_ready", "Webhook Verified")
+                              : t("keepers_email_status_setup", "Setup")}
+                          </span>
+                        </span>
+                      </div>
+                    }
+                    onClick={() => {
+                      const inboundUrl = `${String(SANCTUARY_CONFIG.supabaseUrl || "").replace(/\/+$/, "")}/functions/v1/keeper-email-dispatch?inbound=1`;
+                      navigator.clipboard?.writeText(inboundUrl);
+                      useStore
+                        .getState()
+                        .pushStatus(
+                          t("keepers_email_inbound_url_copied", "Copied Inbound Webhook URL!"),
+                          "success"
+                        );
+                    }}
+                    footer={
+                      <div className="flex items-center justify-between gap-2 w-full">
+                        <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80">
+                          {t("keepers_email_inbound_footer_note", "Resend email.received")}
+                        </span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] group-hover/card:text-[var(--accent)] group-hover:text-[var(--accent)] transition-all flex items-center gap-1 opacity-80 group-hover/card:opacity-100 shrink-0">
+                          <span>{t("copy", "Copy")}</span>
+                          <span className="material-symbols-outlined !text-[13px]">
+                            {t("icon_content_copy", "content_copy")}
+                          </span>
+                        </span>
+                      </div>
+                    }
+                  />
+                </div>
               </div>
-            </UniversalGroup>
+              </UniversalGroup>
+              <EmailTemplatePreviewAndAuthSection
+                mode="auth_templates"
+                fromName={normalizeLegacySenderName(supportSenderNameInput, defaultSenderDisplayName)}
+                subject={emailComposeSubject}
+                bodyText={emailComposeBody}
+              />
+            </div>
+          )}
+
+          {emailDrawerTab === "activity" && (
+            recentDispatches.length > 0 ? (() => {
+              const threadMap = new Map<string, { latest: any; count: number; hasInbound: boolean }>();
+              for (const row of recentDispatches) {
+                const threadKey = String(row.thread_id || row.ticket_id || row.id);
+                const existing = threadMap.get(threadKey);
+                const isInbound = String(row.direction || "outbound").toLowerCase() === "inbound";
+                if (!existing) {
+                  threadMap.set(threadKey, { latest: row, count: 1, hasInbound: isInbound });
+                } else {
+                  existing.count += 1;
+                  if (isInbound) existing.hasInbound = true;
+                }
+              }
+              const threadEntries = Array.from(threadMap.values());
+              return (
+              <div className="flex flex-col gap-4">
+                <SidePanelHeroCard
+                  icon={t("icon_history", "history")}
+                  overline={t("keepers_foundry_label", "Sanctuary Foundry")}
+                  title={t("keeper_email_dispatches_title", "Outbound Custom Email Dispatches")}
+                  badge={`${threadEntries.length} ${t("keepers_email_threads_count", "Conversations")}`}
+                  badgeIcon={t("icon_forum", "forum")}
+                  variant="accent"
+                >
+                  <div className="flex justify-end w-full">
+                    <ActionButton
+                      onClick={handleClearEmailDispatches}
+                      disabled={isClearingDispatches}
+                      variant="glass"
+                      className="text-[var(--danger)]"
+                      icon={
+                        isClearingDispatches
+                          ? t("icon_sync", "sync")
+                          : t("icon_delete_sweep", "delete_sweep")
+                      }
+                      label={t("clear", "Clear")}
+                    />
+                  </div>
+                </SidePanelHeroCard>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {threadEntries.map(({ latest: item, count, hasInbound }) => {
+                    const statusMeta = getEmailDispatchStatusMeta(item.status, t);
+                    const providerLabel = formatEmailProviderLabel(item.provider);
+                    const dateLabel = item.created_at
+                      ? new Date(item.created_at).toLocaleDateString()
+                      : "";
+                    const senderLabel = normalizeLegacySenderName(
+                      item.from_name,
+                      defaultSenderDisplayName
+                    );
+                    const recipientMasked = maskEmailsInText(item.to_email || item.from_email || "");
+                    return (
+                      <UniversalCard
+                        key={item.thread_id || item.ticket_id || item.id}
+                        layout="vertical"
+                        statusColor={hasInbound ? "warning" : statusMeta.cardStatusColor}
+                        icon={
+                          hasInbound
+                            ? t("icon_forum", "forum")
+                            : t("icon_outgoing_mail", "outgoing_mail")
+                        }
+                        bannerTopLabel={statusMeta.label}
+                        bannerTopRightLabel={`${count} ${t("keepers_email_thread_msgs_short", "msgs")}`}
+                        bannerBottomLabel={recipientMasked || senderLabel}
+                        title={
+                          item.subject ||
+                          t("keepers_email_subject_placeholder", "Official Sanctuary OS Correspondence")
+                        }
+                        subtitle={
+                          <span className="no-text-case font-mono text-[11px] break-all">
+                            {recipientMasked} &bull; {senderLabel}
+                          </span>
+                        }
+                        imageOverlay={
+                          <div className="absolute top-2.5 left-3 flex flex-nowrap items-center gap-1.5 max-w-[calc(100%-6.5rem)] z-30 pointer-events-none">
+                            <span className={VAULT_CHIP_CLASS}>
+                              <span
+                                className={`material-symbols-outlined !text-[12px] ${statusMeta.iconColorClass}`}
+                              >
+                                {statusMeta.iconName}
+                              </span>
+                              <span>{statusMeta.label}</span>
+                            </span>
+                          </div>
+                        }
+                        badges={
+                          <>
+                            <span className={VAULT_CHIP_CLASS}>
+                              <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                {t("icon_forum", "forum")}
+                              </span>
+                              <span>
+                                {count} {t("keepers_email_thread_msgs", "Messages")}
+                              </span>
+                            </span>
+                            {hasInbound && (
+                              <span className={VAULT_CHIP_CLASS}>
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
+                                  {t("icon_move_to_inbox", "move_to_inbox")}
+                                </span>
+                                <span>{t("keepers_email_dir_inbound", "External Reply")}</span>
+                              </span>
+                            )}
+                          </>
+                        }
+                        onClick={() =>
+                          setActiveEmailThread({
+                            threadId: item.thread_id || item.ticket_id || item.id,
+                            dispatchId: item.id,
+                            ticketId: item.ticket_id || null,
+                            subject: item.subject || undefined,
+                          })
+                        }
+                        footer={
+                          <div className="flex items-center justify-between gap-2 w-full">
+                            <span className="text-[10px] font-bold text-[var(--subtext)] opacity-80 truncate">
+                              {providerLabel}{dateLabel ? ` • ${dateLabel}` : ""}
+                            </span>
+                            <span className="text-[10px] font-black text-[var(--text)] group-hover/card:text-[var(--accent)] group-hover:text-[var(--accent)] uppercase tracking-widest transition-all flex items-center gap-1 opacity-0 group-hover/card:opacity-100 group-hover:opacity-100 translate-x-2 group-hover/card:translate-x-0 group-hover:translate-x-0 shrink-0">
+                              <span>{t("keepers_email_open_thread", "Open Thread")}</span>
+                              <span className="text-base leading-none">&rarr;</span>
+                            </span>
+                          </div>
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+              );
+            })() : (
+              <EmptyState
+                icon={t("icon_mark_email_read", "mark_email_read")}
+                title={t("keepers_email_no_activity", "No Outbound Email Logs")}
+                className="py-12"
+              />
+            )
           )}
         </div>
       </SidePanel>
+
+      <EmailConversationSidePanel
+        isOpen={Boolean(activeEmailThread)}
+        onClose={() => setActiveEmailThread(null)}
+        threadId={activeEmailThread?.threadId}
+        dispatchId={activeEmailThread?.dispatchId}
+        ticketId={activeEmailThread?.ticketId}
+        initialSubject={activeEmailThread?.subject}
+        templates={responseTemplates}
+        fromName={normalizeLegacySenderName(supportSenderNameInput, defaultSenderDisplayName)}
+        fromEmail={supportEmailInput.trim() || defaultSupportEmail}
+        replyTo={supportReplyToInput.trim() || supportEmailInput.trim() || defaultSupportEmail}
+        onThreadUpdated={loadEmailCenterData}
+      />
     </ElevatedHubLayout>
   );
 }

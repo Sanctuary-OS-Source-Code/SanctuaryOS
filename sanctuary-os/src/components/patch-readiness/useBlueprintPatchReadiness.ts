@@ -13,6 +13,7 @@ import { PatchModBucket, PatchModIssueKind, PatchEvaluatedMod, BlueprintPatchRep
 export function useBlueprintPatchReadiness(opts?: {
   pinnedBlueprintNames?: string[];
   skip?: boolean;
+  deferInitial?: boolean;
 }) {
   const skip = Boolean(opts?.skip);
   const { t } = useLexicon();
@@ -44,7 +45,22 @@ export function useBlueprintPatchReadiness(opts?: {
     return getOrCreateWorkspaceCache(wsKey).companionSnapshots || [];
   });
   const [cloudTick, setCloudTick] = useState(0);
-  const [poolItems, setPoolItems] = useState<any[]>([]);
+  const [poolItems, setPoolItems] = useState<any[]>(() => {
+    return getOrCreateWorkspaceCache(wsKey).poolItems || [];
+  });
+  const [deferredReady, setDeferredReady] = useState<boolean>(() => {
+    return !opts?.deferInitial || Boolean(getOrCreateWorkspaceCache(wsKey).lastReportsCache);
+  });
+
+  useEffect(() => {
+    if (skip) return;
+    if (!opts?.deferInitial || getOrCreateWorkspaceCache(wsKey).lastReportsCache) {
+      if (!deferredReady) setDeferredReady(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setDeferredReady(true), 0);
+    return () => window.clearTimeout(timer);
+  }, [skip, opts?.deferInitial, wsKey, deferredReady]);
   const [userTargetVersion, setUserTargetVersionState] = useState<string>(() => {
     try {
       return sessionStorage.getItem(storageKey) || "";
@@ -137,9 +153,19 @@ export function useBlueprintPatchReadiness(opts?: {
     };
   }, [activeWorkspaceId, workspaces, wsKey, skip]);
 
-  // 2. Fetch local Mod Version Archive pool on Desktop
+  // 2. Fetch local Mod Version Archive pool on Desktop (cached across tab/view remounts)
   useEffect(() => {
     if (skip || !isDesktop()) return;
+    const cache = getOrCreateWorkspaceCache(wsKey);
+    const curModCount = modList?.length || 0;
+    if (
+      cache.lastPoolFetch > 0 &&
+      Date.now() - cache.lastPoolFetch < 30_000 &&
+      cache.lastPoolModCount === curModCount
+    ) {
+      if (poolItems !== cache.poolItems) setPoolItems(cache.poolItems);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -153,6 +179,9 @@ export function useBlueprintPatchReadiness(opts?: {
           vaultPath: resolvedVaultPath,
         });
         if (!cancelled && Array.isArray(res?.items)) {
+          cache.poolItems = res.items;
+          cache.lastPoolFetch = Date.now();
+          cache.lastPoolModCount = curModCount;
           setPoolItems(res.items);
         }
       } catch {}
@@ -160,7 +189,7 @@ export function useBlueprintPatchReadiness(opts?: {
     return () => {
       cancelled = true;
     };
-  }, [vaultPath, modList?.length, skip]);
+  }, [vaultPath, modList?.length, skip, wsKey]);
 
   // 2B. Hydrate Web/PWA via encrypted Zero-PII Companion Snapshots (zero passkey prompt)
   useEffect(() => {
@@ -591,6 +620,9 @@ export function useBlueprintPatchReadiness(opts?: {
       return [];
     const cache = getOrCreateWorkspaceCache(wsKey);
     const prev = cache.lastReportsCache;
+    if (!deferredReady && opts?.deferInitial) {
+      return prev?.result || [];
+    }
     if (
       prev &&
       prev.playSets === effectivePlaySets &&
@@ -606,8 +638,7 @@ export function useBlueprintPatchReadiness(opts?: {
       prev.versionRelation === versionRelation &&
       prev.isPatchDetected === isPatchDetected &&
       prev.defconLevel === defconLevel &&
-      prev.cloudTick === cloudTick &&
-      prev.t === t
+      prev.cloudTick === cloudTick
     ) {
       return prev.result;
     }
@@ -1517,13 +1548,14 @@ export function useBlueprintPatchReadiness(opts?: {
       isPatchDetected,
       defconLevel,
       cloudTick,
-      t,
       result: computedReports,
     };
 
     return computedReports;
   }, [
     skip,
+    deferredReady,
+    opts?.deferInitial,
     effectivePlaySets,
     effectiveActiveSetName,
     pinnedKey,

@@ -35,6 +35,174 @@ pub struct LabVerificationCertificate {
     pub peak_ram_mb: u64,
     pub disk_read_mb: u64,
     pub save_file_verified: String,
+    #[serde(default)]
+    pub seal_pubkey: String,
+    #[serde(default)]
+    pub seal_sig: String,
+    #[serde(default)]
+    pub local_seal_sig: String,
+}
+
+struct LabAttestationKeys {
+    keypair: ring::signature::Ed25519KeyPair,
+    hmac_key: [u8; 32],
+}
+
+static LAB_ATTESTATION_KEYS: std::sync::OnceLock<LabAttestationKeys> = std::sync::OnceLock::new();
+
+#[derive(Serialize, Deserialize)]
+struct SealedLabAttestationStore {
+    nonce_b64: String,
+    sealed_pkcs8_b64: String,
+}
+
+fn load_or_init_lab_attestation_keys() -> &'static LabAttestationKeys {
+    LAB_ATTESTATION_KEYS.get_or_init(|| {
+        use crate::commands::webauthn::local_passkey_vault::{
+            load_or_create_master_key, seal_private_key_with_key, secure_passkey_dir,
+            unseal_private_key_with_key, write_restricted_file,
+        };
+        use ring::rand::{SecureRandom, SystemRandom};
+        use ring::signature::Ed25519KeyPair;
+
+        let rng = SystemRandom::new();
+        let persisted = (|| -> Result<LabAttestationKeys, String> {
+            let master_key = load_or_create_master_key()?;
+            let store_path = secure_passkey_dir()?.join("lab_attestation_ed25519_v2.json");
+            if store_path.exists() {
+                if let Ok(raw) = std::fs::read_to_string(&store_path) {
+                    if let Ok(stored) = serde_json::from_str::<SealedLabAttestationStore>(&raw) {
+                        if let Ok(pkcs8) = unseal_private_key_with_key(
+                            &master_key,
+                            "lab_cert_ed25519",
+                            "v2",
+                            &stored.nonce_b64,
+                            &stored.sealed_pkcs8_b64,
+                        ) {
+                            if let Ok(kp) = Ed25519KeyPair::from_pkcs8(&pkcs8) {
+                                return Ok(LabAttestationKeys {
+                                    keypair: kp,
+                                    hmac_key: master_key,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            let pkcs8 = Ed25519KeyPair::generate_pkcs8(&rng)
+                .map_err(|_| "Failed generating Ed25519 lab attestation keypair.".to_string())?;
+            let kp = Ed25519KeyPair::from_pkcs8(pkcs8.as_ref())
+                .map_err(|_| "Failed loading fresh Ed25519 lab attestation keypair.".to_string())?;
+            let (nonce_b64, sealed_pkcs8_b64) = seal_private_key_with_key(
+                &master_key,
+                "lab_cert_ed25519",
+                "v2",
+                pkcs8.as_ref(),
+            )?;
+            let serialized = serde_json::to_string_pretty(&SealedLabAttestationStore {
+                nonce_b64,
+                sealed_pkcs8_b64,
+            })
+            .map_err(|e| e.to_string())?;
+            let _ = write_restricted_file(&store_path, serialized.as_bytes());
+            Ok(LabAttestationKeys {
+                keypair: kp,
+                hmac_key: master_key,
+            })
+        })();
+
+        if let Ok(keys) = persisted {
+            return keys;
+        }
+
+        let mut eph_hmac = [0u8; 32];
+        let _ = rng.fill(&mut eph_hmac);
+        let pkcs8 = Ed25519KeyPair::generate_pkcs8(&rng).expect("Ed25519 keygen failed");
+        let kp = Ed25519KeyPair::from_pkcs8(pkcs8.as_ref()).expect("Ed25519 pkcs8 failed");
+        LabAttestationKeys {
+            keypair: kp,
+            hmac_key: eph_hmac,
+        }
+    })
+}
+
+fn canonical_lab_cert_payload_v2(cert: &LabVerificationCertificate) -> String {
+    format!(
+        "sanctuary_lab_cert_v2|{}|{}|{}|{}|{}|{}|{}",
+        cert.dna_hash.trim().to_ascii_lowercase(),
+        cert.verified_at,
+        cert.active_seconds,
+        cert.baseline_ram_mb,
+        cert.peak_ram_mb,
+        cert.disk_read_mb,
+        cert.save_file_verified.trim(),
+    )
+}
+
+pub(crate) fn seal_lab_certificate(cert: &mut LabVerificationCertificate) {
+    use ring::hmac;
+    use ring::signature::KeyPair;
+
+    let keys = load_or_init_lab_attestation_keys();
+    let canonical = canonical_lab_cert_payload_v2(cert);
+    let sig = keys.keypair.sign(canonical.as_bytes());
+    let pub_hex = hex::encode(keys.keypair.public_key().as_ref());
+    let sig_hex = hex::encode(sig.as_ref());
+    let local_payload = format!("{}|{}|{}", canonical, pub_hex, sig_hex);
+    let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, &keys.hmac_key);
+    let local_tag = hmac::sign(&hmac_key, local_payload.as_bytes());
+
+    cert.seal_pubkey = pub_hex;
+    cert.seal_sig = sig_hex;
+    cert.local_seal_sig = hex::encode(local_tag.as_ref());
+}
+
+pub(crate) fn has_valid_lab_cert_seal(cert: &LabVerificationCertificate) -> bool {
+    use ring::hmac;
+    use ring::signature::{UnparsedPublicKey, ED25519};
+
+    let hash_clean = cert.dna_hash.trim();
+    if hash_clean.len() != 64 || !hash_clean.chars().all(|c| c.is_ascii_hexdigit()) {
+        return false;
+    }
+    if cert.verified_at < 1_700_000_000
+        || cert.active_seconds < 15
+        || cert.peak_ram_mb < cert.baseline_ram_mb
+        || cert.save_file_verified.trim().is_empty()
+    {
+        return false;
+    }
+    let pub_clean = cert.seal_pubkey.trim().to_ascii_lowercase();
+    let sig_clean = cert.seal_sig.trim().to_ascii_lowercase();
+    let local_clean = cert.local_seal_sig.trim().to_ascii_lowercase();
+    if pub_clean.len() != 64
+        || pub_clean.chars().all(|c| c == '0')
+        || sig_clean.len() != 128
+        || local_clean.len() != 64
+    {
+        return false;
+    }
+    let (Ok(pub_bytes), Ok(sig_bytes), Ok(local_bytes)) = (
+        hex::decode(&pub_clean),
+        hex::decode(&sig_clean),
+        hex::decode(&local_clean),
+    ) else {
+        return false;
+    };
+    if pub_bytes.len() != 32 || sig_bytes.len() != 64 || local_bytes.len() != 32 {
+        return false;
+    }
+    let canonical = canonical_lab_cert_payload_v2(cert);
+    if UnparsedPublicKey::new(&ED25519, &pub_bytes)
+        .verify(canonical.as_bytes(), &sig_bytes)
+        .is_err()
+    {
+        return false;
+    }
+    let keys = load_or_init_lab_attestation_keys();
+    let local_payload = format!("{}|{}|{}", canonical, pub_clean, sig_clean);
+    let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, &keys.hmac_key);
+    hmac::verify(&hmac_key, local_payload.as_bytes(), &local_bytes).is_ok()
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -645,9 +813,8 @@ pub(super) fn evaluate_stage3_pause_and_credit(
     let active_input_now = m.current_idle_seconds <= 1;
     *recent_input_mask = ((*recent_input_mask << 1) | u16::from(active_input_now)) & 0x03FF;
 
-    // Natural gameplay cadence ceiling (8..=12s) so watching an animation/interaction for a few seconds
-    // NEVER throws false IDLE pauses, while going hands-off on a clicked Pause Menu stops & discards buffered time!
-    let effective_idle_limit = m.max_idle_seconds.clamp(8, 12);
+    // Honor schema max_idle_seconds within generous safety bounds (3..=600s)
+    let effective_idle_limit = m.max_idle_seconds.clamp(3, 600);
     if m.current_idle_seconds > effective_idle_limit {
         *pending_idle_seconds = 0;
         *consecutive_active_input_ticks = 0;
@@ -726,4 +893,53 @@ pub(super) fn evaluate_stage3_pause_and_credit(
 
 pub(super) fn get_lab_session_mutex() -> &'static std::sync::Mutex<Option<ActiveLabSession>> {
     LAB_SESSION.get_or_init(|| std::sync::Mutex::new(None))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lab_certificate_seal_roundtrip_and_tamper_rejection() {
+        use ring::rand::SystemRandom;
+        use ring::signature::{Ed25519KeyPair, KeyPair};
+
+        let mut cert = LabVerificationCertificate {
+            dna_hash: "a".repeat(64),
+            mod_name: "TestArtifact".to_string(),
+            verified_at: 1_750_000_000,
+            active_seconds: 120,
+            baseline_ram_mb: 1024,
+            peak_ram_mb: 2048,
+            disk_read_mb: 150,
+            save_file_verified: "Slot_01.save".to_string(),
+            seal_pubkey: String::new(),
+            seal_sig: String::new(),
+            local_seal_sig: String::new(),
+        };
+        assert!(!has_valid_lab_cert_seal(&cert));
+        seal_lab_certificate(&mut cert);
+        assert_eq!(cert.seal_pubkey.len(), 64);
+        assert_eq!(cert.seal_sig.len(), 128);
+        assert_eq!(cert.local_seal_sig.len(), 64);
+        assert!(has_valid_lab_cert_seal(&cert));
+
+        let mut tampered_secs = cert.clone();
+        tampered_secs.active_seconds = 999;
+        assert!(!has_valid_lab_cert_seal(&tampered_secs));
+
+        let mut tampered_hash = cert.clone();
+        tampered_hash.dna_hash = "b".repeat(64);
+        assert!(!has_valid_lab_cert_seal(&tampered_hash));
+
+        // External attacker Ed25519 keypair cannot pass local device HMAC check
+        let rng = SystemRandom::new();
+        let rogue_pkcs8 = Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
+        let rogue_kp = Ed25519KeyPair::from_pkcs8(rogue_pkcs8.as_ref()).unwrap();
+        let canonical = canonical_lab_cert_payload_v2(&cert);
+        let mut forged = cert.clone();
+        forged.seal_pubkey = hex::encode(rogue_kp.public_key().as_ref());
+        forged.seal_sig = hex::encode(rogue_kp.sign(canonical.as_bytes()).as_ref());
+        assert!(!has_valid_lab_cert_seal(&forged));
+    }
 }

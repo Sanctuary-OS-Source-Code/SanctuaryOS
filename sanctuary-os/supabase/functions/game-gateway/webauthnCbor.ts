@@ -1,5 +1,5 @@
-// @ts-nocheck
-import { b64UrlToBytes } from './cryptoEnvelope.ts'
+/// <reference path="../deno.d.ts" />
+import { b64UrlToBytes, bytesToB64Url } from './cryptoEnvelope.ts'
 
 export function decodeCborItem(bytes: Uint8Array, offset = 0): { value: any; offset: number } {
   if (offset >= bytes.length) throw new Error('CBOR unexpected EOF');
@@ -69,7 +69,7 @@ export function decodeCborItem(bytes: Uint8Array, offset = 0): { value: any; off
   throw new Error('Unsupported CBOR major type: ' + major);
 }
 
-export function derSignatureToP1363(der: Uint8Array): Uint8Array {
+export function derSignatureToP1363(der: Uint8Array) {
   if (der.length === 64 && der[0] !== 0x30) return der;
   let pos = 0;
   if (der[pos++] !== 0x30) throw new Error('Invalid DER ECDSA signature');
@@ -116,7 +116,12 @@ export async function verifyCoseSignature(
       false,
       ['verify']
     );
-    return await crypto.subtle.verify({ name: 'RSASSA-PKCS1-v1_5' }, key, signatureBytes, signedData);
+    return await crypto.subtle.verify(
+      { name: 'RSASSA-PKCS1-v1_5' },
+      key,
+      signatureBytes as BufferSource,
+      signedData as BufferSource
+    );
   }
 
   if (kty === 2 || alg === -7) {
@@ -134,8 +139,8 @@ export async function verifyCoseSignature(
     return await crypto.subtle.verify(
       { name: 'ECDSA', hash: 'SHA-256' },
       key,
-      p1363Sig,
-      signedData
+      p1363Sig as BufferSource,
+      signedData as BufferSource
     );
   }
 
@@ -149,7 +154,12 @@ export async function verifyCoseSignature(
       false,
       ['verify']
     );
-    return await crypto.subtle.verify({ name: 'Ed25519' }, key, signatureBytes, signedData);
+    return await crypto.subtle.verify(
+      { name: 'Ed25519' },
+      key,
+      signatureBytes as BufferSource,
+      signedData as BufferSource
+    );
   }
 
   throw new Error(`Unsupported COSE key type (${kty}) or algorithm (${alg})`);

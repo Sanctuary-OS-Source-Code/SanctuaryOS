@@ -48,7 +48,7 @@ function getOrLoadWorkspaceCache(wsId: string): Map<string, number> {
         for (const [k, v] of Object.entries(parsed)) {
           const hash = normalizeComplianceHash(k);
           const tier = Number(v);
-          if (hash && Number.isFinite(tier) && tier >= 1 && tier <= 5) {
+          if (hash && Number.isFinite(tier) && tier >= 1 && tier <= 6) {
             map.set(hash, tier);
           }
         }
@@ -65,7 +65,7 @@ function persistWorkspaceCache(wsId: string, cache: Map<string, number>): void {
   try {
     const obj: Record<string, number> = {};
     cache.forEach((tier, hash) => {
-      if (tier >= 1 && tier <= 5) obj[hash] = tier;
+      if (tier >= 1 && tier <= 6) obj[hash] = tier;
     });
     localStorage.setItem(`${STORAGE_KEY_PREFIX}${wsId}`, JSON.stringify(obj));
   } catch {
@@ -156,7 +156,7 @@ export async function resolveComplianceHashTiers(
           for (const row of data) {
             const hash = normalizeComplianceHash(row?.dna_hash);
             const tier = Number(row?.compliance_tier ?? 0);
-            if (hash && Number.isFinite(tier) && tier >= 1 && tier <= 5) {
+            if (hash && Number.isFinite(tier) && tier >= 1 && tier <= 6) {
               cache.set(hash, tier);
               cacheMutated = true;
             }
@@ -196,7 +196,7 @@ export function resolveEffectiveModComplianceTier(
 
   const hash = normalizeComplianceHash(mod?.hash || mod?.dna_hash || fallbackHash);
   const rpcTier = hash ? effectiveMap.get(hash) : undefined;
-  if (typeof rpcTier === "number" && rpcTier >= 1 && rpcTier <= 5) {
+  if (typeof rpcTier === "number" && rpcTier >= 1 && rpcTier <= 6) {
     return rpcTier;
   }
 

@@ -87,7 +87,7 @@ pub(crate) mod local_passkey_vault {
         pub created_at: u64,
     }
 
-    fn secure_passkey_dir() -> Result<PathBuf, String> {
+    pub fn secure_passkey_dir() -> Result<PathBuf, String> {
         let mut dir = dirs::data_local_dir()
             .or_else(dirs::home_dir)
             .ok_or_else(|| "Unable to resolve local application data directory.".to_string())?;
@@ -102,7 +102,7 @@ pub(crate) mod local_passkey_vault {
         Ok(dir)
     }
 
-    fn write_restricted_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    pub fn write_restricted_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
         crate::utils::atomic_write_bytes(path, bytes)?;
         #[cfg(unix)]
         {

@@ -1,4 +1,4 @@
-// @ts-nocheck
+/// <reference path="../deno.d.ts" />
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {
@@ -52,7 +52,7 @@ serve(async (req) => {
     // Special Hub-wide action: WebAuthn Assertion Verification
 
     const preAuthRes = await handlePreAuthGatewayActions({
-      req, action, payload, game_id, supabaseUrl, supabaseAnonKey, supabaseAdmin, corsHeaders,
+      req, action, payload, game_id, user, supabaseClient, supabaseUrl, supabaseAnonKey, supabaseAdmin, corsHeaders,
     })
     if (preAuthRes) return preAuthRes
 
@@ -65,14 +65,14 @@ serve(async (req) => {
 
 
     const webauthnRegRes = await handleWebAuthnRegistration({
-      req, action, payload, token, v_user_id, supabaseUrl, supabaseAnonKey, supabaseAdmin, corsHeaders,
+      req, action, payload, token, user, v_user_id, supabaseUrl, supabaseAnonKey, supabaseAdmin, corsHeaders,
     })
     if (webauthnRegRes) return webauthnRegRes
 
     // Fetch authoritative Hub Profile for caller
     const { data: hubProfile } = await supabaseAdmin
       .from('profiles')
-      .select('id, username, role, is_banned, blacklist_reason')
+      .select('id, username, role, is_banned, blacklist_reason, dmca_strike_count, cloud_publishing_revoked')
       .eq('id', v_user_id)
       .maybeSingle()
 
@@ -80,6 +80,7 @@ serve(async (req) => {
     const hubRole = (hubProfile?.role || 'citizen').toLowerCase()
     const hubIsBanned = hubProfile?.is_banned ?? false
     const hubBlacklistReason = hubProfile?.blacklist_reason ?? null
+    const hubCloudPublishingRevoked = Boolean(hubProfile?.cloud_publishing_revoked)
 
 
     const keeperHubRes = await handleKeeperHubActions({
@@ -129,7 +130,7 @@ serve(async (req) => {
     // 6. Sync Caller's Hub Identity (id, username, is_banned, blacklist_reason) -> Spoke profiles
     const { data: existingSpokeProfile } = await gameDb
       .from('profiles')
-      .select('id, username, role, is_banned, blacklist_reason, is_comm_banned, comm_blacklist_reason')
+      .select('id, username, role, is_banned, blacklist_reason, is_comm_banned, comm_blacklist_reason, dmca_strike_count, cloud_publishing_revoked')
       .eq('id', v_user_id)
       .maybeSingle()
 
@@ -144,7 +145,7 @@ serve(async (req) => {
           is_banned: hubIsBanned,
           blacklist_reason: hubBlacklistReason
         })
-        .select('id, username, role, is_banned, blacklist_reason, is_comm_banned, comm_blacklist_reason')
+        .select('id, username, role, is_banned, blacklist_reason, is_comm_banned, comm_blacklist_reason, dmca_strike_count, cloud_publishing_revoked')
         .maybeSingle()
       if (insertErr) console.error("Profile insert warning:", insertErr)
       callerSpokeProfile = insertedProfile || {
@@ -154,7 +155,9 @@ serve(async (req) => {
         is_banned: hubIsBanned,
         blacklist_reason: hubBlacklistReason,
         is_comm_banned: false,
-        comm_blacklist_reason: null
+        comm_blacklist_reason: null,
+        dmca_strike_count: 0,
+        cloud_publishing_revoked: false,
       }
     } else if (
       existingSpokeProfile.username !== hubUsername ||
@@ -169,7 +172,7 @@ serve(async (req) => {
         .from('profiles')
         .update(syncFields)
         .eq('id', v_user_id)
-        .select('id, username, role, is_banned, blacklist_reason, is_comm_banned, comm_blacklist_reason')
+        .select('id, username, role, is_banned, blacklist_reason, is_comm_banned, comm_blacklist_reason, dmca_strike_count, cloud_publishing_revoked')
         .maybeSingle()
       if (syncErr) console.error("Profile sync warning:", syncErr)
       if (updatedProfile) callerSpokeProfile = updatedProfile
@@ -192,14 +195,17 @@ serve(async (req) => {
     let resultData: any = null
     if (action === 'spoke_query' || action === 'spoke_query_batch') {
       resultData = await handleSpokeQueryAction({
-        action, payload, game, gameDb, v_user_id, callerSpokeProfile, callerSpokeRole,
-        isCallerBanned, isCallerStaff, isCallerCreatorOrStaff, isArchitectOnlyStaff, isOversightOnlyStaff,
+        action, payload, game, gameDb, v_user_id, hubRole, hubCloudPublishingRevoked, isFoundryTestNodeKeeper,
+        callerSpokeProfile, callerSpokeRole, isCallerBanned, isCallerStaff,
+        isCallerCreatorOrStaff, isArchitectOnlyStaff, isOversightOnlyStaff,
         ...ownershipHelpers,
       })
     } else {
       resultData = await handleSpokeMutationAction({
-        action, payload, game, gameDb, v_user_id, hubUsername, hubRole, hubIsBanned, hubBlacklistReason,
+        action, payload, game, gameDb, gameServiceKey, v_user_id, hubUsername, hubRole, hubIsBanned, hubBlacklistReason,
+        hubCloudPublishingRevoked,
         callerSpokeProfile, callerSpokeRole, isCallerBanned, isCallerStaff, isCallerCreatorOrStaff,
+        isFoundryTestNodeKeeper, isArchitectOnlyStaff, isOversightOnlyStaff,
         resolvedCredentialKind, resolvedKeyVersion, resolvedKeyFingerprint, resolvedRotatedAt,
         supabaseAdmin, ...ownershipHelpers,
       })

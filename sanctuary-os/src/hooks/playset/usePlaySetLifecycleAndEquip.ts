@@ -8,6 +8,10 @@ import {
 } from "../../shared";
 import { mergeImportedModWithClientPriority } from "../../utils/blueprintOverrideUtils";
 import { checkAndPromptSymlinkCloudSyncConsent } from "../../utils/cloudSyncGuard";
+import {
+  translateExternalModlistToBlueprint,
+  type DroppedJsonInspectionReport,
+} from "../../utils/jsonAssetDropInstaller";
 import type { CompiledLoadOrderItem } from "./types";
 import { compileLoadOrder, unpackBlueprintLoadOrder } from "./loadOrderCompiler";
 import { precomputeBlueprintConflicts } from "./conflictPrecomputer";
@@ -67,15 +71,59 @@ export function usePlaySetLifecycleAndEquip({
   async function importPlaySet() {
     try {
       const selected = await open({
-        filters: [{ name: "Sanctuary Profile", extensions: ["json"] }],
+        filters: [
+          {
+            name: "Blueprints & Modlists",
+            extensions: ["json", "mrpack", "wabbajack", "zip"],
+          },
+        ],
       });
       if (!selected) return;
-      const content = await invoke<string>("read_blueprint", {
-        path: selected as string,
-      });
-      const parsed = JSON.parse(content);
-      if (!parsed.sanctuary_profile) {
-        alert(t("status_invalid_profile", "Invalid Profile format."));
+      const selectedPath = String(selected);
+      const lowerSelected = selectedPath.toLowerCase();
+      let parsed: any = null;
+
+      if (
+        lowerSelected.endsWith(".mrpack") ||
+        lowerSelected.endsWith(".wabbajack") ||
+        lowerSelected.endsWith(".zip")
+      ) {
+        const report = await invoke<DroppedJsonInspectionReport>("inspect_dropped_json_bundles", {
+          paths: [selectedPath],
+        });
+        for (const jf of report.json_files || []) {
+          try {
+            const candidate = JSON.parse(jf.json_text);
+            parsed = translateExternalModlistToBlueprint(jf.file_name, candidate) || candidate;
+            if (parsed?.sanctuary_profile) break;
+          } catch { }
+        }
+        if (!parsed?.sanctuary_profile) {
+          for (const zb of report.zip_bundles || []) {
+            for (const entry of zb.json_entries || []) {
+              try {
+                const candidate = JSON.parse(entry.json_text);
+                parsed =
+                  translateExternalModlistToBlueprint(entry.entry_name, candidate) ||
+                  candidate;
+                if (parsed?.sanctuary_profile) break;
+              } catch { }
+            }
+            if (parsed?.sanctuary_profile) break;
+          }
+        }
+      } else {
+        const content = await invoke<string>("read_blueprint", {
+          path: selectedPath,
+        });
+        const rawParsed = JSON.parse(content);
+        parsed = translateExternalModlistToBlueprint(selectedPath, rawParsed) || rawParsed;
+      }
+
+      if (!parsed || !parsed.sanctuary_profile) {
+        const invalidMsg = t("status_invalid_profile", "Invalid Profile format.");
+        setStatus(invalidMsg);
+        useStore.getState().pushStatus?.(invalidMsg, "error");
         return;
       }
       const missing: any[] = [];
@@ -291,6 +339,18 @@ export function usePlaySetLifecycleAndEquip({
         }
       });
 
+      const preserveStructure = Boolean(
+        activeGameSchema?.constraints?.preserve_archive_folder_structure
+      );
+      const sharedWithVanilla = Boolean(
+        activeGameSchema?.constraints?.mods_dir_is_shared_with_vanilla
+      );
+      const loadStrategy = String(
+        activeGameSchema?.load_order?.strategy || "manifest_list"
+      ).toLowerCase();
+      const deployedDirUnits = new Set<string>();
+      const deployedDirUnitPrefixes = new Set<string>();
+
       targetSet.mods.forEach((rawMod: any) => {
         const modName = typeof rawMod === 'string' ? rawMod : String(rawMod?.name || rawMod?.path || '');
         if (!modName) return;
@@ -312,14 +372,52 @@ export function usePlaySetLifecycleAndEquip({
         const norm = normalize(noExt);
 
         const folderPath = fileNameToPathMap.get(flatLower) ?? fileNameToPathMap.get(noExt) ?? fileNameToPathMap.get(norm);
+        const firstSlashSeg = String(vaultSourcePath || modName || "").replace(/\\/g, "/").split("/")[0]?.toLowerCase() || "";
+        const schemaTierMatch = (activeGameSchema?.load_order?.priority_tiers || []).find(
+          (pt: any) => String(pt?.folder || "").toLowerCase() === firstSlashSeg
+        );
+
+        const vaultRelClean = stripPriorityTierPrefix(
+          String(vaultSourcePath || "").replace(/\\/g, "/").replace(/^\/+/, ""),
+          activeGameSchema
+        );
+        const vaultRelSegs = vaultRelClean.split("/").filter(Boolean);
+
+        if (preserveStructure && vaultRelSegs.length > 1 && folderPath === undefined) {
+          const rootModFolder = vaultRelSegs[0];
+          const unitVaultPath = schemaTierMatch?.folder
+            ? `${schemaTierMatch.folder}/${rootModFolder}`
+            : rootModFolder;
+          const unitKey = unitVaultPath.toLowerCase();
+          if (!deployedDirUnits.has(unitKey)) {
+            deployedDirUnits.add(unitKey);
+            deployedDirUnitPrefixes.add(`${rootModFolder.toLowerCase()}/`);
+            const unitTargetPath = sharedWithVanilla
+              ? ""
+              : (schemaTierMatch?.folder ? `${schemaTierMatch.folder}/${rootModFolder}` : rootModFolder);
+            const hiddenMap = targetSet.hiddenFiles || {};
+            const hiddenForUnit = Array.isArray(hiddenMap[rootModFolder])
+              ? hiddenMap[rootModFolder]
+              : Array.isArray(hiddenMap[rootModFolder.toLowerCase()])
+                ? hiddenMap[rootModFolder.toLowerCase()]
+                : Array.isArray(hiddenMap[unitVaultPath])
+                  ? hiddenMap[unitVaultPath]
+                  : [];
+            deployPayload.push({
+              path: unitVaultPath,
+              allow_write: Boolean(modObj?.allow_write),
+              target_path: unitTargetPath,
+              is_dir_unit: true,
+              hidden_files: hiddenForUnit,
+            });
+          }
+          return;
+        }
+
         if (folderPath !== undefined && folderPath !== null) {
           targetPath = folderPath ? `${folderPath}/${flatFileName}` : flatFileName;
         }
 
-        const firstSlashSeg = String(modName || "").replace(/\\/g, "/").split("/")[0]?.toLowerCase() || "";
-        const schemaTierMatch = (activeGameSchema?.load_order?.priority_tiers || []).find(
-          (pt: any) => String(pt?.folder || "").toLowerCase() === firstSlashSeg
-        );
         if (schemaTierMatch?.folder && !targetPath.toLowerCase().startsWith(`${schemaTierMatch.folder.toLowerCase()}/`)) {
           targetPath = `${schemaTierMatch.folder}/${targetPath}`;
         }
@@ -338,6 +436,10 @@ export function usePlaySetLifecycleAndEquip({
 
       modList.forEach((m: any) => {
         if (deployPayloadPaths.has(m.name)) return;
+        const mClean = stripPriorityTierPrefix(String(m.name || "").replace(/\\/g, "/").replace(/^\/+/, ""), activeGameSchema).toLowerCase();
+        for (const unitPrefix of deployedDirUnitPrefixes) {
+          if (mClean.startsWith(unitPrefix)) return;
+        }
 
         const flatFileName = m.name.split(/[\\/]/).pop() || m.name;
         const flatLower = flatFileName.toLowerCase();
@@ -443,18 +545,28 @@ export function usePlaySetLifecycleAndEquip({
 
       deployPayload.forEach((dp) => {
         const flatFileName = dp.path.split(/[\\/]/).pop() || dp.path;
-        const compiled = compiledByClean.get(flatFileName.toLowerCase());
+        let compiled = compiledByClean.get(flatFileName.toLowerCase());
+        if (!compiled && dp.is_dir_unit) {
+          const unitPrefix = `${flatFileName.toLowerCase()}/`;
+          compiled = compiledOrder.items.find((item) =>
+            item.cleanName.toLowerCase().startsWith(unitPrefix)
+          );
+        }
         if (compiled) {
           dp.load_order_index = compiled.index;
           if (compiled.tierFolder) {
             dp.priority_tier = compiled.tierFolder;
-            const currentTarget = (dp.target_path || flatFileName).replace(/\\/g, "/");
-            const segs = currentTarget.split("/");
-            if (segs.length > 1 && knownTierFoldersLower.has(segs[0].toLowerCase())) {
-              segs[0] = compiled.tierFolder;
-              dp.target_path = segs.join("/");
+            const currentTarget = String(dp.target_path ?? flatFileName).replace(/\\/g, "/");
+            if (currentTarget === "" && sharedWithVanilla && loadStrategy !== "folder_priority") {
+              dp.target_path = "";
             } else {
-              dp.target_path = `${compiled.tierFolder}/${currentTarget}`;
+              const segs = currentTarget.split("/").filter(Boolean);
+              if (segs.length > 1 && knownTierFoldersLower.has(segs[0].toLowerCase())) {
+                segs[0] = compiled.tierFolder;
+                dp.target_path = segs.join("/");
+              } else {
+                dp.target_path = segs.length > 0 ? `${compiled.tierFolder}/${segs.join("/")}` : compiled.tierFolder;
+              }
             }
           }
         }

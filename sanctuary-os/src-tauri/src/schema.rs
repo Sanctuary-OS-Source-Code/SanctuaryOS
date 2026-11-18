@@ -188,6 +188,67 @@ where
     }
 }
 
+fn deserialize_opt_dll_overrides_flex<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<String>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let val = Option::<serde_json::Value>::deserialize(deserializer)?;
+    match val {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(serde_json::Value::Array(arr)) => {
+            let mut out = Vec::new();
+            for item in arr {
+                if let Some(s) = item.as_str() {
+                    let clean = s.trim().to_string();
+                    if !clean.is_empty() && !out.contains(&clean) {
+                        out.push(clean);
+                    }
+                }
+            }
+            Ok(Some(out))
+        }
+        Some(serde_json::Value::Object(map)) => {
+            let mut pairs: Vec<(String, String)> = map
+                .into_iter()
+                .filter_map(|(k, v)| {
+                    let key = k.trim().to_string();
+                    if key.is_empty() {
+                        return None;
+                    }
+                    let val_str = match v {
+                        serde_json::Value::String(s) => s.trim().to_string(),
+                        _ => "n,b".to_string(),
+                    };
+                    let mode = if val_str.is_empty() {
+                        "n,b".to_string()
+                    } else {
+                        val_str
+                    };
+                    Some((key, mode))
+                })
+                .collect();
+            pairs.sort_by(|a, b| a.0.to_ascii_lowercase().cmp(&b.0.to_ascii_lowercase()));
+            let out: Vec<String> = pairs
+                .into_iter()
+                .map(|(k, m)| format!("{}={}", k, m))
+                .collect();
+            Ok(Some(out))
+        }
+        Some(serde_json::Value::String(s)) => {
+            let out: Vec<String> = s
+                .split(&[';', ','][..])
+                .map(str::trim)
+                .filter(|x| !x.is_empty())
+                .map(String::from)
+                .collect();
+            Ok((!out.is_empty()).then_some(out))
+        }
+        _ => Ok(None),
+    }
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Default)]
 pub struct BackupTarget {
     #[serde(default)]
@@ -256,6 +317,8 @@ pub struct SchemaConflictAnalyzer {
     pub bitmask_constant_header: Option<bool>,
     #[serde(default)]
     pub selector_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub container_format: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -335,6 +398,20 @@ pub struct PriorityTier {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct ManifestBaseEntryDescriptor {
+    #[serde(default)]
+    pub uuid: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub folder: String,
+    #[serde(default)]
+    pub version64: Option<String>,
+    #[serde(default)]
+    pub publish_handle: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ManifestTargetDescriptor {
     #[serde(default)]
     pub root_source: String,
@@ -354,6 +431,10 @@ pub struct ManifestTargetDescriptor {
     pub header: Option<String>,
     #[serde(default)]
     pub footer: Option<String>,
+    #[serde(default)]
+    pub include_extensions: Vec<String>,
+    #[serde(default)]
+    pub base_entries: Vec<ManifestBaseEntryDescriptor>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -378,6 +459,22 @@ pub struct SchemaModMetadataExtractor {
     pub load_after_key: Option<String>,
     #[serde(default)]
     pub binary_master_header: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct LoadOrderSlotBucket {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub label: String,
+    #[serde(default, deserialize_with = "deserialize_u32_flex")]
+    pub max_slots: u32,
+    #[serde(default)]
+    pub include_extensions: Vec<String>,
+    #[serde(default, deserialize_with = "deserialize_opt_u32_flex")]
+    pub required_flag_mask: Option<u32>,
+    #[serde(default, deserialize_with = "deserialize_opt_u32_flex")]
+    pub excluded_flag_mask: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -410,6 +507,12 @@ pub struct LoadOrderConfig {
     pub timestamp_step_secs: Option<u64>,
     #[serde(default)]
     pub asset_overwrite_order: Option<String>,
+    #[serde(default)]
+    pub slot_buckets: Option<Vec<LoadOrderSlotBucket>>,
+    #[serde(default, deserialize_with = "deserialize_opt_u32_flex")]
+    pub early_master_flag_mask: Option<u32>,
+    #[serde(default)]
+    pub early_master_extensions: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -513,7 +616,7 @@ pub struct GameSchema {
     pub install_routes: Option<Vec<SchemaInstallRoute>>,
     #[serde(default)]
     pub lab_verification: Option<SchemaLabVerification>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_opt_dll_overrides_flex")]
     pub wine_dll_overrides: Option<Vec<String>>,
     #[serde(default)]
     pub mod_metadata_extractor: Option<SchemaModMetadataExtractor>,
@@ -667,5 +770,39 @@ mod tests {
         );
         assert_eq!(parsed_cloud.constraints.as_ref().unwrap().requires_script_unzipping, None);
         assert_eq!(parsed_cloud.constraints.as_ref().unwrap().wrap_loose_files_in_folders, Some(true));
+
+        let map_overrides_json = r#"{
+            "id": "skyrim_test",
+            "wine_dll_overrides": { "winhttp": "n,b", "dinput8": "n,b" },
+            "load_order": {
+                "manifest_targets": [
+                    {
+                        "root_source": "local_appdata",
+                        "relative_path": "Skyrim Special Edition/plugins.txt",
+                        "format": "plugins_asterisk",
+                        "include_extensions": [".esm", ".esp", ".esl"]
+                    }
+                ]
+            }
+        }"#;
+        let parsed_map: GameSchema =
+            serde_json::from_str(map_overrides_json).expect("parse map wine_dll_overrides");
+        assert_eq!(
+            parsed_map.wine_dll_overrides,
+            Some(vec!["dinput8=n,b".to_string(), "winhttp=n,b".to_string()])
+        );
+        let mt = &parsed_map.load_order.unwrap().manifest_targets.unwrap()[0];
+        assert_eq!(mt.include_extensions, vec![".esm", ".esp", ".esl"]);
+
+        let vec_overrides_json = r#"{
+            "id": "vec_test",
+            "wine_dll_overrides": ["version=n,b", "DWrite"]
+        }"#;
+        let parsed_vec: GameSchema =
+            serde_json::from_str(vec_overrides_json).expect("parse vec wine_dll_overrides");
+        assert_eq!(
+            parsed_vec.wine_dll_overrides,
+            Some(vec!["version=n,b".to_string(), "DWrite".to_string()])
+        );
     }
 }

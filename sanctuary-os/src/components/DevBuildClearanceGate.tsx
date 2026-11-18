@@ -4,7 +4,7 @@ import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
 import { useTooltipStore } from "../store/tooltipStore";
-import { supabase } from "../supabase";
+import { supabase, getReleaseBaseUrl } from "../supabase";
 import { isDesktop } from "../utils/envUtils";
 import {
   clearPasskeySessionVerified,
@@ -115,9 +115,9 @@ export function DevBuildClearanceGate() {
     const targetStableVer = (clearance?.stableVersion || "0.6.0")
       .replace(/^v/i, "")
       .trim();
+    const fallbackBase = getReleaseBaseUrl();
     const targetStableUrl =
-      clearance?.stableDownloadUrl ||
-      "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases";
+      clearance?.stableDownloadUrl || fallbackBase;
 
     try {
       await setDevBuildChannelPreference(false);

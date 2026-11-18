@@ -4,7 +4,7 @@ import { DynamicBlueprintPreviewBanner } from "../../chameleon-components/ThemeC
 import { openSanctuaryContextMenu, SanctuaryContextMenuItem } from "../../shared-components/ContextMenu";
 import { ResolvedStagedPayload } from "../../utils/stagingCrypto";
 import { VAULT_CHIP_CLASS } from "../../shared-components/constants";
-import { LiquidGlassReadinessBar } from "../BlueprintPatchReadiness";
+import { LiquidGlassReadinessBar } from "../patch-readiness/LiquidGlassReadinessWidgets";
 
 export function useBlueprintCardRenderers({
   playSets,

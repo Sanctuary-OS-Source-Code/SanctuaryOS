@@ -441,15 +441,180 @@ export function parseTomlConfig(content: string): { data: Record<string, any>; p
    return { data: root, problems };
 }
 
-export function stringifyTomlConfig(data: Record<string, any>): string {
-   const out: string[] = [];
+function splitTrailingHashComment(rawRhs: string): { valuePart: string; commentPart: string } {
+   let inDouble = false;
+   let inSingle = false;
+   for (let i = 0; i < rawRhs.length; i++) {
+      const ch = rawRhs[i];
+      if (inDouble) {
+         if (ch === '\\' && i + 1 < rawRhs.length) {
+            i++;
+            continue;
+         }
+         if (ch === '"') inDouble = false;
+      } else if (inSingle) {
+         if (ch === "'") inSingle = false;
+      } else {
+         if (ch === '"') inDouble = true;
+         else if (ch === "'") inSingle = true;
+         else if (ch === '#') {
+            return { valuePart: rawRhs.slice(0, i), commentPart: rawRhs.slice(i) };
+         }
+      }
+   }
+   return { valuePart: rawRhs, commentPart: '' };
+}
 
-   const formatTomlValue = (val: any): string => {
+function getNestedValue(obj: any, path: string[]): any {
+   let cur = obj;
+   for (const seg of path) {
+      if (cur === null || cur === undefined || typeof cur !== 'object') return undefined;
+      cur = cur[seg];
+   }
+   return cur;
+}
+
+function collectLeafEntries(obj: any, prefix: string[] = []): Array<{ path: string[]; value: any }> {
+   const out: Array<{ path: string[]; value: any }> = [];
+   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return out;
+   for (const [k, v] of Object.entries(obj)) {
+      if (v === undefined) continue;
+      const nextPath = [...prefix, k];
+      if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+         out.push(...collectLeafEntries(v, nextPath));
+      } else {
+         out.push({ path: nextPath, value: v });
+      }
+   }
+   return out;
+}
+
+export function stringifyTomlConfig(data: Record<string, any>, originalContent?: string): string {
+   const formatTomlValue = (val: any, origValuePart?: string): string => {
       if (typeof val === 'boolean' || typeof val === 'number') return String(val);
-      if (Array.isArray(val)) return `[${val.map(formatTomlValue).join(', ')}]`;
-      return JSON.stringify(String(val ?? ''));
+      if (Array.isArray(val)) return `[${val.map((item) => formatTomlValue(item)).join(', ')}]`;
+      const strVal = String(val ?? '');
+      const trimmedOrig = (origValuePart || '').trim();
+      if (trimmedOrig.startsWith("'") && trimmedOrig.endsWith("'") && !strVal.includes("'")) {
+         return `'${strVal}'`;
+      }
+      return JSON.stringify(strVal);
    };
 
+   if (originalContent && originalContent.trim().length > 0) {
+      const lines = originalContent.replace(/\r\n/g, '\n').split('\n');
+      const newLines: string[] = [];
+      const tableLastLineMap = new Map<string, number>();
+      const updatedPaths = new Set<string>();
+      let currentTable: string[] = [];
+      let firstTableLineIdx = -1;
+
+      const parsePathSegs = (rawHeader: string): string[] =>
+         rawHeader
+            .split('.')
+            .map((s) => s.replace(/^["']|["']$/g, '').trim())
+            .filter(Boolean);
+
+      for (const rawLine of lines) {
+         const trimmed = rawLine.trim();
+         if (!trimmed || trimmed.startsWith('#')) {
+            newLines.push(rawLine);
+            continue;
+         }
+
+         const arrayMatch = trimmed.match(/^\[\[([^\]]+)\]\]\s*(?:#.*)?$/);
+         const tableMatch = !arrayMatch ? trimmed.match(/^\[([^\]]+)\]\s*(?:#.*)?$/) : null;
+         if (arrayMatch || tableMatch) {
+            const rawHeader = (arrayMatch || tableMatch)![1];
+            currentTable = parsePathSegs(rawHeader);
+            if (firstTableLineIdx === -1) firstTableLineIdx = newLines.length;
+            newLines.push(rawLine);
+            tableLastLineMap.set(currentTable.join('::'), newLines.length - 1);
+            continue;
+         }
+
+         const kvMatch = rawLine.match(/^(\s*)([A-Za-z0-9_."-]+?)(\s*=\s*)(.*)$/);
+         if (kvMatch) {
+            const [, indent, rawKeyExpr, sep, rhs] = kvMatch;
+            const keyParts = parsePathSegs(rawKeyExpr);
+            const fullPath = [...currentTable, ...keyParts];
+            const pathKey = fullPath.join('::');
+            const { valuePart, commentPart } = splitTrailingHashComment(rhs);
+            const nextVal = getNestedValue(data, fullPath);
+            if (nextVal !== undefined && (nextVal === null || typeof nextVal !== 'object' || Array.isArray(nextVal))) {
+               const formatted = formatTomlValue(nextVal, valuePart);
+               const trailingWs = valuePart.match(/(\s*)$/)?.[1] || (commentPart ? ' ' : '');
+               newLines.push(`${indent}${rawKeyExpr.trim()}${sep}${formatted}${commentPart ? trailingWs + commentPart : ''}`);
+               updatedPaths.add(pathKey);
+            } else {
+               newLines.push(rawLine);
+            }
+            if (currentTable.length > 0) {
+               tableLastLineMap.set(currentTable.join('::'), newLines.length - 1);
+            }
+            continue;
+         }
+
+         newLines.push(rawLine);
+      }
+
+      const pendingRoot: string[] = [];
+      const pendingByTable = new Map<string, { tableSegs: string[]; lines: string[] }>();
+      for (const item of collectLeafEntries(data)) {
+         const pathKey = item.path.join('::');
+         if (updatedPaths.has(pathKey)) continue;
+         const leafKey = item.path[item.path.length - 1];
+         const safeKey = /^[A-Za-z0-9_-]+$/.test(leafKey) ? leafKey : JSON.stringify(leafKey);
+         const stmt = `${safeKey} = ${formatTomlValue(item.value)}`;
+         if (item.path.length === 1) {
+            pendingRoot.push(stmt);
+         } else {
+            const tableSegs = item.path.slice(0, -1);
+            const tableKey = tableSegs.join('::');
+            if (!pendingByTable.has(tableKey)) {
+               pendingByTable.set(tableKey, { tableSegs, lines: [] });
+            }
+            pendingByTable.get(tableKey)!.lines.push(stmt);
+         }
+      }
+
+      const existingSplices: Array<{ insertAfter: number; linesToInsert: string[] }> = [];
+      const newSections: Array<{ header: string; linesToInsert: string[] }> = [];
+      for (const [tableKey, info] of pendingByTable.entries()) {
+         const lineIdx = tableLastLineMap.get(tableKey);
+         if (lineIdx !== undefined) {
+            existingSplices.push({ insertAfter: lineIdx, linesToInsert: info.lines });
+         } else {
+            const safeHeader = info.tableSegs
+               .map((s) => (/^[A-Za-z0-9_-]+$/.test(s) ? s : JSON.stringify(s)))
+               .join('.');
+            newSections.push({ header: safeHeader, linesToInsert: info.lines });
+         }
+      }
+
+      existingSplices.sort((a, b) => b.insertAfter - a.insertAfter);
+      for (const sp of existingSplices) {
+         newLines.splice(sp.insertAfter + 1, 0, ...sp.linesToInsert);
+      }
+      if (pendingRoot.length > 0) {
+         if (firstTableLineIdx >= 0) {
+            newLines.splice(firstTableLineIdx, 0, ...pendingRoot, '');
+         } else {
+            newLines.push(...pendingRoot);
+         }
+      }
+      for (const sec of newSections) {
+         if (newLines.length > 0 && newLines[newLines.length - 1].trim() !== '') {
+            newLines.push('');
+         }
+         newLines.push(`[${sec.header}]`, ...sec.linesToInsert);
+      }
+
+      const joined = newLines.join('\n');
+      return joined.endsWith('\n') ? joined : `${joined}\n`;
+   }
+
+   const out: string[] = [];
    const emitTable = (obj: Record<string, any>, tablePath: string[]) => {
       const scalars: Array<[string, any]> = [];
       const subtables: Array<[string, Record<string, any>]> = [];
@@ -546,9 +711,8 @@ export function parseYamlConfig(content: string): { data: Record<string, any>; p
    return { data: root, problems };
 }
 
-export function stringifyYamlConfig(data: Record<string, any>, indentLevel = 0): string {
+export function stringifyYamlConfig(data: Record<string, any>, indentLevel = 0, originalContent?: string): string {
    const pad = '  '.repeat(indentLevel);
-   const lines: string[] = [];
 
    const formatYamlScalar = (val: any): string => {
       if (typeof val === 'boolean' || typeof val === 'number') return String(val);
@@ -559,6 +723,156 @@ export function stringifyYamlConfig(data: Record<string, any>, indentLevel = 0):
       return s;
    };
 
+   if (indentLevel === 0 && originalContent && originalContent.trim().length > 0) {
+      const lines = originalContent.replace(/\r\n/g, '\n').split('\n');
+      const newLines: string[] = [];
+      const updatedPaths = new Set<string>();
+      const stack: Array<{ indent: number; path: string[]; lastKey?: string }> = [{ indent: -1, path: [] }];
+      const listState = new Map<string, { emitted: number; indentStr: string }>();
+      let activeListKey: string | null = null;
+
+      const flushListTail = (pathKey: string | null) => {
+         if (!pathKey) return;
+         const st = listState.get(pathKey);
+         if (!st) return;
+         const curArr = getNestedValue(data, pathKey.split('::'));
+         if (Array.isArray(curArr) && st.emitted < curArr.length) {
+            for (let k = st.emitted; k < curArr.length; k++) {
+               newLines.push(`${st.indentStr}- ${formatYamlScalar(curArr[k])}`);
+            }
+         }
+         activeListKey = null;
+      };
+
+      for (const rawLine of lines) {
+         const trimmed = rawLine.trim();
+         if (!trimmed || trimmed.startsWith('#') || trimmed === '---' || trimmed === '...') {
+            if (trimmed === '---' || trimmed === '...') flushListTail(activeListKey);
+            newLines.push(rawLine);
+            continue;
+         }
+
+         const indentMatch = rawLine.match(/^(\s*)/);
+         const indentStr = indentMatch ? indentMatch[1] : '';
+         const indent = indentStr.length;
+
+         if (trimmed.startsWith('- ')) {
+            while (stack.length > 1 && indent < stack[stack.length - 1].indent) {
+               stack.pop();
+            }
+            const top = stack[stack.length - 1];
+            if (top.lastKey) {
+               const fullPath = [...top.path, top.lastKey];
+               const pathKey = fullPath.join('::');
+               if (activeListKey && activeListKey !== pathKey) {
+                  flushListTail(activeListKey);
+               }
+               activeListKey = pathKey;
+               const curArr = getNestedValue(data, fullPath);
+               if (Array.isArray(curArr)) {
+                  const st = listState.get(pathKey) || { emitted: 0, indentStr };
+                  if (st.emitted < curArr.length) {
+                     const { commentPart } = splitTrailingHashComment(trimmed.slice(2));
+                     newLines.push(
+                        `${indentStr}- ${formatYamlScalar(curArr[st.emitted])}${commentPart ? ' ' + commentPart : ''}`
+                     );
+                     st.emitted += 1;
+                     listState.set(pathKey, st);
+                     updatedPaths.add(pathKey);
+                  }
+               } else {
+                  newLines.push(rawLine);
+               }
+            } else {
+               newLines.push(rawLine);
+            }
+            continue;
+         }
+
+         flushListTail(activeListKey);
+
+         const colonIdx = trimmed.indexOf(':');
+         if (colonIdx <= 0) {
+            newLines.push(rawLine);
+            continue;
+         }
+
+         while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
+            stack.pop();
+         }
+         const parent = stack[stack.length - 1];
+         const rawKeyToken = trimmed.slice(0, colonIdx);
+         const cleanKey = rawKeyToken.trim().replace(/^["']|["']$/g, '');
+         const fullPath = [...parent.path, cleanKey];
+         const pathKey = fullPath.join('::');
+         const rhs = trimmed.slice(colonIdx + 1).trim();
+         const { commentPart } = splitTrailingHashComment(rhs);
+
+         parent.lastKey = cleanKey;
+         const nextVal = getNestedValue(data, fullPath);
+
+         if (!rhs || rhs.startsWith('#')) {
+            if (Array.isArray(nextVal) && nextVal.length === 0) {
+               newLines.push(`${indentStr}${rawKeyToken}: []${commentPart ? ' ' + commentPart : ''}`);
+               updatedPaths.add(pathKey);
+            } else {
+               newLines.push(rawLine);
+               stack.push({ indent, path: fullPath });
+            }
+         } else {
+            if (nextVal !== undefined && (nextVal === null || typeof nextVal !== 'object')) {
+               newLines.push(
+                  `${indentStr}${rawKeyToken}: ${formatYamlScalar(nextVal)}${commentPart ? ' ' + commentPart : ''}`
+               );
+               updatedPaths.add(pathKey);
+            } else if (Array.isArray(nextVal)) {
+               newLines.push(
+                  `${indentStr}${rawKeyToken}: [${nextVal.map(formatYamlScalar).join(', ')}]${commentPart ? ' ' + commentPart : ''}`
+               );
+               updatedPaths.add(pathKey);
+            } else {
+               newLines.push(rawLine);
+            }
+         }
+      }
+
+      flushListTail(activeListKey);
+
+      const appendMissingKeys = (obj: any, pathPrefix: string[], padLevel: number) => {
+         if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return;
+         for (const [k, v] of Object.entries(obj)) {
+            if (v === undefined) continue;
+            const fullPath = [...pathPrefix, k];
+            const pk = fullPath.join('::');
+            if (updatedPaths.has(pk)) continue;
+            if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+               const childLeaves = collectLeafEntries(v, fullPath).some((l) => !updatedPaths.has(l.path.join('::')));
+               if (!childLeaves) continue;
+               const childNested = stringifyYamlConfig(v, padLevel + 1);
+               newLines.push(`${'  '.repeat(padLevel)}${k}:`);
+               if (childNested) newLines.push(childNested);
+               collectLeafEntries(v, fullPath).forEach((l) => updatedPaths.add(l.path.join('::')));
+            } else if (Array.isArray(v)) {
+               if (v.length === 0) {
+                  newLines.push(`${'  '.repeat(padLevel)}${k}: []`);
+               } else {
+                  newLines.push(`${'  '.repeat(padLevel)}${k}:`);
+                  v.forEach((item) => newLines.push(`${'  '.repeat(padLevel + 1)}- ${formatYamlScalar(item)}`));
+               }
+               updatedPaths.add(pk);
+            } else {
+               newLines.push(`${'  '.repeat(padLevel)}${k}: ${formatYamlScalar(v)}`);
+               updatedPaths.add(pk);
+            }
+         }
+      };
+
+      appendMissingKeys(data, [], 0);
+      const joined = newLines.join('\n');
+      return joined.endsWith('\n') ? joined : `${joined}\n`;
+   }
+
+   const lines: string[] = [];
    for (const [k, v] of Object.entries(data || {})) {
       if (v === undefined) continue;
       if (Array.isArray(v)) {
@@ -746,6 +1060,213 @@ export function parseStructuredConfig(
    return { format: 'ini', ...res };
 }
 
+export function stringifyJsoncPreservingComments(data: any, originalContent: string): string {
+   if (!originalContent || !originalContent.trim() || !data || typeof data !== 'object' || Array.isArray(data)) {
+      return JSON.stringify(data, null, 2);
+   }
+
+   const len = originalContent.length;
+   let pos = 0;
+
+   const skipWsAndComments = () => {
+      while (pos < len) {
+         const c = originalContent[pos];
+         if (c === ' ' || c === '\t' || c === '\r' || c === '\n') {
+            pos++;
+            continue;
+         }
+         if (c === '/' && originalContent[pos + 1] === '/') {
+            pos += 2;
+            while (pos < len && originalContent[pos] !== '\n') pos++;
+            continue;
+         }
+         if (c === '/' && originalContent[pos + 1] === '*') {
+            pos += 2;
+            while (pos < len && !(originalContent[pos] === '*' && originalContent[pos + 1] === '/')) pos++;
+            if (pos < len) pos += 2;
+            continue;
+         }
+         break;
+      }
+   };
+
+   const readJsonString = (): { value: string; start: number; end: number } | null => {
+      if (originalContent[pos] !== '"') return null;
+      const start = pos;
+      pos++;
+      while (pos < len) {
+         const ch = originalContent[pos];
+         if (ch === '\\') {
+            pos += 2;
+            continue;
+         }
+         if (ch === '"') {
+            pos++;
+            const raw = originalContent.slice(start, pos);
+            try {
+               return { value: JSON.parse(raw), start, end: pos };
+            } catch {
+               return { value: raw.slice(1, -1), start, end: pos };
+            }
+         }
+         pos++;
+      }
+      return null;
+   };
+
+   const skipBalancedValue = (): { start: number; end: number } => {
+      const start = pos;
+      const ch = originalContent[pos];
+      if (ch === '"') {
+         readJsonString();
+         return { start, end: pos };
+      }
+      if (ch === '{' || ch === '[') {
+         const stack: string[] = [ch];
+         pos++;
+         while (pos < len && stack.length > 0) {
+            const c = originalContent[pos];
+            if (c === '"') {
+               readJsonString();
+               continue;
+            }
+            if (c === '/' && originalContent[pos + 1] === '/') {
+               pos += 2;
+               while (pos < len && originalContent[pos] !== '\n') pos++;
+               continue;
+            }
+            if (c === '/' && originalContent[pos + 1] === '*') {
+               pos += 2;
+               while (pos < len && !(originalContent[pos] === '*' && originalContent[pos + 1] === '/')) pos++;
+               if (pos < len) pos += 2;
+               continue;
+            }
+            if (c === '{' || c === '[') stack.push(c);
+            else if ((c === '}' && stack[stack.length - 1] === '{') || (c === ']' && stack[stack.length - 1] === '[')) {
+               stack.pop();
+            }
+            pos++;
+         }
+         return { start, end: pos };
+      }
+      while (pos < len && !/[,}\]\s/]/.test(originalContent[pos])) {
+         pos++;
+      }
+      return { start, end: pos };
+   };
+
+   const getLineIndentAt = (idx: number): string => {
+      const lineStart = originalContent.lastIndexOf('\n', idx - 1) + 1;
+      const m = originalContent.slice(lineStart, idx).match(/^(\s*)/);
+      return m ? m[1] : '  ';
+   };
+
+   const formatJsonWithIndent = (val: any, baseIndent: string): string => {
+      const raw = JSON.stringify(val, null, 2);
+      if (!raw.includes('\n')) return raw;
+      return raw.replace(/\n/g, `\n${baseIndent}`);
+   };
+
+   const edits: Array<{ start: number; end: number; text: string }> = [];
+
+   const walkObject = (objData: Record<string, any>): boolean => {
+      skipWsAndComments();
+      if (originalContent[pos] !== '{') return false;
+      pos++;
+      const seenKeys = new Set<string>();
+      let lastPropEnd = -1;
+      let sampleIndent = '  ';
+      let hasCommaAfterLast = true;
+
+      while (pos < len) {
+         skipWsAndComments();
+         if (originalContent[pos] === '}') {
+            const closeIdx = pos;
+            pos++;
+            const newEntries = Object.entries(objData).filter(
+               ([k, v]) => !seenKeys.has(k) && v !== undefined
+            );
+            if (newEntries.length > 0) {
+               const closeIndent = getLineIndentAt(closeIdx);
+               const propIndent = sampleIndent.length > closeIndent.length ? sampleIndent : `${closeIndent}  `;
+               const rendered = newEntries
+                  .map(([k, v]) => `${propIndent}${JSON.stringify(k)}: ${formatJsonWithIndent(v, propIndent)}`)
+                  .join(',\n');
+               if (lastPropEnd >= 0) {
+                  const prefix = hasCommaAfterLast ? '\n' : ',\n';
+                  edits.push({
+                     start: lastPropEnd,
+                     end: lastPropEnd,
+                     text: `${prefix}${rendered}`,
+                  });
+               } else {
+                  edits.push({
+                     start: closeIdx,
+                     end: closeIdx,
+                     text: `\n${rendered}\n${closeIndent}`,
+                  });
+               }
+            }
+            return true;
+         }
+
+         const keyTok = readJsonString();
+         if (!keyTok) return false;
+         sampleIndent = getLineIndentAt(keyTok.start);
+         seenKeys.add(keyTok.value);
+         skipWsAndComments();
+         if (originalContent[pos] !== ':') return false;
+         pos++;
+         skipWsAndComments();
+
+         const hasNextVal = Object.prototype.hasOwnProperty.call(objData, keyTok.value) && objData[keyTok.value] !== undefined;
+         const nextVal = hasNextVal ? objData[keyTok.value] : undefined;
+
+         if (originalContent[pos] === '{' && nextVal !== null && typeof nextVal === 'object' && !Array.isArray(nextVal)) {
+            if (!walkObject(nextVal)) return false;
+            lastPropEnd = pos;
+         } else {
+            const span = skipBalancedValue();
+            lastPropEnd = span.end;
+            if (hasNextVal) {
+               const existingRaw = originalContent.slice(span.start, span.end);
+               let parsedExisting: any = Symbol.for('unparsed');
+               try {
+                  parsedExisting = JSON.parse(stripJsonCommentsAndTrailingCommas(existingRaw));
+               } catch {}
+               if (JSON.stringify(parsedExisting) !== JSON.stringify(nextVal)) {
+                  edits.push({
+                     start: span.start,
+                     end: span.end,
+                     text: formatJsonWithIndent(nextVal, sampleIndent),
+                  });
+               }
+            }
+         }
+
+         skipWsAndComments();
+         if (originalContent[pos] === ',') {
+            lastPropEnd = pos + 1;
+            hasCommaAfterLast = true;
+            pos++;
+         } else {
+            hasCommaAfterLast = false;
+         }
+      }
+      return false;
+   };
+
+   if (!walkObject(data)) {
+      return JSON.stringify(data, null, 2);
+   }
+   edits.sort((a, b) => b.start - a.start);
+   let result = originalContent;
+   for (const e of edits) {
+      result = result.slice(0, e.start) + e.text + result.slice(e.end);
+   }
+   return result;
+}
+
 export function stringifyStructuredConfig(
    data: any,
    originalContent: string,
@@ -753,13 +1274,16 @@ export function stringifyStructuredConfig(
 ): string {
    const format = detectWorkbenchFormat(fileName, originalContent);
    if (format === 'json' || format === 'jsonc') {
+      if (format === 'jsonc' || /(?:^|\s)\/\/|\/\*/.test(originalContent || '')) {
+         return stringifyJsoncPreservingComments(data, originalContent);
+      }
       return JSON.stringify(data, null, 2);
    }
    if (format === 'toml') {
-      return stringifyTomlConfig(data);
+      return stringifyTomlConfig(data, originalContent);
    }
    if (format === 'yaml') {
-      return stringifyYamlConfig(data) + '\n';
+      return stringifyYamlConfig(data, 0, originalContent);
    }
    if (format === 'xml') {
       return stringifyXmlFromModifiedData(data, originalContent);

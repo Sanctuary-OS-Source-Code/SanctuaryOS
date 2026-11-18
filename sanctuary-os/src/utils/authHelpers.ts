@@ -186,11 +186,14 @@ export async function sendPasswordResetWithBlindGuard(
       message: t("auth_reset_blinded_email_notice", blindedNoticeFallback),
     };
   }
-  const redirectTo =
-    typeof window !== "undefined" ? window.location.origin : undefined;
+  const redirectTo = isDesktop()
+    ? "https://sanctuaryos.net"
+    : typeof window !== "undefined"
+      ? window.location.origin
+      : "https://sanctuaryos.net";
   const { error } = await supabase.auth.resetPasswordForEmail(
     email.trim(),
-    redirectTo ? { redirectTo } : undefined
+    { redirectTo }
   );
   if (error) throw error;
   return {

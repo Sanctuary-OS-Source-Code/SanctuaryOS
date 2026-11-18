@@ -16,7 +16,6 @@ export async function syncLocalMasonSupporterBridge(params: {
 }): Promise<LocalMasonSupporter> {
   const vaultPath = useStore.getState().vaultPath || "";
   const userId = useStore.getState().session?.user?.id || "local_citizen";
-  const now = Math.floor(Date.now() / 1000);
 
   if (isDesktop() && vaultPath && vaultPath !== "web") {
     const record = await invoke<LocalMasonSupporter>(
@@ -46,43 +45,15 @@ export async function syncLocalMasonSupporterBridge(params: {
     return record;
   }
 
-  const effectiveId = (params.masonId || params.masonName)
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "_");
-  const record: LocalMasonSupporter = {
-    mason_id: params.masonId || effectiveId,
-    mason_name: params.masonName || params.masonId,
-    provider: (params.provider || "patreon").toLowerCase(),
-    tier_name: params.tierName?.trim() || "Verified Supporter",
-    pledge_cents: 500,
-    patreon_campaign_id: params.patreonCampaignId || "",
-    cryptographic_pass: `sp_${btoa(`${effectiveId}:${now}`).replace(/[^a-zA-Z0-9]/g, "").slice(0, 20)}`,
-    expedited_support: true,
-    early_access: true,
-    verified_at: now,
-    expires_at: now + 30 * 86400,
-  };
-
-  const fallback = readFallbackVault(userId);
-  fallback.removed_supporters = fallback.removed_supporters || {};
-  delete fallback.removed_supporters[record.mason_id];
-  fallback.supporters = [
-    record,
-    ...fallback.supporters.filter((s) => s.mason_id !== record.mason_id),
-  ];
-  writeFallbackVault(fallback);
-  if (userId && userId !== "local_citizen") {
-    lastCloudSupporterPullByUser.delete(userId);
-    void syncSupporterVaultWithCloud(fallback, vaultPath, userId, true);
-  }
-  return record;
+  throw new Error(
+    "Creator supporter token verification runs locally inside the Sanctuary OS Desktop client so supporter tokens never touch cloud servers.",
+  );
 }
 
 
 export async function stackGlobalDevBuildDonation(params: {
-  amountUsd: number;
-  txNonce: string;
+  amountUsd?: number;
+  txNonce?: string;
   targetId?: string;
   spokeName?: string;
   provider?: string;
@@ -90,72 +61,58 @@ export async function stackGlobalDevBuildDonation(params: {
   devBuild: LocalDevBuildStatus;
   monthsAdded: number;
 }> {
-  const amountCents = Math.round(Number(params.amountUsd || 0) * 100);
-  if (amountCents <= 0) {
-    throw new Error("Donation amount must be greater than $0.00.");
-  }
-
-  const cleanNonce = (params.txNonce || "").trim();
-  if (!cleanNonce) {
-    throw new Error("Processor transaction / receipt ID is required.");
-  }
-
-  // Local anti-replay check
-  const redeemedRaw = localStorage.getItem(NONCE_STORAGE_KEY);
-  const redeemed: string[] = redeemedRaw ? JSON.parse(redeemedRaw) : [];
-  if (redeemed.includes(cleanNonce)) {
-    throw new Error("This receipt ID has already been redeemed and stacked.");
-  }
-
   const vaultPath = useStore.getState().vaultPath || "";
   const userId = useStore.getState().session?.user?.id || "local_citizen";
   const now = Math.floor(Date.now() / 1000);
   const currentState = await getSupporterState(vaultPath, userId);
 
-  // 1. Strictly verify donation event via Hub User Database RPC — NEVER fail open or locally mint clearance!
+  // 1. Sync authoritative webhook-verified supporter balance from Hub User Database — NEVER locally mint clearance!
   const localOnly = localStorage.getItem("sanctuary_local_only") === "true";
   if (localOnly || !navigator.onLine || !userId || userId === "local_citizen") {
     throw new Error(
-      "Online authentication is required to verify and stack Dev Build supporter access."
+      "Online authentication is required to verify and sync Dev Build supporter access.",
     );
   }
 
   const client = supabaseAuth || supabase;
-  const existingUntilIso =
-    (currentState.dev_build.dev_build_until || 0) > now
-      ? new Date(currentState.dev_build.dev_build_until * 1000).toISOString()
-      : null;
+  const { data: profileRow, error: profileErr } = await client
+    .from("profiles")
+    .select("dev_build_until, donation_credit_cents, total_months_unlocked")
+    .eq("id", userId)
+    .maybeSingle();
 
-  const { data: rpcData, error: rpcErr } = await client.rpc(
-    "register_partner_donation_event",
-    {
-      p_user_id: userId,
-      p_amount_cents: amountCents,
-      p_tx_nonce: cleanNonce,
-      p_base_until: existingUntilIso,
-    },
-  );
-
-  if (rpcErr || !rpcData || !rpcData.dev_build_until) {
+  if (profileErr || !profileRow) {
     throw new Error(
-      rpcErr?.message || "Server verification of supporter donation failed."
+      profileErr?.message || "Failed to fetch webhook-verified supporter status from Hub.",
     );
   }
 
-  const finalUntil = Math.floor(new Date(rpcData.dev_build_until).getTime() / 1000);
-  if (!Number.isFinite(finalUntil) || finalUntil <= 0) {
-    throw new Error("Server returned an invalid Dev Build expiration timestamp.");
-  }
+  const finalUntil = profileRow.dev_build_until
+    ? Math.floor(new Date(profileRow.dev_build_until).getTime() / 1000)
+    : 0;
   const finalCredit =
-    typeof rpcData.donation_credit_cents === "number"
-      ? rpcData.donation_credit_cents
+    typeof profileRow.donation_credit_cents === "number"
+      ? profileRow.donation_credit_cents
       : 0;
   const finalTotalMonths =
-    typeof rpcData.total_months_unlocked === "number"
-      ? rpcData.total_months_unlocked
+    typeof profileRow.total_months_unlocked === "number"
+      ? profileRow.total_months_unlocked
       : currentState.dev_build.total_months_unlocked || 0;
-  const finalMonthsAdded =
-    typeof rpcData.months_added === "number" ? rpcData.months_added : 0;
+
+  if (!Number.isFinite(finalUntil) || finalUntil <= now) {
+    throw new Error(
+      "No active webhook-confirmed Dev Build time was found on your Hub account yet. Payment processors usually confirm within a few seconds after checkout.",
+    );
+  }
+
+  const prevUntil = currentState.dev_build.dev_build_until || 0;
+  const prevMonths = currentState.dev_build.total_months_unlocked || 0;
+  const inferredDeltaMonths = Math.max(
+    finalTotalMonths - prevMonths,
+    finalUntil > Math.max(now, prevUntil)
+      ? Math.max(1, Math.round((finalUntil - Math.max(now, prevUntil)) / (30 * 86400)))
+      : 1,
+  );
 
   // 2. Cache server-verified state in local SQLite + fallback storage
   let updatedDevBuild: LocalDevBuildStatus = {
@@ -191,36 +148,28 @@ export async function stackGlobalDevBuildDonation(params: {
   currentState.dev_build = updatedDevBuild;
   writeFallbackVault(currentState);
 
-  redeemed.push(cleanNonce);
-  localStorage.setItem(NONCE_STORAGE_KEY, JSON.stringify(redeemed));
+  const cleanNonce = String(params.txNonce || "").trim();
+  if (cleanNonce && cleanNonce !== "webhook_sync") {
+    try {
+      const redeemedRaw = localStorage.getItem(NONCE_STORAGE_KEY);
+      const redeemed: string[] = redeemedRaw ? JSON.parse(redeemedRaw) : [];
+      if (!redeemed.includes(cleanNonce)) {
+        redeemed.push(cleanNonce);
+        localStorage.setItem(NONCE_STORAGE_KEY, JSON.stringify(redeemed));
+      }
+    } catch {}
+  }
+
   if (updatedDevBuild.channel_enabled) {
     localStorage.setItem("sanctuary_dev_build_channel", "true");
   }
-  recordMonthlyServerGoalContribution(
-    amountCents,
-    params.targetId || "keepers_core",
-    cleanNonce,
-  );
 
-  let returnState = currentState;
-  const cleanTargetId = String(params.targetId || "keepers_core").trim().toLowerCase();
-  if (cleanTargetId && cleanTargetId !== "keepers_core") {
-    returnState = await recordLocalSpokeSupporterPass({
-      spokeId: cleanTargetId,
-      spokeName: params.spokeName || params.targetId,
-      provider: params.provider || "partner_donation",
-      pledgeCents: amountCents,
-      monthsAdded: finalMonthsAdded || Math.max(1, Math.floor(amountCents / 500)),
-      expiresAt: finalUntil,
-      txNonce: cleanNonce,
-    });
-    returnState.dev_build = updatedDevBuild;
-    writeFallbackVault(returnState);
-  }
+  lastCloudSupporterPullByUser.delete(userId);
+  void syncSupporterVaultWithCloud(currentState, vaultPath, userId, false);
 
   return {
     devBuild: updatedDevBuild,
-    monthsAdded: finalMonthsAdded,
+    monthsAdded: Math.max(1, inferredDeltaMonths),
   };
 }
 
@@ -353,7 +302,12 @@ export function recordMonthlyServerGoalContribution(
   }
 }
 
-export async function syncMonthlyDonationLedgersFromCloud(): Promise<void> {
+let inFlightLedgerSync: Promise<void> | null = null;
+let lastLedgerSyncAt = 0;
+let ledgerRpcUnavailable = false;
+const LEDGER_SYNC_TTL_MS = 60_000;
+
+export async function syncMonthlyDonationLedgersFromCloud(force = false): Promise<void> {
   if (
     typeof localStorage === "undefined" ||
     localStorage.getItem("sanctuary_local_only") === "true" ||
@@ -361,80 +315,109 @@ export async function syncMonthlyDonationLedgersFromCloud(): Promise<void> {
   ) {
     return;
   }
-  try {
-    const monthKey = getCurrentMonthKey();
-    const client = supabaseAuth || supabase;
-    let summaryList: Array<{
-      month_key?: string;
-      target_id?: string;
-      covered_cents?: number;
-      stripe_fees_cents?: number;
-    }> = [];
+  if (!force && lastLedgerSyncAt > 0 && Date.now() - lastLedgerSyncAt < LEDGER_SYNC_TTL_MS) {
+    return;
+  }
+  if (inFlightLedgerSync) {
+    return inFlightLedgerSync;
+  }
 
-    const { data: rpcRows, error: rpcErr } = await client.rpc(
-      "get_monthly_donation_summaries",
-      { p_month_key: monthKey },
-    );
+  inFlightLedgerSync = (async () => {
+    try {
+      const monthKey = getCurrentMonthKey();
+      const client = supabaseAuth || supabase;
+      let summaryList: Array<{
+        month_key?: string;
+        target_id?: string;
+        covered_cents?: number;
+        stripe_fees_cents?: number;
+      }> = [];
 
-    if (!rpcErr && Array.isArray(rpcRows)) {
-      summaryList = rpcRows;
-    } else {
-      const { data: rows } = await client
-        .from("keeper_system_broadcasts")
-        .select("title, description, message")
-        .eq("category", "MonthlyDonationLedger")
-        .ilike("title", `LEDGER_${monthKey}_%`)
-        .eq("is_active", true);
-      if (Array.isArray(rows)) {
-        for (const r of rows) {
-          try {
-            const p = JSON.parse(r.description || r.message || "{}");
-            if (p && typeof p === "object") summaryList.push(p);
-          } catch {
-            // ignore
+      let usedRpc = false;
+      if (!ledgerRpcUnavailable) {
+        const { data: rpcRows, error: rpcErr } = await client.rpc(
+          "get_monthly_donation_summaries",
+          { p_month_key: monthKey },
+        );
+        if (!rpcErr && Array.isArray(rpcRows)) {
+          summaryList = rpcRows;
+          usedRpc = true;
+        } else if (rpcErr) {
+          const msg = String(rpcErr.message || "");
+          if (
+            rpcErr.code === "PGRST202" ||
+            (rpcErr as any).status === 404 ||
+            msg.includes("Could not find the function") ||
+            msg.includes("404")
+          ) {
+            ledgerRpcUnavailable = true;
           }
         }
       }
-    }
-    if (summaryList.length === 0) return;
 
-    const raw = localStorage.getItem(MONTHLY_SERVER_POOL_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    const isSameMonth = parsed && parsed.monthKey === monthKey;
-    const targets: Record<string, number> =
-      isSameMonth && parsed.targets && typeof parsed.targets === "object"
-        ? { ...parsed.targets }
-        : {};
-    const targetFees: Record<string, number> =
-      isSameMonth && parsed.targetFees && typeof parsed.targetFees === "object"
-        ? { ...parsed.targetFees }
-        : {};
-
-    for (const p of summaryList) {
-      if ((p.month_key || monthKey) === monthKey && p.target_id) {
-        const tKey = String(p.target_id).toLowerCase();
-        const cloudCents = Math.max(0, Number(p.covered_cents || 0));
-        const cloudFeeCents = Math.max(0, Number(p.stripe_fees_cents || 0));
-        targets[tKey] = Math.max(Number(targets[tKey] || 0), cloudCents);
-        targetFees[tKey] = Math.max(
-          Number(targetFees[tKey] || 0),
-          cloudFeeCents,
-        );
+      if (!usedRpc) {
+        const { data: rows } = await client
+          .from("keeper_system_broadcasts")
+          .select("title, description, message")
+          .eq("category", "MonthlyDonationLedger")
+          .ilike("title", `LEDGER_${monthKey}_%`)
+          .eq("is_active", true);
+        if (Array.isArray(rows)) {
+          for (const r of rows) {
+            try {
+              const p = JSON.parse(r.description || r.message || "{}");
+              if (p && typeof p === "object") summaryList.push(p);
+            } catch {
+              // ignore
+            }
+          }
+        }
       }
-    }
+      lastLedgerSyncAt = Date.now();
+      if (summaryList.length === 0) return;
 
-    localStorage.setItem(
-      MONTHLY_SERVER_POOL_STORAGE_KEY,
-      JSON.stringify({
-        monthKey,
-        addedCents: targets.keepers_core || 0,
-        targets,
-        targetFees,
-      }),
-    );
-  } catch {
-    // ignore
-  }
+      const raw = localStorage.getItem(MONTHLY_SERVER_POOL_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const isSameMonth = parsed && parsed.monthKey === monthKey;
+      const targets: Record<string, number> =
+        isSameMonth && parsed.targets && typeof parsed.targets === "object"
+          ? { ...parsed.targets }
+          : {};
+      const targetFees: Record<string, number> =
+        isSameMonth && parsed.targetFees && typeof parsed.targetFees === "object"
+          ? { ...parsed.targetFees }
+          : {};
+
+      for (const p of summaryList) {
+        if ((p.month_key || monthKey) === monthKey && p.target_id) {
+          const tKey = String(p.target_id).toLowerCase();
+          const cloudCents = Math.max(0, Number(p.covered_cents || 0));
+          const cloudFeeCents = Math.max(0, Number(p.stripe_fees_cents || 0));
+          targets[tKey] = Math.max(Number(targets[tKey] || 0), cloudCents);
+          targetFees[tKey] = Math.max(
+            Number(targetFees[tKey] || 0),
+            cloudFeeCents,
+          );
+        }
+      }
+
+      localStorage.setItem(
+        MONTHLY_SERVER_POOL_STORAGE_KEY,
+        JSON.stringify({
+          monthKey,
+          addedCents: targets.keepers_core || 0,
+          targets,
+          targetFees,
+        }),
+      );
+    } catch {
+      // ignore
+    } finally {
+      inFlightLedgerSync = null;
+    }
+  })();
+
+  return inFlightLedgerSync;
 }
 
 

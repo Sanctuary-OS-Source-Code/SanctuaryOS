@@ -1,4 +1,7 @@
 import { useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { useStore } from "../../store";
+import { isDesktop } from "../../utils/envUtils";
 import {
   getExtensionRegex,
   deduplicateBlueprintArtifacts,
@@ -303,7 +306,33 @@ export function usePlaySetRulesAndMissing({
   );
 
   const autoSortBlueprintLoadOrder = useCallback(
-    (setName: string) => {
+    async (setName: string) => {
+      const latestSets = useStore.getState().playSets || playSets;
+      const targetSet = latestSets.find((p: any) => p.name.toLowerCase() === setName.toLowerCase());
+      let nativeDagOrder: string[] | undefined = targetSet?.loadOrder;
+
+      if (isDesktop() && targetSet && Array.isArray(targetSet.mods) && targetSet.mods.length > 0) {
+        try {
+          const paths = targetSet.mods
+            .map((m: any) => (typeof m === "string" ? m : m?.name || m?.path || ""))
+            .filter(Boolean);
+          if (paths.length > 0) {
+            const diag = await invoke<{ sorted_files?: string[] }>(
+              "evaluate_blueprint_load_order_diagnostics",
+              {
+                paths,
+                modsPath: useStore.getState().modsPath || "",
+              }
+            );
+            if (Array.isArray(diag?.sorted_files) && diag.sorted_files.length > 0) {
+              nativeDagOrder = diag.sorted_files;
+            }
+          }
+        } catch {
+          // Fall back to local rule-graph compilation cleanly
+        }
+      }
+
       setPlaySets((prevSets: any[]) => {
         const idx = prevSets.findIndex((p: any) => p.name.toLowerCase() === setName.toLowerCase());
         if (idx === -1) return prevSets;
@@ -313,7 +342,7 @@ export function usePlaySetRulesAndMissing({
           currentSet.mods || [],
           currentSet.loadRules || [],
           currentSet.modTiers || {},
-          currentSet.loadOrder || [],
+          nativeDagOrder || currentSet.loadOrder || [],
           activeGameSchema,
           []
         );
@@ -323,7 +352,7 @@ export function usePlaySetRulesAndMissing({
       });
       setStatus(`${t("icon_check_circle", "check_circle")} ${t("lo_status_sorted", "Load order topologically sorted by active rules.")}`);
     },
-    [activeGameSchema, setPlaySets, setStatus, t]
+    [activeGameSchema, playSets, setPlaySets, setStatus, t]
   );
 
   return {

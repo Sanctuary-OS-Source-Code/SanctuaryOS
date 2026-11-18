@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase, supabaseAuth } from "../supabase";
 import { useStore, syncGameDatabases, getSafeSchema } from "../store";
+import { useModalStore } from "../store/modalStore";
 import {
   EmptyState,
   CustomDropdown,
@@ -31,6 +32,7 @@ import { defineSanctuaryMonacoThemes, useSanctuaryMonacoTheme } from "../utils/m
 import { AuditLogViewer } from "../side-panels/SAAuditLogViewer";
 import { DEFAULT_SCHEMA_CACHE_KEY } from "../utils/bundledSchemas";
 import { postDevCoreAssetSync } from "../utils/devAssetSync";
+import { maskEmailsInText } from "../utils/sanctuaryEmailTemplates";
 
 import { ActiveGamesSidePanels } from "./active-games/ActiveGamesSidePanels";
 const MINT_SPOKE_TOKEN_SQL = "SELECT public.mint_spoke_gateway_token();";
@@ -43,6 +45,7 @@ export default function KeepersActiveGames({
   const { t } = useLexicon();
   const pushStatus = useStore((state: any) => state.pushStatus);
   const [games, setGames] = useState<any[]>([]);
+  const [overdueDmcaBySpoke, setOverdueDmcaBySpoke] = useState<Record<string, number>>({});
   const [partnerApps, setPartnerApps] = useState<any[]>([]);
   const [selectedPartnerApp, setSelectedPartnerApp] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -207,7 +210,7 @@ export default function KeepersActiveGames({
 
   const fetchGames = async () => {
     setLoading(true);
-    const [{ data, error }, { data: appsData }, credsMetaRes] = await Promise.all([
+    const [{ data, error }, { data: appsData }, credsMetaRes, dmcaMetaRes] = await Promise.all([
       supabaseAuth
         .from("sanctuary_games")
         .select(
@@ -222,8 +225,14 @@ export default function KeepersActiveGames({
       supabaseAuth.functions
         .invoke("game-gateway", { body: { action: "keeper_list_spoke_credentials_meta" } })
         .catch(() => ({ data: null, error: null })),
+      supabaseAuth.functions
+        .invoke("game-gateway", { body: { action: "list_spoke_dmca_notices", payload: {} } })
+        .catch(() => ({ data: null, error: null })),
     ]);
     const credMap: Record<string, any> = credsMetaRes?.data?.credentials || {};
+    if (dmcaMetaRes?.data?.overdue_spoke_counts) {
+      setOverdueDmcaBySpoke(dmcaMetaRes.data.overdue_spoke_counts);
+    }
     if (!error && data) {
       setGames(
         data.map((g: any) => ({
@@ -498,23 +507,33 @@ export default function KeepersActiveGames({
     }
   };
 
-  const handleDeleteGame = async (id: string, name: string) => {
-    if (!window.confirm(t("ui_confirm_deprecate_game", "Deprecate and remove this Game Database?")))
-      return;
-    const { error } = await supabaseAuth.from("sanctuary_games").delete().eq("id", id);
-    if (!error) {
-      logArchitectAction(
-        `Deprecated Game Database`,
-        "sanctuary_games",
-        name,
-        undefined,
-        "Keeper Hub",
-        true,
-        { id: { from: id, to: null }, name: { from: name, to: null } }
-      );
-    }
-    await fetchGames();
-    await syncGameDatabases();
+  const handleDeleteGame = (id: string, name: string) => {
+    useModalStore.getState().setConfirmDialog({
+      title: t("deprecate_game_title", "Deprecate Game Database?"),
+      badgeLabel: t("keepers_hub", "Keepers Hub"),
+      icon: t("icon_delete_forever", "delete_forever"),
+      variant: "danger",
+      message: t("ui_confirm_deprecate_game", "Deprecate and remove this Game Database?"),
+      confirmText: t("delete", "{Delete}"),
+      confirmIcon: t("icon_delete", "delete"),
+      cancelText: t("cancel", "Cancel"),
+      action: async () => {
+        const { error } = await supabaseAuth.from("sanctuary_games").delete().eq("id", id);
+        if (!error) {
+          logArchitectAction(
+            `Deprecated Game Database`,
+            "sanctuary_games",
+            name,
+            undefined,
+            "Keeper Hub",
+            true,
+            { id: { from: id, to: null }, name: { from: name, to: null } }
+          );
+        }
+        await fetchGames();
+        await syncGameDatabases();
+      },
+    });
   };
 
   const handleToggleActive = async (id: string, name: string, currentStatus: boolean) => {
@@ -572,11 +591,11 @@ export default function KeepersActiveGames({
     await syncGameDatabases();
   };
 
-  const openSeverSpokePanel = (game: any) => {
+  const openSeverSpokePanel = (game: any, prefilledReason?: string) => {
     if (severArmTimerRef.current) clearTimeout(severArmTimerRef.current);
     setConfirmSever(false);
     setSeverConfirmText("");
-    setSeverReason("");
+    setSeverReason(prefilledReason || "");
     setSeverTargetGame(game);
   };
 
@@ -890,11 +909,34 @@ export default function KeepersActiveGames({
                 : t("icon_visibility_off", "visibility_off"),
               onClick: () => handleToggleKeepersOnly(game.id, game.name, isKeepersOnly),
             },
+            ...(isLivePartnerSpoke
+              ? []
+              : [
+                  {
+                    label: isActive
+                      ? t("filter_inactive", "Inactive")
+                      : t("filter_active", "Active"),
+                    icon: isActive
+                      ? t("icon_pause_circle", "pause_circle")
+                      : t("icon_play_circle", "play_circle"),
+                    onClick: () => handleToggleActive(game.id, game.name, game.is_active),
+                  },
+                ]),
             {
               label: t("wf_card_spoke_sever_title", "Spoke Sever (Cut the Cord)"),
               icon: t("icon_link_off", "link_off"),
               onClick: () => openSeverSpokePanel(game),
             },
+            ...(!isLivePartnerSpoke
+              ? [
+                  {
+                    label: t("btn_delete", "{Delete}"),
+                    icon: t("icon_delete", "delete"),
+                    variant: "danger" as const,
+                    onClick: () => handleDeleteGame(game.id, game.name),
+                  },
+                ]
+              : []),
             {
               divider: true,
               label: t("copy_title", "Copy Title"),
@@ -908,9 +950,15 @@ export default function KeepersActiveGames({
         image={game.icon || undefined}
         icon={game.icon ? undefined : t("icon_dns", "dns")}
         title={game.name}
-        subtitle={game.supabase_url || game.schema_id}
+        subtitle={
+          game.supabase_url ? (
+            <span className="no-text-case font-mono text-[11px]">{game.supabase_url}</span>
+          ) : (
+            game.schema_id
+          )
+        }
         imageOverlay={
-          <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[85%] z-30 pointer-events-none">
+          <div className="absolute top-2.5 left-3 flex flex-nowrap items-center gap-1.5 max-w-[calc(100%-6.5rem)] z-30 pointer-events-none">
             <div className={VAULT_CHIP_CLASS}>
               <span
                 className={`material-symbols-outlined !text-[12px] ${
@@ -925,6 +973,10 @@ export default function KeepersActiveGames({
                 {isActive ? t("filter_active", "Active") : t("filter_inactive", "Inactive")}
               </span>
             </div>
+          </div>
+        }
+        badges={
+          <>
             {isKeepersOnly && (
               <div className={VAULT_CHIP_CLASS}>
                 <span className="material-symbols-outlined !text-[12px] text-[var(--warning)]">
@@ -933,10 +985,6 @@ export default function KeepersActiveGames({
                 <span>{t("lex_studio_keepers_only_short", "Keepers Only")}</span>
               </div>
             )}
-          </div>
-        }
-        badges={
-          <>
             {game.schema_id && (
               <div className={VAULT_CHIP_CLASS}>
                 <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
@@ -962,10 +1010,20 @@ export default function KeepersActiveGames({
                 </span>
               </div>
             )}
+            {Number(overdueDmcaBySpoke[String(game.id)] || 0) > 0 && (
+              <div className={VAULT_CHIP_CLASS}>
+                <span className="material-symbols-outlined !text-[12px] text-[var(--danger)]">
+                  {t("icon_gavel", "gavel")}
+                </span>
+                <span className="text-[var(--danger)]">
+                  {`${overdueDmcaBySpoke[String(game.id)]} ${t("dmca_sla_overdue_chip", "48h DMCA SLA Overdue")}`}
+                </span>
+              </div>
+            )}
           </>
         }
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             <button
               type="button"
               onClick={(e) => {
@@ -990,7 +1048,45 @@ export default function KeepersActiveGames({
                 )}
               />
             </button>
-            {!isLivePartnerSpoke && (
+            {isLivePartnerSpoke ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const isOverdue = Number(overdueDmcaBySpoke[String(game.id)] || 0) > 0;
+                  openSeverSpokePanel(
+                    game,
+                    isOverdue
+                      ? t(
+                          "dmca_sever_prefill_reason",
+                          "Unresolved Partner Spoke DMCA Takedown > 48h SLA — Gateway Token Review"
+                        )
+                      : ""
+                  );
+                }}
+                className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border hover:scale-110 ${
+                  Number(overdueDmcaBySpoke[String(game.id)] || 0) > 0
+                    ? "border-[color-mix(in_srgb,var(--danger)_35%,transparent)] text-[var(--danger)]"
+                    : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)]"
+                }`}
+              >
+                <span className="material-symbols-outlined !text-[14px]">
+                  {Number(overdueDmcaBySpoke[String(game.id)] || 0) > 0
+                    ? t("icon_gavel", "gavel")
+                    : t("icon_link_off", "link_off")}
+                </span>
+                <HoverTooltip
+                  title={
+                    Number(overdueDmcaBySpoke[String(game.id)] || 0) > 0
+                      ? t(
+                          "dmca_sla_overdue_tooltip",
+                          "48h DMCA SLA Overdue — Review Gateway Token / Cut the Cord"
+                        )
+                      : t("wf_card_spoke_sever_title", "Spoke Sever (Cut the Cord)")
+                  }
+                />
+              </button>
+            ) : (
               <button
                 type="button"
                 onClick={(e) => {
@@ -1011,36 +1107,6 @@ export default function KeepersActiveGames({
                       : t("filter_inactive", "Inactive")
                   }
                 />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                openSeverSpokePanel(game);
-              }}
-              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--warning)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:scale-110"
-            >
-              <span className="material-symbols-outlined !text-[14px]">
-                {t("icon_link_off", "link_off")}
-              </span>
-              <HoverTooltip
-                title={t("wf_card_spoke_sever_title", "Spoke Sever (Cut the Cord)")}
-              />
-            </button>
-            {!isLivePartnerSpoke && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteGame(game.id, game.name);
-                }}
-                className="w-8 h-8 rounded-xl flex items-center justify-center transition-all glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] hover:scale-110"
-              >
-                <span className="material-symbols-outlined !text-[14px]">
-                  {t("icon_delete", "delete")}
-                </span>
-                <HoverTooltip title={t("btn_delete", "{Delete}")} />
               </button>
             )}
           </div>
@@ -1400,8 +1466,9 @@ export default function KeepersActiveGames({
                   icon={t("icon_handshake", "handshake")}
                   title={meta.game_title || app.title || "Partner Spoke Application"}
                   subtitle={
-                    meta.lead_contact ||
-                    new Date(app.created_at).toLocaleDateString()
+                    meta.lead_contact
+                      ? maskEmailsInText(meta.lead_contact)
+                      : new Date(app.created_at).toLocaleDateString()
                   }
                   badges={
                     <>
@@ -1599,8 +1666,9 @@ export default function KeepersActiveGames({
                       icon={t("icon_handshake", "handshake")}
                       title={meta.game_title || app.title || "Partner Spoke Application"}
                       subtitle={
-                        meta.lead_contact ||
-                        new Date(app.created_at).toLocaleDateString()
+                        meta.lead_contact
+                          ? maskEmailsInText(meta.lead_contact)
+                          : new Date(app.created_at).toLocaleDateString()
                       }
                       badges={
                         <>
@@ -1662,14 +1730,17 @@ export default function KeepersActiveGames({
                             });
                             setSidePanelMode("add");
                           }}
-                          className="h-8 px-2.5 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer"
+                          className="relative w-8 h-8 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--text)_24%,transparent)] flex items-center justify-center hover:scale-110 transition-all cursor-pointer"
                         >
-                          <span className="material-symbols-outlined !text-[13px]">
-                            {t("icon_add_link", "add_link")}
+                          <span className="material-symbols-outlined !text-[15px]">
+                            {t("icon_rocket_launch", "rocket_launch")}
                           </span>
-                          <span>
-                            {t("keepers_provision_from_app", "Provision Spoke from Application")}
-                          </span>
+                          <HoverTooltip
+                            title={t(
+                              "keepers_provision_from_app",
+                              "Provision Spoke from Application"
+                            )}
+                          />
                         </button>
                       }
                       footer={

@@ -752,3 +752,102 @@ pub fn save_blueprint(path: String, content: String) -> Result<(), String> {
     }
     crate::utils::atomic_write_bytes(&resolved, content.as_bytes())
 }
+
+const MOD_HIDDEN_SIDECAR_FILE: &str = ".sanctuary_hidden.json";
+
+fn normalize_hidden_rel_path(raw: &str) -> String {
+    raw.trim()
+        .replace('\\', "/")
+        .trim_matches('/')
+        .to_ascii_lowercase()
+}
+
+pub fn read_mod_hidden_sidecar(mod_dir: &Path) -> std::collections::HashSet<String> {
+    let sidecar = mod_dir.join(MOD_HIDDEN_SIDECAR_FILE);
+    if !sidecar.is_file() {
+        return std::collections::HashSet::new();
+    }
+    let Ok(raw) = std::fs::read_to_string(&sidecar) else {
+        return std::collections::HashSet::new();
+    };
+    let Ok(list) = serde_json::from_str::<Vec<String>>(&raw) else {
+        return std::collections::HashSet::new();
+    };
+    list.into_iter()
+        .map(|s| normalize_hidden_rel_path(&s))
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+#[tauri::command]
+pub fn get_mod_hidden_files(
+    vault_path: String,
+    mod_folder: String,
+) -> Result<Vec<String>, String> {
+    if vault_path.trim().is_empty() {
+        return Err("VAULT_NOT_CONFIGURED".into());
+    }
+    let vault_mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
+    let clean_rel = mod_folder
+        .trim()
+        .replace('\\', "/")
+        .trim_matches('/')
+        .to_string();
+    if clean_rel.is_empty() {
+        return Ok(Vec::new());
+    }
+    let target_dir = crate::utils::resolve_case_insensitive_path(&vault_mods_lane, &clean_rel);
+    if !target_dir.exists() {
+        return Ok(Vec::new());
+    }
+    crate::utils::ensure_strict_descendant_of_roots(&target_dir, &[vault_mods_lane])?;
+    let mut items: Vec<String> = read_mod_hidden_sidecar(&target_dir).into_iter().collect();
+    items.sort();
+    Ok(items)
+}
+
+#[tauri::command]
+pub fn set_mod_hidden_files(
+    vault_path: String,
+    mod_folder: String,
+    hidden_files: Vec<String>,
+) -> Result<(), String> {
+    if vault_path.trim().is_empty() {
+        return Err("VAULT_NOT_CONFIGURED".into());
+    }
+    let vault_mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
+    let clean_rel = mod_folder
+        .trim()
+        .replace('\\', "/")
+        .trim_matches('/')
+        .to_string();
+    if clean_rel.is_empty() {
+        return Err("Blocked: Target mod folder is empty.".into());
+    }
+    let target_dir = crate::utils::resolve_case_insensitive_path(&vault_mods_lane, &clean_rel);
+    crate::utils::ensure_strict_descendant_of_roots(&target_dir, &[vault_mods_lane])?;
+    if !target_dir.is_dir() {
+        return Err("Target mod folder not found in Vault.".into());
+    }
+
+    let mut normalized: Vec<String> = hidden_files
+        .into_iter()
+        .map(|s| normalize_hidden_rel_path(&s))
+        .filter(|s| !s.is_empty())
+        .collect();
+    normalized.sort();
+    normalized.dedup();
+
+    let sidecar_path = target_dir.join(MOD_HIDDEN_SIDECAR_FILE);
+    if normalized.is_empty() {
+        if sidecar_path.exists() {
+            let _ = std::fs::remove_file(&sidecar_path);
+        }
+        return Ok(());
+    }
+
+    let json = serde_json::to_string_pretty(&normalized).map_err(|e| e.to_string())?;
+    crate::utils::atomic_write_bytes(&sidecar_path, json.as_bytes())?;
+    crate::utils::mark_path_hidden(&sidecar_path);
+    Ok(())
+}

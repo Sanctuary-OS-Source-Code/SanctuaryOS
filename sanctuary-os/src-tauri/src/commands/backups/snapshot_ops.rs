@@ -148,6 +148,7 @@ pub async fn sanitize_vault(
 pub(super) fn recompute_snapshot_metadata(
     backup_dir: &Path,
     prev_backup: Option<&(String, PathBuf)>,
+    lane: &str,
 ) -> (u64, u64) {
     let mut raw_entries: Vec<(PathBuf, String, u64, Option<std::time::SystemTime>)> = Vec::new();
     let mut total_size: u64 = 0;
@@ -204,6 +205,7 @@ pub(super) fn recompute_snapshot_metadata(
         (
             written_bytes.min(total_size),
             DeltaManifest {
+                lane: Some(lane.to_string()),
                 previous_backup_name: Some(prev_name.clone()),
                 is_baseline: false,
                 added_paths,
@@ -215,6 +217,7 @@ pub(super) fn recompute_snapshot_metadata(
         (
             total_size,
             DeltaManifest {
+                lane: Some(lane.to_string()),
                 previous_backup_name: None,
                 is_baseline: true,
                 added_paths: Vec::new(),
@@ -246,6 +249,7 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
             name: String,
             path: PathBuf,
             is_dir: bool,
+            is_engine: bool,
             size_mb: f64,
             logical_size_mb: f64,
         }
@@ -268,10 +272,17 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
                         {
                             continue;
                         }
+                        let is_engine = is_engine_backup_lane(
+                            &entry_path,
+                            &name,
+                            &vault_path,
+                            &config.live_path,
+                        );
                         raw_list.push(RawBackupEntry {
                             name,
                             path: entry_path,
                             is_dir: true,
+                            is_engine,
                             size_mb: 0.0,
                             logical_size_mb: 0.0,
                         });
@@ -283,10 +294,17 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
                             .metadata()
                             .map(|m| m.len() as f64 / 1_048_576.0)
                             .unwrap_or(0.0);
+                        let is_engine = is_engine_backup_lane(
+                            &entry_path,
+                            &name,
+                            &vault_path,
+                            &config.live_path,
+                        );
                         raw_list.push(RawBackupEntry {
                             name,
                             path: entry_path,
                             is_dir: false,
+                            is_engine,
                             size_mb: size,
                             logical_size_mb: size,
                         });
@@ -350,22 +368,22 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
 
         let mut prev_world: Option<(String, PathBuf)> = None;
         let mut prev_engine: Option<(String, PathBuf)> = None;
-        let mut rebuild_jobs: Vec<(usize, PathBuf, Option<(String, PathBuf)>)> = Vec::new();
+        let mut rebuild_jobs: Vec<(usize, PathBuf, Option<(String, PathBuf)>, &'static str)> =
+            Vec::new();
 
         for (idx, item) in raw_list.iter_mut().enumerate() {
             if !item.is_dir {
                 continue;
             }
-            let expected_prev = if item.name.starts_with("World_State") {
-                let p = prev_world.clone();
-                prev_world = Some((item.name.clone(), item.path.clone()));
-                p
-            } else if item.name.starts_with("Engine_Core") {
+            let lane_str: &'static str = if item.is_engine { "engine" } else { "world" };
+            let expected_prev = if item.is_engine {
                 let p = prev_engine.clone();
                 prev_engine = Some((item.name.clone(), item.path.clone()));
                 p
             } else {
-                None
+                let p = prev_world.clone();
+                prev_world = Some((item.name.clone(), item.path.clone()));
+                p
             };
 
             let is_baseline = expected_prev.is_none();
@@ -399,11 +417,12 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
 
             let manifest_matches_chain = match &parsed_manifest {
                 Some(m) => {
-                    if is_baseline {
-                        m.is_baseline
-                    } else {
-                        !m.is_baseline && m.previous_backup_name == expected_prev_name
-                    }
+                    m.lane.as_deref() == Some(lane_str)
+                        && if is_baseline {
+                            m.is_baseline
+                        } else {
+                            !m.is_baseline && m.previous_backup_name == expected_prev_name
+                        }
                 }
                 None => false,
             };
@@ -413,7 +432,7 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
                 || cached_diff.is_none()
                 || !manifest_matches_chain
             {
-                rebuild_jobs.push((idx, item.path.clone(), expected_prev));
+                rebuild_jobs.push((idx, item.path.clone(), expected_prev, lane_str));
             } else if let Some(m) = parsed_manifest {
                 let final_diff = if is_baseline {
                     cached_logical
@@ -445,8 +464,9 @@ pub async fn get_backups(vault_path: String) -> Result<Vec<BackupInfo>, String> 
             use rayon::prelude::*;
             let rebuilt: Vec<(usize, u64, u64)> = rebuild_jobs
                 .par_iter()
-                .map(|(idx, dir_path, prev_opt)| {
-                    let (log_b, diff_b) = recompute_snapshot_metadata(dir_path, prev_opt.as_ref());
+                .map(|(idx, dir_path, prev_opt, lane_str)| {
+                    let (log_b, diff_b) =
+                        recompute_snapshot_metadata(dir_path, prev_opt.as_ref(), lane_str);
                     (*idx, log_b, diff_b)
                 })
                 .collect();
@@ -569,18 +589,38 @@ pub fn rename_backup(old_name: String, new_name: String) -> Result<String, Strin
 }
 
 pub(super) fn find_latest_previous_backup(search_dirs: &[PathBuf], prefix: &str) -> Option<PathBuf> {
+    let want_engine = prefix.starts_with("Engine");
     let mut folders: Vec<PathBuf> = Vec::new();
     for dir in search_dirs {
         if let Ok(entries) = std::fs::read_dir(dir) {
-            folders.extend(
-                entries
-                    .flatten()
-                    .filter(|e| {
-                        e.file_type().map_or(false, |ft| ft.is_dir())
-                            && e.file_name().to_string_lossy().starts_with(prefix)
-                    })
-                    .map(|e| e.path()),
-            );
+            for e in entries.flatten() {
+                if !e.file_type().map_or(false, |ft| ft.is_dir()) {
+                    continue;
+                }
+                let p = e.path();
+                let name = e.file_name().to_string_lossy().to_string();
+                if name.starts_with('.')
+                    || matches!(name.as_str(), "World" | "Engine" | "Mods" | "Config")
+                {
+                    continue;
+                }
+                let matches_prefix = name.starts_with(prefix);
+                let matches_manifest_lane = p.join(".delta_manifest.json").exists()
+                    && std::fs::read_to_string(p.join(".delta_manifest.json"))
+                        .ok()
+                        .and_then(|raw| serde_json::from_str::<DeltaManifest>(&raw).ok())
+                        .and_then(|m| m.lane)
+                        .map_or(false, |l| {
+                            if want_engine {
+                                l.trim().eq_ignore_ascii_case("engine")
+                            } else {
+                                l.trim().eq_ignore_ascii_case("world")
+                            }
+                        });
+                if matches_prefix || matches_manifest_lane {
+                    folders.push(p);
+                }
+            }
         }
     }
     folders.sort_by(|a, b| {
@@ -775,6 +815,7 @@ pub async fn backup_universe(
         let removed_files =
             collect_removed_files_from_previous(&previous_backup, &current_rel_set);
         let manifest = DeltaManifest {
+            lane: Some("world".to_string()),
             previous_backup_name: previous_backup
                 .as_ref()
                 .and_then(|p| p.file_name())
@@ -933,6 +974,7 @@ pub async fn backup_engine_full(
         let removed_files =
             collect_removed_files_from_previous(&previous_backup, &current_rel_set);
         let manifest = DeltaManifest {
+            lane: Some("engine".to_string()),
             previous_backup_name: previous_backup
                 .as_ref()
                 .and_then(|p| p.file_name())

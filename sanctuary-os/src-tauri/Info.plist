@@ -2,6 +2,32 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLName</key>
+            <string>os.sanctuary.deeplink</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>sanctuary</string>
+                <string>sanctuary-uplink</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>CFBundleURLName</key>
+            <string>os.sanctuary.external-modlink</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>nxm</string>
+                <string>ror2mm</string>
+                <string>curseforge</string>
+            </array>
+        </dict>
+    </array>
     <key>NSDocumentsFolderUsageDescription</key>
     <string>Sanctuary OS requires access to your Documents folder to manage game Mods, Saves, and Time Capsule backups.</string>
     <key>NSDownloadsFolderUsageDescription</key>

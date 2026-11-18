@@ -21,7 +21,7 @@
     "user_data_dir_windows": "%APPDATA%/StardewValley",
     "user_data_dir_mac": "~/.config/StardewValley",
     "user_data_dir_linux": "~/.config/StardewValley",
-    "manifest_file": "manifest.json",
+    "manifest_file": "",
     "auto_scan_paths_windows": [
       "C:/Program Files (x86)/Steam/steamapps/common/Stardew Valley",
       "D:/Program Files (x86)/Steam/steamapps/common/Stardew Valley",
@@ -47,10 +47,7 @@
       ".tmx",
       ".tbin",
       ".xnb",
-      ".ogg",
-      ".zip",
-      ".rar",
-      ".7z"
+      ".ogg"
     ],
     "vault_visible": [
       ".dll",

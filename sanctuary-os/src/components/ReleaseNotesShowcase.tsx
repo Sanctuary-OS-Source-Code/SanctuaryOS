@@ -2,9 +2,10 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { supabaseAuth } from "../supabase";
-import { SidePanel, PanelHeaderGroup, DashboardStatTile, SidePanelFilterBar } from "../shared-components/layout";
-import { PanelHeaderButton } from "../shared-components/buttons";
+import { SidePanel, PanelHeaderGroup, DashboardStatTile, SidePanelFilterBar, EmptyState } from "../shared-components/layout";
+import { PanelHeaderButton, ActionButton } from "../shared-components/buttons";
 import { handleOpenUrl } from "../shared-components/misc";
+import { openSanctuaryContextMenu } from "../shared-components/ContextMenu";
 import { SidePanelHeroCard } from "./layouts/ElevatedHubLayout";
 import { UniversalCard } from "./universal/UniversalCard";
 import { UniversalGroup, StatBox } from "./universal/UniversalLayout";
@@ -24,8 +25,31 @@ import { isDesktop } from "../utils/envUtils";
 import { useKeeperDocPresence, KeeperDocSavedBroadcast } from "../utils/useKeeperDocPresence";
 import type { KeeperDocConflictInfo } from "./universal/KeeperDocConflictBar";
 import { VAULT_CHIP_CLASS } from "../shared-components/constants";
-import { LEGACY_BLOG_BROADCAST_TITLE, PUBLIC_CHANGELOG_BROADCAST_CATEGORY, DEV_CHANGELOG_BROADCAST_CATEGORY, GITHUB_RELEASES_WEB_URL, GITHUB_WEB_DEV_RELEASE_URL, KeepersReleasePostRecord, cleanPostBodyForViewer } from "./release-notes/releaseMarkdownParser";
-import { parseSeedCommunityBlog, formatReleasePostToMarkdownFile, parseLatestChangelogBlock, serializeReleasePostMessage, deserializeReleasePostRow, deserializeChangelogRow, areReleasePostsEquivalent, areChangelogsEquivalent } from "./release-notes/releasePostSerializers";
+import {
+  LEGACY_BLOG_BROADCAST_TITLE,
+  PUBLIC_CHANGELOG_BROADCAST_CATEGORY,
+  DEV_CHANGELOG_BROADCAST_CATEGORY,
+  PUBLIC_ARCHIVE_BROADCAST_CATEGORY,
+  DEV_ARCHIVE_BROADCAST_CATEGORY,
+  GITHUB_RELEASES_WEB_URL,
+  GITHUB_WEB_DEV_RELEASE_URL,
+  KeepersReleasePostRecord,
+  KeepersReleaseArchiveEntry,
+  cleanPostBodyForViewer,
+} from "./release-notes/releaseMarkdownParser";
+import {
+  parseSeedCommunityBlog,
+  formatReleasePostToMarkdownFile,
+  parseLatestChangelogBlock,
+  parseAllChangelogBlocks,
+  normalizeReleaseVersionKey,
+  extractChangelogForVersion,
+  serializeReleasePostMessage,
+  deserializeReleasePostRow,
+  deserializeChangelogRow,
+  areReleasePostsEquivalent,
+  areChangelogsEquivalent,
+} from "./release-notes/releasePostSerializers";
 import { StructuredReleaseNotesView } from "./release-notes/ReleaseMarkdownViewer";
 export * from "./release-notes/releaseMarkdownParser";
 export * from "./release-notes/releasePostSerializers";
@@ -218,6 +242,8 @@ export function ReleaseNotesShowcase({
   );
   const [stableChangelogRowId, setStableChangelogRowId] = useState<string | null>(null);
   const [devChangelogRowId, setDevChangelogRowId] = useState<string | null>(null);
+  const [dbArchivedPublicPosts, setDbArchivedPublicPosts] = useState<KeepersReleasePostRecord[]>([]);
+  const [dbArchivedDevPosts, setDbArchivedDevPosts] = useState<KeepersReleasePostRecord[]>([]);
 
   // User-facing vs. Keepers Core effective records
   const publicPost = isKeepers ? workingPublicPost : publishedPublicPost;
@@ -244,7 +270,8 @@ export function ReleaseNotesShowcase({
   const hasUnpublishedDev = hasUnpublishedDevPost || hasUnpublishedDevChangelog;
 
   const [activeChannel, setActiveChannel] = useState<"stable" | "dev" | null>(null);
-  const [activeView, setActiveView] = useState<"post" | "changelog">("post");
+  const [activeView, setActiveView] = useState<"post" | "changelog" | "archive">("post");
+  const [selectedArchiveEntry, setSelectedArchiveEntry] = useState<KeepersReleaseArchiveEntry | null>(null);
 
   // Keepers Core Dispatch / Comm-Link Post & Changelog Editor state
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -529,6 +556,8 @@ export function ReleaseNotesShowcase({
               "ReleaseNotesBlog",
               PUBLIC_CHANGELOG_BROADCAST_CATEGORY,
               DEV_CHANGELOG_BROADCAST_CATEGORY,
+              PUBLIC_ARCHIVE_BROADCAST_CATEGORY,
+              DEV_ARCHIVE_BROADCAST_CATEGORY,
             ])
             .order("updated_at", { ascending: false }),
           getKeepersPipelineConfig(forceRefreshGitHub),
@@ -554,6 +583,22 @@ export function ReleaseNotesShowcase({
           );
           const devChangelogRow = rows.find(
             (r: any) => r.category === DEV_CHANGELOG_BROADCAST_CATEGORY
+          );
+          const pubArchiveRows = rows.filter(
+            (r: any) => r.category === PUBLIC_ARCHIVE_BROADCAST_CATEGORY
+          );
+          const devArchiveRows = rows.filter(
+            (r: any) => r.category === DEV_ARCHIVE_BROADCAST_CATEGORY
+          );
+          setDbArchivedPublicPosts(
+            pubArchiveRows.map((r: any) =>
+              deserializeReleasePostRow(r, defaultPublicPost, true)
+            )
+          );
+          setDbArchivedDevPosts(
+            devArchiveRows.map((r: any) =>
+              deserializeReleasePostRow(r, defaultDevPost, true)
+            )
           );
 
           const resolvedPubPublished = deserializeReleasePostRow(
@@ -1100,6 +1145,8 @@ export function ReleaseNotesShowcase({
     handlePublishChannel,
     handleSaveKeepersPost,
     handleRefreshGitHubChangelog,
+    handleStartNewVersionDraft,
+    handleDeleteArchiveEntry,
   } = useReleaseNotesActions({
     t,
     setWayfinderDrafts,
@@ -1201,9 +1248,138 @@ export function ReleaseNotesShowcase({
     ? workingDevChangelog
     : publishedDevChangelog;
 
+  const activeArchiveEntries = useMemo<KeepersReleaseArchiveEntry[]>(() => {
+    const channel: "stable" | "dev" = activeChannel === "dev" ? "dev" : "stable";
+    const dbPosts = channel === "dev" ? dbArchivedDevPosts : dbArchivedPublicPosts;
+    const byVer = new Map<string, KeepersReleaseArchiveEntry>();
+
+    for (const p of dbPosts) {
+      const cleanVer = String(p.version || "").replace(/^v/i, "").trim();
+      const key = normalizeReleaseVersionKey(cleanVer);
+      if (!key) continue;
+      byVer.set(key, {
+        key,
+        dbRowId: p.id || null,
+        channel,
+        version: cleanVer,
+        releaseDate: p.releaseDate || "",
+        title: p.title || `Sanctuary OS v${cleanVer}`,
+        summary: p.summary || "",
+        platform: p.platform || t("release_notes_meta_platform_default", "Windows & macOS"),
+        imageUrl: p.imageUrl || "",
+        codeSnippet: p.codeSnippet || "",
+        postBody: cleanPostBodyForViewer(p.body || ""),
+        changelogMarkdown: p.archivedChangelog || "",
+        publishedAt: p.publishedAt || "",
+      });
+    }
+
+    const mdSources =
+      channel === "dev"
+        ? [devGitHubChangelog, bundledRunningChangelog]
+        : [stableGitHubChangelog];
+    for (const src of mdSources) {
+      if (!src || !src.trim()) continue;
+      for (const blk of parseAllChangelogBlocks(src)) {
+        const cleanVer = String(blk.version || "").replace(/^v/i, "").trim();
+        const key = normalizeReleaseVersionKey(cleanVer);
+        if (!key) continue;
+        const existing = byVer.get(key);
+        if (existing) {
+          if (!existing.changelogMarkdown && blk.markdown) {
+            existing.changelogMarkdown = blk.markdown;
+          }
+          if (!existing.releaseDate && blk.date) {
+            existing.releaseDate = blk.date;
+          }
+        } else {
+          byVer.set(key, {
+            key,
+            dbRowId: null,
+            channel,
+            version: cleanVer,
+            releaseDate: blk.date || "",
+            title: blk.heading || `Sanctuary OS v${cleanVer}`,
+            summary: blk.heading || t("release_notes_archive_cl_only_summary", "Archived build changelog entry."),
+            platform: t("release_notes_meta_platform_default", "Windows & macOS"),
+            imageUrl: "",
+            codeSnippet: "",
+            postBody: "",
+            changelogMarkdown: blk.markdown || "",
+            publishedAt: "",
+          });
+        }
+      }
+    }
+
+    const activeCurVer = (
+      channel === "dev" ? devPost.version || defaultDevVersion : publicPost.version || defaultStableVersion
+    )
+      .replace(/^v/i, "")
+      .trim();
+    const activeCurKey = normalizeReleaseVersionKey(activeCurVer);
+    if (activeCurKey) {
+      const srcPost = channel === "dev" ? devPost : publicPost;
+      const srcCl = extractChangelogForVersion(
+        channel === "dev" ? devGitHubChangelog : stableGitHubChangelog,
+        activeCurVer
+      );
+      const existing = byVer.get(activeCurKey);
+      if (!existing && (srcPost.body || srcCl)) {
+        byVer.set(activeCurKey, {
+          key: activeCurKey,
+          dbRowId: null,
+          channel,
+          version: activeCurVer,
+          releaseDate: srcPost.releaseDate || "",
+          title: srcPost.title || `Sanctuary OS v${activeCurVer}`,
+          summary: srcPost.summary || "",
+          platform: srcPost.platform || t("release_notes_meta_platform_default", "Windows & macOS"),
+          imageUrl: srcPost.imageUrl || "",
+          codeSnippet: srcPost.codeSnippet || "",
+          postBody: cleanPostBodyForViewer(srcPost.body || ""),
+          changelogMarkdown: srcCl || "",
+          publishedAt: srcPost.publishedAt || "",
+        });
+      }
+    }
+
+    return Array.from(byVer.values());
+  }, [
+    activeChannel,
+    dbArchivedDevPosts,
+    dbArchivedPublicPosts,
+    devGitHubChangelog,
+    stableGitHubChangelog,
+    devPost,
+    publicPost,
+    defaultDevVersion,
+    defaultStableVersion,
+    t,
+  ]);
+
   const openReleasePanel = (channel: "stable" | "dev") => {
     setActiveChannel(channel);
+    setSelectedArchiveEntry(null);
     setActiveView("post");
+  };
+
+  const handleRestoreArchiveToDraft = (entry: KeepersReleaseArchiveEntry) => {
+    setEditorChannel(entry.channel);
+    setEditorDocType("post");
+    setDraftTitle(entry.title);
+    setDraftSummary(entry.summary);
+    setDraftVersion(entry.version);
+    setDraftReleaseDate(entry.releaseDate);
+    setDraftPlatform(entry.platform);
+    setDraftImageUrl(entry.imageUrl || "");
+    setDraftCodeSnippet(entry.codeSnippet || "");
+    setShowCodeInput(Boolean(entry.codeSnippet));
+    setDraftPollData(null);
+    setDraftBody(entry.postBody || entry.changelogMarkdown);
+    setIsDirty(true);
+    setEditorSyncSeq((n) => n + 1);
+    setIsEditorOpen(true);
   };
 
   const buildCommSubtitle = (channelBadge: string, versionStr: string) => (
@@ -1671,7 +1847,7 @@ export function ReleaseNotesShowcase({
       >
         <div className="flex flex-col gap-6 pb-12 w-full">
           {/* StatTile Filter Grid inside SidePanel */}
-          <SidePanelFilterBar className="sm:grid-cols-3 gap-3">
+          <SidePanelFilterBar className="grid-cols-2 sm:grid-cols-4 gap-3">
             <DashboardStatTile
               variant="filter"
               className="!w-full"
@@ -1680,7 +1856,10 @@ export function ReleaseNotesShowcase({
               number={t("btn_post", "Post")}
               colorClass="text-[var(--accent)]"
               isActive={activeView === "post"}
-              onClick={() => setActiveView("post")}
+              onClick={() => {
+                setSelectedArchiveEntry(null);
+                setActiveView("post");
+              }}
             />
             <DashboardStatTile
               variant="filter"
@@ -1690,7 +1869,23 @@ export function ReleaseNotesShowcase({
               number={t("release_notes_tile_changelog", "Changelog")}
               colorClass="text-[var(--accent)]"
               isActive={activeView === "changelog"}
-              onClick={() => setActiveView("changelog")}
+              onClick={() => {
+                setSelectedArchiveEntry(null);
+                setActiveView("changelog");
+              }}
+            />
+            <DashboardStatTile
+              variant="filter"
+              className="!w-full"
+              icon={t("icon_inventory_2", "inventory_2")}
+              label={t("btn_view", "View")}
+              number={`${t("release_notes_tile_archives", "Archives")} (${activeArchiveEntries.length})`}
+              colorClass="text-[var(--accent)]"
+              isActive={activeView === "archive"}
+              onClick={() => {
+                setSelectedArchiveEntry(null);
+                setActiveView("archive");
+              }}
             />
             <DashboardStatTile
               variant="filter"
@@ -1704,80 +1899,265 @@ export function ReleaseNotesShowcase({
             />
           </SidePanelFilterBar>
 
-          <SidePanelHeroCard
-            title={activeTitle}
-            subtitle={t("release_notes_author_subtitle", "Official Release Dispatch")}
-            label={`${activeChannelBadge} v${activeVersion}`}
-            icon={isDevActive ? t("icon_bolt", "bolt") : t("icon_forum", "forum")}
-            variant="accent"
-            badges={[
-              ...(isKeepers && activeChannelHasUnpublished
-                ? [
-                    {
-                      icon: t("icon_pending_actions", "pending_actions"),
-                      label: t("dir_status_staged_sync", "Synced • Unpushed"),
-                      colorClass:
-                        "text-[var(--warning)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
-                    },
-                  ]
-                : []),
-              {
-                icon: t("icon_verified", "verified"),
-                label: t("author_sanctuary_team", "Sanctuary Foundry"),
-                colorClass:
-                  "text-[var(--text)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
-              },
-            ]}
-          >
-            <div className="flex flex-col gap-4 w-full">
-              {activeView === "post" && activePostRecord.imageUrl && (
-                <div className="w-full h-52 sm:h-64 rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
-                  <img
-                    src={activePostRecord.imageUrl}
-                    alt={activeTitle}
-                    className="w-full h-full object-cover"
+          {activeView === "archive" ? (
+            selectedArchiveEntry ? (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <ActionButton
+                    variant="glass"
+                    icon={t("icon_arrow_back", "arrow_back")}
+                    label={t("release_notes_back_to_archives", "Back to Archives")}
+                    onClick={() => setSelectedArchiveEntry(null)}
                   />
+                  {isKeepers && (
+                    <ActionButton
+                      variant="accent"
+                      icon={t("icon_edit", "edit")}
+                      label={t("release_notes_restore_to_draft", "Load into Draft Editor")}
+                      onClick={() => handleRestoreArchiveToDraft(selectedArchiveEntry)}
+                    />
+                  )}
                 </div>
-              )}
 
-              {renderReleaseInfoPanel(
-                activeDateStr,
-                activeVersion,
-                isDevActive,
-                activePlatformStr
-              )}
-            </div>
-          </SidePanelHeroCard>
+                <SidePanelHeroCard
+                  title={selectedArchiveEntry.title}
+                  subtitle={t("release_notes_archived_subtitle", "Archived Release Record")}
+                  label={`${activeChannelBadge} v${selectedArchiveEntry.version}`}
+                  icon={t("icon_inventory_2", "inventory_2")}
+                  variant="accent"
+                >
+                  <div className="flex flex-col gap-4 w-full">
+                    {selectedArchiveEntry.imageUrl && (
+                      <div className="w-full h-52 sm:h-64 rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                        <img
+                          src={selectedArchiveEntry.imageUrl}
+                          alt={selectedArchiveEntry.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    {renderReleaseInfoPanel(
+                      selectedArchiveEntry.releaseDate || activeDateStr,
+                      selectedArchiveEntry.version,
+                      isDevActive,
+                      selectedArchiveEntry.platform
+                    )}
+                  </div>
+                </SidePanelHeroCard>
 
-          <UniversalGroup
-            title={activeGroupTitle}
-            icon={
-              activeView === "changelog"
-                ? t("icon_terminal", "terminal")
-                : t("icon_menu_book", "menu_book")
-            }
-          >
-            <div className="flex-1 flex flex-col gap-6 min-w-0">
-              <StructuredReleaseNotesView content={activeMarkdownContent} />
+                {selectedArchiveEntry.postBody && (
+                  <UniversalGroup
+                    title={t("release_notes_post_overview_heading", "Release Overview")}
+                    icon={t("icon_menu_book", "menu_book")}
+                  >
+                    <StructuredReleaseNotesView content={selectedArchiveEntry.postBody} />
+                  </UniversalGroup>
+                )}
 
-              {activeView === "post" && activePostRecord.codeSnippet && (
-                <pre className="w-full glass-surface rounded-2xl p-5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] overflow-x-auto custom-scrollbar">
-                  <code>{activePostRecord.codeSnippet}</code>
-                </pre>
-              )}
+                {selectedArchiveEntry.changelogMarkdown && (
+                  <UniversalGroup
+                    title={t("release_notes_full_changelog_heading", "Full Change Log")}
+                    icon={t("icon_terminal", "terminal")}
+                  >
+                    <StructuredReleaseNotesView content={selectedArchiveEntry.changelogMarkdown} />
+                  </UniversalGroup>
+                )}
+              </>
+            ) : (
+              <UniversalGroup
+                title={`${t("release_notes_archives_heading", "Release & Changelog Archives")} (${activeArchiveEntries.length})`}
+                icon={t("icon_inventory_2", "inventory_2")}
+              >
+                {activeArchiveEntries.length === 0 ? (
+                  <EmptyState
+                    icon={t("icon_inventory_2", "inventory_2")}
+                    title={t("release_notes_archives_empty_title", "No Archived Builds Yet")}
+                    subtitle={t(
+                      "release_notes_archives_empty_sub",
+                      "Previous release posts and changelogs are preserved automatically whenever you publish a new version."
+                    )}
+                  />
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                    {activeArchiveEntries.map((entry) => {
+                      const isCurrentVer =
+                        entry.key === normalizeReleaseVersionKey(activeVersion);
+                      return (
+                        <UniversalCard
+                          key={`${entry.channel}-${entry.key}`}
+                          layout="vertical"
+                          headerStyle="inline"
+                          icon={
+                            entry.channel === "dev"
+                              ? t("icon_bolt", "bolt")
+                              : t("icon_verified", "verified")
+                          }
+                          title={entry.title}
+                          subtitle={`v${entry.version}${entry.releaseDate ? ` • ${formatCompactReleaseDate(entry.releaseDate)}` : ""}`}
+                          onClick={() => setSelectedArchiveEntry(entry)}
+                          onContextMenu={
+                            isKeepers
+                              ? (e) => {
+                                  openSanctuaryContextMenu(e, [
+                                    {
+                                      label: t(
+                                        "release_notes_restore_to_draft",
+                                        "Load into Draft Editor"
+                                      ),
+                                      icon: t("icon_edit", "edit"),
+                                      onClick: () => handleRestoreArchiveToDraft(entry),
+                                    },
+                                    ...(entry.dbRowId
+                                      ? [
+                                          {
+                                            label: t("btn_delete", "{Delete}"),
+                                            icon: t("icon_delete", "delete"),
+                                            variant: "danger" as const,
+                                            onClick: () => handleDeleteArchiveEntry(entry),
+                                          },
+                                        ]
+                                      : []),
+                                  ]);
+                                }
+                              : undefined
+                          }
+                          badges={
+                            <>
+                              <span className={VAULT_CHIP_CLASS}>
+                                <span className="material-symbols-outlined !text-[12px] text-[var(--accent)]">
+                                  {t("icon_tag", "tag")}
+                                </span>
+                                <span>v{entry.version}</span>
+                              </span>
+                              {isCurrentVer && (
+                                <span className={VAULT_CHIP_CLASS}>
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--success)]">
+                                    {t("icon_check_circle", "check_circle")}
+                                  </span>
+                                  <span>{t("current", "Current")}</span>
+                                </span>
+                              )}
+                              {entry.postBody && (
+                                <span className={VAULT_CHIP_CLASS}>
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                    {t("icon_menu_book", "menu_book")}
+                                  </span>
+                                  <span>{t("btn_post", "Post")}</span>
+                                </span>
+                              )}
+                              {entry.changelogMarkdown && (
+                                <span className={VAULT_CHIP_CLASS}>
+                                  <span className="material-symbols-outlined !text-[12px] text-[var(--subtext)]">
+                                    {t("icon_terminal", "terminal")}
+                                  </span>
+                                  <span>{t("release_notes_tile_changelog", "Changelog")}</span>
+                                </span>
+                              )}
+                            </>
+                          }
+                          footer={
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-[10px] font-mono text-[var(--subtext)] opacity-75">
+                                {entry.releaseDate
+                                  ? formatCompactReleaseDate(entry.releaseDate)
+                                  : `v${entry.version}`}
+                              </span>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text)] group-hover:text-[var(--accent)] flex items-center gap-1">
+                                {t("btn_inspect_manifest", "Inspect")} &rarr;
+                              </span>
+                            </div>
+                          }
+                        >
+                          {entry.summary && (
+                            <p className="text-[11px] text-[var(--subtext)] opacity-85 line-clamp-2 leading-relaxed mt-1">
+                              {entry.summary}
+                            </p>
+                          )}
+                        </UniversalCard>
+                      );
+                    })}
+                  </div>
+                )}
+              </UniversalGroup>
+            )
+          ) : (
+            <>
+              <SidePanelHeroCard
+                title={activeTitle}
+                subtitle={t("release_notes_author_subtitle", "Official Release Dispatch")}
+                label={`${activeChannelBadge} v${activeVersion}`}
+                icon={isDevActive ? t("icon_bolt", "bolt") : t("icon_forum", "forum")}
+                variant="accent"
+                badges={[
+                  ...(isKeepers && activeChannelHasUnpublished
+                    ? [
+                        {
+                          icon: t("icon_pending_actions", "pending_actions"),
+                          label: t("dir_status_staged_sync", "Synced • Unpushed"),
+                          colorClass:
+                            "text-[var(--warning)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
+                        },
+                      ]
+                    : []),
+                  {
+                    icon: t("icon_verified", "verified"),
+                    label: t("author_sanctuary_team", "Sanctuary Foundry"),
+                    colorClass:
+                      "text-[var(--text)] border-[color-mix(in_srgb,var(--text)_12%,transparent)]",
+                  },
+                ]}
+              >
+                <div className="flex flex-col gap-4 w-full">
+                  {activeView === "post" && activePostRecord.imageUrl && (
+                    <div className="w-full h-52 sm:h-64 rounded-2xl overflow-hidden border border-[color-mix(in_srgb,var(--text)_10%,transparent)] relative">
+                      <img
+                        src={activePostRecord.imageUrl}
+                        alt={activeTitle}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
 
-              {activeView === "post" && activePostRecord.pollData && (
-                <DispatchPollViewer
-                  post={{
-                    id: activePostRecord.id || `release-post-${activeChannel}`,
-                    poll_data: activePostRecord.pollData,
-                    _sourceTable: "keeper_system_broadcasts",
-                  }}
-                  userId={session?.user?.id || null}
-                />
-              )}
-            </div>
-          </UniversalGroup>
+                  {renderReleaseInfoPanel(
+                    activeDateStr,
+                    activeVersion,
+                    isDevActive,
+                    activePlatformStr
+                  )}
+                </div>
+              </SidePanelHeroCard>
+
+              <UniversalGroup
+                title={activeGroupTitle}
+                icon={
+                  activeView === "changelog"
+                    ? t("icon_terminal", "terminal")
+                    : t("icon_menu_book", "menu_book")
+                }
+              >
+                <div className="flex-1 flex flex-col gap-6 min-w-0">
+                  <StructuredReleaseNotesView content={activeMarkdownContent} />
+
+                  {activeView === "post" && activePostRecord.codeSnippet && (
+                    <pre className="w-full glass-surface rounded-2xl p-5 text-xs font-mono text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)] overflow-x-auto custom-scrollbar">
+                      <code>{activePostRecord.codeSnippet}</code>
+                    </pre>
+                  )}
+
+                  {activeView === "post" && activePostRecord.pollData && (
+                    <DispatchPollViewer
+                      post={{
+                        id: activePostRecord.id || `release-post-${activeChannel}`,
+                        poll_data: activePostRecord.pollData,
+                        _sourceTable: "keeper_system_broadcasts",
+                      }}
+                      userId={session?.user?.id || null}
+                    />
+                  )}
+                </div>
+              </UniversalGroup>
+            </>
+          )}
         </div>
       </SidePanel>
 
@@ -1833,6 +2213,7 @@ export function ReleaseNotesShowcase({
             handleImportLocalReleaseMd={handleImportLocalReleaseMd}
             handleSaveKeepersPost={handleSaveKeepersPost}
             handleLoadLatestReleaseFromHub={handleLoadLatestReleaseFromHub}
+            handleStartNewVersionDraft={handleStartNewVersionDraft}
             handleLinkAsset={handleLinkAsset}
           />
         </React.Suspense>

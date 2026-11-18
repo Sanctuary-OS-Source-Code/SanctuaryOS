@@ -1,11 +1,11 @@
-// @ts-nocheck
+/// <reference path="../deno.d.ts" />
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { SERVER_AUTH_OPTS } from './corsAndSanitization.ts'
 
 export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const SUPABASE_URL_REGEX = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i;
 
-export function b64UrlToBytes(input: string): Uint8Array {
+export function b64UrlToBytes(input: string) {
   const clean = (input || '')
     .replace(/\s+/g, '')
     .replace(/-/g, '+')
@@ -33,6 +33,38 @@ export function bytesToB64Url(bytes: Uint8Array): string {
 }
 
 export const SPOKE_GATEWAY_TOKEN_REGEX = /^spk_gw_[0-9a-f]{64}$/i;
+
+export function isValidSpokeSupabaseUrl(rawUrl: string): boolean {
+  const clean = String(rawUrl || '').trim();
+  if (!clean || clean.length > 255) return false;
+  try {
+    const u = new URL(clean);
+    if (u.protocol !== 'https:') return false;
+    if (u.username || u.password || u.search || u.hash) return false;
+    if (u.pathname !== '/') return false;
+    const host = u.hostname.toLowerCase().replace(/\.$/, '');
+    if (!host || !host.includes('.') || host.includes(':') || host.startsWith('[')) return false;
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) return false;
+    if (
+      host === 'localhost' ||
+      host.endsWith('.localhost') ||
+      host.endsWith('.local') ||
+      host.endsWith('.internal') ||
+      host.endsWith('.arpa')
+    ) {
+      return false;
+    }
+    const labels = host.split('.');
+    if (labels.length < 2) return false;
+    if (labels.some((lbl) => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(lbl))) {
+      return false;
+    }
+    if (/^\d+$/.test(labels[labels.length - 1])) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function normalizeSpokeUrl(rawUrl: string): string {
   return String(rawUrl || '').trim().replace(/\/+$/, '').toLowerCase();
@@ -96,7 +128,7 @@ export function getMasterKeyRing(): Array<{ kid: string; key: Uint8Array }> {
   return ring;
 }
 
-export function buildSpokeAad(meta: { gameId: string; schemaId: string; supabaseUrl: string }): Uint8Array {
+export function buildSpokeAad(meta: { gameId: string; schemaId: string; supabaseUrl: string }) {
   const aadStr = [
     'sanctuary-spoke-aad:v1',
     String(meta.gameId || '').trim().toLowerCase(),
@@ -112,12 +144,23 @@ export async function deriveRowAesKey(
   gameId: string,
   usages: KeyUsage[]
 ): Promise<CryptoKey> {
-  const ikm = await crypto.subtle.importKey('raw', masterBytes, 'HKDF', false, ['deriveKey']);
+  const ikm = await crypto.subtle.importKey(
+    'raw',
+    masterBytes as BufferSource,
+    'HKDF',
+    false,
+    ['deriveKey']
+  );
   const info = new TextEncoder().encode(
     `sanctuary-spoke-vault:v1:${String(gameId || '').trim().toLowerCase()}`
   );
   return crypto.subtle.deriveKey(
-    { name: 'HKDF', hash: 'SHA-256', salt, info },
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: salt as BufferSource,
+      info: info as BufferSource,
+    },
     ikm,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -138,9 +181,13 @@ export async function sealSpokeEnvelope(
   const aesKey = await deriveRowAesKey(primary.key, salt, meta.gameId, ['encrypt']);
   const aad = buildSpokeAad(meta);
   const ctBuf = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv, additionalData: aad },
+    {
+      name: 'AES-GCM',
+      iv: iv as BufferSource,
+      additionalData: aad as BufferSource,
+    },
     aesKey,
-    new TextEncoder().encode(cleanSecret)
+    new TextEncoder().encode(cleanSecret) as BufferSource
   );
   const envelope = [
     'enc',
@@ -177,9 +224,13 @@ export async function openSpokeEnvelope(
     try {
       const aesKey = await deriveRowAesKey(entry.key, salt, meta.gameId, ['decrypt']);
       const ptBuf = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv, additionalData: aad },
+        {
+          name: 'AES-GCM',
+          iv: iv as BufferSource,
+          additionalData: aad as BufferSource,
+        },
         aesKey,
-        ct
+        ct as BufferSource
       );
       return new TextDecoder().decode(ptBuf);
     } catch {

@@ -39,7 +39,7 @@ import {
 } from "../utils/stagingCrypto";
 import { VAULT_CHIP_CLASS } from "../shared-components/constants";
 
-import { PRIORITY_TIERS } from "./staging-editor/stagingEditorHelpers";
+import { PRIORITY_TIERS, resolveSchemaPriorityTiers } from "./staging-editor/stagingEditorHelpers";
 import { useStagingCardRenderers } from "./staging-editor/useStagingCardRenderers";
 import { StagingEditorSidePanels } from "./staging-editor/StagingEditorSidePanels";
 
@@ -406,17 +406,28 @@ export default function StagingPayloadEditor({
     });
   };
 
+  const schemaTiers = useMemo(
+    () => resolveSchemaPriorityTiers(activeGameSchema),
+    [activeGameSchema]
+  );
+
   const cycleItemTier = (id: string, currentTier: string) => {
-    const currentIndex = PRIORITY_TIERS.findIndex((pt) => pt.id === currentTier);
+    const tiers = schemaTiers.length > 0 ? schemaTiers : PRIORITY_TIERS;
+    const currentIndex = tiers.findIndex((pt) => pt.id === currentTier);
     const nextTier =
-      PRIORITY_TIERS[(currentIndex + 1) % PRIORITY_TIERS.length]?.id || "3_Standard";
+      tiers[(currentIndex + 1 + tiers.length) % tiers.length]?.id ||
+      tiers[0]?.id ||
+      "3_Standard";
     setStagingDraftItems((prev: any[]) =>
       prev.map((item) => (item.id === id ? { ...item, priority_tier: nextTier } : item))
     );
   };
 
   const sortItemsByPriorityTier = () => {
+    const tiers = schemaTiers.length > 0 ? schemaTiers : PRIORITY_TIERS;
+    const rankMap = new Map(tiers.map((pt, idx) => [pt.id, Number(pt.priority ?? idx + 1)]));
     const rank = (tier?: string) => {
+      if (tier && rankMap.has(tier)) return rankMap.get(tier)!;
       if (tier === "1_Core") return 1;
       if (tier === "2_Gameplay") return 2;
       if (tier === "4_Overrides") return 4;

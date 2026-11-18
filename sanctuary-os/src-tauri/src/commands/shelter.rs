@@ -255,6 +255,19 @@ pub async fn evacuate_to_shelter(state: tauri::State<'_, AppState>) -> Result<St
         if !mods_dir.exists() {
             return Err("Mods path not found.".into());
         }
+
+        if crate::utils::dir_looks_like_shared_game_folder(
+            &mods_dir,
+            &config.live_path,
+            &game_schema,
+        ) {
+            crate::utils::safe_wipe_mods_dir_with_vault(
+                &mods_dir,
+                Some(&config.vault_path),
+                &game_schema,
+            );
+            return Ok("Shared game directory protected: unlinked Sanctuary deployments and restored vanilla files.".into());
+        }
         let mut items = Vec::new();
 
         fn walk_physical_items(dir: &Path, items: &mut Vec<PathBuf>) {
@@ -384,6 +397,7 @@ pub async fn repopulate_from_shelter(state: tauri::State<'_, AppState>) -> Resul
             folder_structure: None,
             load_order_index: None,
             priority_tier: None,
+            hidden_files: Vec::new(),
         })
         .collect();
 
@@ -413,6 +427,8 @@ pub async fn move_to_lab(
     .map_err(|e| format!("Task failed: {}", e))?
 }
 
+static QUARANTINE_RECONCILE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[derive(serde::Serialize)]
 pub struct QuarantineItemDetail {
     pub name: String,
@@ -420,6 +436,218 @@ pub struct QuarantineItemDetail {
     pub modified_ms: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub manifest: Option<QuarantineManifest>,
+}
+
+fn read_quarantine_manifest_for_item(
+    reports_q: &Path,
+    logical_name: &str,
+) -> Option<QuarantineManifest> {
+    if !reports_q.exists() {
+        return None;
+    }
+    let primary = reports_q.join(format!("{}.sanctuary.manifest.json", logical_name));
+    let legacy = reports_q.join(format!("{}.manifest.json", logical_name));
+    let raw_opt = fs::read_to_string(&primary)
+        .ok()
+        .or_else(|| fs::read_to_string(&legacy).ok())?;
+    serde_json::from_str::<QuarantineManifest>(&raw_opt).ok()
+}
+
+fn remove_quarantine_manifests_for_item(
+    reports_q: &Path,
+    filename: &str,
+    allowed_roots: &[PathBuf],
+) {
+    let candidates = [
+        reports_q.join(format!("{}.sanctuary.manifest.json", filename)),
+        reports_q.join(format!("{}.manifest.json", filename)),
+        reports_q.join(format!("{}.json", filename)),
+    ];
+    for candidate in candidates {
+        if candidate.exists()
+            && crate::utils::ensure_strict_descendant_of_roots(&candidate, allowed_roots).is_ok()
+        {
+            let _ = fs::remove_file(&candidate);
+        }
+    }
+}
+
+fn resolve_quarantine_restore_target(
+    mods_lane: &Path,
+    filename: &str,
+    manifest_opt: Option<&QuarantineManifest>,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> PathBuf {
+    if let Some(manifest) = manifest_opt {
+        if manifest.ingest_mode.as_deref() == Some("radar_sweep") {
+            if let Some(orig) = manifest.original_path.as_deref() {
+                let cleaned = orig.trim().trim_start_matches(&['/', '\\'][..]);
+                if !cleaned.is_empty()
+                    && !cleaned.contains(':')
+                    && !cleaned.contains("••••••")
+                    && !cleaned.contains('\0')
+                {
+                    let rel = Path::new(cleaned);
+                    if !rel.is_absolute()
+                        && rel
+                            .components()
+                            .all(|c| matches!(c, std::path::Component::Normal(_)))
+                    {
+                        return mods_lane.join(rel);
+                    }
+                }
+            }
+        }
+    }
+
+    let should_wrap = game_schema
+        .as_ref()
+        .and_then(|s| s.constraints.as_ref())
+        .and_then(|c| c.wrap_loose_files_in_folders)
+        .unwrap_or(true);
+
+    if should_wrap {
+        let fname_path = Path::new(filename);
+        let fname_lower = filename.to_lowercase();
+        let manifest_leaf = crate::game_logic::resolve_manifest_leaf_lower(game_schema);
+        let config_exts = crate::game_logic::get_config_extensions(game_schema);
+        let ext_lower = fname_path
+            .extension()
+            .and_then(|s| s.to_str())
+            .map(|s| s.to_lowercase())
+            .unwrap_or_default();
+        let is_root_config = (!manifest_leaf.is_empty() && fname_lower == manifest_leaf)
+            || (!ext_lower.is_empty() && config_exts.contains(&ext_lower));
+
+        if !is_root_config {
+            if let Some(stem) = fname_path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+            {
+                return mods_lane.join(stem).join(filename);
+            }
+        }
+    }
+
+    mods_lane.join(filename)
+}
+
+fn unique_restore_destination(desired: PathBuf, src_hash: Option<&str>) -> Option<PathBuf> {
+    if !desired.exists() {
+        return Some(desired);
+    }
+    if let Some(sh) = src_hash {
+        if let Ok(dst_h) = crate::utils::calculate_hash(&desired) {
+            if dst_h.eq_ignore_ascii_case(sh) {
+                return None;
+            }
+        }
+    }
+    let parent = desired.parent()?.to_path_buf();
+    let stem = desired
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("artifact");
+    let ext = desired.extension().and_then(|e| e.to_str()).unwrap_or("");
+    for idx in 0..20 {
+        let candidate_name = if idx == 0 {
+            if ext.is_empty() {
+                format!("{}_restored", stem)
+            } else {
+                format!("{}_restored.{}", stem, ext)
+            }
+        } else if ext.is_empty() {
+            format!("{}_restored_{}", stem, idx)
+        } else {
+            format!("{}_restored_{}.{}", stem, idx, ext)
+        };
+        let cand = parent.join(candidate_name);
+        if !cand.exists() {
+            return Some(cand);
+        }
+    }
+    Some(desired)
+}
+
+fn restore_quarantine_payload_to_vault(
+    vault_path: &str,
+    filename: &str,
+    manifest_opt: Option<&QuarantineManifest>,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Result<bool, String> {
+    if !crate::utils::is_safe_single_filename(filename) {
+        return Err("Error: Invalid filename".into());
+    }
+    if vault_path.trim().is_empty() {
+        return Err("Error: Vault not configured".into());
+    }
+
+    let vault_root = crate::utils::get_vault_root_dir(vault_path);
+    let q_dir = PathBuf::from(vault_path).join("Quarantine");
+    let sq_dir = PathBuf::from(vault_path).join(".sanctuary_quarantine");
+    let sq_path = sq_dir.join(filename);
+    let legacy_q_path = q_dir.join(filename);
+    let mods_lane = crate::utils::get_vault_mods_lane(vault_path);
+    let _ = fs::create_dir_all(&mods_lane);
+
+    let allowed_roots = vec![
+        vault_root,
+        mods_lane.clone(),
+        q_dir.clone(),
+        sq_dir.clone(),
+    ];
+
+    let source_path = if sq_path.exists()
+        && crate::utils::ensure_strict_descendant_of_roots(&sq_path, &allowed_roots).is_ok()
+    {
+        sq_path.clone()
+    } else if legacy_q_path.exists()
+        && crate::utils::ensure_strict_descendant_of_roots(&legacy_q_path, &allowed_roots).is_ok()
+    {
+        legacy_q_path.clone()
+    } else {
+        return Ok(false);
+    };
+
+    let desired_target =
+        resolve_quarantine_restore_target(&mods_lane, filename, manifest_opt, game_schema);
+    if crate::utils::ensure_strict_descendant_of_roots(&desired_target, &allowed_roots).is_err() {
+        return Err("Error: Blocked unsafe target path".into());
+    }
+
+    let src_hash = crate::utils::calculate_hash(&source_path).ok();
+    let final_target_opt = unique_restore_destination(desired_target, src_hash.as_deref());
+
+    if let Some(ref dest) = final_target_opt {
+        if crate::utils::ensure_strict_descendant_of_roots(dest, &allowed_roots).is_err() {
+            return Err("Error: Blocked unsafe target path".into());
+        }
+        if let Some(parent) = dest.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        if fs::rename(&source_path, dest).is_err() {
+            fs::copy(&source_path, dest).map_err(|e| format!("Error: Restore failed: {}", e))?;
+            let _ = fs::remove_file(&source_path);
+        }
+    } else {
+        let _ = fs::remove_file(&source_path);
+    }
+
+    remove_quarantine_manifests_for_item(&q_dir, filename, &allowed_roots);
+
+    if let Ok(db) = open_db_conn(vault_path) {
+        if let Ok(conn) = db.lock() {
+            remove_cache_entry(&conn, &sq_path.to_string_lossy());
+            remove_cache_entry(&conn, &legacy_q_path.to_string_lossy());
+            if let Some(ref dest) = final_target_opt {
+                remove_cache_entry(&conn, &dest.to_string_lossy());
+            }
+        }
+    }
+
+    Ok(true)
 }
 
 fn collect_quarantine_details_sync(vault_path: &str) -> Vec<QuarantineItemDetail> {
@@ -438,36 +666,28 @@ fn collect_quarantine_details_sync(vault_path: &str) -> Vec<QuarantineItemDetail
         if let Ok(entries) = fs::read_dir(dir) {
             for e in entries.flatten() {
                 let raw_name = e.file_name().to_string_lossy().into_owned();
-                if raw_name.starts_with(".shredding_") {
-                    continue;
-                }
-                let logical_name = if raw_name.ends_with(".sanctuary.manifest.json") {
-                    raw_name
-                        .trim_end_matches(".sanctuary.manifest.json")
-                        .to_string()
-                } else if raw_name.ends_with(".manifest.json") {
-                    raw_name.trim_end_matches(".manifest.json").to_string()
-                } else if raw_name.ends_with(".json") {
-                    continue;
-                } else {
-                    raw_name
-                };
-                if logical_name.is_empty() {
+                let raw_lower = raw_name.to_lowercase();
+                if raw_name.starts_with(".shredding_")
+                    || raw_name.starts_with('.')
+                    || raw_lower == "desktop.ini"
+                    || raw_lower == "thumbs.db"
+                    || raw_lower == ".ds_store"
+                    || raw_lower.ends_with(".json")
+                {
                     continue;
                 }
                 let meta = e.metadata().ok();
-                let size_bytes = if let Some(m) = &meta {
-                    if m.is_file() { m.len() } else { 0 }
-                } else {
-                    0
-                };
+                if !meta.as_ref().map(|m| m.is_file()).unwrap_or(false) {
+                    continue;
+                }
+                let size_bytes = meta.as_ref().map(|m| m.len()).unwrap_or(0);
                 let modified_ms = meta
                     .and_then(|m| m.modified().ok())
                     .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                     .map(|d| d.as_millis() as u64)
                     .unwrap_or(0);
 
-                map.entry(logical_name.clone())
+                map.entry(raw_name.clone())
                     .and_modify(|existing| {
                         if existing.size_bytes == 0 && size_bytes > 0 {
                             existing.size_bytes = size_bytes;
@@ -477,7 +697,7 @@ fn collect_quarantine_details_sync(vault_path: &str) -> Vec<QuarantineItemDetail
                         }
                     })
                     .or_insert(QuarantineItemDetail {
-                        name: logical_name,
+                        name: raw_name,
                         size_bytes,
                         modified_ms,
                         manifest: None,
@@ -488,39 +708,157 @@ fn collect_quarantine_details_sync(vault_path: &str) -> Vec<QuarantineItemDetail
 
     if reports_q.exists() {
         for (logical_name, detail) in &mut map {
-            let primary = reports_q.join(format!("{}.sanctuary.manifest.json", logical_name));
-            let legacy = reports_q.join(format!("{}.manifest.json", logical_name));
-            let raw_opt = fs::read_to_string(&primary)
-                .ok()
-                .or_else(|| fs::read_to_string(&legacy).ok());
-            if let Some(raw) = raw_opt {
-                if let Ok(parsed) = serde_json::from_str::<QuarantineManifest>(&raw) {
-                    detail.manifest = Some(parsed);
-                }
-            }
+            detail.manifest = read_quarantine_manifest_for_item(&reports_q, logical_name);
         }
     }
 
-    map.into_values().collect()
+    map.into_values()
+        .filter(|detail| {
+            !detail
+                .manifest
+                .as_ref()
+                .map(|m| m.quarantined_file_shredded)
+                .unwrap_or(false)
+        })
+        .collect()
+}
+
+pub fn reconcile_false_positive_quarantine(
+    vault_path: &str,
+    game_schema: &Option<crate::schema::GameSchema>,
+    malware_hashes: &std::collections::HashSet<String>,
+) -> usize {
+    let _guard = QUARANTINE_RECONCILE_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if vault_path.trim().is_empty() {
+        return 0;
+    }
+
+    let items = collect_quarantine_details_sync(vault_path);
+    if items.is_empty() {
+        return 0;
+    }
+
+    let heuristic_sigs =
+        crate::commands::game_info::get_heuristic_signatures(vault_path.to_string())
+            .unwrap_or_default();
+    let compiled_sigs = crate::utils::CompiledSignatures::new(&heuristic_sigs);
+
+    let sq_dir = PathBuf::from(vault_path).join(".sanctuary_quarantine");
+    let q_dir = PathBuf::from(vault_path).join("Quarantine");
+    let quarantine_roots = vec![sq_dir.clone(), q_dir.clone()];
+
+    let mut restored_count = 0usize;
+
+    for item in items {
+        let Some(ref manifest) = item.manifest else {
+            continue;
+        };
+        if manifest.quarantined_file_shredded {
+            continue;
+        }
+
+        let is_hash_quarantined = manifest.detection_type.as_deref() == Some("hash_blacklist")
+            || manifest
+                .signature
+                .trim()
+                .eq_ignore_ascii_case("NO SIGNATURE MATCH")
+            || (!manifest.detected_hash.trim().is_empty()
+                && malware_hashes.contains(&manifest.detected_hash));
+        if is_hash_quarantined {
+            continue;
+        }
+
+        let candidate_sq = sq_dir.join(&item.name);
+        let candidate_q = q_dir.join(&item.name);
+        let payload_path = if candidate_sq.exists()
+            && crate::utils::ensure_strict_descendant_of_roots(&candidate_sq, &quarantine_roots)
+                .is_ok()
+        {
+            candidate_sq
+        } else if candidate_q.exists()
+            && crate::utils::ensure_strict_descendant_of_roots(&candidate_q, &quarantine_roots)
+                .is_ok()
+        {
+            candidate_q
+        } else {
+            continue;
+        };
+
+        if !malware_hashes.is_empty() {
+            if let Ok(actual_hash) = crate::utils::calculate_hash(&payload_path) {
+                if malware_hashes.contains(&actual_hash) {
+                    continue;
+                }
+            }
+        }
+
+        if crate::utils::check_heuristic_malware_detailed(&payload_path, &compiled_sigs).is_some()
+        {
+            continue;
+        }
+
+        if let Ok(true) = restore_quarantine_payload_to_vault(
+            vault_path,
+            &item.name,
+            Some(manifest),
+            game_schema,
+        ) {
+            restored_count += 1;
+        }
+    }
+
+    restored_count
 }
 
 #[tauri::command]
-pub async fn get_quarantine_list() -> Vec<String> {
-    tauri::async_runtime::spawn_blocking(|| {
+pub async fn get_quarantine_list(
+    app_state: tauri::State<'_, AppState>,
+    sec_state: tauri::State<'_, SecurityState>,
+) -> Result<Vec<String>, String> {
+    let game_schema = app_state
+        .active_schema
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    let malware_hashes: std::collections::HashSet<String> = sec_state
+        .malware_hashes
+        .lock()
+        .map(|m| m.iter().cloned().collect())
+        .unwrap_or_default();
+
+    tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
+        reconcile_false_positive_quarantine(&config.vault_path, &game_schema, &malware_hashes);
         collect_quarantine_details_sync(&config.vault_path)
             .into_iter()
             .map(|d| d.name)
             .collect()
     })
     .await
-    .unwrap_or_default()
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_quarantine_details() -> Result<Vec<QuarantineItemDetail>, String> {
-    tauri::async_runtime::spawn_blocking(|| {
+pub async fn get_quarantine_details(
+    app_state: tauri::State<'_, AppState>,
+    sec_state: tauri::State<'_, SecurityState>,
+) -> Result<Vec<QuarantineItemDetail>, String> {
+    let game_schema = app_state
+        .active_schema
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    let malware_hashes: std::collections::HashSet<String> = sec_state
+        .malware_hashes
+        .lock()
+        .map(|m| m.iter().cloned().collect())
+        .unwrap_or_default();
+
+    tauri::async_runtime::spawn_blocking(move || {
         let config = get_saved_coordinates();
+        reconcile_false_positive_quarantine(&config.vault_path, &game_schema, &malware_hashes);
         Ok(collect_quarantine_details_sync(&config.vault_path))
     })
     .await
@@ -528,73 +866,32 @@ pub async fn get_quarantine_details() -> Result<Vec<QuarantineItemDetail>, Strin
 }
 
 #[tauri::command]
-pub async fn restore_quarantined_file(filename: String) -> String {
+pub async fn restore_quarantined_file(
+    filename: String,
+    app_state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let game_schema = app_state
+        .active_schema
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
     tauri::async_runtime::spawn_blocking(move || {
-        if !crate::utils::is_safe_single_filename(&filename) {
-            return "Error: Invalid filename".into();
-        }
         let config = get_saved_coordinates();
-        if config.vault_path.trim().is_empty() {
-            return "Error: Vault not configured".into();
-        }
-        let vault_root = crate::utils::get_vault_root_dir(&config.vault_path);
-        let q_dir = PathBuf::from(&config.vault_path).join("Quarantine");
-        let sq_dir = PathBuf::from(&config.vault_path).join(".sanctuary_quarantine");
-        let sq_path = sq_dir.join(&filename);
-        let legacy_q_path = q_dir.join(&filename);
-        let manifest_path = q_dir.join(format!("{}.manifest.json", filename));
-        let q_path = q_dir.join(format!("{}.json", filename));
-        let mods_lane = crate::utils::get_vault_mods_lane(&config.vault_path);
-        let _ = fs::create_dir_all(&mods_lane);
-        let m_path = mods_lane.join(&filename);
-
-        let allowed_roots = vec![vault_root.clone(), mods_lane.clone(), q_dir.clone(), sq_dir.clone()];
-        if crate::utils::ensure_strict_descendant_of_roots(&m_path, &allowed_roots).is_err() {
-            return "Error: Blocked unsafe target path".into();
-        }
-
-        let mut moved = false;
-
-        if let Ok(db) = open_db_conn(&config.vault_path) {
-            if let Ok(conn) = db.lock() {
-                remove_cache_entry(&conn, &sq_path.to_string_lossy());
-                remove_cache_entry(&conn, &legacy_q_path.to_string_lossy());
-            }
-        }
-
-        if sq_path.exists()
-            && crate::utils::ensure_strict_descendant_of_roots(&sq_path, &allowed_roots).is_ok()
-        {
-            let _ = fs::rename(&sq_path, &m_path);
-            moved = true;
-        } else if legacy_q_path.exists()
-            && crate::utils::ensure_strict_descendant_of_roots(&legacy_q_path, &allowed_roots)
-                .is_ok()
-        {
-            let _ = fs::rename(&legacy_q_path, &m_path);
-            moved = true;
-        }
-
-        if manifest_path.exists()
-            && crate::utils::ensure_strict_descendant_of_roots(&manifest_path, &allowed_roots)
-                .is_ok()
-        {
-            let _ = fs::remove_file(&manifest_path);
-        }
-        if q_path.exists()
-            && crate::utils::ensure_strict_descendant_of_roots(&q_path, &allowed_roots).is_ok()
-        {
-            let _ = fs::remove_file(&q_path);
-        }
-
-        if moved {
-            "Restored".into()
-        } else {
-            "Error: File missing".into()
+        let reports_q = PathBuf::from(&config.vault_path).join("Quarantine");
+        let manifest_opt = read_quarantine_manifest_for_item(&reports_q, &filename);
+        match restore_quarantine_payload_to_vault(
+            &config.vault_path,
+            &filename,
+            manifest_opt.as_ref(),
+            &game_schema,
+        ) {
+            Ok(true) => Ok("Restored".into()),
+            Ok(false) => Ok("Error: File missing".into()),
+            Err(err) => Ok(err),
         }
     })
     .await
-    .unwrap_or_else(|_| "Error: File missing".into())
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

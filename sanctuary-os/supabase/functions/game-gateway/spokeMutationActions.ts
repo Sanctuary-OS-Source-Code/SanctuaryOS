@@ -1,16 +1,28 @@
-// @ts-nocheck
+/// <reference path="../deno.d.ts" />
 import {
   UUID_REGEX,
+  isValidSpokeSupabaseUrl,
+  normalizeSpokeUrl,
   detectCredentialKind,
   maskCredentialFingerprint,
   sealSpokeEnvelope,
+  createSpokeClient,
   verifySpokeCredentialHandshake,
 } from './cryptoEnvelope.ts'
 import {
+  STAFF_ONLY_TABLES,
+  CREATOR_OR_STAFF_TABLES,
+  CITIZEN_TABLES,
   invalidateSpokeGameConfigCache,
   assertNoOversizedInlineImageBlobs,
+  normalizeSpokeTableRow,
   enforceArchitectSubmissionCompliance,
+  computeLegacyStagingOwnerTag,
 } from './spokeAccessAndOwnership.ts'
+import {
+  handleExecuteDmcaTriageAction,
+  handleListSpokeDmcaNotices,
+} from './dmcaComplianceActions.ts'
 
 export function createSpokeOwnershipHelpers(ctx: {
   gameDb: any;
@@ -88,11 +100,18 @@ export function createSpokeOwnershipHelpers(ctx: {
     async function getCallerStagingOwnerTag(): Promise<string> {
       if (!cachedStagingOwnerTagPromise) {
         cachedStagingOwnerTagPromise = (async () => {
-          const enc = new TextEncoder().encode(`sanctuary_gw_staging_owner_v1:${v_user_id}`)
-          const digest = await crypto.subtle.digest('SHA-256', enc)
-          return Array.from(new Uint8Array(digest))
-            .map((b) => b.toString(16).padStart(2, '0'))
-            .join('')
+          try {
+            const { data: rpcTag, error: rpcErr } = await gameDb.rpc(
+              'compute_spoke_staging_owner_tag',
+              { p_user_id: v_user_id }
+            );
+            if (!rpcErr && typeof rpcTag === 'string' && /^[0-9a-f]{64}$/i.test(rpcTag.trim())) {
+              return rpcTag.trim().toLowerCase();
+            }
+          } catch {
+            // Fall back to legacy static HMAC key for older Spokes without compute_spoke_staging_owner_tag
+          }
+          return computeLegacyStagingOwnerTag(v_user_id);
         })();
       }
       return cachedStagingOwnerTagPromise;
@@ -194,16 +213,21 @@ export async function handleSpokeMutationAction(ctx: {
   payload: any;
   game: any;
   gameDb: any;
+  gameServiceKey: string;
   v_user_id: string;
   hubUsername: string;
   hubRole: string;
   hubIsBanned: boolean;
   hubBlacklistReason: string | null;
+  hubCloudPublishingRevoked?: boolean;
   callerSpokeProfile: any;
   callerSpokeRole: string;
   isCallerBanned: boolean;
   isCallerStaff: boolean;
   isCallerCreatorOrStaff: boolean;
+  isFoundryTestNodeKeeper: boolean;
+  isArchitectOnlyStaff: boolean;
+  isOversightOnlyStaff: boolean;
   resolvedCredentialKind: any;
   resolvedKeyVersion: any;
   resolvedKeyFingerprint: any;
@@ -213,14 +237,17 @@ export async function handleSpokeMutationAction(ctx: {
   getIsCallerVerifiedMason: () => Promise<boolean>;
   assertOwnedCollectionSetId: (setId: unknown, errorMessage?: string) => Promise<void>;
   getCallerOwnedModIds: () => Promise<Set<string>>;
+  getCallerStagingOwnerTag: () => Promise<string>;
   assertOwnedCreatorChildRow: (tableName: string, row: Record<string, any>, isExistingUpdate?: boolean) => Promise<void>;
 }): Promise<any> {
   const {
-    action, payload, game, gameDb, v_user_id, hubUsername, hubRole, hubIsBanned, hubBlacklistReason,
+    action, payload, game, gameDb, gameServiceKey, v_user_id, hubUsername: _hubUsername, hubRole,
+    hubIsBanned: _hubIsBanned, hubBlacklistReason: _hubBlacklistReason, hubCloudPublishingRevoked,
     callerSpokeProfile, callerSpokeRole, isCallerBanned, isCallerStaff, isCallerCreatorOrStaff,
+    isFoundryTestNodeKeeper, isArchitectOnlyStaff, isOversightOnlyStaff,
     resolvedCredentialKind, resolvedKeyVersion, resolvedKeyFingerprint, resolvedRotatedAt,
     supabaseAdmin, getCallerOwnedMasonIds, getIsCallerVerifiedMason, assertOwnedCollectionSetId,
-    getCallerOwnedModIds, assertOwnedCreatorChildRow,
+    getCallerOwnedModIds, getCallerStagingOwnerTag, assertOwnedCreatorChildRow,
   } = ctx;
   let resultData: any = null;
 
@@ -534,6 +561,24 @@ export async function handleSpokeMutationAction(ctx: {
           }
         } else if (!CITIZEN_TABLES.has(cleanTable)) {
           throw new Error(`Forbidden: Table ${cleanTable} is not in the allowed gateway registry`)
+        }
+
+        if (
+          !isCallerStaff &&
+          (hubCloudPublishingRevoked || Boolean(callerSpokeProfile?.cloud_publishing_revoked)) &&
+          [
+            'mods',
+            'mod_versions',
+            'collections',
+            'collection_members',
+            'nexus_assets',
+            'mason_posts',
+            'blueprints',
+          ].includes(cleanTable)
+        ) {
+          throw new Error(
+            'Forbidden: Cloud publishing privileges have been revoked under the Sanctuary OS Repeat Infringer Policy (17 U.S.C. § 512(i)).'
+          )
         }
 
         const isArrayInput = Array.isArray(payload_data)
@@ -1313,10 +1358,13 @@ export async function handleSpokeMutationAction(ctx: {
         const rawHash = String(payload?.dna_hash || payload?.hash || '').trim().toLowerCase()
         const rawModName = String(payload?.mod_name || payload?.name || '').trim().slice(0, 200)
         const rawAuthor = String(payload?.author || payload?.master_author || '').trim().slice(0, 120)
-        const rawTier = Math.round(Number(payload?.tier || 1))
-        const requestedTier = Math.min(4, Math.max(1, Number.isFinite(rawTier) ? rawTier : 1))
-        const cleanReason = String(payload?.reason || '').trim().slice(0, 1000) || `Flagged Tier ${requestedTier} for Compliance Review`
         const canApproveCompliance = callerSpokeRole === 'oversight' || callerSpokeRole === 'wayfinder' || callerSpokeRole === 'admin' || isFoundryTestNodeKeeper
+        const rawTier = Math.round(Number(payload?.tier || 1))
+        const requestedTier =
+          canApproveCompliance && rawTier === 6
+            ? 6
+            : Math.min(4, Math.max(1, Number.isFinite(rawTier) ? rawTier : 1))
+        const cleanReason = String(payload?.reason || '').trim().slice(0, 1000) || `Flagged Tier ${requestedTier} for Compliance Review`
 
         let modId = rawModId
         if (!modId && /^[0-9a-f]{64}$/.test(rawHash)) {
@@ -1398,8 +1446,13 @@ export async function handleSpokeMutationAction(ctx: {
           const isConfirmedActiveOrBlocked = currentTier >= 1 && !isCurrentlyPending
 
           updatedMod = existingMod
-          if (!isConfirmedActiveOrBlocked || requestedTier > currentTier) {
-            const nextTier = isCurrentlyPending ? Math.max(currentTier, requestedTier) : requestedTier
+          if (!isConfirmedActiveOrBlocked || requestedTier > currentTier || (canApproveCompliance && requestedTier === 6)) {
+            const nextTier =
+              requestedTier === 6 && canApproveCompliance
+                ? 6
+                : isCurrentlyPending
+                  ? Math.max(currentTier, requestedTier)
+                  : requestedTier
             const nextStatus = canApproveCompliance
               ? (isCurrentlyPending ? 'pending' : 'verified')
               : 'pending'
@@ -1471,8 +1524,8 @@ export async function handleSpokeMutationAction(ctx: {
         if (!newUrl || !newAnonKey || !newServiceKey) {
           throw new Error('Missing required Spoke URL, Anon Key, or Gateway Token.')
         }
-        if (!SUPABASE_URL_REGEX.test(newUrl)) {
-          throw new Error('Invalid Spoke Supabase URL: must be a valid https://<project>.supabase.co endpoint')
+        if (!isValidSpokeSupabaseUrl(newUrl)) {
+          throw new Error('Invalid Spoke Supabase URL: must be a valid https://<project>.supabase.co or custom HTTPS Supabase domain')
         }
 
         const newKind = detectCredentialKind(newServiceKey)
@@ -1563,16 +1616,18 @@ export async function handleSpokeMutationAction(ctx: {
           throw new Error('Compressed theme wallpaper exceeds the 380 KB cloud upload budget.')
         }
 
-        let bytes: Uint8Array
-        try {
-          const bin = atob(base64Raw)
-          bytes = new Uint8Array(bin.length)
-          for (let i = 0; i < bin.length; i++) {
-            bytes[i] = bin.charCodeAt(i)
+        const bytes = (() => {
+          try {
+            const bin = atob(base64Raw)
+            const out = new Uint8Array(bin.length)
+            for (let i = 0; i < bin.length; i++) {
+              out[i] = bin.charCodeAt(i)
+            }
+            return out
+          } catch {
+            throw new Error('Invalid base64 image encoding')
           }
-        } catch {
-          throw new Error('Invalid base64 image encoding')
-        }
+        })()
 
         if (bytes.byteLength < 12 || bytes.byteLength > 390_000) {
           throw new Error('Theme image byte size out of bounds (max 380 KB)')
@@ -1605,7 +1660,7 @@ export async function handleSpokeMutationAction(ctx: {
           // Use verified header mime/ext
         }
 
-        const digestBuf = await crypto.subtle.digest('SHA-256', bytes)
+        const digestBuf = await crypto.subtle.digest('SHA-256', bytes as BufferSource)
         const shaHex = Array.from(new Uint8Array(digestBuf))
           .map((b) => b.toString(16).padStart(2, '0'))
           .join('')
@@ -1699,6 +1754,28 @@ export async function handleSpokeMutationAction(ctx: {
         } else {
           throw new Error('Invalid counter kind')
         }
+        break
+      }
+      case 'list_spoke_dmca_notices': {
+        resultData = await handleListSpokeDmcaNotices({
+          payload,
+          game,
+          hubRole,
+          callerSpokeRole,
+          supabaseAdmin,
+        })
+        break
+      }
+      case 'execute_dmca_triage_action': {
+        resultData = await handleExecuteDmcaTriageAction({
+          payload,
+          game,
+          gameDb,
+          v_user_id,
+          hubRole,
+          callerSpokeRole,
+          supabaseAdmin,
+        })
         break
       }
       default:

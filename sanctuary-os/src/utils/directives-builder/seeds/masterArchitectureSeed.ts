@@ -28,7 +28,7 @@ export function buildMasterArchitectureSchema(
               title: g(
                 "Tauri v2 Kernel, Liquid Glass Optics, Schema Forge & Code-Switch"
               ),
-              footerMeta: "Tauri v2 • React 18 • Liquid Glass Optics • Win, Mac & Linux / SteamOS",
+              footerMeta: "Tauri v2 • React 19 • Liquid Glass Optics • Win, Mac & Linux / SteamOS",
               desc: g(
                 "Sanctuary OS combines a zero-overhead native Rust backend across Windows, macOS, and Linux / SteamOS (Deck Overdrive) with GPU-pinned Liquid Glass Optics, Universal Master Schema tooling, and the Code-Switch."
               ),
@@ -46,7 +46,7 @@ export function buildMasterArchitectureSchema(
                   icon: t("icon_memory", "memory"),
                   title: g("Deck Overdrive & Native Kernel"),
                   desc: g(
-                    "Native Tauri v2 Rust core: Binary Version Ripper (PE & Info.plist), Deck Overdrive Steam Deck controller + Proton compatdata resolver, SQLite .sanctuary_cache.db delta scanner, WebAuthn FIDO2 bridge, and cross-platform auto-updater."
+                    "Native Tauri v2 Rust core: Multi-Tier Version Ripper (PE, Info.plist, manifests, storefronts), Deck Overdrive Steam Deck controller + Proton compatdata/user_settings resolver, SQLite .sanctuary_cache.db delta scanner, WebAuthn FIDO2 bridge, and cross-platform auto-updater."
                   ),
                 },
                 {
@@ -54,7 +54,7 @@ export function buildMasterArchitectureSchema(
                   icon: t("icon_schema", "schema"),
                   title: g("Universal Master Schema"),
                   desc: g(
-                    "Declarative Schema Forge JSON editor governing binaries, secondary install_routes, config_extensions watcher, topological load order strategies, mod_categories, and exception matchers."
+                    "Declarative Schema Forge JSON editor governing binaries, secondary install_routes, config_extensions watcher, topological DAG + slot_buckets load ordering, container TOC analyzers, database-driven public.taxonomy Categories, and exception matchers."
                   ),
                 },
                 {
@@ -62,7 +62,7 @@ export function buildMasterArchitectureSchema(
                   icon: t("icon_translate", "translate"),
                   title: g("Code-Switch"),
                   desc: g(
-                    "21 Dynamic {Glossary} Tokens interpolated across 6,166+ keys with smart article grammar, Sparse Delta Override packs, Guided Icon Overrides, and 1-click auto-translation across 28+ languages."
+                    "21 Dynamic {Glossary} Tokens interpolated across 6,800+ keys with smart article grammar, Sparse Delta Override packs, Guided Icon Overrides, and 1-click auto-translation across 28+ languages."
                   ),
                 },
               ],

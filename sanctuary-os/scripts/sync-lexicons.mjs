@@ -369,16 +369,16 @@ function main() {
     _meta_author:
       oldSims._meta_author && oldSims._meta_author !== 'Sanctuary Foundry'
         ? oldSims._meta_author
-        : 'The Sims 4',
+        : oldSims._meta_badge || 'Community Spoke',
     _meta_badge:
       oldSims._meta_badge && oldSims._meta_badge !== 'Sanctuary'
         ? oldSims._meta_badge
-        : 'The Sims 4',
+        : oldSims._meta_author || 'Community Spoke',
     _meta_lang: 'en',
     _meta_name:
       oldSims._meta_name && oldSims._meta_name !== 'English: Sanctuary'
         ? oldSims._meta_name
-        : 'English: The Sims',
+        : 'English: Spoke',
   };
   if (oldSims._meta_version) {
     nextSims._meta_version = oldSims._meta_version;
@@ -428,11 +428,11 @@ function main() {
     _meta_author:
       oldSimlish._meta_author && oldSimlish._meta_author !== 'Sanctuary Foundry'
         ? oldSimlish._meta_author
-        : 'The Sims 4',
+        : oldSimlish._meta_badge || 'Community Spoke',
     _meta_badge:
       oldSimlish._meta_badge && oldSimlish._meta_badge !== 'Sanctuary'
         ? oldSimlish._meta_badge
-        : 'The Sims 4',
+        : oldSimlish._meta_author || 'Community Spoke',
     _meta_lang: 'Simlish',
     _meta_name: 'Simlish',
   };

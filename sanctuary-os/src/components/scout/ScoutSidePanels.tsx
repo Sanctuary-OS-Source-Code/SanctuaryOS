@@ -106,6 +106,8 @@ export function ScoutSidePanels({
                 <ConflictResolutionSidebar
                     conflict={activeConflictRes}
                     loadOrderInfo={getConflictLoadOrderInfo(activeConflictRes)}
+                    scanScope={scanScope}
+                    onRefreshRadar={() => runRadar(scanScope)}
                     onClose={() => setActiveConflictRes(null)}
                     onVault={vaultSingleScript}
                     onOverride={applyOverride}

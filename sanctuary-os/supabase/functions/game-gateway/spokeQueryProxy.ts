@@ -1,4 +1,4 @@
-// @ts-nocheck
+/// <reference path="../deno.d.ts" />
 import {
   applySpokeQueryFilters,
   applySpokeQueryModifiers,
@@ -6,7 +6,6 @@ import {
   sanitizeSpokeSelectColumns,
   redactRestrictedEmbeddedRelations,
 } from './corsAndSanitization.ts'
-import { detectCredentialKind, maskCredentialFingerprint } from './cryptoEnvelope.ts'
 import {
   STAFF_ONLY_TABLES,
   CREATOR_OR_STAFF_TABLES,
@@ -14,6 +13,7 @@ import {
   assertNoOversizedInlineImageBlobs,
   normalizeSpokeTableRow,
   enforceArchitectSubmissionCompliance,
+  computeLegacyStagingOwnerTag,
 } from './spokeAccessAndOwnership.ts'
 
 export async function handleSpokeQueryAction(ctx: {
@@ -22,6 +22,9 @@ export async function handleSpokeQueryAction(ctx: {
   game: any;
   gameDb: any;
   v_user_id: string;
+  hubRole: string;
+  hubCloudPublishingRevoked?: boolean;
+  isFoundryTestNodeKeeper: boolean;
   callerSpokeProfile: any;
   callerSpokeRole: string;
   isCallerBanned: boolean;
@@ -33,13 +36,15 @@ export async function handleSpokeQueryAction(ctx: {
   getCallerOwnedModIds: () => Promise<Set<string>>;
   getIsCallerVerifiedMason: () => Promise<boolean>;
   getCallerStagingOwnerTag: () => Promise<string>;
+  assertOwnedCollectionSetId: (setId: unknown, errorMessage?: string) => Promise<void>;
   assertOwnedCreatorChildRow: (tableName: string, row: Record<string, any>, isExistingUpdate?: boolean) => Promise<void>;
 }): Promise<any> {
   const {
-    action, payload, game, gameDb, v_user_id, callerSpokeProfile, callerSpokeRole,
-    isCallerBanned, isCallerStaff, isCallerCreatorOrStaff, isArchitectOnlyStaff, isOversightOnlyStaff,
+    action, payload, game: _game, gameDb, v_user_id, hubRole, hubCloudPublishingRevoked, isFoundryTestNodeKeeper,
+    callerSpokeProfile, callerSpokeRole, isCallerBanned, isCallerStaff, isCallerCreatorOrStaff,
+    isArchitectOnlyStaff, isOversightOnlyStaff,
     getCallerOwnedMasonIds, getCallerOwnedModIds, getIsCallerVerifiedMason, getCallerStagingOwnerTag,
-    assertOwnedCreatorChildRow,
+    assertOwnedCollectionSetId, assertOwnedCreatorChildRow,
   } = ctx;
 
   let resultData: any = null;
@@ -91,6 +96,8 @@ export async function handleSpokeQueryAction(ctx: {
                 throw new Error('Forbidden: Staging queue select requires a valid user_token filter')
               }
               const callerOwnerTag = await getCallerStagingOwnerTag()
+              const legacyOwnerTag = await computeLegacyStagingOwnerTag(v_user_id)
+              const acceptedTags = new Set([callerOwnerTag, legacyOwnerTag])
               const requestedOwnerTag = selectColumns === '*' || /\bowner_tag\b/.test(selectColumns)
               const qCols = requestedOwnerTag ? selectColumns : `${selectColumns},owner_tag`
               let q = gameDb.from('citizen_staging_queue').select(qCols, selectOpts)
@@ -101,7 +108,7 @@ export async function handleSpokeQueryAction(ctx: {
               if (!isCallerStaff) {
                 if (Array.isArray(rows)) {
                   rows = rows
-                    .filter((r: any) => r && (!r.owner_tag || r.owner_tag === callerOwnerTag))
+                    .filter((r: any) => r && (!r.owner_tag || acceptedTags.has(String(r.owner_tag))))
                     .map((r: any) => {
                       if (!requestedOwnerTag && r && typeof r === 'object') {
                         const { owner_tag: _o, ...rest } = r
@@ -110,7 +117,7 @@ export async function handleSpokeQueryAction(ctx: {
                       return r
                     })
                 } else if (rows && typeof rows === 'object') {
-                  if ((rows as any).owner_tag && (rows as any).owner_tag !== callerOwnerTag) {
+                  if ((rows as any).owner_tag && !acceptedTags.has(String((rows as any).owner_tag))) {
                     rows = null
                   } else if (!requestedOwnerTag) {
                     const { owner_tag: _o, ...rest } = rows as any
@@ -196,7 +203,7 @@ export async function handleSpokeQueryAction(ctx: {
                 if (res.error) throw res.error
                 const fkField = cleanTable === 'nexus_reports' ? 'asset_id' : 'blueprint_id'
                 const rows = (Array.isArray(res.data) ? res.data : []).filter(
-                  (r: any) => r && (r.reporter_id === v_user_id || (r[fkField] && ownedTargetIds.has(String(r[fkField]))))
+                  (r: any) => r && r[fkField] && ownedTargetIds.has(String(r[fkField]))
                 )
                 const finalData =
                   selectOpts?.head
@@ -207,11 +214,13 @@ export async function handleSpokeQueryAction(ctx: {
                 return { __spoke_query_v1: true, data: finalData, count: rows.length }
               }
 
-              let q = gameDb.from(cleanTable).select(selectColumns, selectOpts).eq('reporter_id', v_user_id)
-              q = applySpokeQueryModifiers(q, payload)
-              const res = await q
-              if (res.error) throw res.error
-              return { __spoke_query_v1: true, data: res.data, count: res.count ?? null }
+              // Zero-identity moderation submissions strip reporter_id to NULL on insert,
+              // so non-staff citizens cannot query back historical reports.
+              const emptyData =
+                selectOpts?.head || payload?.singleMode === 'single' || payload?.singleMode === 'maybeSingle'
+                  ? null
+                  : []
+              return { __spoke_query_v1: true, data: emptyData, count: 0 }
             }
 
             const canReadComplianceTiers =
@@ -251,7 +260,7 @@ export async function handleSpokeQueryAction(ctx: {
               const isPublicComplianceRow = (r: any) => {
                 if (!r || typeof r !== 'object') return false
                 const tier = Number(r.compliance_tier ?? 0)
-                return !(tier >= 1 && tier <= 4)
+                return !((tier >= 1 && tier <= 4) || tier === 6)
               }
               if (Array.isArray(responseData)) {
                 const filtered = responseData.filter(isPublicComplianceRow)
@@ -287,7 +296,7 @@ export async function handleSpokeQueryAction(ctx: {
                     .in('id', chunk)
                   for (const m of modTiers || []) {
                     const tier = Number((m as any)?.compliance_tier ?? 0)
-                    if (tier >= 1 && tier <= 4) {
+                    if ((tier >= 1 && tier <= 4) || tier === 6) {
                       restrictedModIds.add(String((m as any).id))
                     }
                   }
@@ -299,7 +308,7 @@ export async function handleSpokeQueryAction(ctx: {
                 const joinedMod = Array.isArray(r?.mods) ? r.mods[0] : r?.mods
                 if (joinedMod && typeof joinedMod.compliance_tier === 'number') {
                   const t = Number(joinedMod.compliance_tier)
-                  if (t >= 1 && t <= 4) return false
+                  if ((t >= 1 && t <= 4) || t === 6) return false
                 }
                 if (r.mod_id && restrictedModIds.has(String(r.mod_id))) return false
                 return true
@@ -358,6 +367,18 @@ export async function handleSpokeQueryAction(ctx: {
                 }
               }
             }
+            if (!isCallerStaff && cleanTable === 'profiles' && responseData !== null) {
+              const sanitizeProfileRow = (r: any) => {
+                if (!r || typeof r !== 'object') return r
+                if (String(r.id || '') === v_user_id) return r
+                const { email: _e, donation_credit_cents: _d, ...rest } = r
+                return rest
+              }
+              responseData = Array.isArray(responseData)
+                ? responseData.map(sanitizeProfileRow)
+                : sanitizeProfileRow(responseData)
+            }
+
             return { __spoke_query_v1: true, data: responseData, count: responseCount }
           }
 
@@ -450,6 +471,24 @@ export async function handleSpokeQueryAction(ctx: {
             cleanTable !== 'pwa_push_subscriptions'
           ) {
             throw new Error(`Forbidden: Table ${cleanTable} cannot be modified`)
+          }
+
+          if (
+            !isCallerStaff &&
+            (hubCloudPublishingRevoked || Boolean(callerSpokeProfile?.cloud_publishing_revoked)) &&
+            [
+              'mods',
+              'mod_versions',
+              'collections',
+              'collection_members',
+              'nexus_assets',
+              'mason_posts',
+              'blueprints',
+            ].includes(cleanTable)
+          ) {
+            throw new Error(
+              'Forbidden: Cloud publishing privileges have been revoked under the Sanctuary OS Repeat Infringer Policy (17 U.S.C. § 512(i)).'
+            )
           }
 
           if (op === 'insert' || op === 'upsert') {
@@ -737,6 +776,34 @@ export async function handleSpokeQueryAction(ctx: {
               } else if (cleanTable === 'mason_post_comments') {
                 delete updateVals.is_hidden
                 delete updateVals.author_id
+              } else if (cleanTable === 'sanctuary_tickets') {
+                if (op === 'delete') throw new Error('Forbidden: Citizens/Creators cannot delete tickets')
+                delete updateVals.id
+                delete updateVals.created_at
+                delete updateVals.author_id
+                delete updateVals.assigned_to
+                delete updateVals.ticket_type
+                delete updateVals.target_mod_id
+                delete updateVals.target_blueprint_id
+                if (callerSpokeRole !== 'mason') {
+                  if (
+                    updateVals.status !== undefined &&
+                    String(updateVals.status || '').trim().toLowerCase() !== 'closed'
+                  ) {
+                    throw new Error('Forbidden: Citizens may only close their own tickets')
+                  }
+                }
+              } else if (cleanTable === 'nexus_reports' || cleanTable === 'blueprint_reports') {
+                if (op === 'delete' || callerSpokeRole !== 'mason') {
+                  throw new Error(`Forbidden: Staff clearance required to ${op} ${cleanTable}`)
+                }
+                const nextStatus = String(updateVals.status || '').trim().toLowerCase()
+                if (!['resolved', 'dismissed'].includes(nextStatus)) {
+                  throw new Error(`Forbidden: Creators may only mark ${cleanTable} as resolved or dismissed`)
+                }
+                updateVals = { status: nextStatus }
+              } else if (cleanTable === 'citizen_staging_queue' && op === 'update') {
+                updateVals.owner_tag = await getCallerStagingOwnerTag()
               }
 
               if (
@@ -834,6 +901,8 @@ export async function handleSpokeQueryAction(ctx: {
                 throw new Error('Forbidden: Staff clearance required to modify shared conflict/group matrix')
               } else if (cleanTable === 'citizen_staging_queue') {
                 const callerOwnerTag = await getCallerStagingOwnerTag()
+                const legacyOwnerTag = await computeLegacyStagingOwnerTag(v_user_id)
+                const acceptedTags = new Set([callerOwnerTag, legacyOwnerTag])
                 const hasBoundFilter = Array.isArray(payload?.filters) && payload.filters.some(
                   (f: any) =>
                     (f?.method === 'eq' || f?.method === 'in') &&
@@ -849,29 +918,98 @@ export async function handleSpokeQueryAction(ctx: {
                 )
                 if (
                   Array.isArray(matchedStaging) &&
-                  matchedStaging.some((r: any) => r?.owner_tag && r.owner_tag !== callerOwnerTag)
+                  matchedStaging.some((r: any) => r?.owner_tag && !acceptedTags.has(String(r.owner_tag)))
                 ) {
                   throw new Error('Forbidden: Staging queue ownership mismatch')
                 }
-                q = q.or(`owner_tag.is.null,owner_tag.eq.${callerOwnerTag}`)
-                if (op === 'update') {
-                  updateVals.owner_tag = callerOwnerTag
-                }
+                const tagFilter =
+                  callerOwnerTag === legacyOwnerTag
+                    ? `owner_tag.is.null,owner_tag.eq.${callerOwnerTag}`
+                    : `owner_tag.is.null,owner_tag.eq.${callerOwnerTag},owner_tag.eq.${legacyOwnerTag}`
+                q = q.or(tagFilter)
               } else if (cleanTable === 'blueprints') {
                 const mIds = [v_user_id, ...Array.from(ownedMasons)]
                 q = q.in('mason_id', mIds)
               } else if (cleanTable === 'sanctuary_tickets') {
                 if (op === 'delete') throw new Error('Forbidden: Citizens/Creators cannot delete tickets')
-                if (callerSpokeRole !== 'mason') {
+                if (callerSpokeRole === 'mason') {
+                  const ownedModIds = await getCallerOwnedModIds()
+                  const masonIdsArr = [v_user_id, ...Array.from(ownedMasons)]
+                  const { data: myBps } = await gameDb
+                    .from('blueprints')
+                    .select('id')
+                    .in('mason_id', masonIdsArr)
+                  const ownedBpIds = new Set((myBps || []).map((b: any) => String(b.id)))
+                  const { data: matchedTickets, error: matchErr } = await applySpokeQueryFilters(
+                    gameDb
+                      .from('sanctuary_tickets')
+                      .select('id, author_id, assigned_to, target_mod_id, target_blueprint_id, metadata'),
+                    payload.filters
+                  )
+                  if (matchErr) throw matchErr
+                  const rows = Array.isArray(matchedTickets) ? matchedTickets : []
+                  const isOwnedTicket = (t: any) => {
+                    if (!t) return false
+                    if (t.author_id === v_user_id || t.assigned_to === v_user_id) return true
+                    if (t.target_mod_id && ownedModIds.has(String(t.target_mod_id))) return true
+                    if (t.target_blueprint_id && ownedBpIds.has(String(t.target_blueprint_id))) return true
+                    const meta = t.metadata || {}
+                    if (
+                      meta.target_user_id === v_user_id ||
+                      meta.target_mason === v_user_id ||
+                      meta.mason_id === v_user_id
+                    ) {
+                      return true
+                    }
+                    if (meta.target_mason && ownedMasons.has(String(meta.target_mason))) return true
+                    if (meta.mason_id && ownedMasons.has(String(meta.mason_id))) return true
+                    if (meta.target_mod_id && ownedModIds.has(String(meta.target_mod_id))) return true
+                    return false
+                  }
+                  if (rows.length === 0 || !rows.every(isOwnedTicket)) {
+                    throw new Error('Forbidden: Ticket does not belong to you or your Creator artifacts')
+                  }
+                  q = q.in('id', rows.map((t: any) => t.id))
+                } else {
                   q = q.eq('author_id', v_user_id)
                 }
-              } else if (
-                cleanTable === 'nexus_reports' ||
-                cleanTable === 'blueprint_reports'
-              ) {
+              } else if (cleanTable === 'blueprint_reports') {
                 if (op === 'delete' || callerSpokeRole !== 'mason') {
                   throw new Error(`Forbidden: Staff clearance required to ${op} ${cleanTable}`)
                 }
+                const masonIdsArr = [v_user_id, ...Array.from(ownedMasons)]
+                const { data: myBps } = await gameDb
+                  .from('blueprints')
+                  .select('id')
+                  .in('mason_id', masonIdsArr)
+                const ownedBpIds = (myBps || [])
+                  .map((b: any) => b?.id)
+                  .filter((id: any) => id !== null && id !== undefined)
+                if (ownedBpIds.length === 0) {
+                  throw new Error('Forbidden: No owned blueprints')
+                }
+                q = q.in('blueprint_id', ownedBpIds)
+              } else if (cleanTable === 'nexus_reports') {
+                if (op === 'delete' || callerSpokeRole !== 'mason') {
+                  throw new Error(`Forbidden: Staff clearance required to ${op} ${cleanTable}`)
+                }
+                const masonIdsArr = [v_user_id, ...Array.from(ownedMasons)]
+                const [{ data: myAssets }, { data: myBps }] = await Promise.all([
+                  gameDb.from('nexus_assets').select('id').eq('author_id', v_user_id),
+                  gameDb.from('blueprints').select('id').in('mason_id', masonIdsArr),
+                ])
+                const ownedTargetIds = Array.from(
+                  new Set(
+                    [...(myAssets || []), ...(myBps || [])]
+                      .map((item: any) => item?.id)
+                      .filter((id: any) => id !== null && id !== undefined)
+                      .map((id: any) => String(id))
+                  )
+                )
+                if (ownedTargetIds.length === 0) {
+                  throw new Error('Forbidden: No owned Nexus assets or blueprints')
+                }
+                q = q.in('asset_id', ownedTargetIds)
               } else if (
                 cleanTable === 'content_flags' ||
                 cleanTable === 'malware_reports'
@@ -906,11 +1044,8 @@ export async function handleSpokeQueryAction(ctx: {
               }
             })
           )
-          resultData = { __spoke_batch_v1: true, results }
-          break
+          return { __spoke_batch_v1: true, results }
         }
 
-        resultData = await executeSingleSpokeQuery(payload)
-        break
-  return resultData;
+        return await executeSingleSpokeQuery(payload)
 }

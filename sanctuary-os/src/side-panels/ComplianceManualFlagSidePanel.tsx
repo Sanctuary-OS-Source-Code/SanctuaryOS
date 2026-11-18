@@ -607,7 +607,11 @@ export default function ComplianceManualFlagSidePanel({ isOpen, onClose, initial
             {!isMalwareOnly && (
               <div className="flex flex-col gap-2 relative z-40 mt-4">
                 <label className="text-[9px] font-black text-[var(--subtext)] opacity-60 capitalize tracking-widest ml-2">{t("Vault_stat_tier", "Compliance Tier")}</label>
-                <CustomComplianceDropdown value={manualTier} onChange={setManualTier} maxTier={5} />
+                <CustomComplianceDropdown
+                  value={manualTier}
+                  onChange={setManualTier}
+                  maxTier={sourceHub === "Architect" ? 4 : 6}
+                />
               </div>
             )}
 

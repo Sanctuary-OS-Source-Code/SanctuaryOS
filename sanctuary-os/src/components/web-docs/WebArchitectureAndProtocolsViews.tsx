@@ -193,7 +193,7 @@ export function WebArchitectureView({
               "sd_arch_logic_c3_title",
               "Homestead Lab 100% Nuke & 1v1 Stability"
             ),
-            desc: t("dir_arch_p3_b4", "Homestead 100% Nuke & 1v1 Stability Lab + {Backups} incremental NTFS/POSIX hardlink snapshots (.tar.zst) with differential rollback"),
+            desc: t("dir_arch_p3_b4", "Homestead 100% Nuke & 1v1 Stability Lab + {Backups} Parallel Copy-on-Write (CoW) NTFS/POSIX hardlink snapshots with differential rollback"),
           },
           {
             icon: t("icon_passkey", "passkey"),
@@ -440,7 +440,7 @@ export function WebProtocolsView({
           "sd_proto_tier12_title",
           "Adult (NSFW) & Illicit Themes — Local Allowed, Public Scrubbed"
         ),
-        desc: t("sd_proto_tier12_desc", "Permitted in local Vaults and decentralized Static Edge manifests. Automatically scrubbed from public Nexus feeds and stripped from public Cloud {Blueprints} (trg_purge_flagged_hash_from_blueprints). Eligible for Support Desk with automated 'Dirty Log' sanitization."),
+        desc: t("sd_proto_tier12_desc", "Permitted in local Vaults, Personal Rig transfers, and decentralized Static Edge manifests. Automatically scrubbed from public Nexus feeds and stripped from confirmed Cloud {Blueprints} (trg_purge_flagged_hash_from_blueprints). Equipping in the active {Blueprint} engages a non-destructive Support Lock on Community {Mod} Support with 1-click active-{Blueprint} unequip while Keeper OS Bug Reports remain open."),
         colorClass:
           "border-[color-mix(in_srgb,var(--info)_45%,transparent)] text-[var(--info)]",
         textColor: "text-[var(--info)]",
@@ -448,8 +448,8 @@ export function WebProtocolsView({
       },
       {
         badge: t("sd_proto_tier34_badge", "TIERS 3–4 • SEVERE / RESTRICTED"),
-        title: t("sd_proto_tier34_title", "Extreme Violence & Taboo Content — Triggers {Vault} Lock"),
-        desc: t("sd_proto_tier34_desc", "Permitted strictly within isolated local Vaults. Scrubbed from all public feeds and Cloud {Blueprints}. Equipping or storing Tier 3–4 {mods} engages a {Vault} Lock that restricts {Citizen} Support Desk ticket submissions until removed."),
+        title: t("sd_proto_tier34_title", "Extreme Violence & Taboo Content — Active {Blueprint} Support Lock"),
+        desc: t("sd_proto_tier34_desc", "Permitted strictly within isolated local Vaults. Scrubbed from all public feeds and confirmed Cloud {Blueprints}. Equipping any Tier 3–4 {mod} inside the active {Blueprint} engages a non-destructive Support Lock on Community {Mod} Support (1-click active-{Blueprint} unequip without deleting {Vault} files), while Keeper OS Bug Reports remain accessible with zero {mod} telemetry."),
         colorClass:
           "border-[color-mix(in_srgb,var(--warning)_45%,transparent)] text-[var(--warning)]",
         textColor: "text-[var(--warning)]",

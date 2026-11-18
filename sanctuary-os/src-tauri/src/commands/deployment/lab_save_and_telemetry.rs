@@ -1193,7 +1193,11 @@ pub(super) fn persist_certificate_to_vault(vault_path: &str, cert: &LabVerificat
     }
 }
 
-pub(super) fn scan_logs_sync(docs_dir: &Path, game_schema: &Option<crate::schema::GameSchema>) -> Option<String> {
+pub(super) fn scan_logs_sync(
+    docs_dir: &Path,
+    game_schema: &Option<crate::schema::GameSchema>,
+    min_mtime_epoch_secs: Option<u64>,
+) -> Option<String> {
     if !docs_dir.exists() {
         return None;
     }
@@ -1226,11 +1230,18 @@ pub(super) fn scan_logs_sync(docs_dir: &Path, game_schema: &Option<crate::schema
             .to_string_lossy()
             .replace('\\', "/");
         if crate::game_logic::is_exception_log(game_schema, &rel_str) {
-            if rel_str.to_lowercase().contains("crash") {
-                has_crash = true;
-            }
             if let Ok(meta) = entry.metadata() {
                 if let Ok(mtime) = meta.modified() {
+                    let mtime_secs = mtime
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    if min_mtime_epoch_secs.map_or(false, |min_s| mtime_secs < min_s) {
+                        continue;
+                    }
+                    if rel_str.to_lowercase().contains("crash") {
+                        has_crash = true;
+                    }
                     exceptions.push((mtime, rel_str, full_path));
                 }
             }

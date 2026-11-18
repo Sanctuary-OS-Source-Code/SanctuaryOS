@@ -357,6 +357,241 @@ export function SchemaLoadLabAndRulesTabs({
                   </div>
                 ))}
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t("schema_studio_early_master_exts", "Early Master Extensions")}
+                  </label>
+                  <StringListBuilder
+                    items={
+                      Array.isArray(loadOrderObj.early_master_extensions)
+                        ? loadOrderObj.early_master_extensions
+                        : []
+                    }
+                    onChange={(nextExts) =>
+                      updateNestedField(
+                        "load_order",
+                        "early_master_extensions",
+                        nextExts.length > 0 ? nextExts : undefined
+                      )
+                    }
+                    placeholder=".esm / .master"
+                    addButtonLabel={t("add", "Add")}
+                  />
+                </div>
+
+                <div className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                    {t(
+                      "schema_studio_early_master_flag",
+                      "Early Master Binary Flag Mask (Optional)"
+                    )}
+                  </label>
+                  <GlassNumberInput
+                    value={Number(loadOrderObj.early_master_flag_mask || 0)}
+                    min={0}
+                    step={1}
+                    accentText={true}
+                    onChange={(val) =>
+                      updateNestedField(
+                        "load_order",
+                        "early_master_flag_mask",
+                        val > 0 ? val : undefined
+                      )
+                    }
+                  />
+                  <span className="text-[11px] font-medium text-[var(--subtext)] opacity-75">
+                    {t(
+                      "schema_studio_early_master_flag_desc",
+                      "Modules whose binary header flag matches this bitmask always sort into the early master block (0 = disabled)."
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {(() => {
+                const slotBuckets: any[] = Array.isArray(loadOrderObj.slot_buckets)
+                  ? loadOrderObj.slot_buckets
+                  : [];
+                return (
+                  <div className="flex flex-col gap-3 pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-black uppercase tracking-wider text-[var(--text)]">
+                          {t("schema_studio_slot_buckets", "Plugin / Module Slot Buckets")}
+                        </span>
+                        <span className="text-[11px] font-medium text-[var(--subtext)] opacity-80">
+                          {t(
+                            "schema_studio_slot_buckets_desc",
+                            "Define hard engine slot caps per extension and header flag mask (for example 254 standard / 4096 light modules)."
+                          )}
+                        </span>
+                      </div>
+                      <ActionButton
+                        variant="glass"
+                        icon={t("icon_add", "add")}
+                        onClick={() => {
+                          const nextBucket = {
+                            id: `bucket_${slotBuckets.length + 1}`,
+                            label: `${t("schema_studio_slot_bucket_default", "Slot Bucket")} ${slotBuckets.length + 1}`,
+                            max_slots: 254,
+                            include_extensions: [],
+                          };
+                          updateNestedField("load_order", "slot_buckets", [
+                            ...slotBuckets,
+                            nextBucket,
+                          ]);
+                        }}
+                        className="!px-3.5 !py-1.5 !text-[10px] !rounded-xl"
+                      >
+                        {t("schema_studio_add_slot_bucket", "Add Slot Bucket")}
+                      </ActionButton>
+                    </div>
+
+                    {slotBuckets.length > 0 && (
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+                        {slotBuckets.map((bucket: any, bIdx: number) => {
+                          const updateBucket = (patch: Record<string, any>) => {
+                            const next = [...slotBuckets];
+                            const merged = { ...bucket, ...patch };
+                            delete merged.extensions;
+                            delete merged.flag_mask;
+                            delete merged.exclude_flag_mask;
+                            next[bIdx] = merged;
+                            updateNestedField("load_order", "slot_buckets", next);
+                          };
+                          const bucketExts = Array.isArray(bucket.include_extensions)
+                            ? bucket.include_extensions
+                            : Array.isArray(bucket.extensions)
+                              ? bucket.extensions
+                              : [];
+                          const reqFlagVal = Number(
+                            bucket.required_flag_mask ?? bucket.flag_mask ?? 0
+                          );
+                          const exclFlagVal = Number(
+                            bucket.excluded_flag_mask ?? bucket.exclude_flag_mask ?? 0
+                          );
+                          return (
+                            <div
+                              key={`${bucket.id || bIdx}-${bIdx}`}
+                              className="glass-surface rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3 min-w-0"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-black font-mono text-[var(--accent)] truncate">
+                                  {`#${bIdx + 1} • ${bucket.label || bucket.id || "bucket"}`}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateNestedField(
+                                      "load_order",
+                                      "slot_buckets",
+                                      slotBuckets.filter((_: any, i: number) => i !== bIdx)
+                                    )
+                                  }
+                                  className="w-8 h-8 shrink-0 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] hover:border-[var(--danger)] flex items-center justify-center text-[var(--subtext)] hover:text-[var(--danger)] cursor-pointer transition-all"
+                                >
+                                  <span className="material-symbols-outlined !text-[15px]">
+                                    {t("icon_delete", "delete")}
+                                  </span>
+                                  <HoverTooltip title={t("delete", "Delete")} />
+                                </button>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                    {t("schema_studio_bucket_id", "Bucket ID")}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={bucket.id ?? ""}
+                                    onChange={(e) => updateBucket({ id: e.target.value })}
+                                    placeholder="full_plugins"
+                                    className="h-10 min-w-0 glass-panel rounded-xl px-3 text-xs font-mono font-bold text-[var(--accent)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                    {t("schema_studio_cat_label", "Display Label")}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={bucket.label ?? ""}
+                                    onChange={(e) => updateBucket({ label: e.target.value })}
+                                    placeholder="Full Modules"
+                                    className="h-10 min-w-0 glass-panel rounded-xl px-3 text-xs font-bold text-[var(--text)] border border-[color-mix(in_srgb,var(--text)_12%,transparent)]"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                    {t("schema_studio_bucket_max_slots", "Max Slots")}
+                                  </label>
+                                  <GlassNumberInput
+                                    value={Number(bucket.max_slots ?? 254)}
+                                    min={1}
+                                    step={1}
+                                    accentText={true}
+                                    onChange={(val) => updateBucket({ max_slots: val })}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                    {t("schema_studio_bucket_req_flag", "Required Flag Mask")}
+                                  </label>
+                                  <GlassNumberInput
+                                    value={reqFlagVal}
+                                    min={0}
+                                    step={1}
+                                    onChange={(val) =>
+                                      updateBucket({
+                                        required_flag_mask: val > 0 ? val : undefined,
+                                      })
+                                    }
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1 min-w-0">
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                    {t("schema_studio_bucket_excl_flag", "Excluded Flag Mask")}
+                                  </label>
+                                  <GlassNumberInput
+                                    value={exclFlagVal}
+                                    min={0}
+                                    step={1}
+                                    onChange={(val) =>
+                                      updateBucket({
+                                        excluded_flag_mask: val > 0 ? val : undefined,
+                                      })
+                                    }
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col gap-1 min-w-0">
+                                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                                  {t("extensions", "Extensions")}
+                                </label>
+                                <StringListBuilder
+                                  items={bucketExts}
+                                  onChange={(nextExts) =>
+                                    updateBucket({ include_extensions: nextExts })
+                                  }
+                                  placeholder=".esm / .esp / .esl"
+                                  addButtonLabel={t("add", "Add")}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </UniversalGroup>
 
@@ -472,6 +707,27 @@ export function SchemaLoadLabAndRulesTabs({
                                   ),
                                 },
                                 {
+                                  id: "container_toc",
+                                  label: t(
+                                    "schema_studio_analyzer_container_toc",
+                                    "Archive / Binary Container TOC (BSA, BA2, LSPK, PAK, UTOC, RDAR, RPF7)"
+                                  ),
+                                },
+                                {
+                                  id: "chunked_record_stream",
+                                  label: t(
+                                    "schema_studio_analyzer_chunked_records",
+                                    "Chunked Record FormID Stream"
+                                  ),
+                                },
+                                {
+                                  id: "selector_path",
+                                  label: t(
+                                    "schema_studio_analyzer_selector_path",
+                                    "Structured XML / JSON Selector Path"
+                                  ),
+                                },
+                                {
                                   id: "archive_member",
                                   label: t(
                                     "schema_studio_analyzer_archive",
@@ -510,6 +766,64 @@ export function SchemaLoadLabAndRulesTabs({
                             addButtonLabel={t("add", "Add")}
                           />
                         </div>
+
+                        {analyzerType === "container_toc" && (
+                          <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                              {t("schema_studio_analyzer_container_fmt", "Container Format Override")}
+                            </label>
+                            <CustomDropdown
+                              disableTint={true}
+                              value={analyzer.container_format || "auto"}
+                              onChange={(v: string[]) =>
+                                updateAnalyzerItem({
+                                  container_format: v[0] && v[0] !== "auto" ? v[0] : undefined,
+                                })
+                              }
+                              options={[
+                                { id: "auto", label: t("schema_studio_container_auto", "Auto-Detect Magic Header") },
+                                { id: "bsa", label: "BSA" },
+                                { id: "ba2", label: "BA2" },
+                                { id: "lspk", label: "LSPK" },
+                                { id: "pak", label: "PAK" },
+                                { id: "utoc", label: "UTOC" },
+                                { id: "rdar", label: "RDAR" },
+                                { id: "rpf7", label: "RPF7" },
+                              ]}
+                            />
+                          </div>
+                        )}
+
+                        {(analyzerType === "selector_path" ||
+                          analyzerType === "chunked_record_stream") && (
+                          <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-[var(--subtext)]">
+                              {t(
+                                "schema_studio_analyzer_selectors",
+                                "Selector Keys / Record Tags"
+                              )}
+                            </label>
+                            <StringListBuilder
+                              items={
+                                Array.isArray(analyzer.selectors)
+                                  ? analyzer.selectors
+                                  : String(analyzer.selector_path || "")
+                                      .split(",")
+                                      .map((s) => s.trim())
+                                      .filter(Boolean)
+                              }
+                              onChange={(nextSelectors) =>
+                                updateAnalyzerItem({
+                                  selector_path:
+                                    nextSelectors.length > 0 ? nextSelectors.join(",") : undefined,
+                                  selectors: undefined,
+                                })
+                              }
+                              placeholder="Changes / UniqueID / WEAP"
+                              addButtonLabel={t("add", "Add")}
+                            />
+                          </div>
+                        )}
 
                         {analyzerType === "binary_chunk_index" && (
                           <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-3">

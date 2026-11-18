@@ -163,7 +163,7 @@ export default function NotificationsTab() {
     if (!session?.user?.id || localOnly || isSyncingCloud) return;
     setIsSyncingCloud(true);
     try {
-      const ok = await syncCrossDeviceNotificationState(session);
+      const ok = await syncCrossDeviceNotificationState(session, { force: true });
       setLastSyncedAt(getNotificationLastSyncedAt());
       if (ok) {
         useStore

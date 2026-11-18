@@ -1,6 +1,9 @@
-import { useState, useMemo, useEffect, useRef, useCallback, startTransition } from "react";
+import { lazy, Suspense, useState, useMemo, useEffect, useRef, useCallback, startTransition } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { supabase } from "../supabase";
+import { isDesktop } from "../utils/envUtils";
 import { useLexicon } from "../LexiconContext";
 import {
   ActionButton,
@@ -29,8 +32,18 @@ import {
   CommandScreenSectionHeading,
   StatTileCarousel,
 } from "../hub-components/SharedCommandScreenLayout";
-import BlueprintMatrix from "./BlueprintMatrix";
-import BlueprintArchitect from "./BlueprintArchitect";
+const BlueprintMatrix = lazy(() => import("./BlueprintMatrix"));
+const BlueprintArchitect = lazy(() => import("./BlueprintArchitect"));
+const BlueprintPatchReadinessView = lazy(() =>
+  import("../components/BlueprintPatchReadiness").then((m) => ({
+    default: m.BlueprintPatchReadinessView,
+  }))
+);
+const BlueprintPatchReadinessSidePanel = lazy(() =>
+  import("../components/patch-readiness/BlueprintPatchReadinessSidePanel").then((m) => ({
+    default: m.BlueprintPatchReadinessSidePanel,
+  }))
+);
 import {
   evaluateModIssues,
   groupBrokenMods,
@@ -54,16 +67,14 @@ import {
   ResolvedStagedPayload,
 } from "../utils/stagingCrypto";
 import { VAULT_CHIP_CLASS } from "../shared-components/constants";
+import { LiquidGlassAlertCard } from "../components/patch-readiness/LiquidGlassReadinessWidgets";
+import { useBlueprintPatchReadiness } from "../components/patch-readiness/useBlueprintPatchReadiness";
 import {
-  BlueprintPatchReadinessView,
-  BlueprintPatchReadinessSidePanel,
-  LiquidGlassAlertCard,
-  useBlueprintPatchReadiness,
   peekPendingBlueprintsNavigation,
   consumePendingBlueprintsNavigation,
   PatchModBucket,
   PatchPanelSubFilter,
-} from "../components/BlueprintPatchReadiness";
+} from "../components/patch-readiness/patchNavigationAndTypes";
 
 import { useBlueprintCardRenderers } from "../components/blueprints/useBlueprintCardRenderers";
 export default function Blueprints({
@@ -91,7 +102,7 @@ export default function Blueprints({
   onRefreshMods,
 }: any) {
   const { t } = useLexicon();
-  const { ownedDLC, maskedDLC, selectedVersion, modList, activeGameSchema, ignoredGlobal, session, patchFireDrillEnabled, setView } = useStore(
+  const { ownedDLC, maskedDLC, selectedVersion, modList, activeGameSchema, ignoredGlobal, session, patchFireDrillEnabled, setView, activeWorkspaceId } = useStore(
     useShallow((s) => ({
       ownedDLC: s.ownedDLC,
       maskedDLC: s.maskedDLC,
@@ -102,6 +113,7 @@ export default function Blueprints({
       session: s.session,
       patchFireDrillEnabled: s.patchFireDrillEnabled,
       setView: s.setView,
+      activeWorkspaceId: s.activeWorkspaceId,
     }))
   );
   const {
@@ -186,17 +198,44 @@ export default function Blueprints({
   const [pipelineSearchQuery, setPipelineSearchQuery] = useState("");
   const [shreddingRowId, setShreddingRowId] = useState<string | null>(null);
   const [selectedUplinkBlueprint, setSelectedUplinkBlueprint] = useState<any>(null);
+  const getPinnedStorageKey = useCallback(
+    (wsId?: string | null) =>
+      wsId ? `sanctuary_${wsId}_pinned_blueprints` : "myPinnedBlueprints",
+    []
+  );
   const [pinnedBlueprints, setPinnedBlueprints] = useState<string[]>(() => {
     try {
-      const p = localStorage.getItem("myPinnedBlueprints");
-      return p ? JSON.parse(p) : [];
+      const wsKey = getPinnedStorageKey(activeWorkspaceId);
+      const scoped = localStorage.getItem(wsKey);
+      if (scoped !== null) return JSON.parse(scoped);
+      const legacy = localStorage.getItem("myPinnedBlueprints");
+      return legacy ? JSON.parse(legacy) : [];
     } catch {
       return [];
     }
   });
   useEffect(() => {
-    localStorage.setItem("myPinnedBlueprints", JSON.stringify(pinnedBlueprints));
-  }, [pinnedBlueprints]);
+    try {
+      const wsKey = getPinnedStorageKey(activeWorkspaceId);
+      const scoped = localStorage.getItem(wsKey);
+      if (scoped !== null) {
+        setPinnedBlueprints(JSON.parse(scoped));
+      } else {
+        const legacy = localStorage.getItem("myPinnedBlueprints");
+        setPinnedBlueprints(legacy ? JSON.parse(legacy) : []);
+      }
+    } catch {
+      setPinnedBlueprints([]);
+    }
+  }, [activeWorkspaceId, getPinnedStorageKey]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        getPinnedStorageKey(activeWorkspaceId),
+        JSON.stringify(pinnedBlueprints)
+      );
+    } catch {}
+  }, [pinnedBlueprints, activeWorkspaceId, getPinnedStorageKey]);
   const togglePin = (name: string) =>
     setPinnedBlueprints((prev) =>
       prev.includes(name) ? prev.filter((p) => p !== name) : [...prev, name]
@@ -218,6 +257,7 @@ export default function Blueprints({
   const patchReadiness = useBlueprintPatchReadiness({
     pinnedBlueprintNames: pinnedBlueprints,
     skip: !patchFireDrillEnabled,
+    deferInitial: activeTab !== "READINESS" && !drawerReadinessBp,
   });
 
   useEffect(() => {
@@ -529,8 +569,78 @@ export default function Blueprints({
   const [newSetName, setNewSetName] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [isArchitectOpen, setIsArchitectOpen] = useState(false);
+  const [isImportingExodus, setIsImportingExodus] = useState(false);
   const [stagingRigSetName, setStagingRigSetName] = useState<string | null>(null);
   const [stagedRigSuccessSetName, setStagedRigSuccessSetName] = useState<string | null>(null);
+
+  const handleImportExternalManager = async () => {
+    if (!isDesktop() || isImportingExodus) return;
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+      });
+      if (!selected || typeof selected !== "string") return;
+      const resolvedVault = String(useStore.getState().vaultPath || vaultPath || "").trim();
+      if (!resolvedVault) {
+        useStore
+          .getState()
+          .pushStatus(
+            t("status_vault_required", "Configure your {Vault} folder before migrating external {mods}."),
+            "error"
+          );
+        return;
+      }
+      setIsImportingExodus(true);
+      const report = await invoke<{
+        detected_manager: string;
+        hardlinked_count: number;
+        copied_count: number;
+        quarantined_skipped: number;
+        blueprints: Array<{ name: string; mods: string[]; load_order: string[] }>;
+      }>("import_external_mod_manager", {
+        sourceDir: selected,
+        vaultPath: resolvedVault,
+        zeroCopyHardlink: true,
+      });
+
+      const incomingBps = Array.isArray(report?.blueprints) ? report.blueprints : [];
+      if (incomingBps.length > 0 && setPlaySets) {
+        const nextList = [...(Array.isArray(playSets) ? playSets : [])];
+        for (const bp of incomingBps) {
+          const base = String(bp?.name || t("exodus_default_bp_name", "Migrated {Blueprint}")).trim();
+          let finalName = base;
+          let idx = 1;
+          while (nextList.some((s: any) => String(s?.name || "").toLowerCase() === finalName.toLowerCase())) {
+            finalName = `${base} (${idx})`;
+            idx++;
+          }
+          nextList.push({
+            name: finalName,
+            mods: Array.isArray(bp?.mods) ? bp.mods : [],
+            loadOrder: Array.isArray(bp?.load_order) ? bp.load_order : [],
+          });
+        }
+        setPlaySets(nextList);
+      }
+
+      onRefreshMods?.();
+      const totalImported = (report?.hardlinked_count || 0) + (report?.copied_count || 0);
+      useStore.getState().pushStatus(
+        `${t("exodus_import_done", "Migrated external manager:")} ${totalImported} ${t("term_mods", "{Mods}")} (${report?.hardlinked_count || 0} ${t("exodus_hardlinked_label", "zero-copy links")}, ${incomingBps.length} ${t("term_blueprints", "{Blueprints}")})`,
+        "success"
+      );
+    } catch (err) {
+      useStore
+        .getState()
+        .pushStatus(
+          `${t("alert_import_failed", "Import Failed:")} ${String(err)}`,
+          "error"
+        );
+    } finally {
+      setIsImportingExodus(false);
+    }
+  };
 
   const handleStageSetToRigQueue = async (targetSet: any) => {
     if (!targetSet) return;
@@ -1041,6 +1151,22 @@ export default function Blueprints({
                   onClick={handleImport}
                   iconColorClass="text-[var(--accent)]"
                 />
+                {isDesktop() && (
+                  <CommandScreenQuickLink
+                    icon={
+                      isImportingExodus
+                        ? t("icon_sync", "sync")
+                        : t("icon_move_up", "move_up")
+                    }
+                    title={t("exodus_import_btn", "Migrate External Manager")}
+                    subtitle={t(
+                      "exodus_import_desc",
+                      "Zero-copy import from external staging & profile folders"
+                    )}
+                    onClick={handleImportExternalManager}
+                    iconColorClass="text-[var(--accent)]"
+                  />
+                )}
                 {syncInputVisible ? (
                   <div className="w-full p-6 glass-panel border border-[color-mix(in_srgb,var(--text)_16%,transparent)] rounded-2xl relative h-24 text-left group animate-in fade-in zoom-in-95 duration-200">
                     <div className="flex items-center gap-5 h-full relative z-10 w-full">
@@ -1113,14 +1239,16 @@ export default function Blueprints({
       )}
 
       {patchFireDrillEnabled && activeTab === "READINESS" && (
-        <BlueprintPatchReadinessView
-          pinnedBlueprints={pinnedBlueprints}
-          readiness={patchReadiness}
-          initialInspectBlueprint={pendingReadinessInspect?.bpName}
-          initialInspectBucket={pendingReadinessInspect?.bucket}
-          initialInspectSubFilter={pendingReadinessInspect?.subFilter}
-          onClearInitialInspect={() => setPendingReadinessInspect(null)}
-        />
+        <Suspense fallback={null}>
+          <BlueprintPatchReadinessView
+            pinnedBlueprints={pinnedBlueprints}
+            readiness={patchReadiness}
+            initialInspectBlueprint={pendingReadinessInspect?.bpName}
+            initialInspectBucket={pendingReadinessInspect?.bucket}
+            initialInspectSubFilter={pendingReadinessInspect?.subFilter}
+            onClearInitialInspect={() => setPendingReadinessInspect(null)}
+          />
+        </Suspense>
       )}
 
       {activeTab === "VAULT" && (
@@ -1518,70 +1646,76 @@ export default function Blueprints({
       )}
 
       {isMatrixOpen && (
-        <BlueprintMatrix
-          isOpen={isMatrixOpen}
-          onClose={() => setIsMatrixOpen(false)}
-          playSet={matrixPlaySet}
-          modList={modList}
-          onUpdatePlaySet={(updatedSet: any) => {
-            setMatrixPlaySet(updatedSet);
-            const updatedSets = playSets.map((s: any) =>
-              s.name === updatedSet.name ? updatedSet : s
-            );
-            setPlaySets(updatedSets);
-          }}
-          onUpload={async (
-            isPublic: boolean,
-            isLocked: boolean,
-            allowedMods: any[],
-            isMarketListed: boolean
-          ) => {
-            if (uploadBlueprintToCloud && matrixPlaySet) {
-              return await uploadBlueprintToCloud(
-                matrixPlaySet.name,
-                isPublic,
-                isLocked,
-                allowedMods,
-                isMarketListed
+        <Suspense fallback={null}>
+          <BlueprintMatrix
+            isOpen={isMatrixOpen}
+            onClose={() => setIsMatrixOpen(false)}
+            playSet={matrixPlaySet}
+            modList={modList}
+            onUpdatePlaySet={(updatedSet: any) => {
+              setMatrixPlaySet(updatedSet);
+              const updatedSets = playSets.map((s: any) =>
+                s.name === updatedSet.name ? updatedSet : s
               );
-            }
-            return undefined;
-          }}
-        />
+              setPlaySets(updatedSets);
+            }}
+            onUpload={async (
+              isPublic: boolean,
+              isLocked: boolean,
+              allowedMods: any[],
+              isMarketListed: boolean
+            ) => {
+              if (uploadBlueprintToCloud && matrixPlaySet) {
+                return await uploadBlueprintToCloud(
+                  matrixPlaySet.name,
+                  isPublic,
+                  isLocked,
+                  allowedMods,
+                  isMarketListed
+                );
+              }
+              return undefined;
+            }}
+          />
+        </Suspense>
       )}
 
       {isArchitectOpen && (
-        <BlueprintArchitect
-          isOpen={isArchitectOpen}
-          onClose={() => setIsArchitectOpen(false)}
-          playSet={playSets[activePlaySetIndex]}
-          modList={modList}
-          toggleInActiveSet={toggleInActiveSet}
-          allow_write={true}
-          vaultPath={vaultPath}
-          onRefreshMods={onRefreshMods}
-          renamePlaySet={renamePlaySet}
-        />
+        <Suspense fallback={null}>
+          <BlueprintArchitect
+            isOpen={isArchitectOpen}
+            onClose={() => setIsArchitectOpen(false)}
+            playSet={playSets[activePlaySetIndex]}
+            modList={modList}
+            toggleInActiveSet={toggleInActiveSet}
+            allow_write={true}
+            vaultPath={vaultPath}
+            onRefreshMods={onRefreshMods}
+            renamePlaySet={renamePlaySet}
+          />
+        </Suspense>
       )}
 
       {drawerReadinessBp !== null && (
-        <BlueprintPatchReadinessSidePanel
-          isOpen={drawerReadinessBp !== null}
-          onClose={() => setDrawerReadinessBp(null)}
-          initialBlueprintName={drawerReadinessBp || undefined}
-          readiness={patchReadiness}
-          onOpenFullTool={() => {
-            const target = drawerReadinessBp;
-            setDrawerReadinessBp(null);
-            setPendingReadinessInspect({
-              bpName: target,
-              bucket: null,
-              subFilter: null,
-            });
-            switchTab("READINESS");
-          }}
-          onNavigateView={setView}
-        />
+        <Suspense fallback={null}>
+          <BlueprintPatchReadinessSidePanel
+            isOpen={drawerReadinessBp !== null}
+            onClose={() => setDrawerReadinessBp(null)}
+            initialBlueprintName={drawerReadinessBp || undefined}
+            readiness={patchReadiness}
+            onOpenFullTool={() => {
+              const target = drawerReadinessBp;
+              setDrawerReadinessBp(null);
+              setPendingReadinessInspect({
+                bpName: target,
+                bucket: null,
+                subFilter: null,
+              });
+              switchTab("READINESS");
+            }}
+            onNavigateView={setView}
+          />
+        </Suspense>
       )}
 
       {(() => {

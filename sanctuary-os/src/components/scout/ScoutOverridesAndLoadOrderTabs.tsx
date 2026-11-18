@@ -1,9 +1,13 @@
+import { useState } from "react";
+import { useStore } from "../../store";
 import {
   HoverTooltip,
   EmptyState,
   ActionButton,
   PanelHeaderGroup,
   PanelHeaderButton,
+  SidePanel,
+  SidePanelHeroCard,
   openModDossier,
 } from "../../shared";
 import {
@@ -11,6 +15,7 @@ import {
   getFileLabel,
   isScriptExtension,
 } from "../../shared";
+import { parseLootRulesText } from "../../hooks/playset/lootRuleParser";
 import { UniversalCard } from "../universal/UniversalCard";
 import { RadarPairPreviewBanner } from "../../shared-components/ConflictCard";
 import { parseConflictPairNames } from "../../hooks/playset/conflictPrecomputer";
@@ -28,6 +33,7 @@ export function ScoutOverridesAndLoadOrderTabs({
   selectedLoadOrderMod,
   t,
   setModPriorityTier,
+  addLoadOrderRule,
   removeLoadOrderRule,
   flipLoadOrderRule,
   activeGameSchema,
@@ -73,7 +79,12 @@ export function ScoutOverridesAndLoadOrderTabs({
   modOverlapMap,
   filteredQueue,
   queueVirtual,
+  loadOrderDiagnostics,
 }: any) {
+  const [isLootImportOpen, setIsLootImportOpen] = useState(false);
+  const [lootImportText, setLootImportText] = useState("");
+  const parsedLootPreview = isLootImportOpen ? parseLootRulesText(lootImportText) : [];
+
   return (
     <>
                     {activeTab === "OVERRIDES" && (() => {
@@ -93,6 +104,16 @@ export function ScoutOverridesAndLoadOrderTabs({
                                                             "Lock explicit load order dependencies between two {mods}."
                                                         )}
                                                         icon={t("icon_rule", "rule")}
+                                                        rightContent={
+                                                            typeof addLoadOrderRule === "function" ? (
+                                                                <ActionButton
+                                                                    variant="glass"
+                                                                    icon={t("icon_upload_file", "upload_file")}
+                                                                    label={t("lo_import_loot_rules", "Import Load Rules")}
+                                                                    onClick={() => setIsLootImportOpen(true)}
+                                                                />
+                                                            ) : undefined
+                                                        }
                                                     />
 
                                                     <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
@@ -572,6 +593,94 @@ export function ScoutOverridesAndLoadOrderTabs({
                                 <CommandScreenBody>
                                     <CommandScreenMain>
                                         <div className="flex flex-col gap-10 w-full">
+                                            {/* Schema-Driven Slot Budget Counters & Missing Master Warnings */}
+                                            {(Array.isArray(loadOrderDiagnostics?.slot_usage) &&
+                                                loadOrderDiagnostics.slot_usage.length > 0) ||
+                                            (Array.isArray(loadOrderDiagnostics?.missing_masters) &&
+                                                loadOrderDiagnostics.missing_masters.length > 0) ? (
+                                                <div className="flex flex-col gap-4">
+                                                    {Array.isArray(loadOrderDiagnostics?.slot_usage) &&
+                                                        loadOrderDiagnostics.slot_usage.length > 0 && (
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                {loadOrderDiagnostics.slot_usage.map((bucket: any) => (
+                                                                    <span
+                                                                        key={bucket.id}
+                                                                        className={VAULT_CHIP_CLASS}
+                                                                    >
+                                                                        <span
+                                                                            className={`material-symbols-outlined !text-[13px] ${
+                                                                                bucket.over_limit
+                                                                                    ? "text-[var(--danger)]"
+                                                                                    : "text-[var(--accent)]"
+                                                                            }`}
+                                                                        >
+                                                                            {bucket.over_limit
+                                                                                ? t("icon_warning", "warning")
+                                                                                : t("icon_storage", "storage")}
+                                                                        </span>
+                                                                        <span className="text-[var(--subtext)]">
+                                                                            {bucket.label}:
+                                                                        </span>
+                                                                        <span
+                                                                            className={
+                                                                                bucket.over_limit
+                                                                                    ? "text-[var(--danger)]"
+                                                                                    : "text-[var(--text)]"
+                                                                            }
+                                                                        >
+                                                                            {bucket.used}
+                                                                            {bucket.max_slots > 0
+                                                                                ? ` / ${bucket.max_slots}`
+                                                                                : ""}
+                                                                        </span>
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                    {Array.isArray(loadOrderDiagnostics?.missing_masters) &&
+                                                        loadOrderDiagnostics.missing_masters.length > 0 && (
+                                                            <div className="p-5 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] bg-[color-mix(in_srgb,var(--warning)_8%,transparent)] flex flex-col gap-3 animate-in fade-in duration-300">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-10 h-10 rounded-xl glass-surface border border-[var(--glass-card-icon-border,rgba(255,255,255,0.22))] bg-[var(--glass-card-icon-bg,rgba(255,255,255,0.08))] shadow-[var(--glass-card-icon-shadow)] flex items-center justify-center text-[var(--warning)]">
+                                                                        <span className="material-symbols-outlined !text-[20px]">
+                                                                            {t("icon_warning_amber", "warning_amber")}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex flex-col">
+                                                                        <h3 className="text-sm font-black uppercase tracking-widest text-[var(--warning)] m-0">
+                                                                            {t("lo_missing_masters_title", "Missing Required Masters")}
+                                                                        </h3>
+                                                                        <p className="text-xs text-[var(--subtext)] font-bold m-0">
+                                                                            {t(
+                                                                                "lo_missing_masters_desc",
+                                                                                "One or more {mods} reference upstream dependencies that are not active in this {Blueprint}."
+                                                                            )}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {loadOrderDiagnostics.missing_masters.map(
+                                                                        (mm: any, mIdx: number) => (
+                                                                            <span
+                                                                                key={`${mm.mod_name}_${mm.missing_master}_${mIdx}`}
+                                                                                className={`${VAULT_CHIP_CLASS} font-mono`}
+                                                                            >
+                                                                                <span className="text-[var(--text)]">
+                                                                                    {mm.mod_name}
+                                                                                </span>
+                                                                                <span className="text-[var(--warning)]">
+                                                                                    -&gt; {mm.missing_master}
+                                                                                </span>
+                                                                            </span>
+                                                                        )
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                </div>
+                                            ) : null}
+
                                             {/* Circular Dependency Alert Banner (Severity 5) */}
                                             {compiledOrder.cycles.length > 0 && (
                                                 <div className="p-5 rounded-3xl glass-panel border border-[color-mix(in_srgb,var(--danger)_45%,transparent)] bg-[color-mix(in_srgb,var(--danger)_8%,transparent)] shadow-[0_0_30px_rgba(239,68,68,0.15)] flex flex-col gap-4 animate-in fade-in duration-300">
@@ -1482,6 +1591,116 @@ export function ScoutOverridesAndLoadOrderTabs({
                             </CommandScreenLayout>
                         );
                     })()}
+      <SidePanel
+        isOpen={isLootImportOpen}
+        onClose={() => setIsLootImportOpen(false)}
+        title={t("lo_import_loot_rules", "Import Load Rules")}
+        subtitle={t("lo_import_loot_subtitle", "Import LOOT YAML or JSON load order rules into {Vault}.")}
+        icon={t("icon_upload_file", "upload_file")}
+        iconColorClass="text-[var(--accent)]"
+        widthClass="w-[92vw] md:w-[600px]"
+        headerActions={
+          <PanelHeaderGroup>
+            <span className={`${VAULT_CHIP_CLASS} px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--accent)]`}>
+              {parsedLootPreview.length} {t("load_order_rules", "Load Order Rules")}
+            </span>
+            <PanelHeaderButton
+              icon={t("icon_close", "close")}
+              tooltip={t("close", "Close")}
+              onClick={() => setIsLootImportOpen(false)}
+            />
+          </PanelHeaderGroup>
+        }
+      >
+        <div className="flex flex-col gap-4 mt-2 pb-6">
+          <SidePanelHeroCard
+            icon={t("icon_upload_file", "upload_file")}
+            overline={t("load_order_rules", "Load Order Rules")}
+            title={t("lo_import_loot_rules", "Import Load Rules")}
+            description={t(
+              "lo_import_loot_desc",
+              "Paste LOOT userlist YAML or JSON plugin rules, or pick a .yaml / .json file to import directional load rules."
+            )}
+            badge={`${parsedLootPreview.length}`}
+            variant="accent"
+          />
+
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <label className="glass-surface border border-[color-mix(in_srgb,var(--text)_14%,transparent)] hover:border-[var(--accent)] rounded-xl px-3.5 py-2 text-xs font-bold text-[var(--text)] cursor-pointer inline-flex items-center gap-2 transition-all">
+              <span className="material-symbols-outlined !text-[16px] text-[var(--accent)]">
+                {t("icon_folder_open", "folder_open")}
+              </span>
+              <span>{t("lo_choose_rules_file", "Choose YAML / JSON File")}</span>
+              <input
+                type="file"
+                accept=".yaml,.yml,.json,.txt"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    if (typeof reader.result === "string") {
+                      setLootImportText(reader.result);
+                    }
+                  };
+                  reader.readAsText(file);
+                }}
+              />
+            </label>
+            {lootImportText.trim().length > 0 && (
+              <ActionButton
+                variant="glass"
+                icon={t("icon_delete_sweep", "delete_sweep")}
+                label={t("clear", "Clear")}
+                onClick={() => setLootImportText("")}
+              />
+            )}
+          </div>
+
+          <textarea
+            value={lootImportText}
+            onChange={(e) => setLootImportText(e.target.value)}
+            rows={11}
+            placeholder={t(
+              "lo_import_loot_placeholder",
+              "plugins:\n  - name: 'Patch.mod'\n    after:\n      - 'BaseModule.mod'"
+            )}
+            className="w-full glass-surface rounded-2xl p-3.5 text-xs font-mono text-[var(--text)] outline-none border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] resize-y"
+          />
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-[color-mix(in_srgb,var(--text)_10%,transparent)]">
+            <ActionButton
+              variant="glass"
+              icon={t("icon_close", "close")}
+              label={t("cancel", "Cancel")}
+              onClick={() => setIsLootImportOpen(false)}
+            />
+            <ActionButton
+              variant="accent"
+              icon={t("icon_check", "check")}
+              label={t("lo_apply_imported_rules", "Apply Rules")}
+              disabled={parsedLootPreview.length === 0 || typeof addLoadOrderRule !== "function"}
+              onClick={() => {
+                for (const r of parsedLootPreview) {
+                  addLoadOrderRule(scanScope, r.modA, r.modB, r.type);
+                }
+                useStore
+                  .getState()
+                  .pushStatus(
+                    t("lo_imported_rules_toast", "Imported {count} load order rule(s).").replace(
+                      "{count}",
+                      String(parsedLootPreview.length)
+                    ),
+                    "success"
+                  );
+                setLootImportText("");
+                setIsLootImportOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      </SidePanel>
     </>
   );
 }

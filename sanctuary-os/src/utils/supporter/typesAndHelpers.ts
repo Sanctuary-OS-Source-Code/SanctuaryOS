@@ -483,6 +483,55 @@ export function hasDevBuildAccessClearance(devBuildUntil?: number): boolean {
 }
 
 
+export interface KeeperEmailResponseTemplate {
+  id: string;
+  name: string;
+  category: string;
+  subject: string;
+  body: string;
+  updated_at?: string;
+}
+
+export const DEFAULT_KEEPER_EMAIL_RESPONSE_TEMPLATES: KeeperEmailResponseTemplate[] = [
+  {
+    id: "human_direct_followup",
+    name: "Direct Keeper Follow-Up",
+    category: "Support",
+    subject: "Following Up On Your Sanctuary OS Request",
+    body: "Hello,\n\nA Keeper at Sanctuary Foundry has reviewed your inquiry and wanted to reach out directly with an update.\n\nIf you have any extra details or screenshots to share, reply to this email anytime and we will take care of you.\n\nWarm regards,\nSanctuary Foundry Keepers",
+  },
+  {
+    id: "diagnostic_repro_request",
+    name: "Diagnostic & Logs Request",
+    category: "Troubleshooting",
+    subject: "Quick Details Needed For Your Sanctuary OS Case",
+    body: "Hello,\n\nThank you for flagging this with Sanctuary Foundry. To reproduce the issue accurately, could you reply with:\n\n1. Your current Sanctuary OS version and operating system\n2. Any exact error text or steps leading up to the behavior\n\nOnce we have those details, a Keeper will follow up directly.\n\nBest,\nSanctuary Foundry Keepers",
+  },
+  {
+    id: "partner_spoke_outreach",
+    name: "Partner Spoke Direct Outreach",
+    category: "Partner Spokes",
+    subject: "Sanctuary OS Partner Spoke Alignment & Next Steps",
+    body: "Hello,\n\nThank you for connecting with Sanctuary Foundry regarding Partner Spoke integration on Sanctuary OS.\n\nWe have reviewed your community profile and would love to coordinate schema setup, hub routing, and Keeper review details whenever you are ready.\n\nWarm regards,\nSanctuary Foundry Keepers",
+  },
+  {
+    id: "keeper_application_followup",
+    name: "Keeper Application Follow-Up",
+    category: "Applications",
+    subject: "Your Sanctuary Foundry Keeper Application",
+    body: "Hello,\n\nThank you for applying to help steward communities with Sanctuary Foundry.\n\nOur Keepers team is reviewing your application and would appreciate a brief reply with your primary areas of experience and availability this week.\n\nBest regards,\nSanctuary Foundry Keepers",
+  },
+];
+
+export function resolveKeeperEmailResponseTemplates(
+  cfg?: Partial<KeepersPipelineConfig> | null
+): KeeperEmailResponseTemplate[] {
+  if (Array.isArray(cfg?.email_response_templates)) {
+    return cfg.email_response_templates.map((tpl) => ({ ...tpl }));
+  }
+  return DEFAULT_KEEPER_EMAIL_RESPONSE_TEMPLATES.map((tpl) => ({ ...tpl }));
+}
+
 export interface KeepersPipelineConfig {
   keepers_donation_url: string;
   keepers_payment_processor: string;
@@ -492,6 +541,7 @@ export interface KeepersPipelineConfig {
   support_email_provider?: string;
   support_email_api_key?: string;
   support_email_webhook_url?: string;
+  email_response_templates?: KeeperEmailResponseTemplate[];
   web_public_url?: string;
   web_beta_url?: string;
   stable_version: string;
@@ -536,23 +586,42 @@ export function isLinuxClient(): boolean {
   return (/Linux|X11/i.test(plat) || /Linux|SteamOS|Steam Deck/i.test(ua)) && !/Android/i.test(ua);
 }
 
+export function normalizeLegacySupportEmail(raw?: string | null): string {
+  const clean = String(raw || "").trim();
+  if (!clean || clean.toLowerCase() === "support@sanctuaryos.gg") {
+    return "support@sanctuaryos.net";
+  }
+  return clean;
+}
+
+export function normalizeLegacySenderName(
+  raw?: string | null,
+  fallback = "Sanctuary OS"
+): string {
+  const clean = String(raw || "").trim();
+  if (!clean || /^(sanctuary\s+os\s+keepers\s+core|keepers\s+core)$/i.test(clean)) {
+    return fallback;
+  }
+  return clean;
+}
+
+import { getReleaseBaseUrl } from "../../supabase";
+
+const _defaultRelBase = getReleaseBaseUrl();
+
 export const DEFAULT_KEEPERS_PIPELINE_CONFIG: KeepersPipelineConfig = {
   keepers_donation_url: "https://donate.stripe.com/bJe8wH95gVfuo2Nv08g03",
   keepers_payment_processor: "STRIPE",
-  support_contact_email: "support@sanctuaryos.gg",
-  support_sender_name: "Sanctuary OS Keepers Core",
-  support_reply_to_email: "support@sanctuaryos.gg",
+  support_contact_email: "support@sanctuaryos.net",
+  support_sender_name: "Sanctuary OS",
+  support_reply_to_email: "support@sanctuaryos.net",
   support_email_provider: "RESEND",
   stable_version: "0.5.8",
   dev_build_version: "0.5.8-dev.1",
-  dev_build_endpoint:
-    "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/download/dev-latest/latest.json",
-  dev_build_download_url:
-    "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest",
-  dev_build_dmg_url:
-    "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest",
-  dev_build_linux_url:
-    "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest",
+  dev_build_endpoint: _defaultRelBase ? `${_defaultRelBase}/download/dev-latest/latest.json` : "",
+  dev_build_download_url: _defaultRelBase ? `${_defaultRelBase}/tag/dev-latest` : "",
+  dev_build_dmg_url: _defaultRelBase ? `${_defaultRelBase}/tag/dev-latest` : "",
+  dev_build_linux_url: _defaultRelBase ? `${_defaultRelBase}/tag/dev-latest` : "",
   dev_build_notes:
     "Dev Build stream for Sanctuary OS Ecosystem Supporters ($5 = +30 Days across any Partner Community or Keepers Core).",
   monthly_server_goal_cents: 5025,

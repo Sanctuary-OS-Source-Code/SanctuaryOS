@@ -22,6 +22,10 @@ export function formatHeuristicMatchType(
       return t("comp_match_type_file_exact", "File Name (Exact)");
     case "file_name_contains":
       return t("comp_match_type_file_contains", "File Name (Contains)");
+    case "file_extension":
+      return t("comp_match_type_file_ext", "File Extension (Exact)");
+    case "masquerade_executable":
+      return t("comp_match_type_masquerade", "Disguised Executable");
     default:
       return clean
         ? clean

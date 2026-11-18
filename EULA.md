@@ -1,7 +1,7 @@
 # Sanctuary OS — End-User License Agreement (EULA)
 
-**Document Version:** V6.2 (v0.6.0-Dev.14)  
-**Effective Date:** November 14, 2026  
+**Document Version:** V6.3 (v0.6.0-Dev.15)  
+**Effective Date:** November 18, 2026  
 
 ---
 
@@ -30,8 +30,8 @@ Sanctuary OS operates strictly as **local-first technical software, developer to
 ---
 
 ## 4. Dual-Tier Malware Quarantine, Secure Shred & The Nuclear Override
-1. **Automated Threat Quarantine (Tier 5):** Sanctuary OS includes a **Universal Multi-Format Rust Heuristic Scanner** and SHA-256 / Blake3 DNA verification engine. If a file matches a confirmed **Compliance Tier 5 (Malware)** signature or critical heuristic rule, Sanctuary OS will automatically halt game execution, isolate the file in `Quarantine/`, and lock the interface behind the **Quarantine Lockdown SidePanel** until neutralized.
-2. **Citizen-Signed Secure Shred:** Executing the **Secure Shred** action permanently overwrites and deletes the quarantined file from your storage drive. This action is irreversible.
+1. **Automated Threat Quarantine (Tier 5):** Sanctuary OS includes a **Universal Multi-Format Rust Heuristic Scanner** and SHA-256 DNA verification engine. If a file matches a confirmed **Compliance Tier 5 (Malware)** signature or critical heuristic rule, Sanctuary OS will automatically halt game execution, isolate the file in `Quarantine/`, and lock the interface behind the **Quarantine Lockdown SidePanel** until neutralized.
+2. **Citizen-Signed Secure Shred:** Executing the **Secure Shred** action performs an irreversible single-pass zero-fill overwrite, disk flush, and unlink of the quarantined file from your storage drive. This action is permanent.
 3. **The Nuclear Override & Hardware Ban Consequence:** Advanced users who intentionally unlock and trigger the **Nuclear Override** in System Preferences to bypass Tier 5 Malware security lockouts acknowledge and agree that:
    - You assume 100% of the risk of executing unverified or potentially malicious code on your machine; and
    - Triggering the Nuclear Override immediately records a domain-salted one-way SHA-256 cryptographic hardware hash in the Core OS `hardware_bans` ledger, permanently revoking cloud network access across the Sanctuary Hub and connected Spokes while leaving your offline local software functional.

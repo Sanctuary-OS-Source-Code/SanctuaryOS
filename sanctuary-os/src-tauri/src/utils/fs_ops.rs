@@ -81,7 +81,7 @@ pub fn atomic_write_bytes(path: &Path, bytes: &[u8]) -> Result<(), String> {
         #[cfg(target_os = "windows")]
         {
             if path.exists() {
-                let _ = fs::remove_file(path);
+                let _ = remove_file_clearing_readonly(path);
                 if fs::rename(&tmp_path, path).is_ok() {
                     return Ok(());
                 }
@@ -213,11 +213,7 @@ pub fn process_structure_nodes(
                         linked_count += 1;
                     }
                 } else {
-                    if create_symlink_file(&source, &target_path)
-                        .or_else(|_| std::fs::hard_link(&source, &target_path))
-                        .or_else(|_| std::fs::copy(&source, &target_path).map(|_| ()))
-                        .is_ok()
-                    {
+                    if deploy_file_link_batched(&source, &target_path, true, false, false).is_ok() {
                         if let Some(dl_mutex) = deployed_links {
                             if let Ok(mut dl) = dl_mutex.lock() {
                                 let t_str = target_path.to_string_lossy().to_string();
@@ -289,9 +285,227 @@ pub fn mark_path_hidden(path: &Path) {
 }
 
 
+pub fn check_available_disk_space(target_dir: &Path, required_bytes: u64) -> Result<(), String> {
+    let buffer_bytes = required_bytes.saturating_add(64 * 1024 * 1024);
+    let mut probe = strip_windows_verbatim_prefix(target_dir);
+    while !probe.exists() {
+        match probe.parent() {
+            Some(p) if !p.as_os_str().is_empty() => probe = p.to_path_buf(),
+            _ => break,
+        }
+    }
+    let resolved_probe = if probe.exists() {
+        strip_windows_verbatim_prefix(&std::fs::canonicalize(&probe).unwrap_or(probe))
+    } else {
+        probe
+    };
+
+    let disks = sysinfo::Disks::new_with_refreshed_list();
+    let mut best_match: Option<(usize, u64)> = None;
+    for disk in disks.list() {
+        let mount = strip_windows_verbatim_prefix(disk.mount_point());
+        if path_is_within_root(&resolved_probe, &mount) {
+            let depth = mount.as_os_str().len();
+            if best_match.map_or(true, |(best_depth, _)| depth > best_depth) {
+                best_match = Some((depth, disk.available_space()));
+            }
+        }
+    }
+    if let Some((_, avail)) = best_match {
+        if avail < buffer_bytes {
+            return Err(format!(
+                "Insufficient disk space at {:?}: {} MB required, {} MB available.",
+                resolved_probe,
+                buffer_bytes / (1024 * 1024),
+                avail / (1024 * 1024)
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub fn remove_file_clearing_readonly(path: &Path) -> std::io::Result<()> {
+    match std::fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
+            if !is_symlink_or_reparse_point(path) {
+                if let Ok(meta) = std::fs::symlink_metadata(path) {
+                    let mut perms = meta.permissions();
+                    if perms.readonly() {
+                        perms.set_readonly(false);
+                        let _ = std::fs::set_permissions(path, perms);
+                        return std::fs::remove_file(path);
+                    }
+                }
+            }
+            Err(err)
+        }
+        Err(err) => Err(err),
+    }
+}
+
+pub fn remove_dir_all_clearing_readonly(dir: &Path) -> std::io::Result<()> {
+    match std::fs::remove_dir_all(dir) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
+            if !is_symlink_or_reparse_point(dir) {
+                for entry in walkdir::WalkDir::new(dir)
+                    .follow_links(false)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
+                    let p = entry.path();
+                    if !is_symlink_or_reparse_point(p) {
+                        if let Ok(meta) = std::fs::symlink_metadata(p) {
+                            let mut perms = meta.permissions();
+                            if perms.readonly() {
+                                perms.set_readonly(false);
+                                let _ = std::fs::set_permissions(p, perms);
+                            }
+                        }
+                    }
+                }
+                return std::fs::remove_dir_all(dir);
+            }
+            Err(err)
+        }
+        Err(err) => Err(err),
+    }
+}
+
+pub fn strip_macos_quarantine_xattr(path: &Path) {
+    #[cfg(target_os = "macos")]
+    {
+        if !path.exists() {
+            return;
+        }
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|s| s.to_lowercase())
+            .unwrap_or_default();
+        if path.is_dir() {
+            if matches!(ext.as_str(), "app" | "bundle" | "framework" | "plugin") {
+                let _ = std::process::Command::new("/usr/bin/xattr")
+                    .args(["-rd", "com.apple.quarantine"])
+                    .arg(path)
+                    .output();
+            }
+        } else if matches!(
+            ext.as_str(),
+            "dylib" | "so" | "bundle" | "dll" | "asi" | ""
+        ) {
+            let _ = std::process::Command::new("/usr/bin/xattr")
+                .args(["-d", "com.apple.quarantine"])
+                .arg(path)
+                .output();
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = path;
+    }
+}
+
+pub fn strip_macos_quarantine_in_tree(root_dir: &Path) {
+    #[cfg(target_os = "macos")]
+    {
+        if root_dir.exists() {
+            let _ = std::process::Command::new("/usr/bin/xattr")
+                .args(["-rd", "com.apple.quarantine"])
+                .arg(root_dir)
+                .output();
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = root_dir;
+    }
+}
+
+pub fn deploy_file_link_batched(
+    source: &Path,
+    target: &Path,
+    allow_write: bool,
+    is_mutable_config: bool,
+    check_space_on_copy: bool,
+) -> std::io::Result<()> {
+    let copy_fallback = |src: &Path, dst: &Path| -> std::io::Result<()> {
+        if check_space_on_copy {
+            let source_len = std::fs::metadata(src).map(|m| m.len()).unwrap_or(0);
+            let check_dir = dst.parent().unwrap_or(dst);
+            check_available_disk_space(check_dir, source_len)
+                .map_err(|msg| std::io::Error::new(std::io::ErrorKind::Other, msg))?;
+        }
+        std::fs::copy(src, dst)?;
+        // Ensure independent physical copies are not stuck read-only when copied from a hardlinked Vault file.
+        if let Ok(meta) = std::fs::symlink_metadata(dst) {
+            let mut perms = meta.permissions();
+            if perms.readonly() {
+                perms.set_readonly(false);
+                let _ = std::fs::set_permissions(dst, perms);
+            }
+        }
+        Ok(())
+    };
+
+    if !allow_write && is_mutable_config {
+        copy_fallback(source, target)?;
+        strip_macos_quarantine_xattr(target);
+        return Ok(());
+    }
+
+    let linked = if create_symlink_file(source, target).is_ok() {
+        Ok(())
+    } else if !is_mutable_config {
+        match std::fs::hard_link(source, target) {
+            Ok(()) => {
+                // On non-admin Windows where NTFS hardlinks share the Vault inode, mark read-only assets
+                // read-only unless `allow_write` is set so games cannot silently mutate Vault originals.
+                #[cfg(target_os = "windows")]
+                if !allow_write && !is_symlink_or_reparse_point(target) {
+                    if let Ok(meta) = std::fs::symlink_metadata(target) {
+                        let mut perms = meta.permissions();
+                        if !perms.readonly() {
+                            perms.set_readonly(true);
+                            let _ = std::fs::set_permissions(target, perms);
+                        }
+                    }
+                }
+                Ok(())
+            }
+            Err(_) => copy_fallback(source, target),
+        }
+    } else if allow_write {
+        std::fs::hard_link(source, target).or_else(|_| copy_fallback(source, target))
+    } else {
+        copy_fallback(source, target)
+    };
+
+    if linked.is_ok() {
+        strip_macos_quarantine_xattr(target);
+    }
+    linked
+}
+
+#[allow(dead_code)]
+pub fn deploy_file_link_safe(
+    source: &Path,
+    target: &Path,
+    allow_write: bool,
+    is_mutable_config: bool,
+) -> std::io::Result<()> {
+    deploy_file_link_batched(source, target, allow_write, is_mutable_config, true)
+}
+
 pub fn deploy_junction(source: &Path, target: &Path) -> std::io::Result<()> {
     #[cfg(target_os = "windows")]
     {
+        if std::os::windows::fs::symlink_dir(source, target).is_ok() {
+            return Ok(());
+        }
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         let target_str = target.to_str().ok_or_else(|| {
             std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid target path")
         })?;
@@ -310,6 +524,7 @@ pub fn deploy_junction(source: &Path, target: &Path) -> std::io::Result<()> {
         }
         let status = std::process::Command::new("cmd")
             .args(["/C", "mklink", "/J", target_str, source_str])
+            .creation_flags(CREATE_NO_WINDOW)
             .status()?;
 
         if !status.success() {
@@ -456,7 +671,7 @@ pub(crate) fn normalize_path_key(p: &std::path::Path) -> String {
         .to_lowercase()
 }
 
-pub(super) fn dir_looks_like_shared_game_folder(
+pub(crate) fn dir_looks_like_shared_game_folder(
     dir: &std::path::Path,
     live_path: &str,
     game_schema: &Option<crate::schema::GameSchema>,
@@ -565,7 +780,7 @@ pub(super) fn rescue_untracked_mod_file(
                 calculate_hash(&existing_vault_path),
             ) {
                 if h1 == h2 {
-                    let _ = std::fs::remove_file(file_path);
+                    let _ = remove_file_clearing_readonly(file_path);
                     return true;
                 }
             }
@@ -582,7 +797,7 @@ pub(super) fn rescue_untracked_mod_file(
         if dest_len == src_len {
             if let (Ok(h1), Ok(h2)) = (calculate_hash(file_path), calculate_hash(&dest)) {
                 if h1 == h2 {
-                    let _ = std::fs::remove_file(file_path);
+                    let _ = remove_file_clearing_readonly(file_path);
                     return true;
                 }
             }
@@ -616,7 +831,7 @@ pub(super) fn rescue_untracked_mod_file(
         return true;
     }
     if std::fs::copy(file_path, &dest).is_ok() {
-        let _ = std::fs::remove_file(file_path);
+        let _ = remove_file_clearing_readonly(file_path);
         return true;
     }
 
@@ -664,12 +879,22 @@ pub fn remove_symlink_or_junction(path: &std::path::Path) -> bool {
 
     if is_dir_link {
         std::fs::remove_dir(path)
-            .or_else(|_| std::fs::remove_file(path))
+            .or_else(|_| remove_file_clearing_readonly(path))
             .is_ok()
     } else {
-        std::fs::remove_file(path)
+        remove_file_clearing_readonly(path)
             .or_else(|_| std::fs::remove_dir(path))
             .is_ok()
+    }
+}
+
+pub(crate) fn restore_vanilla_backup_if_present(target: &std::path::Path) {
+    let bak = std::path::PathBuf::from(format!("{}.sanctuary_vanilla_bak", target.to_string_lossy()));
+    if bak.exists()
+        && !target.exists()
+        && std::fs::symlink_metadata(target).is_err()
+    {
+        let _ = std::fs::rename(&bak, target);
     }
 }
 
@@ -688,6 +913,7 @@ pub(super) fn safe_wipe_mods_dir_inner(
         items.into_par_iter().for_each(|path| {
             if is_symlink_or_reparse_point(&path) {
                 let _ = remove_symlink_or_junction(&path);
+                restore_vanilla_backup_if_present(&path);
                 return;
             }
 
@@ -707,7 +933,7 @@ pub(super) fn safe_wipe_mods_dir_inner(
 
             // Always remove internal Sanctuary deployment state files
             if file_name_lower.starts_with(".sanctuary_") {
-                let _ = std::fs::remove_file(&path);
+                let _ = remove_file_clearing_readonly(&path);
                 return;
             }
 
@@ -728,7 +954,8 @@ pub(super) fn safe_wipe_mods_dir_inner(
                         let _ = std::fs::remove_dir(&path);
                     }
                 } else if tracked_set.contains(&norm) {
-                    let _ = std::fs::remove_file(&path);
+                    let _ = remove_file_clearing_readonly(&path);
+                    restore_vanilla_backup_if_present(&path);
                 }
                 return;
             }
@@ -758,7 +985,8 @@ pub(super) fn safe_wipe_mods_dir_inner(
                     || (!manifest_leaf.is_empty() && file_name_lower == manifest_leaf)
                     || tracked_set.contains(&norm)
                 {
-                    let _ = std::fs::remove_file(&path);
+                    let _ = remove_file_clearing_readonly(&path);
+                    restore_vanilla_backup_if_present(&path);
                     return;
                 }
                 let rel_path = path
@@ -766,7 +994,7 @@ pub(super) fn safe_wipe_mods_dir_inner(
                     .unwrap_or_else(|_| std::path::Path::new(&file_name_lower));
                 let rel_str = rel_path.to_string_lossy();
                 if crate::game_logic::is_cache_file(game_schema, &rel_str) {
-                    let _ = std::fs::remove_file(&path);
+                    let _ = remove_file_clearing_readonly(&path);
                     return;
                 }
                 if let Some(ref lane) = vault_mods_lane {
@@ -788,7 +1016,7 @@ pub(super) fn safe_wipe_mods_dir_inner(
                     }
                     if std::fs::rename(&path, &dest).is_err() {
                         if std::fs::copy(&path, &dest).is_ok() {
-                            let _ = std::fs::remove_file(&path);
+                            let _ = remove_file_clearing_readonly(&path);
                         }
                     }
                 }
@@ -834,6 +1062,7 @@ pub fn safe_wipe_mods_dir_with_vault(
         }
     };
     let mut manifest_locations = vec![dir.join(".sanctuary_deployed_links.json")];
+    let mut journal_locations = vec![dir.join(".sanctuary_deploy_journal.jsonl")];
     if !effective_vault_str.is_empty() {
         if let Some((raw, _)) = get_vault_kv(effective_vault_str, "deployed_links") {
             if let Ok(list) = serde_json::from_str::<Vec<String>>(&raw) {
@@ -847,6 +1076,10 @@ pub fn safe_wipe_mods_dir_with_vault(
             std::path::PathBuf::from(effective_vault_str)
                 .join(".sanctuary_deployed_links.json"),
         );
+        journal_locations.push(
+            std::path::PathBuf::from(effective_vault_str)
+                .join(".sanctuary_deploy_journal.jsonl"),
+        );
     }
 
     for loc in &manifest_locations {
@@ -859,6 +1092,20 @@ pub fn safe_wipe_mods_dir_with_vault(
                 }
             }
             let _ = std::fs::remove_file(loc);
+        }
+    }
+
+    for jloc in &journal_locations {
+        if jloc.exists() {
+            if let Ok(raw) = std::fs::read_to_string(jloc) {
+                for line in raw.lines() {
+                    let clean = line.trim();
+                    if !clean.is_empty() {
+                        record_tracked_if_within_mods(clean);
+                    }
+                }
+            }
+            let _ = std::fs::remove_file(jloc);
         }
     }
 
@@ -897,4 +1144,80 @@ pub fn check_is_explicitly_local(
         }
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn junction_unlink_preserves_vault_source_and_case_insensitive_path_merges() {
+        let base = std::env::temp_dir().join(format!("fs_ops_test_{}", uuid::Uuid::new_v4()));
+        let vault = base.join("Vault");
+        let vault_mods = vault.join("Mods");
+        let source_mod_dir = vault_mods.join("MyModFolder");
+        let mods_dir = base.join("GameMods");
+
+        std::fs::create_dir_all(&source_mod_dir).unwrap();
+        std::fs::create_dir_all(mods_dir.join("Textures")).unwrap();
+        let vault_payload = source_mod_dir.join("mod_asset.bin");
+        std::fs::write(&vault_payload, b"payload").unwrap();
+
+        let resolved_textures = resolve_case_insensitive_path(&mods_dir, "textures/sub/item.dds");
+        #[cfg(not(target_os = "windows"))]
+        assert!(resolved_textures.to_string_lossy().contains("Textures"));
+        #[cfg(target_os = "windows")]
+        assert!(resolved_textures
+            .parent()
+            .and_then(|p| p.parent())
+            .map_or(false, |p| p.exists()));
+
+        let link_dest = mods_dir.join("MyModFolder");
+        assert!(deploy_junction(&source_mod_dir, &link_dest).is_ok());
+        assert!(link_dest.join("mod_asset.bin").exists());
+
+        safe_wipe_mods_dir_with_vault(&mods_dir, Some(&vault.to_string_lossy()), &None);
+        assert!(!link_dest.exists());
+        assert!(
+            vault_payload.exists(),
+            "Safe wipe unlinking junction must NEVER delete source files inside Vault"
+        );
+
+        let _ = remove_dir_all_clearing_readonly(&base);
+    }
+
+    #[test]
+    fn deploy_file_link_batched_and_remove_file_clearing_readonly_preserve_source() {
+        let base = std::env::temp_dir().join(format!(
+            "fs_ops_hardlink_ro_test_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let vault_mods = base.join("Vault").join("Mods");
+        let live_mods = base.join("Game").join("Mods");
+        std::fs::create_dir_all(&vault_mods).unwrap();
+        std::fs::create_dir_all(&live_mods).unwrap();
+
+        let source = vault_mods.join("mod_asset.bin");
+        let target = live_mods.join("mod_asset.bin");
+        std::fs::write(&source, b"immutable-mod-bytes").unwrap();
+
+        assert!(deploy_file_link_batched(&source, &target, false, false, false).is_ok());
+        assert_eq!(std::fs::read(&target).unwrap(), b"immutable-mod-bytes");
+
+        // Force read-only on target (simulating Windows non-admin hardlink protection)
+        if !is_symlink_or_reparse_point(&target) {
+            let mut perms = std::fs::symlink_metadata(&target).unwrap().permissions();
+            perms.set_readonly(true);
+            std::fs::set_permissions(&target, perms).unwrap();
+        }
+
+        assert!(remove_file_clearing_readonly(&target).is_ok());
+        assert!(!target.exists());
+        assert!(
+            source.exists(),
+            "Unlinking deployed file must preserve original Vault file"
+        );
+
+        let _ = remove_dir_all_clearing_readonly(&base);
+    }
 }

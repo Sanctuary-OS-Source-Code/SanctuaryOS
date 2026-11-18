@@ -231,16 +231,9 @@ pub fn initialize_airgap_watch(
                                         let backup_dest = v_path.join(filename);
                                         let vault_file = vault_mods_lane.join(filename);
 
-                                        let prior_content = std::fs::read_to_string(&vault_file)
+                                        let prior_content = std::fs::read_to_string(&backup_dest)
                                             .ok()
-                                            .or_else(|| std::fs::read_to_string(&backup_dest).ok());
-
-                                        if vault_file.exists() {
-                                            if !backup_dest.exists() {
-                                                let _ = std::fs::copy(&vault_file, &backup_dest);
-                                            }
-                                            let _ = std::fs::remove_file(&vault_file);
-                                        }
+                                            .or_else(|| std::fs::read_to_string(&vault_file).ok());
 
                                         let _ = std::fs::copy(&path, &backup_dest);
 
@@ -250,11 +243,8 @@ pub fn initialize_airgap_watch(
                                         ) {
                                             if let Ok(new_content) = std::fs::read_to_string(&path)
                                             {
-                                                let target_history_path = if vault_file.exists() {
-                                                    vault_file.to_string_lossy().to_string()
-                                                } else {
-                                                    backup_dest.to_string_lossy().to_string()
-                                                };
+                                                let target_history_path =
+                                                    backup_dest.to_string_lossy().to_string();
                                                 let _ = crate::commands::game_info::record_in_game_config_snapshot(
                                                     &app_handle,
                                                     &target_history_path,
@@ -523,13 +513,77 @@ pub fn initialize_settings_watch(
 
 use crate::state::DownloadsWatcherState;
 
+fn is_download_file_settled_and_unlocked(path: &std::path::Path) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0x0000_0001)
+            .open(path)
+            .is_ok()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::fs::File::open(path).is_ok()
+    }
+}
+
+fn is_temp_download_path(path_lower: &str) -> bool {
+    path_lower.ends_with(".crdownload")
+        || path_lower.ends_with(".part")
+        || path_lower.ends_with(".partial")
+        || path_lower.ends_with(".tmp")
+        || path_lower.ends_with(".opdownload")
+        || path_lower.ends_with(".download")
+}
+
 #[tauri::command]
 pub async fn start_downloads_watch(
     extensions: Vec<String>,
     app: tauri::AppHandle,
     state: tauri::State<'_, DownloadsWatcherState>,
 ) -> Result<(), String> {
-    let mut watcher_lock = state.0.lock().map_err(|e| e.to_string())?;
+    let mut normalized_exts: std::collections::HashSet<String> = extensions
+        .into_iter()
+        .map(|e| {
+            let clean = e.trim().trim_start_matches('.').to_lowercase();
+            if clean.is_empty() {
+                String::new()
+            } else {
+                format!(".{}", clean)
+            }
+        })
+        .filter(|e| !e.is_empty())
+        .collect();
+    if let Some(app_state) = app.try_state::<AppState>() {
+        if let Ok(schema_guard) = app_state.active_schema.lock() {
+            for ext in crate::game_logic::get_supported_extensions(&schema_guard) {
+                if !ext.is_empty() {
+                    normalized_exts.insert(format!(".{}", ext));
+                }
+            }
+            if let Some(ref s) = *schema_guard {
+                if let Some(ref containers) = s.extensions.archive_containers {
+                    for ext in containers {
+                        let clean = ext.trim().trim_start_matches('.').to_lowercase();
+                        if !clean.is_empty() {
+                            normalized_exts.insert(format!(".{}", clean));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for container in [".zip", ".7z", ".rar"] {
+        normalized_exts.insert(container.to_string());
+    }
+
+    if let Ok(mut ext_guard) = state.extensions.write() {
+        *ext_guard = normalized_exts;
+    }
+
+    let mut watcher_lock = state.shutdown_tx.lock().map_err(|e| e.to_string())?;
     if watcher_lock.is_some() {
         return Ok(());
     }
@@ -541,6 +595,7 @@ pub async fn start_downloads_watch(
     let (shutdown_tx, shutdown_rx) = std::sync::mpsc::channel();
 
     *watcher_lock = Some(shutdown_tx);
+    let shared_extensions = state.extensions.clone();
 
     let app_clone = app.clone();
     std::thread::spawn(move || {
@@ -562,62 +617,119 @@ pub async fn start_downloads_watch(
         }
 
         let mut recent_emits: HashMap<PathBuf, std::time::Instant> = HashMap::new();
+        let mut pending_candidates: HashMap<
+            PathBuf,
+            (u64, Option<std::time::SystemTime>, std::time::Instant),
+        > = HashMap::new();
 
         loop {
             if shutdown_rx.try_recv().is_ok() {
                 break;
             }
 
-            if let Ok(Ok(event)) = event_rx.recv_timeout(std::time::Duration::from_millis(500)) {
+            if let Ok(Ok(event)) = event_rx.recv_timeout(std::time::Duration::from_millis(250)) {
                 match event.kind {
                     notify::EventKind::Modify(_) | notify::EventKind::Create(_) => {
                         for path in event.paths {
                             if crate::utils::is_macos_or_os_metadata_path(&path) {
                                 continue;
                             }
-                            if path.is_file() {
-                                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                                    let file_name = path
-                                        .file_name()
-                                        .unwrap_or_default()
-                                        .to_string_lossy()
-                                        .to_string()
-                                        .to_lowercase();
-                                    if file_name.starts_with("._") || file_name == ".ds_store" {
-                                        continue;
-                                    }
-                                    let ext_with_dot = format!(".{}", ext.to_lowercase());
-                                    let path_str = path.to_string_lossy().to_string();
-                                    if (extensions.contains(&ext_with_dot)
-                                        || file_name == crate::utils::SANCTUARY_EDGE_OVERRIDE_FILE
-                                        || file_name == crate::utils::SANCTUARY_EDGE_MANIFEST_FILE)
-                                        && !path_str.ends_with(".crdownload")
-                                        && !path_str.ends_with(".part")
-                                    {
-                                        let now = std::time::Instant::now();
-                                        if let Some(prev) = recent_emits.get(&path) {
-                                            if now.duration_since(*prev)
-                                                < std::time::Duration::from_secs(2)
-                                            {
-                                                continue;
-                                            }
-                                        }
-                                        recent_emits.insert(path.clone(), now);
-
-                                        #[derive(Clone, serde::Serialize)]
-                                        struct Payload {
-                                            path: String,
-                                        }
-                                        let _ = app_clone.emit(
-                                            "download_intercepted",
-                                            Payload { path: path_str },
-                                        );
-                                    }
+                            if !path.is_file() {
+                                continue;
+                            }
+                            let file_name = path
+                                .file_name()
+                                .unwrap_or_default()
+                                .to_string_lossy()
+                                .to_lowercase();
+                            if file_name.starts_with("._")
+                                || file_name == ".ds_store"
+                                || is_temp_download_path(&file_name)
+                            {
+                                continue;
+                            }
+                            let ext_match = path
+                                .extension()
+                                .and_then(|e| e.to_str())
+                                .map(|ext| format!(".{}", ext.to_lowercase()))
+                                .map(|dot_ext| {
+                                    shared_extensions
+                                        .read()
+                                        .map(|set| set.contains(&dot_ext))
+                                        .unwrap_or(false)
+                                })
+                                .unwrap_or(false);
+                            let is_sidecar = file_name == crate::utils::SANCTUARY_EDGE_OVERRIDE_FILE
+                                || file_name == crate::utils::SANCTUARY_EDGE_MANIFEST_FILE;
+                            if ext_match || is_sidecar {
+                                if let Ok(meta) = std::fs::metadata(&path) {
+                                    let len = meta.len();
+                                    let mtime = meta.modified().ok();
+                                    pending_candidates
+                                        .insert(path, (len, mtime, std::time::Instant::now()));
                                 }
                             }
                         }
                     }
                     _ => {}
+                }
+            }
+
+            if !pending_candidates.is_empty() {
+                let now = std::time::Instant::now();
+                let keys: Vec<PathBuf> = pending_candidates.keys().cloned().collect();
+                for path in keys {
+                    let Some((prev_len, prev_mtime, observed_at)) =
+                        pending_candidates.get(&path).cloned()
+                    else {
+                        continue;
+                    };
+                    let Ok(meta) = std::fs::metadata(&path) else {
+                        pending_candidates.remove(&path);
+                        continue;
+                    };
+                    if !meta.is_file() {
+                        pending_candidates.remove(&path);
+                        continue;
+                    }
+                    let cur_len = meta.len();
+                    let cur_mtime = meta.modified().ok();
+                    if cur_len != prev_len || cur_mtime != prev_mtime {
+                        pending_candidates.insert(path, (cur_len, cur_mtime, now));
+                        continue;
+                    }
+                    if cur_len == 0
+                        || now.duration_since(observed_at)
+                            < std::time::Duration::from_millis(350)
+                    {
+                        continue;
+                    }
+                    if !is_download_file_settled_and_unlocked(&path) {
+                        pending_candidates.insert(path, (cur_len, cur_mtime, now));
+                        continue;
+                    }
+
+                    pending_candidates.remove(&path);
+                    let recently_emitted = recent_emits
+                        .get(&path)
+                        .map_or(false, |prev| {
+                            now.duration_since(*prev) < std::time::Duration::from_secs(2)
+                        });
+                    if recently_emitted {
+                        continue;
+                    }
+                    recent_emits.insert(path.clone(), now);
+
+                    #[derive(Clone, serde::Serialize)]
+                    struct Payload {
+                        path: String,
+                    }
+                    let _ = app_clone.emit(
+                        "download_intercepted",
+                        Payload {
+                            path: path.to_string_lossy().to_string(),
+                        },
+                    );
                 }
             }
         }
@@ -630,7 +742,7 @@ pub async fn start_downloads_watch(
 pub async fn stop_downloads_watch(
     state: tauri::State<'_, DownloadsWatcherState>,
 ) -> Result<(), String> {
-    let mut watcher_lock = state.0.lock().map_err(|e| e.to_string())?;
+    let mut watcher_lock = state.shutdown_tx.lock().map_err(|e| e.to_string())?;
     if let Some(tx) = watcher_lock.take() {
         let _ = tx.send(());
     }

@@ -1,7 +1,7 @@
 # Sanctuary OS — Terms of Service (TOS)
 
-**Document Version:** V6.2 (v0.6.0-Dev.14)  
-**Effective Date:** November 14, 2026  
+**Document Version:** V6.3 (v0.6.0-Dev.15)  
+**Effective Date:** November 18, 2026  
 
 ---
 
@@ -37,7 +37,7 @@ Sanctuary OS is architected specifically as **local-first technical software, de
    - **Mandatory Verified Mason Hardgate:** Publishing top-level Comm-Link dispatches is strictly locked at the Core gateway (`game-gateway`) and Spoke database RLS layer to **Verified Masons** and authorized Spoke staff. **Partner Spokes (`Wayfinders`) cannot override, weaken, or disable this Verified Mason hardgate.**
 3. **Nexus Asset Uploads Locked to Verified Masons (Minus Blueprints — Non-Overridable Hardgate):**
    - Cloud **Nexus Asset uploads** (`nexus_assets` — **Chameleon Themes**, **Sparse Delta Lexicons**, and **Workbench Configuration Templates** — along with **Collections** and Cloud Mod Registry definitions) are strictly locked to **Verified Masons** (requiring FIDO2/Passkey step-up authentication) and authorized Spoke staff. **Partner Spokes (`Wayfinders`) cannot override, bypass, or disable this Verified Mason hardgate.**
-   - **Narrow Citizen Blueprint Exception:** Citizen-shareable **Cloud Blueprints (`SNCXXX`)** contain exclusively structured JSON configuration metadata (cryptographic SHA-256/Blake3 DNA hashes, slot identifiers, and game-version compatibility strings) with **zero uploaded binary files, zero executable scripts, and zero user-uploaded images or media**, and remain automatically subject to database Tier 0 compliance purging (`trg_purge_flagged_hash_from_blueprints`).
+   - **Narrow Citizen Blueprint Exception:** Citizen-shareable **Cloud Blueprints (`SNCXXX`)** contain exclusively structured JSON configuration metadata (cryptographic SHA-256 DNA hashes, slot identifiers, and game-version compatibility strings) with **zero uploaded binary files, zero executable scripts, and zero user-uploaded images or media**, and remain automatically subject to database Tier 0 compliance purging (`trg_purge_flagged_hash_from_blueprints`).
 4. **Minor Safety, Age Eligibility & Strict Public Tier-0 Airgap:**
    - **Minimum Age Eligibility:** Standard Citizen network accounts require a minimum age of **13 years old** (or the higher minimum digital-consent age in your jurisdiction, such as `13–16` under GDPR). Elevated Creator and Staff clearances (**Tier 2 Verified Mason** through **Tier 6 Keeper**) require users to be **18 years of age or older** (or the age of legal majority in their jurisdiction) and pass hardware/biometric FIDO2 Passkey verification.
    - **Structural Minor Protection Without Invasive Surveillance:** Rather than harvesting government IDs or facial-biometric scans, Sanctuary OS protects minors structurally: **(a)** zero public Citizen user profiles, zero stranger direct messaging, and zero open social posting, **(b)** non-overridable Verified Mason hardgates on Comm-Link dispatches and cloud Nexus Asset uploads (minus non-media hash Blueprints), and **(c)** strict **Compliance Tier 0 (Public Safe)** filtering on all public endpoints (automatically scrubbing Tiers 1–4 and Quarantine Tier 5 from The Nexus, Comm-Link, and Cloud Blueprints).
@@ -45,7 +45,7 @@ Sanctuary OS is architected specifically as **local-first technical software, de
 ---
 
 ## 4. Metadata-Only Registry, Content-Addressed Themes & Creator IP
-1. **No Unauthorized Redistribution:** The Nexus indexes cryptographic SHA-256 / Blake3 DNA hashes, dependency rules, compatibility telemetry, Workbench config templates, Sparse Delta Lexicons, and content-addressed Chameleon themes (`<= 250 KB` WebP wallpapers or external HTTPS URLs). Uploading or linking pirated, paywall-circumvented, or stolen creator assets is strictly prohibited.
+1. **No Unauthorized Redistribution:** The Nexus indexes cryptographic SHA-256 DNA hashes, dependency rules, compatibility telemetry, Workbench config templates, Sparse Delta Lexicons, and content-addressed Chameleon themes (`<= 250 KB` WebP wallpapers or external HTTPS URLs). Uploading or linking pirated, paywall-circumvented, or stolen creator assets is strictly prohibited.
 2. **Creator Sovereignty:** Masons retain 100% ownership of their intellectual property, external download links, and Static Edge manifests (`.sanctuary.manifest.json` / `catalog.json` / `.sanctuary.override.json`).
 
 ---

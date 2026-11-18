@@ -1,11 +1,14 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore } from "../store";
-import { supabase } from "../supabase";
+import { useModalStore } from "../store/modalStore";
+import { supabase, setRuntimeUplinkBundle } from "../supabase";
 import { listen } from "@tauri-apps/api/event";
 import { ModData } from "../shared";
 import { isDesktop } from "../utils/envUtils";
 import { invalidateCloudSyncCache } from "../utils/cloudSyncGuard";
+import { notifyOS } from "../utils/notificationHelper";
+import { parseDeepLinkItem } from "../utils/deepLinkParser";
 
 export function useAppEdgeAndNetworkSync({
   insertingHashes,
@@ -18,14 +21,231 @@ export function useAppEdgeAndNetworkSync({
   setEdgeOverrideQueue,
   runRadarSweepRef,
   setMalwareAlertRef,
+  handleDroppedFilesRef,
 }: any) {
   const ignoredHashesRef = useRef<Set<string>>(new Set());
   const networkCheckIdRef = useRef<number>(0);
+  const pendingDeepLinkDialogsRef = useRef<any[]>([]);
   useEffect(() => {
     let unlistenEdge: (() => void) | null = null;
     let unlistenMalware: (() => void) | null = null;
     let unlistenCloudSessionClean: (() => void) | null = null;
+    let unlistenWizard: (() => void) | null = null;
+    let unlistenDeepLink: (() => void) | null = null;
+    let deepLinkPumpTimer: number | null = null;
     let cancelled = false;
+
+    const handleTriggerRadarSweep = () => {
+      if (!cancelled) {
+        runRadarSweepRef.current?.();
+      }
+    };
+    window.addEventListener("sanctuary-trigger-radar-sweep", handleTriggerRadarSweep);
+
+    const scheduleNextDeepLinkDialog = () => {
+      if (cancelled || deepLinkPumpTimer !== null) return;
+      deepLinkPumpTimer = window.setTimeout(() => {
+        deepLinkPumpTimer = null;
+        if (cancelled) return;
+        const modalStore = useModalStore.getState();
+        if (modalStore.confirmDialog) {
+          if (pendingDeepLinkDialogsRef.current.length > 0) {
+            scheduleNextDeepLinkDialog();
+          }
+          return;
+        }
+        const nextDialog = pendingDeepLinkDialogsRef.current.shift();
+        if (nextDialog) {
+          modalStore.setConfirmDialog(nextDialog);
+        }
+      }, 25);
+    };
+
+    const enqueueDeepLinkConfirmDialog = (rawDialog: any) => {
+      if (cancelled || !rawDialog) return;
+      const origAction = rawDialog.action;
+      const origCancel = rawDialog.cancelAction;
+      const wrappedDialog = {
+        ...rawDialog,
+        action: async () => {
+          try {
+            if (typeof origAction === "function") {
+              await origAction();
+            }
+          } finally {
+            scheduleNextDeepLinkDialog();
+          }
+        },
+        cancelAction: () => {
+          useModalStore.getState().setConfirmDialog(null);
+          if (typeof origCancel === "function") {
+            origCancel();
+          }
+          scheduleNextDeepLinkDialog();
+        },
+      };
+      const modalStore = useModalStore.getState();
+      if (modalStore.confirmDialog || pendingDeepLinkDialogsRef.current.length > 0) {
+        pendingDeepLinkDialogsRef.current.push(wrappedDialog);
+      } else {
+        modalStore.setConfirmDialog(wrappedDialog);
+      }
+    };
+
+    const processIncomingDeepLinks = async (rawItems: unknown) => {
+      if (cancelled || !Array.isArray(rawItems) || rawItems.length === 0) return;
+      const items = rawItems
+        .map((item) => String(item || "").trim())
+        .filter(Boolean);
+      if (items.length === 0) return;
+
+      const enqueueDirectUrlInstall = (
+        targetUrl: string,
+        labelName: string,
+        suggestedName: string | null,
+        targetFolder: string | null,
+        expectedSha256: string | null,
+        host: string
+      ) => {
+        if (!/^https:\/\//i.test(targetUrl)) return;
+        enqueueDeepLinkConfirmDialog({
+          title: t("deep_link_install_title", "Install External {Mod}?"),
+          badgeLabel: t("deep_link_install_badge", "Deep-Link Request"),
+          icon: t("icon_download", "download"),
+          message: t(
+            "deep_link_install_message",
+            'Download, verify, and install "{name}" from {host} into your {Vault}?'
+          )
+            .replace("{name}", labelName)
+            .replace("{host}", host),
+          confirmText: t("btn_install", "Install"),
+          confirmIcon: t("icon_download", "download"),
+          cancelText: t("cancel", "Cancel"),
+          action: async () => {
+            try {
+              const rawRes = await invoke<string>("download_and_ingest_direct_artifact", {
+                url: targetUrl,
+                expectedSha256,
+                targetFolder,
+                forceReplace: false,
+                suggestedFileName: suggestedName,
+              });
+              let parsedRes: any = null;
+              try {
+                parsedRes = JSON.parse(rawRes);
+              } catch {}
+              if (parsedRes?.__fomod_wizard && parsedRes?.plan) {
+                useModalStore.getState().enqueueInstallerWizard(parsedRes.plan);
+              } else {
+                const doneMsg = t(
+                  "edge_direct_download_complete_msg",
+                  "{name} was downloaded, scanned, and installed into your {Vault}."
+                ).replace("{name}", labelName);
+                notifyOS(t("btn_install", "Install"), doneMsg, "SYSTEM");
+                useStore.getState().pushStatus(doneMsg, "success");
+                runRadarSweepRef.current?.();
+              }
+            } catch (err) {
+              const errMsg = String(err || "");
+              if (errMsg.includes("SHA256_MISMATCH")) {
+                const mismatchMsg = t(
+                  "edge_dl_sha256_mismatch_msg",
+                  "Downloaded {mod} archive failed SHA-256 verification and was discarded."
+                );
+                notifyOS(
+                  t("edge_dl_sha256_mismatch_title", "Integrity Verification Failed"),
+                  mismatchMsg,
+                  "MALWARE_ALERT"
+                );
+                useStore.getState().pushStatus(mismatchMsg, "error");
+              } else if (
+                !errMsg.includes("MALWARE") &&
+                !errMsg.includes("DNA_MATCH") &&
+                !errMsg.includes("SETTINGS_CONFLICT")
+              ) {
+                useStore
+                  .getState()
+                  .pushStatus(
+                    t("deep_link_download_failed", "Deep-link download failed: {error}").replace(
+                      "{error}",
+                      errMsg
+                    ),
+                    "error"
+                  );
+              }
+            }
+          },
+        });
+      };
+
+      const localPaths: string[] = [];
+      const modFallback = t("term_mod", "Mod");
+      for (const rawItem of items) {
+        const parsedAction = parseDeepLinkItem(rawItem, modFallback);
+        if (!parsedAction) continue;
+
+        if (parsedAction.kind === "uplink_prompt") {
+          enqueueDeepLinkConfirmDialog({
+            title: t("uplink_connect_title", "Connect Spoke Hub Uplink?"),
+            badgeLabel: t("uplink_badge", "SANCTUARY-UPLINK"),
+            icon: t("icon_hub", "hub"),
+            message: t(
+              "uplink_connect_confirm_msg",
+              "Switch Sanctuary OS runtime cloud connectivity to {host}?"
+            ).replace("{host}", parsedAction.supabaseHost),
+            confirmText: t("btn_connect", "Connect"),
+            confirmIcon: t("icon_hub", "hub"),
+            cancelText: t("cancel", "Cancel"),
+            action: async () => {
+              if (setRuntimeUplinkBundle(parsedAction.rawUri)) {
+                window.location.reload();
+              }
+            },
+          });
+        } else if (parsedAction.kind === "uplink_immediate") {
+          if (setRuntimeUplinkBundle(parsedAction.uplinkBundle)) {
+            window.location.reload();
+          }
+        } else if (parsedAction.kind === "direct_https_install") {
+          enqueueDirectUrlInstall(
+            parsedAction.targetUrl,
+            parsedAction.labelName,
+            parsedAction.suggestedName,
+            parsedAction.targetFolder,
+            parsedAction.expectedSha256,
+            parsedAction.host
+          );
+        } else if (parsedAction.kind === "guided_browser") {
+          enqueueDeepLinkConfirmDialog({
+            title: t("deep_link_external_browser_title", "Open External {Mod} Page?"),
+            badgeLabel: parsedAction.scheme.toUpperCase(),
+            icon: t("icon_open_in_browser", "open_in_browser"),
+            message: t(
+              "deep_link_external_browser_msg_named",
+              'Open "{name}" in Sanctuary Guided Browser? External manager links without a direct HTTPS archive URL require manual download from your browser session.'
+            ).replace("{name}", parsedAction.displayName),
+            confirmText: t("open_browser", "Open Browser"),
+            confirmIcon: t("icon_public", "public"),
+            cancelText: t("cancel", "Cancel"),
+            action: async () => {
+              useModalStore.getState().startGuidedBrowserQueue([
+                {
+                  id: parsedAction.id,
+                  name: parsedAction.displayName,
+                  url: parsedAction.browseUrl,
+                },
+              ]);
+            },
+          });
+        } else if (parsedAction.kind === "local_path") {
+          localPaths.push(parsedAction.path);
+        }
+      }
+
+      if (localPaths.length > 0 && handleDroppedFilesRef?.current) {
+        await handleDroppedFilesRef.current(localPaths);
+      }
+    };
     if (isDesktop()) {
       listen("edge_override_detected", async (event: any) => {
         if (cancelled) return;
@@ -357,13 +577,46 @@ export function useAppEdgeAndNetworkSync({
         if (cancelled) unlisten();
         else unlistenCloudSessionClean = unlisten;
       });
+
+      listen("installer_wizard_requested", (event: any) => {
+        if (cancelled || !event?.payload) return;
+        useModalStore.getState().enqueueInstallerWizard(event.payload);
+      }).then((unlisten) => {
+        if (cancelled) unlisten();
+        else unlistenWizard = unlisten;
+      });
+
+      listen("sanctuary-deep-link", (event: any) => {
+        if (cancelled) return;
+        void processIncomingDeepLinks(event?.payload);
+      }).then((unlisten) => {
+        if (cancelled) {
+          unlisten();
+          return;
+        }
+        unlistenDeepLink = unlisten;
+        invoke<string[]>("consume_startup_deep_links")
+          .then((startupItems) => {
+            if (!cancelled && Array.isArray(startupItems) && startupItems.length > 0) {
+              void processIncomingDeepLinks(startupItems);
+            }
+          })
+          .catch(() => {});
+      });
     }
 
     return () => {
       cancelled = true;
+      if (deepLinkPumpTimer !== null) {
+        window.clearTimeout(deepLinkPumpTimer);
+      }
+      pendingDeepLinkDialogsRef.current = [];
+      window.removeEventListener("sanctuary-trigger-radar-sweep", handleTriggerRadarSweep);
       if (unlistenEdge) unlistenEdge();
       if (unlistenMalware) unlistenMalware();
       if (unlistenCloudSessionClean) unlistenCloudSessionClean();
+      if (unlistenWizard) unlistenWizard();
+      if (unlistenDeepLink) unlistenDeepLink();
     };
   }, []);
 
@@ -776,11 +1029,12 @@ export function useAppEdgeAndNetworkSync({
 
                 if (hashDiffers || versionDiffers) {
                   if (!updated.some((u) => u.hash === localMod.hash && u.name === localMod.name)) {
-                    updated.push({
+                      updated.push({
                       ...localMod,
                       newVersion: manifest.artifact?.version || "Update",
                       newGameVersion: manifest.artifact?.game_version,
                       download_url: manifest.payload?.download_url || manifestUrl,
+                      expected_sha256: manifest.payload?.sha256 || undefined,
                       edge_changelog: manifest.changelog || [],
                       is_edge_update: true,
                     });

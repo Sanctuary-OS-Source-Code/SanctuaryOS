@@ -176,16 +176,32 @@ fn collect_sibling_images(json_path: &Path) -> Vec<DiskImageAsset> {
     collected
 }
 
+fn is_recognized_external_modlist_entry(lower_name: &str, outer_ext_lower: &str) -> bool {
+    let leaf = lower_name.rsplit('/').next().unwrap_or(lower_name);
+    leaf == "modrinth.index.json"
+        || leaf == "manifest.json"
+        || leaf == "collection.json"
+        || leaf == "modlist"
+        || (outer_ext_lower == "wabbajack" && (leaf == "modlist" || leaf.ends_with(".json")))
+}
+
 fn inspect_zip_json_bundle(path: &Path) -> Option<DroppedZipJsonBundle> {
     let meta = fs::metadata(path).ok()?;
     if !meta.is_file() || meta.len() == 0 || meta.len() > MAX_ZIP_INSPECT_BYTES {
         return None;
     }
+    let outer_ext_lower = path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
     let file = fs::File::open(path).ok()?;
     let mut archive = zip::ZipArchive::new(file).ok()?;
 
     let mut json_entries: Vec<ZipJsonCandidate> = Vec::new();
     let mut images: Vec<ZipImageAsset> = Vec::new();
+    let mut has_recognized_modlist = false;
+    let mut has_non_meta_payload = false;
 
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).ok()?;
@@ -204,24 +220,30 @@ fn inspect_zip_json_bundle(path: &Path) -> Option<DroppedZipJsonBundle> {
             .unwrap_or_default()
             .to_ascii_lowercase();
 
-        if ext == "json" {
+        let is_modlist_entry = is_recognized_external_modlist_entry(&lower, &outer_ext_lower);
+        if is_modlist_entry {
+            has_recognized_modlist = true;
+        }
+
+        if ext == "json" || is_modlist_entry {
             if lower.ends_with(".sanctuary.manifest.json")
                 || lower.ends_with(".sanctuary.override.json")
             {
                 return None;
             }
-            if entry.size() > MAX_JSON_BYTES || json_entries.len() >= 8 {
-                return None;
+            if entry.size() > MAX_JSON_BYTES || json_entries.len() >= 12 {
+                continue;
             }
             let mut buf = Vec::with_capacity((entry.size() as usize).min(256 * 1024));
             if entry.read_to_end(&mut buf).is_err() {
-                return None;
+                continue;
             }
-            let json_text = strip_utf8_bom(buf).ok()?;
-            json_entries.push(ZipJsonCandidate {
-                entry_name: name,
-                json_text,
-            });
+            if let Ok(json_text) = strip_utf8_bom(buf) {
+                json_entries.push(ZipJsonCandidate {
+                    entry_name: name,
+                    json_text,
+                });
+            }
         } else if is_image_ext(&ext) {
             if entry.size() > 0 && entry.size() <= MAX_IMAGE_BYTES && images.len() < 8 {
                 let mut buf = Vec::with_capacity((entry.size() as usize).min(256 * 1024));
@@ -234,9 +256,13 @@ fn inspect_zip_json_bundle(path: &Path) -> Option<DroppedZipJsonBundle> {
                 }
             }
         } else if !matches!(ext.as_str(), "txt" | "md" | "url" | "license") {
-            // Contains game binaries/mod payloads — leave for `ingest_dropped_file`.
-            return None;
+            has_non_meta_payload = true;
         }
+    }
+
+    if !has_recognized_modlist && has_non_meta_payload {
+        // Contains game binaries/mod payloads — leave for `ingest_dropped_file`.
+        return None;
     }
 
     if json_entries.is_empty() {
@@ -339,9 +365,24 @@ pub async fn inspect_dropped_json_bundles(
                         });
                     }
                 }
-            } else if ext == "zip" {
+            } else if matches!(ext.as_str(), "zip" | "mrpack" | "wabbajack") {
                 if let Some(zip_bundle) = inspect_zip_json_bundle(&p) {
                     report.zip_bundles.push(zip_bundle);
+                } else if ext == "wabbajack" {
+                    if let Ok(meta) = fs::metadata(&p) {
+                        if meta.len() <= MAX_JSON_BYTES {
+                            if let Ok(bytes) = fs::read(&p) {
+                                if let Ok(json_text) = strip_utf8_bom(bytes) {
+                                    report.json_files.push(DroppedJsonFileEntry {
+                                        source_path: raw,
+                                        file_name,
+                                        json_text,
+                                        sibling_images: Vec::new(),
+                                    });
+                                }
+                            }
+                        }
+                    }
                 }
             } else if is_image_ext(&ext) {
                 image_candidates.push(p);

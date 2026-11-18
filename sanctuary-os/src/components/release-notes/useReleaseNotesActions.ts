@@ -11,13 +11,18 @@ import { isDesktop } from "../../utils/envUtils";
 import {
   PUBLIC_CHANGELOG_BROADCAST_CATEGORY,
   DEV_CHANGELOG_BROADCAST_CATEGORY,
+  PUBLIC_ARCHIVE_BROADCAST_CATEGORY,
+  DEV_ARCHIVE_BROADCAST_CATEGORY,
   KeepersReleasePostRecord,
+  KeepersReleaseArchiveEntry,
 } from "./releaseMarkdownParser";
 import {
   parseSeedCommunityBlog,
   formatReleasePostToMarkdownFile,
   serializeReleasePostMessage,
   deserializeReleasePostRow,
+  normalizeReleaseVersionKey,
+  extractChangelogForVersion,
 } from "./releasePostSerializers";
 import { ReleaseDocSlotKey } from "./releaseNotesShowcaseTypes";
 
@@ -176,6 +181,177 @@ export function useReleaseNotesActions({
     setIsAssetPanelOpen(false);
   };
 
+  const upsertReleaseArchiveSnapshot = async (
+    channel: "stable" | "dev",
+    postRecord: KeepersReleasePostRecord,
+    changelogMd: string,
+    nowIso: string
+  ) => {
+    const verKey = normalizeReleaseVersionKey(postRecord?.version);
+    if (!verKey || (!postRecord?.body?.trim() && !changelogMd?.trim())) return;
+
+    const isDev = channel === "dev";
+    const archiveCat = isDev
+      ? DEV_ARCHIVE_BROADCAST_CATEGORY
+      : PUBLIC_ARCHIVE_BROADCAST_CATEGORY;
+    const versionChangelog =
+      (postRecord.archivedChangelog && postRecord.archivedChangelog.trim()) ||
+      extractChangelogForVersion(changelogMd, postRecord.version);
+
+    const archivedRecord: KeepersReleasePostRecord = {
+      ...postRecord,
+      version: postRecord.version.replace(/^v/i, "").trim(),
+      archivedChangelog: versionChangelog,
+    };
+    const serializedArchiveMsg = serializeReleasePostMessage(archivedRecord);
+    const fallbackPost = isDev ? defaultDevPost : defaultPublicPost;
+
+    try {
+      const { data: existingArchiveRows } = await supabaseAuth
+        .from("keeper_system_broadcasts")
+        .select("id, title, description, message, published_title, published_description, published_message, revision")
+        .eq("category", archiveCat)
+        .order("updated_at", { ascending: false })
+        .limit(60);
+
+      const matchingRow = (existingArchiveRows || []).find((r: any) => {
+        const parsed = deserializeReleasePostRow(r, fallbackPost, true);
+        return normalizeReleaseVersionKey(parsed.version) === verKey;
+      });
+
+      if (matchingRow?.id) {
+        await supabaseAuth
+          .from("keeper_system_broadcasts")
+          .update({
+            title: archivedRecord.title,
+            description: archivedRecord.summary || null,
+            message: serializedArchiveMsg,
+            published_title: archivedRecord.title,
+            published_description: archivedRecord.summary || null,
+            published_message: serializedArchiveMsg,
+            published_at: nowIso,
+            updated_at: nowIso,
+            updated_by: resolvedKeeperName,
+            revision: Number(matchingRow.revision || 1) + 1,
+          })
+          .eq("id", matchingRow.id);
+      } else {
+        await supabaseAuth.from("keeper_system_broadcasts").insert({
+          title: archivedRecord.title,
+          description: archivedRecord.summary || null,
+          category: archiveCat,
+          target_audience: isDev ? "Dev" : "Public",
+          message: serializedArchiveMsg,
+          published_title: archivedRecord.title,
+          published_description: archivedRecord.summary || null,
+          published_message: serializedArchiveMsg,
+          published_at: nowIso,
+          updated_at: nowIso,
+          updated_by: resolvedKeeperName,
+          revision: 1,
+          is_active: false,
+          is_pinned: "false",
+        });
+      }
+    } catch {
+      // Non-fatal archive failure must not block primary release publish
+    }
+  };
+
+  const incrementReleaseVersion = (rawVer: string, isDev: boolean): string => {
+    const clean = String(rawVer || "").replace(/^v/i, "").trim();
+    const trailingNum = clean.match(/^(.*?)(\d+)$/);
+    if (trailingNum) {
+      return `${trailingNum[1]}${Number(trailingNum[2]) + 1}`;
+    }
+    return isDev ? `${clean || "0.6.0"}-Dev.2` : `${clean || "0.6.0"}.1`;
+  };
+
+  const handleStartNewVersionDraft = async () => {
+    const isDev = editorChannel === "dev";
+    const nowIso = new Date().toISOString();
+    const prevPublished = isDev ? publishedDevPost : publishedPublicPost;
+    const prevPublishedCl = isDev ? publishedDevChangelog : publishedStableChangelog;
+    const currentDraftPost: KeepersReleasePostRecord = {
+      id: null,
+      title: draftTitle.trim() || prevPublished.title,
+      summary: draftSummary.trim(),
+      version: draftVersion.trim().replace(/^v/i, ""),
+      releaseDate: draftReleaseDate.trim(),
+      platform: draftPlatform.trim() || prevPublished.platform,
+      imageUrl: draftImageUrl.trim(),
+      codeSnippet: draftCodeSnippet.trim(),
+      pollData: draftPollData || null,
+      body: draftBody.trim(),
+    };
+
+    await upsertReleaseArchiveSnapshot(editorChannel, prevPublished, prevPublishedCl, nowIso);
+    if (
+      normalizeReleaseVersionKey(currentDraftPost.version) &&
+      normalizeReleaseVersionKey(currentDraftPost.version) !==
+        normalizeReleaseVersionKey(prevPublished.version)
+    ) {
+      await upsertReleaseArchiveSnapshot(
+        editorChannel,
+        currentDraftPost,
+        isDev ? workingDevChangelog : workingStableChangelog,
+        nowIso
+      );
+    }
+
+    const nextVer = incrementReleaseVersion(
+      draftVersion || prevPublished.version,
+      isDev
+    );
+    const todayFormatted = new Date().toLocaleDateString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "numeric",
+    });
+
+    setDraftVersion(nextVer);
+    setDraftReleaseDate(todayFormatted);
+    setDraftTitle(
+      isDev
+        ? `Sanctuary OS — v${nextVer}`
+        : `Sanctuary OS — Version ${nextVer}`
+    );
+    setDraftSummary("");
+    setDraftBody("## Overview\n\n");
+    setIsDirty(true);
+    setEditorSyncSeq((n: any) => n + 1);
+    await loadPostsAndReleases(false, "hub_only");
+
+    useStore
+      .getState()
+      .pushStatus(
+        t(
+          "release_notes_new_version_draft_toast",
+          "Previous release archived! Ready to compose the next version."
+        ),
+        "success"
+      );
+  };
+
+  const handleDeleteArchiveEntry = async (entry: KeepersReleaseArchiveEntry) => {
+    if (!entry?.dbRowId) return;
+    const { error } = await supabaseAuth
+      .from("keeper_system_broadcasts")
+      .delete()
+      .eq("id", entry.dbRowId);
+    if (error) {
+      useStore.getState().pushStatus(error.message, "error");
+      return;
+    }
+    await loadPostsAndReleases(false, "hub_only");
+    useStore
+      .getState()
+      .pushStatus(
+        t("release_notes_archive_deleted_toast", "Archived release entry deleted."),
+        "success"
+      );
+  };
+
   const handlePublishChannel = async (
     channel: "stable" | "dev",
     e?: React.MouseEvent,
@@ -188,6 +364,8 @@ export function useReleaseNotesActions({
       const isDev = channel === "dev";
       const targetPost = overridePost || (isDev ? workingDevPost : workingPublicPost);
       const targetCl = overrideCl ?? (isDev ? workingDevChangelog : workingStableChangelog);
+      const prevPublishedPost = isDev ? publishedDevPost : publishedPublicPost;
+      const prevPublishedCl = isDev ? publishedDevChangelog : publishedStableChangelog;
       const postCat = isDev ? "ReleasePost_Dev" : "ReleasePost_Public";
       const clCat = isDev
         ? DEV_CHANGELOG_BROADCAST_CATEGORY
@@ -196,14 +374,41 @@ export function useReleaseNotesActions({
 
       const serializedPostMsg = serializeReleasePostMessage(targetPost);
 
-      // 1. Publish Release Post row (reading current revision first)
+      // 1. Publish Release Post row (reading full current row first so outgoing published builds archive automatically)
       const { data: existingPostRow } = await supabaseAuth
         .from("keeper_system_broadcasts")
-        .select("id, revision")
+        .select("*")
         .eq("category", postCat)
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      // Archive outgoing published version before overwriting the active broadcast row
+      if (existingPostRow) {
+        const prevRowPost = deserializeReleasePostRow(
+          existingPostRow,
+          isDev ? defaultDevPost : defaultPublicPost,
+          true
+        );
+        if (
+          normalizeReleaseVersionKey(prevRowPost.version) &&
+          normalizeReleaseVersionKey(prevRowPost.version) !==
+            normalizeReleaseVersionKey(targetPost.version)
+        ) {
+          await upsertReleaseArchiveSnapshot(
+            channel,
+            prevRowPost,
+            prevPublishedCl || targetCl,
+            existingPostRow.published_at || existingPostRow.updated_at || nowIso
+          );
+        }
+      } else if (
+        normalizeReleaseVersionKey(prevPublishedPost.version) &&
+        normalizeReleaseVersionKey(prevPublishedPost.version) !==
+          normalizeReleaseVersionKey(targetPost.version)
+      ) {
+        await upsertReleaseArchiveSnapshot(channel, prevPublishedPost, prevPublishedCl, nowIso);
+      }
 
       let postId = existingPostRow?.id || targetPost.id;
       let nextPostRev = Number(existingPostRow?.revision || 1) + 1;
@@ -357,6 +562,10 @@ export function useReleaseNotesActions({
         setPublishedStableChangelog(nextStableClPublished);
         setStableChangelogRowId(clId);
       }
+
+      // Also preserve/update the newly published version in permanent release archives
+      await upsertReleaseArchiveSnapshot(channel, targetPost, targetCl, nowIso);
+      await loadPostsAndReleases(false, "hub_only");
 
       persistReleaseStateCache({
         workingPublicPost,
@@ -882,5 +1091,7 @@ export function useReleaseNotesActions({
     handlePublishChannel,
     handleSaveKeepersPost,
     handleRefreshGitHubChangelog,
+    handleStartNewVersionDraft,
+    handleDeleteArchiveEntry,
   };
 }

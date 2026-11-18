@@ -1,15 +1,17 @@
 import { DispatchPollData } from "../universal/DispatchPollAndMeta";
+import { getReleaseBaseUrl } from "../../supabase";
 
 export const LEGACY_BLOG_BROADCAST_TITLE = "[KEEPERS_RELEASE_NOTES_BLOG]";
 export const PUBLIC_POST_BROADCAST_TITLE = "[KEEPERS_RELEASE_POST_PUBLIC]";
 export const DEV_POST_BROADCAST_TITLE = "[KEEPERS_RELEASE_POST_DEV]";
 export const PUBLIC_CHANGELOG_BROADCAST_CATEGORY = "ReleaseChangelog_Public";
 export const DEV_CHANGELOG_BROADCAST_CATEGORY = "ReleaseChangelog_Dev";
+export const PUBLIC_ARCHIVE_BROADCAST_CATEGORY = "ReleaseArchive_Public";
+export const DEV_ARCHIVE_BROADCAST_CATEGORY = "ReleaseArchive_Dev";
 
-export const GITHUB_RELEASES_WEB_URL =
-  "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases";
-export const GITHUB_WEB_DEV_RELEASE_URL =
-  "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
+const _releaseBase = getReleaseBaseUrl();
+export const GITHUB_RELEASES_WEB_URL = _releaseBase;
+export const GITHUB_WEB_DEV_RELEASE_URL = _releaseBase ? `${_releaseBase}/tag/dev-latest` : "";
 
 export interface KeepersReleasePostRecord {
   id: string | null;
@@ -22,6 +24,24 @@ export interface KeepersReleasePostRecord {
   codeSnippet: string;
   pollData: DispatchPollData | null;
   body: string;
+  archivedChangelog?: string;
+  publishedAt?: string;
+}
+
+export interface KeepersReleaseArchiveEntry {
+  key: string;
+  dbRowId: string | null;
+  channel: "stable" | "dev";
+  version: string;
+  releaseDate: string;
+  title: string;
+  summary: string;
+  platform: string;
+  imageUrl: string;
+  codeSnippet: string;
+  postBody: string;
+  changelogMarkdown: string;
+  publishedAt: string;
 }
 
 export function stripEmojiPrefix(text: string): string {

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { supabase } from "../../supabase";
+import { isDesktop } from "../../utils/envUtils";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
 import {
@@ -441,6 +442,11 @@ export function ArtifactRulesTab({
     }
   };
 
+  const pushScopeKey = useMemo(() => {
+    const modKey = String(mod?.hash || mod?.id || "").trim();
+    return modKey ? `mod:${modKey}` : "global";
+  }, [mod?.hash, mod?.id]);
+
   const [pushConfig, setPushConfig] = useState<{
     provider: string;
     target_mode: string;
@@ -459,7 +465,7 @@ export function ArtifactRulesTab({
       return {
         provider: modPush.provider || globalPush.provider || "manual",
         target_mode: modPush.target_mode || globalPush.target_mode || "manifest",
-        token: modPush.token || globalPush.token || "",
+        token: "",
         repo_or_project: modPush.repo_or_project || globalPush.repo_or_project || "",
         branch: modPush.branch || globalPush.branch || "main",
         remote_path: modPush.remote_path || "",
@@ -480,9 +486,125 @@ export function ArtifactRulesTab({
     }
   });
 
+  useEffect(() => {
+    let cancelled = false;
+    const hydrateAndMigrateToken = async () => {
+      let legacyToken = "";
+      let legacyModToken = "";
+      let legacyGlobalToken = "";
+      try {
+        const rawGlobal = JSON.parse(
+          localStorage.getItem("sanctuary_edge_autopush_global") || "{}"
+        );
+        if (typeof rawGlobal.token === "string" && rawGlobal.token.trim()) {
+          legacyGlobalToken = rawGlobal.token.trim();
+          rawGlobal.token = "";
+          localStorage.setItem(
+            "sanctuary_edge_autopush_global",
+            JSON.stringify(rawGlobal)
+          );
+        }
+        const savedAll = JSON.parse(
+          localStorage.getItem("sanctuary_sandbox_configs") || "{}"
+        );
+        const modKey = String(mod?.hash || mod?.id || "").trim();
+        let mutatedSavedAll = false;
+        for (const [k, entry] of Object.entries(savedAll as Record<string, any>)) {
+          const tok = entry?.edge_push_config?.token;
+          if (typeof tok === "string" && tok.trim()) {
+            if (k === modKey) legacyModToken = tok.trim();
+            entry.edge_push_config = { ...(entry.edge_push_config || {}), token: "" };
+            mutatedSavedAll = true;
+          }
+        }
+        if (mutatedSavedAll) {
+          localStorage.setItem("sanctuary_sandbox_configs", JSON.stringify(savedAll));
+        }
+        if (typeof mod?.edge_push_config?.token === "string" && mod.edge_push_config.token.trim()) {
+          legacyModToken = legacyModToken || mod.edge_push_config.token.trim();
+        }
+        legacyToken = legacyModToken || legacyGlobalToken;
+      } catch {}
+
+      if (legacyToken) {
+        if (isDesktop()) {
+          if (legacyModToken && pushScopeKey !== "global") {
+            await invoke("set_edge_push_token", {
+              scopeKey: pushScopeKey,
+              token: legacyModToken,
+            }).catch(() => {});
+          }
+          if (legacyGlobalToken) {
+            await invoke("set_edge_push_token", {
+              scopeKey: "global",
+              token: legacyGlobalToken,
+            }).catch(() => {});
+          }
+        } else {
+          try {
+            sessionStorage.setItem(`sanctuary_edge_push_token_${pushScopeKey}`, legacyToken);
+          } catch {}
+        }
+        if (!cancelled) {
+          setPushConfig((prev) => ({ ...prev, token: legacyToken }));
+        }
+        return;
+      }
+
+      let sealed = "";
+      if (isDesktop()) {
+        sealed = await invoke<string>("get_edge_push_token", {
+          scopeKey: pushScopeKey,
+        }).catch(() => "");
+        if (!sealed && pushScopeKey !== "global") {
+          sealed = await invoke<string>("get_edge_push_token", {
+            scopeKey: "global",
+          }).catch(() => "");
+        }
+      } else {
+        try {
+          sealed =
+            sessionStorage.getItem(`sanctuary_edge_push_token_${pushScopeKey}`) ||
+            sessionStorage.getItem("sanctuary_edge_push_token_global") ||
+            "";
+        } catch {}
+      }
+      if (!cancelled) {
+        setPushConfig((prev) => ({ ...prev, token: sealed || "" }));
+      }
+    };
+    void hydrateAndMigrateToken();
+    return () => {
+      cancelled = true;
+    };
+  }, [pushScopeKey, mod?.edge_push_config]);
+
   const updatePushConfig = (patch: Partial<typeof pushConfig>) => {
     const next = { ...pushConfig, ...patch };
     setPushConfig(next);
+    if (patch.token !== undefined) {
+      if (isDesktop()) {
+        void invoke("set_edge_push_token", {
+          scopeKey: pushScopeKey,
+          token: String(next.token || ""),
+        }).catch(() => {});
+        void invoke("set_edge_push_token", {
+          scopeKey: "global",
+          token: String(next.token || ""),
+        }).catch(() => {});
+      } else {
+        try {
+          sessionStorage.setItem(
+            `sanctuary_edge_push_token_${pushScopeKey}`,
+            String(next.token || "")
+          );
+          sessionStorage.setItem(
+            "sanctuary_edge_push_token_global",
+            String(next.token || "")
+          );
+        } catch {}
+      }
+    }
     try {
       const globalPush = JSON.parse(
         localStorage.getItem("sanctuary_edge_autopush_global") || "{}"
@@ -493,7 +615,7 @@ export function ArtifactRulesTab({
           ...globalPush,
           provider: next.provider,
           target_mode: next.target_mode,
-          token: next.token,
+          token: "",
           repo_or_project: next.repo_or_project,
           branch: next.branch,
           custom_endpoint: next.custom_endpoint,
@@ -507,7 +629,7 @@ export function ArtifactRulesTab({
         );
         savedAll[modKey] = {
           ...(savedAll[modKey] || {}),
-          edge_push_config: next,
+          edge_push_config: { ...next, token: "" },
         };
         localStorage.setItem("sanctuary_sandbox_configs", JSON.stringify(savedAll));
       }

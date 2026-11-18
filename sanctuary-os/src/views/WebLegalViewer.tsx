@@ -33,7 +33,7 @@ export default function WebLegalViewer() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "").toLowerCase();
-      if (["eula", "privacy", "terms", "compliance"].includes(hash)) {
+      if (["eula", "privacy", "terms", "partners", "compliance"].includes(hash)) {
         setActiveLegal(hash);
       } else if (!hash) {
         setActiveLegal(null);
@@ -48,6 +48,9 @@ export default function WebLegalViewer() {
         eula: "eula",
         privacy: "privacy",
         terms: "terms",
+        partners: "partners",
+        partnersagreement: "partners",
+        partners_agreement: "partners",
         compliance: "compliance",
         complianceprotocol: "compliance",
       };
@@ -78,6 +81,7 @@ export default function WebLegalViewer() {
         eula: "EULA",
         privacy: "Privacy",
         terms: "Terms",
+        partners: "PartnersAgreement",
         compliance: "ComplianceProtocol",
       };
 
@@ -113,7 +117,7 @@ export default function WebLegalViewer() {
   const handleClose = () => {
     setActiveLegal(null);
     if (
-      ["eula", "privacy", "terms", "compliance"].includes(
+      ["eula", "privacy", "terms", "partners", "compliance"].includes(
         window.location.hash.replace("#", "").toLowerCase()
       )
     ) {
@@ -188,6 +192,15 @@ export default function WebLegalViewer() {
             number={t("compliance_protocol_title", "Compliance Protocol")}
             isActive={activeLegal === "compliance"}
             onClick={() => setActiveLegal("compliance")}
+          />
+          <DashboardStatTile
+            variant="filter"
+            className="!w-full"
+            icon={t("icon_handshake", "handshake")}
+            label={t("partner_agreement_badge", "Spoke Charter")}
+            number={t("partner_agreement_title", "Partners Agreement")}
+            isActive={activeLegal === "partners"}
+            onClick={() => setActiveLegal("partners")}
           />
         </SidePanelFilterBar>
 

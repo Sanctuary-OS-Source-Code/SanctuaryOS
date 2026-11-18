@@ -2450,7 +2450,11 @@ html[data-text-case="capitalize"] #sa-tooltip-portal span:not(.material-symbols-
   text-transform: capitalize !important;
 }
 
-/* Protect Material Symbol Ligatures, Code Blocks, and Monaco Editor from Text Case Transforms */
+/* Protect Material Symbol Ligatures, Code Blocks, URLs/Emails (.no-text-case), and Monaco Editor from Text Case Transforms */
+html[data-text-case] .no-text-case,
+html[data-text-case] .no-text-case *,
+.no-text-case,
+.no-text-case *,
 .material-symbols-outlined,
 .material-symbols-rounded,
 pre,

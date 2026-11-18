@@ -47,8 +47,16 @@ export const SANCTUARY_CONFIG = {
         appTitle: (import.meta as any).env?.VITE_APP_TITLE || "Sanctuary OS",
         orgName: (import.meta as any).env?.VITE_ORG_NAME || "Sanctuary Foundry",
         logoUrl: (import.meta as any).env?.VITE_LOGO_URL || "/icon.png",
-        supportEmail: (import.meta as any).env?.VITE_SUPPORT_EMAIL || "support@sanctuaryos.gg",
-        webauthnRpId: (import.meta as any).env?.VITE_WEBAUTHN_RP_ID || "sanctuaryos.net",
+        supportEmail: (import.meta as any).env?.VITE_SUPPORT_EMAIL || "support@sanctuaryos.net",
+        githubReleaseRepo: (import.meta as any).env?.VITE_GITHUB_RELEASE_REPO || "",
+        webauthnRpId:
+            (import.meta as any).env?.VITE_WEBAUTHN_RP_ID ||
+            (((import.meta as any).env?.VITE_SANCTUARY_MODE === "standalone" ||
+                /^sanctuary-uplink:\/\//i.test(String((import.meta as any).env?.VITE_SANCTUARY_UPLINK_BUNDLE || "").trim())) &&
+                typeof window !== "undefined" &&
+                window.location?.hostname
+                ? window.location.hostname
+                : "sanctuaryos.net"),
         subtitles: [
             "Advice Never Dictate",
             "Verify Everything",
@@ -68,14 +76,57 @@ export const SANCTUARY_CONFIG = {
 };
 // ============================================================================
 
-function resolveSanctuaryConfig() {
-    const bundle = (SANCTUARY_CONFIG.uplinkBundle || "").trim();
+export const SANCTUARY_RUNTIME_UPLINK_KEY = "sanctuary_runtime_uplink_bundle";
+
+export function getRuntimeUplinkBundle(): string {
+    try {
+        return typeof localStorage !== "undefined"
+            ? String(localStorage.getItem(SANCTUARY_RUNTIME_UPLINK_KEY) || "").trim()
+            : "";
+    } catch {
+        return "";
+    }
+}
+
+export function parseUplinkBundle(rawBundle: string): any | null {
+    const clean = String(rawBundle || "").trim();
+    if (!/^sanctuary-uplink:\/\//i.test(clean)) return null;
+    try {
+        const rawToken = clean.replace(/^sanctuary-uplink:\/\//i, "").trim();
+        const b64 = rawToken.replace(/-/g, "+").replace(/_/g, "/");
+        const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+        const parsed = JSON.parse(atob(padded));
+        if (parsed && typeof parsed.supabase_url === "string" && typeof parsed.supabase_anon_key === "string") {
+            return parsed;
+        }
+    } catch {}
+    return null;
+}
+
+export function setRuntimeUplinkBundle(rawBundle: string | null): boolean {
+    try {
+        if (typeof localStorage === "undefined") return false;
+        const clean = String(rawBundle || "").trim();
+        if (!clean) {
+            localStorage.removeItem(SANCTUARY_RUNTIME_UPLINK_KEY);
+            return true;
+        }
+        if (!parseUplinkBundle(clean)) return false;
+        localStorage.setItem(SANCTUARY_RUNTIME_UPLINK_KEY, clean);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export function resolveSanctuaryConfig(bundleOverride?: string) {
+    const runtimeBundle = getRuntimeUplinkBundle();
+    const bundle = (bundleOverride ?? (runtimeBundle || SANCTUARY_CONFIG.uplinkBundle || "")).trim();
     const defaultBranding = SANCTUARY_CONFIG.branding;
-    if (bundle.startsWith("SANCTUARY-UPLINK://")) {
+    if (/^sanctuary-uplink:\/\//i.test(bundle)) {
         try {
-            const b64 = bundle.replace("SANCTUARY-UPLINK://", "").trim();
-            const parsed = JSON.parse(atob(b64));
-            if (parsed.supabase_url && parsed.supabase_anon_key) {
+            const parsed = parseUplinkBundle(bundle);
+            if (parsed?.supabase_url && parsed?.supabase_anon_key) {
                 const schemaId = (parsed.schema_id || SANCTUARY_CONFIG.standaloneWorkspace.schema_id || "universal").trim();
                 const parsedBranding = parsed.branding && typeof parsed.branding === "object" ? parsed.branding : {};
                 return {
@@ -92,8 +143,13 @@ function resolveSanctuaryConfig() {
                         appTitle: String(parsedBranding.appTitle || defaultBranding.appTitle).trim() || "Sanctuary OS",
                         orgName: String(parsedBranding.orgName || defaultBranding.orgName).trim() || "Sanctuary Foundry",
                         logoUrl: String(parsedBranding.logoUrl || defaultBranding.logoUrl).trim() || "/icon.png",
-                        supportEmail: String(parsedBranding.supportEmail || defaultBranding.supportEmail).trim() || "support@sanctuaryos.gg",
-                        webauthnRpId: String(parsedBranding.webauthnRpId || defaultBranding.webauthnRpId).trim() || "sanctuaryos.net",
+                        supportEmail: String(parsedBranding.supportEmail || defaultBranding.supportEmail).trim() || "support@sanctuaryos.net",
+                        githubReleaseRepo: String(parsedBranding.githubReleaseRepo || defaultBranding.githubReleaseRepo || "").trim(),
+                        webauthnRpId:
+                            String(parsedBranding.webauthnRpId || (import.meta as any).env?.VITE_WEBAUTHN_RP_ID || "").trim() ||
+                            (typeof window !== "undefined" && window.location?.hostname
+                                ? window.location.hostname
+                                : "sanctuaryos.net"),
                         subtitles: Array.isArray(parsedBranding.subtitles) && parsedBranding.subtitles.length > 0
                             ? parsedBranding.subtitles.map((s: any) => String(s || "").trim()).filter(Boolean)
                             : [...defaultBranding.subtitles],
@@ -118,6 +174,24 @@ export const isStandaloneFork = RESOLVED_SANCTUARY_CONFIG.mode === "standalone";
 
 export function getBrandConfig() {
     return RESOLVED_SANCTUARY_CONFIG.branding;
+}
+
+export function getReleaseRepoSlug(): string {
+    const explicit = String(RESOLVED_SANCTUARY_CONFIG.branding.githubReleaseRepo || "").trim().replace(/^\/+|\/+$/g, "");
+    if (explicit && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(explicit)) {
+        return explicit;
+    }
+    return isStandaloneFork ? "" : "Sanctuary-OS-Source-Code/SanctuaryOS";
+}
+
+export function getReleaseBaseUrl(): string {
+    const slug = getReleaseRepoSlug();
+    return slug ? `https://github.com/${slug}/releases` : "";
+}
+
+export function getReleaseApiBaseUrl(): string {
+    const slug = getReleaseRepoSlug();
+    return slug ? `https://api.github.com/repos/${slug}/releases` : "";
 }
 
 // Main Core OS Database Credentials (or Standalone Spoke Credentials when isStandaloneFork === true)
@@ -376,7 +450,7 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
                         await rawAuthClient.rpc('register_spoke_relink_commitment', {
                             p_commitment_hash: args.p_relink_commitment_hash.trim().toLowerCase(),
                         });
-                    } catch {}
+                    } catch { }
                 }
                 return { data: existingProfile, error: null };
             }
@@ -407,7 +481,7 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
                     await rawAuthClient.rpc('register_spoke_relink_commitment', {
                         p_commitment_hash: args.p_relink_commitment_hash.trim().toLowerCase(),
                     });
-                } catch {}
+                } catch { }
             }
 
             return { data: createdProfile || { id: user.id, username, role: initialRole }, error: createError };
@@ -435,12 +509,12 @@ async function executeStandaloneDirectRpc(fnName: string, args: any = {}) {
             return {
                 data: data
                     ? {
-                          success: true,
-                          credential_kind: 'spoke_gateway',
-                          key_version: 'standalone',
-                          key_fingerprint: (data as any).key_fingerprint || 'spk_gw_...local',
-                          rotated_at: new Date().toISOString(),
-                      }
+                        success: true,
+                        credential_kind: 'spoke_gateway',
+                        key_version: 'standalone',
+                        key_fingerprint: (data as any).key_fingerprint || 'spk_gw_...local',
+                        rotated_at: new Date().toISOString(),
+                    }
                     : null,
                 error,
             };
@@ -937,7 +1011,7 @@ function createSpokeGatewayQuery(
             try {
                 const { data } = await rawAuthClient.auth.getSession();
                 token = data?.session?.access_token || '';
-            } catch {}
+            } catch { }
         }
 
         if (!token) {
@@ -1113,7 +1187,7 @@ function createSpokeGatewayQuery(
 }
 
 function createSpokeTableRouter(table: string, client: SupabaseClient, forceGatewaySelect = false) {
-    if (table === 'citizen_staging_queue' || client === rawAuthClient) {
+    if (client === rawAuthClient) {
         return client.from(table);
     }
 
@@ -1355,7 +1429,7 @@ export const supabase = new Proxy({} as SupabaseClient, {
                                 headers: {
                                     Authorization: `Bearer ${token}`,
                                 },
-                              }
+                            }
                             : {}),
                         body: {
                             game_id: targetGameId,
@@ -1419,15 +1493,15 @@ export const supabase = new Proxy({} as SupabaseClient, {
                 try {
                     const client = getActiveGameClient();
                     if (client && typeof client.removeChannel === 'function') {
-                        await client.removeChannel(ch).catch(() => {});
+                        await client.removeChannel(ch).catch(() => { });
                     }
                     if (typeof supabaseAuth.removeChannel === 'function') {
-                        await supabaseAuth.removeChannel(ch).catch(() => {});
+                        await supabaseAuth.removeChannel(ch).catch(() => { });
                     }
                     if (ch && typeof ch.unsubscribe === 'function') {
                         return ch.unsubscribe();
                     }
-                } catch (e) {}
+                } catch (e) { }
                 return 'ok';
             };
         }
@@ -1471,11 +1545,11 @@ export async function getSpokeClientById(targetSpokeId?: string): Promise<Supaba
 
         let creds = localMatch
             ? {
-                  id: String(localMatch.id || wsId),
-                  schema_id: String(localMatch.schema_id || wsId),
-                  supabase_url: String(localMatch.supabase_url),
-                  supabase_anon_key: String(localMatch.supabase_anon_key),
-              }
+                id: String(localMatch.id || wsId),
+                schema_id: String(localMatch.schema_id || wsId),
+                supabase_url: String(localMatch.supabase_url),
+                supabase_anon_key: String(localMatch.supabase_anon_key),
+            }
             : spokeCredentialsCache.get(wsId) || null;
 
         if (!creds) {
@@ -1581,7 +1655,7 @@ export async function submitThreatManifestToSpoke(
                 if (lastTs && Date.now() - Number(lastTs) < 1000 * 60 * 60 * 12) {
                     return { data: null, error: null, skipped: true };
                 }
-            } catch {}
+            } catch { }
         }
 
         const rawStatus = String(item?.status || 'pending').trim().toLowerCase();
@@ -1603,7 +1677,7 @@ export async function submitThreatManifestToSpoke(
         const ingestMode = String(item?.ingest_mode || configuredIngestMode).toLowerCase();
         const sourceMoved = Boolean(
             item?.source_moved ||
-                (ingestMode === 'move' && !item?.original_exists)
+            (ingestMode === 'move' && !item?.original_exists)
         );
         const isHeuristicHit =
             Boolean(rawSig) &&
@@ -1624,10 +1698,10 @@ export async function submitThreatManifestToSpoke(
                 ? /win/i.test(navigator.userAgent)
                     ? 'windows'
                     : /mac/i.test(navigator.userAgent)
-                      ? 'macos'
-                      : /linux/i.test(navigator.userAgent)
-                        ? 'linux'
-                        : 'desktop'
+                        ? 'macos'
+                        : /linux/i.test(navigator.userAgent)
+                            ? 'linux'
+                            : 'desktop'
                 : 'desktop');
 
         const baseRowPayload = {
@@ -1728,7 +1802,7 @@ export async function submitThreatManifestToSpoke(
                 const seenMap = JSON.parse(localStorage.getItem('sanctuary_submitted_malware_manifests') || '{}');
                 seenMap[incidentId] = Date.now();
                 localStorage.setItem('sanctuary_submitted_malware_manifests', JSON.stringify(seenMap));
-            } catch {}
+            } catch { }
         }
 
         return { data: insertedData, error: null };

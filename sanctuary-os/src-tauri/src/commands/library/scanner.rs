@@ -26,7 +26,7 @@ use super::{ingest::*, workbench_and_assets::*};
 pub(super) struct TempStagingGuard(pub(super) PathBuf);
 impl Drop for TempStagingGuard {
     fn drop(&mut self) {
-        if self.0.exists() {
+        if !self.0.as_os_str().is_empty() && self.0.exists() {
             let _ = fs::remove_dir_all(&self.0);
         }
     }
@@ -143,6 +143,9 @@ pub async fn scan_bunker(
     app_state: tauri::State<'_, AppState>,
 ) -> Result<Vec<ModData>, String> {
     let game_schema = app_state.active_schema.lock().unwrap().clone();
+    let malware_override = state
+        .malware_protocol_overridden
+        .load(std::sync::atomic::Ordering::SeqCst);
     let is_deploying = app_state.inner().is_deploying.clone();
     let last_deploy_epoch_ms = app_state.inner().last_deploy_epoch_ms.clone();
     let malware_hashes_set: HashSet<String> = if let Ok(m) = state.malware_hashes.lock() {
@@ -197,13 +200,14 @@ pub async fn scan_bunker(
                 let compiled_sigs = CompiledSignatures::new(&heuristic_sigs);
                 let current_sigs_version = compute_signatures_version(&heuristic_sigs);
 
-                let legacy_sigs_mtime =
-                    crate::utils::get_vault_kv(&vault_path, "malware_signatures")
-                        .map(|(_, updated_at)| updated_at)
-                        .unwrap_or(0);
-
                 let vault_dir = crate::utils::get_vault_root_dir(&vault_path);
                 let mods_lane = crate::utils::get_vault_mods_lane(&vault_path);
+
+                crate::commands::shelter::reconcile_false_positive_quarantine(
+                    &vault_path,
+                    &game_schema,
+                    &malware_hashes_set,
+                );
 
                 let mut cache = load_cache(&vault_path);
                 let mut cache_updated = false;
@@ -218,7 +222,6 @@ pub async fn scan_bunker(
 
                 let manifest_name_lower =
                     crate::game_logic::resolve_manifest_leaf_lower(&game_schema);
-                let archive_exts = crate::game_logic::get_archive_extensions(&game_schema);
                 let editable_exts = crate::game_logic::get_editable_config_extensions(&game_schema);
                 let supported_exts = crate::game_logic::get_supported_extensions(&game_schema);
 
@@ -249,7 +252,10 @@ pub async fn scan_bunker(
                                     let ext_lower = ext.to_lowercase();
                                     if config_exts.contains(&ext_lower)
                                         || editable_exts.contains(&ext_lower)
-                                        || archive_exts.contains(&ext_lower)
+                                        || crate::game_logic::is_archive_container_extension(
+                                            &ext_lower,
+                                            &game_schema,
+                                        )
                                         || ext_lower == "log"
                                     {
                                         continue;
@@ -326,14 +332,7 @@ pub async fn scan_bunker(
 
                     if let Some(cached) = cache.get_mut(&path_str) {
                         if cached.mtime == mtime && !cached.dna_hash.is_empty() {
-                            let sigs_valid = cached.heuristic_sigs_mtime == 0
-                                || cached.heuristic_sigs_mtime == current_sigs_version
-                                || (legacy_sigs_mtime > 0
-                                    && cached.heuristic_sigs_mtime == legacy_sigs_mtime);
-                            if sigs_valid && cached.heuristic_sigs_mtime != current_sigs_version {
-                                cached.heuristic_sigs_mtime = current_sigs_version;
-                                cache_updated = true;
-                            }
+                            let sigs_valid = cached.heuristic_sigs_mtime == current_sigs_version;
                             let is_known_hash = malware_hashes_set.contains(&cached.dna_hash)
                                 || verified_hashes_set.contains(&cached.dna_hash);
                             let needs_heuristic = !is_known_hash && !sigs_valid;
@@ -428,7 +427,8 @@ pub async fn scan_bunker(
                                 let mut matched_entry: Option<String> = None;
                                 let mut det_type = "hash_blacklist".to_string();
 
-                                if !malware_hashes_set.contains(&dna_hash)
+                                if !malware_override
+                                    && !malware_hashes_set.contains(&dna_hash)
                                     && !verified_hashes_set.contains(&dna_hash)
                                 {
                                     if let Some(detail) =
@@ -501,9 +501,10 @@ pub async fn scan_bunker(
                 let mut results = Vec::with_capacity(total);
                 for item in items {
                     let is_hash_malware = malware_hashes_set.contains(&item.dna_hash);
-                    let is_malware = is_hash_malware
-                        || (!verified_hashes_set.contains(&item.dna_hash)
-                            && item.heuristic_sig.is_some());
+                    let is_malware = !malware_override
+                        && (is_hash_malware
+                            || (!verified_hashes_set.contains(&item.dna_hash)
+                                && item.heuristic_sig.is_some()));
 
                     if is_malware {
                         let signature_name = if is_hash_malware {
@@ -530,20 +531,30 @@ pub async fn scan_bunker(
                             .extension()
                             .and_then(|e| e.to_str())
                             .map(|e| format!(".{}", e.to_lowercase()));
-                        let target = malware_dir.join(item.path.file_name().unwrap_or_default());
-                        let _ = fs::rename(&item.path, &target);
+                        let orig_q_name = item
+                            .path
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .to_string();
+                        let unique_q_name = crate::utils::resolve_unique_quarantine_filename(
+                            &malware_dir,
+                            &reports_dir,
+                            &orig_q_name,
+                            &item.dna_hash,
+                        );
+                        let target = malware_dir.join(&unique_q_name);
+                        let _ = fs::rename(&item.path, &target).or_else(|_| {
+                            fs::copy(&item.path, &target)
+                                .and_then(|_| fs::remove_file(&item.path))
+                        });
 
                         let manifest = QuarantineManifest {
-                            artifact_name: item
-                                .path
-                                .file_name()
-                                .unwrap_or_default()
-                                .to_string_lossy()
-                                .to_string(),
+                            artifact_name: orig_q_name,
                             detected_hash: item.dna_hash.clone(),
                             signature: signature_name.clone(),
                             quarantine_path: obscure_username(&target.to_string_lossy()),
-                            original_path: None,
+                            original_path: Some(item.rel.replace('\\', "/")),
                             original_hash_at_import: None,
                             original_exists: false,
                             original_shredded: false,
@@ -556,10 +567,8 @@ pub async fn scan_bunker(
                             matched_entry: item.matched_entry.clone(),
                             detection_type: Some(detection_type_str),
                         };
-                        let manifest_path = reports_dir.join(format!(
-                            "{}.manifest.json",
-                            target.file_name().unwrap_or_default().to_string_lossy()
-                        ));
+                        let manifest_path =
+                            reports_dir.join(format!("{}.manifest.json", unique_q_name));
                         if let Ok(json) = serde_json::to_string_pretty(&manifest) {
                             let _ = crate::utils::atomic_write_bytes(&manifest_path, json.as_bytes());
                         }
@@ -707,28 +716,35 @@ pub async fn scan_sandbox(
         }
         walk_sandbox_files(&dev_lane, &mut initial_paths);
 
-        // Automatically unpack any .zip archives inside Dev/Sandbox using bounded pure-Rust extraction
+        // Automatically unpack ONLY top-level dropped `.zip` archives sitting directly in `Dev/Sandbox/`,
+        // never nested Mason exported `<SafeName>_v<Ver>.zip` bundles inside `Dev/Sandbox/<mod_dir>/`,
+        // and never when the active schema treats `.zip` as a native module container.
+        let zip_is_archive =
+            crate::game_logic::is_archive_container_extension("zip", &game_schema);
         let mut unpacked_any = false;
-        for p in &initial_paths {
-            if p.extension()
-                .and_then(|e| e.to_str())
-                .map_or(false, |e| e.eq_ignore_ascii_case("zip"))
-            {
-                let target_dir = if p.parent() == Some(dev_lane.as_path()) {
+        if zip_is_archive {
+            for p in &initial_paths {
+                if p.parent() == Some(dev_lane.as_path())
+                    && p.extension()
+                        .and_then(|e| e.to_str())
+                        .map_or(false, |e| e.eq_ignore_ascii_case("zip"))
+                {
                     let stem = p
                         .file_stem()
                         .unwrap_or_default()
                         .to_string_lossy()
                         .to_string();
-                    dev_lane.join(stem)
-                } else {
-                    p.parent().unwrap_or(&dev_lane).to_path_buf()
-                };
-                if crate::utils::ensure_path_within_roots(&target_dir, &[dev_lane.clone()]).is_ok()
-                    && extract_sandbox_zip_in_place(p, &target_dir, &game_schema) > 0
-                {
-                    let _ = std::fs::remove_file(p);
-                    unpacked_any = true;
+                    let target_dir = dev_lane.join(stem);
+                    if crate::utils::ensure_strict_descendant_of_roots(
+                        &target_dir,
+                        &[dev_lane.clone()],
+                    )
+                    .is_ok()
+                        && extract_sandbox_zip_in_place(p, &target_dir, &game_schema) > 0
+                    {
+                        let _ = std::fs::remove_file(p);
+                        unpacked_any = true;
+                    }
                 }
             }
         }
@@ -749,10 +765,17 @@ pub async fn scan_sandbox(
                 .and_then(|n| n.to_str())
                 .unwrap_or_default()
                 .to_lowercase();
+            let ext_lower = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or_default()
+                .to_lowercase();
             if fname_lower.starts_with('.')
                 || fname_lower == "desktop.ini"
                 || is_edge_sidecar_filename(&fname_lower)
                 || (!manifest_name_lower.is_empty() && fname_lower == manifest_name_lower)
+                || (!ext_lower.is_empty()
+                    && crate::game_logic::is_archive_container_extension(&ext_lower, &game_schema))
             {
                 continue;
             }

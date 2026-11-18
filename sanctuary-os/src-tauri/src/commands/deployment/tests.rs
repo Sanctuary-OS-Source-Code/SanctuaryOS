@@ -1103,6 +1103,125 @@ mod lab_safety_tests {
         let _ = std::fs::remove_dir_all(&storage.secondary_vault_mirror);
         let _ = std::fs::remove_dir_all(&base);
     }
+
+    #[test]
+    fn test_scan_logs_sync_ignores_stale_logs_and_stage3_honors_schema_max_idle_seconds() {
+        let dir = std::env::temp_dir().join(format!(
+            "sanctuary_lab_mtime_and_idle_{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let schema: Option<crate::schema::GameSchema> = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "unit_test_engine",
+                "game_id": "unit_test_engine",
+                "display_name": "Unit Test Engine",
+                "exception_logs": [{ "starts_with": "lastException", "ends_with": ".txt" }]
+            }))
+            .unwrap(),
+        );
+
+        let log_path = dir.join("lastException.txt");
+        std::fs::write(&log_path, b"Exception: Bad script call").unwrap();
+
+        let now_secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let stale_ft = filetime::FileTime::from_unix_time((now_secs - 120) as i64, 0);
+        filetime::set_file_mtime(&log_path, stale_ft).unwrap();
+
+        // Pre-session log older than started_at_epoch must be ignored
+        assert_eq!(
+            scan_logs_sync(&dir, &schema, Some(now_secs)),
+            None,
+            "Stale exception logs written before Lab session started must be ignored"
+        );
+
+        // Fresh log written during session must be caught
+        let fresh_ft = filetime::FileTime::from_unix_time((now_secs + 5) as i64, 0);
+        filetime::set_file_mtime(&log_path, fresh_ft).unwrap();
+        let caught = scan_logs_sync(&dir, &schema, Some(now_secs));
+        assert!(
+            caught.is_some(),
+            "Fresh exception log modified >= session start must be detected"
+        );
+
+        // Schema max_idle_seconds = 25 must be honored beyond legacy (8, 12) clamp
+        let baseline_ram = 2_000 * 1024 * 1024u64;
+        let world_ram = 2_600 * 1024 * 1024u64;
+        let mut peak_delta = world_ram - baseline_ram;
+        let mut elapsed = 0u32;
+        let mut pending_idle = 0u32;
+        let mut input_mask = 0u16;
+        let mut ticks = 0u32;
+        let mut cpu_ema = 30.0f32;
+        let mut freeze_ticks = 0u32;
+        let mut consecutive_active = 0u32;
+        let mut cooldown = 0u32;
+
+        let mid_idle_reason = evaluate_stage3_pause_and_credit(
+            &Stage3TickMetrics {
+                dt: 1,
+                matched_process_stopped: false,
+                require_focus: true,
+                is_focused: true,
+                hotkey_paused: false,
+                baseline_ram_bytes: baseline_ram,
+                current_ram_bytes: world_ram,
+                ram_diff_bytes: 2 * 1024 * 1024,
+                disk_io_bytes_this_tick: 128 * 1024,
+                current_cpu_usage: 30.0,
+                current_idle_seconds: 18,
+                max_idle_seconds: 25,
+                required_active_seconds: 120,
+            },
+            &mut peak_delta,
+            &mut elapsed,
+            &mut pending_idle,
+            &mut input_mask,
+            &mut ticks,
+            &mut cpu_ema,
+            &mut freeze_ticks,
+            &mut consecutive_active,
+            &mut cooldown,
+        );
+        assert_eq!(
+            mid_idle_reason, None,
+            "Schema max_idle_seconds=25 must allow idle=18 without legacy clamp(8,12)"
+        );
+
+        let over_idle_reason = evaluate_stage3_pause_and_credit(
+            &Stage3TickMetrics {
+                dt: 1,
+                matched_process_stopped: false,
+                require_focus: true,
+                is_focused: true,
+                hotkey_paused: false,
+                baseline_ram_bytes: baseline_ram,
+                current_ram_bytes: world_ram,
+                ram_diff_bytes: 2 * 1024 * 1024,
+                disk_io_bytes_this_tick: 128 * 1024,
+                current_cpu_usage: 30.0,
+                current_idle_seconds: 26,
+                max_idle_seconds: 25,
+                required_active_seconds: 120,
+            },
+            &mut peak_delta,
+            &mut elapsed,
+            &mut pending_idle,
+            &mut input_mask,
+            &mut ticks,
+            &mut cpu_ema,
+            &mut freeze_ticks,
+            &mut consecutive_active,
+            &mut cooldown,
+        );
+        assert_eq!(over_idle_reason.as_deref(), Some("IDLE"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
 
 

@@ -1,5 +1,12 @@
-// @ts-nocheck
-import { UUID_REGEX, SUPABASE_URL_REGEX, openSpokeEnvelope, createSpokeClient } from './cryptoEnvelope.ts'
+/// <reference path="../deno.d.ts" />
+import {
+  UUID_REGEX,
+  SUPABASE_URL_REGEX,
+  detectCredentialKind,
+  maskCredentialFingerprint,
+  openSpokeEnvelope,
+  createSpokeClient,
+} from './cryptoEnvelope.ts'
 
 export const STAFF_ROLES = ['wayfinder', 'oversight', 'architect', 'senior_architect', 'admin'];
 export const CREATOR_OR_STAFF_ROLES = [...STAFF_ROLES, 'mason'];
@@ -209,18 +216,86 @@ export function normalizeSpokeTableRow(table: string, row: any) {
   return { ...row };
 }
 
-export function isValidPassingLabCertProof(proof: any, expectedHash: string): boolean {
-  if (!proof || typeof proof !== 'object') return false;
-  const proofHash = String(proof.dna_hash || '').trim();
-  const activeSecs = Number(proof.active_seconds || 0);
-  const saveVerified = String(proof.save_file_verified || '').trim();
-  return (
-    Boolean(expectedHash) &&
-    proofHash === expectedHash &&
-    Number.isFinite(activeSecs) &&
-    activeSecs >= 15 &&
-    saveVerified.length > 0
+function decodeHexBytes(hexStr: string): Uint8Array | null {
+  if (!/^[0-9a-f]+$/i.test(hexStr) || hexStr.length % 2 !== 0) return null;
+  const out = new Uint8Array(hexStr.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = parseInt(hexStr.slice(i * 2, i * 2 + 2), 16);
+  }
+  return out;
+}
+
+export async function computeLegacyStagingOwnerTag(userId: string): Promise<string> {
+  const enc = new TextEncoder();
+  const hmacKey = await crypto.subtle.importKey(
+    'raw',
+    enc.encode('sanctuary_staging_owner_v1'),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
   );
+  const sig = await crypto.subtle.sign('HMAC', hmacKey, enc.encode(userId));
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+export async function isValidPassingLabCertProof(proof: any, expectedHash: string): Promise<boolean> {
+  if (!proof || typeof proof !== 'object') return false;
+  const cleanExpected = String(expectedHash || '').trim().toLowerCase();
+  const proofHash = String(proof.dna_hash || '').trim().toLowerCase();
+  const activeSecs = Math.trunc(Number(proof.active_seconds || 0));
+  const verifiedAt = Math.trunc(Number(proof.verified_at || 0));
+  const baselineRam = Math.trunc(Number(proof.baseline_ram_mb || 0));
+  const peakRam = Math.trunc(Number(proof.peak_ram_mb || 0));
+  const diskRead = Math.trunc(Number(proof.disk_read_mb || 0));
+  const saveVerified = String(proof.save_file_verified || '').trim();
+  const sealPubkey = String(proof.seal_pubkey || '').trim().toLowerCase();
+  const sealSig = String(proof.seal_sig || '').trim().toLowerCase();
+  const nowSecs = Math.floor(Date.now() / 1000);
+  if (
+    !/^[0-9a-f]{64}$/.test(cleanExpected) ||
+    proofHash !== cleanExpected ||
+    !Number.isFinite(activeSecs) ||
+    activeSecs < 15 ||
+    activeSecs > 86400 ||
+    !Number.isFinite(verifiedAt) ||
+    verifiedAt < 1700000000 ||
+    verifiedAt > nowSecs + 300 ||
+    baselineRam < 0 ||
+    peakRam < baselineRam ||
+    diskRead < 0 ||
+    saveVerified.length === 0 ||
+    saveVerified.length > 512 ||
+    !/^[0-9a-f]{64}$/.test(sealPubkey) ||
+    /^0+$/.test(sealPubkey) ||
+    !/^[0-9a-f]{128}$/.test(sealSig)
+  ) {
+    return false;
+  }
+  const pubBytes = decodeHexBytes(sealPubkey);
+  const sigBytes = decodeHexBytes(sealSig);
+  if (!pubBytes || pubBytes.byteLength !== 32 || !sigBytes || sigBytes.byteLength !== 64) {
+    return false;
+  }
+  const canonical = `sanctuary_lab_cert_v2|${proofHash}|${verifiedAt}|${activeSecs}|${baselineRam}|${peakRam}|${diskRead}|${saveVerified}`;
+  try {
+    const pubKey = await crypto.subtle.importKey(
+      'raw',
+      pubBytes as unknown as BufferSource,
+      { name: 'Ed25519' } as unknown as AlgorithmIdentifier,
+      false,
+      ['verify']
+    );
+    return await crypto.subtle.verify(
+      { name: 'Ed25519' } as unknown as AlgorithmIdentifier,
+      pubKey,
+      sigBytes as unknown as BufferSource,
+      new TextEncoder().encode(canonical)
+    );
+  } catch {
+    return false;
+  }
 }
 
 export async function hasExistingCloudPassingLabReceipt(
@@ -290,7 +365,7 @@ export async function enforceArchitectSubmissionCompliance(
         parsedNote = null;
       }
       const receiptHash = String(parsedNote?.dna_hash || '').trim();
-      if (!receiptHash || !isValidPassingLabCertProof(certProof, receiptHash)) {
+      if (!receiptHash || !(await isValidPassingLabCertProof(certProof, receiptHash))) {
         throw new Error(
           'Forbidden: Verified Lab certificate proof is required to record a 4-stage pass receipt.'
         );
@@ -423,7 +498,7 @@ export async function enforceArchitectSubmissionCompliance(
 
     if (!isKnownApprovedTier0) {
       const hasPass =
-        isValidPassingLabCertProof(certProof, dnaHash) ||
+        (await isValidPassingLabCertProof(certProof, dnaHash)) ||
         (await hasExistingCloudPassingLabReceipt(gameDb, dnaHash, existingVer?.id));
       if (!hasPass) {
         throw new Error(
@@ -471,7 +546,7 @@ export async function enforceArchitectSubmissionCompliance(
 
     if (tier === 0 && !isKnownApprovedTier0) {
       const hasPass =
-        isValidPassingLabCertProof(certProof, dnaHash) ||
+        (await isValidPassingLabCertProof(certProof, dnaHash)) ||
         (await hasExistingCloudPassingLabReceipt(gameDb, dnaHash, existingVer?.id));
       if (!hasPass) {
         throw new Error(

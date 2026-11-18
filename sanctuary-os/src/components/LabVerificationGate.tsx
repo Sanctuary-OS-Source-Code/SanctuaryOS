@@ -40,6 +40,9 @@ export interface LabVerificationCertificate {
   peak_ram_mb: number;
   disk_read_mb: number;
   save_file_verified: string;
+  seal_pubkey?: string;
+  seal_sig?: string;
+  local_seal_sig?: string;
 }
 
 export interface LabVerificationStatus {
@@ -208,9 +211,7 @@ export function useLabMilestoneNotifications() {
     }>("sanctuary-lab-milestone", (event) => {
       const p = event.payload;
       if (!p) return;
-      if (!isDesktop()) {
-        playLabMilestoneChime(p.kind, p.dna_hash);
-      }
+      playLabMilestoneChime(p.kind, p.dna_hash);
       const tr = tRef.current;
       const title =
         p.kind === "stage3_started"
@@ -439,10 +440,23 @@ export async function checkDnaHashVerification(dnaHash?: string | null): Promise
 }> {
   if (!dnaHash) return { verified: false, failed: false };
 
-  // 1. Check local storage cache
+  // 1. Check local storage cache (strictly verify Rust SHA-256 seal on Desktop)
   const localMap = getCachedCertificatesMap();
-  if (localMap[dnaHash]) {
-    return { verified: true, failed: false, cert: localMap[dnaHash] };
+  const cachedCert = localMap[dnaHash];
+  if (cachedCert) {
+    if (!isDesktop()) {
+      return { verified: true, failed: false, cert: cachedCert };
+    }
+    if (/^[0-9a-f]{64}$/i.test(String(cachedCert.seal_sig || ""))) {
+      try {
+        const sealOk = await invoke<boolean>("verify_lab_certificate_seal", {
+          certificate: cachedCert,
+        });
+        if (sealOk) {
+          return { verified: true, failed: false, cert: cachedCert };
+        }
+      } catch {}
+    }
   }
 
   // 2. Check Tauri vault file on desktop

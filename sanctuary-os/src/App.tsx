@@ -24,7 +24,7 @@ import { useCloudService } from "./hooks/useCloudService";
 import { useStore } from "./store";
 import { isPlaceholderWorkspaceKey } from "./utils/workspaceConfigMatch";
 import { useGlobalListeners } from "./hooks/useGlobalListeners";
-import { supabase } from "./supabase";
+import { supabase, supabaseAuth } from "./supabase";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { check } from "@tauri-apps/plugin-updater";
@@ -110,9 +110,16 @@ function App() {
   }, [activeWorkspaceId]);
 
   useEffect(() => {
-    // PREFETCH ELEVATED HUBS DATA
+    // PREFETCH ELEVATED HUBS DATA (deferred off initial critical commit)
     const prefetchHubs = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      if (
+        (typeof navigator !== "undefined" && !navigator.onLine) ||
+        localStorage.getItem("sanctuary_local_only") === "true"
+      ) {
+        return;
+      }
+      const authClient = supabaseAuth || supabase;
+      const { data: { session } } = await authClient.auth.getSession();
       if (!session) return;
 
       const CACHE_TTL = 5 * 60 * 1000;
@@ -130,10 +137,10 @@ function App() {
         } catch (e) { }
       }
 
-      // 2. Prefetch Support Tickets
+      // 2. Prefetch Support Tickets from Hub DB
       if (now - cache.support.lastFetch > CACHE_TTL) {
         try {
-          const { data } = await supabase.from('keeper_tickets').select('*').eq('author_id', session.user.id).order('created_at', { ascending: false });
+          const { data } = await authClient.from('keeper_tickets').select('*').eq('author_id', session.user.id).order('created_at', { ascending: false });
           if (data) {
             cache.support.tickets = data;
             cache.support.lastFetch = now;
@@ -141,12 +148,17 @@ function App() {
         } catch (e) { }
       }
     };
-    prefetchHubs();
+    const idleTimer = window.setTimeout(() => {
+      prefetchHubs();
+    }, 1200);
 
     const interval = setInterval(() => {
       setSubtitleIndex(Math.floor(Math.random() * 12) + 1);
     }, 15000);
-    return () => clearInterval(interval);
+    return () => {
+      window.clearTimeout(idleTimer);
+      clearInterval(interval);
+    };
   }, []);
   const getBackupSignature = (filename: string) => {
     const cleanName = filename.replace(".tar.zst", "");
@@ -793,7 +805,7 @@ function App() {
 
   const networkUpdates = useStore((state) => state.networkUpdates);
   const setNetworkUpdates = useStore((state) => state.setNetworkUpdates);
-  const [tier2Hashes] = useState<string[]>([]);
+  const tier2Hashes = useStore((state) => state.tier2Hashes);
   const { uploadBlueprintToCloud, syncBlueprintByCode, massIngestToCloud } = useCloudService(activeMasonProfileId, tier2Hashes);
 
   const {
@@ -942,6 +954,8 @@ function App() {
 
   runRadarSweepRef.current = runRadarSweep;
   setMalwareAlertRef.current = setMalwareAlert;
+  const handleDroppedFilesRef = useRef(handleDroppedFiles);
+  handleDroppedFilesRef.current = handleDroppedFiles;
   const {
     ignoredHashesRef,
     fetchCloudLabQueue,
@@ -957,6 +971,7 @@ function App() {
     setEdgeOverrideQueue,
     runRadarSweepRef,
     setMalwareAlertRef,
+    handleDroppedFilesRef,
   });
   checkNetworkUpdatesRef.current = checkNetworkUpdates;
   useEffect(() => {
@@ -979,23 +994,12 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [modList, vaultPath]);
-  const [anarchyRules, setAnarchyRules] = useState(() => {
-    const saved = localStorage.getItem("sanctuary_anarchy");
-    const parsed = saved ? JSON.parse(saved) : {};
-    return {
-      highlander: parsed.highlander ?? true,
-      family: parsed.family ?? true,
-      dependencies: parsed.dependencies ?? true,
-      intercept: parsed.intercept ?? true,
-    };
-  });
-  useEffect(() => {
-    localStorage.setItem("sanctuary_anarchy", JSON.stringify(anarchyRules));
-  }, [anarchyRules]);
+  const anarchyRules = useStore((state) => state.anarchyRules);
+  const setAnarchyRules = useStore((state) => state.setAnarchyRules);
   const [masonProfileAboveDossier, setMasonProfileAboveDossier] = useState(true);
   const handleOpenMasonProfile = async (masonId: string, postId?: string) => {
     if (!masonId) {
-      alert(t("alert_error_mason_profile_missing", "Error: {Mason} Profile ID is missing."));
+      useStore.getState().pushStatus(t("alert_error_mason_profile_missing", "Error: {Mason} Profile ID is missing."), "error");
       return;
     }
     const { data: mVer } = await supabase.from("masons").select("is_verified").eq("id", masonId).maybeSingle();
@@ -1033,35 +1037,35 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!isDesktop()) return;
     let unlisten: (() => void) | null = null;
     let cancelled = false;
 
-    if (!activeGameSchema?.extensions?.supported) return;
-
-    if (isDesktop()) {
-      invoke("start_downloads_watch", {
-        extensions: activeGameSchema.extensions.supported
-      }).catch(console.warn);
-
-      listen("download_intercepted", (event: any) => {
-        if (cancelled) return;
-        useModalStore.getState().setDownloadsQueue((prev: string[]) => {
-          if (!prev.includes(event.payload.path)) {
-            return [...prev, event.payload.path];
-          }
-          return prev;
-        });
-      }).then((handler) => {
-        if (cancelled) handler();
-        else unlisten = handler;
+    listen("download_intercepted", (event: any) => {
+      if (cancelled) return;
+      useModalStore.getState().setDownloadsQueue((prev: string[]) => {
+        if (!prev.includes(event.payload.path)) {
+          return [...prev, event.payload.path];
+        }
+        return prev;
       });
-    }
+    }).then((handler) => {
+      if (cancelled) handler();
+      else unlisten = handler;
+    });
 
     return () => {
       cancelled = true;
       if (unlisten) unlisten();
-      if (isDesktop()) if (isDesktop()) invoke("stop_downloads_watch").catch(console.warn);
+      invoke("stop_downloads_watch").catch(console.warn);
     };
+  }, []);
+
+  useEffect(() => {
+    if (!isDesktop() || !activeGameSchema?.extensions?.supported) return;
+    invoke("start_downloads_watch", {
+      extensions: activeGameSchema.extensions.supported,
+    }).catch(console.warn);
   }, [activeGameSchema]);
   useEffect(() => {
     fetchBackups();
@@ -1091,64 +1095,51 @@ function App() {
     dnaMatchQueue,
   ]);
   useEffect(() => {
-    let fileEditNames: string[] = [];
-    const cwEdits = localStorage.getItem("sanctuary_cw_unsaved_edits");
-    if (cwEdits) {
-      try {
-        const parsed = JSON.parse(cwEdits);
-        Object.keys(parsed).forEach(k => {
-          if (Object.keys(parsed[k]).length > 0) {
-            const name = k.split(/[\\/]/).pop();
-            if (name && !fileEditNames.includes(name)) fileEditNames.push(name);
-          }
-        });
-      } catch (e) { }
-    }
-
-    const ideEdits = localStorage.getItem("sanctuary_ide_open_files");
-    if (ideEdits) {
-      try {
-        const parsed = JSON.parse(ideEdits);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((f: any) => {
-            if (f.content !== f.originalContent && !fileEditNames.includes(f.name)) {
-              fileEditNames.push(f.name);
-            }
-          });
+    const st = useStore.getState();
+    const fileEditNames: string[] = [];
+    if (st.cwUnsavedEdits && typeof st.cwUnsavedEdits === "object") {
+      Object.entries(st.cwUnsavedEdits).forEach(([k, val]) => {
+        if (val && typeof val === "object" && Object.keys(val).length > 0) {
+          const name = k.split(/[\\/]/).pop();
+          if (name && !fileEditNames.includes(name)) fileEditNames.push(name);
         }
-      } catch (e) { }
+      });
+    }
+    if (Array.isArray(st.ideOpenFiles)) {
+      st.ideOpenFiles.forEach((f: any) => {
+        if (f?.content !== f?.originalContent && f?.name && !fileEditNames.includes(f.name)) {
+          fileEditNames.push(f.name);
+        }
+      });
     }
 
-    let postEditNames: string[] = [];
-
-    const masonHubDrafts = localStorage.getItem("sanctuary_mason_hub_drafts");
-    if (masonHubDrafts) {
-      try {
-        const parsed = JSON.parse(masonHubDrafts);
-        Object.keys(parsed).forEach(k => {
-          const name = (parsed[k].title || `Draft ${k}`) + ".masonhub";
-          if (!postEditNames.includes(name)) postEditNames.push(name);
-        });
-      } catch (e) { }
+    const postEditNames: string[] = [];
+    const fallbackDraftTitle = t("draft_untitled", "Draft");
+    if (st.masonHubDrafts && typeof st.masonHubDrafts === "object") {
+      Object.entries(st.masonHubDrafts).forEach(([k, d]: [string, any]) => {
+        const name = (d?.title || `${fallbackDraftTitle} ${k}`) + ".masonhub";
+        if (!postEditNames.includes(name)) postEditNames.push(name);
+      });
     }
-
-    const wayfinderDrafts = localStorage.getItem("sanctuary_wayfinder_drafts");
-    if (wayfinderDrafts) {
-      try {
-        const parsed = JSON.parse(wayfinderDrafts);
-        Object.keys(parsed).forEach(k => {
-          const name = (parsed[k].title || `Draft ${k}`) + ".wayfinder";
-          if (!postEditNames.includes(name)) postEditNames.push(name);
-        });
-      } catch (e) { }
+    if (st.wayfinderDrafts && typeof st.wayfinderDrafts === "object") {
+      Object.entries(st.wayfinderDrafts).forEach(([k, d]: [string, any]) => {
+        const name = (d?.title || `${fallbackDraftTitle} ${k}`) + ".wayfinder";
+        if (!postEditNames.includes(name)) postEditNames.push(name);
+      });
     }
 
     if (fileEditNames.length > 0) {
       setTimeout(() => {
         if (fileEditNames.length === 1) {
-          useStore.getState().setStatus(`${fileEditNames[0]} has cached changes from your last session.`);
+          useStore.getState().setStatus(
+            t("status_cached_session_single", "{name} has cached changes from your last session.")
+              .replace("{name}", fileEditNames[0])
+          );
         } else {
-          useStore.getState().setStatus(`${fileEditNames.join(", ")} have cached changes from your last session.`);
+          useStore.getState().setStatus(
+            t("status_cached_session_multi", "{names} have cached changes from your last session.")
+              .replace("{names}", fileEditNames.join(", "))
+          );
         }
       }, 8000);
     }
@@ -1156,13 +1147,19 @@ function App() {
     if (postEditNames.length > 0) {
       setTimeout(() => {
         if (postEditNames.length === 1) {
-          useStore.getState().setStatus(`${postEditNames[0]} has cached changes from your last session.`);
+          useStore.getState().setStatus(
+            t("status_cached_session_single", "{name} has cached changes from your last session.")
+              .replace("{name}", postEditNames[0])
+          );
         } else {
-          useStore.getState().setStatus(`${postEditNames.join(", ")} have cached changes from your last session.`);
+          useStore.getState().setStatus(
+            t("status_cached_session_multi", "{names} have cached changes from your last session.")
+              .replace("{names}", postEditNames.join(", "))
+          );
         }
       }, 10000);
     }
-  }, []);
+  }, [activeWorkspaceId]);
   const { toggleInActiveSet, deletePlaySet, renamePlaySet, importPlaySet, finalizeImport, equipPlaySet } = usePlaySetLogic();
   const { handleSmartSearch, triggerShelter, restoreMod, purgeMod } = useModActions(openUrl, fetchVault, runRadarSweep, activeSetName, equipPlaySet, setShelterActive);
   useAppNotificationsAndBoot({

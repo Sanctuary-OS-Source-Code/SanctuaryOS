@@ -1,12 +1,20 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isDesktop } from "../envUtils";
-import { supabaseAuth, supabase, isStandaloneFork } from "../../supabase";
+import {
+  supabaseAuth,
+  supabase,
+  isStandaloneFork,
+  getReleaseRepoSlug,
+  getReleaseBaseUrl,
+  getReleaseApiBaseUrl,
+} from "../../supabase";
 import { useStore } from "../../store";
 import { useModalStore } from "../../store/modalStore";
 import { sanitizeExternalHttpsUrl } from "../../shared-components/misc";
-import { DEFAULT_KEEPERS_PIPELINE_CONFIG, KEEPERS_PIPELINE_STORAGE_KEY, LEGACY_DEACTIVATED_STRIPE_URL, PENDING_CHANNEL_SWITCH_KEY, getCurrentMonthKey, getInstalledBuildMeta, setInstalledBuildMeta, isTargetVersionNewer, isMacClient, isLinuxClient, getLocalPartnerDonationOverride, type KeepersPipelineConfig, type FoundryCostBreakdown, type SpokeCostBreakdown, type DevBuildClearanceResult } from "./typesAndHelpers";
+import { DEFAULT_KEEPERS_PIPELINE_CONFIG, KEEPERS_PIPELINE_STORAGE_KEY, LEGACY_DEACTIVATED_STRIPE_URL, PENDING_CHANNEL_SWITCH_KEY, getCurrentMonthKey, getInstalledBuildMeta, setInstalledBuildMeta, isTargetVersionNewer, isMacClient, isLinuxClient, getLocalPartnerDonationOverride, normalizeLegacySupportEmail, normalizeLegacySenderName, type KeepersPipelineConfig, type FoundryCostBreakdown, type SpokeCostBreakdown, type DevBuildClearanceResult } from "./typesAndHelpers";
 import { getSupporterState } from "./vaultSync";
 import { syncMonthlyDonationLedgersFromCloud, getLocalAddedCentsForTarget, getLocalAddedFeeCentsForTarget, setDevBuildChannelPreference } from "./billingLedger";
+import { maskEmailAddress } from "../sanctuaryEmailTemplates";
 
 export interface DispatchKeeperEmailParams {
   toEmail?: string;
@@ -39,18 +47,18 @@ export async function dispatchKeeperCustomEmail(
   const resolvedToEmail = (params.toEmail || params.to_email || "").trim();
   const resolvedBodyText = (params.bodyText || params.body_text || "").trim();
   const resolvedTicketId = params.ticketId ?? params.ticket_id ?? null;
-  const fromEmail = (
+  const fromEmail = normalizeLegacySupportEmail(
     params.fromEmail ||
-    params.from_email ||
-    cfg.support_contact_email ||
-    "support@sanctuaryos.gg"
-  ).trim();
-  const fromName = (
+      params.from_email ||
+      cfg.support_contact_email ||
+      "support@sanctuaryos.net"
+  );
+  const fromName = normalizeLegacySenderName(
     params.fromName ||
-    params.from_name ||
-    cfg.support_sender_name ||
-    "Sanctuary OS Keepers Core"
-  ).trim();
+      params.from_name ||
+      cfg.support_sender_name,
+    "Sanctuary OS"
+  );
   const replyTo = (
     params.replyTo ||
     params.reply_to ||
@@ -79,7 +87,7 @@ export async function dispatchKeeperCustomEmail(
       return {
         ok: true,
         status: data.status || "DELIVERED",
-        provider: data.provider || "KEEPERS_CORE_MAILBOX",
+        provider: data.provider || "SANCTUARY_FOUNDRY_RELAY",
         dispatch: data.dispatch,
         dispatch_id: data.dispatch?.id || data.dispatch_id,
         warning: data.warning,
@@ -98,10 +106,11 @@ export async function dispatchKeeperCustomEmail(
       from_name: fromName,
       from_email: fromEmail,
       reply_to: replyTo,
-      to_email: resolvedToEmail,
+      to_email: maskEmailAddress(resolvedToEmail),
       subject: params.subject.trim(),
-      body_text: resolvedBodyText,
-      provider: "KEEPERS_CORE_MAILBOX",
+      body_text: "[Delivered via Sanctuary Foundry Relay]",
+      body_html: null,
+      provider: "SANCTUARY_FOUNDRY_RELAY",
       status: "DISPATCHED_IN_APP",
     })
     .select("*")
@@ -114,7 +123,7 @@ export async function dispatchKeeperCustomEmail(
   return {
     ok: true,
     status: "DISPATCHED_IN_APP",
-    provider: "KEEPERS_CORE_MAILBOX",
+    provider: "SANCTUARY_FOUNDRY_RELAY",
     dispatch: fallbackRow,
     dispatch_id: fallbackRow?.id,
   };
@@ -141,10 +150,13 @@ export async function fetchLiveGitHubReleases(
     return githubReleaseCache?.data || {};
   }
 
+  const apiBase = getReleaseApiBaseUrl();
+  if (!apiBase) {
+    return {};
+  }
+
   try {
-    const res = await fetch(
-      "https://api.github.com/repos/Sanctuary-OS-Source-Code/SanctuaryOS/releases?per_page=15",
-    );
+    const res = await fetch(`${apiBase}?per_page=15`);
     if (!res.ok) return githubReleaseCache?.data || {};
     const releases = await res.json();
     if (!Array.isArray(releases)) return {};
@@ -338,132 +350,177 @@ export async function fetchLiveGitHubReleases(
   }
 }
 
+let inFlightPipelineConfig: Promise<KeepersPipelineConfig> | null = null;
+let lastPipelineConfigFetch: { ts: number; data: KeepersPipelineConfig | null } = {
+  ts: 0,
+  data: null,
+};
+
 export async function getKeepersPipelineConfig(
   forceGitHubRefresh = false,
 ): Promise<KeepersPipelineConfig> {
-  let cached: KeepersPipelineConfig = { ...DEFAULT_KEEPERS_PIPELINE_CONFIG };
-  try {
-    const raw = localStorage.getItem(KEEPERS_PIPELINE_STORAGE_KEY);
-    if (raw) {
-      const parsedLocal = JSON.parse(raw);
-      cached = { ...cached, ...parsedLocal };
-      if (
-        cached.keepers_donation_url &&
-        (cached.keepers_donation_url.trim() === LEGACY_DEACTIVATED_STRIPE_URL ||
-          cached.keepers_donation_url.trim().toLowerCase().startsWith("sandbox://"))
-      ) {
-        cached.keepers_donation_url =
-          DEFAULT_KEEPERS_PIPELINE_CONFIG.keepers_donation_url;
-      }
-      if (
-        String(cached.keepers_payment_processor || "").toUpperCase() ===
-        "SANDBOX"
-      ) {
-        cached.keepers_payment_processor = "STRIPE";
-      }
+  if (!forceGitHubRefresh) {
+    if (
+      lastPipelineConfigFetch.data &&
+      Date.now() - lastPipelineConfigFetch.ts < 30_000
+    ) {
+      return { ...lastPipelineConfigFetch.data };
     }
-  } catch {
-    // ignore
+    if (inFlightPipelineConfig) {
+      return inFlightPipelineConfig;
+    }
   }
 
-  const localOnly = localStorage.getItem("sanctuary_local_only") === "true";
-  if (!localOnly && navigator.onLine) {
-    const [broadcastRes, ghReleases] = await Promise.all([
-      (async () => {
-        try {
-          const client = supabaseAuth || supabase;
-          const { data } = await client
-            .from("keeper_system_broadcasts")
-            .select("*")
-            .eq("category", "PipelineConfig")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          return data;
-        } catch {
-          return null;
-        }
-      })(),
-      fetchLiveGitHubReleases(forceGitHubRefresh),
-      syncMonthlyDonationLedgersFromCloud(),
-    ]);
-
-    if (
-      broadcastRes &&
-      (broadcastRes.description || broadcastRes.message || broadcastRes.content)
-    ) {
-      try {
-        const parsed = JSON.parse(
-          broadcastRes.description || broadcastRes.message || broadcastRes.content,
-        );
+  const exec = (async (): Promise<KeepersPipelineConfig> => {
+    let cached: KeepersPipelineConfig = { ...DEFAULT_KEEPERS_PIPELINE_CONFIG };
+    try {
+      const raw = localStorage.getItem(KEEPERS_PIPELINE_STORAGE_KEY);
+      if (raw) {
+        const parsedLocal = JSON.parse(raw);
+        cached = { ...cached, ...parsedLocal };
         if (
-          parsed.keepers_donation_url &&
-          (String(parsed.keepers_donation_url).trim() ===
-            LEGACY_DEACTIVATED_STRIPE_URL ||
-            String(parsed.keepers_donation_url)
-              .trim()
-              .toLowerCase()
-              .startsWith("sandbox://"))
+          cached.keepers_donation_url &&
+          (cached.keepers_donation_url.trim() === LEGACY_DEACTIVATED_STRIPE_URL ||
+            cached.keepers_donation_url.trim().toLowerCase().startsWith("sandbox://"))
         ) {
-          parsed.keepers_donation_url =
+          cached.keepers_donation_url =
             DEFAULT_KEEPERS_PIPELINE_CONFIG.keepers_donation_url;
         }
         if (
-          String(parsed.keepers_payment_processor || "").toUpperCase() ===
+          String(cached.keepers_payment_processor || "").toUpperCase() ===
           "SANDBOX"
         ) {
-          parsed.keepers_payment_processor = "STRIPE";
+          cached.keepers_payment_processor = "STRIPE";
         }
-        cached = {
-          ...cached,
-          ...parsed,
-          updated_at: broadcastRes.created_at || cached.updated_at,
-        };
-      } catch {
-        // ignore parse error
+        cached.support_contact_email = normalizeLegacySupportEmail(
+          cached.support_contact_email,
+        );
+        cached.support_reply_to_email = normalizeLegacySupportEmail(
+          cached.support_reply_to_email,
+        );
       }
-    } else if (
-      isDesktop() &&
-      cached.keepers_donation_url &&
-      cached.keepers_donation_url !== LEGACY_DEACTIVATED_STRIPE_URL
-    ) {
-      // Auto-sync Desktop pipeline config to Hub if missing on Supabase
+    } catch {
+      // ignore
+    }
+
+    const localOnly = localStorage.getItem("sanctuary_local_only") === "true";
+    if (!localOnly && navigator.onLine) {
+      const [broadcastRes, ghReleases] = await Promise.all([
+        (async () => {
+          try {
+            const client = supabaseAuth || supabase;
+            const { data } = await client
+              .from("keeper_system_broadcasts")
+              .select("*")
+              .eq("category", "PipelineConfig")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            return data;
+          } catch {
+            return null;
+          }
+        })(),
+        fetchLiveGitHubReleases(forceGitHubRefresh),
+        syncMonthlyDonationLedgersFromCloud(forceGitHubRefresh),
+      ]);
+
+      if (
+        broadcastRes &&
+        (broadcastRes.description || broadcastRes.message || broadcastRes.content)
+      ) {
+        try {
+          const parsed = JSON.parse(
+            broadcastRes.description || broadcastRes.message || broadcastRes.content,
+          );
+          if (
+            parsed.keepers_donation_url &&
+            (String(parsed.keepers_donation_url).trim() ===
+              LEGACY_DEACTIVATED_STRIPE_URL ||
+              String(parsed.keepers_donation_url)
+                .trim()
+                .toLowerCase()
+                .startsWith("sandbox://"))
+          ) {
+            parsed.keepers_donation_url =
+              DEFAULT_KEEPERS_PIPELINE_CONFIG.keepers_donation_url;
+          }
+          if (
+            String(parsed.keepers_payment_processor || "").toUpperCase() ===
+            "SANDBOX"
+          ) {
+            parsed.keepers_payment_processor = "STRIPE";
+          }
+          cached = {
+            ...cached,
+            ...parsed,
+            support_contact_email: normalizeLegacySupportEmail(
+              parsed.support_contact_email ?? cached.support_contact_email,
+            ),
+            support_reply_to_email: normalizeLegacySupportEmail(
+              parsed.support_reply_to_email ?? cached.support_reply_to_email,
+            ),
+            updated_at: broadcastRes.created_at || cached.updated_at,
+          };
+        } catch {
+          // ignore parse error
+        }
+      } else if (
+        isDesktop() &&
+        cached.keepers_donation_url &&
+        cached.keepers_donation_url !== LEGACY_DEACTIVATED_STRIPE_URL
+      ) {
+        // Auto-sync Desktop pipeline config to Hub if missing on Supabase
+        try {
+          const client = supabaseAuth || supabase;
+          const payloadStr = JSON.stringify({ ...cached, ...ghReleases });
+          await client.from("keeper_system_broadcasts").insert([
+            {
+              title: `DEV_BUILD_PIPELINE_${cached.dev_build_version}`,
+              category: "PipelineConfig",
+              description: payloadStr,
+              message: payloadStr,
+              target_audience: "Internal_Pipeline",
+              is_active: true,
+              is_pinned: false,
+            },
+          ]);
+        } catch {
+          // ignore
+        }
+      }
+
+      // Live GitHub Releases always take precedence for version numbers, asset URLs, and release notes
+      cached = {
+        ...cached,
+        ...ghReleases,
+      };
+
       try {
-        const client = supabaseAuth || supabase;
-        const payloadStr = JSON.stringify({ ...cached, ...ghReleases });
-        await client.from("keeper_system_broadcasts").insert([
-          {
-            title: `DEV_BUILD_PIPELINE_${cached.dev_build_version}`,
-            category: "PipelineConfig",
-            description: payloadStr,
-            message: payloadStr,
-            target_audience: "Internal_Pipeline",
-            is_active: true,
-            is_pinned: false,
-          },
-        ]);
+        localStorage.setItem(
+          KEEPERS_PIPELINE_STORAGE_KEY,
+          JSON.stringify(cached),
+        );
       } catch {
         // ignore
       }
     }
 
-    // Live GitHub Releases always take precedence for version numbers, asset URLs, and release notes
-    cached = {
-      ...cached,
-      ...ghReleases,
-    };
+    lastPipelineConfigFetch = { ts: Date.now(), data: cached };
+    return cached;
+  })();
 
-    try {
-      localStorage.setItem(
-        KEEPERS_PIPELINE_STORAGE_KEY,
-        JSON.stringify(cached),
-      );
-    } catch {
-      // ignore
-    }
+  if (!forceGitHubRefresh) {
+    inFlightPipelineConfig = exec.finally(() => {
+      if (inFlightPipelineConfig === promiseRef) {
+        inFlightPipelineConfig = null;
+      }
+    });
+    const promiseRef = inFlightPipelineConfig;
+    return promiseRef;
   }
 
-  return cached;
+  return exec;
 }
 
 export async function saveKeepersPipelineConfig(
@@ -698,10 +755,11 @@ export async function checkStableGitHubReleaseUpdate(
   date: string;
 } | null> {
   try {
+    const releaseBase = getReleaseBaseUrl();
     const pipeline = await getKeepersPipelineConfig(true);
     const latestStable = (pipeline.stable_version || "").replace(/^v/i, "").trim();
     const cleanCurrent = (currentVersion || "").replace(/^v/i, "").trim();
-    if (!latestStable) return null;
+    if (!latestStable || (!releaseBase && !pipeline.stable_release_url)) return null;
 
     const pendingSwitch = localStorage.getItem(PENDING_CHANNEL_SWITCH_KEY);
     const updateAvailable =
@@ -709,18 +767,15 @@ export async function checkStableGitHubReleaseUpdate(
       isTargetVersionNewer(cleanCurrent, latestStable, false);
     if (!updateAvailable) return null;
 
+    const tagFallback = releaseBase ? `${releaseBase}/tag/v${latestStable}` : "";
     const downloadUrl = isMacClient()
-      ? pipeline.stable_dmg_url ||
-        pipeline.stable_release_url ||
-        `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStable}`
+      ? pipeline.stable_dmg_url || pipeline.stable_release_url || tagFallback
       : isLinuxClient()
-        ? pipeline.stable_linux_url ||
-          pipeline.stable_release_url ||
-          `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStable}`
+        ? pipeline.stable_linux_url || pipeline.stable_release_url || tagFallback
         : pipeline.stable_exe_url ||
           pipeline.stable_msi_url ||
           pipeline.stable_release_url ||
-          `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStable}`;
+          tagFallback;
 
     return {
       updateAvailable: true,
@@ -759,6 +814,11 @@ export async function checkSupporterDevBuildUpdate(
   }
 
   const pipeline = await getKeepersPipelineConfig(true);
+  const releaseBase = getReleaseBaseUrl();
+  if (!releaseBase && !pipeline.dev_release_url && !pipeline.dev_build_download_url) {
+    return null;
+  }
+  const devTagFallback = releaseBase ? `${releaseBase}/tag/dev-latest` : "";
   const latestDevVersion = pipeline.dev_build_version || "";
   const latestNotes = pipeline.dev_build_notes || "";
   const latestDate =
@@ -767,15 +827,15 @@ export async function checkSupporterDevBuildUpdate(
     ? pipeline.dev_build_dmg_url ||
       pipeline.dev_release_url ||
       pipeline.dev_build_download_url ||
-      "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"
+      devTagFallback
     : isLinuxClient()
       ? pipeline.dev_build_linux_url ||
         pipeline.dev_release_url ||
         pipeline.dev_build_download_url ||
-        "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"
+        devTagFallback
       : pipeline.dev_build_download_url ||
         pipeline.dev_release_url ||
-        "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
+        devTagFallback;
 
   const cleanCurrent = (currentVersion || "").replace(/^v/i, "").trim();
   const cleanTarget = (latestDevVersion || "").replace(/^v/i, "").trim();
@@ -830,6 +890,9 @@ export function buildChannelUpdatePayload(
   const cleanBase =
     (currentVersion || "0.5.8").replace(/^v/i, "").trim().split("-")[0] || "0.5.8";
 
+  const releaseBase = getReleaseBaseUrl();
+  const devTagFallback = releaseBase ? `${releaseBase}/tag/dev-latest` : "";
+
   if (channel === "dev") {
     const latestDevVersion = (
       pipeline.dev_build_version || `${cleanBase}-dev.1`
@@ -843,15 +906,15 @@ export function buildChannelUpdatePayload(
       ? pipeline.dev_build_dmg_url ||
         pipeline.dev_release_url ||
         pipeline.dev_build_download_url ||
-        "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"
+        devTagFallback
       : isLinuxClient()
         ? pipeline.dev_build_linux_url ||
           pipeline.dev_release_url ||
           pipeline.dev_build_download_url ||
-          "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest"
+          devTagFallback
         : pipeline.dev_build_download_url ||
           pipeline.dev_release_url ||
-          "https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/dev-latest";
+          devTagFallback;
 
     return {
       version: latestDevVersion,
@@ -879,18 +942,15 @@ export function buildChannelUpdatePayload(
   const latestStableDate =
     pipeline.stable_published_at || pipeline.updated_at || new Date().toISOString();
   const latestStableNotes = pipeline.stable_release_notes || "";
+  const stableTagFallback = releaseBase ? `${releaseBase}/tag/v${latestStableVersion}` : "";
   const latestStableDownloadUrl = isMacClient()
-    ? pipeline.stable_dmg_url ||
-      pipeline.stable_release_url ||
-      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStableVersion}`
+    ? pipeline.stable_dmg_url || pipeline.stable_release_url || stableTagFallback
     : isLinuxClient()
-      ? pipeline.stable_linux_url ||
-        pipeline.stable_release_url ||
-        `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStableVersion}`
+      ? pipeline.stable_linux_url || pipeline.stable_release_url || stableTagFallback
       : pipeline.stable_exe_url ||
         pipeline.stable_msi_url ||
         pipeline.stable_release_url ||
-        `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/tag/v${latestStableVersion}`;
+        stableTagFallback;
 
   return {
     version: latestStableVersion,
@@ -1115,6 +1175,7 @@ export async function downloadAndInstallReleaseAsset(
       downloadUrl: downloadUrl || "",
       version: version || "",
       isDev: Boolean(isDevChannel),
+      releaseRepo: getReleaseRepoSlug(),
     });
   } finally {
     if (unlisten) {
@@ -1375,11 +1436,10 @@ export async function verifyDevBuildClearance(): Promise<DevBuildClearanceResult
     () => DEFAULT_KEEPERS_PIPELINE_CONFIG,
   );
   const stableVersion = pipeline.stable_version || "0.5.7";
+  const stableLatestUrl = getReleaseBaseUrl() ? `${getReleaseBaseUrl()}/latest` : "";
   const stableDownloadUrl = isMacClient()
-    ? pipeline.stable_dmg_url ||
-      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/latest`
-    : pipeline.stable_exe_url ||
-      `https://github.com/Sanctuary-OS-Source-Code/SanctuaryOS/releases/latest`;
+    ? pipeline.stable_dmg_url || stableLatestUrl
+    : pipeline.stable_exe_url || stableLatestUrl;
 
   const session = storeState.session;
   const userId = session?.user?.id;

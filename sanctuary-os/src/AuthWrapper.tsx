@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { supabase, isStandaloneFork } from "./supabase";
+import {
+  supabase,
+  isStandaloneFork,
+  getRuntimeUplinkBundle,
+  parseUplinkBundle,
+  setRuntimeUplinkBundle,
+} from "./supabase";
 import { parseSpokeRelinkToken } from "./utils/stagingCrypto";
 import { useLexicon, CORE_GLOSSARY_TERMS } from "./LexiconContext";
 import { useTheme } from "./ThemeContext";
@@ -111,6 +117,9 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
   const [generatedKeyPreview, setGeneratedKeyPreview] = useState("");
   const [username, setUsername] = useState("");
   const [spokeRelinkToken, setSpokeRelinkToken] = useState("");
+  const [runtimeUplinkInput, setRuntimeUplinkInput] = useState("");
+  const [showUplinkConnector, setShowUplinkConnector] = useState(false);
+  const activeRuntimeUplink = parseUplinkBundle(getRuntimeUplinkBundle());
   const [blindSignupEmail, setBlindSignupEmail] = useState(true);
   const [blindSignupPreview, setBlindSignupPreview] = useState("");
   const [recoveryMode, setRecoveryMode] = useState<"passkey" | "sovereign" | "email">("sovereign");
@@ -913,6 +922,15 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
           email: signupEmail,
           password: zkSignupPassword,
           options: {
+            ...(!blindSignupEmail
+              ? {
+                  emailRedirectTo: isDesktop()
+                    ? "https://sanctuaryos.net"
+                    : typeof window !== "undefined"
+                      ? window.location.origin
+                      : "https://sanctuaryos.net",
+                }
+              : {}),
             data: {
               username,
               zk_password_v2: true,
@@ -1761,6 +1779,73 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
               </div>
             </div>
           )}
+
+          <div className="glass-panel rounded-2xl p-3.5 border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowUplinkConnector((v) => !v)}
+                className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-[var(--accent)] hover:opacity-85 transition-opacity"
+              >
+                <span className="material-symbols-outlined !text-[15px]">
+                  {t("icon_hub", "hub")}
+                </span>
+                <span>
+                  {activeRuntimeUplink?.supabase_url
+                    ? t("uplink_runtime_active_short", "Spoke Uplink Active")
+                    : t("uplink_connect_spoke_btn", "Connect to Partner Spoke (SANCTUARY-UPLINK://)")}
+                </span>
+              </button>
+              {activeRuntimeUplink?.supabase_url && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRuntimeUplinkBundle(null);
+                    window.location.reload();
+                  }}
+                  className="text-[10px] font-black uppercase tracking-wider text-[var(--danger)] hover:underline"
+                >
+                  {t("uplink_disconnect_btn", "Disconnect Uplink")}
+                </button>
+              )}
+            </div>
+            {(showUplinkConnector || Boolean(activeRuntimeUplink?.supabase_url)) && (
+              <div className="flex flex-col gap-2">
+                {activeRuntimeUplink?.supabase_url && (
+                  <div className="text-[10px] font-mono text-[var(--subtext)] truncate">
+                    {activeRuntimeUplink.supabase_url}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={runtimeUplinkInput}
+                    onChange={(e) => setRuntimeUplinkInput(e.target.value)}
+                    placeholder={t("uplink_input_placeholder", "SANCTUARY-UPLINK://...")}
+                    className="flex-1 min-w-0 glass-surface rounded-xl px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none border border-[color-mix(in_srgb,var(--text)_12%,transparent)] focus:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]"
+                  />
+                  <ActionButton
+                    variant="accent"
+                    icon={t("icon_hub", "hub")}
+                    label={t("btn_connect", "Connect")}
+                    disabled={!runtimeUplinkInput.trim()}
+                    onClick={() => {
+                      const parsed = parseUplinkBundle(runtimeUplinkInput);
+                      if (!parsed) {
+                        setStatus(
+                          t("uplink_invalid_bundle_err", "Invalid SANCTUARY-UPLINK:// bundle.")
+                        );
+                        return;
+                      }
+                      if (setRuntimeUplinkBundle(runtimeUplinkInput)) {
+                        window.location.reload();
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </SidePanel>
 

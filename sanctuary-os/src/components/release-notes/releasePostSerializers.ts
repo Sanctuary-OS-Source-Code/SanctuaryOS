@@ -119,45 +119,104 @@ export function isBundledVersionNewer(bundledVer?: string, dbVer?: string): bool
   return false;
 }
 
-export function parseLatestChangelogBlock(changelog: string) {
+export interface ParsedChangelogBlock {
+  version: string;
+  date: string;
+  heading: string;
+  markdown: string;
+}
+
+export function normalizeReleaseVersionKey(raw?: string): string {
+  return String(raw || "").replace(/^v/i, "").trim().toLowerCase();
+}
+
+export function parseAllChangelogBlocks(changelog: string): ParsedChangelogBlock[] {
   const lines = (changelog || "").split(/\r?\n/);
-  let date = "";
-  let version = "";
-  let heading = "";
-  const latestSectionLines: string[] = [];
-  let startedFirstRelease = false;
+  const blocks: ParsedChangelogBlock[] = [];
+  let curLines: string[] = [];
+  let curDate = "";
+  let curVersion = "";
+  let curHeading = "";
+
+  const flush = () => {
+    const md = curLines.join("\n").trim();
+    if (!md) return;
+    blocks.push({
+      version: curVersion,
+      date: curDate,
+      heading: curHeading,
+      markdown: md,
+    });
+    curLines = [];
+    curDate = "";
+    curVersion = "";
+    curHeading = "";
+  };
+
+  const hasDateHeaders = lines.some((l) => /^\*\*Date:/i.test(l.trim()));
 
   for (const rawLine of lines) {
     const trimmed = rawLine.trim();
-    if (/^\*\*Date:/i.test(trimmed)) {
-      if (startedFirstRelease) break;
-      startedFirstRelease = true;
-      date = trimmed.replace(/^\*\*Date:\s*/i, "").replace(/\*\*$/g, "").trim();
-      latestSectionLines.push(rawLine);
-      continue;
-    }
-    if (startedFirstRelease) {
-      if (/^\*\*Version:/i.test(trimmed) && !version) {
-        version = trimmed.replace(/^\*\*Version:\s*/i, "").replace(/\*\*$/g, "").trim();
-      } else if (trimmed.startsWith("## ") && !heading) {
-        heading = trimmed.replace(/^##\s+/, "").trim();
+    if (hasDateHeaders) {
+      if (/^\*\*Date:/i.test(trimmed)) {
+        flush();
+        curDate = trimmed.replace(/^\*\*Date:\s*/i, "").replace(/\*\*$/g, "").trim();
+        curLines.push(rawLine);
+        continue;
       }
-      latestSectionLines.push(rawLine);
+      if (/^\*\*Version:/i.test(trimmed) && !curVersion) {
+        curVersion = trimmed.replace(/^\*\*Version:\s*/i, "").replace(/\*\*$/g, "").trim();
+      } else if (trimmed.startsWith("## ") && !curHeading) {
+        curHeading = trimmed.replace(/^##\s+/, "").trim();
+      }
+      curLines.push(rawLine);
+    } else {
+      const bracketMatch = trimmed.match(/^##\s+\[?v?([0-9]+\.[0-9]+[^\s\]-]*)\]?\s*(?:[-–—]\s*(.+))?$/i);
+      if (bracketMatch) {
+        flush();
+        curVersion = bracketMatch[1].trim();
+        curDate = (bracketMatch[2] || "").trim();
+        curHeading = trimmed.replace(/^##\s+/, "").trim();
+      }
+      curLines.push(rawLine);
     }
   }
+  flush();
+  return blocks;
+}
 
+export function parseLatestChangelogBlock(changelog: string) {
+  const blocks = parseAllChangelogBlocks(changelog);
+  if (blocks.length > 0) {
+    return blocks[0];
+  }
   return {
-    date,
-    version,
-    heading,
-    markdown: latestSectionLines.join("\n").trim() || changelog,
+    date: "",
+    version: "",
+    heading: "",
+    markdown: (changelog || "").trim(),
   };
+}
+
+export function extractChangelogForVersion(
+  changelog: string,
+  version?: string
+): string {
+  const blocks = parseAllChangelogBlocks(changelog);
+  const targetKey = normalizeReleaseVersionKey(version);
+  if (targetKey) {
+    const exact = blocks.find(
+      (b) => normalizeReleaseVersionKey(b.version) === targetKey
+    );
+    if (exact) return exact.markdown;
+  }
+  return blocks[0]?.markdown || (changelog || "").trim();
 }
 
 export function serializeReleasePostMessage(
   record: Omit<KeepersReleasePostRecord, "id" | "title">
 ): string {
-  const meta = {
+  const meta: Record<string, any> = {
     summary: record.summary || "",
     version: record.version || "",
     releaseDate: record.releaseDate || "",
@@ -167,6 +226,9 @@ export function serializeReleasePostMessage(
     pollData: record.pollData || null,
     customEdited: true,
   };
+  if (record.archivedChangelog && record.archivedChangelog.trim()) {
+    meta.archivedChangelog = record.archivedChangelog.trim();
+  }
   return `<!-- RELEASE_META:${JSON.stringify(meta)} -->\n${(record.body || "").trim()}`;
 }
 
@@ -238,6 +300,11 @@ export function deserializeReleasePostRow(
         ? parsedMeta.pollData
         : row.poll_data || fallback.pollData || null,
     body: body || fallback.body,
+    archivedChangelog:
+      typeof parsedMeta.archivedChangelog === "string"
+        ? parsedMeta.archivedChangelog
+        : fallback.archivedChangelog || "",
+    publishedAt: String(row.published_at || row.updated_at || row.created_at || ""),
   };
 }
 

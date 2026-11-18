@@ -25,6 +25,14 @@ import { useStore } from '../store';
 import { getActiveGameClient, supabase } from '../supabase';
 import { isDesktop } from '../utils/envUtils';
 import { isRootDomain } from '../utils/routingUtils';
+import {
+  BLINDED_EMAIL_REGEX,
+  DmcaGuidedComplianceForm,
+  DmcaSubTypeSelector,
+  isLegalComplianceDraftValid,
+  isRealLegalEmail,
+  LegalComplianceDraft,
+} from './DmcaAndLegalFlowSteps';
 
 interface LandingSupportDrawersProps {
   // Feedback & Bug Drawer
@@ -95,6 +103,9 @@ interface LandingSupportDrawersProps {
   maxContactStep: number;
   setMaxContactStep: (fn: (prev: number) => number) => void;
   sessionEmail?: string;
+  games: any[];
+  legalDraft: LegalComplianceDraft;
+  setLegalDraft: (v: LegalComplianceDraft) => void;
 
   // My Platform Tickets Drawer
   isMyTicketsDrawerOpen: boolean;
@@ -153,6 +164,9 @@ export function LandingSupportDrawers({
   maxContactStep,
   setMaxContactStep,
   sessionEmail,
+  games,
+  legalDraft,
+  setLegalDraft,
   isMyTicketsDrawerOpen,
   setIsMyTicketsDrawerOpen,
   myPlatformTickets,
@@ -183,6 +197,25 @@ export function LandingSupportDrawers({
     activeWorkspaceObj?.name ||
     activeWorkspaceId ||
     t('tab_workspace', 'Workspace');
+
+  const isLegalChannel = contactChannel === 'Direct Contact - Legal & Compliance';
+  const isStrictDmcaFlow = isLegalChannel && legalDraft.subType !== 'privacy_general';
+  const unblindedSessionEmail =
+    sessionEmail && !BLINDED_EMAIL_REGEX.test(sessionEmail) ? sessionEmail : '';
+  const effectiveContactReply = isStrictDmcaFlow
+    ? contactReplyTo || unblindedSessionEmail
+    : contactReplyTo || sessionEmail || '';
+  const isContactStep1Valid = isStrictDmcaFlow
+    ? isRealLegalEmail(effectiveContactReply)
+    : Boolean(effectiveContactReply.trim());
+  const isContactStep2Valid = isStrictDmcaFlow
+    ? isLegalComplianceDraftValid(
+        legalDraft,
+        effectiveContactReply,
+        contactSubject,
+        contactBody
+      )
+    : Boolean(contactSubject.trim() && contactBody.trim());
   const [myTicketsScope, setMyTicketsScope] = React.useState<'core' | 'spoke'>(
     'core'
   );
@@ -1148,7 +1181,7 @@ export function LandingSupportDrawers({
                   {t('landing_contact_form_channel', 'Inquiry Channel')}
                 </h4>
                 <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono">
-                  {`${contactChannel} • ${contactReplyTo || sessionEmail || ''}`}
+                  {`${contactChannel} • ${effectiveContactReply}`}
                 </p>
               </div>
               <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
@@ -1198,7 +1231,17 @@ export function LandingSupportDrawers({
                     <button
                       key={ch.id}
                       type="button"
-                      onClick={() => setContactChannel(ch.id)}
+                      onClick={() => {
+                        setContactChannel(ch.id);
+                        if (
+                          ch.id === 'Direct Contact - Legal & Compliance' &&
+                          legalDraft.subType !== 'privacy_general' &&
+                          (contactReplyTo.trim().startsWith('@') ||
+                            BLINDED_EMAIL_REGEX.test(contactReplyTo.trim()))
+                        ) {
+                          setContactReplyTo('');
+                        }
+                      }}
                       className={`p-3.5 rounded-2xl glass-surface border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
                         active
                           ? 'border-[var(--accent)] text-[var(--accent)]'
@@ -1216,22 +1259,71 @@ export function LandingSupportDrawers({
                 })}
               </div>
 
-              <UniversalInput
-                label={`${t('landing_contact_form_reply_to', 'Your Reply Email or Discord Handle')} *`}
-                value={contactReplyTo || sessionEmail || ''}
-                onChange={setContactReplyTo}
-                placeholder={t(
-                  'landing_contact_form_reply_to_ph',
-                  'you@example.com or @handle so a human Keeper can respond...'
-                )}
-              />
+              {isLegalChannel && (
+                <DmcaSubTypeSelector
+                  draft={legalDraft}
+                  onChange={(next) => {
+                    setLegalDraft(next);
+                    if (
+                      next.subType !== 'privacy_general' &&
+                      (contactReplyTo.trim().startsWith('@') ||
+                        BLINDED_EMAIL_REGEX.test(contactReplyTo.trim()))
+                    ) {
+                      setContactReplyTo('');
+                    }
+                  }}
+                />
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                <UniversalInput
+                  label={
+                    isStrictDmcaFlow
+                      ? `${t('dmca_real_email_label', 'Valid Legal Email Address (No @handles or Blinded Aliases)')} *`
+                      : `${t('landing_contact_form_reply_to', 'Your Reply Email or Discord Handle')} *`
+                  }
+                  type={isStrictDmcaFlow ? 'email' : 'text'}
+                  className={isStrictDmcaFlow ? 'no-text-case' : undefined}
+                  value={effectiveContactReply}
+                  onChange={setContactReplyTo}
+                  placeholder={
+                    isStrictDmcaFlow
+                      ? 'legal@company.com'
+                      : t(
+                          'landing_contact_form_reply_to_ph',
+                          'you@example.com or @handle so a human Keeper can respond...'
+                        )
+                  }
+                />
+                {isStrictDmcaFlow &&
+                  Boolean(sessionEmail) &&
+                  BLINDED_EMAIL_REGEX.test(String(sessionEmail)) &&
+                  !contactReplyTo.trim() && (
+                    <span className="text-[11px] font-medium text-[var(--subtext)] px-1">
+                      {t(
+                        'dmca_blinded_autofill_suppressed',
+                        'Blinded Email autofill was withheld: 17 U.S.C. § 512 requires a real, non-blinded email address.'
+                      )}
+                    </span>
+                  )}
+                {isStrictDmcaFlow &&
+                  effectiveContactReply.trim().length > 0 &&
+                  !isRealLegalEmail(effectiveContactReply) && (
+                    <span className="text-[11px] font-bold text-[var(--warning)] px-1">
+                      {t(
+                        'dmca_strict_email_validation_err',
+                        'Discord handles (@user), invalid addresses, and synthetic Blinded Email aliases cannot be used for DMCA takedown or counter-notice filings.'
+                      )}
+                    </span>
+                  )}
+              </div>
 
               <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
                 <ActionButton
                   variant="primary"
                   icon={t('icon_done', 'done')}
                   label={t('confirm', 'Confirm')}
-                  disabled={!(contactReplyTo.trim() || sessionEmail)}
+                  disabled={!isContactStep1Valid}
                   onClick={() => {
                     setActiveContactStep(1);
                     setMaxContactStep((prev) => Math.max(prev, 1));
@@ -1241,7 +1333,7 @@ export function LandingSupportDrawers({
             </div>
           )}
 
-          {/* STEP 2: SUBJECT & MESSAGE */}
+          {/* STEP 2: SUBJECT & MESSAGE (OR STATUTORY DMCA FLOW) */}
           {maxContactStep >= 1 &&
             (activeContactStep > 1 ? (
               <div
@@ -1256,10 +1348,16 @@ export function LandingSupportDrawers({
                     {t('step_completed', 'Step Completed')}
                   </span>
                   <h4 className="text-sm font-black text-[var(--text)] truncate">
-                    {contactSubject}
+                    {isStrictDmcaFlow
+                      ? legalDraft.subType === 'dmca_takedown'
+                        ? t('dmca_flow_takedown_label', 'DMCA Takedown')
+                        : t('dmca_flow_counter_label', 'Counter-Notice')
+                      : contactSubject}
                   </h4>
                   <p className="text-xs text-[var(--subtext)] opacity-80 truncate font-mono">
-                    {contactBody}
+                    {isStrictDmcaFlow
+                      ? legalDraft.targetIdentifiersRaw || legalDraft.originalNoticeId
+                      : contactBody}
                   </p>
                 </div>
                 <span className="material-symbols-outlined text-[var(--subtext)] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all">
@@ -1273,37 +1371,53 @@ export function LandingSupportDrawers({
                     {`${t('step', 'STEP')} 2 / 3`}
                   </span>
                   <h3 className="text-xl font-black text-[var(--text)] tracking-tight mt-1">
-                    {t('landing_contact_form_body', 'Message')}
+                    {isStrictDmcaFlow
+                      ? legalDraft.subType === 'dmca_takedown'
+                        ? t('dmca_step2_takedown_heading', '17 U.S.C. § 512(c)(3) Statutory Takedown Notice')
+                        : t('dmca_step2_counter_heading', '17 U.S.C. § 512(g)(3) Counter-Notice Filing')
+                      : t('landing_contact_form_body', 'Message')}
                   </h3>
                 </div>
 
-                <UniversalInput
-                  label={`${t('landing_contact_form_subject', 'Subject')} *`}
-                  value={contactSubject}
-                  onChange={setContactSubject}
-                  placeholder={t(
-                    'landing_contact_form_subject_ph',
-                    'Subject of your inquiry...'
-                  )}
-                />
+                {isStrictDmcaFlow ? (
+                  <DmcaGuidedComplianceForm
+                    draft={legalDraft}
+                    onChange={setLegalDraft}
+                    games={games}
+                    replyEmail={effectiveContactReply}
+                    onReplyEmailChange={setContactReplyTo}
+                  />
+                ) : (
+                  <>
+                    <UniversalInput
+                      label={`${t('landing_contact_form_subject', 'Subject')} *`}
+                      value={contactSubject}
+                      onChange={setContactSubject}
+                      placeholder={t(
+                        'landing_contact_form_subject_ph',
+                        'Subject of your inquiry...'
+                      )}
+                    />
 
-                <UniversalTextArea
-                  label={`${t('landing_contact_form_body', 'Message')} *`}
-                  value={contactBody}
-                  onChange={setContactBody}
-                  placeholder={t(
-                    'landing_contact_form_body_ph',
-                    'Provide full context for the Keepers team...'
-                  )}
-                  className="min-h-[180px] sm:min-h-[200px]"
-                />
+                    <UniversalTextArea
+                      label={`${t('landing_contact_form_body', 'Message')} *`}
+                      value={contactBody}
+                      onChange={setContactBody}
+                      placeholder={t(
+                        'landing_contact_form_body_ph',
+                        'Provide full context for the Keepers team...'
+                      )}
+                      className="min-h-[180px] sm:min-h-[200px]"
+                    />
+                  </>
+                )}
 
                 <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
                   <ActionButton
                     variant="primary"
                     icon={t('icon_done', 'done')}
                     label={t('confirm', 'Confirm')}
-                    disabled={!contactSubject.trim() || !contactBody.trim()}
+                    disabled={!isContactStep2Valid}
                     onClick={() => {
                       setActiveContactStep(2);
                       setMaxContactStep((prev) => Math.max(prev, 2));
@@ -1328,6 +1442,22 @@ export function LandingSupportDrawers({
                 </h3>
               </div>
 
+              {isStrictDmcaFlow && (
+                <div className="glass-surface rounded-2xl p-4 border border-[color-mix(in_srgb,var(--text)_12%,transparent)] flex flex-col gap-1.5 text-xs">
+                  <span className="font-black text-[var(--accent)]">
+                    {legalDraft.subType === 'dmca_takedown'
+                      ? t('dmca_flow_takedown_label', 'DMCA Takedown')
+                      : t('dmca_flow_counter_label', 'Counter-Notice')}
+                  </span>
+                  <span className="text-[var(--subtext)] no-text-case font-mono">
+                    {effectiveContactReply} &bull; {legalDraft.fullLegalName}
+                  </span>
+                  <span className="text-[var(--subtext)] no-text-case font-mono truncate">
+                    {legalDraft.targetIdentifiersRaw || legalDraft.originalNoticeId}
+                  </span>
+                </div>
+              )}
+
               <div className="flex justify-end pt-2 border-t border-[color-mix(in_srgb,var(--text)_8%,transparent)]">
                 <ActionButton
                   variant="primary"
@@ -1335,16 +1465,18 @@ export function LandingSupportDrawers({
                   label={
                     isSubmittingContact
                       ? t('btn_submitting', 'Submitting...')
-                      : t(
-                          'landing_contact_submit_btn',
-                          'Send Direct Human Inquiry'
-                        )
+                      : isStrictDmcaFlow
+                        ? t('dmca_submit_notice_btn', 'Submit Statutory DMCA Notice')
+                        : t(
+                            'landing_contact_submit_btn',
+                            'Send Direct Human Inquiry'
+                          )
                   }
                   onClick={handleSubmitDirectContact}
                   disabled={
                     isSubmittingContact ||
-                    !contactSubject.trim() ||
-                    !contactBody.trim()
+                    !isContactStep1Valid ||
+                    !isContactStep2Valid
                   }
                 />
               </div>

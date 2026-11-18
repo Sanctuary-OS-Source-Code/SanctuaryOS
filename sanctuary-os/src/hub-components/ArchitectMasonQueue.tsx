@@ -1,4 +1,4 @@
-import { PanelHeaderGroup, PanelHeaderButton } from "../shared";
+import { PanelHeaderGroup, PanelHeaderButton, ActionButton } from "../shared";
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, SidePanelTitleInput } from "../components/layouts/ElevatedHubLayout";
 import { UniversalGroup, SidePanelHeroCard, StatBox } from "../components/universal/UniversalLayout";
 import { useState, useEffect } from "react";
@@ -36,6 +36,8 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
   const [isActiveVerified, setIsActiveVerified] = useState<boolean>(false);
   const [isActiveFailed, setIsActiveFailed] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isRejectingReasonOpen, setIsRejectingReasonOpen] = useState(false);
+  const [rejectReasonInput, setRejectReasonInput] = useState("");
 
   const [editForm, setEditForm] = useState({
     name: '',
@@ -171,15 +173,21 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
     setIsProcessing(false);
   };
 
-  const handleReject = async () => {
+  const handleReject = () => {
     if (!activeMod) return;
-    const reason = prompt(t("prompt_reject_reason", "Enter rejection reason:"));
-    if (reason === null) return;
+    setIsRejectingReasonOpen((prev) => !prev);
+  };
+
+  const confirmRejectSubmission = async () => {
+    if (!activeMod) return;
+    const reason = rejectReasonInput.trim();
     setIsProcessing(true);
 
     const rejectPayload = {
       status: 'rejected',
-      description: (editForm.description + '\n\nREJECTION REASON: ' + reason).trim()
+      description: reason
+        ? (editForm.description + '\n\nREJECTION REASON: ' + reason).trim()
+        : editForm.description.trim()
     };
     const { error } = await supabase.from('mods').update(rejectPayload).eq('id', activeMod.id);
 
@@ -193,6 +201,8 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
         false,
         computeAuditDiff(activeMod, rejectPayload)
       );
+      setIsRejectingReasonOpen(false);
+      setRejectReasonInput("");
       setActiveMod(null);
       invalidateNexusCatalogCache({ dispatchEvent: true });
       fetchData();
@@ -326,7 +336,11 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
 
       <SidePanel
         isOpen={!!activeMod}
-        onClose={() => setActiveMod(null)}
+        onClose={() => {
+          setIsRejectingReasonOpen(false);
+          setRejectReasonInput("");
+          setActiveMod(null);
+        }}
         title={t("registry_select_master", "Review Submission")}
         icon={t("icon_construction", "construction")}
         iconColorClass="text-[var(--accent)]"
@@ -397,6 +411,40 @@ export function MasonQueue({ modList = [], setStatus }: { modList?: any[], setSt
                 />
               </div>
             </SidePanelHeroCard>
+
+            {isRejectingReasonOpen && (
+              <UniversalGroup
+                title={t("prompt_reject_reason", "Enter rejection reason:")}
+                icon={t("icon_block", "block")}
+              >
+                <div className="flex flex-col gap-3">
+                  <textarea
+                    value={rejectReasonInput}
+                    onChange={(e) => setRejectReasonInput(e.target.value)}
+                    placeholder={t("reject_reason_placeholder", "Describe why this submission cannot be approved...")}
+                    className="w-full glass-surface rounded-xl px-4 py-3 text-[var(--text)] text-sm font-bold min-h-[88px] resize-y border border-[color-mix(in_srgb,var(--danger)_35%,transparent)] focus:outline-none focus:border-[var(--danger)] transition-all"
+                  />
+                  <div className="flex items-center justify-end gap-2">
+                    <ActionButton
+                      variant="glass"
+                      icon={t("icon_close", "close")}
+                      label={t("cancel", "Cancel")}
+                      onClick={() => {
+                        setIsRejectingReasonOpen(false);
+                        setRejectReasonInput("");
+                      }}
+                    />
+                    <ActionButton
+                      variant="danger"
+                      icon={t("icon_block", "block")}
+                      label={t("registry_btn_sever", "Reject")}
+                      disabled={isProcessing}
+                      onClick={() => void confirmRejectSubmission()}
+                    />
+                  </div>
+                </div>
+              </UniversalGroup>
+            )}
 
             <SidePanelTitleInput
               value={editForm.name || ""}

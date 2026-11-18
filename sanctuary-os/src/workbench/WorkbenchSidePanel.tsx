@@ -174,7 +174,8 @@ export function WorkbenchSidePanel({
    files,
    setShowTimeline,
    setTimelineInitialSelection,
-   setIsPushModalOpen
+   setIsPushModalOpen,
+   onFlagTemplate
 }: any) {
    const { t } = useLexicon();
    const { currentTheme } = useTheme();
@@ -586,30 +587,44 @@ export function WorkbenchSidePanel({
                                                    </span>
                                                 </div>
                                              </div>
-                                             <div className="w-full sm:w-[280px] shrink-0">
-                                                <CustomDropdown
-                                                   disableTint={true}
-                                                   menuMinWidth={260}
-                                                   className="h-10"
-                                                   buttonClassName="!h-10 !px-3.5 !rounded-xl glass-surface !border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)] !text-xs font-bold"
-                                                   value={selectedTemplatePath}
-                                                   options={availableTemplates.map((tmpl: any) => ({
-                                                      ...tmpl,
-                                                      icon: tmpl.icon || t("icon_data_object", "data_object")
-                                                   }))}
-                                                   onChange={(val: string[]) => {
-                                                      const newPath = val[0];
-                                                      setSelectedTemplatePath(newPath);
-                                                      const tmpl = availableTemplates.find((tItem: any) => tItem.id === newPath);
-                                                      if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
-                                                         setActiveTemplate(tmpl.data);
-                                                         setCustomAppliedTemplate(null);
-                                                      } else if (tmpl) {
-                                                         setCustomAppliedTemplate(tmpl.data);
-                                                         setActiveTemplate(null);
-                                                      }
-                                                   }}
-                                                />
+                                             <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                                                <div className="flex-1 sm:w-[280px] shrink-0">
+                                                   <CustomDropdown
+                                                      disableTint={true}
+                                                      menuMinWidth={260}
+                                                      className="h-10"
+                                                      buttonClassName="!h-10 !px-3.5 !rounded-xl glass-surface !border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:!border-[color-mix(in_srgb,var(--text)_24%,transparent)] !text-xs font-bold"
+                                                      value={selectedTemplatePath}
+                                                      options={availableTemplates.map((tmpl: any) => ({
+                                                         ...tmpl,
+                                                         icon: tmpl.icon || t("icon_data_object", "data_object")
+                                                      }))}
+                                                      onChange={(val: string[]) => {
+                                                         const newPath = val[0];
+                                                         setSelectedTemplatePath(newPath);
+                                                         const tmpl = availableTemplates.find((tItem: any) => tItem.id === newPath);
+                                                         if (tmpl && (tmpl.id === "built_in" || tmpl.isCommunity)) {
+                                                            setActiveTemplate(tmpl.data);
+                                                            setCustomAppliedTemplate(null);
+                                                         } else if (tmpl) {
+                                                            setCustomAppliedTemplate(tmpl.data);
+                                                            setActiveTemplate(null);
+                                                         }
+                                                      }}
+                                                   />
+                                                </div>
+                                                {onFlagTemplate && selectedTemplatePath && selectedTemplatePath !== "built_in" && (
+                                                   <button
+                                                      type="button"
+                                                      onClick={onFlagTemplate}
+                                                      className="relative group w-10 h-10 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--danger)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--danger)] flex items-center justify-center shrink-0 transition-all cursor-pointer"
+                                                   >
+                                                      <span className="material-symbols-outlined !text-[18px]">
+                                                         {t("icon_flag", "flag")}
+                                                      </span>
+                                                      <HoverTooltip title={t("auto_report", "Report Template")} variant="danger" />
+                                                   </button>
+                                                )}
                                              </div>
                                           </div>
                                        )}

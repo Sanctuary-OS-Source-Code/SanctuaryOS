@@ -171,7 +171,7 @@ export function buildMasterProtocolsSchema(
                 icon: t("icon_translate", "translate"),
                 title: g("Code-Switch"),
                 desc: g(
-                  "Auto-synced 6,166-key Standard English baseline, lightweight Sparse Delta Override packs with 21 Dynamic {Glossary} Tokens and smart article grammar, Guided Icon Overrides, and 1-click auto-translation across 28+ languages."
+                  "Auto-synced 6,800+-key Standard English baseline, lightweight Sparse Delta Override packs with 21 Dynamic {Glossary} Tokens and smart article grammar, Guided Icon Overrides, and 1-click auto-translation across 28+ languages."
                 ),
               },
               {
@@ -362,7 +362,7 @@ export function buildMasterProtocolsSchema(
                 icon: t("icon_cleaning_services", "cleaning_services"),
                 title: g("Ghost Scrubber"),
                 desc: g(
-                  "Proactively scrubs OS paths, local usernames ([USER_REDACTED]), IPs, MACs, SIDs, and HWIDs before diagnostics leave the rig while gating Architect telemetry strictly to verified Tier 0 hashes."
+                  "Proactively scrubs OS paths, local usernames, IPs, MACs, SIDs, emails, and HWIDs ([REDACTED BY SANCTUARY]) before diagnostics leave the rig while gating Architect telemetry strictly to verified Tier 0 hashes."
                 ),
               },
               {

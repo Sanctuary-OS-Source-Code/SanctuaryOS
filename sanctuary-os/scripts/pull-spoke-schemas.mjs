@@ -77,6 +77,14 @@ async function fetchJsonWithTimeout(url, apiKey, bearerToken, timeoutMs = 6000) 
 }
 
 async function main() {
+  if (
+    process.env.SANCTUARY_SKIP_SPOKE_PULL === '1' ||
+    String(process.env.VITE_SANCTUARY_MODE || '').trim().toLowerCase() === 'standalone'
+  ) {
+    console.log('[pull-schemas] Offline/standalone mode active; keeping bundled schemas.');
+    return;
+  }
+
   const { hubUrl, hubAnonKey, hubServiceKey } = readHubCredentials();
   if (!hubUrl || !hubAnonKey) {
     console.log('[pull-schemas] No Hub credentials configured; keeping bundled offline schemas.');

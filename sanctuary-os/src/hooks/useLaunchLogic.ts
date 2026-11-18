@@ -178,9 +178,30 @@ export function useLaunchLogic(
       }
     }
 
+    const resolveActiveBlueprintContext = () => {
+      const latestState = useStore.getState();
+      const wsId = latestState.activeWorkspaceId || "default";
+      const bpName =
+        latestState.activeSetName ||
+        localStorage.getItem(`sanctuary_${wsId}_active_set`) ||
+        "";
+      const allSets = Array.isArray(latestState.playSets) ? latestState.playSets : [];
+      const activeSet = bpName
+        ? allSets.find((s: any) => s?.name === bpName)
+        : null;
+      const mods: string[] = Array.isArray(activeSet?.mods)
+        ? activeSet.mods
+            .map((m: any) =>
+              typeof m === "string" ? m : String(m?.name || m?.path || "")
+            )
+            .filter(Boolean)
+        : [];
+      return { wsId, bpName, activeSet, mods };
+    };
+
     const executeGameIgnition = async () => {
-      const activeWorkspaceId =
-        useStore.getState().activeWorkspaceId || "default";
+      const { wsId: activeWorkspaceId, bpName, mods: activeModsList } =
+        resolveActiveBlueprintContext();
       const cleanupSymlinksOnExit = getCloudSessionCleanMods(activeWorkspaceId);
       const latestConfig: any = await invoke("get_saved_coordinates");
       const autoPurgeCaches =
@@ -196,6 +217,22 @@ export function useLaunchLogic(
         gameSchema: useStore.getState().activeGameSchema,
       });
       setStatus(t(msg as string, msg as string));
+
+      if (isDesktop() && bpName && activeModsList.length > 0 && latestConfig?.vault_path) {
+        const docsRoot = String(
+          storeState.docsPath ||
+            latestConfig?.docs_path ||
+            latestConfig?.user_data_path ||
+            ""
+        ).trim();
+        void invoke("record_save_doctor_manifest", {
+          vaultPath: String(latestConfig.vault_path),
+          docsPath: docsRoot || null,
+          workspaceId: activeWorkspaceId,
+          blueprintName: bpName,
+          activeMods: activeModsList,
+        }).catch(() => {});
+      }
 
       if (isDesktop()) {
         const postLaunchAction =
@@ -220,6 +257,45 @@ export function useLaunchLogic(
     };
 
     try {
+      const agency = Number(config?.engine_agency_level ?? 2);
+      const bpCtx = resolveActiveBlueprintContext();
+      if (agency !== 0 && bpCtx.activeSet && isDesktop() && (config?.vault_path || storeState.vaultPath)) {
+        try {
+          const doctorReport = await invoke<{
+            has_warning: boolean;
+            previous_blueprint: string;
+            missing_count: number;
+            missing_sample: string[];
+          }>("check_save_doctor_prelaunch", {
+            vaultPath: String(config?.vault_path || storeState.vaultPath || ""),
+            docsPath: dPath || null,
+            workspaceId: bpCtx.wsId,
+            blueprintName: bpCtx.bpName,
+            nextMods: bpCtx.mods,
+          });
+          if (doctorReport?.has_warning && doctorReport.missing_count > 0) {
+            const sampleList = (doctorReport.missing_sample || []).join(", ");
+            const proceedDoctor = await askCustom(
+              `${t(
+                "save_doctor_prelaunch_warning_prefix",
+                "Save Doctor Alert: Your active {Blueprint} is missing"
+              )} ${doctorReport.missing_count} ${t("term_mods", "{Mods}")} ${t(
+                "save_doctor_prelaunch_warning_from",
+                "from your last saved session"
+              )} (${doctorReport.previous_blueprint || bpCtx.bpName}): ${sampleList}`,
+              false,
+              t("save_doctor_btn_launch_anyway", "Launch Anyway"),
+              t("cancel", "Cancel"),
+              true,
+              t("save_doctor_title", "Save Doctor Check")
+            );
+            if (!proceedDoctor) return;
+          }
+        } catch {
+          // Non-fatal pre-launch check
+        }
+      }
+
       if (equipPlaySet) {
         const latestState = useStore.getState();
         const activeWorkspaceId = latestState.activeWorkspaceId || "default";

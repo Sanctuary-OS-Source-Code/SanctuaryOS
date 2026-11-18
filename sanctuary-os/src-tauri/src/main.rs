@@ -29,7 +29,7 @@ use crate::state::*;
 use crate::watchers::*;
 
 use std::collections::HashMap;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 #[tauri::command]
 fn sync_security_definitions(
@@ -73,156 +73,47 @@ fn reveal_main_window(app: tauri::AppHandle) {
     }
 }
 
-#[cfg(target_os = "linux")]
-fn ensure_linux_desktop_integration() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let home = match std::env::var("HOME") {
-        Ok(h) if !h.trim().is_empty() => h,
-        _ => return,
-    };
-
-    let exec_path = std::env::var("SANCTUARY_REAL_APPIMAGE")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .or_else(|| {
-            std::env::var("APPIMAGE")
-                .ok()
-                .filter(|s| !s.trim().is_empty())
-        })
-        .or_else(|| {
-            std::env::current_exe()
-                .ok()
-                .map(|p| p.to_string_lossy().to_string())
-        });
-    let exec_path = match exec_path {
-        Some(p) if !p.is_empty() => p,
-        _ => return,
-    };
-
-    let icon_bytes = include_bytes!("../icons/128x128@2x.png");
-    let app_icon_dirs = [
-        format!("{}/.local/share/icons/hicolor/256x256/apps", home),
-        format!("{}/.local/share/icons/hicolor/128x128/apps", home),
-        format!("{}/.local/share/icons/breeze/apps/64", home),
-        format!("{}/.local/share/icons/breeze-dark/apps/64", home),
-        format!("{}/.local/share/pixmaps", home),
-    ];
-    let mime_icon_dirs = [
-        format!("{}/.local/share/icons/hicolor/256x256/mimetypes", home),
-        format!("{}/.local/share/icons/hicolor/128x128/mimetypes", home),
-        format!("{}/.local/share/icons/breeze/mimetypes/64", home),
-        format!("{}/.local/share/icons/breeze-dark/mimetypes/64", home),
-    ];
-    let primary_icon_path = format!(
-        "{}/.local/share/icons/hicolor/256x256/apps/sanctuary-os.png",
-        home
-    );
-
-    for dir in &app_icon_dirs {
-        let _ = std::fs::create_dir_all(dir);
-        let _ = std::fs::write(format!("{}/sanctuary-os.png", dir), icon_bytes);
-        let _ = std::fs::write(format!("{}/SanctuaryOS.png", dir), icon_bytes);
+fn sanitize_incoming_deep_link_arg(raw: &str) -> Option<String> {
+    let cleaned = raw.trim().trim_matches('"').trim();
+    if cleaned.is_empty() {
+        return None;
     }
-    for dir in &mime_icon_dirs {
-        let _ = std::fs::create_dir_all(dir);
-        let _ = std::fs::write(format!("{}/sanctuary-os.png", dir), icon_bytes);
-        let _ = std::fs::write(
-            format!("{}/application-x-sanctuary-appimage.png", dir),
-            icon_bytes,
-        );
+    let lower = cleaned.to_ascii_lowercase();
+    if lower.starts_with("sanctuary://")
+        || lower.starts_with("sanctuary-uplink://")
+        || lower.starts_with("nxm://")
+        || lower.starts_with("ror2mm://")
+        || lower.starts_with("curseforge://")
+    {
+        return Some(cleaned.to_string());
     }
-
-    // Register high-priority XDG MIME rule so KDE Dolphin / Plasma displays the Sanctuary OS crest
-    // directly on Sanctuary*.AppImage files in ~/Downloads and ~/Desktop instead of the generic .AppImage gear icon
-    let mime_Base_dir = format!("{}/.local/share/mime", home);
-    let mime_pkg_dir = format!("{}/packages", mime_Base_dir);
-    let _ = std::fs::create_dir_all(&mime_pkg_dir);
-    let mime_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
-<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
-  <mime-type type="application/x-sanctuary-appimage">
-    <sub-class-of type="application/vnd.appimage"/>
-    <sub-class-of type="application/x-iso9660-appimage"/>
-    <sub-class-of type="application/x-executable"/>
-    <comment>Sanctuary OS AppImage</comment>
-    <icon name="sanctuary-os"/>
-    <generic-icon name="sanctuary-os"/>
-    <glob pattern="Sanctuary*.AppImage" weight="80"/>
-    <glob pattern="sanctuary*.AppImage" weight="80"/>
-    <glob pattern="*SanctuaryOS*.AppImage" weight="80"/>
-    <glob pattern="Sanctuary*.appimage" weight="80"/>
-    <glob pattern="sanctuary*.appimage" weight="80"/>
-  </mime-type>
-</mime-info>
-"#;
-    let _ = std::fs::write(format!("{}/sanctuary-os.xml", mime_pkg_dir), mime_xml);
-    let _ = std::process::Command::new("update-mime-database")
-        .arg(&mime_Base_dir)
-        .output();
-
-    if let Ok(meta) = std::fs::metadata(&exec_path) {
-        let mut perms = meta.permissions();
-        perms.set_mode(0o755);
-        let _ = std::fs::set_permissions(&exec_path, perms);
+    let p = std::path::Path::new(cleaned);
+    if p.exists() && utils::is_safe_user_file_path(p) {
+        return Some(cleaned.to_string());
     }
-    let icon_file_uri = format!("file://{}", primary_icon_path);
-    let _ = std::process::Command::new("gio")
-        .args(["set", &exec_path, "metadata::custom-icon", &icon_file_uri])
-        .output();
-    let _ = std::process::Command::new("gio")
-        .args(["set", &exec_path, "metadata::trusted", "true"])
-        .output();
+    None
+}
 
-    // Note: Do NOT include TryExec= here because KDE's KDesktopFile::tryExec() does not support spaces
-    // in filenames (e.g. "Sanctuary OS_0.6.0_amd64.AppImage") and falls back to a broken gear icon.
-    let desktop_entry = format!(
-        "[Desktop Entry]\nVersion=1.0\nType=Application\nName=Sanctuary OS\nComment=Sovereign Mod & Blueprint Operating System\nExec=\"{}\" %U\nIcon={}\nTerminal=false\nCategories=Game;Utility;\nStartupWMClass=SanctuaryOS\nStartupNotify=true\nX-KDE-SubstituteUID=false\n",
-        exec_path, primary_icon_path
-    );
-
-    let apps_dir = format!("{}/.local/share/applications", home);
-    let _ = std::fs::create_dir_all(&apps_dir);
-    let app_desktop_path = format!("{}/sanctuary-os.desktop", apps_dir);
-    if std::fs::write(&app_desktop_path, &desktop_entry).is_ok() {
-        if let Ok(meta) = std::fs::metadata(&app_desktop_path) {
-            let mut perms = meta.permissions();
-            perms.set_mode(0o755);
-            let _ = std::fs::set_permissions(&app_desktop_path, perms);
-        }
+fn dispatch_runtime_deep_links(app: &tauri::AppHandle, items: Vec<String>) {
+    if items.is_empty() {
+        return;
     }
-
-    let user_desktop_dir = format!("{}/Desktop", home);
-    if std::path::Path::new(&user_desktop_dir).is_dir() {
-        let desktop_shortcut = format!("{}/Sanctuary OS.desktop", user_desktop_dir);
-        if std::fs::write(&desktop_shortcut, &desktop_entry).is_ok() {
-            if let Ok(meta) = std::fs::metadata(&desktop_shortcut) {
-                let mut perms = meta.permissions();
-                perms.set_mode(0o755);
-                let _ = std::fs::set_permissions(&desktop_shortcut, perms);
+    reveal_main_window(app.clone());
+    if let Some(sec) = app.try_state::<SecurityState>() {
+        if !sec
+            .deep_link_listener_ready
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            if let Ok(mut guard) = sec.startup_deep_links.lock() {
+                for item in &items {
+                    if !guard.contains(item) {
+                        guard.push(item.clone());
+                    }
+                }
             }
-            let _ = std::process::Command::new("gio")
-                .args(["set", &desktop_shortcut, "metadata::trusted", "true"])
-                .output();
-            let _ = std::process::Command::new("gio")
-                .args([
-                    "set",
-                    &desktop_shortcut,
-                    "metadata::custom-icon",
-                    &icon_file_uri,
-                ])
-                .output();
         }
     }
-
-    let _ = std::process::Command::new("update-desktop-database")
-        .arg(&apps_dir)
-        .output();
-    let _ = std::process::Command::new("kbuildsycoca5")
-        .arg("--noincremental")
-        .output();
-    let _ = std::process::Command::new("kbuildsycoca6")
-        .arg("--noincremental")
-        .output();
+    let _ = app.emit("sanctuary-deep-link", items);
 }
 
 fn main() {
@@ -346,11 +237,36 @@ fn main() {
 
     std::thread::spawn(|| {
         ensure_windows_aumid_registered();
+        let initial_prefs = commands::state_ops::get_protocol_handler_preferences();
         #[cfg(target_os = "linux")]
-        ensure_linux_desktop_integration();
+        commands::system::sync_linux_desktop_integration(&initial_prefs, true);
+        #[cfg(not(target_os = "linux"))]
+        commands::system::sync_os_url_protocol_handlers(&initial_prefs);
+        commands::deployment::recover_all_stranded_workspaces_on_boot();
     });
 
-    tauri::Builder::default()
+    let startup_deep_links: Vec<String> = std::env::args()
+        .skip(1)
+        .filter_map(|arg| sanitize_incoming_deep_link_arg(&arg))
+        .collect();
+    let initial_malware_override =
+        commands::state_ops::get_global_config().malware_protocol_overridden;
+
+    let mut builder = tauri::Builder::default();
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(move |app, argv, _cwd| {
+            reveal_main_window(app.clone());
+            let items: Vec<String> = argv
+                .into_iter()
+                .skip(1)
+                .filter_map(|arg| sanitize_incoming_deep_link_arg(&arg))
+                .collect();
+            dispatch_runtime_deep_links(app, items);
+        }));
+    }
+
+    builder
         .setup(|app| {
             if let Some(win) = app.get_webview_window("main") {
                 if let Some(icon) = app.default_window_icon().cloned() {
@@ -396,11 +312,16 @@ fn main() {
             is_deploying: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             last_deploy_epoch_ms: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
         })
-        .manage(state::DownloadsWatcherState(std::sync::Mutex::new(None)))
+        .manage(state::DownloadsWatcherState::default())
         .manage(SecurityState {
             malware_hashes: std::sync::Mutex::new(Vec::new()),
             tier2_hashes: std::sync::Mutex::new(Vec::new()),
             volatile_original_paths: std::sync::Mutex::new(HashMap::new()),
+            malware_protocol_overridden: std::sync::atomic::AtomicBool::new(
+                initial_malware_override,
+            ),
+            startup_deep_links: std::sync::Mutex::new(startup_deep_links),
+            deep_link_listener_ready: std::sync::atomic::AtomicBool::new(false),
         })
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
@@ -410,6 +331,11 @@ fn main() {
             watchers::start_downloads_watch,
             watchers::stop_downloads_watch,
             update_active_game_schema,
+            get_malware_protocol_override,
+            set_malware_protocol_override,
+            get_protocol_handler_preferences,
+            set_protocol_handler_preferences,
+            consume_startup_deep_links,
             get_workbench_files,
             get_workbench_catalog,
             resolve_workbench_target_config,
@@ -433,6 +359,8 @@ fn main() {
             airgap_saves,
             recover_interrupted_lab_airgap,
             get_airgap_status,
+            record_save_doctor_manifest,
+            check_save_doctor_prelaunch,
             get_lab_test_save_status,
             configure_lab_test_save,
             deploy_mod_for_lab_test,
@@ -441,6 +369,7 @@ fn main() {
             stop_lab_verification_session,
             teardown_lab_sandbox_session,
             get_lab_certificates,
+            verify_lab_certificate_seal,
             verify_lab_certificate_exists,
             record_lab_certificate,
             get_backups,
@@ -469,6 +398,7 @@ fn main() {
             save_config_file,
             scan_game_logs,
             get_scrubbed_game_logs,
+            analyze_crash_autopsy,
             read_workspace_telemetry_log,
             clear_old_logs,
             write_os_log,
@@ -477,10 +407,16 @@ fn main() {
             rip_game_version,
             read_blueprint,
             save_blueprint,
+            get_mod_hidden_files,
+            set_mod_hidden_files,
             ingest_dropped_file,
+            commit_installer_wizard_session,
+            cancel_installer_wizard_session,
             inspect_dropped_json_bundles,
             save_dropped_os_asset,
+            import_external_mod_manager,
             extract_blueprint_mod_metadata,
+            evaluate_blueprint_load_order_diagnostics,
             resolve_dna_match,
             get_archived_mod_versions,
             get_mod_version_pool_status,
@@ -532,6 +468,9 @@ fn main() {
             get_all_edge_manifests,
             export_edge_release,
             push_static_edge_manifest,
+            get_edge_push_token,
+            set_edge_push_token,
+            download_and_ingest_direct_artifact,
             get_local_supporter_state,
             toggle_local_mason_follow,
             sync_mason_supporter_bridge,
@@ -550,6 +489,25 @@ fn main() {
             apply_cloud_sync_folder_exclusion,
             open_cloud_sync_provider_settings
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
+            if let tauri::RunEvent::Opened { urls } = &event {
+                let items: Vec<String> = urls
+                    .iter()
+                    .filter_map(|u| sanitize_incoming_deep_link_arg(u.as_str()))
+                    .collect();
+                dispatch_runtime_deep_links(app_handle, items);
+            }
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen {
+                has_visible_windows: false,
+                ..
+            } = &event
+            {
+                reveal_main_window(app_handle.clone());
+            }
+            let _ = (app_handle, event);
+        });
 }

@@ -3,4 +3,14 @@ sanctuary-os/node_modules/
 dist/
 dist-ssr/
 .DS_Store
-.gitignore
+*.tsbuildinfo
+sanctuary-os/*.tsbuildinfo
+sanctuary-os/supabase/.temp/
+supabase/.temp/
+.temp/
+.env
+.env.*
+!.env.example
+sanctuary-os/.env
+sanctuary-os/.env.*
+!sanctuary-os/.env.example

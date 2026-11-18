@@ -1139,3 +1139,71 @@ pub fn normalize_existing_case_path(full_path: &Path) -> PathBuf {
     }
     current
 }
+
+/// Computes a collision-free quarantine filename inside `q_dir` and `reports_dir`,
+/// suffixing a short SHA-256 fragment (and numeric counter if needed) when an existing
+/// file or manifest already claims the leaf filename.
+pub fn resolve_unique_quarantine_filename(
+    q_dir: &Path,
+    reports_dir: &Path,
+    raw_name: &str,
+    dna_hash: &str,
+) -> String {
+    let base_name = Path::new(raw_name)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .filter(|n| !n.trim().is_empty())
+        .unwrap_or_else(|| "quarantined_artifact".to_string());
+
+    let collides = |candidate: &str| -> bool {
+        q_dir.join(candidate).exists()
+            || reports_dir.join(format!("{}.manifest.json", candidate)).exists()
+    };
+
+    if !collides(&base_name) {
+        return base_name;
+    }
+
+    let path_obj = Path::new(&base_name);
+    let stem = path_obj
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(base_name.as_str());
+    let ext_suffix = path_obj
+        .extension()
+        .and_then(|e| e.to_str())
+        .filter(|e| !e.is_empty())
+        .map(|e| format!(".{}", e))
+        .unwrap_or_default();
+
+    let clean_hash: String = dna_hash
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .take(12)
+        .collect();
+    let tag = if clean_hash.is_empty() {
+        crate::utils::current_epoch_ms().to_string()
+    } else {
+        clean_hash
+    };
+
+    let hashed_name = format!("{}_{}{}", stem, tag, ext_suffix);
+    if !collides(&hashed_name) {
+        return hashed_name;
+    }
+
+    for idx in 1..=1000usize {
+        let numbered = format!("{}_{}_{}{}", stem, tag, idx, ext_suffix);
+        if !collides(&numbered) {
+            return numbered;
+        }
+    }
+    format!(
+        "{}_{}_{}{}",
+        stem,
+        tag,
+        crate::utils::current_epoch_ms(),
+        ext_suffix
+    )
+}

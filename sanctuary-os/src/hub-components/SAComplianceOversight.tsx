@@ -11,6 +11,7 @@ import { SharedMetadataEditorSidePanel } from '../side-panels/SharedMetadataEdit
 import { ElevatedHubLayout, HubOverviewLanding, HubOverviewSection, HubListGrid, SidePanelTitleInput, UniversalGroup, UniversalTextArea } from '../components/layouts/ElevatedHubLayout';
 import { logArchitectAction } from '../lib/audit';
 import { invalidateNexusCatalogCache } from '../utils/nexusCatalogStats';
+import DmcaOversightQueueSection from './compliance/DmcaOversightQueueSection';
 
 export default function SAComplianceOversight({ initialFilter, setInitialFilter, onOpenManualFlag }: any) {
   const { t } = useLexicon();
@@ -34,6 +35,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
   const [editReason, setEditReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState("");
+  const [dmcaCount, setDmcaCount] = useState<number>(0);
 
   // Family & Tracked Hashes state inside Enforcement drawer
   const [trackedHashes, setTrackedHashes] = useState<any[]>([]);
@@ -228,14 +230,14 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     setLoading(true);
     const { data } = await spokeOversightFrom('mods')
       .select('id, name, master_author, compliance_tier, status, status_reason, mason_id, image_url')
-      .in('compliance_tier', [1, 2, 3, 4])
+      .in('compliance_tier', [1, 2, 3, 4, 6])
       .order('compliance_tier', { ascending: false });
 
     if (data) {
       setMods(
         data.filter((m: any) => {
           const tier = Number(m?.compliance_tier || 0);
-          return tier >= 1 && tier <= 4;
+          return (tier >= 1 && tier <= 4) || tier === 6;
         })
       );
     }
@@ -243,6 +245,39 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       supabase.from('masons').select('id, name').order('name')
     );
     if (mData) setMasonsList(mData);
+
+    try {
+      const state = useStore.getState();
+      const token = state.session?.access_token || '';
+      const activeWs = Array.isArray(state.workspaces)
+        ? state.workspaces.find((w: any) => w.id === state.activeWorkspaceId)
+        : null;
+      const targetGameId =
+        activeWs?.game_id ||
+        activeWs?.schema_id ||
+        state.activeGameSchema?.id ||
+        (state.activeWorkspaceId !== 'default_workspace' && state.activeWorkspaceId !== 'web'
+          ? state.activeWorkspaceId
+          : undefined);
+      if (token && targetGameId) {
+        const { supabaseAuth } = await import('../supabase');
+        const { data: dmcaRes } = await supabaseAuth.functions.invoke('game-gateway', {
+          headers: { Authorization: `Bearer ${token}` },
+          body: { game_id: String(targetGameId), action: 'list_spoke_dmca_notices', payload: {} },
+        });
+        if (Array.isArray(dmcaRes?.notices)) {
+          const openCount = dmcaRes.notices.filter((r: any) =>
+            ['OPEN', 'SPOKE_PENDING_SLA', 'VALIDATED_HOLD', 'COUNTER_NOTICE_PENDING_10_14D'].includes(
+              String(r?.relay_status || '').toUpperCase()
+            )
+          ).length;
+          setDmcaCount(openCount);
+        }
+      }
+    } catch {
+      // DMCA count fetch optional
+    }
+
     setLoading(false);
   };
 
@@ -298,7 +333,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       setStatus(t("identities_req_reason", "Reason is required."));
       return;
     }
-    const confirmedTier = Math.max(0, Math.min(5, Number(editTier ?? mod.compliance_tier ?? 1)));
+    const confirmedTier = Math.max(0, Math.min(6, Number(editTier ?? mod.compliance_tier ?? 1)));
     const confirmedStatus = confirmedTier === 5 ? 'blacklisted' : 'verified';
     setIsSubmitting(true);
     setLoading(true);
@@ -372,7 +407,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     setStatus(t("identities_updating", "Updating..."));
 
     try {
-      const targetTier = Math.max(0, Math.min(5, Number(editTier ?? 0)));
+      const targetTier = Math.max(0, Math.min(6, Number(editTier ?? 0)));
       const nextStatus = targetTier === 5 ? 'blacklisted' : 'verified';
       const { error } = await supabase.rpc('secure_upsert_cloud_file', {
         p_token: useStore.getState().session?.access_token || '',
@@ -441,6 +476,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       case 3: return { label: t("tier_3_label", "Tier 3"), color: 'text-[var(--danger)]', border: 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' };
       case 4: return { label: t("tier_4_label", "Tier 4"), color: 'text-[var(--danger)]', border: 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' };
       case 5: return { label: t("tier_5_label", "Tier 5"), color: 'text-[var(--danger)]', border: 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)]' };
+      case 6: return { label: t("tier_6_label", "DMCA / Copyright Hold (T6)"), color: 'text-[var(--warning)]', border: 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)]' };
       default: return { label: t("tier_0_label", "Tier 0"), color: 'text-[var(--success)]', border: 'border-[color-mix(in_srgb,var(--success)_40%,transparent)]' };
     }
   };
@@ -457,6 +493,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
     },
     { id: 'pending', label: t("pending", "Pending"), icon: t("icon_schedule", "schedule"), number: pendingCount.toString(), colorClass: 'text-[var(--warning)]' },
     { id: 'confirmed', label: t("status_dd_confirmed", "Confirmed"), icon: t("icon_verified", "verified"), number: confirmedCount.toString(), colorClass: 'text-[var(--success)]' },
+    { id: 'dmca', label: t("dmca_tab_label", "DMCA & Legal"), icon: t("icon_copyright", "copyright"), number: dmcaCount.toString(), colorClass: 'text-[var(--warning)]' },
   ];
 
   const renderModCard = (mod: any) => {
@@ -593,7 +630,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
       activeTab={filterStatus === 'overview' ? 'overview' : filterStatus}
       onTabChange={(id) => setFilterStatus(id as any)}
       tabs={tabs}
-      primaryPopover={filterStatus !== 'overview' ? {
+      primaryPopover={filterStatus !== 'overview' && filterStatus !== 'dmca' ? {
         icon: t("icon_tune", "tune"),
         label: t("filters", "Filters"),
         content: (
@@ -612,7 +649,8 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
                   { id: 1, label: getTierDetails(1).label },
                   { id: 2, label: getTierDetails(2).label },
                   { id: 3, label: getTierDetails(3).label },
-                  { id: 4, label: getTierDetails(4).label }
+                  { id: 4, label: getTierDetails(4).label },
+                  { id: 6, label: getTierDetails(6).label }
                 ]}
               />
             </div>
@@ -628,7 +666,13 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
         }
       ]}
     >
-      {loading ? (
+      {filterStatus === 'dmca' ? (
+        <DmcaOversightQueueSection
+          searchQuery={search}
+          onCountChange={setDmcaCount}
+          onTriageCompleted={fetchMods}
+        />
+      ) : loading ? (
         <EmptyState
           icon={t("icon_sync", "sync")}
           title={t("comp_scanning", "Scanning...")}
@@ -746,7 +790,7 @@ export default function SAComplianceOversight({ initialFilter, setInitialFilter,
               <CustomComplianceDropdown
                 value={editTier}
                 onChange={setEditTier}
-                maxTier={5}
+                maxTier={6}
               />
             </div>
 

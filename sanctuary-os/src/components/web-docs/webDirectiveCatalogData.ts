@@ -95,7 +95,7 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
             title: t("sd_guide_s3_c1_title", "Global Drop-Zone & DNA Match"),
             desc: t(
               "sd_guide_s3_c1_desc",
-              "Drag and drop {mod} modules, .zip, .rar, .7z, .tar.zst, or .sanctuary.override.json files anywhere into Sanctuary OS. Duplicate SHA-256 hashes are automatically intercepted."
+              "Drag and drop {mod} modules, .zip, .rar, .7z, .mrpack, .wabbajack, or .sanctuary.override.json files anywhere into Sanctuary OS. Duplicate SHA-256 hashes are automatically intercepted."
             ),
           },
           {
@@ -1100,7 +1100,7 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
           },
           {
             title: t("sd_roadmap_p8_m8_title", "Tier 5 Malware Scanner & Secure Shred"),
-            desc: t("sd_roadmap_p8_m8_desc", "Byte-level heuristic malware scanner, {Citizen}-signed 3-pass Secure Shredding, and the privacy-first hardware_bans Nuclear Override."),
+            desc: t("sd_roadmap_p8_m8_desc", "Byte-level heuristic malware scanner, {Citizen}-signed zero-fill Secure Shredding, and the privacy-first hardware_bans Nuclear Override."),
           },
         ],
       },
@@ -1183,7 +1183,7 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
           },
           {
             title: t("sd_roadmap_p5_m7_title", "Zero-Bloat OS Hardlink Snapshot Engine"),
-            desc: t("sd_roadmap_p5_m7_desc", "Pairs native NTFS/POSIX hardlink deduplication with .tar.zst Zstandard compression so unchanged files consume zero extra disk space."),
+            desc: t("sd_roadmap_p5_m7_desc", "Uses parallel native NTFS/POSIX Copy-on-Write (CoW) hardlink deduplication so unchanged files consume zero extra disk space."),
           },
           {
             title: t("sd_roadmap_p5_m8_title", "Differential Rollback Comparator"),
@@ -1291,15 +1291,15 @@ export function useWebDirectiveCatalogs(t: (key: string, fallback: string) => st
           "Bunker Initialization, Cartographer Protocol & SHA-256 DNA Pathing"
         ),
         sub: t("sd_roadmap_p1_focus", "First-Boot Cartographer Recon & Millisecond Delta Caching"),
-        desc: t("sd_roadmap_p1_summary", "Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & {Mods} directories, and engineered SHA-256 DNA delta caching."),
+        desc: t("sd_roadmap_p1_summary", "Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & {Mods} directories, and engineered SHA-256 DNA delta caching."),
         milestones: [
           {
             title: t("sd_roadmap_p1_m5_title", "Cartographer Recon & Millisecond Delta Cache"),
             desc: t("sd_roadmap_p1_m5_desc", "Automated first-boot drive reconnaissance locating Game Bin & {Mods} folders, paired with SHA-256 delta caching for instant startup."),
           },
           {
-            title: t("sd_roadmap_p1_m6_title", "Tauri v2 + Rust + React 18 Kernel"),
-            desc: t("sd_roadmap_p1_m6_desc", "Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 18, TypeScript, and Zustand."),
+            title: t("sd_roadmap_p1_m6_title", "Tauri v2 + Rust + React 19 Kernel"),
+            desc: t("sd_roadmap_p1_m6_desc", "Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 19, TypeScript, and Zustand."),
           },
           {
             title: t("sd_roadmap_p1_m7_title", "Automated Coordinate Discovery Wizard"),

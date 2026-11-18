@@ -1,4 +1,4 @@
-// @ts-nocheck
+/// <reference path="../deno.d.ts" />
 export const SERVER_AUTH_OPTS = {
   auth: {
     persistSession: false,
@@ -65,6 +65,9 @@ export function applySpokeQueryModifiers(query: any, spec: any) {
 }
 
 export const STATIC_ALLOWED_ORIGINS = new Set([
+  'https://sanctuaryos.net',
+  'https://www.sanctuaryos.net',
+  'https://app.sanctuaryos.net',
   'https://sanctuaryos.gg',
   'https://www.sanctuaryos.gg',
   'https://app.sanctuaryos.gg',
@@ -90,7 +93,7 @@ export function isAllowedCorsOrigin(origin: string): boolean {
 
 export function getCorsHeaders(req: Request): Record<string, string> {
   const reqOrigin = req.headers.get('origin') || ''
-  const allowOrigin = isAllowedCorsOrigin(reqOrigin) ? reqOrigin : 'https://sanctuaryos.gg'
+  const allowOrigin = isAllowedCorsOrigin(reqOrigin) ? reqOrigin : 'https://sanctuaryos.net'
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -172,11 +175,11 @@ export function redactRestrictedEmbeddedRelations(data: any): any {
       if (Array.isArray(rel)) {
         next[relKey] = rel.filter((item: any) => {
           const t = Number(item?.compliance_tier ?? 0)
-          return !(t >= 1 && t <= 4)
+          return !((t >= 1 && t <= 4) || t === 6)
         })
       } else if (typeof rel === 'object') {
         const t = Number(rel?.compliance_tier ?? 0)
-        if (t >= 1 && t <= 4) {
+        if ((t >= 1 && t <= 4) || t === 6) {
           next[relKey] = null
         }
       }

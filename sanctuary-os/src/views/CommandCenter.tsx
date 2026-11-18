@@ -344,6 +344,7 @@ export default function CommandCenter({
   }, [isDefconActive, activeWorkspaceId, ignoredSystemCards.defcon]);
 
   const checkPerms = () => {
+    if (!isDesktop()) return;
     invoke<boolean>("check_symlink_permissions")
       .then(res => setHasSymlinkPerms(res))
       .catch(() => setHasSymlinkPerms(false));
@@ -514,7 +515,7 @@ export default function CommandCenter({
   }, [activeWorkspaceId, workspaces, session?.user?.id]);
 
   useEffect(() => {
-    if (hasSymlinkPerms === true || hasSymlinkPerms === null) return;
+    if (!isDesktop() || hasSymlinkPerms === true || hasSymlinkPerms === null) return;
     const interval = setInterval(checkPerms, 3000);
     return () => clearInterval(interval);
   }, [hasSymlinkPerms]);

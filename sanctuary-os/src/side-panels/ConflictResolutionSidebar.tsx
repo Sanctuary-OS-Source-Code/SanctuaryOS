@@ -1,9 +1,12 @@
 import { useState, Fragment, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
+import { isDesktop } from "../utils/envUtils";
 import {
   formatDisplayName,
   getExtensionRegex,
+  stripPriorityTierPrefix,
   HoverTooltip,
   SidePanel,
   PanelHeaderGroup,
@@ -93,6 +96,8 @@ const ModNameWithBadge = ({
 interface ConflictResolutionSidebarProps {
   conflict: any;
   loadOrderInfo?: ConflictLoadOrderInfo;
+  scanScope?: string;
+  onRefreshRadar?: () => void;
   onClose: () => void;
   onVault: (modName: string) => void;
   onOverride: (
@@ -108,6 +113,8 @@ interface ConflictResolutionSidebarProps {
 export default function ConflictResolutionSidebar({
   conflict,
   loadOrderInfo,
+  scanScope,
+  onRefreshRadar,
   onClose,
   onVault,
   onOverride,
@@ -115,7 +122,11 @@ export default function ConflictResolutionSidebar({
 }: ConflictResolutionSidebarProps) {
   const { t } = useLexicon();
   const activeGameSchema = useStore((state) => state.activeGameSchema);
+  const playSets = useStore((state) => state.playSets);
+  const setPlaySets = useStore((state) => state.setPlaySets);
+  const vaultPath = useStore((state) => state.vaultPath);
   const [selectedMod, setSelectedMod] = useState<string | null>(null);
+  const [fileWinnerState, setFileWinnerState] = useState<Record<string, "A" | "B">>({});
 
   const overrideTiers = (
     Array.isArray(activeGameSchema?.load_order?.priority_tiers)
@@ -144,6 +155,85 @@ export default function ConflictResolutionSidebar({
   const isTier2 = sevRank === 2;
   const isTier1 = sevRank <= 1;
   const isLoadOrderSoluble = isTier3 || isTier1;
+  const collidingFiles: string[] =
+    String(conflict.conflict_type || "").includes("virtual_fs_path") &&
+    Array.isArray(conflict.sample_resources)
+      ? conflict.sample_resources.filter((r: unknown): r is string => typeof r === "string" && r.length > 0)
+      : [];
+
+  const toCleanFolderKey = (rawName: string) => {
+    const stripped = stripPriorityTierPrefix(String(rawName || ""), activeGameSchema)
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "");
+    return stripped.split("/")[0] || stripped;
+  };
+
+  const applyPerFileWinner = async (relFile: string, winnerSide: "A" | "B") => {
+    const normFile = relFile.replace(/\\/g, "/").replace(/^\/+/, "").toLowerCase();
+    const winnerFolder = toCleanFolderKey(winnerSide === "A" ? conflict.modA : conflict.modB);
+    const loserFolder = toCleanFolderKey(winnerSide === "A" ? conflict.modB : conflict.modA);
+    if (!winnerFolder || !loserFolder || winnerFolder.toLowerCase() === loserFolder.toLowerCase()) {
+      return;
+    }
+
+    setFileWinnerState((prev) => ({ ...prev, [normFile]: winnerSide }));
+
+    const matchedSet = Array.isArray(playSets)
+      ? playSets.find(
+          (s: any) => scanScope && s.name.toLowerCase() === scanScope.toLowerCase()
+        )
+      : null;
+
+    if (matchedSet) {
+      setPlaySets((prevSets: any[]) =>
+        prevSets.map((s: any) => {
+          if (s.name.toLowerCase() !== matchedSet.name.toLowerCase()) return s;
+          const prevHidden = { ...(s.hiddenFiles || {}) };
+          const loserList: string[] = Array.isArray(prevHidden[loserFolder])
+            ? [...prevHidden[loserFolder]]
+            : [];
+          if (!loserList.some((f) => f.toLowerCase() === normFile)) {
+            loserList.push(normFile);
+          }
+          prevHidden[loserFolder] = loserList;
+          if (Array.isArray(prevHidden[winnerFolder])) {
+            const nextWinnerList = prevHidden[winnerFolder].filter(
+              (f: string) => f.toLowerCase() !== normFile
+            );
+            if (nextWinnerList.length > 0) {
+              prevHidden[winnerFolder] = nextWinnerList;
+            } else {
+              delete prevHidden[winnerFolder];
+            }
+          }
+          return { ...s, hiddenFiles: prevHidden };
+        })
+      );
+    } else if (isDesktop() && vaultPath) {
+      try {
+        const [curLoser, curWinner] = await Promise.all([
+          invoke<string[]>("get_mod_hidden_files", { vaultPath, modFolder: loserFolder }),
+          invoke<string[]>("get_mod_hidden_files", { vaultPath, modFolder: winnerFolder }),
+        ]);
+        const nextLoser = Array.from(new Set([...(curLoser || []), normFile]));
+        const nextWinner = (curWinner || []).filter((f) => f.toLowerCase() !== normFile);
+        await Promise.all([
+          invoke("set_mod_hidden_files", { vaultPath, modFolder: loserFolder, hiddenFiles: nextLoser }),
+          invoke("set_mod_hidden_files", { vaultPath, modFolder: winnerFolder, hiddenFiles: nextWinner }),
+        ]);
+      } catch (err) {
+        console.error("Failed to update .sanctuary_hidden.json sidecar:", err);
+      }
+    }
+
+    useStore
+      .getState()
+      .pushStatus(
+        t("radar_file_winner_applied", "Per-file winner set for {file}").replace("{file}", relFile),
+        "success"
+      );
+    onRefreshRadar?.();
+  };
 
   const applyWinnerChoice = (chosenMod: string) => {
     if (!chosenMod) return;
@@ -409,6 +499,60 @@ export default function ConflictResolutionSidebar({
             )}
           </div>
         </UniversalGroup>
+
+        {collidingFiles.length > 0 && (
+          <UniversalGroup
+            title={t("radar_step2_per_file_mask", "2. Per-File Conflict Masking")}
+            icon={t("icon_rule", "rule")}
+          >
+            <p className="text-[11px] font-bold text-[var(--subtext)] opacity-85 m-0">
+              {t(
+                "radar_per_file_mask_desc",
+                "Choose which {mod} supplies each overlapping asset file. The losing file is masked cleanly from virtual deployment."
+              )}
+            </p>
+            <div className="flex flex-col gap-2">
+              {collidingFiles.map((relFile) => {
+                const normKey = relFile.replace(/\\/g, "/").replace(/^\/+/, "").toLowerCase();
+                const activeSide = fileWinnerState[normKey];
+                return (
+                  <div
+                    key={relFile}
+                    className="p-3 rounded-xl glass-surface border border-[color-mix(in_srgb,var(--text)_10%,transparent)] flex flex-col gap-2"
+                  >
+                    <span className="text-xs font-mono font-bold text-[var(--text)] break-all">
+                      {relFile}
+                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => void applyPerFileWinner(relFile, "A")}
+                        className={`px-2.5 py-1 rounded-lg glass-surface border text-[11px] font-bold transition-all cursor-pointer ${
+                          activeSide === "A"
+                            ? "border-[color-mix(in_srgb,var(--success)_55%,transparent)] text-[var(--success)]"
+                            : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                        }`}
+                      >
+                        {cleanModName(conflict.modA)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void applyPerFileWinner(relFile, "B")}
+                        className={`px-2.5 py-1 rounded-lg glass-surface border text-[11px] font-bold transition-all cursor-pointer ${
+                          activeSide === "B"
+                            ? "border-[color-mix(in_srgb,var(--success)_55%,transparent)] text-[var(--success)]"
+                            : "border-[color-mix(in_srgb,var(--text)_12%,transparent)] text-[var(--subtext)] hover:text-[var(--text)]"
+                        }`}
+                      >
+                        {cleanModName(conflict.modB)}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </UniversalGroup>
+        )}
       </div>
     </SidePanel>
   );

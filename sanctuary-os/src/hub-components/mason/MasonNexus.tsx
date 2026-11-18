@@ -124,7 +124,11 @@ export function MasonNexus({
         .order("created_at", { ascending: false }),
       supabase.from("nexus_reports").select("*").order("created_at", { ascending: false }),
       supabase.from("blueprint_reports").select("*").order("created_at", { ascending: false }),
-      supabase.from("game_versions").select("version").order("created_at", { ascending: false }),
+      supabase
+        .from("game_versions")
+        .select("version, release_date")
+        .order("release_date", { ascending: false, nullsFirst: false })
+        .order("version", { ascending: false }),
     ]);
 
     if (assetsData) {

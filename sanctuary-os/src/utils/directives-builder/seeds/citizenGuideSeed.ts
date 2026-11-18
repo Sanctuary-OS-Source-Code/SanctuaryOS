@@ -367,7 +367,7 @@ export function buildCitizenGuideSchema(
                   title: t("dir_walk_s9_c1_name", "7 Engine Presets & Schema Forge"),
                   desc: t(
                     "dir_walk_s9_c1_desc",
-                    "Load built-in engine architecture presets—complete with declarative install_routes, load-order strategies, and mod_categories—or author a custom Universal schema."
+                    "Load built-in engine architecture presets—complete with declarative install_routes, DAG load-order & container TOC analyzers, and database-driven public.taxonomy Categories—or author a custom Universal schema."
                   ),
                 },
                 {
@@ -554,7 +554,7 @@ export function buildCitizenGuideSchema(
                   icon: t("icon_fingerprint", "fingerprint"),
                   title: g("Global Drop-Zone & DNA Match"),
                   desc: g(
-                    "Drag and drop supported {mod} binaries, .zip, .rar, .7z, .tar.zst, or .sanctuary.override.json files anywhere into Sanctuary OS. Duplicate SHA-256 hashes are automatically intercepted."
+                    "Drag and drop supported {mod} binaries, .zip, .rar, .7z, .mrpack, .wabbajack, JSON bundles, or .sanctuary.override.json files anywhere into Sanctuary OS. Duplicate SHA-256 hashes are automatically intercepted."
                   ),
                 },
                 {

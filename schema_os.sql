@@ -186,6 +186,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     total_months_unlocked INTEGER DEFAULT 0,
     last_donation_at TIMESTAMP WITH TIME ZONE,
     web_dev_channel_enabled BOOLEAN NOT NULL DEFAULT false,
+    dmca_strike_count SMALLINT NOT NULL DEFAULT 0,
+    cloud_publishing_revoked BOOLEAN NOT NULL DEFAULT false,
+    cloud_publishing_revoked_reason TEXT,
+    dmca_strike_log JSONB NOT NULL DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -207,7 +211,7 @@ CREATE TABLE IF NOT EXISTS public.monthly_donation_ledgers (
 
 CREATE TABLE IF NOT EXISTS public.user_encrypted_keyrings (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    encrypted_vault_secret TEXT NOT NULL CHECK (length(encrypted_vault_secret) <= 4096),
+    staging_secret_v2 TEXT NOT NULL CHECK (length(staging_secret_v2) BETWEEN 32 AND 4096),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
@@ -419,9 +423,14 @@ CREATE TABLE IF NOT EXISTS public.keeper_tickets (
 CREATE TABLE IF NOT EXISTS public.keeper_email_dispatches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     ticket_id UUID REFERENCES public.keeper_tickets(id) ON DELETE SET NULL,
+    thread_id UUID,
+    direction TEXT NOT NULL DEFAULT 'outbound',
+    in_reply_to TEXT,
+    recipient_hash TEXT,
+    sealed_envelope TEXT,
     sender_user_id UUID,
-    from_name TEXT NOT NULL DEFAULT 'Sanctuary OS Keepers Core',
-    from_email TEXT NOT NULL DEFAULT 'support@sanctuaryos.gg',
+    from_name TEXT NOT NULL DEFAULT 'Sanctuary OS',
+    from_email TEXT NOT NULL DEFAULT 'support@sanctuaryos.net',
     reply_to TEXT,
     to_email TEXT NOT NULL,
     subject TEXT NOT NULL,
@@ -432,6 +441,36 @@ CREATE TABLE IF NOT EXISTS public.keeper_email_dispatches (
     status TEXT NOT NULL DEFAULT 'SENT',
     error_message TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.dmca_compliance_notices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ticket_id UUID REFERENCES public.keeper_tickets(id) ON DELETE SET NULL,
+    notice_type TEXT NOT NULL,
+    target_scope TEXT NOT NULL,
+    target_spoke_id UUID REFERENCES public.sanctuary_games(id) ON DELETE SET NULL,
+    spoke_ticket_id UUID,
+    target_identifiers TEXT[] NOT NULL DEFAULT '{}'::TEXT[],
+    work_description TEXT,
+    work_url TEXT,
+    claimant_name_masked TEXT,
+    reply_email_masked TEXT,
+    sealed_legal_contact TEXT NOT NULL,
+    good_faith_attested BOOLEAN NOT NULL DEFAULT false,
+    perjury_authority_attested BOOLEAN NOT NULL DEFAULT false,
+    jurisdiction_attested BOOLEAN NOT NULL DEFAULT false,
+    forwarding_acknowledged BOOLEAN NOT NULL DEFAULT false,
+    electronic_signature TEXT NOT NULL,
+    submitter_user_id UUID,
+    affected_user_id UUID,
+    relay_status TEXT NOT NULL DEFAULT 'OPEN',
+    sla_deadline_at TIMESTAMPTZ,
+    counter_window_ends_at TIMESTAMPTZ,
+    resolved_at TIMESTAMPTZ,
+    resolution_notes TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS public.keeper_system_broadcasts (
@@ -554,6 +593,21 @@ ALTER TABLE IF EXISTS public.keeper_tickets ADD COLUMN IF NOT EXISTS updated_at 
 ALTER TABLE IF EXISTS public.keeper_tickets ADD COLUMN IF NOT EXISTS assigned_to UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE IF EXISTS public.keeper_support_categories ADD COLUMN IF NOT EXISTS telemetry_config JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE IF EXISTS public.system_broadcasts ADD COLUMN IF NOT EXISTS has_pending_flag BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE IF EXISTS public.keeper_email_dispatches
+    ADD COLUMN IF NOT EXISTS thread_id UUID,
+    ADD COLUMN IF NOT EXISTS direction TEXT NOT NULL DEFAULT 'outbound',
+    ADD COLUMN IF NOT EXISTS in_reply_to TEXT,
+    ADD COLUMN IF NOT EXISTS recipient_hash TEXT,
+    ADD COLUMN IF NOT EXISTS sealed_envelope TEXT;
+ALTER TABLE IF EXISTS public.profiles
+    ADD COLUMN IF NOT EXISTS dmca_strike_count SMALLINT NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS cloud_publishing_revoked BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS cloud_publishing_revoked_reason TEXT,
+    ADD COLUMN IF NOT EXISTS dmca_strike_log JSONB NOT NULL DEFAULT '[]'::jsonb;
+CREATE INDEX IF NOT EXISTS idx_keeper_email_dispatches_thread_id ON public.keeper_email_dispatches(thread_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_keeper_email_dispatches_recipient_hash ON public.keeper_email_dispatches(recipient_hash, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_dmca_compliance_notices_spoke_status ON public.dmca_compliance_notices(target_spoke_id, relay_status, sla_deadline_at);
+CREATE INDEX IF NOT EXISTS idx_dmca_compliance_notices_ticket ON public.dmca_compliance_notices(ticket_id);
 
 -- ============================================================================
 -- 6. INDEXES
@@ -1899,13 +1953,20 @@ DECLARE
     v_matched_blind BOOLEAN := false;
     v_matched_plain BOOLEAN := false;
 BEGIN
-    IF v_clean_blind <> '' AND EXISTS (
+    IF length(v_clean_email) NOT BETWEEN 3 AND 254
+       OR position('@' in v_clean_email) <= 1
+       OR v_clean_blind NOT LIKE 'zk-%@blind.%'
+       OR length(v_clean_blind) > 254 THEN
+        RETURN jsonb_build_object('is_blinded_account', false);
+    END IF;
+
+    IF EXISTS (
         SELECT 1 FROM auth.users WHERE lower(email) = v_clean_blind
     ) THEN
         v_matched_blind := true;
     END IF;
 
-    IF v_clean_email <> '' AND EXISTS (
+    IF EXISTS (
         SELECT 1 FROM auth.users WHERE lower(email) = v_clean_email
     ) THEN
         v_matched_plain := true;
@@ -1931,7 +1992,7 @@ DECLARE
     v_clean TEXT := btrim(COALESCE(p_identifier, ''));
     v_resolved_email TEXT;
 BEGIN
-    IF v_clean = '' OR position('@' in v_clean) > 0 THEN
+    IF length(v_clean) NOT BETWEEN 2 AND 64 OR position('@' in v_clean) > 0 THEN
         RETURN NULL;
     END IF;
 
@@ -1950,7 +2011,7 @@ BEGIN
         LIMIT 1;
     END IF;
 
-    IF v_resolved_email IS NOT NULL AND v_resolved_email LIKE 'zk-%' THEN
+    IF v_resolved_email IS NOT NULL AND v_resolved_email LIKE 'zk-%@blind.%' THEN
         RETURN v_resolved_email;
     END IF;
 
@@ -2096,10 +2157,12 @@ CREATE POLICY "hub_sanctuary_theme_images_delete" ON public.sanctuary_theme_imag
 -- Spoke Registry & Global Security
 DROP POLICY IF EXISTS "hub_sanctuary_games_select_anon" ON public.sanctuary_games;
 CREATE POLICY "hub_sanctuary_games_select_anon" ON public.sanctuary_games
-    FOR SELECT TO anon USING (COALESCE(is_keepers_only, false) = false);
+    FOR SELECT TO anon
+    USING (COALESCE(is_keepers_only, false) = false AND COALESCE(is_active, true) = true);
 DROP POLICY IF EXISTS "hub_sanctuary_games_select_auth" ON public.sanctuary_games;
 CREATE POLICY "hub_sanctuary_games_select_auth" ON public.sanctuary_games
-    FOR SELECT TO authenticated USING (COALESCE(is_keepers_only, false) = false OR sanctuary_internal.is_hub_keeper());
+    FOR SELECT TO authenticated
+    USING ((COALESCE(is_keepers_only, false) = false AND COALESCE(is_active, true) = true) OR sanctuary_internal.is_hub_keeper());
 DROP POLICY IF EXISTS "hub_sanctuary_games_insert" ON public.sanctuary_games;
 CREATE POLICY "hub_sanctuary_games_insert" ON public.sanctuary_games
     FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_keeper());
@@ -2167,10 +2230,19 @@ CREATE TRIGGER trg_protect_spoke_donation_broadcasts
 
 DROP POLICY IF EXISTS "hub_hardware_bans_select" ON public.hardware_bans;
 CREATE POLICY "hub_hardware_bans_select" ON public.hardware_bans
-    FOR SELECT TO public USING (true);
+    FOR SELECT TO authenticated USING (true);
 DROP POLICY IF EXISTS "hub_hardware_bans_insert" ON public.hardware_bans;
 CREATE POLICY "hub_hardware_bans_insert" ON public.hardware_bans
-    FOR INSERT TO authenticated WITH CHECK (sanctuary_internal.is_hub_keeper());
+    FOR INSERT TO authenticated
+    WITH CHECK (
+        sanctuary_internal.is_hub_keeper()
+        OR (
+            (SELECT auth.uid()) IS NOT NULL
+            AND length(btrim(hwid_hash)) = 64
+            AND banned_by IS NULL
+            AND reason IN ('Nuclear Override', 'Malware Evasion')
+        )
+    );
 DROP POLICY IF EXISTS "hub_hardware_bans_update" ON public.hardware_bans;
 CREATE POLICY "hub_hardware_bans_update" ON public.hardware_bans
     FOR UPDATE TO authenticated USING (sanctuary_internal.is_hub_keeper()) WITH CHECK (sanctuary_internal.is_hub_keeper());
@@ -2231,6 +2303,45 @@ DROP POLICY IF EXISTS "hub_keeper_tickets_delete" ON public.keeper_tickets;
 CREATE POLICY "hub_keeper_tickets_delete" ON public.keeper_tickets
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_staff());
 
+CREATE OR REPLACE FUNCTION sanctuary_internal.guard_keeper_ticket_columns()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, sanctuary_internal
+AS $$
+BEGIN
+    IF COALESCE(auth.role(), '') = 'service_role'
+       OR session_user IN ('postgres', 'supabase_admin')
+       OR sanctuary_internal.is_hub_staff() THEN
+        RETURN NEW;
+    END IF;
+
+    IF NEW.author_id IS DISTINCT FROM OLD.author_id THEN
+        RAISE EXCEPTION 'Forbidden: Only Keepers Core Staff can reassign ticket author_id';
+    END IF;
+    IF NEW.assigned_to IS DISTINCT FROM OLD.assigned_to THEN
+        RAISE EXCEPTION 'Forbidden: Only Keepers Core Staff can modify ticket assigned_to';
+    END IF;
+    IF NEW.ticket_type IS DISTINCT FROM OLD.ticket_type THEN
+        RAISE EXCEPTION 'Forbidden: Only Keepers Core Staff can change ticket_type';
+    END IF;
+    IF NEW.status IS DISTINCT FROM OLD.status THEN
+        IF OLD.author_id = (SELECT auth.uid())
+           AND upper(COALESCE(NEW.status, '')) = 'CLOSED' THEN
+            RETURN NEW;
+        END IF;
+        RAISE EXCEPTION 'Forbidden: Only Keepers Core Staff can modify ticket status';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_guard_keeper_ticket_columns ON public.keeper_tickets;
+CREATE TRIGGER trg_guard_keeper_ticket_columns
+    BEFORE UPDATE ON public.keeper_tickets
+    FOR EACH ROW
+    EXECUTE FUNCTION sanctuary_internal.guard_keeper_ticket_columns();
+
 DROP POLICY IF EXISTS "hub_keeper_email_dispatches_select" ON public.keeper_email_dispatches;
 CREATE POLICY "hub_keeper_email_dispatches_select" ON public.keeper_email_dispatches
     FOR SELECT TO authenticated USING (sanctuary_internal.is_hub_staff());
@@ -2243,6 +2354,16 @@ CREATE POLICY "hub_keeper_email_dispatches_update" ON public.keeper_email_dispat
 DROP POLICY IF EXISTS "hub_keeper_email_dispatches_delete" ON public.keeper_email_dispatches;
 CREATE POLICY "hub_keeper_email_dispatches_delete" ON public.keeper_email_dispatches
     FOR DELETE TO authenticated USING (sanctuary_internal.is_hub_keeper());
+
+ALTER TABLE public.dmca_compliance_notices ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "hub_dmca_notices_select" ON public.dmca_compliance_notices;
+CREATE POLICY "hub_dmca_notices_select" ON public.dmca_compliance_notices
+    FOR SELECT TO authenticated USING (sanctuary_internal.is_hub_staff());
+DROP POLICY IF EXISTS "hub_dmca_notices_update" ON public.dmca_compliance_notices;
+CREATE POLICY "hub_dmca_notices_update" ON public.dmca_compliance_notices
+    FOR UPDATE TO authenticated
+    USING (sanctuary_internal.is_hub_staff())
+    WITH CHECK (sanctuary_internal.is_hub_staff());
 
 -- Broadcasts, Polls & System Directives
 DROP POLICY IF EXISTS "hub_keeper_system_broadcasts_select" ON public.keeper_system_broadcasts;
@@ -2419,5 +2540,46 @@ BEGIN
         EXECUTE 'CREATE POLICY "hub_backgrounds_delete" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = ''backgrounds'' AND sanctuary_internal.is_hub_keeper())';
     END IF;
 END $$;
+
+DROP INDEX IF EXISTS public.idx_keeper_tickets_user_created;
+DROP INDEX IF EXISTS public.idx_keeper_broadcasts_category;
+CREATE INDEX IF NOT EXISTS idx_keeper_tickets_author_created ON public.keeper_tickets(author_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_hub_profiles_lower_username ON public.profiles (LOWER(username));
+CREATE INDEX IF NOT EXISTS idx_hub_profiles_lower_email ON public.profiles (LOWER(email)) WHERE email IS NOT NULL;
+
+-- ============================================================================
+-- MULTI-TENANT PARTNER SPOKE WEBHOOK SECRETS (SERVICE_ROLE ONLY)
+-- Isolated per-Spoke Stripe, Ko-fi, and shared webhook verification secrets.
+-- ============================================================================
+CREATE SCHEMA IF NOT EXISTS sanctuary_internal;
+
+CREATE TABLE IF NOT EXISTS sanctuary_internal.spoke_webhook_secrets (
+    spoke_id TEXT PRIMARY KEY,
+    stripe_webhook_secret TEXT,
+    kofi_verification_token TEXT,
+    partner_shared_secret TEXT,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE sanctuary_internal.spoke_webhook_secrets ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE sanctuary_internal.spoke_webhook_secrets FROM PUBLIC, anon, authenticated;
+DROP POLICY IF EXISTS "hub_spoke_webhook_secrets_service_only" ON sanctuary_internal.spoke_webhook_secrets;
+CREATE POLICY "hub_spoke_webhook_secrets_service_only" ON sanctuary_internal.spoke_webhook_secrets
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE OR REPLACE FUNCTION public.get_spoke_webhook_secrets(p_spoke_id TEXT)
+RETURNS TABLE(stripe_webhook_secret TEXT, kofi_verification_token TEXT, partner_shared_secret TEXT)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = sanctuary_internal, pg_catalog
+AS $$
+    SELECT s.stripe_webhook_secret, s.kofi_verification_token, s.partner_shared_secret
+    FROM sanctuary_internal.spoke_webhook_secrets s
+    WHERE s.spoke_id = lower(coalesce(trim(p_spoke_id), ''))
+    LIMIT 1;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_spoke_webhook_secrets(TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_spoke_webhook_secrets(TEXT) TO service_role;
 
 SELECT 'Sanctuary OS Core Hub Schema V0.6.0-Dev.13 Initialized Successfully' AS status;

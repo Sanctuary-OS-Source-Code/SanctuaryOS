@@ -82,6 +82,10 @@ import {
 } from '../landing/LandingPartnerGuideDrawer';
 import { LandingApplicationDrawers } from '../landing/LandingApplicationDrawers';
 import { LandingSupportDrawers } from '../landing/LandingSupportDrawers';
+import {
+  DEFAULT_LEGAL_COMPLIANCE_DRAFT,
+  LegalComplianceDraft,
+} from '../landing/DmcaAndLegalFlowSteps';
 
 import { useWebLandingSubmissionFlows } from "../components/web-landing/useWebLandingSubmissionFlows";
 export default function WebLandingPage() {
@@ -188,6 +192,9 @@ export default function WebLandingPage() {
   const [activeContactStep, setActiveContactStep] = useState(0);
   const [maxContactStep, setMaxContactStep] = useState(0);
   const [isSubmittingContact, setIsSubmittingContact] = useState(false);
+  const [legalDraft, setLegalDraft] = useState<LegalComplianceDraft>(
+    DEFAULT_LEGAL_COMPLIANCE_DRAFT
+  );
 
   // Partner Game Spoke Application Pipeline Drawer State (Chat-Like Guided Flow)
   const [isPartnerDrawerOpen, setIsPartnerDrawerOpen] = useState(false);
@@ -447,6 +454,8 @@ export default function WebLandingPage() {
     setActiveContactStep,
     setMaxContactStep,
     setIsSubmittingContact,
+    legalDraft,
+    setLegalDraft,
     setIsPartnerDrawerOpen,
     setPartnerGate1,
     partnerGate1,
@@ -735,17 +744,7 @@ export default function WebLandingPage() {
       );
       return;
     }
-    const nonce = extractCheckoutReceiptNonce(verifyReceiptInput);
-    if (!nonce || nonce.length < 4) {
-      pushToast(
-        t(
-          'supporter_web_receipt_ph',
-          'Paste checkout URL (checkout.stripe.com/c/pay/cs_...) or receipt ID...'
-        ),
-        'warning'
-      );
-      return;
-    }
+    const nonce = extractCheckoutReceiptNonce(verifyReceiptInput) || 'webhook_sync';
 
     setIsVerifyingDonation(true);
     try {
@@ -1802,6 +1801,9 @@ export default function WebLandingPage() {
           maxContactStep={maxContactStep}
           setMaxContactStep={setMaxContactStep}
           sessionEmail={session?.user?.email}
+          games={games}
+          legalDraft={legalDraft}
+          setLegalDraft={setLegalDraft}
           isMyTicketsDrawerOpen={isMyTicketsDrawerOpen}
           setIsMyTicketsDrawerOpen={setIsMyTicketsDrawerOpen}
           myPlatformTickets={myPlatformTickets}

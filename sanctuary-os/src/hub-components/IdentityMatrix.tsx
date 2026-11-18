@@ -27,6 +27,7 @@ import { ElevatedHubLayout } from "../components/layouts/ElevatedHubLayout";
 import { useStore } from "../store";
 import { logArchitectAction } from "../lib/audit";
 import TicketDossierSidePanel from "../side-panels/TicketDossierSidePanel";
+import { maskEmailsInText } from "../utils/sanctuaryEmailTemplates";
 
 export const ROLES = ["citizen", "mason", "architect", "oversight", "wayfinder"];
 
@@ -669,7 +670,7 @@ export function SharedIdentityEditor({
               />
             ) : (
               <StatBox
-                label={t("mason_Name", "{Mason}")}
+                label={t("term_mason", "Creator")}
                 value={
                   isMasonVerified
                     ? t("verified", "Verified")
@@ -791,7 +792,7 @@ export function SharedIdentityEditor({
                 {showMasonDetails && (
                   <div className="grid grid-cols-1 gap-3 pt-1 animate-in fade-in slide-in-from-top-1">
                     <UniversalInput
-                      label={t("mason_Name", "{Mason} Name")}
+                      label={t("mason_name", "{Mason} Name")}
                       value={masonName}
                       onChange={setMasonName}
                       placeholder={t(
@@ -1557,8 +1558,9 @@ export function IdentityMatrix({
           t("keepers_tab_keeper_apps", "Foundry Applications")
         }
         subtitle={
-          meta.applicant_contact ||
-          new Date(app.created_at).toLocaleDateString()
+          meta.applicant_contact
+            ? maskEmailsInText(meta.applicant_contact)
+            : new Date(app.created_at).toLocaleDateString()
         }
         badges={
           <>

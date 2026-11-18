@@ -25,48 +25,48 @@ export function buildPhaseRoadmapSchema(
         subCards: [
           {
             id: "phase_14_m1",
-            icon: t("icon_handyman", "handyman"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("Creator Airlock"),
             desc: g(
-              "Launch external authoring, asset-editing, and world-building tools inside a Save-Airgapped {Lab} session—physically isolating primary saves while developing assets or testing {mods} and restoring saves automatically on exit."
+              "Launches external authoring, asset-editing, and modding tools inside a Save-Airgapped {Lab} session with automatic post-exit save restoration—physically isolating primary saves during edits."
             ),
-            pending: true,
+            pending: false,
           },
           {
             id: "phase_14_m2",
-            icon: t("icon_inventory_2", "inventory_2"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("The Quartermaster"),
             desc: g(
-              "Intercepts multi-variant archives on drop or download with a Guided Package Installer drawer that parses multi-option installer manifests and {Mason} Dossier Flavors with auto-checked compatibility patches."
+              "Intercepts multi-variant .fomod (ModuleConfig.xml UTF-8/UTF-16LE) and BAIN archives on drop or download via a Guided Package Installer drawer with conditional flag evaluation."
             ),
-            pending: true,
+            pending: false,
           },
           {
             id: "phase_14_m3",
-            icon: t("icon_drive_file_move", "drive_file_move"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("Zero-Copy Exodus"),
             desc: g(
-              "Zero-reinstall out-of-tree migration via Cartographer & {Vault}: ingests external staging directories, safely unlinks legacy deployment links, translates XML/JSON/text profile manifests and load orders into ready {Blueprints}, preserves source URLs and notes as Local Dossiers, and supports hardlink, move, or copy Vault absorption."
+              "Zero-reinstall out-of-tree migration via {Blueprints} -> Migrate External Manager: auto-detects MO2, Vortex, and staging directories, screens with ByteHound, absorbs files via OS hardlinks, reconstructs {Blueprint} profiles, and relocates Master {Vault} roots."
             ),
-            pending: true,
+            pending: false,
           },
           {
             id: "phase_14_m4",
-            icon: t("icon_swap_horiz", "swap_horiz"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("The Rosetta Protocol"),
             desc: g(
-              "Cross-platform curated modlist and collection translator: compiles third-party collection manifests, profile archives, and XML/JSON load lists into native Sanctuary {Blueprints}, binds local {Vault} matches via SHA-256 / MD5 DNA, and routes missing items into Browser Autoloader (with two-way standard load list export)."
+              "Cross-platform curated modlist and collection translator compiling .mrpack, CurseForge manifest.json, Nexus collection.json (with modRules), and .wabbajack archives across Drag & Drop and {Blueprint} import, binding local SHA-256 matches and queuing missing items cleanly."
             ),
-            pending: true,
+            pending: false,
           },
           {
             id: "phase_14_m5",
-            icon: t("icon_health_and_safety", "health_and_safety"),
+            icon: t("icon_check_circle", "check_circle"),
             title: g("Save Doctor"),
             desc: g(
-              "Pairs save states with the deployed {Blueprint} DNA manifest (.sanctuary-save-manifest.json) and warns before launch if switching {Blueprints} removed {mods} required by the latest save."
+              "Pairs save activity with the deployed {Blueprint} DNA manifest ({Vault}/.sanctuary_save_doctor/<ws>.sanctuary-save-manifest.json) and warns before launch if switching {Blueprints} removed {mods} required by existing saves."
             ),
-            pending: true,
+            pending: false,
           },
           {
             id: "phase_14_m6",
@@ -205,7 +205,7 @@ export function buildPhaseRoadmapSchema(
             desc: g(
               "Automated Vitest + Cargo Test regression suite covering the Topological Load Order Engine, Bytecode Hound heuristic scanner (including Zlib/Zstd streams), Dynamic {Glossary} Token interpolation, and System Directive parsing."
             ),
-            pending: true,
+            pending: false,
           },
         ],
       },
@@ -230,7 +230,7 @@ export function buildPhaseRoadmapSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Schema Forge"),
             desc: g(
-              "7 multi-game architecture presets, Windows (.exe) & macOS (.app) coordinate mapping, secondary install_routes, game-agnostic mod_categories, and live config_extensions syncing."
+              "7 multi-game architecture presets, Windows (.exe) & macOS (.app) coordinate mapping, secondary install_routes, database-driven public.taxonomy Categories, and live config_extensions syncing."
             ),
             pending: false,
           },
@@ -581,7 +581,7 @@ export function buildPhaseRoadmapSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Tier 5 Malware Scanner & Secure Shred"),
             desc: g(
-              "Byte-level heuristic malware scanner, {Citizen}-signed 3-pass Secure Shredding, and the privacy-first hardware_bans Nuclear Override."
+              "Byte-level heuristic malware scanner, {Citizen}-signed zero-fill Secure Shredding, and the privacy-first hardware_bans Nuclear Override."
             ),
           },
         ],
@@ -723,7 +723,7 @@ export function buildPhaseRoadmapSchema(
             icon: t("icon_check_circle", "check_circle"),
             title: g("Zero-Bloat OS Hardlink Snapshot Engine"),
             desc: g(
-              "Pairs native NTFS/POSIX hardlink deduplication with .tar.zst Zstandard compression so unchanged files consume zero extra disk space."
+              "Uses parallel native NTFS/POSIX Copy-on-Write (CoW) hardlink deduplication so unchanged files consume zero extra disk space."
             ),
           },
           {
@@ -894,7 +894,7 @@ export function buildPhaseRoadmapSchema(
           "First-Boot Cartographer Recon & Millisecond Delta Caching"
         ),
         desc: g(
-          "Initialized the Tauri v2 + Rust + React 18 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & {Mods} directories, and engineered SHA-256 DNA delta caching."
+          "Initialized the Tauri v2 + Rust + React 19 architecture, built The Cartographer automated first-boot reconnaissance scanner for Game Bin & {Mods} directories, and engineered SHA-256 DNA delta caching."
         ),
         status: "completed",
         subCards: [
@@ -909,9 +909,9 @@ export function buildPhaseRoadmapSchema(
           {
             id: "phase_1_m6",
             icon: t("icon_check_circle", "check_circle"),
-            title: g("Tauri v2 + Rust + React 18 Kernel"),
+            title: g("Tauri v2 + Rust + React 19 Kernel"),
             desc: g(
-              "Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 18, TypeScript, and Zustand."
+              "Foundational desktop OS architecture combining a native multi-threaded Rust backend with React 19, TypeScript, and Zustand."
             ),
           },
           {

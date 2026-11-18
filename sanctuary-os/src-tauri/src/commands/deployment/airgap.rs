@@ -1506,3 +1506,632 @@ pub async fn get_airgap_status(
     .map_err(|e| e.to_string())?
 }
 
+pub fn recover_all_stranded_workspaces_on_boot() {
+    let cfg = get_global_config();
+    let mut candidates: Vec<(PathBuf, String)> = Vec::new();
+    let mut seen_docs = std::collections::HashSet::<String>::new();
+
+    let mut push_workspace = |raw_docs: Option<&str>, mods_path: &str, vault_path: &str| {
+        let docs_cand = raw_docs
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(PathBuf::from)
+            .or_else(|| {
+                let mp = mods_path.trim();
+                (!mp.is_empty()).then(|| PathBuf::from(mp)).and_then(|p| p.parent().map(|pp| pp.to_path_buf()))
+            });
+        let Some(d) = docs_cand else {
+            return;
+        };
+        let norm = crate::utils::normalize_path_key(&d);
+        if !norm.is_empty() && seen_docs.insert(norm) {
+            candidates.push((d, vault_path.trim().to_string()));
+        }
+    };
+
+    for ws in &cfg.workspaces {
+        push_workspace(ws.docs_path.as_deref(), &ws.mods_path, &ws.vault_path);
+    }
+    if let (Some(dp), Some(mp)) = (cfg.docs_path.as_deref(), cfg.mods_path.as_deref()) {
+        push_workspace(Some(dp), mp, cfg.vault_path.as_deref().unwrap_or(""));
+    }
+
+    for (docs_dir, vault_path) in candidates {
+        if !docs_dir.exists() {
+            continue;
+        }
+        let vault_opt = (!vault_path.is_empty()).then_some(vault_path.as_str());
+        let storage = resolve_airgap_storage_paths(&docs_dir, vault_opt);
+        let journal = load_airgap_journal(
+            &storage.primary_airgap_root,
+            Some(storage.secondary_vault_mirror.as_path()),
+        );
+        let marker_targets: Vec<String> = std::fs::read_to_string(storage.primary_airgap_root.join(".airgap_active.json"))
+            .ok()
+            .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+            .and_then(|v| {
+                v.get("targets").and_then(|arr| arr.as_array()).map(|a| {
+                    a.iter().filter_map(|x| x.as_str().map(String::from)).collect()
+                })
+            })
+            .unwrap_or_default();
+
+        let target_names: Vec<String> = journal
+            .as_ref()
+            .map(|j| j.targets.iter().map(|t| t.target_name.clone()).collect())
+            .filter(|v: &Vec<String>| !v.is_empty())
+            .unwrap_or(marker_targets);
+
+        if target_names.is_empty() {
+            continue;
+        }
+
+        let schema_hint = Some(crate::schema::GameSchema {
+            time_capsule: Some(crate::schema::TimeCapsuleConfig {
+                save_airgap_targets: Some(target_names),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+        let _ = recover_stranded_airgap_if_needed(&docs_dir, &vault_path, &schema_hint);
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SaveDoctorManifest {
+    pub blueprint_name: String,
+    pub recorded_at: u64,
+    pub latest_save_mtime: Option<u64>,
+    pub active_mods: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct SaveDoctorDiffReport {
+    pub has_warning: bool,
+    pub previous_blueprint: String,
+    pub missing_count: usize,
+    pub missing_sample: Vec<String>,
+}
+
+fn sanitize_save_doctor_workspace_id(workspace_id: &str) -> String {
+    let cleaned: String = workspace_id
+        .trim()
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '_' | '-') {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    if cleaned.is_empty() {
+        "default".to_string()
+    } else {
+        cleaned
+    }
+}
+
+fn resolve_save_doctor_manifest_path(vault_path: &str, workspace_id: &str) -> Result<PathBuf, String> {
+    let trimmed = vault_path.trim();
+    if trimmed.is_empty() {
+        return Err("VAULT_NOT_CONFIGURED".into());
+    }
+    let vault_root = crate::utils::get_vault_root_dir(trimmed);
+    if !crate::utils::is_safe_workspace_target_dir(&vault_root) {
+        return Err("Blocked: unsafe Vault path for Save Doctor manifest.".into());
+    }
+    let dir = vault_root.join(".sanctuary_save_doctor");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    crate::utils::mark_path_hidden(&dir);
+    let safe_ws = sanitize_save_doctor_workspace_id(workspace_id);
+    Ok(dir.join(format!("{}.sanctuary-save-manifest.json", safe_ws)))
+}
+
+fn inspect_docs_save_activity(
+    docs_path: Option<&str>,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> (bool, Option<u64>) {
+    let Some(raw_docs) = docs_path.map(str::trim).filter(|s| !s.is_empty()) else {
+        return (true, None);
+    };
+    let docs_dir = resolve_docs_root(raw_docs, game_schema);
+    if !docs_dir.is_dir() {
+        return (true, None);
+    }
+    let targets = resolve_deduplicated_save_targets(&docs_dir, game_schema);
+    let mut existing_dirs: Vec<PathBuf> = Vec::new();
+    for t in &targets {
+        let cand = crate::utils::resolve_case_insensitive_path(&docs_dir, t);
+        if cand.is_dir() {
+            existing_dirs.push(cand);
+        }
+    }
+    if existing_dirs.is_empty() {
+        return (true, None);
+    }
+    let mut has_files = false;
+    let mut max_mtime: Option<u64> = None;
+    for dir in existing_dirs {
+        for entry in walkdir::WalkDir::new(&dir)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            let fname_lower = entry.file_name().to_string_lossy().to_ascii_lowercase();
+            if is_airgap_internal_marker_name(&fname_lower)
+                || crate::utils::is_macos_or_os_metadata_path(entry.path())
+            {
+                continue;
+            }
+            has_files = true;
+            if let Ok(meta) = entry.metadata() {
+                if let Ok(modified) = meta.modified() {
+                    if let Ok(dur) = modified.duration_since(std::time::UNIX_EPOCH) {
+                        let secs = dur.as_secs();
+                        max_mtime = Some(max_mtime.map_or(secs, |prev| prev.max(secs)));
+                    }
+                }
+            }
+        }
+    }
+    (has_files, max_mtime)
+}
+
+fn normalize_mod_identity_tokens(raw: &str) -> (String, String) {
+    let clean = raw.replace('\\', "/").trim().to_ascii_lowercase();
+    let leaf = clean.rsplit('/').next().unwrap_or(&clean).to_string();
+    (clean, leaf)
+}
+
+/// Inspects save files or JSON save sidecars for embedded mod/plugin lists driven by `schema.extensions.supported`.
+pub fn inspect_save_embedded_mods(
+    save_path: &Path,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Vec<String> {
+    use std::io::Read;
+    let Ok(f) = std::fs::File::open(save_path) else {
+        return Vec::new();
+    };
+    let mut buf = Vec::new();
+    if f.take(512 * 1024).read_to_end(&mut buf).is_err() || buf.is_empty() {
+        return Vec::new();
+    }
+
+    let is_json_name = save_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("json"))
+        .unwrap_or(false);
+    let trimmed_start = buf
+        .iter()
+        .copied()
+        .skip_while(|b| b.is_ascii_whitespace())
+        .next();
+
+    if is_json_name || trimmed_start == Some(b'{') {
+        if let Ok(val) = serde_json::from_slice::<serde_json::Value>(&buf) {
+            let mut found = Vec::new();
+            let mut seen = HashSet::new();
+            for key in ["active_mods", "mods", "plugins"] {
+                if let Some(arr) = val.get(key).and_then(|v| v.as_array()) {
+                    for item in arr {
+                        if let Some(s) = item.as_str().map(str::trim).filter(|s| !s.is_empty()) {
+                            if seen.insert(s.to_ascii_lowercase()) {
+                                found.push(s.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+            if !found.is_empty() {
+                return found;
+            }
+        }
+    }
+
+    let supported_exts: Vec<String> = crate::game_logic::get_supported_extensions(game_schema)
+        .into_iter()
+        .map(|e| e.trim_start_matches('.').to_ascii_lowercase())
+        .filter(|e| !e.is_empty())
+        .collect();
+    if supported_exts.is_empty() || buf.len() < 6 {
+        return Vec::new();
+    }
+
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    let mut pos = 0usize;
+    while pos + 4 <= buf.len() {
+        let len = u16::from_le_bytes([buf[pos], buf[pos + 1]]) as usize;
+        if len >= 4 && len <= 255 && pos + 2 + len <= buf.len() {
+            let slice = &buf[pos + 2..pos + 2 + len];
+            let valid_chars = slice.iter().all(|&b| {
+                (0x20..=0x7E).contains(&b)
+                    && !matches!(b, b'/' | b'\\' | b':' | b'*' | b'?' | b'"' | b'<' | b'>' | b'|')
+            });
+            if valid_chars {
+                if let Ok(candidate) = std::str::from_utf8(slice) {
+                    let trimmed = candidate.trim();
+                    if let Some((_, ext)) = trimmed.rsplit_once('.') {
+                        let ext_low = ext.to_ascii_lowercase();
+                        if !trimmed.starts_with('.')
+                            && supported_exts.iter().any(|se| se == &ext_low)
+                        {
+                            if seen.insert(trimmed.to_ascii_lowercase()) {
+                                out.push(trimmed.to_string());
+                            }
+                            pos += 2 + len;
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        pos += 1;
+    }
+    out
+}
+
+fn collect_docs_embedded_save_mods(
+    docs_path: Option<&str>,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Vec<String> {
+    let Some(raw_docs) = docs_path.map(str::trim).filter(|s| !s.is_empty()) else {
+        return Vec::new();
+    };
+    let docs_dir = resolve_docs_root(raw_docs, game_schema);
+    if !docs_dir.is_dir() {
+        return Vec::new();
+    }
+    let targets = resolve_deduplicated_save_targets(&docs_dir, game_schema);
+    let mut files: Vec<(u64, PathBuf)> = Vec::new();
+    for t in &targets {
+        let cand = crate::utils::resolve_case_insensitive_path(&docs_dir, t);
+        if !cand.is_dir() {
+            continue;
+        }
+        for entry in walkdir::WalkDir::new(&cand)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            let fname_lower = entry.file_name().to_string_lossy().to_ascii_lowercase();
+            if is_airgap_internal_marker_name(&fname_lower)
+                || crate::utils::is_macos_or_os_metadata_path(entry.path())
+            {
+                continue;
+            }
+            let mtime = entry
+                .metadata()
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            files.push((mtime, entry.into_path()));
+        }
+    }
+    files.sort_by(|a, b| b.0.cmp(&a.0));
+
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    for (_, path) in files.into_iter().take(16) {
+        for m in inspect_save_embedded_mods(&path, game_schema) {
+            if seen.insert(m.to_ascii_lowercase()) {
+                out.push(m);
+            }
+        }
+    }
+    out
+}
+
+pub fn record_save_doctor_manifest_sync(
+    vault_path: &str,
+    docs_path: Option<&str>,
+    workspace_id: &str,
+    blueprint_name: &str,
+    active_mods: Vec<String>,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Result<(), String> {
+    let manifest_path = resolve_save_doctor_manifest_path(vault_path, workspace_id)?;
+    let (_, latest_save_mtime) = inspect_docs_save_activity(docs_path, game_schema);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let dedup_mods: Vec<String> = {
+        let mut seen = HashSet::new();
+        let mut out = Vec::new();
+        for m in active_mods {
+            let trimmed = m.trim().to_string();
+            if !trimmed.is_empty() && seen.insert(trimmed.to_ascii_lowercase()) {
+                out.push(trimmed);
+            }
+        }
+        out
+    };
+    let manifest = SaveDoctorManifest {
+        blueprint_name: blueprint_name.trim().to_string(),
+        recorded_at: now,
+        latest_save_mtime,
+        active_mods: dedup_mods,
+    };
+    let bytes = serde_json::to_vec_pretty(&manifest).map_err(|e| e.to_string())?;
+    crate::utils::atomic_write_bytes(&manifest_path, &bytes)
+}
+
+pub fn check_save_doctor_prelaunch_sync(
+    vault_path: &str,
+    docs_path: Option<&str>,
+    workspace_id: &str,
+    next_mods: Vec<String>,
+    game_schema: &Option<crate::schema::GameSchema>,
+) -> Result<SaveDoctorDiffReport, String> {
+    let manifest_path = resolve_save_doctor_manifest_path(vault_path, workspace_id)?;
+    let prev: Option<SaveDoctorManifest> = if manifest_path.is_file() {
+        let raw = std::fs::read_to_string(&manifest_path).map_err(|e| e.to_string())?;
+        Some(serde_json::from_str(&raw).map_err(|e| e.to_string())?)
+    } else {
+        None
+    };
+
+    let prev_blueprint = prev
+        .as_ref()
+        .map(|p| p.blueprint_name.clone())
+        .unwrap_or_default();
+
+    let (has_save_files, _) = inspect_docs_save_activity(docs_path, game_schema);
+    if !has_save_files {
+        return Ok(SaveDoctorDiffReport {
+            has_warning: false,
+            previous_blueprint: prev_blueprint,
+            missing_count: 0,
+            missing_sample: Vec::new(),
+        });
+    }
+
+    let mut expected_mods: Vec<String> = Vec::new();
+    let mut seen_expected = HashSet::new();
+    if let Some(ref manifest) = prev {
+        for m in &manifest.active_mods {
+            if seen_expected.insert(m.to_ascii_lowercase()) {
+                expected_mods.push(m.clone());
+            }
+        }
+    }
+    for m in collect_docs_embedded_save_mods(docs_path, game_schema) {
+        if seen_expected.insert(m.to_ascii_lowercase()) {
+            expected_mods.push(m);
+        }
+    }
+
+    if expected_mods.is_empty() {
+        return Ok(SaveDoctorDiffReport {
+            has_warning: false,
+            previous_blueprint: prev_blueprint,
+            missing_count: 0,
+            missing_sample: Vec::new(),
+        });
+    }
+
+    let mut next_full = HashSet::new();
+    let mut next_leaf = HashSet::new();
+    for m in next_mods {
+        let (full, leaf) = normalize_mod_identity_tokens(&m);
+        if !full.is_empty() {
+            next_full.insert(full);
+        }
+        if !leaf.is_empty() {
+            next_leaf.insert(leaf);
+        }
+    }
+
+    let mut missing: Vec<String> = Vec::new();
+    for prev_mod in &expected_mods {
+        let (full, leaf) = normalize_mod_identity_tokens(prev_mod);
+        if !next_full.contains(&full) && !next_leaf.contains(&leaf) {
+            let label = prev_mod
+                .replace('\\', "/")
+                .rsplit('/')
+                .next()
+                .unwrap_or(prev_mod)
+                .to_string();
+            missing.push(label);
+        }
+    }
+
+    let missing_count = missing.len();
+    let missing_sample = missing.into_iter().take(5).collect();
+    Ok(SaveDoctorDiffReport {
+        has_warning: missing_count > 0,
+        previous_blueprint: if prev_blueprint.is_empty() {
+            "Embedded Save Header".to_string()
+        } else {
+            prev_blueprint
+        },
+        missing_count,
+        missing_sample,
+    })
+}
+
+#[tauri::command]
+pub async fn record_save_doctor_manifest(
+    vault_path: String,
+    docs_path: Option<String>,
+    workspace_id: String,
+    blueprint_name: String,
+    active_mods: Vec<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        record_save_doctor_manifest_sync(
+            &vault_path,
+            docs_path.as_deref(),
+            &workspace_id,
+            &blueprint_name,
+            active_mods,
+            &game_schema,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn check_save_doctor_prelaunch(
+    vault_path: String,
+    docs_path: Option<String>,
+    workspace_id: String,
+    blueprint_name: String,
+    next_mods: Vec<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<SaveDoctorDiffReport, String> {
+    let _ = blueprint_name;
+    let game_schema = state.active_schema.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        check_save_doctor_prelaunch_sync(
+            &vault_path,
+            docs_path.as_deref(),
+            &workspace_id,
+            next_mods,
+            &game_schema,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn save_doctor_records_and_detects_missing_mods() {
+        let root = std::env::temp_dir().join(format!(
+            "sanctuary_save_doctor_test_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let vault_dir = root.join("Vault");
+        let docs_dir = root.join("Docs");
+        let saves_dir = docs_dir.join("Saves");
+        std::fs::create_dir_all(&vault_dir).unwrap();
+        std::fs::create_dir_all(&saves_dir).unwrap();
+        std::fs::write(saves_dir.join("slot1.sav"), b"SAVE_DATA").unwrap();
+
+        let schema = Some(crate::schema::GameSchema {
+            time_capsule: Some(crate::schema::TimeCapsuleConfig {
+                save_airgap_targets: Some(vec!["Saves".to_string()]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+
+        let vp = vault_dir.to_string_lossy().to_string();
+        let dp = docs_dir.to_string_lossy().to_string();
+        record_save_doctor_manifest_sync(
+            &vp,
+            Some(&dp),
+            "ws_alpha",
+            "Campaign One",
+            vec!["Core/core.ext".to_string(), "Overhaul/world.ext".to_string()],
+            &schema,
+        )
+        .unwrap();
+
+        let clean = check_save_doctor_prelaunch_sync(
+            &vp,
+            Some(&dp),
+            "ws_alpha",
+            vec!["core.ext".to_string(), "world.ext".to_string()],
+            &schema,
+        )
+        .unwrap();
+        assert!(!clean.has_warning);
+        assert_eq!(clean.missing_count, 0);
+
+        let warned = check_save_doctor_prelaunch_sync(
+            &vp,
+            Some(&dp),
+            "ws_alpha",
+            vec!["core.ext".to_string()],
+            &schema,
+        )
+        .unwrap();
+        assert!(warned.has_warning);
+        assert_eq!(warned.previous_blueprint, "Campaign One");
+        assert_eq!(warned.missing_count, 1);
+        assert_eq!(warned.missing_sample, vec!["world.ext".to_string()]);
+
+        // Ensure zero sidecar manifests were placed inside live game docs directories
+        assert!(!docs_dir.join(".sanctuary-save-manifest.json").exists());
+        assert!(vault_dir
+            .join(".sanctuary_save_doctor")
+            .join("ws_alpha.sanctuary-save-manifest.json")
+            .is_file());
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn save_doctor_inspects_binary_save_plugin_headers() {
+        let root = std::env::temp_dir().join(format!(
+            "sanctuary_save_header_test_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let vault_dir = root.join("Vault");
+        let docs_dir = root.join("Docs");
+        let saves_dir = docs_dir.join("Saves");
+        std::fs::create_dir_all(&vault_dir).unwrap();
+        std::fs::create_dir_all(&saves_dir).unwrap();
+
+        let mut save_bytes = Vec::new();
+        save_bytes.extend_from_slice(b"SAVE_HDR_V1");
+        save_bytes.extend_from_slice(&[0u8; 16]);
+        let p1 = b"core_framework.mod";
+        save_bytes.extend_from_slice(&(p1.len() as u16).to_le_bytes());
+        save_bytes.extend_from_slice(p1);
+        let p2 = b"missing_plugin.mod";
+        save_bytes.extend_from_slice(&(p2.len() as u16).to_le_bytes());
+        save_bytes.extend_from_slice(p2);
+        std::fs::write(saves_dir.join("slot2.sav"), &save_bytes).unwrap();
+
+        let schema = Some(crate::schema::GameSchema {
+            extensions: crate::schema::SchemaExtensions {
+                supported: vec![".mod".to_string()],
+                ..Default::default()
+            },
+            time_capsule: Some(crate::schema::TimeCapsuleConfig {
+                save_airgap_targets: Some(vec!["Saves".to_string()]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+
+        let vp = vault_dir.to_string_lossy().to_string();
+        let dp = docs_dir.to_string_lossy().to_string();
+        let warned = check_save_doctor_prelaunch_sync(
+            &vp,
+            Some(&dp),
+            "ws_binary",
+            vec!["core_framework.mod".to_string()],
+            &schema,
+        )
+        .unwrap();
+
+        assert!(warned.has_warning);
+        assert_eq!(warned.previous_blueprint, "Embedded Save Header");
+        assert_eq!(warned.missing_count, 1);
+        assert_eq!(warned.missing_sample, vec!["missing_plugin.mod".to_string()]);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+}
+

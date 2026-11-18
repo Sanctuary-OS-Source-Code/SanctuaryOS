@@ -120,7 +120,7 @@ export default function MasonHub({ sandboxMod, clearSandboxMod, vaultPath, handl
       setMasonActiveTab("command_center");
       return;
     }
-    const isMobileView = !isDesktop() || (typeof window !== "undefined" && window.innerWidth < 768);
+    const isMobileView = typeof window !== "undefined" && window.innerWidth < 768;
     if (isMobileView && masonActiveTab === "chameleons") {
       setMasonActiveTab("command_center");
     }

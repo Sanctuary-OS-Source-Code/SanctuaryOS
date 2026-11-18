@@ -8,7 +8,7 @@ import { UniversalCard } from "../universal/UniversalCard";
 import { DynamicBlueprintPreviewBanner } from "../../chameleon-components/ThemeCard";
 import { VaultCompanionDesktopBlueprint, ResolvedStagedPayload } from "../../utils/stagingCrypto";
 import { VAULT_CHIP_CLASS } from "../../shared-components/constants";
-import { PRIORITY_TIERS, resolveKnownAuthor } from "./stagingEditorHelpers";
+import { resolveKnownAuthor, resolveSchemaPriorityTiers } from "./stagingEditorHelpers";
 
 export function useStagingCardRenderers({
   onOpenDossier,
@@ -56,9 +56,12 @@ export function useStagingCardRenderers({
     const realIdx = isReadOnly
       ? idx
       : stagingDraftItems.findIndex((x: any) => x.id === item.id);
-    const currentTier = item.priority_tier || "3_Standard";
+    const activeTiers = resolveSchemaPriorityTiers(activeGameSchema);
+    const currentTier = item.priority_tier || activeTiers[Math.min(2, activeTiers.length - 1)]?.id || "3_Standard";
     const tierMeta =
-      PRIORITY_TIERS.find((pt) => pt.id === currentTier) || PRIORITY_TIERS[2];
+      activeTiers.find((pt) => pt.id === currentTier) ||
+      activeTiers[Math.min(2, activeTiers.length - 1)] ||
+      activeTiers[0];
     const isNexusAsset =
       item.asset_type === "lexicon" ||
       item.asset_type === "chameleon" ||

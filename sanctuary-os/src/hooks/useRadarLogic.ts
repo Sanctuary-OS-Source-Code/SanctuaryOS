@@ -67,14 +67,18 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
   const [malwareAlert, setMalwareAlert] = useState<any[]>([]);
   const { t } = useLexicon();
 
-  async function fetchVault() {
-    if (!isDesktop()) return;
+  async function fetchVault(): Promise<any[]> {
+    if (!isDesktop()) return [];
     const [rawQDetails, sList] = await Promise.all([
       invoke<any[]>("get_quarantine_details").catch(() => []),
       invoke<string[]>("get_shelter_list").catch(() => []),
     ]);
     const filteredDetails = (rawQDetails || []).filter(
-      (d) => d?.name && !String(d.name).startsWith(".shredding_") && !recentlyShreddedSet.has(d.name)
+      (d) =>
+        d?.name &&
+        !String(d.name).startsWith(".shredding_") &&
+        !recentlyShreddedSet.has(d.name) &&
+        !d?.manifest?.quarantined_file_shredded
     );
     const qList = filteredDetails.map((d) => d.name);
     setQuarantineList(qList);
@@ -140,17 +144,29 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
           if (e.name && !enrichedByName.has(e.name)) enrichedByName.set(e.name, e);
           if (e.hash && !enrichedByHash.has(e.hash)) enrichedByHash.set(e.hash, e);
         }
-        const updatedExisting = existingList.map((item) => {
-          const match = enrichedByName.get(item.name) || (item.hash ? enrichedByHash.get(item.hash) : undefined);
-          return match
-            ? {
-              ...item,
-              ...match,
-              volatile_original_path:
-                match.volatile_original_path || item.volatile_original_path,
-            }
-            : item;
-        });
+        const scanInFlight =
+          useModalStore.getState().isScanning || useModalStore.getState().isSilentScanning;
+        const updatedExisting = existingList
+          .filter((item) => !recentlyShreddedSet.has(item.name))
+          .filter((item) => {
+            const stillPresent =
+              enrichedByName.has(item.name) ||
+              (item.hash ? enrichedByHash.has(item.hash) : false);
+            return stillPresent || scanInFlight;
+          })
+          .map((item) => {
+            const match =
+              enrichedByName.get(item.name) ||
+              (item.hash ? enrichedByHash.get(item.hash) : undefined);
+            return match
+              ? {
+                ...item,
+                ...match,
+                volatile_original_path:
+                  match.volatile_original_path || item.volatile_original_path,
+              }
+              : item;
+          });
         const existingNames = new Set<string>();
         const existingHashes = new Set<string>();
         for (const p of updatedExisting) {
@@ -170,11 +186,24 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
               }).catch((e: any) => console.error("Malware Report Insert Exception (fetchVault):", e));
             });
           }
-          notifyOS("Quarantine Lockdown", `Sanctuary OS has quarantined ${newItems.length} persistent dangerous artifacts on boot.`, 'MALWARE_ALERT');
+          notifyOS(
+            t("malware_boot_quarantine_title", "Quarantine Lockdown"),
+            t(
+              "malware_boot_quarantine_body",
+              "Sanctuary OS has quarantined {count} persistent dangerous {mods} on boot."
+            ).replace("{count}", String(newItems.length)),
+            "MALWARE_ALERT"
+          );
           return [...updatedExisting, ...newItems];
         }
         return updatedExisting;
       });
+      return enrichedItems;
+    } else {
+      if (!useModalStore.getState().isScanning && !useModalStore.getState().isSilentScanning) {
+        setMalwareAlert([]);
+      }
+      return [];
     }
   }
 
@@ -234,6 +263,34 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
         console.error("Failed to sanitize vault during radar sweep:", e);
       }
 
+      const heuristicSyncPromise = (async () => {
+        if (isOfflineMode) return;
+        try {
+          const [{ data: coreHeuristics }, { data: spokeHeuristics }] = await Promise.all([
+            supabaseAuth.from("keeper_heuristic_signatures").select("*"),
+            supabase.from("heuristic_signatures").select("*"),
+          ]);
+          const mergedMap = new Map<string, any>();
+          (coreHeuristics || []).forEach((s: any) => mergedMap.set(`core_${s.id}`, { ...s, source: s.source || "keepers_core" }));
+          (spokeHeuristics || []).forEach((s: any) => mergedMap.set(`spoke_${s.id}`, { ...s, source: s.source || "spoke_oversight" }));
+          if (mergedMap.size > 0 && config.vault_path) {
+            await invoke("save_heuristic_signatures", {
+              vaultPath: config.vault_path,
+              signatures: Array.from(mergedMap.values()),
+            });
+          }
+        } catch (err) {
+          console.error("Heuristic signature sync failed", err);
+        }
+      })();
+      await Promise.race([
+        heuristicSyncPromise,
+        new Promise<void>((resolve) => setTimeout(resolve, 2500)),
+      ]);
+
+      // Fetch quarantine details & auto-rescue false positives BEFORE walking Mods in scan_bunker
+      const persistentQuarantineItems = await fetchVault();
+
       const backgroundMaintenancePromise = (async () => {
         if (quickScan) return;
         try {
@@ -266,30 +323,9 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
         } catch (e) {
           console.error("DLC scan failed during sweep", e);
         }
-
-        if (!isOfflineMode) {
-          try {
-            const [{ data: coreHeuristics }, { data: spokeHeuristics }] = await Promise.all([
-              supabaseAuth.from("keeper_heuristic_signatures").select("*"),
-              supabase.from("heuristic_signatures").select("*"),
-            ]);
-            const mergedMap = new Map<string, any>();
-            (coreHeuristics || []).forEach((s: any) => mergedMap.set(`core_${s.id}`, { ...s, source: s.source || "keepers_core" }));
-            (spokeHeuristics || []).forEach((s: any) => mergedMap.set(`spoke_${s.id}`, { ...s, source: s.source || "spoke_oversight" }));
-            if (mergedMap.size > 0 && config.vault_path) {
-              await invoke("save_heuristic_signatures", {
-                vaultPath: config.vault_path,
-                signatures: Array.from(mergedMap.values()),
-              });
-            }
-          } catch (err) {
-            console.error("Heuristic signature sync failed", err);
-          }
-        }
       })();
 
-      const [, rawLocalMods, sandboxMods, archivedVersions] = await Promise.all([
-        fetchVault(),
+      const [rawLocalMods, sandboxMods, archivedVersions] = await Promise.all([
         invoke<any[]>("scan_bunker", {
           vaultPath: config.vault_path,
           shelterActive: true,
@@ -464,7 +500,7 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
 
         restrictedHashTierMap = resolvedTierMap;
         resolvedTierMap.forEach((tier, normH) => {
-          if (tier >= 1 && tier <= 4) {
+          if ((tier >= 1 && tier <= 4) || tier === 6) {
             restrictedHashesSet.add(normH);
           }
         });
@@ -475,8 +511,10 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
           const rawHash = row?.dna_hash ? String(row.dna_hash).trim() : "";
           const normHash = normalizeComplianceHash(rawHash);
           const rpcTier = normHash ? restrictedHashTierMap.get(normHash) : undefined;
-          if ((tVal >= 1 && tVal <= 4) || (typeof rpcTier === "number" && rpcTier >= 1 && rpcTier <= 4)) {
-            const effTier = tVal >= 1 && tVal <= 4 ? tVal : Number(rpcTier);
+          const isTValRestricted = (tVal >= 1 && tVal <= 4) || tVal === 6;
+          const isRpcRestricted = typeof rpcTier === "number" && ((rpcTier >= 1 && rpcTier <= 4) || rpcTier === 6);
+          if (isTValRestricted || isRpcRestricted) {
+            const effTier = isTValRestricted ? tVal : Number(rpcTier);
             if (rawHash) restrictedHashesSet.add(rawHash);
             if (normHash) {
               restrictedHashesSet.add(normHash);
@@ -489,13 +527,14 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
         allCloudData.push(...safeCloudRows);
       }
       updateProgress(75, t("scan_identifying", "IDENTIFYING FILES..."));
+      useStore.getState().setTier2Hashes(Array.from(restrictedHashesSet));
 
       const getDbMod = (sig: any) =>
         Array.isArray(sig?.mods) ? sig.mods[0] : sig?.mods;
       const isCloudMetadataRestricted = (dbM: any) => {
         if (!dbM) return true;
         const tier = Number(dbM.compliance_tier ?? 0);
-        if (tier >= 1 && tier <= 4) return true;
+        if ((tier >= 1 && tier <= 4) || tier === 6) return true;
         if (String(dbM.status || "").toLowerCase() === "unverified") return true;
         return false;
       };
@@ -1692,7 +1731,10 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
         return { ...m, conflicts: myConflicts.length > 0 ? myConflicts : undefined };
       });
 
-      const detectedMalware = masterList.filter((m: any) => (m.compliance_tier === 5 || (typeof m.status === 'string' && m.status.includes("QUARANTINED") && ![1, 2, 3, 4].includes(m.compliance_tier))) && !m.isVirtual && !m.isLocalOverride);
+      const activePersistentQuarantine = persistentQuarantineItems.filter(
+        (q: any) => q?.name && !recentlyShreddedSet.has(q.name)
+      );
+      const detectedMalware = masterList.filter((m: any) => (m.compliance_tier === 5 || (typeof m.status === 'string' && m.status.includes("QUARANTINED") && ![1, 2, 3, 4, 6].includes(m.compliance_tier))) && !m.isVirtual && !m.isLocalOverride);
       if (detectedMalware.length > 0) {
         const hydratedDetectedMalware = await Promise.all(
           detectedMalware.map(async (m: any) => {
@@ -1711,18 +1753,44 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
           })
         );
 
+        const combinedDetected = [...activePersistentQuarantine];
+        for (const h of hydratedDetectedMalware) {
+          const exists = combinedDetected.some(
+            (p: any) =>
+              (p.name && h.name && p.name === h.name) ||
+              (p.hash && h.hash && p.hash === h.hash)
+          );
+          if (!exists) combinedDetected.push(h);
+        }
+
         setMalwareAlert((prev: any[]) => {
-          if (!prev) return hydratedDetectedMalware;
-          const updatedPrev = prev.map((p: any) => {
-            const match = hydratedDetectedMalware.find(
-              (m: any) => (m.hash && p.hash === m.hash) || (m.dbId && p.dbId === m.dbId)
-            );
-            return match && match.volatile_original_path && !p.volatile_original_path
-              ? { ...p, volatile_original_path: match.volatile_original_path }
-              : p;
-          });
-          const newAlerts = hydratedDetectedMalware.filter(
-            (m: any) => !updatedPrev.some((p: any) => p.hash === m.hash || (p.dbId && p.dbId === m.dbId))
+          if (!prev || prev.length === 0) return combinedDetected;
+          const updatedPrev = prev
+            .filter((p: any) => !recentlyShreddedSet.has(p.name))
+            .map((p: any) => {
+              const match = combinedDetected.find(
+                (m: any) =>
+                  (m.hash && p.hash === m.hash) ||
+                  (m.name && p.name === m.name) ||
+                  (m.dbId && p.dbId === m.dbId)
+              );
+              return match
+                ? {
+                  ...p,
+                  ...match,
+                  volatile_original_path:
+                    match.volatile_original_path || p.volatile_original_path,
+                }
+                : p;
+            });
+          const newAlerts = combinedDetected.filter(
+            (m: any) =>
+              !updatedPrev.some(
+                (p: any) =>
+                  (m.hash && p.hash === m.hash) ||
+                  (m.name && p.name === m.name) ||
+                  (m.dbId && p.dbId === m.dbId)
+              )
           );
           return [...updatedPrev, ...newAlerts];
         });
@@ -1737,6 +1805,20 @@ export function useRadarLogic(checkNetworkUpdates: (currentModList: any[], isMan
             });
           }
         }
+      } else if (activePersistentQuarantine.length > 0) {
+        setMalwareAlert((prev: any[]) => {
+          if (!prev || prev.length === 0) return activePersistentQuarantine;
+          return activePersistentQuarantine.map((qItem: any) => {
+            const existing = prev.find(
+              (p: any) =>
+                (qItem.hash && p.hash === qItem.hash) ||
+                (qItem.name && p.name === qItem.name)
+            );
+            return existing?.volatile_original_path && !qItem.volatile_original_path
+              ? { ...qItem, volatile_original_path: existing.volatile_original_path }
+              : qItem;
+          });
+        });
       } else {
         setMalwareAlert([]);
       }

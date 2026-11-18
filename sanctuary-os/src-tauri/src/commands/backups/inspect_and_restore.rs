@@ -25,11 +25,64 @@ pub struct BackupFile {
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct DeltaManifest {
+    #[serde(default)]
+    pub lane: Option<String>,
     pub previous_backup_name: Option<String>,
     pub is_baseline: bool,
     pub added_paths: Vec<String>,
     pub updated_paths: Vec<String>,
     pub removed_files: Vec<BackupFile>,
+}
+
+/// Resolves whether a Time Capsule snapshot belongs to the `"engine"` or `"world"` lane,
+/// preferring `.delta_manifest.json`'s persisted `"lane"` field, then its containing folder,
+/// and falling back to legacy snapshot naming (`Engine_Core` / `contains("Engine")`) so
+/// renamed snapshots never restore into the wrong root directory.
+pub(crate) fn is_engine_backup_lane(
+    backup_path: &Path,
+    backup_name: &str,
+    vault_path: &str,
+    live_path: &str,
+) -> bool {
+    if backup_path.is_dir() {
+        if let Ok(raw) = std::fs::read_to_string(backup_path.join(".delta_manifest.json")) {
+            if let Ok(parsed) = serde_json::from_str::<DeltaManifest>(&raw) {
+                if let Some(lane) = parsed.lane.as_deref() {
+                    let clean = lane.trim();
+                    if clean.eq_ignore_ascii_case("engine") {
+                        return true;
+                    }
+                    if clean.eq_ignore_ascii_case("world") {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(parent) = backup_path.parent() {
+        let parent_norm = crate::utils::normalize_path_key(parent);
+        if !vault_path.trim().is_empty() {
+            let vault_backups = crate::utils::get_vault_root_dir(vault_path).join("Backups");
+            if parent_norm == crate::utils::normalize_path_key(&vault_backups.join("Engine")) {
+                return true;
+            }
+            if parent_norm == crate::utils::normalize_path_key(&vault_backups.join("World")) {
+                return false;
+            }
+            if !live_path.trim().is_empty() {
+                if let Some(engine_dir) =
+                    crate::utils::get_engine_backups_dir(live_path, vault_path)
+                {
+                    if parent_norm == crate::utils::normalize_path_key(&engine_dir) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    backup_name.starts_with("Engine_Core") || backup_name.contains("Engine")
 }
 
 #[derive(Serialize, Deserialize)]
@@ -122,23 +175,19 @@ pub async fn get_backup_contents(
             cached_logical_size
         };
 
-        // Find the immediately preceding snapshot of the same prefix (World_State or Engine_Core)
-        let prefix = if backup_name.starts_with("World_State") {
-            Some("World_State")
-        } else if backup_name.starts_with("Engine_Core") {
-            Some("Engine_Core")
-        } else {
-            None
-        };
+        // Find the immediately preceding snapshot of the same lane ("world" or "engine")
+        let config = get_saved_coordinates();
+        let is_engine = is_engine_backup_lane(&backup_dir, &backup_name, &vault_path, &config.live_path);
+        let lane_str = if is_engine { "engine" } else { "world" };
+        let legacy_sub = if is_engine { "Engine" } else { "World" };
 
         let mut prev_backup_entry: Option<(u64, String, PathBuf)> = None;
-        if let Some(pfx) = prefix {
+        {
             let current_ts = crate::utils::extract_backup_timestamp(&backup_name);
             let mut candidate_dirs = Vec::new();
             if let Some(parent) = backup_dir.parent() {
                 candidate_dirs.push(parent.to_path_buf());
             }
-            let legacy_sub = if pfx == "World_State" { "World" } else { "Engine" };
             let legacy_dir = PathBuf::from(&vault_path).join("Backups").join(legacy_sub);
             if legacy_dir.exists() && !candidate_dirs.contains(&legacy_dir) {
                 candidate_dirs.push(legacy_dir);
@@ -147,7 +196,25 @@ pub async fn get_backup_contents(
                 if let Ok(entries) = std::fs::read_dir(&dir) {
                     for entry in entries.flatten() {
                         let name = entry.file_name().to_string_lossy().to_string();
-                        if name.starts_with(pfx) && name != backup_name && entry.path().is_dir() {
+                        if name == backup_name
+                            || !entry.path().is_dir()
+                            || name.starts_with('.')
+                            || name == "World"
+                            || name == "Engine"
+                            || name == "Mods"
+                            || name == "Config"
+                        {
+                            continue;
+                        }
+                        let is_snapshot = name.starts_with("World_State")
+                            || name.starts_with("Engine_Core")
+                            || entry.path().join(".delta_manifest.json").exists();
+                        if !is_snapshot {
+                            continue;
+                        }
+                        if is_engine_backup_lane(&entry.path(), &name, &vault_path, &config.live_path)
+                            == is_engine
+                        {
                             let ts = crate::utils::extract_backup_timestamp(&name);
                             let is_older = (ts > 0 && current_ts > 0 && ts < current_ts)
                                 || (ts == current_ts && name < backup_name);
@@ -179,8 +246,9 @@ pub async fn get_backup_contents(
         {
             if let Ok(raw_json) = std::fs::read_to_string(&manifest_path) {
                 if let Ok(parsed) = serde_json::from_str::<DeltaManifest>(&raw_json) {
-                    if (is_baseline && parsed.is_baseline)
-                        || (!is_baseline && parsed.previous_backup_name == prev_name)
+                    if parsed.lane.as_deref() == Some(lane_str)
+                        && ((is_baseline && parsed.is_baseline)
+                            || (!is_baseline && parsed.previous_backup_name == prev_name))
                     {
                         loaded_manifest = Some(parsed);
                     }
@@ -215,6 +283,7 @@ pub async fn get_backup_contents(
                 collect_removed_files_from_previous(&Some(prev_dir.clone()), &current_rel_set);
 
             let computed = DeltaManifest {
+                lane: Some(lane_str.to_string()),
                 previous_backup_name: Some(p_name.clone()),
                 is_baseline: false,
                 added_paths,
@@ -227,6 +296,7 @@ pub async fn get_backup_contents(
             computed
         } else {
             let computed = DeltaManifest {
+                lane: Some(lane_str.to_string()),
                 previous_backup_name: None,
                 is_baseline: true,
                 added_paths: Vec::new(),
@@ -335,7 +405,7 @@ pub async fn extract_backup_file(
             std::slice::from_ref(&backup_dir),
         )?;
 
-        let target_root = if backup_name.starts_with("Engine_Core") {
+        let target_root = if is_engine_backup_lane(&backup_dir, &backup_name, &vault_path, &config.live_path) {
             crate::game_logic::resolve_game_engine_root(&config.live_path, &game_schema)
         } else {
             crate::utils::resolve_effective_docs_path_with_override(
@@ -403,7 +473,9 @@ pub async fn diff_backup(
         };
         let config = get_saved_coordinates();
 
-        let target_root = if backup_name.starts_with("Engine_Core") {
+        let is_engine_backup =
+            is_engine_backup_lane(&backup_dir, &backup_name, &vault_path, &config.live_path);
+        let target_root = if is_engine_backup {
             crate::game_logic::resolve_game_engine_root(&config.live_path, &game_schema)
         } else {
             crate::utils::resolve_effective_docs_path_with_override(
@@ -470,7 +542,7 @@ pub async fn diff_backup(
             .collect();
 
         // For World State backups, also detect new files in live world_state_targets that did not exist when this snapshot was sealed
-        if !backup_name.starts_with("Engine_Core") {
+        if !is_engine_backup {
             let mut sub_dirs: Vec<String> = Vec::new();
             if let Some(schema) = &game_schema {
                 if let Some(tc) = &schema.time_capsule {
@@ -553,12 +625,13 @@ pub async fn restore_game_data(
         let arc =
             find_backup(&config.vault_path, &backup_name).ok_or("Backup not found in Vault")?;
 
-        let is_engine_restore = backup_name.contains("Engine");
         let effective_live = if live_path.trim().is_empty() {
             config.live_path.clone()
         } else {
             live_path
         };
+        let is_engine_restore =
+            is_engine_backup_lane(&arc, &backup_name, &config.vault_path, &effective_live);
         let target = if is_engine_restore {
             crate::game_logic::resolve_game_engine_root(&effective_live, &game_schema)
         } else {
@@ -727,7 +800,7 @@ pub async fn restore_game_data(
                 current: 0,
                 total: total_size,
                 app: app.clone(),
-                action: if backup_name.contains("Engine") {
+                action: if is_engine_restore {
                     "Restoring Engine Core...".into()
                 } else {
                     "Restoring World State...".into()
@@ -909,6 +982,68 @@ mod tests {
             b"BLUEPRINT_A"
         );
         assert!(!target_docs.join("BlueprintsData").join("stale_item.bin").exists());
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_renamed_engine_snapshot_preserves_engine_lane_from_delta_manifest() {
+        let tmp = std::env::temp_dir().join(format!(
+            "sanctuary_renamed_engine_lane_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let vault_dir = tmp.join("Vault");
+        let renamed_snapshot = vault_dir.join("Backups").join("PrePatchBackup");
+        std::fs::create_dir_all(&renamed_snapshot).unwrap();
+
+        let manifest = DeltaManifest {
+            lane: Some("engine".to_string()),
+            previous_backup_name: None,
+            is_baseline: true,
+            added_paths: vec![],
+            updated_paths: vec![],
+            removed_files: vec![],
+        };
+        std::fs::write(
+            renamed_snapshot.join(".delta_manifest.json"),
+            serde_json::to_string(&manifest).unwrap(),
+        )
+        .unwrap();
+
+        assert!(
+            is_engine_backup_lane(
+                &renamed_snapshot,
+                "PrePatchBackup",
+                &vault_dir.to_string_lossy(),
+                "",
+            ),
+            "Renamed Engine backup with lane=\"engine\" in .delta_manifest.json must route back to Engine Root, never Documents"
+        );
+
+        let renamed_world = vault_dir.join("Backups").join("Engine_Named_World_Trap");
+        std::fs::create_dir_all(&renamed_world).unwrap();
+        let world_manifest = DeltaManifest {
+            lane: Some("world".to_string()),
+            previous_backup_name: None,
+            is_baseline: true,
+            added_paths: vec![],
+            updated_paths: vec![],
+            removed_files: vec![],
+        };
+        std::fs::write(
+            renamed_world.join(".delta_manifest.json"),
+            serde_json::to_string(&world_manifest).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            !is_engine_backup_lane(
+                &renamed_world,
+                "Engine_Named_World_Trap",
+                &vault_dir.to_string_lossy(),
+                "",
+            ),
+            "Snapshot with explicit lane=\"world\" in .delta_manifest.json must stay in World lane regardless of name"
+        );
 
         let _ = std::fs::remove_dir_all(&tmp);
     }

@@ -963,7 +963,8 @@ export default function KeepersHeuristicsOversight() {
                     { id: "archive_entry_exact", label: t("comp_match_type_archive_exact", "Archive Entry (Exact)") },
                     { id: "archive_entry_contains", label: t("comp_match_type_archive_contains", "Archive Entry (Contains)") },
                     { id: "file_name_exact", label: t("comp_match_type_file_exact", "File Name (Exact)") },
-                    { id: "file_name_contains", label: t("comp_match_type_file_contains", "File Name (Contains)") }
+                    { id: "file_name_contains", label: t("comp_match_type_file_contains", "File Name (Contains)") },
+                    { id: "file_extension", label: t("comp_match_type_file_ext", "File Extension (Exact)") }
                   ]}
                   onChange={(v: string[]) => setMatchType(v[0])}
                   disableTint={true}

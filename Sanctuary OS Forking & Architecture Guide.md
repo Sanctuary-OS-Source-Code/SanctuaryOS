@@ -53,7 +53,7 @@ export const SANCTUARY_CONFIG = {
     },
 };
 ```
-*(Optional: You can also pass these via `.env` variables: `VITE_SANCTUARY_UPLINK_BUNDLE`, `VITE_SANCTUARY_MODE=standalone`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_STANDALONE_WORKSPACE_ID`, `VITE_STANDALONE_WORKSPACE_NAME`, `VITE_STANDALONE_SCHEMA_ID`.)*
+*(Optional: You can also pass these via `.env` variables: `VITE_SANCTUARY_UPLINK_BUNDLE`, `VITE_SANCTUARY_MODE=standalone`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_STANDALONE_WORKSPACE_ID`, `VITE_STANDALONE_WORKSPACE_NAME`, `VITE_STANDALONE_SCHEMA_ID`, and `VITE_GITHUB_RELEASE_REPO=your-org/your-fork-repo` for optional fork updater routing.)*
 
 ### Step 3: Launch, Claim Founding Wayfinder Clearance & Cryptographic `SRK1` Profile Relinking
 1. Run the app in development or build native installers for Windows, macOS, and Linux / SteamOS:
@@ -116,7 +116,7 @@ If you want to fork Sanctuary OS to operate your own **multi-game federation** (
 If you are joining the official Sanctuary OS multi-game network rather than forking the client, **zero code edits are required**. Sanctuary OS separates global identity and core infrastructure from community-owned game registries:
 
 1. **The Core OS Hub ([`schema_os.sql`](./schema_os.sql)) — Governed by Keepers Core:**
-   - **Zero-Knowledge Seal & FIDO2 Security Vault:** Citizens authenticate once against the Core OS Hub (`profiles` holds global `id`, `username`, `role = 'citizen' | 'keeper'`, and protected Supporter / **Nuclear Override** ban state; `user_passkeys` stores WebAuthn/FIDO2 hardware and biometric credentials).
+   - **Zero-Knowledge Seal & FIDO2 Security Vault:** Citizens authenticate once against the Core OS Hub (`profiles` holds global `id`, `username`, `role = 'citizen' | 'keeper'`, and protected Supporter / **Nuclear Override** ban state; `auth.webauthn_credentials` paired with the AES-256-GCM local desktop passkey vault stores WebAuthn/FIDO2 hardware and biometric credentials).
    - **Mirror Uplink, Default Schema & Assets:** Hosts the baseline `default.json` **Universal Master Schema** in `sanctuary_schemas`, `system_directives` (bidirectionally synced via **Mirror Uplink** with codebase `.md` files), core `sanctuary_lexicons` (`en-default`, `en-sanctuary`), the 7 universal Core OS `sanctuary_themes`, and `keeper_heuristic_signatures` (**Bytecode Hound**).
    - **Spoke Directory & Split-Custody Double-Envelope Vault (`sanctuary_games` & `sanctuary_internal.spoke_credentials`):** `public.sanctuary_games` maps each active community workspace (`schema_id`, `supabase_url`, `supabase_anon_key`, `is_keepers_only`, and Wayfinder-governed non-custodial `donation_url` / `payment_processor`), while Spoke `spk_gw_*` gateway tokens are sealed via **HKDF-SHA256 + AES-256-GCM** bound AAD (`SPOKE_VAULT_MASTER_KEY`) and Supabase Vault (`vault.secrets`) inside `service_role`-only `sanctuary_internal.spoke_credentials` so neither DB leaks nor client queries can expose usable Spoke credentials.
    - **Batch-Coalesced API Gateway (`game-gateway` Edge Function):** Validates the Citizen's Hub JWT, enforces 5-tier Spoke RBAC across `spoke_query` and sub-second `spoke_query_batch` requests, manages content-addressed `<= 250 KB` WebP theme wallpaper uploads, and executes bilateral severance.
@@ -124,7 +124,7 @@ If you are joining the official Sanctuary OS multi-game network rather than fork
 2. **The Community Spoke ([`schema.sql`](./schema.sql)) — Owned 100% by the Community (Wayfinder):**
    - **Sovereign Supabase Instance:** The community creates and owns their own Supabase project, with community donation fields protected by Postgres triggers (`protect_spoke_donation_fields`) so only the Spoke's Wayfinder can modify them.
    - **Spoke-Scoped 5-Tier Roles:** Each Spoke has its own `profiles` table where community roles (`wayfinder`, `oversight`, `architect`, `mason`, `citizen`) and communications bans (`is_comm_banned`) are assigned independently per game.
-   - **Spoke Control & Spoke Aesthetics:** Hosts the community's own game Master Schema, **Code-Switch** Sparse Delta Spoke Lexicons, **Liquid Glass Optics** Chameleon Themes, `mods`, `mod_versions`, `flavor_groups` (**The Highlander Rule** Exclusive Slots), `blueprints`, `collections`, Verified-Mason-governed `nexus_assets`, `citizen_staging_queue` (10 MB GZIP + AES-256-GCM **Beam to Rig** sync), `mason_posts`, `system_broadcasts`, `heuristic_signatures`, `sanctuary_tickets`, and immutable `audit_logs`.
+   - **Spoke Control & Spoke Aesthetics:** Hosts the community's own game Master Schema, relational `taxonomy` Categories, **Code-Switch** Sparse Delta Spoke Lexicons, **Liquid Glass Optics** Chameleon Themes, `mods`, `mod_versions`, `flavor_groups` (**The Highlander Rule** Exclusive Slots), `blueprints`, `collections`, Verified-Mason-governed `nexus_assets`, `citizen_staging_queue` (10 MB GZIP + AES-256-GCM **Beam to Rig** sync), `mason_posts`, `system_broadcasts`, `heuristic_signatures`, `sanctuary_tickets`, and append-only `audit_logs` (with Wayfinder >30-day retention pruning).
 
 ### Quick Reference Cheat Sheet: Linking, Rotating & Re-Linking a Spoke
 1. **First-Time Spoke Link:** Run [`schema.sql`](./schema.sql) in the Spoke's Supabase SQL Editor -> run `SELECT public.mint_spoke_gateway_token();` in the Spoke SQL Editor to get a one-time `spk_gw_...` token -> open **Keepers Core -> Partner Spokes** (or **Wayfinder Operations -> Spoke Control -> Spoke Setup & Maintenance**), enter `Supabase Project URL`, `Supabase Anon / Publishable Key` (or paste a secret-free `SANCTUARY-UPLINK://` bundle), and the `spk_gw_...` **Spoke Gateway Token** -> click **Test Handshake & Verify Schema** / **Save**.
@@ -297,7 +297,7 @@ One unified codebase powers your native **Desktop client (Windows / macOS / Linu
               "id": "fork_cov_s2",
               "icon": "link_off",
               "title": "Community-Initiated Severance ('Cut the Cord')",
-              "desc": "A Wayfinder can execute the phrase-locked 'Cut the Cord' safeguard in Wayfinder Operations at any time—writing an immutable audit log, setting is_active = false, revoking all Spoke Gateway Tokens, and purging the Spoke's sealed Vault credential from the Hub."
+              "desc": "A Wayfinder can execute the phrase-locked 'Cut the Cord' safeguard in Wayfinder Operations at any time—writing an append-only audit log, setting is_active = false, revoking all Spoke Gateway Tokens, and purging the Spoke's sealed Vault credential from the Hub."
             },
             {
               "id": "fork_cov_s3",
@@ -357,7 +357,7 @@ One unified codebase powers your native **Desktop client (Windows / macOS / Linu
               "id": "fork_m2_s1",
               "icon": "memory",
               "title": "1. Provision Core Hub Database (schema_os.sql)",
-              "desc": "Create your central Hub Supabase project and run schema_os.sql in the SQL Editor. This provisions global SSO profiles, FIDO2 user_passkeys, sanctuary_games, sanctuary_schemas, system_directives, and keeper_heuristic_signatures."
+              "desc": "Create your central Hub Supabase project and run schema_os.sql in the SQL Editor. This provisions global SSO profiles, auth.webauthn_credentials FIDO2 passkeys, sanctuary_games, sanctuary_schemas, system_directives, and keeper_heuristic_signatures."
             },
             {
               "id": "fork_m2_s2",

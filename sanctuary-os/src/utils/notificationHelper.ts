@@ -67,6 +67,7 @@ const MAX_DELIVERED_IDS = 600;
 let isApplyingRemotePrefs = false;
 let pendingPushTimer: ReturnType<typeof setTimeout> | null = null;
 let inFlightNotificationSync: Promise<boolean> | null = null;
+let lastNotificationSyncCompletedAt = 0;
 
 function touchNotificationPrefsUpdatedAt(): void {
   if (typeof window === 'undefined' || isApplyingRemotePrefs) return;
@@ -1604,11 +1605,19 @@ export function scheduleNotificationStatePush(delayMs = 400): void {
  * Command Center Global Alert Tile) fires at most once per alert per account.
  */
 export async function syncCrossDeviceNotificationState(
-  explicitSession?: any
+  explicitSession?: any,
+  options?: { force?: boolean }
 ): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   if (localStorage.getItem('sanctuary_local_only') === 'true') return false;
   if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+  if (
+    !options?.force &&
+    lastNotificationSyncCompletedAt > 0 &&
+    Date.now() - lastNotificationSyncCompletedAt < 30_000
+  ) {
+    return true;
+  }
   if (inFlightNotificationSync) return inFlightNotificationSync;
 
   inFlightNotificationSync = (async () => {
@@ -1628,6 +1637,7 @@ export async function syncCrossDeviceNotificationState(
         const initialPayload = buildLocalNotificationSyncPayload();
         const pushed = await pushEncryptedNotificationSyncState(initialPayload, session);
         if (pushed) {
+          lastNotificationSyncCompletedAt = Date.now();
           try {
             localStorage.setItem(LAST_SYNC_AT_KEY, new Date().toISOString());
           } catch {}
@@ -1811,6 +1821,8 @@ export async function syncCrossDeviceNotificationState(
       try {
         localStorage.setItem(LAST_SYNC_AT_KEY, new Date().toISOString());
       } catch {}
+
+      lastNotificationSyncCompletedAt = Date.now();
 
       if (globalAlertsChanged) {
         window.dispatchEvent(new CustomEvent('sanctuary_global_alert_sync'));

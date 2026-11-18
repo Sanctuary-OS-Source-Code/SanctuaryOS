@@ -33,6 +33,16 @@ pub struct WorkspaceConfig {
     pub supabase_anon_key: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+pub struct ProtocolHandlerPreferences {
+    #[serde(default)]
+    pub nxm: bool,
+    #[serde(default)]
+    pub ror2mm: bool,
+    #[serde(default)]
+    pub curseforge: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct SolderConfig {
     pub active_workspace_id: Option<String>,
@@ -48,6 +58,10 @@ pub struct SolderConfig {
     pub docs_path: Option<String>,
     #[serde(default)]
     pub vault_path: Option<String>,
+    #[serde(default)]
+    pub malware_protocol_overridden: bool,
+    #[serde(default)]
+    pub external_protocol_handlers: Option<ProtocolHandlerPreferences>,
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -64,7 +78,6 @@ pub struct StructureNode {
 pub struct DeployMod {
     pub path: String,
     #[serde(default)]
-    #[allow(dead_code)]
     pub allow_write: bool,
     pub target_path: Option<String>,
     pub folder_structure: Option<serde_json::Value>,
@@ -72,6 +85,8 @@ pub struct DeployMod {
     pub load_order_index: Option<usize>,
     #[serde(default)]
     pub priority_tier: Option<String>,
+    #[serde(default)]
+    pub hidden_files: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -104,6 +119,9 @@ pub struct SecurityState {
     pub malware_hashes: std::sync::Mutex<Vec<String>>,
     pub tier2_hashes: std::sync::Mutex<Vec<String>>,
     pub volatile_original_paths: std::sync::Mutex<HashMap<String, String>>,
+    pub malware_protocol_overridden: std::sync::atomic::AtomicBool,
+    pub startup_deep_links: std::sync::Mutex<Vec<String>>,
+    pub deep_link_listener_ready: std::sync::atomic::AtomicBool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -179,4 +197,8 @@ pub struct HistoryEntry {
     pub name: Option<String>,
 }
 
-pub struct DownloadsWatcherState(pub std::sync::Mutex<Option<std::sync::mpsc::Sender<()>>>);
+#[derive(Default)]
+pub struct DownloadsWatcherState {
+    pub shutdown_tx: std::sync::Mutex<Option<std::sync::mpsc::Sender<()>>>,
+    pub extensions: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<String>>>,
+}

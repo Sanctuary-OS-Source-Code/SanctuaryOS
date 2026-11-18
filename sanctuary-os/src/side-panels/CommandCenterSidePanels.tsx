@@ -1,7 +1,10 @@
 import React, { useMemo, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useLexicon } from "../LexiconContext";
 import { useStore } from "../store";
 import { useModalStore } from "../store/modalStore";
+import { isDesktop } from "../utils/envUtils";
+import { notifyOS } from "../utils/notificationHelper";
 import {
   SidePanel,
   PanelHeaderGroup,
@@ -259,6 +262,7 @@ export function groupUpdateMods(rawList: any[]): any[] {
 
 export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: any) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isDirectDownloading, setIsDirectDownloading] = useState(false);
   const showImages = useStore((state: any) => state.showImages);
   const image =
     showImages &&
@@ -281,6 +285,11 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
     activeGameSchema,
     { url: update.download_url || update.url }
   );
+  const rawExplicitUrl = String(update.download_url || update.url || "").trim();
+  const hasDirectHttpsUrl =
+    isDesktop() &&
+    /^https:\/\//i.test(rawExplicitUrl) &&
+    !/\.json(\?.*)?$/i.test(rawExplicitUrl);
   const directTargetUrl = update.download_url || update.url || resolvedFallbackUrl;
   const modIcon = getModIcon(update, activeGameSchema, t);
 
@@ -307,11 +316,68 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
     ? t("type_script", "Script")
     : t("type_package", "Module");
 
-  const openUpdateTarget = (e?: React.MouseEvent) => {
+  const openUpdateTarget = async (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
+    if (hasDirectHttpsUrl) {
+      if (isDirectDownloading) return;
+      setIsDirectDownloading(true);
+      try {
+        const rawRes = await invoke<string>("download_and_ingest_direct_artifact", {
+          url: rawExplicitUrl,
+          expectedSha256: update.expected_sha256 || update.newSha256 || null,
+          targetFolder: null,
+          forceReplace: true,
+          suggestedFileName: null,
+        });
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(rawRes);
+        } catch {}
+        if (parsed?.__fomod_wizard && parsed?.plan) {
+          useModalStore.getState().enqueueInstallerWizard(parsed.plan);
+        } else {
+          const doneMsg = t(
+            "edge_direct_download_complete_msg",
+            "{name} was downloaded, scanned, and installed into your {Vault}."
+          ).replace("{name}", title);
+          notifyOS(t("update_complete_title", "{Mod} Updated"), doneMsg, "SYSTEM");
+          useStore.getState().pushStatus(doneMsg, "success");
+          window.dispatchEvent(new CustomEvent("sanctuary-trigger-radar-sweep"));
+        }
+        return;
+      } catch (err) {
+        const msg = String(err || "");
+        if (msg.includes("SHA256_MISMATCH")) {
+          const mismatchMsg = t(
+            "edge_dl_sha256_mismatch_msg",
+            "Downloaded {mod} archive failed SHA-256 verification and was discarded."
+          );
+          notifyOS(
+            t("edge_dl_sha256_mismatch_title", "Integrity Verification Failed"),
+            mismatchMsg,
+            "MALWARE_ALERT"
+          );
+          useStore.getState().pushStatus(mismatchMsg, "error");
+          return;
+        }
+        if (
+          msg.includes("MALWARE") ||
+          msg.includes("DNA_MATCH") ||
+          msg.includes("SETTINGS_CONFLICT")
+        ) {
+          return;
+        }
+        // HTML login/CAPTCHA gates or HTTP/network errors seamlessly fall back to browser view
+        handleOpenUrl(rawExplicitUrl);
+        return;
+      } finally {
+        setIsDirectDownloading(false);
+      }
+    }
+
     const targetUrl =
       directTargetUrl ||
       `https://www.google.com/search?q=${encodeURIComponent(
@@ -462,16 +528,33 @@ export function UpdateModCard({ update, handleOpenUrl, t, activeGameSchema }: an
 
           <button
             type="button"
+            disabled={isDirectDownloading}
             onClick={openUpdateTarget}
-            className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all shrink-0 cursor-pointer"
+            className="relative group/actionbtn w-7 h-7 rounded-lg glass-surface border border-[color-mix(in_srgb,var(--text)_12%,transparent)] hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] text-[var(--subtext)] hover:text-[var(--accent)] flex items-center justify-center transition-all shrink-0 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
           >
-            <span className="material-symbols-outlined !text-[15px]">
-              {t("icon_open_in_new", "open_in_new")}
+            <span
+              className={`material-symbols-outlined !text-[15px] ${
+                isDirectDownloading ? "animate-spin" : ""
+              }`}
+            >
+              {isDirectDownloading
+                ? t("icon_progress_activity", "progress_activity")
+                : hasDirectHttpsUrl
+                  ? t("icon_download", "download")
+                  : t("icon_open_in_new", "open_in_new")}
             </span>
             <HoverTooltip
               className="z-[100] !right-0 !translate-x-0 !left-auto"
-              title={t("btn_update", "Update")}
-              icon={t("icon_update", "update")}
+              title={
+                hasDirectHttpsUrl
+                  ? t("btn_update", "Update")
+                  : t("edge_open_download_page", "Open Source")
+              }
+              icon={
+                hasDirectHttpsUrl
+                  ? t("icon_download", "download")
+                  : t("icon_update", "update")
+              }
               variant="accent"
             />
           </button>

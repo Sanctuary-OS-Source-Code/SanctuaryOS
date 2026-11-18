@@ -293,6 +293,132 @@ function installBlueprintObject(parsed: any): { name: string; missingCount: numb
   return { name: finalName, missingCount: missing.length };
 }
 
+export function translateExternalModlistToBlueprint(
+  fileName: string,
+  parsed: any
+): Record<string, any> | null {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+
+  // 1. Modrinth .mrpack (`modrinth.index.json`)
+  if (parsed.formatVersion === 1 && Array.isArray(parsed.files)) {
+    const modHashes: Record<string, string> = {};
+    const modMeta: Record<string, any> = {};
+    const mods: any[] = [];
+    for (const f of parsed.files) {
+      const leaf = String(f?.path || "").split(/[\\/]/).pop()?.trim() || "";
+      if (!leaf) continue;
+      const hash = String(f?.hashes?.sha256 || f?.hashes?.sha512 || f?.hashes?.sha1 || "").trim();
+      const url = Array.isArray(f?.downloads) ? String(f.downloads[0] || "").trim() : "";
+      if (hash) modHashes[leaf] = hash;
+      if (url) modMeta[leaf] = { url };
+      mods.push(hash || url ? { name: leaf, ...(hash ? { hash } : {}), ...(url ? { url } : {}) } : leaf);
+    }
+    return {
+      sanctuary_profile: true,
+      name: String(parsed.name || getFileStem(fileName) || "Modrinth Modpack").trim(),
+      description: String(parsed.summary || ""),
+      mods,
+      modHashes,
+      modMeta,
+      source_format: "mrpack",
+    };
+  }
+
+  // 2. CurseForge (`manifest.json`)
+  if (
+    (parsed.manifestType === "minecraftModpack" || Boolean(parsed.minecraft)) &&
+    Array.isArray(parsed.files)
+  ) {
+    const mods: string[] = [];
+    for (const f of parsed.files) {
+      const explicitName = String(f?.fileName || f?.name || "").trim();
+      const pid = f?.projectID ?? f?.projectId;
+      const fid = f?.fileID ?? f?.fileId;
+      const label = explicitName || (pid ? `curseforge-${pid}-${fid || "latest"}` : "");
+      if (label) mods.push(label);
+    }
+    return {
+      sanctuary_profile: true,
+      name: String(parsed.name || getFileStem(fileName) || "CurseForge Modpack").trim(),
+      author: String(parsed.author || ""),
+      version: String(parsed.version || ""),
+      mods,
+      modHashes: {},
+      source_format: "curseforge",
+    };
+  }
+
+  // 3. Nexus Collections (`collection.json`)
+  if (parsed.info && typeof parsed.info === "object" && Array.isArray(parsed.mods)) {
+    const modHashes: Record<string, string> = {};
+    const modMeta: Record<string, any> = {};
+    const mods: any[] = [];
+    for (const m of parsed.mods) {
+      const leaf = String(
+        m?.source?.logicalFilename || m?.name || m?.domainName || ""
+      ).trim();
+      if (!leaf) continue;
+      const md5 = String(m?.source?.md5 || "").trim();
+      const url = String(m?.source?.url || "").trim();
+      if (md5) modHashes[leaf] = md5;
+      if (url) modMeta[leaf] = { url };
+      mods.push(md5 || url ? { name: leaf, ...(md5 ? { hash: md5 } : {}), ...(url ? { url } : {}) } : leaf);
+    }
+    const loadRules = Array.isArray(parsed.modRules)
+      ? parsed.modRules
+          .map((r: any, idx: number) => {
+            const modA = String(r?.source?.logicalFilename || r?.sourceName || r?.source || "").trim();
+            const modB = String(r?.reference?.logicalFilename || r?.referenceName || r?.reference || "").trim();
+            const rawType = String(r?.type || "").toLowerCase();
+            if (!modA || !modB || (rawType !== "before" && rawType !== "after")) return null;
+            return { id: `rosetta_${idx}`, modA, modB, type: rawType as "before" | "after" };
+          })
+          .filter(Boolean)
+      : [];
+    return {
+      sanctuary_profile: true,
+      name: String(parsed.info?.name || getFileStem(fileName) || "Nexus Collection").trim(),
+      author: String(parsed.info?.author || ""),
+      mods,
+      modHashes,
+      modMeta,
+      loadRules,
+      source_format: "nexus_collection",
+    };
+  }
+
+  // 4. Wabbajack (`modlist` JSON)
+  if (
+    Array.isArray(parsed.Archives) &&
+    (typeof parsed.Name === "string" || parsed.ModListType !== undefined)
+  ) {
+    const modHashes: Record<string, string> = {};
+    const modMeta: Record<string, any> = {};
+    const mods: any[] = [];
+    for (const a of parsed.Archives) {
+      const leaf = String(a?.Name || a?.State?.PrimaryKeyString || "").trim();
+      if (!leaf) continue;
+      const hash = String(a?.Hash || "").trim();
+      const url = String(a?.State?.Url || "").trim();
+      if (hash) modHashes[leaf] = hash;
+      if (url) modMeta[leaf] = { url };
+      mods.push(hash || url ? { name: leaf, ...(hash ? { hash } : {}), ...(url ? { url } : {}) } : leaf);
+    }
+    return {
+      sanctuary_profile: true,
+      name: String(parsed.Name || getFileStem(fileName) || "Wabbajack Modlist").trim(),
+      author: String(parsed.Author || ""),
+      version: String(parsed.Version || ""),
+      mods,
+      modHashes,
+      modMeta,
+      source_format: "wabbajack",
+    };
+  }
+
+  return null;
+}
+
 export async function installDroppedJsonAssets(
   paths: string[],
   opts: {
@@ -306,6 +432,8 @@ export async function installDroppedJsonAssets(
     return (
       lower.endsWith(".json") ||
       lower.endsWith(".zip") ||
+      lower.endsWith(".mrpack") ||
+      lower.endsWith(".wabbajack") ||
       lower.endsWith(".png") ||
       lower.endsWith(".jpg") ||
       lower.endsWith(".jpeg") ||
@@ -346,6 +474,19 @@ export async function installDroppedJsonAssets(
     const parsed = tryParseJson(rawText);
     if (!parsed) return false;
     if (isEdgeSidecarPayload(fileName, parsed)) return false;
+
+    const rosettaBlueprint = translateExternalModlistToBlueprint(fileName, parsed);
+    if (rosettaBlueprint) {
+      const bp = installBlueprintObject(rosettaBlueprint);
+      await invoke("save_dropped_os_asset", {
+        assetKind: "blueprint",
+        fileName: `${bp.name}.json`,
+        content: JSON.stringify(rosettaBlueprint, null, 2),
+      }).catch(() => {});
+      handledCount++;
+      summaryLabels.push(bp.name);
+      return true;
+    }
 
     if (isMasterSchemaPayload(parsed)) {
       const schemaId = String(parsed.id || parsed.game_id || getFileStem(fileName)).trim() || "custom";

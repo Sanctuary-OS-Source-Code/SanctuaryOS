@@ -167,6 +167,9 @@ export interface WorkspacePatchCacheEntry {
   cloudModVersions: Map<string, any[]>;
   fetchedModIds: Set<string>;
   lastCloudFetch: number;
+  poolItems: any[];
+  lastPoolFetch: number;
+  lastPoolModCount: number;
   companionSnapshots?: VaultCompanionSnapshot[];
   lastCompanionFetch?: number;
   lastReportsCache?: {
@@ -184,7 +187,6 @@ export interface WorkspacePatchCacheEntry {
     isPatchDetected: boolean;
     defconLevel: number;
     cloudTick: number;
-    t: any;
     result: BlueprintPatchReport[];
   };
 }
@@ -203,6 +205,9 @@ export function getOrCreateWorkspaceCache(wsId: string): WorkspacePatchCacheEntr
       cloudModVersions: new Map<string, any[]>(),
       fetchedModIds: new Set<string>(),
       lastCloudFetch: 0,
+      poolItems: [],
+      lastPoolFetch: 0,
+      lastPoolModCount: -1,
     };
     patchSimulatorCache.set(key, entry);
   }

@@ -194,8 +194,13 @@ export function GameManagementOversight() {
         );
         useStore.getState().pushStatus(`Deleted DLC Pack ${panelTarget.id}`, "success");
         fetchDlcs();
-      } else if (sidePanelMode === 'edit_category' && panelTarget?._db_id) {
-        await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'taxonomy', p_id: panelTarget._db_id });
+      } else if (sidePanelMode === 'edit_category' && (panelTarget?._db_id || (Array.isArray(panelTarget?._db_ids) && panelTarget._db_ids.length > 0))) {
+        const dbIds: string[] = Array.isArray(panelTarget?._db_ids) && panelTarget._db_ids.length > 0
+          ? panelTarget._db_ids
+          : [panelTarget._db_id];
+        for (const dbId of dbIds) {
+          await supabase.rpc('secure_delete_cloud_file', { p_token: useStore.getState().session?.access_token || '', p_target: 'taxonomy', p_id: dbId });
+        }
         await logArchitectAction(
           `Deleted Category ${panelTarget.id}`,
           'taxonomy',
@@ -315,6 +320,16 @@ export function GameManagementOversight() {
           p_target: 'taxonomy',
           p_payload: taxonomyPayload,
         });
+        if (sidePanelMode === 'edit_category' && Array.isArray(panelTarget?._db_ids) && panelTarget._db_ids.length > 1) {
+          const duplicateIds = panelTarget._db_ids.filter((id: string) => id && id !== panelTarget?._db_id);
+          for (const dupId of duplicateIds) {
+            await supabase.rpc('secure_delete_cloud_file', {
+              p_token: useStore.getState().session?.access_token || '',
+              p_target: 'taxonomy',
+              p_id: dupId,
+            });
+          }
+        }
         await logArchitectAction(
           `${sidePanelMode === 'add_category' ? 'Added' : 'Edited'} Category ${cleanCatId}`,
           'taxonomy',

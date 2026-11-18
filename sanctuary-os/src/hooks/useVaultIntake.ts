@@ -94,20 +94,34 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
       }
 
       let successCount = 0;
+      let wizardCount = 0;
       let lastError = "";
 
       let dnaMatchCount = 0;
       for (let i = 0; i < paths.length; i++) {
         setIngestProgress({ active: true, current: i + 1, total: paths.length });
         try {
-          await invoke("ingest_dropped_file", {
+          const resStr = await invoke<string>("ingest_dropped_file", {
             path: paths[i],
             forceReplace: false,
             targetFolder: groupFolder,
             moveOriginal,
           });
-          needsSweep = true;
-          successCount++;
+          let handledAsWizard = false;
+          if (typeof resStr === "string" && resStr.trim().startsWith("{")) {
+            try {
+              const parsed = JSON.parse(resStr);
+              if (parsed?.__fomod_wizard && parsed?.plan?.session_id) {
+                useModalStore.getState().enqueueInstallerWizard(parsed.plan);
+                handledAsWizard = true;
+                wizardCount++;
+              }
+            } catch {}
+          }
+          if (!handledAsWizard) {
+            needsSweep = true;
+            successCount++;
+          }
         } catch (err) {
           if (err === "DNA_MATCH" || err === "SETTINGS_CONFLICT" || err === "ZIP_DNA_MATCH") {
             dnaMatchCount++;
@@ -121,6 +135,8 @@ export function useVaultIntake(runRadarSweep: (silent?: boolean, forceDetect?: b
       
       if (successCount > 0) {
         setStatus(t("status_ingest_success", "{Mods} Imported Successfully!"));
+      } else if (wizardCount > 0) {
+        setStatus(t("fomod_wizard_awaiting_choices", "Installer wizard ready — select package options to complete import."));
       } else if (lastError) {
         setStatus(`${t("status_link_failed", "Link Failed:")}${lastError}`);
       } else if (dnaMatchCount > 0) {

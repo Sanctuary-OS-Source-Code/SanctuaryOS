@@ -1,7 +1,7 @@
 # Sanctuary OS — Global Compliance Protocol
 
-**Document Version:** V6.3 (v0.6.0-Dev.14)  
-**Last Updated:** November 14, 2026  
+**Document Version:** V6.4 (v0.6.0-Dev.15)  
+**Last Updated:** November 18, 2026  
 
 ---
 
@@ -38,7 +38,7 @@ Sanctuary OS is designed and operated specifically to fall outside social media,
 
 ### 2.3. Nexus Asset Upload Hardgate (Minus Blueprints)
 * **Verified Mason Hardgate on Nexus Assets:** All cloud **Nexus Asset uploads** (`nexus_assets` — **Chameleon Themes**, **Sparse Delta Lexicons**, and **Workbench Configuration Templates** — alongside **Collections** and cloud Mod Registry records) are strictly locked to **Verified Masons** (`is_verified_mason_or_staff()` + Core `game-gateway` enforcement) and authorized Spoke Staff. **Partner Spokes (`Wayfinders`) cannot override, bypass, or disable the Verified Mason hardgate.** (Unverified Citizens retain strictly local JSON import/export in their offline Open Workshop.)
-* **Narrow Cloud Blueprint Exception:** Citizen-shareable **Cloud Blueprints (`SNCXXX`)** are strictly non-media JSON loadouts consisting exclusively of cryptographic SHA-256 / Blake3 DNA hashes, slot identifiers, and game-version compatibility strings (`zero uploaded binary files, zero executable code, and zero user-uploaded images or media`) and remain automatically scrubbed of any confirmed Tier 1–5 hash by `trg_purge_flagged_hash_from_blueprints`.
+* **Narrow Cloud Blueprint Exception:** Citizen-shareable **Cloud Blueprints (`SNCXXX`)** are strictly non-media JSON loadouts consisting exclusively of cryptographic SHA-256 DNA hashes, slot identifiers, and game-version compatibility strings (`zero uploaded binary files, zero executable code, and zero user-uploaded images or media`) and remain automatically scrubbed of any confirmed Tier 1–5 hash by `trg_purge_flagged_hash_from_blueprints`.
 
 ### 2.4. Minor Safety, Age Eligibility & Structural Tier-0 Airgap
 * **Age Thresholds:** General Citizen accounts require users to be **13 years or older** (or the higher minimum digital-consent age required by local law); all Verified Creator (`Verified Mason`) and moderation/operator clearances (`Architect` through `Keeper`) require **18+ adult majority** plus hardware/biometric FIDO2 Passkey enrollment.
@@ -69,7 +69,7 @@ Partners must ensure their internal moderation teams (`Architect`, `Oversight`, 
 ---
 
 ## 4. MALWARE ENFORCEMENT, DUAL-TIER HEURISTICS & ZERO-TOLERANCE (TIER 5)
-Sanctuary OS employs a **Universal Multi-Format Rust Heuristic Scanner** alongside cryptographic Blake3 / SHA-256 DNA signature verification to protect Citizens across every supported game engine and file container (`.zip`, `.7z`, `.rar`, `.jar`, `.pak`, `.rpf`, `.dll`, `.asi`, `.exe`, `.app`, `.py`, `.pyc`, `.pyo`, and compressed binary chunk streams).
+Sanctuary OS employs a **Universal Multi-Format Rust Heuristic Scanner** alongside cryptographic SHA-256 DNA signature verification to protect Citizens across every supported game engine and file container (`.zip`, `.7z`, `.rar`, `.jar`, `.pak`, `.rpf`, `.dll`, `.asi`, `.exe`, `.app`, `.py`, `.pyc`, `.pyo`, and compressed binary chunk streams).
 
 ### 4.1. Dual-Tier Heuristic Governance
 * **Core Heuristics (`keeper_heuristic_signatures` on Hub DB):** Maintained exclusively by Keepers Core. Enforces baseline cross-game protection against OS-level execution and exfiltration vectors (`os.system`, `subprocess.Popen`, `ctypes.windll`, `discord.com/api/webhooks`, `urllib.request.urlopen`, `base64.b64decode`, marshaled Python bytecode symbol chains, and PE/Mach-O/ELF wide-string payloads). Core Heuristics are compiled using thread-safe `OnceLock` regex sets in Rust, are read-only at the Spoke level, and cannot be disabled by Partner administrators.
@@ -78,7 +78,7 @@ Sanctuary OS employs a **Universal Multi-Format Rust Heuristic Scanner** alongsi
 ### 4.2. Compliance Tier 5 (Confirmed Malware & Full-OS Quarantine Lockdown)
 * **Definition:** Any artifact containing malicious code, unauthorized executable scripts, credential stealers, webhook exfiltrators, remote-code-execution (RCE) payloads, or destructive routines.
 * **Full-OS Quarantine SidePanel Lockdown (`MalwareAlertModal`):** If Sanctuary OS detects a confirmed Tier 5 DNA hash or critical heuristic hit during ingestion or a Radar Sweep, the OS immediately halts game execution, isolates the asset into the airgapped `Quarantine/` sector, locks the entire OS shell (Sidebar and Top-Right Control Capsule), and opens the **Quarantine Lockdown SidePanel**. Back-to-back malware detections are queued asynchronously so the UI never freezes.
-* **Transparent Attribution & Citizen-Signed Secure Shred:** The Quarantine Lockdown SidePanel displays the exact **Triggered By** vector (`Known Malware Hash` vs. `Heuristic Hit` pattern) and **Detection Source** (`Spoke Registry • <Spoke Name>` or `Sanctuary Foundry`). Neutralization requires the **Citizen's Signature** to execute a destructive byte-level **Secure Shred** in Rust. Upon shredding, optional anonymous Quarantine Manifests (File Name, DNA Hash, and Threat Signature) are routed to `quarantine_manifests` for global cluster neutralization.
+* **Transparent Attribution & Citizen-Signed Secure Shred:** The Quarantine Lockdown SidePanel displays the exact **Triggered By** vector (`Known Malware Hash` vs. `Heuristic Hit` pattern) and **Detection Source** (`Spoke Registry • <Spoke Name>` or `Sanctuary Foundry`). Neutralization requires the **Citizen's Signature** to execute an irreversible zero-fill byte-level **Secure Shred** (zero-fill overwrite, flush, and unlink) in Rust. Upon shredding, optional opt-in Zero-PII Threat Manifests (File Name, SHA-256 DNA Hash, and Threat Signature — completely unlinked from user identity) may be routed to `public.malware_reports` for global cluster neutralization.
 
 ### 4.3. Partner Obligation for Tier 5
 Partners must never host, endorse, or intentionally allow Tier 5 DNA to propagate within their Spoke Database. If a Partner discovers malware within their community, their `Oversight` or `Wayfinder` team must immediately confirm its DNA hash as `compliance_tier = 5` and `status = 'corrupted'` to trigger network-wide neutralization and automatic pruning from all public Cloud Blueprints.

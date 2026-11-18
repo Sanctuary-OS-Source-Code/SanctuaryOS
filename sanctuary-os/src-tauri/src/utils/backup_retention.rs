@@ -172,6 +172,15 @@ pub fn remove_backup_dir_cow_safe(dir: &Path) -> std::io::Result<()> {
     std::fs::remove_dir_all(dir)
 }
 
+fn read_snapshot_manifest_lane(dir: &Path) -> Option<String> {
+    let raw = std::fs::read_to_string(dir.join(".delta_manifest.json")).ok()?;
+    let val: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    val.get("lane")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_ascii_lowercase())
+        .filter(|s| s == "engine" || s == "world")
+}
+
 pub fn enforce_retention_policy(target_dir: &Path, keep_count: u32) {
     if keep_count >= 999 {
         return;
@@ -190,8 +199,12 @@ pub fn enforce_retention_policy(target_dir: &Path, keep_count: u32) {
             let is_archive = p.is_file()
                 && (p.extension() == Some(std::ffi::OsStr::new("zst"))
                     || p.extension() == Some(std::ffi::OsStr::new("tar")));
-            let is_snapshot_dir =
-                p.is_dir() && (name.starts_with("World_State") || name.starts_with("Engine_Core"));
+            let is_snapshot_dir = p.is_dir()
+                && !name.starts_with('.')
+                && !matches!(name.as_str(), "World" | "Engine" | "Mods" | "Config")
+                && (name.starts_with("World_State")
+                    || name.starts_with("Engine_Core")
+                    || p.join(".delta_manifest.json").exists());
             if is_archive || is_snapshot_dir {
                 backups.push(p);
             }
@@ -296,9 +309,22 @@ pub fn enforce_backup_capacity_limit(backup_dirs: &[PathBuf], capacity_gb: u32) 
                 let is_archive = p.is_file()
                     && (p.extension() == Some(std::ffi::OsStr::new("zst"))
                         || p.extension() == Some(std::ffi::OsStr::new("tar")));
+                let manifest_lane = if p.is_dir() {
+                    read_snapshot_manifest_lane(&p)
+                } else {
+                    None
+                };
                 let is_world = name.starts_with("World_State");
-                let is_engine = name.starts_with("Engine_Core");
-                let is_snapshot_dir = p.is_dir() && (is_world || is_engine);
+                let is_engine = manifest_lane
+                    .as_deref()
+                    .map(|l| l == "engine")
+                    .unwrap_or_else(|| {
+                        name.starts_with("Engine_Core") || name.contains("Engine")
+                    });
+                let is_snapshot_dir = p.is_dir()
+                    && !name.starts_with('.')
+                    && !matches!(name.as_str(), "World" | "Engine" | "Mods" | "Config")
+                    && (is_world || is_engine || manifest_lane.is_some());
                 if is_archive || is_snapshot_dir {
                     let bytes = estimate_backup_snapshot_physical_bytes(&p);
                     snapshots.push((p, bytes, is_engine));

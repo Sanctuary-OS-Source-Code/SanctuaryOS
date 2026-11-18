@@ -26,6 +26,7 @@ import {
 } from '../utils/workspaceConfigMatch';
 import enDefaultLexicon from '../lexicons/en-default.json';
 import enSanctuaryLexicon from '../lexicons/en-sanctuary.json';
+import { interpolateGlossaryTokens } from '../utils/glossaryInterpolator';
 import {
   SanctuaryDateFormat,
   DATE_FORMAT_STORAGE_KEY,
@@ -44,14 +45,63 @@ function translateStoreStatus(key: string, fallback: string): string {
       'en-default';
     const dict: Record<string, any> =
       activeLexId === 'en-sanctuary'
-        ? (enSanctuaryLexicon as Record<string, any>)
+        ? { ...(enDefaultLexicon as Record<string, any>), ...(enSanctuaryLexicon as Record<string, any>) }
         : (enDefaultLexicon as Record<string, any>);
     const val = dict?.[key];
-    if (typeof val === 'string' && val.trim().length > 0) {
-      return val;
-    }
+    const raw = typeof val === 'string' && val.trim().length > 0 ? val : fallback;
+    return interpolateGlossaryTokens(raw, dict, activeLexId);
   } catch {}
   return fallback;
+}
+
+export interface AnarchyRules {
+  highlander: boolean;
+  family: boolean;
+  dependencies: boolean;
+  intercept: boolean;
+}
+
+function normalizeAnarchyRules(raw: any): AnarchyRules {
+  return {
+    highlander: raw?.highlander ?? true,
+    family: raw?.family ?? true,
+    dependencies: raw?.dependencies ?? true,
+    intercept: raw?.intercept ?? true,
+  };
+}
+
+function loadPersistedAnarchyRules(): AnarchyRules {
+  try {
+    if (typeof localStorage === 'undefined') return normalizeAnarchyRules({});
+    const saved = localStorage.getItem('sanctuary_anarchy');
+    return normalizeAnarchyRules(saved ? JSON.parse(saved) : {});
+  } catch {
+    return normalizeAnarchyRules({});
+  }
+}
+
+function loadPersistedTier2Hashes(): string[] {
+  try {
+    if (typeof localStorage === 'undefined') return [];
+    const saved = localStorage.getItem('sanctuary_restricted_tier2_hashes');
+    const parsed = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed)
+      ? parsed.map((h) => String(h || '').trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function coerceStatusText(raw: unknown): string {
+  if (raw === null || raw === undefined) return '';
+  if (typeof raw === 'string') return raw;
+  if (typeof (raw as any)?.message === 'string') return (raw as any).message;
+  try {
+    return String(raw);
+  } catch {
+    return '';
+  }
 }
 
 export const getSafeSchema = (raw: any, fallbackId: string) => {
@@ -946,8 +996,10 @@ interface GlobalState {
   setShelterActive: (active: boolean) => void;
   backupList: any[];
   setBackupList: (list: any[]) => void;
-  anarchyRules: { highlander: boolean, family: boolean, dependencies: boolean, intercept: boolean };
-  setAnarchyRules: (rules: any) => void;
+  anarchyRules: AnarchyRules;
+  setAnarchyRules: (rules: AnarchyRules | ((prev: AnarchyRules) => AnarchyRules)) => void;
+  tier2Hashes: string[];
+  setTier2Hashes: (hashes: string[]) => void;
   ownedDLC: string[];
   setOwnedDLC: (dlcs: string[]) => void;
   maskedDLC: string[];
@@ -1125,18 +1177,23 @@ export const useStore = create<GlobalState>((set) => ({
   setIsAlertsOpen: (isOpen) => set({ isAlertsOpen: isOpen }),
   status: translateStoreStatus('status_standing_by', 'Standing By'),
   setStatus: (rawStatus) => set((state) => {
-    if ((window as any)._statusTimeout) clearTimeout((window as any)._statusTimeout);
-
-    if (!rawStatus || rawStatus.trim() === '') {
-      return { status: rawStatus || translateStoreStatus('status_standing_by', 'Standing By') };
+    if (typeof window !== 'undefined' && (window as any)._statusTimeout) {
+      clearTimeout((window as any)._statusTimeout);
     }
-    const status = scrubLogUserData(rawStatus);
+
+    const cleanRaw = coerceStatusText(rawStatus);
+    if (!cleanRaw || cleanRaw.trim() === '') {
+      return { status: cleanRaw || translateStoreStatus('status_standing_by', 'Standing By') };
+    }
+    const status = scrubLogUserData(cleanRaw);
     const type = inferStatusLogType(status, 'info');
 
     const durationMs = type === 'error' ? 4500 : 2500;
-    (window as any)._statusTimeout = setTimeout(() => {
-      useStore.setState({ status: translateStoreStatus('status_standing_by', 'Standing By') });
-    }, durationMs);
+    if (typeof window !== 'undefined') {
+      (window as any)._statusTimeout = setTimeout(() => {
+        useStore.setState({ status: translateStoreStatus('status_standing_by', 'Standing By') });
+      }, durationMs);
+    }
 
     const nextLog = buildUpdatedStatusLog(
       state.statusLog,
@@ -1159,18 +1216,23 @@ export const useStore = create<GlobalState>((set) => ({
   setCwMainTab: (tab) => set({ cwMainTab: tab }),
   statusLog: loadPersistedStatusLog(),
   pushStatus: (rawMessage, type = 'info') => set((state) => {
-    if ((window as any)._statusTimeout) clearTimeout((window as any)._statusTimeout);
-
-    if (!rawMessage || rawMessage.trim() === '') {
-      return { status: rawMessage || translateStoreStatus('status_standing_by', 'Standing By') };
+    if (typeof window !== 'undefined' && (window as any)._statusTimeout) {
+      clearTimeout((window as any)._statusTimeout);
     }
-    const message = scrubLogUserData(rawMessage);
+
+    const cleanRaw = coerceStatusText(rawMessage);
+    if (!cleanRaw || cleanRaw.trim() === '') {
+      return { status: cleanRaw || translateStoreStatus('status_standing_by', 'Standing By') };
+    }
+    const message = scrubLogUserData(cleanRaw);
     const finalType = inferStatusLogType(message, type);
 
     const durationMs = finalType === 'error' ? 4500 : 2500;
-    (window as any)._statusTimeout = setTimeout(() => {
-      useStore.setState({ status: translateStoreStatus('status_standing_by', 'Standing By') });
-    }, durationMs);
+    if (typeof window !== 'undefined') {
+      (window as any)._statusTimeout = setTimeout(() => {
+        useStore.setState({ status: translateStoreStatus('status_standing_by', 'Standing By') });
+      }, durationMs);
+    }
 
     const nextLog = buildUpdatedStatusLog(
       state.statusLog,
@@ -1301,8 +1363,22 @@ export const useStore = create<GlobalState>((set) => ({
   setShelterActive: (shelterActive) => set({ shelterActive }),
   backupList: [],
   setBackupList: (backupList) => set({ backupList }),
-  anarchyRules: { highlander: true, family: true, dependencies: true, intercept: true },
-  setAnarchyRules: (anarchyRules) => set({ anarchyRules }),
+  anarchyRules: loadPersistedAnarchyRules(),
+  setAnarchyRules: (rulesInput) => set((state) => {
+    const rawNext =
+      typeof rulesInput === 'function' ? rulesInput(state.anarchyRules) : rulesInput;
+    const normalized = normalizeAnarchyRules({ ...state.anarchyRules, ...(rawNext || {}) });
+    safeLocalStorageSetItem('sanctuary_anarchy', JSON.stringify(normalized));
+    return { anarchyRules: normalized };
+  }),
+  tier2Hashes: loadPersistedTier2Hashes(),
+  setTier2Hashes: (hashes) => {
+    const clean = Array.isArray(hashes)
+      ? Array.from(new Set(hashes.map((h) => String(h || '').trim()).filter(Boolean)))
+      : [];
+    safeLocalStorageSetItem('sanctuary_restricted_tier2_hashes', JSON.stringify(clean));
+    set({ tier2Hashes: clean });
+  },
   ownedDLC: loadOwnedDLC(initialBootWorkspaceId),
   setOwnedDLC: (ownedDLC) => set((state) => {
     const wsId = state.activeWorkspaceId || initialBootWorkspaceId;

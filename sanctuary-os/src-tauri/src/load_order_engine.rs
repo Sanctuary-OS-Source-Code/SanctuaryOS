@@ -13,7 +13,11 @@ pub struct ExtractedModMetadata {
     pub mod_name: Option<String>,
     pub mod_version: Option<String>,
     pub uuid: Option<String>,
+    #[serde(default)]
+    pub publish_handle: Option<String>,
     pub author: Option<String>,
+    #[serde(default)]
+    pub header_flags: u32,
     pub dependencies: Vec<String>,
     pub load_before: Vec<String>,
     pub load_after: Vec<String>,
@@ -30,6 +34,10 @@ pub struct OrderedDeployEntry {
     pub tier_priority: i32,
     pub deployed_path: Option<PathBuf>,
 }
+
+pub const TES4_FLAG_ESM: u32 = 0x0001;
+pub const TES4_FLAG_LIGHT: u32 = 0x0200;
+pub const TES4_FLAG_MEDIUM: u32 = 0x0800;
 
 fn xml_escape(raw: &str) -> String {
     raw.replace('&', "&amp;")
@@ -125,21 +133,22 @@ fn extract_lsx_attribute_value(xml: &str, attr_id: &str) -> Option<String> {
     None
 }
 
-fn extract_tes_masters_and_author(bytes: &[u8]) -> (Vec<String>, Option<String>) {
+fn extract_tes_masters_and_author(bytes: &[u8]) -> (Vec<String>, Option<String>, u32) {
     let mut masters = Vec::new();
     let mut author: Option<String> = None;
     if bytes.len() < 24 {
-        return (masters, author);
+        return (masters, author, 0);
     }
     let header_magic = &bytes[0..4];
-    let (hdr_len, data_size) = if header_magic == b"TES4" {
+    let (hdr_len, data_size, header_flags) = if header_magic == b"TES4" {
         let size = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) as usize;
-        (24usize, size)
+        let flags = u32::from_le_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]);
+        (24usize, size, flags)
     } else if header_magic == b"TES3" {
         let size = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) as usize;
-        (16usize, size)
+        (16usize, size, 0u32)
     } else {
-        return (masters, author);
+        return (masters, author, 0);
     };
 
     let end = hdr_len.saturating_add(data_size).min(bytes.len());
@@ -173,7 +182,7 @@ fn extract_tes_masters_and_author(bytes: &[u8]) -> (Vec<String>, Option<String>)
             continue;
         }
     }
-    (masters, author)
+    (masters, author, header_flags)
 }
 
 fn parse_manifest_text_into_meta(
@@ -241,6 +250,11 @@ fn parse_manifest_text_into_meta(
                             first.get("Version64").or_else(|| first.get("Version")).unwrap_or(&serde_json::Value::Null),
                         );
                     }
+                    if meta.publish_handle.is_none() {
+                        meta.publish_handle = json_val_to_string(
+                            first.get("PublishHandle").unwrap_or(&serde_json::Value::Null),
+                        );
+                    }
                 }
             }
         }
@@ -248,6 +262,9 @@ fn parse_manifest_text_into_meta(
     }
 
     if matches!(ext_lower, "xml" | "lsx" | "modinfo") {
+        if meta.publish_handle.is_none() {
+            meta.publish_handle = extract_lsx_attribute_value(clean, "PublishHandle");
+        }
         if let Some(k) = extractor.id_key.as_deref() {
             meta.mod_id = meta
                 .mod_id
@@ -282,6 +299,38 @@ fn parse_manifest_text_into_meta(
                 .clone()
                 .or_else(|| extract_lsx_attribute_value(clean, k))
                 .or_else(|| extract_xml_tag_value(clean, k));
+        }
+        if let Ok(doc) = roxmltree::Document::parse(clean) {
+            for dep_region in doc.descendants().filter(|n| {
+                n.has_tag_name("node")
+                    && n.attribute("id")
+                        .map_or(false, |id| id.eq_ignore_ascii_case("Dependencies"))
+            }) {
+                for desc_node in dep_region.descendants().filter(|n| {
+                    n.has_tag_name("node")
+                        && n.attribute("id")
+                            .map_or(false, |id| id.eq_ignore_ascii_case("ModuleShortDesc"))
+                }) {
+                    for attr_node in desc_node.children().filter(|n| n.has_tag_name("attribute")) {
+                        let attr_id = attr_node.attribute("id").unwrap_or("");
+                        if matches!(attr_id, "UUID" | "Folder" | "Name") {
+                            if let Some(val) = attr_node
+                                .attribute("value")
+                                .map(str::trim)
+                                .filter(|v| !v.is_empty())
+                            {
+                                if !meta
+                                    .dependencies
+                                    .iter()
+                                    .any(|d| d.eq_ignore_ascii_case(val))
+                                {
+                                    meta.dependencies.push(val.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         return;
     }
@@ -332,7 +381,8 @@ pub fn extract_metadata_for_path(
                     let mut buf = vec![0u8; 64 * 1024];
                     if let Ok(n) = f.read(&mut buf) {
                         buf.truncate(n);
-                        let (masters, author) = extract_tes_masters_and_author(&buf);
+                        let (masters, author, flags) = extract_tes_masters_and_author(&buf);
+                        meta.header_flags = flags;
                         if !masters.is_empty() {
                             meta.dependencies.extend(masters.clone());
                             meta.masters = masters;
@@ -374,31 +424,74 @@ pub fn extract_metadata_for_path(
                     .to_ascii_lowercase();
                 if matches!(ext_l.as_str(), "zip" | "jar" | "pak") {
                     if let Ok(f) = fs::File::open(path) {
-                        if let Ok(mut archive) = zip::ZipArchive::new(f) {
+                        let file_len = f.metadata().map(|m| m.len()).unwrap_or(0);
+                        let mut magic = [0u8; 4];
+                        let mut reader = std::io::BufReader::new(f);
+                        let is_lspk = reader.read_exact(&mut magic).is_ok() && &magic == b"LSPK";
+                        if is_lspk {
+                            let lspk_entries =
+                                crate::commands::radar_containers::parse_lspk_index(&mut reader, file_len);
                             for mfile in &extractor.manifest_files {
                                 let m_lower = mfile.to_ascii_lowercase();
-                                for idx in 0..archive.len() {
-                                    if let Ok(mut entry) = archive.by_index(idx) {
-                                        let e_name = entry.name().to_ascii_lowercase();
-                                        let leaf = e_name.rsplit('/').next().unwrap_or(&e_name);
-                                        if (e_name == m_lower || leaf == m_lower)
-                                            && entry.size() <= 2 * 1024 * 1024
-                                        {
-                                            let mut text = String::new();
-                                            if entry.read_to_string(&mut text).is_ok() {
-                                                let e_ext = Path::new(leaf)
-                                                    .extension()
-                                                    .and_then(|e| e.to_str())
-                                                    .unwrap_or("json")
-                                                    .to_ascii_lowercase();
-                                                parse_manifest_text_into_meta(
-                                                    &text,
-                                                    &e_ext,
-                                                    extractor,
-                                                    &mut meta,
-                                                );
+                                if let Some(found_entry) = lspk_entries.iter().find(|e| {
+                                    let en = e.name.to_ascii_lowercase();
+                                    let leaf = en.rsplit('/').next().unwrap_or(&en);
+                                    en == m_lower || leaf == m_lower
+                                }) {
+                                    if let Some(bytes) = crate::commands::radar_containers::read_lspk_entry_bytes(
+                                        &mut reader,
+                                        file_len,
+                                        found_entry,
+                                    ) {
+                                        if let Ok(text) = String::from_utf8(bytes) {
+                                            let leaf = found_entry
+                                                .name
+                                                .rsplit('/')
+                                                .next()
+                                                .unwrap_or(&found_entry.name);
+                                            let e_ext = Path::new(leaf)
+                                                .extension()
+                                                .and_then(|e| e.to_str())
+                                                .unwrap_or("lsx")
+                                                .to_ascii_lowercase();
+                                            parse_manifest_text_into_meta(
+                                                &text,
+                                                &e_ext,
+                                                extractor,
+                                                &mut meta,
+                                            );
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        } else if let Ok(f_zip) = fs::File::open(path) {
+                            if let Ok(mut archive) = zip::ZipArchive::new(f_zip) {
+                                for mfile in &extractor.manifest_files {
+                                    let m_lower = mfile.to_ascii_lowercase();
+                                    for idx in 0..archive.len() {
+                                        if let Ok(mut entry) = archive.by_index(idx) {
+                                            let e_name = entry.name().to_ascii_lowercase();
+                                            let leaf = e_name.rsplit('/').next().unwrap_or(&e_name);
+                                            if (e_name == m_lower || leaf == m_lower)
+                                                && entry.size() <= 2 * 1024 * 1024
+                                            {
+                                                let mut text = String::new();
+                                                if entry.read_to_string(&mut text).is_ok() {
+                                                    let e_ext = Path::new(leaf)
+                                                        .extension()
+                                                        .and_then(|e| e.to_str())
+                                                        .unwrap_or("json")
+                                                        .to_ascii_lowercase();
+                                                    parse_manifest_text_into_meta(
+                                                        &text,
+                                                        &e_ext,
+                                                        extractor,
+                                                        &mut meta,
+                                                    );
+                                                }
+                                                break;
                                             }
-                                            break;
                                         }
                                     }
                                 }
@@ -711,42 +804,561 @@ fn write_xml_list_manifest(
     crate::utils::atomic_write_bytes(target_path, final_xml.as_bytes())
 }
 
+fn is_valid_uuid_like(raw: &str) -> bool {
+    let s = raw.trim();
+    if s.len() != 36 {
+        return false;
+    }
+    let b = s.as_bytes();
+    for (idx, ch) in b.iter().enumerate() {
+        if matches!(idx, 8 | 13 | 18 | 23) {
+            if *ch != b'-' {
+                return false;
+            }
+        } else if !ch.is_ascii_hexdigit() {
+            return false;
+        }
+    }
+    true
+}
+
+fn write_lsx_module_short_desc(
+    out: &mut String,
+    folder: &str,
+    name: &str,
+    uuid: &str,
+    version64: &str,
+    publish_handle: &str,
+) {
+    out.push_str(&format!(
+        "            <node id=\"ModuleShortDesc\">\n              <attribute id=\"Folder\" type=\"LSString\" value=\"{}\"/>\n              <attribute id=\"MD5\" type=\"LSString\" value=\"\"/>\n              <attribute id=\"Name\" type=\"LSString\" value=\"{}\"/>\n              <attribute id=\"PublishHandle\" type=\"uint64\" value=\"{}\"/>\n              <attribute id=\"UUID\" type=\"FixedString\" value=\"{}\"/>\n              <attribute id=\"Version64\" type=\"int64\" value=\"{}\"/>\n            </node>\n",
+        xml_escape(folder),
+        xml_escape(name),
+        xml_escape(publish_handle),
+        xml_escape(uuid),
+        xml_escape(version64)
+    ));
+}
+
 fn write_bg3_modsettings_lsx(
     target_path: &Path,
+    desc: &ManifestTargetDescriptor,
     entries: &[OrderedDeployEntry],
 ) -> Result<(), String> {
-    let mut mod_order_nodes = String::new();
     let mut mods_nodes = String::new();
+    let mut seen_uuids = std::collections::HashSet::<String>::new();
+
+    for base in &desc.base_entries {
+        let base_uuid = base.uuid.trim();
+        if !is_valid_uuid_like(base_uuid) {
+            continue;
+        }
+        let lower = base_uuid.to_ascii_lowercase();
+        if seen_uuids.insert(lower) {
+            write_lsx_module_short_desc(
+                &mut mods_nodes,
+                base.folder.trim(),
+                base.name.trim(),
+                base_uuid,
+                base.version64.as_deref().unwrap_or("36028797018963968"),
+                base.publish_handle.as_deref().unwrap_or("0"),
+            );
+        }
+    }
 
     for e in entries {
-        let uuid = e
-            .metadata
-            .uuid
-            .as_deref()
-            .filter(|u| !u.trim().is_empty())
-            .unwrap_or(e.stem.as_str());
+        let Some(uuid_raw) = e.metadata.uuid.as_deref().map(str::trim) else {
+            continue;
+        };
+        if !is_valid_uuid_like(uuid_raw) {
+            continue;
+        }
+        if !seen_uuids.insert(uuid_raw.to_ascii_lowercase()) {
+            continue;
+        }
         let folder = e.metadata.mod_id.as_deref().unwrap_or(e.stem.as_str());
         let name = e.metadata.mod_name.as_deref().unwrap_or(folder);
-        let ver64 = e.metadata.mod_version.as_deref().unwrap_or("36028797018963968");
-
-        mod_order_nodes.push_str(&format!(
-            "            <node id=\"Module\">\n              <attribute id=\"UUID\" type=\"guid\" value=\"{}\"/>\n            </node>\n",
-            xml_escape(uuid)
-        ));
-        mods_nodes.push_str(&format!(
-            "            <node id=\"ModuleShortDesc\">\n              <attribute id=\"Folder\" type=\"LSString\" value=\"{}\"/>\n              <attribute id=\"MD5\" type=\"LSString\" value=\"\"/>\n              <attribute id=\"Name\" type=\"LSString\" value=\"{}\"/>\n              <attribute id=\"UUID\" type=\"guid\" value=\"{}\"/>\n              <attribute id=\"Version64\" type=\"int64\" value=\"{}\"/>\n            </node>\n",
-            xml_escape(folder),
-            xml_escape(name),
-            xml_escape(uuid),
-            xml_escape(ver64)
-        ));
+        let ver64 = e
+            .metadata
+            .mod_version
+            .as_deref()
+            .filter(|v| v.chars().all(|c| c.is_ascii_digit()))
+            .unwrap_or("36028797018963968");
+        let publish_handle = e.metadata.publish_handle.as_deref().unwrap_or("0");
+        write_lsx_module_short_desc(&mut mods_nodes, folder, name, uuid_raw, ver64, publish_handle);
     }
 
     let lsx = format!(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<save>\n  <version major=\"4\" minor=\"0\" revision=\"9\" build=\"331\"/>\n  <region id=\"ModuleSettings\">\n    <node id=\"root\">\n      <children>\n        <node id=\"ModOrder\">\n          <children>\n{}          </children>\n        </node>\n        <node id=\"Mods\">\n          <children>\n{}          </children>\n        </node>\n      </children>\n    </node>\n  </region>\n</save>\n",
-        mod_order_nodes, mods_nodes
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<save>\n  <version major=\"4\" minor=\"7\" revision=\"1\" build=\"3\"/>\n  <region id=\"ModuleSettings\">\n    <node id=\"root\">\n      <children>\n        <node id=\"ModOrder\"/>\n        <node id=\"Mods\">\n          <children>\n{}          </children>\n        </node>\n      </children>\n    </node>\n  </region>\n</save>\n",
+        mods_nodes
     );
     crate::utils::atomic_write_bytes(target_path, lsx.as_bytes())
+}
+
+fn resolve_local_appdata_root(schema: &Option<GameSchema>, live_root: &Path) -> Option<PathBuf> {
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(app_id) = schema
+            .as_ref()
+            .and_then(|s| s.steam_app_id.as_deref())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            let rel_pfx = format!("compatdata/{}/pfx/drive_c/users/steamuser/AppData/Local", app_id);
+            let mut candidates: Vec<PathBuf> = Vec::new();
+            for anc in live_root.ancestors() {
+                if anc.file_name().and_then(|n| n.to_str()).map_or(false, |n| n.eq_ignore_ascii_case("steamapps")) {
+                    candidates.push(anc.join(&rel_pfx));
+                    break;
+                }
+            }
+            if let Some(home) = dirs::home_dir() {
+                candidates.push(home.join(".steam/steam/steamapps").join(&rel_pfx));
+                candidates.push(home.join(".local/share/Steam/steamapps").join(&rel_pfx));
+                candidates.push(home.join(".var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps").join(&rel_pfx));
+            }
+            for cand in candidates {
+                if cand.exists() {
+                    return Some(cand);
+                }
+            }
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = (schema, live_root);
+    dirs::data_local_dir()
+}
+
+fn entry_matches_include_extensions(entry: &OrderedDeployEntry, include_exts: &[String]) -> bool {
+    if include_exts.is_empty() {
+        return true;
+    }
+    let fname_lower = entry.file_name.to_ascii_lowercase();
+    include_exts.iter().any(|ext| {
+        let norm = if ext.trim().starts_with('.') {
+            ext.trim().to_ascii_lowercase()
+        } else {
+            format!(".{}", ext.trim().to_ascii_lowercase())
+        };
+        !norm.is_empty() && norm != "." && fname_lower.ends_with(&norm)
+    })
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SlotBucketUsage {
+    pub id: String,
+    pub label: String,
+    pub used: u32,
+    pub max_slots: u32,
+    pub over_limit: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct MissingMasterDiagnostic {
+    pub mod_name: String,
+    pub missing_master: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CompiledLoadOrderDiagnostics {
+    pub sorted_files: Vec<String>,
+    pub slot_usage: Vec<SlotBucketUsage>,
+    pub missing_masters: Vec<MissingMasterDiagnostic>,
+    pub cycle_chains: Vec<Vec<String>>,
+}
+
+fn entry_matches_extension_list(file_name: &str, exts: &[String]) -> bool {
+    if exts.is_empty() {
+        return true;
+    }
+    let lower = file_name.to_ascii_lowercase();
+    exts.iter().any(|raw| {
+        let norm = if raw.trim().starts_with('.') {
+            raw.trim().to_ascii_lowercase()
+        } else {
+            format!(".{}", raw.trim().to_ascii_lowercase())
+        };
+        !norm.is_empty() && norm != "." && lower.ends_with(&norm)
+    })
+}
+
+fn collect_baseline_filenames_for_load_order(
+    mods_dir: &Path,
+    live_root: &Path,
+) -> std::collections::HashSet<String> {
+    let mut set = std::collections::HashSet::new();
+    let mut dirs_to_check = vec![mods_dir.to_path_buf(), live_root.to_path_buf()];
+    let resolved_data = crate::utils::resolve_case_insensitive_path(live_root, "Data");
+    if resolved_data != mods_dir {
+        dirs_to_check.push(resolved_data);
+    }
+    for d in dirs_to_check {
+        if !d.is_dir() {
+            continue;
+        }
+        if let Ok(rd) = fs::read_dir(&d) {
+            for entry in rd.flatten() {
+                if entry.path().is_file() {
+                    let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+                    if !name.is_empty() {
+                        set.insert(name);
+                    }
+                }
+            }
+        }
+    }
+    set
+}
+
+pub fn solve_entries_dag_and_slots(
+    entries: &mut Vec<OrderedDeployEntry>,
+    lo_cfg: Option<&LoadOrderConfig>,
+    baseline_present_lower: &std::collections::HashSet<String>,
+) -> CompiledLoadOrderDiagnostics {
+    use std::cmp::Reverse;
+    use std::collections::{BinaryHeap, HashMap, HashSet};
+
+    let n = entries.len();
+    if n == 0 {
+        return CompiledLoadOrderDiagnostics::default();
+    }
+
+    let mut id_lookup: HashMap<String, usize> = HashMap::new();
+    for (idx, e) in entries.iter().enumerate() {
+        for cand in [
+            Some(e.file_name.as_str()),
+            Some(e.stem.as_str()),
+            e.metadata.mod_id.as_deref(),
+            e.metadata.uuid.as_deref(),
+            e.metadata.mod_name.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            let norm = cand.trim().to_ascii_lowercase();
+            if !norm.is_empty() {
+                id_lookup.entry(norm).or_insert(idx);
+            }
+        }
+    }
+
+    let resolve_ref = |raw_ref: &str| -> Option<usize> {
+        let norm = raw_ref
+            .trim()
+            .replace('\\', "/")
+            .rsplit('/')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_ascii_lowercase();
+        if norm.is_empty() {
+            None
+        } else {
+            id_lookup.get(&norm).copied()
+        }
+    };
+
+    let mut adj: Vec<Vec<usize>> = vec![Vec::new(); n];
+    let mut edge_seen: HashSet<(usize, usize)> = HashSet::new();
+    let mut missing_masters: Vec<MissingMasterDiagnostic> = Vec::new();
+    let mut missing_seen: HashSet<(String, String)> = HashSet::new();
+
+    for v in 0..n {
+        let entry_v = &entries[v];
+        for master in &entry_v.metadata.masters {
+            let m_replaced = master.trim().replace('\\', "/");
+            let m_clean = m_replaced
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+                .trim();
+            let m_low = m_clean.to_ascii_lowercase();
+            if m_low.is_empty() {
+                continue;
+            }
+            if let Some(u) = id_lookup.get(&m_low).copied() {
+                if u != v && edge_seen.insert((u, v)) {
+                    adj[u].push(v);
+                }
+            } else if !baseline_present_lower.contains(&m_low)
+                && missing_seen.insert((entry_v.file_name.to_ascii_lowercase(), m_low))
+            {
+                missing_masters.push(MissingMasterDiagnostic {
+                    mod_name: entry_v.file_name.clone(),
+                    missing_master: m_clean.to_string(),
+                });
+            }
+        }
+        for dep in entry_v
+            .metadata
+            .dependencies
+            .iter()
+            .chain(entry_v.metadata.load_after.iter())
+        {
+            if let Some(u) = resolve_ref(dep) {
+                if u != v && edge_seen.insert((u, v)) {
+                    adj[u].push(v);
+                }
+            }
+        }
+        for target_after in &entry_v.metadata.load_before {
+            if let Some(w) = resolve_ref(target_after) {
+                if w != v && edge_seen.insert((v, w)) {
+                    adj[v].push(w);
+                }
+            }
+        }
+    }
+
+    // 3-color DFS cycle detection so circular manifests never deadlock Kahn's sort
+    let mut color: Vec<u8> = vec![0; n];
+    let mut stack: Vec<usize> = Vec::new();
+    let mut skipped_edges: HashSet<(usize, usize)> = HashSet::new();
+    let mut cycle_chains: Vec<Vec<String>> = Vec::new();
+
+    fn dfs_cycles(
+        u: usize,
+        adj: &[Vec<usize>],
+        entries: &[OrderedDeployEntry],
+        color: &mut [u8],
+        stack: &mut Vec<usize>,
+        skipped_edges: &mut HashSet<(usize, usize)>,
+        cycle_chains: &mut Vec<Vec<String>>,
+    ) {
+        color[u] = 1;
+        stack.push(u);
+        for &v in &adj[u] {
+            if color[v] == 0 {
+                dfs_cycles(v, adj, entries, color, stack, skipped_edges, cycle_chains);
+            } else if color[v] == 1 {
+                skipped_edges.insert((u, v));
+                if let Some(pos) = stack.iter().position(|&node| node == v) {
+                    let mut chain: Vec<String> = stack[pos..]
+                        .iter()
+                        .map(|&idx| entries[idx].file_name.clone())
+                        .collect();
+                    chain.push(entries[v].file_name.clone());
+                    cycle_chains.push(chain);
+                }
+            }
+        }
+        stack.pop();
+        color[u] = 2;
+    }
+
+    for i in 0..n {
+        if color[i] == 0 && !adj[i].is_empty() {
+            dfs_cycles(
+                i,
+                &adj,
+                entries,
+                &mut color,
+                &mut stack,
+                &mut skipped_edges,
+                &mut cycle_chains,
+            );
+        }
+    }
+
+    let early_flag_mask = lo_cfg.and_then(|c| c.early_master_flag_mask).unwrap_or(0);
+    let early_exts = lo_cfg
+        .and_then(|c| c.early_master_extensions.as_deref())
+        .unwrap_or(&[]);
+    let early_pin_ranks: Vec<u8> = entries
+        .iter()
+        .map(|e| {
+            let by_flag = early_flag_mask != 0 && (e.metadata.header_flags & early_flag_mask) != 0;
+            let by_ext = !early_exts.is_empty() && entry_matches_extension_list(&e.file_name, early_exts);
+            if by_flag || by_ext { 0 } else { 1 }
+        })
+        .collect();
+
+    let mut in_degree = vec![0usize; n];
+    let mut dag_adj: Vec<Vec<usize>> = vec![Vec::new(); n];
+    for u in 0..n {
+        for &v in &adj[u] {
+            if !skipped_edges.contains(&(u, v)) {
+                dag_adj[u].push(v);
+                in_degree[v] += 1;
+            }
+        }
+    }
+
+    let mut heap: BinaryHeap<Reverse<(u8, usize)>> = BinaryHeap::new();
+    for i in 0..n {
+        if in_degree[i] == 0 {
+            heap.push(Reverse((early_pin_ranks[i], i)));
+        }
+    }
+
+    let mut order: Vec<usize> = Vec::with_capacity(n);
+    let mut emitted = vec![false; n];
+    while let Some(Reverse((_, u))) = heap.pop() {
+        if emitted[u] {
+            continue;
+        }
+        emitted[u] = true;
+        order.push(u);
+        for &v in &dag_adj[u] {
+            if in_degree[v] > 0 {
+                in_degree[v] -= 1;
+                if in_degree[v] == 0 {
+                    heap.push(Reverse((early_pin_ranks[v], v)));
+                }
+            }
+        }
+    }
+    for i in 0..n {
+        if !emitted[i] {
+            order.push(i);
+        }
+    }
+
+    let reordered: Vec<OrderedDeployEntry> = order.into_iter().map(|i| entries[i].clone()).collect();
+    *entries = reordered;
+
+    let mut slot_usage = Vec::new();
+    if let Some(buckets) = lo_cfg.and_then(|c| c.slot_buckets.as_ref()) {
+        for b in buckets {
+            let mut used: u32 = 0;
+            for e in entries.iter() {
+                if !entry_matches_extension_list(&e.file_name, &b.include_extensions) {
+                    continue;
+                }
+                if let Some(req) = b.required_flag_mask {
+                    if (e.metadata.header_flags & req) != req {
+                        continue;
+                    }
+                }
+                if let Some(excl) = b.excluded_flag_mask {
+                    if (e.metadata.header_flags & excl) != 0 {
+                        continue;
+                    }
+                }
+                used = used.saturating_add(1);
+            }
+            slot_usage.push(SlotBucketUsage {
+                id: b.id.clone(),
+                label: if b.label.trim().is_empty() {
+                    b.id.clone()
+                } else {
+                    b.label.clone()
+                },
+                used,
+                max_slots: b.max_slots,
+                over_limit: b.max_slots > 0 && used > b.max_slots,
+            });
+        }
+    }
+
+    let sorted_files = entries.iter().map(|e| e.file_name.clone()).collect();
+    CompiledLoadOrderDiagnostics {
+        sorted_files,
+        slot_usage,
+        missing_masters,
+        cycle_chains,
+    }
+}
+
+#[tauri::command]
+pub async fn evaluate_blueprint_load_order_diagnostics(
+    paths: Vec<String>,
+    mods_path: String,
+    state: tauri::State<'_, crate::AppState>,
+) -> Result<CompiledLoadOrderDiagnostics, String> {
+    let schema = state
+        .active_schema
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let coords = crate::commands::state_ops::get_saved_coordinates();
+        let vault_mods_lane = if !coords.vault_path.trim().is_empty() {
+            crate::utils::get_vault_mods_lane(&coords.vault_path)
+        } else {
+            PathBuf::new()
+        };
+        let eff_mods_dir = if !mods_path.trim().is_empty() {
+            PathBuf::from(mods_path.trim())
+        } else {
+            PathBuf::from(coords.mods_path.trim())
+        };
+        let live_root = crate::game_logic::resolve_game_engine_root(&coords.live_path, &schema);
+        let allowed_roots = crate::utils::get_allowed_workspace_roots(&coords);
+
+        let mut entries: Vec<OrderedDeployEntry> = Vec::new();
+        for raw in paths {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let p_raw = PathBuf::from(trimmed);
+            let resolved_opt = if p_raw.is_absolute() {
+                if !allowed_roots.is_empty()
+                    && crate::utils::ensure_path_within_roots(&p_raw, &allowed_roots).is_ok()
+                    && p_raw.exists()
+                {
+                    Some(p_raw)
+                } else {
+                    None
+                }
+            } else {
+                let rel_norm = trimmed.replace('\\', "/");
+                let clean_rel = rel_norm.trim_start_matches('/');
+                let cand_vault = vault_mods_lane.join(clean_rel);
+                let cand_mods = eff_mods_dir.join(clean_rel);
+                if !vault_mods_lane.as_os_str().is_empty() && cand_vault.exists() {
+                    Some(cand_vault)
+                } else if !eff_mods_dir.as_os_str().is_empty() && cand_mods.exists() {
+                    Some(cand_mods)
+                } else if let Some(leaf) = Path::new(clean_rel).file_name() {
+                    let v_leaf = vault_mods_lane.join(leaf);
+                    let m_leaf = eff_mods_dir.join(leaf);
+                    if !vault_mods_lane.as_os_str().is_empty() && v_leaf.exists() {
+                        Some(v_leaf)
+                    } else if !eff_mods_dir.as_os_str().is_empty() && m_leaf.exists() {
+                        Some(m_leaf)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            };
+
+            let fname = Path::new(trimmed)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(trimmed)
+                .to_string();
+            let stem = Path::new(&fname)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&fname)
+                .to_string();
+            let metadata = match resolved_opt.as_deref() {
+                Some(rp) if crate::utils::is_safe_user_file_path(rp) => {
+                    extract_metadata_for_path(rp, &schema)
+                }
+                _ => ExtractedModMetadata::default(),
+            };
+            entries.push(OrderedDeployEntry {
+                rel_path: trimmed.replace('\\', "/"),
+                file_name: fname,
+                stem,
+                metadata,
+                tier_folder: None,
+                tier_priority: 0,
+                deployed_path: resolved_opt,
+            });
+        }
+
+        let lo_cfg = schema.as_ref().and_then(|s| s.load_order.as_ref());
+        let baseline = collect_baseline_filenames_for_load_order(&eff_mods_dir, &live_root);
+        Ok(solve_entries_dag_and_slots(&mut entries, lo_cfg, &baseline))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 pub fn apply_load_order_outputs(
@@ -762,6 +1374,8 @@ pub fn apply_load_order_outputs(
     let strategy = crate::game_logic::get_load_order_strategy(schema);
 
     let mut effective_entries = entries.to_vec();
+    let baseline = collect_baseline_filenames_for_load_order(mods_dir, live_root);
+    let _ = solve_entries_dag_and_slots(&mut effective_entries, lo_cfg, &baseline);
     apply_direction_to_entries(&mut effective_entries, lo_cfg);
 
     if strategy == "timestamp" {
@@ -779,9 +1393,13 @@ pub fn apply_load_order_outputs(
             if rel.is_empty() {
                 continue;
             }
-            let base_root = match desc.root_source.to_ascii_lowercase().as_str() {
+            let local_appdata_root = resolve_local_appdata_root(schema, live_root);
+            let base_root: &Path = match desc.root_source.to_ascii_lowercase().as_str() {
                 "docs_path" | "user_data" | "documents" => docs_root,
                 "live_path" | "game" | "engine" => live_root,
+                "local_appdata" | "appdata_local" => {
+                    local_appdata_root.as_deref().unwrap_or(Path::new(""))
+                }
                 _ => mods_dir,
             };
             if base_root.as_os_str().is_empty() {
@@ -801,11 +1419,17 @@ pub fn apply_load_order_outputs(
                 let _ = fs::create_dir_all(parent);
             }
 
+            let filtered_entries: Vec<OrderedDeployEntry> = effective_entries
+                .iter()
+                .filter(|e| entry_matches_include_extensions(e, &desc.include_extensions))
+                .cloned()
+                .collect();
+
             let fmt_lower = desc.format.trim().to_ascii_lowercase();
             let res = match fmt_lower.as_str() {
                 "plugins_asterisk" => {
                     let mut lines = vec!["# Automatically generated by Sanctuary OS".to_string()];
-                    for e in &effective_entries {
+                    for e in &filtered_entries {
                         lines.push(format!("*{}", e.file_name));
                     }
                     crate::utils::atomic_write_bytes(
@@ -813,18 +1437,18 @@ pub fn apply_load_order_outputs(
                         format!("{}\n", lines.join("\n")).as_bytes(),
                     )
                 }
-                "ini_section" => write_ini_section_manifest(&target_path, desc, &effective_entries, index_base),
-                "json_array" => write_json_manifest(&target_path, desc, &effective_entries, false),
-                "json_object_array" => write_json_manifest(&target_path, desc, &effective_entries, true),
-                "xml_list" => write_xml_list_manifest(&target_path, desc, &effective_entries),
-                "bg3_modsettings_lsx" => write_bg3_modsettings_lsx(&target_path, &effective_entries),
+                "ini_section" => write_ini_section_manifest(&target_path, desc, &filtered_entries, index_base),
+                "json_array" => write_json_manifest(&target_path, desc, &filtered_entries, false),
+                "json_object_array" => write_json_manifest(&target_path, desc, &filtered_entries, true),
+                "xml_list" => write_xml_list_manifest(&target_path, desc, &filtered_entries),
+                "bg3_modsettings_lsx" => write_bg3_modsettings_lsx(&target_path, desc, &filtered_entries),
                 _ => {
                     let tpl = desc.template.as_deref().filter(|t| !t.trim().is_empty()).unwrap_or("{file}");
                     let mut parts = Vec::new();
                     if let Some(h) = desc.header.as_deref().filter(|s| !s.trim().is_empty()) {
                         parts.push(h.trim_end().to_string());
                     }
-                    for (idx, e) in effective_entries.iter().enumerate() {
+                    for (idx, e) in filtered_entries.iter().enumerate() {
                         parts.push(render_entry_template(tpl, e, idx, index_base));
                     }
                     if let Some(f) = desc.footer.as_deref().filter(|s| !s.trim().is_empty()) {
@@ -886,7 +1510,9 @@ mod tests {
                 mod_name: Some(mod_id.to_string()),
                 mod_version: Some("1.2.3".to_string()),
                 uuid: Some(uuid.to_string()),
+                publish_handle: Some("0".to_string()),
                 author: Some("Tester".to_string()),
+                header_flags: 0,
                 dependencies: vec![],
                 load_before: vec![],
                 load_after: vec![],
@@ -927,6 +1553,7 @@ mod tests {
             header: None,
             footer: None,
             encoding: None,
+            ..Default::default()
         };
         write_ini_section_manifest(&ini_path, &ini_desc, &entries, 1).unwrap();
         let ini_out = fs::read_to_string(&ini_path).unwrap();
@@ -947,18 +1574,117 @@ mod tests {
             header: Some("ModsConfigData".into()),
             footer: None,
             encoding: None,
+            ..Default::default()
         };
         write_xml_list_manifest(&xml_path, &xml_desc, &entries).unwrap();
         let xml_out = fs::read_to_string(&xml_path).unwrap();
         assert!(xml_out.contains("<activeMods>"));
         assert!(xml_out.contains("<li>beta</li>"));
 
-        // BG3 modsettings.lsx test
+        // BG3 Patch 7+ modsettings.lsx test with schema base_entries + PublishHandle
         let lsx_path = root.join("modsettings.lsx");
-        write_bg3_modsettings_lsx(&lsx_path, &entries).unwrap();
+        let lsx_desc = ManifestTargetDescriptor {
+            root_source: "docs_path".into(),
+            relative_path: "modsettings.lsx".into(),
+            format: "bg3_modsettings_lsx".into(),
+            base_entries: vec![crate::schema::ManifestBaseEntryDescriptor {
+                uuid: "28ac9ce2-2aba-8cda-b3b5-6e922f71b6b8".into(),
+                name: "BaseModule".into(),
+                folder: "BaseModule".into(),
+                version64: Some("36028797018963968".into()),
+                publish_handle: Some("0".into()),
+            }],
+            ..Default::default()
+        };
+        let mut entries_with_non_uuid = entries.clone();
+        entries_with_non_uuid.push(mk_entry("HelperDll", "helper", ""));
+        write_bg3_modsettings_lsx(&lsx_path, &lsx_desc, &entries_with_non_uuid).unwrap();
         let lsx_out = fs::read_to_string(&lsx_path).unwrap();
-        assert!(lsx_out.contains("<node id=\"ModOrder\">"));
+        assert!(lsx_out.contains("<version major=\"4\" minor=\"7\" revision=\"1\" build=\"3\"/>"));
+        assert!(lsx_out.contains("<node id=\"ModOrder\"/>"));
+        assert!(lsx_out.contains("28ac9ce2-2aba-8cda-b3b5-6e922f71b6b8"));
         assert!(lsx_out.contains("22222222-2222-2222-2222-222222222222"));
+        assert!(lsx_out.contains("<attribute id=\"PublishHandle\" type=\"uint64\" value=\"0\"/>"));
+        assert!(!lsx_out.contains("HelperDll"));
+
+        // Plugin extension allowlist filter test (non-plugin assets excluded)
+        let mut loose_entry = mk_entry("TextureMesh", "tex", "");
+        loose_entry.file_name = "armor.dds".to_string();
+        let mut plugin_entry = mk_entry("ArmorPlugin", "armor", "");
+        plugin_entry.file_name = "ArmorMod.esp".to_string();
+        assert!(entry_matches_include_extensions(
+            &plugin_entry,
+            &[".esm".into(), ".esp".into(), ".esl".into()]
+        ));
+        assert!(!entry_matches_include_extensions(
+            &loose_entry,
+            &[".esm".into(), ".esp".into(), ".esl".into()]
+        ));
+
+        // Synthetic LSPK v18 LZ4 meta.lsx extraction test
+        let lspk_path = root.join("SampleBg3Mod.pak");
+        let meta_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<save>
+  <region id="Config">
+    <node id="root">
+      <children>
+        <node id="ModuleInfo">
+          <attribute id="Author" type="LSString" value="LarianTester"/>
+          <attribute id="Folder" type="LSString" value="SampleModFolder"/>
+          <attribute id="Name" type="LSString" value="Sample Mod"/>
+          <attribute id="PublishHandle" type="uint64" value="424242"/>
+          <attribute id="UUID" type="FixedString" value="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"/>
+          <attribute id="Version64" type="int64" value="72057594037927936"/>
+        </node>
+      </children>
+    </node>
+  </region>
+</save>"#;
+        let meta_bytes = meta_xml.as_bytes();
+        let mut pak_bytes = vec![0u8; 32];
+        let payload_offset = 32u64;
+        pak_bytes.extend_from_slice(meta_bytes);
+        let list_offset = pak_bytes.len() as u64;
+        let mut raw_entry = vec![0u8; 272];
+        let entry_path = b"Mods/SampleModFolder/meta.lsx";
+        raw_entry[..entry_path.len()].copy_from_slice(entry_path);
+        raw_entry[256..260].copy_from_slice(&(payload_offset as u32).to_le_bytes());
+        raw_entry[260..262].copy_from_slice(&0u16.to_le_bytes());
+        raw_entry[262] = 0;
+        raw_entry[263] = 0;
+        raw_entry[264..268].copy_from_slice(&(meta_bytes.len() as u32).to_le_bytes());
+        raw_entry[268..272].copy_from_slice(&(meta_bytes.len() as u32).to_le_bytes());
+        let comp_table = lz4_flex::block::compress(&raw_entry);
+        pak_bytes.extend_from_slice(&1u32.to_le_bytes());
+        pak_bytes.extend_from_slice(&(comp_table.len() as u32).to_le_bytes());
+        pak_bytes.extend_from_slice(&comp_table);
+        let list_size = (8 + comp_table.len()) as u32;
+        pak_bytes[0..4].copy_from_slice(b"LSPK");
+        pak_bytes[4..8].copy_from_slice(&18u32.to_le_bytes());
+        pak_bytes[8..16].copy_from_slice(&list_offset.to_le_bytes());
+        pak_bytes[16..20].copy_from_slice(&list_size.to_le_bytes());
+        fs::write(&lspk_path, &pak_bytes).unwrap();
+
+        let mut lspk_schema = GameSchema::default();
+        lspk_schema.mod_metadata_extractor = Some(SchemaModMetadataExtractor {
+            manifest_files: vec!["meta.lsx".into()],
+            id_key: Some("Folder".into()),
+            name_key: Some("Name".into()),
+            uuid_key: Some("UUID".into()),
+            version_key: Some("Version64".into()),
+            author_key: Some("Author".into()),
+            ..Default::default()
+        });
+        let extracted = extract_metadata_for_path(&lspk_path, &Some(lspk_schema));
+        assert_eq!(extracted.uuid.as_deref(), Some("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"));
+        assert_eq!(extracted.mod_id.as_deref(), Some("SampleModFolder"));
+        assert_eq!(extracted.publish_handle.as_deref(), Some("424242"));
+
+        let toc_keys = crate::commands::radar_containers::extract_container_toc_keys(
+            &lspk_path,
+            &crate::schema::SchemaConflictAnalyzer::default(),
+        );
+        assert!(toc_keys.contains(&"lspk:mods/samplemodfolder/meta.lsx".to_string()));
 
         // TES4 MAST binary header extraction test
         let mut tes4 = Vec::new();
@@ -970,9 +1696,140 @@ mod tests {
         tes4.extend_from_slice(&(sub_data.len() as u32).to_le_bytes());
         tes4.extend_from_slice(&[0u8; 16]);
         tes4.extend_from_slice(&sub_data);
-        let (masters, _) = extract_tes_masters_and_author(&tes4);
+        let (masters, _, _) = extract_tes_masters_and_author(&tes4);
         assert_eq!(masters, vec!["Skyrim.esm".to_string()]);
 
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_topological_dag_masters_and_slot_buckets() {
+        let mut child = mk_entry("ChildPatch.esp", "ChildPatch.esp", "");
+        child.file_name = "ChildPatch.esp".into();
+        child.metadata.masters = vec!["CoreMaster.esm".into(), "MissingDep.esm".into()];
+        child.metadata.header_flags = 0x0200; // ESL light flag
+
+        let mut mid = mk_entry("MidPlugin.esp", "MidPlugin.esp", "");
+        mid.file_name = "MidPlugin.esp".into();
+        mid.metadata.masters = vec!["CoreMaster.esm".into()];
+
+        let mut master = mk_entry("CoreMaster.esm", "CoreMaster.esm", "");
+        master.file_name = "CoreMaster.esm".into();
+        master.metadata.header_flags = 0x0001; // ESM flag
+
+        let mut entries = vec![child, mid, master];
+        let lo_cfg = LoadOrderConfig {
+            early_master_flag_mask: Some(0x0001),
+            early_master_extensions: Some(vec![".esm".into()]),
+            slot_buckets: Some(vec![
+                crate::schema::LoadOrderSlotBucket {
+                    id: "full_plugins".into(),
+                    label: "Full Plugins".into(),
+                    max_slots: 254,
+                    include_extensions: vec![".esm".into(), ".esp".into()],
+                    required_flag_mask: None,
+                    excluded_flag_mask: Some(0x0200),
+                },
+                crate::schema::LoadOrderSlotBucket {
+                    id: "light_plugins".into(),
+                    label: "Light Plugins".into(),
+                    max_slots: 4096,
+                    include_extensions: vec![".esl".into(), ".esp".into(), ".esm".into()],
+                    required_flag_mask: Some(0x0200),
+                    excluded_flag_mask: None,
+                },
+            ]),
+            ..Default::default()
+        };
+
+        let mut baseline = std::collections::HashSet::new();
+        baseline.insert("vanilla.esm".to_string());
+
+        let diag = solve_entries_dag_and_slots(&mut entries, Some(&lo_cfg), &baseline);
+        assert_eq!(
+            diag.sorted_files,
+            vec![
+                "CoreMaster.esm".to_string(),
+                "ChildPatch.esp".to_string(),
+                "MidPlugin.esp".to_string()
+            ]
+        );
+        assert_eq!(diag.missing_masters.len(), 1);
+        assert_eq!(diag.missing_masters[0].missing_master, "MissingDep.esm");
+
+        let full_bucket = diag.slot_usage.iter().find(|b| b.id == "full_plugins").unwrap();
+        let light_bucket = diag.slot_usage.iter().find(|b| b.id == "light_plugins").unwrap();
+        assert_eq!(full_bucket.used, 2); // CoreMaster.esm + MidPlugin.esp
+        assert_eq!(light_bucket.used, 1); // ChildPatch.esp (0x0200)
+        assert!(!full_bucket.over_limit);
+    }
+
+    #[test]
+    fn test_starfield_medium_and_light_flag_buckets() {
+        // Build raw TES4 binary header with Starfield 0x0800 Medium Master flag
+        let mut med_tes4 = Vec::new();
+        med_tes4.extend_from_slice(b"TES4");
+        let mut sub_data = Vec::new();
+        sub_data.extend_from_slice(b"MAST");
+        sub_data.extend_from_slice(&(13u16.to_le_bytes()));
+        sub_data.extend_from_slice(b"Starfield.esm\0");
+        med_tes4.extend_from_slice(&(sub_data.len() as u32).to_le_bytes());
+        med_tes4.extend_from_slice(&TES4_FLAG_MEDIUM.to_le_bytes());
+        med_tes4.extend_from_slice(&[0u8; 12]);
+        med_tes4.extend_from_slice(&sub_data);
+
+        let (med_masters, _, med_flags) = extract_tes_masters_and_author(&med_tes4);
+        assert_eq!(med_masters, vec!["Starfield.esm".to_string()]);
+        assert_eq!(med_flags & TES4_FLAG_MEDIUM, TES4_FLAG_MEDIUM);
+
+        let mut base = mk_entry("FullMaster.esm", "FullMaster.esm", "");
+        base.file_name = "FullMaster.esm".into();
+        base.metadata.header_flags = TES4_FLAG_ESM;
+
+        let mut medium = mk_entry("MediumHub.esm", "MediumHub.esm", "");
+        medium.file_name = "MediumHub.esm".into();
+        medium.metadata.header_flags = med_flags;
+
+        let mut light = mk_entry("LightPatch.esm", "LightPatch.esm", "");
+        light.file_name = "LightPatch.esm".into();
+        light.metadata.header_flags = TES4_FLAG_LIGHT;
+
+        let mut entries = vec![light, medium, base];
+        let lo_cfg = LoadOrderConfig {
+            early_master_flag_mask: Some(TES4_FLAG_ESM),
+            slot_buckets: Some(vec![
+                crate::schema::LoadOrderSlotBucket {
+                    id: "full_plugins".into(),
+                    label: "Full Plugins (00-FC)".into(),
+                    max_slots: 253,
+                    include_extensions: vec![".esm".into(), ".esp".into()],
+                    required_flag_mask: None,
+                    excluded_flag_mask: Some(TES4_FLAG_LIGHT | TES4_FLAG_MEDIUM),
+                },
+                crate::schema::LoadOrderSlotBucket {
+                    id: "medium_plugins".into(),
+                    label: "Medium Masters (FD)".into(),
+                    max_slots: 256,
+                    include_extensions: vec![".esm".into(), ".esp".into()],
+                    required_flag_mask: Some(TES4_FLAG_MEDIUM),
+                    excluded_flag_mask: Some(TES4_FLAG_LIGHT),
+                },
+                crate::schema::LoadOrderSlotBucket {
+                    id: "light_plugins".into(),
+                    label: "Light Masters (FE)".into(),
+                    max_slots: 4096,
+                    include_extensions: vec![".esl".into(), ".esm".into(), ".esp".into()],
+                    required_flag_mask: Some(TES4_FLAG_LIGHT),
+                    excluded_flag_mask: None,
+                },
+            ]),
+            ..Default::default()
+        };
+
+        let baseline = std::collections::HashSet::new();
+        let diag = solve_entries_dag_and_slots(&mut entries, Some(&lo_cfg), &baseline);
+        assert_eq!(diag.slot_usage.iter().find(|b| b.id == "full_plugins").unwrap().used, 1);
+        assert_eq!(diag.slot_usage.iter().find(|b| b.id == "medium_plugins").unwrap().used, 1);
+        assert_eq!(diag.slot_usage.iter().find(|b| b.id == "light_plugins").unwrap().used, 1);
     }
 }

@@ -500,6 +500,7 @@ export function CustomComplianceDropdown({
     { id: 3, label: t("tier_3_label", "Extreme Violence (T3)") || "Extreme Violence (Tier 3)" },
     { id: 4, label: t("tier_4_label", "Taboo / Sensitive (T4)") || "Taboo / Sensitive (Tier 4)" },
     { id: 5, label: t("tier_5_label", "Malware (T5)") || "Malware (Tier 5)" },
+    { id: 6, label: t("tier_6_label", "DMCA / Copyright Hold (T6)") || "DMCA / Copyright Hold (Tier 6)" },
   ];
 
   const options = allOptions.filter((opt) => opt.id >= minTier && opt.id <= maxTier);

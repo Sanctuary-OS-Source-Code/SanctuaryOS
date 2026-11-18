@@ -142,6 +142,9 @@ interface ModalState {
   setPendingPasskeyHandshakes: (val: any[]) => void;
   isPasskeyHandshakePanelOpen: boolean;
   setIsPasskeyHandshakePanelOpen: (val: boolean | ((prev: boolean) => boolean)) => void;
+  installerWizardQueue: any[];
+  enqueueInstallerWizard: (plan: any) => void;
+  shiftInstallerWizard: () => void;
   
   // Browser Features
   sideBrowserUrl: string; // Legacy/Active Tab URL
@@ -1352,5 +1355,18 @@ export const useModalStore = create<ModalState>((set, get) => ({
         typeof isPasskeyHandshakePanelOpen === 'function'
           ? isPasskeyHandshakePanelOpen(state.isPasskeyHandshakePanelOpen)
           : isPasskeyHandshakePanelOpen,
+    })),
+  installerWizardQueue: [],
+  enqueueInstallerWizard: (plan) =>
+    set((state) => {
+      if (!plan?.session_id) return state;
+      if (state.installerWizardQueue.some((p: any) => p?.session_id === plan.session_id)) {
+        return state;
+      }
+      return { installerWizardQueue: [...state.installerWizardQueue, plan] };
+    }),
+  shiftInstallerWizard: () =>
+    set((state) => ({
+      installerWizardQueue: state.installerWizardQueue.slice(1),
     })),
 }));

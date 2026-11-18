@@ -3,6 +3,7 @@ import AssetPreviewSidebar from "../../side-panels/AssetPreviewSidebar";
 import { supabase } from "../../supabase";
 import { useLexicon } from "../../LexiconContext";
 import { useStore } from "../../store";
+import { useModalStore } from "../../store/modalStore";
 import {
   SidePanel, EmptyState, LinkAssetSidePanel, PanelHeaderGroup, PanelHeaderButton,
   extractPostImage, getSafeEditorMarkdown, SidePanelPillToggle, UniversalGroup
@@ -304,7 +305,23 @@ export function MasonPostsEditor({ masonId, masonProfileId, handleOpenMasonProfi
     if (isPinned) {
       const existingPinned = posts.find(p => p.is_pinned && p.id !== editingPostId);
       if (existingPinned) {
-        if (!window.confirm(t("confirm_pin_replace", "Another {dispatch} is already pinned. Are you sure you want to replace it?"))) {
+        const replaceConfirmed = await new Promise<boolean>((resolve) => {
+          useModalStore.getState().setConfirmDialog({
+            title: t("confirm_pin_replace_title", "Replace Pinned {Dispatch}?"),
+            badgeLabel: t("pin_dispatch", "Pin {Dispatch}"),
+            icon: t("icon_push_pin", "push_pin"),
+            message: t("confirm_pin_replace", "Another {dispatch} is already pinned. Are you sure you want to replace it?"),
+            confirmText: t("confirm", "Confirm"),
+            confirmIcon: t("icon_push_pin", "push_pin"),
+            cancelText: t("cancel", "Cancel"),
+            action: () => resolve(true),
+            cancelAction: () => {
+              useModalStore.getState().setConfirmDialog(null);
+              resolve(false);
+            },
+          });
+        });
+        if (!replaceConfirmed) {
           return;
         }
         await supabase.rpc('secure_upsert_cloud_file', {
